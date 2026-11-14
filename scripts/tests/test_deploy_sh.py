@@ -1746,6 +1746,23 @@ class SlowPathShTests(DeployShTests):
         self.assertEqual(build['rolling']['prev']['service'], 'registry.test/tower-service:one')
         self.assertEqual(build['hashes']['service'], record['rolling']['stacks']['service']['hash'])
 
+    def test_a_build_of_a_github_repository_waits_its_rollouts_and_moves_last_sha_itself(self):
+        """DEPLOY-FROM-GITHUB: no service rings the build that would verify a rolling one, so it is never left rolling."""
+        done, head, build = self.start(ORIGIN_REPO_URL='https://github.com/openuniversity-si/open-university.git', STUB_SLEEP='')
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        self.assertEqual((build['status'], self.recorded('/tower/deploy/last-sha')), ('succeeded', head))
+        self.assertNotIn('--no-execute-changeset', (self.state / 'calls').read_text())
+        self.assertIn('rollouts: waited inside the build', done.stdout)
+        self.setUp()  # an explicit DEPLOY_ROLLOUT_WAIT=0 still leaves them rolling, and Origin's URL is as before
+        for env in ({'ORIGIN_REPO_URL': 'https://github.com/openuniversity-si/open-university.git', 'DEPLOY_ROLLOUT_WAIT': '0'},
+                    {'ORIGIN_REPO_URL': 'https://origin.example/owner/repo.git'}):
+            self.setUp()
+            done, head, build = self.start(**env)
+            self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+            self.assertEqual(build['status'], 'rolling', env)
+            self.assertIsNone(self.recorded('/tower/deploy/last-sha'))
+            self.assertNotIn('rollouts: waited inside the build', done.stdout)
+
     def test_a_hard_edge_a_new_stack_a_bisection_or_the_switch_wait_inside_the_build(self):
         done, head, build = self.start(DEPLOY_ROLLOUT_WAIT='1', STUB_SLEEP='')
         self.assertEqual((build['status'], self.recorded('/tower/deploy/last-sha')), ('succeeded', head))

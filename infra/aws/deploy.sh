@@ -49,6 +49,16 @@
 # later boots, builds no image and leaves the service and runner stacks alone: its cycle is the classification and the checks.
 BISECT_EPOCH=2
 set -u
+# DEPLOY-FROM-GITHUB (the migration, 14/11): the build that verifies a `rolling` one (the smoke, the rollback, last-sha) is rung by
+# the service's autodeploy, which reads the forge's pushes on Origin and only while deploy.auto is on. A build of a repository on
+# GitHub is rung by its doorbell job once per merge, and the service rings nothing after it: a build that ended `rolling` left
+# last-sha behind until the next merge (tower-infra-deploy:41a85a3e, 14/11 06:32 UTC: succeeded, last-sha still b77f1f52). So a
+# build of a GitHub repository waits its own rollouts, as DEPLOY_ROLLOUT_WAIT=1 does, and moves last-sha itself; an explicit
+# DEPLOY_ROLLOUT_WAIT (0 or 1) still decides.
+if [[ -z "${DEPLOY_ROLLOUT_WAIT:-}" && "${ORIGIN_REPO_URL:-}" == https://github.com/* ]]; then
+  DEPLOY_ROLLOUT_WAIT=1
+  echo "rollouts: waited inside the build: $ORIGIN_REPO_URL is on GitHub, and no service rings the build that would verify them"
+fi
 
 repo="${DEPLOY_REPO:-repo}"
 tail_chars="${DEPLOY_TAIL_CHARS:-1500}"

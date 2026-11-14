@@ -63,6 +63,7 @@
  "SlowPathShTests.test_a_green_midpoint_moves_good_and_last_sha_and_only_a_failure_sets_bad": 2.71,
  "SlowPathShTests.test_a_green_smoke_keeps_the_deploy": 1.39,
  "SlowPathShTests.test_a_hard_edge_a_new_stack_a_bisection_or_the_switch_wait_inside_the_build": 8.28,
+ "SlowPathShTests.test_a_build_of_a_github_repository_waits_its_rollouts_and_moves_last_sha_itself": 9.0,
  "SlowPathShTests.test_a_head_that_moved_while_rolling_is_deployed_by_the_verifying_build": 4.07,
  "SlowPathShTests.test_a_legacy_state_without_head_tried_also_goes_head_first": 1.59,
  "SlowPathShTests.test_a_migration_is_asked_of_the_live_service_before_the_stacks_and_the_runner_does_not_wait_for_the_service": 2.58,
