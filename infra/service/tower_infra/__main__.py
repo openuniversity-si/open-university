@@ -550,6 +550,8 @@ def serve():
                 timed['reap_after'] = True  # SWAP-SECOND: and its first pass claims before it reaps
             started = workflows.tick(lease, **timed)
             measured.passed(time.monotonic() - began, len(started))  # DB-STALL-EVIDENCE: an idle pass that took long is a stall
+            if order is not None:  # FAST-PATH-RELOAD: a good tick, the proof of a reload by an order of the service alone
+                order.ticked()
             if handed:  # SETTINGS-HANDED: its own read, after its first work
                 handed = False
                 settings.refresh(loop.scope)

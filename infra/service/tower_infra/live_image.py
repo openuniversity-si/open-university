@@ -366,6 +366,32 @@ RELOAD_SAY = ("insert into log.event (event_id, tenant_id, type, occurred_at, pr
 
 # RELOAD-WITHOUT-STANDBY (the module's docstring): the order to load a landed bundle in place, with no standby
 ROLES = ('runner', 'service')  # the order they reload in
+# FAST-PATH-RELOAD (GATE-SHUTDOWN, D-314; the Torre accepted PR #23's design, 14/11): the runner's ECS service is gone, so a
+# code-only merge's deploy build names its bundle in last-build.reload and the live service's autodeploy orders the
+# service alone to load it in place (an order with roles ['service'], by: build). Nobody else can judge such a reload: no
+# runner takes a canary, and the ECS task holds the one role's one process. Its proof is the reloaded process's own good
+# dispatch ticks, PROVE_TICKS of them over PROVE_S at least after it said reloaded, plus the deploy build's smoke; a process
+# that has not proven itself by PROVE_LIMIT_S after its claim says failed and goes back (code_bundle.afresh), and one that
+# cannot does not touch its health file (trusted()), so ECS replaces the task, which boots the code before it. A process
+# that is not the one under test (the task ECS started again after the reloaded one died) judges a claim that never came
+# up within RELOAD_LIMIT_S failed. Such an order is obeyed by exec, never by an in-task successor (held, follow): the
+# successor's swap waits for both roles' beats and its canary for a runner.
+PROVE_TICKS = 5
+PROVE_S = 10.0
+PROVE_LIMIT_S = 90.0
+
+
+def order_roles(order):
+    """FAST-PATH-RELOAD: the roles an order asks to reload, in ROLES' order: its payload's `roles` when it names known
+    roles, else both (an order of a landing on Origin)."""
+    named = order.get('roles') if isinstance(order, dict) else None
+    roles = tuple(role for role in ROLES if isinstance(named, list) and role in named)
+    return roles or ROLES
+
+
+def by_exec(order):
+    """FAST-PATH-RELOAD: an order its roles obey by exec alone (no runner among them: no successor swap, no canary)."""
+    return 'runner' not in order_roles(order)
 ORDER_LIMIT_S = 300  # how long an order is followed: past it no task starts a reload, and the slow path deploys the head
 ORDER_SETTLE_S = 600  # a newer order waits this long at most for one not settled: every reload it started was judged by then
 ORDER_ASK_S = 0.5  # the looks of a task while an order is open
@@ -1678,12 +1704,20 @@ class Order:
         # IN-TASK-STANDBY: the successors this task last told its supervisor to hold (None: never told), and WANTS as read
         self.wanted, self.read = None, None
         self.proven, self.refused = False, False  # of this process's own reload: its judge's green; its bundle failed
+        self.good = None  # FAST-PATH-RELOAD: (first, last, count) of this process's good dispatch ticks since its reload
         self.gave_up = set()  # SUCCESSOR-GAVE-UP: the bundles whose successor was said failed
 
     def trusted(self):
         """Whether this process may keep its health file fresh: not from its reload by an order until its judge says
         proven, and not on a bundle that failed. What neither proves itself nor goes back, ECS replaces."""
         return not self.refused and (self.by is None or self.proven)
+
+    def ticked(self):
+        """FAST-PATH-RELOAD: one good dispatch tick of this process (the service's loop, after a tick that did not raise),
+        counted only while its own reload by an order waits for its proof: nothing else reads it."""
+        if self.by is not None and not self.proven:
+            now = self.gate.clock()
+            self.good = (now, now, 1) if self.good is None else (self.good[0], now, self.good[2] + 1)
 
     def drop(self):
         """Nothing of an order holds this task's work (the runner's drain is over, or was never started)."""
@@ -1779,6 +1813,8 @@ class Order:
         # hour's newest order, done by successors on a bundle it never ran, and held a successor of that old bundle in
         # its one slot, so the bundle of the delivery in the train had none (live 12/11 00:03 to 00:12 UTC: #547 landed
         # with no standby, 16.8 s). The seconds this covers are the swap's to the adoption; ORDER_LIMIT_S is far past them
+        if by_exec(order):  # FAST-PATH-RELOAD: obeyed by exec, never by a successor
+            return False
         return cls.open(order) or (order['age_s'] <= ORDER_LIMIT_S and not order['refused'] and any(
             each.get('by') == 'successors' for each in said(order, None, 'done')))
 
@@ -1796,18 +1832,27 @@ class Order:
         if order['refused']:
             self.refused = True
             return self.back(order, db)
-        proven = {role for role in ROLES if said(order, role, 'proven')}
-        other = ROLES[gate.role == 'runner']
+        roles = order_roles(order)
+        if gate.role not in roles:  # FAST-PATH-RELOAD: an order of another role alone is not this task's
+            self.head = None
+            return self.drop()
+        proven = {role for role in roles if said(order, role, 'proven')}
+        if mine and roles == (gate.role,) and gate.role not in proven:
+            return self.prove(order, db)  # FAST-PATH-RELOAD: the process under test of an order of its role alone
+        others = [role for role in roles if role != gate.role]
+        other = others[0] if others else gate.role  # FAST-PATH-RELOAD: alone, a process not under test judges its role's claim
         if other not in proven:
             verdict = self.judge(order, other, db)
             if verdict is False:
                 return self.drop()  # the bundle failed: nothing loads it
             proven |= {other} if verdict else set()
         if gate.digest == digest or order['age_s'] > ORDER_LIMIT_S:  # this task runs it already, or it is the slow path's now
-            if order['age_s'] > ORDER_LIMIT_S and all(role in proven or not said(order, role, 'started') for role in ROLES):
+            if order['age_s'] > ORDER_LIMIT_S and all(role in proven or not said(order, role, 'started') for role in roles):
                 self.head = None  # and no reload is left to judge: no more looks
             return self.drop()
-        if intask and self.open(order):
+        if roles == (gate.role,) and said(order, gate.role, 'started'):
+            return self.drop()  # FAST-PATH-RELOAD: one claim per order of a role alone; what it became is judged above
+        if intask and self.open(order) and not by_exec(order):
             return self.drop()
         if self.bundle is None or self.bundle[0] != digest:
             try:
@@ -1826,9 +1871,29 @@ class Order:
         started, up = said(order, role, 'started'), {each.get('task') for each in said(order, role, 'reloaded')}
         if any(each.get('task') not in up for each in started) or len(up) >= RELOAD_TASKS:
             return None
-        if role == 'service' and 'runner' not in proven:
+        if role == 'service' and 'runner' in order_roles(order) and 'runner' not in proven:
             return None
         return f"{order['head'][:12]}.{len(started)}"
+
+    def prove(self, order, db):
+        """FAST-PATH-RELOAD: the proof of this process's own reload by an order of its role alone (the module's
+        PROVE_*): proven once it said reloaded and PROVE_TICKS good ticks span PROVE_S since; failed past PROVE_LIMIT_S
+        from its claim without it, and then back to the code a task ECS starts would boot (the next look: refused)."""
+        gate = self.gate
+        up = [each for each in said(order, gate.role, 'reloaded') if each.get('task') == gate.task]
+        began = [each for each in said(order, gate.role, 'started') if each.get('task') == gate.task]
+        first, last, ticks = self.good or (0.0, 0.0, 0)
+        if up and ticks >= PROVE_TICKS and last - first >= PROVE_S:
+            self.say(db, gate.role, 'proven', order, task=gate.task, ticks=ticks, window_s=round(last - first, 3),
+                     by_self=True)
+            self.proven = True
+            LOG.info('live image: %s %s proved its reload by order %s: %d good ticks in %.1f s', gate.role, gate.digest,
+                     order['head'], ticks, last - first)
+        elif began and order['now'] - float(began[-1].get('at') or order['now']) > PROVE_LIMIT_S:
+            self.say(db, gate.role, 'failed', order, task=gate.task, why=(
+                f'no proof within {PROVE_LIMIT_S:g} s of its claim: {ticks} good tick(s)' + ('' if up else ', never reloaded')))
+            self.due = True  # the next look finds the bundle refused and goes back
+        return self.drop()
 
     def judge(self, order, other, db):
         """The other role's reload, judged here and never by the process under test: True (proven), False (failed) or
@@ -1839,6 +1904,15 @@ class Order:
         gate, started, up = self.gate, said(order, other, 'started'), said(order, other, 'reloaded')
         if not started:
             return None
+        if other == gate.role:  # FAST-PATH-RELOAD: an order of this role alone, judged by a process not under test
+            task, at = started[-1].get('task'), float(started[-1].get('at') or 0)
+            limit_s = PROVE_LIMIT_S if up else RELOAD_LIMIT_S
+            if order['now'] - at < limit_s:
+                return None
+            self.say(db, other, 'failed', order, task=task, why=(
+                f'{task} did not come up on it within {RELOAD_LIMIT_S} s of its reload' if not up else
+                f'{task} did not prove its reload within {PROVE_LIMIT_S:g} s of its claim'))
+            return False
         task, job, limit_s = started[-1].get('task'), order['jobs'].get(other), order['limit_s']
         if not up:
             ok = False if order['now'] - float(started[-1].get('at') or 0) >= RELOAD_LIMIT_S else None
@@ -1881,6 +1955,7 @@ class Order:
             return None if self.hold else self.drop()  # the runner stays drained; the service works until its next pass
         claim = {'role': gate.role, 'digest': digest, 'task': gate.task, 'state': 'started', 'from': gate.digest,
                  'turn': turn, 'key': order['key'], 'order': order['head'], 'drain_s': round(drain_s, 3),
+                 'roles': list(order_roles(order)),  # FAST-PATH-RELOAD: the reloaded process reads how it is proven
                  **({'stragglers': left[:20]} if left else {})}
         claimed = gate.sent(ORDER_START, {
             'id': f'{RELOAD}:{gate.role}:{digest}:{turn}', 'producer': f'tower-{gate.role}',
