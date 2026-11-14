@@ -30,7 +30,8 @@
     "scripts/lib/verify_commit.py",
     "scripts/tests/verify-commit.test.sh",
     "scripts/tests/test_verify_commit.py",
-    "scripts/tests/covers/verify-commit.json"
+    "scripts/tests/covers/verify-commit.json",
+    "docs/process/gate-github-speed.md"
   ],
   "battery": {
     "command": "scripts/unit-battery engine-gate-infra"
