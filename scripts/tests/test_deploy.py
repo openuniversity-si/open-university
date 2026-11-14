@@ -395,8 +395,19 @@ class BuildStateTests(unittest.TestCase):
         for status in ('FAILED', 'FAULT', 'STOPPED', 'TIMED_OUT'):
             self.assertIn('event_id', http_port.handle(self.change(status), self.Recorder(), StatusEndpointTests.INSTALLATION))
 
+    def test_a_builds_start_is_one_started_event_that_wakes_the_look_and_never_an_end(self):
+        # FAST-PATH-RELOAD: the look then watches that build's record while it may still ask for a reload in place
+        db = self.Recorder()
+        said = http_port.handle(self.change('IN_PROGRESS'), db, StatusEndpointTests.INSTALLATION)
+        self.assertEqual(said, {'event_id': 'platform.deploy.started:tower-infra-deploy:db4150e4-a2ea'})
+        (sql, params), = db.writes
+        self.assertIn("'platform.deploy.started'", sql)
+        self.assertNotIn("'platform.deploy.ended'", sql)
+        self.assertIn("pg_notify('tower_deploy', type)", sql)
+        self.assertEqual(json.loads(params['payload']), {'build': 'tower-infra-deploy:db4150e4-a2ea', 'source': 'codebuild'})
+
     def test_a_running_build_another_project_or_an_http_call_writes_nothing(self):
-        for event in (self.change('IN_PROGRESS'), self.change('SUCCEEDED', project='other')):
+        for event in (self.change('QUEUED'), self.change('IN_PROGRESS', project='other'), self.change('SUCCEEDED', project='other')):
             db = self.Recorder()
             self.assertEqual(http_port.handle(event, db, StatusEndpointTests.INSTALLATION), {'ignored': True})
             self.assertEqual(db.writes, [])
@@ -604,6 +615,23 @@ class CliTests(unittest.TestCase):
         out = io.StringIO()
         deploy.describe(rolling, out)
         self.assertIn('rolling: runner service started and not waited', out.getvalue())
+
+    def test_status_says_the_builds_seconds_and_the_reload_in_place(self):
+        # FAST-PATH-RELOAD: what a code-only merge's deploy cost, and how long its swap took, from `scripts/deploy status`
+        state = {'last_sha': 'a', 'last_build': {
+            'status': 'succeeded', 'build_id': 'p:b9', 'base_head': 'b' * 40, 'started': 1000, 'ended': 1031, 'seconds': 31,
+            'steps': [{'n': 'classify', 's': 'ok', 't': 0}, {'n': 'reload', 's': 'ok', 't': 24}],
+            'reload': {'state': 'live', 's': 23, 'sha256': 'c' * 64, 'head': 'b' * 40,
+                       'reloaded': {'reload_s': 6.2, 'boot_s': 4.1}, 'proven': {'ticks': 11, 'window_s': 10.4}}}}
+        out = io.StringIO()
+        deploy.describe(state, out)
+        self.assertIn('build_seconds: 31, classify 0s, reload 24s', out.getvalue())
+        self.assertIn('reload: live in 23s (bundle cccccccccccc at bbbbbbbbbbbb); reloaded 6.2s after the order (boot 4.1s); '
+                      'proven by 11 good ticks in 10.4s', out.getvalue())
+        state['last_build']['reload'] = {'state': 'timeout', 's': 150, 'sha256': 'c' * 64, 'head': 'b' * 40, 'why': 'x'}
+        out = io.StringIO()
+        deploy.describe(state, out)
+        self.assertIn('reload: timeout in 150s (bundle cccccccccccc at bbbbbbbbbbbb): x', out.getvalue())
 
     def test_follow_times_out_with_2_after_the_bounded_wait(self):
         code, out, sleeps = self.follow([{'last_sha': 'a', 'last_build': None}], target='b')

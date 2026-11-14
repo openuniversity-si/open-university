@@ -384,6 +384,8 @@ class Live:
     def due(self):
         gate = self.gate
         if gate.reloaded is not None and gate.reloaded.get('order'):  # RELOAD-WITHOUT-STANDBY: its judge reads it by this key
+            if 'runner' not in (gate.reloaded.get('roles') or ['runner']):
+                return None, None  # FAST-PATH-RELOAD: no runner takes it; the order of the service alone proves itself
             return order_key(gate.reloaded['order'], gate.role), 'order'
         if gate.reloaded is not None:
             return f"reload:{gate.digest}:{gate.reloaded.get('turn')}:{gate.task}", 'reload'

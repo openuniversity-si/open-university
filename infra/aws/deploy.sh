@@ -222,6 +222,7 @@ record() {
   # port stack was rolled back (the next build applies it again)
   if [[ -f "$work/port_tpl" ]]; then port_tpl="$(<"$work/port_tpl")"; else port_tpl="$(jq -r '.port_tpl // empty' <<<"$prev_build" 2>/dev/null)"; fi
   grep -qx 'tower-app-port' "$work/rolled" 2>/dev/null && port_tpl=""
+  local reload_json; reload_json="$(jq -c 'if type == "object" then . else empty end' "$work/reload" 2>/dev/null)"; [[ -n "$reload_json" ]] || reload_json=null  # FAST-PATH-RELOAD
   code_live="$(read_work code_live)"; local code_live_why; code_live_why="$(read_work code_live_why)"  # the bundle a code-only batch was found live by: nothing of it was deployed
   steps="$(steps_json)"
   step_cur="$(awk -F'\t' '$2 == "running" {n = $1} END {print n}' "$work/steps" 2>/dev/null)"
@@ -233,9 +234,9 @@ record() {
       --argjson failed "$failed_json" --argjson done "$done_json" --argjson left "$left_json" --argjson stacks "$secs_json" \
       --argjson started "$started" --argjson ended "$ended_out" --arg tail "$tail" --argjson targets "$targets_json" \
       --argjson rolled "$rolled_json" --argjson bisect "$bisect_json" --argjson epoch "$BISECT_EPOCH" --arg bnote "$bnote_txt" --argjson hashes "$hashes_json" --argjson dirty "$dirty_json" \
-      --argjson fast_owned "$fast_owned_json" --argjson migrate "$migrate_json" --argjson rolling "$rolling_json" --argjson rollout "$rollout_json" --argjson parts "$parts_json" --arg port_tpl "$port_tpl" --argjson wait "$wait_json" --arg code_live "$code_live" --arg code_live_why "$code_live_why" --argjson seconds "$seconds" --argjson usd "$usd" --argjson batch "$batch" \
+      --argjson fast_owned "$fast_owned_json" --argjson migrate "$migrate_json" --argjson rolling "$rolling_json" --argjson rollout "$rollout_json" --argjson parts "$parts_json" --arg port_tpl "$port_tpl" --argjson wait "$wait_json" --arg code_live "$code_live" --arg code_live_why "$code_live_why" --argjson reload "$reload_json" --argjson seconds "$seconds" --argjson usd "$usd" --argjson batch "$batch" \
       --argjson steps "$steps" --arg step "$step_cur" --arg failed_step "$fail_step" --argjson updated "$ended" \
-      '{build_id: $build_id, base_head: $base_head, status: $status, failed: $failed, done: $done, left: $left, stacks: $stacks, started: $started, ended: $ended, updated: $updated, step: $step, failed_step: $failed_step, steps: $steps, seconds: $seconds, usd: $usd, targets: $targets, batch: $batch, rolled_back: $rolled, bisect: $bisect, bisect_epoch: $epoch, bisect_note: $bnote, hashes: $hashes, dirty: $dirty, tail: $tail} + (if $fast_owned then {fast_owned: $fast_owned} else {} end) + (if $migrate then {migrate: $migrate} else {} end) + (if $rolling then {rolling: $rolling} else {} end) + (if ($rollout | length) > 0 then {rollout: $rollout} else {} end) + {parts: $parts} + (if $port_tpl != "" then {port_tpl: $port_tpl} else {} end) + (if $wait != null then {rollout_wait_s: $wait} else {} end) + (if $code_live != "" then {code_live: $code_live} else {} end) + (if $code_live_why != "" then {code_live_why: $code_live_why} else {} end) + (if $bootstrap != "" then {bootstrap: $bootstrap} else {} end)' 2>/dev/null)" || json=""
+      '{build_id: $build_id, base_head: $base_head, status: $status, failed: $failed, done: $done, left: $left, stacks: $stacks, started: $started, ended: $ended, updated: $updated, step: $step, failed_step: $failed_step, steps: $steps, seconds: $seconds, usd: $usd, targets: $targets, batch: $batch, rolled_back: $rolled, bisect: $bisect, bisect_epoch: $epoch, bisect_note: $bnote, hashes: $hashes, dirty: $dirty, tail: $tail} + (if $fast_owned then {fast_owned: $fast_owned} else {} end) + (if $migrate then {migrate: $migrate} else {} end) + (if $rolling then {rolling: $rolling} else {} end) + (if ($rollout | length) > 0 then {rollout: $rollout} else {} end) + {parts: $parts} + (if $port_tpl != "" then {port_tpl: $port_tpl} else {} end) + (if $wait != null then {rollout_wait_s: $wait} else {} end) + (if $code_live != "" then {code_live: $code_live} else {} end) + (if $code_live_why != "" then {code_live_why: $code_live_why} else {} end) + (if $reload then {reload: $reload} else {} end) + (if $bootstrap != "" then {bootstrap: $bootstrap} else {} end)' 2>/dev/null)" || json=""
     [[ -n "$json" ]] || break
     size="$(bytes_of "$json")"
     (( size <= max_bytes )) && break
@@ -412,8 +413,26 @@ ecs_roles() {
   done
   printf '%s' "${out# }"
 }
+# code_live_stacks <digest> <datum> <roles>: a task ECS starts in the stack of each role would boot <digest> while
+# deploy.live_code is <datum>: the stack is *_COMPLETE and its LiveCode is the digest, or its LiveSeen is neither the datum
+# nor `unknown`; and they carry the same LiveCode. Prints "=<that LiveCode>"; else says why (code_live_no) and returns 1.
+code_live_stacks() {
+  local n stack code keep=""
+  for n in $3; do
+    stack="$(aws cloudformation describe-stacks --stack-name "tower-app-$n" --query 'Stacks[0]' --output json 2>/dev/null)" || stack=""
+    code="$(jq -r --arg d "$1" --arg m "$2" '
+      (((.Parameters // []) | map({(.ParameterKey): .ParameterValue}) | add) // {}) as $p
+      | select((.StackStatus | test("^(CREATE|UPDATE)_COMPLETE$"))
+               and (($p.LiveCode // "") == $d or (($p.LiveSeen // "unknown") as $s | $s != "unknown" and $s != $m)))
+      | "=" + ($p.LiveCode // "")' <<<"$stack" 2>/dev/null)"
+    [[ -n "$code" ]] || { code_live_no "a task ECS starts in tower-app-$n would not boot ${1:0:12} (the stack is not complete, or its task definition does not follow the live code)" >&2; return 1; }
+    [[ -z "$keep" || "$keep" = "$code" ]] || { code_live_no "the stacks of $3 carry different LiveCode" >&2; return 1; }
+    keep="$code"
+  done
+  printf '%s' "$keep"
+}
 code_live() {
-  local digest datum roles stack n keep="" code want_roles
+  local digest datum roles n keep="" want_roles
   [[ -z "${bgood:-}" && -z "${DEPLOY_TARGETS:-}" && -s "$work/classify.json" ]] || return 1
   # CODE-BESIDE-PORT: the port stack may change beside the code (deploy_classify.BESIDE): it stays this build's target
   # OWNER-STEP-NEEDS-ROLLOUT: the owner's step (dbinit.py) runs from the image (deploy_classify.IMAGE_RUN): not code-only
@@ -433,6 +452,7 @@ code_live() {
   digest="$(cd "$repo" && TOWER_ARTIFACT_BUCKET= bash -c "${DEPLOY_CODE_DIGEST_CMD:-python3 $ctl/scripts/lib/lambda_package.py code --root .}" 2>/dev/null \
     | grep '^{' | tail -n 1 | jq -r '.sha256 // empty' 2>/dev/null)"
   [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || { code_live_no "the digest of the head's code bundle is unknown"; return 1; }
+  echo "$digest" >"$work/code_digest"  # FAST-PATH-RELOAD: a code-only batch whose bundle is known: reload_live may ask for it
   deploy_status
   datum="$(jq -r '.live_code // empty' "$work/status.json" 2>/dev/null)"
   [[ "${datum%%@*}" = "$digest" ]] || { code_live_no "deploy.live_code is ${datum:-not readable}, the head's code is ${digest:0:12}"; return 1; }
@@ -442,21 +462,85 @@ code_live() {
   for n in $want_roles; do
     [[ " $roles " == *" $n "* ]] || { code_live_no "${digest:0:12} was not reloaded in place by the ECS task of every role ($want_roles; reloaded: ${roles:-none})"; return 1; }
   done
-  for n in $want_roles; do
-    stack="$(aws cloudformation describe-stacks --stack-name "tower-app-$n" --query 'Stacks[0]' --output json 2>/dev/null)" || stack=""
-    code="$(jq -r --arg d "$digest" --arg m "$datum" '
-      (((.Parameters // []) | map({(.ParameterKey): .ParameterValue}) | add) // {}) as $p
-      | select((.StackStatus | test("^(CREATE|UPDATE)_COMPLETE$"))
-               and (($p.LiveCode // "") == $d or (($p.LiveSeen // "unknown") as $s | $s != "unknown" and $s != $m)))
-      | "=" + ($p.LiveCode // "")' <<<"$stack" 2>/dev/null)"
-    [[ -n "$code" ]] || { code_live_no "a task ECS starts in tower-app-$n would not boot ${digest:0:12} (the stack is not complete, or its task definition does not follow the live code)"; return 1; }
-    [[ -z "$keep" || "$keep" = "$code" ]] || { code_live_no "the stacks of $want_roles carry different LiveCode"; return 1; }
-    keep="$code"
-  done
+  keep="$(code_live_stacks "$digest" "$datum" "$want_roles")" || return 1
   echo "$digest" >"$work/code_live"; printf '%s' "${keep#=}" >"$work/livecode_keep"  # (empty stays an empty file: no LiveCode in the hash)
   grep -v -x -e service -e runner "$work/targets" >"$work/targets.tmp"; mv "$work/targets.tmp" "$work/targets"; echo 0 >"$work/image"
   jq -R 'select(length > 0)' "$work/targets" | jq -sc . >"$work/targets_json"
   echo "code live: yes: the head's code is the bundle ${digest:0:12} of deploy.live_code, reloaded in place by the ECS task of $want_roles and booted by any task ECS starts: no image is built, the service and runner stacks are left alone"
+}
+
+# FAST-PATH-RELOAD (GATE-SHUTDOWN, D-314; the Torre accepted the design of PR #23, 14/11): a code-only batch whose bundle is not
+# yet deploy.live_code is put live IN PLACE, by the live service, in this build. On GitHub no landing orders the reload any more
+# (the service's autodeploy ordered it from Origin's landings) and no runner exists to judge it, so:
+#  1. the head's bundle is published (lambda_package.py code, as migrate_ask) and named in last-build.reload {key, sha256, head,
+#     state: asked}, written at once (progress); the service's autodeploy look, which heard this build start (its CodeBuild
+#     event) and reads last-build every 2 s meanwhile, orders the service alone to load it (autodeploy.build_reload);
+#  2. the service drains, execs the bundle, says reloaded at its first good tick and proven after its own good ticks
+#     (live_image.PROVE_*); its autodeploy then writes deploy.live_code = <sha256>@<head>;
+#  3. this build reads the port's GET /v1/deploy/status as the order's records arrive, every DEPLOY_RELOAD_POLL_S (2 s): done
+#     when live_code is the head's bundle; given up at once when the service says the reload failed or declined it; and
+#     DEPLOY_RELOAD_WAIT_S (default 150) only bounds that wait, and DEPLOY_RELOAD_ORDER_S (default 30) the wait for the order
+#     itself (a live service of an older code, or one that did not hear the build start, orders nothing). Then code_live is
+#     asked again: yes, no image and no ECS
+#     stack, and the smoke runs (smoke: $work/reloaded). Any other outcome: the image path, in this same build, as before:
+#     the build is green only if that succeeds. last-build.reload keeps the outcome {state: live|failed|declined|timeout|
+#     unordered|unproven, s: the ask to the verdict, reloaded/proven: what the service said}.
+# Not in a bisection or with DEPLOY_TARGETS (code_live's own rule), not when a reload onto the bundle failed before, nor when the
+# service stack would not boot the bundle once it is the datum; DEPLOY_RELOAD_WAIT_S=0 turns it off. DEPLOY_CODE_BUNDLE_CMD
+# replaces the publish (a test), as for migrate_ask.
+reload_states() {  # what the status says of this head's order and of this bundle, as one line: "<state>[ <why>]" per row
+  jq -r --arg d "$1" --arg h "$2" --argjson t "$3" '[(.image_reload // [])[] | select(type == "object" and .digest == $d
+      and ((.order // .head // "") == $h or .state == "failed") and ((.at // 0) | tonumber? // 0) >= $t - 30)]
+    | sort_by(.at // 0)[] | "\(.state)\(if .why then " " + (.why | tostring | .[0:200]) else "" end)"' "$work/status.json" 2>/dev/null
+}
+reload_live() {
+  local digest limit out asked deadline datum seen="" said state="" why="" t s port_stack order_limit="${DEPLOY_RELOAD_ORDER_S:-30}"
+  digest="$(cat "$work/code_digest" 2>/dev/null)"
+  [[ "$digest" =~ ^[0-9a-f]{64}$ && -z "${bgood:-}" && -z "${DEPLOY_TARGETS:-}" ]] || return 1
+  limit="${DEPLOY_RELOAD_WAIT_S:-150}"
+  [[ "$limit" =~ ^[0-9]+$ ]] && (( limit > 0 )) || { echo "reload: off (DEPLOY_RELOAD_WAIT_S=$limit)"; return 1; }
+  [[ "$(ecs_roles)" = service ]] || { echo "reload: in place is for the service alone, and the roles with an ECS service are: $(ecs_roles)"; return 1; }
+  if jq -e --arg d "$digest" '[(.image_reload // [])[] | select(type == "object" and .digest == $d and .state == "failed")] | length > 0' \
+      "$work/status.json" >/dev/null 2>&1; then
+    echo "reload: a reload onto ${digest:0:12} failed before: the image path"; return 1
+  fi
+  code_live_stacks "$digest" "$digest@$head" service >/dev/null || { echo "reload: not asked: the service stack would not boot it"; return 1; }
+  out="$(TOWER_ARTIFACT_BUCKET="$lambda_bucket" timeout 120 bash -c "${DEPLOY_CODE_BUNDLE_CMD:-python3 $ctl/scripts/lib/lambda_package.py code --root $repo}" 2>&1 | grep '^{' | tail -n 1)"
+  if ! jq -e --arg d "$digest" '.sha256 == $d and (.key | test("^artifacts/lambda/tower-code/[0-9a-f]{64}\\.zip$"))' <<<"$out" >/dev/null 2>&1; then
+    echo "reload: the head's code bundle ${digest:0:12} was not published: the image path"; return 1
+  fi
+  asked="$(date +%s)"; deadline=$((asked + limit))
+  jq -c --arg h "$head" --argjson t "$asked" '{key, sha256, head: $h, state: "asked", at: $t}' <<<"$out" >"$work/reload"
+  echo "reload: asked the live service to load ${digest:0:12} in place (last-build.reload); waiting for deploy.live_code=${digest:0:12}@${head:0:10} (${limit}s at most)"
+  progress  # the ask is the live service's to read now
+  port_stack="$(aws cloudformation describe-stacks --stack-name tower-app-port --query 'Stacks[0]' --output json 2>/dev/null)" || port_stack=""
+  while :; do
+    fast_status "$port_stack" >"$work/status.json" 2>/dev/null || : >"$work/status.json"  # read afresh: the order's records as they arrive
+    datum="$(jq -r '.live_code // empty' "$work/status.json" 2>/dev/null)"
+    said="$(reload_states "$digest" "$head" "$asked")"
+    [[ -n "$said" && "$said" != "$seen" ]] && { echo "reload: the service says: $(printf '%s' "$said" | cut -d' ' -f1 | tr '\n' ' ')"; seen="$said"; }
+    if [[ "$datum" = "$digest@$head" ]]; then state=live; break; fi
+    t="$(grep -m 1 -E '^(failed|declined)' <<<"$said")"
+    if [[ -n "$t" ]]; then state="${t%% *}"; why="${t#* }"; [[ "$why" = "$t" ]] && why=""; break; fi
+    (( $(date +%s) < deadline )) || { state=timeout; break; }
+    if [[ -z "$said" ]] && (( $(date +%s) - asked >= order_limit )); then state=unordered; why="no order of it in ${order_limit}s"; break; fi
+    sleep "${DEPLOY_RELOAD_POLL_S:-2}"
+  done
+  s=$(( $(date +%s) - asked ))
+  if [[ "$state" = live ]] && code_live; then
+    rm -f "${work:?}/code_live_why"; echo "$s" >"$work/reloaded"
+    echo "reload: live in ${s}s: the service runs ${digest:0:12} in place and proved it; deploy.live_code names it"
+  else
+    [[ "$state" = live ]] && { state=unproven; why="$(cat "$work/code_live_why" 2>/dev/null)"; }
+    echo "reload: $state after ${s}s${why:+: $why}: the image path, in this build"
+    code_live_no "the reload in place was $state after ${s}s${why:+: $why}" >/dev/null
+  fi
+  jq -c --arg st "$state" --argjson s "$s" --arg w "$why" --argjson said "$(jq -c --arg d "$digest" --arg h "$head" \
+      '[(.image_reload // [])[] | select(type == "object" and .digest == $d and (.order // "") == $h and (.state == "reloaded" or .state == "proven"))]
+       | map({(.state): ({reload_s, boot_s, ticks, window_s, order_s} | with_entries(select(.value != null)))}) | add // {}' "$work/status.json" 2>/dev/null || echo '{}')" \
+    '. + {state: $st, s: $s} + (if $w != "" then {why: ($w | .[0:200])} else {} end) + $said' "$work/reload" >"$work/reload.tmp" \
+    && mv "$work/reload.tmp" "$work/reload"
+  [[ "$state" = live ]]
 }
 
 # IMAGE-STAGE-CACHE: stage_cache <dockerfile> <repository>: the cache of the image's earlier build stages, in stage_from (the
@@ -1015,7 +1099,7 @@ deploy_stacks() {
 # stack really changed in this build. DEPLOY_SMOKE_CMD replaces the command (a test); "none" skips it.
 smoke() {
   local cmd="${DEPLOY_SMOKE_CMD:-$ctl/scripts/deploy-smoke}"
-  [[ -n "$(changed_stacks)" ]] || { echo "smoke: no stack changed in this build, not run"; return 0; }
+  [[ -n "$(changed_stacks)" || -f "$work/reloaded" ]] || { echo "smoke: no stack changed in this build, not run"; return 0; }  # FAST-PATH-RELOAD
   [[ "$cmd" = none ]] && { echo "smoke: skipped (DEPLOY_SMOKE_CMD=none)"; return 0; }
   [[ -x "${cmd%% *}" || "$cmd" != "$ctl/scripts/deploy-smoke" ]] || { echo "smoke: $cmd is missing, not run"; return 0; }
   echo "smoke: $cmd"
@@ -1148,8 +1232,15 @@ deploy() {
   step_begin classify
   select_targets "$last"
   step_end classify 0
-  if [[ "$(cat "$work/image")" = 1 ]]; then step_begin code-live; code_live; step_end code-live 0; fi  # SLOW-PATH-NO-ROLLOUT-WAIT
   lambda_bucket="tower-outputs-${IMAGE_REGISTRY%%.*}-${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
+  if [[ "$(cat "$work/image")" = 1 ]]; then  # SLOW-PATH-NO-ROLLOUT-WAIT
+    step_begin code-live
+    if code_live; then step_end code-live 0
+    else
+      step_end code-live 0
+      if [[ -s "$work/code_digest" ]]; then step_begin reload; reload_live; step_end reload 0; fi  # FAST-PATH-RELOAD
+    fi
+  fi
   migrate_ask
   shopt -s nullglob
   for dockerfile in "$repo"/infra/*/Dockerfile; do

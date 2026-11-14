@@ -99,7 +99,9 @@ SWAP_MOMENT = [
                                             'landed_at': time.time(), 'payload': '{}'}),
     ('autodeploy.ORDER_DONE', autodeploy.ORDER_DONE, {
         'order': 'platform.deploy.image_reload:order:t', 'id': 'platform.deploy.image_reload:done:t', 'head': 't',
-        'digest': DIGEST, 'tenant': 'torre', 'newest': True, 'payload': '{}'}),
+        'digest': DIGEST, 'tenant': 'torre', 'newest': True, 'roles': 2, 'payload': '{}'}),
+    # FAST-PATH-RELOAD: the build's start the port records and the look's read of it
+    ('autodeploy.STARTED', autodeploy.STARTED, {}),
     ('live_image.ORDER_OF', live_image.ORDER_OF, {'tenant': 'torre', 'head': ''}),
     ('live_image.ORDER_START', live_image.ORDER_START, {
         'id': 'platform.deploy.image_reload:t', 'producer': 'runner', 'role': 'runner', 'payload': '{}',
@@ -109,6 +111,7 @@ SWAP_MOMENT = [
     ('config_data.OBSERVE', config_data.OBSERVE, {'id': 'platform.config.observed:t', 'name': 'k', 'version': 1,
                                                   'tenant': 'torre', 'payload': '{}', 'value': '1'}),
     ('http_port.BUILD_ENDED', http_port.BUILD_ENDED, {'id': 'platform.deploy.ended:t', 'payload': '{}'}),
+    ('http_port.BUILD_STARTED', http_port.BUILD_STARTED, {'id': 'platform.deploy.started:t', 'payload': '{}'}),
     ('forge_webhooks.LATEST_KEYS', forge_webhooks.LATEST_KEYS, {}),
     ('runner.TAKE', runner.TAKE, {'adapter': 'container', 'runner': 't'}),
     ('work.reap', "select * from work.job where lease_run_id is not null and lease_expires_at < clock_timestamp() "
@@ -121,7 +124,7 @@ SWAP_MOMENT = [
 BY_ID = ('port.LANDED_SWAP', 'port.LANDED_ONLY', 'autodeploy.OBSERVE', 'autodeploy.SWAP_OF', 'prewarm.RECORD',
          'live_image.LIVE', 'config_data.OBSERVE', 'http_port.BUILD_ENDED', 'live_image.RELOAD_OF', 'live_image.RELOAD_SAY',
          'canary.READ', 'canary.SETTLE', 'autodeploy.ORDER', 'autodeploy.ORDER_DONE', 'live_image.ORDER_START',
-         'live_image.ORDER_SAY')
+         'live_image.ORDER_SAY', 'http_port.BUILD_STARTED')
 FILL = f"""
 insert into work.tenant (name) values ('torre');
 insert into work.executor (name, adapter) values ('runner', 'container');

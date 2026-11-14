@@ -47,6 +47,16 @@ settles), holds that head's ring while they do (reloading(): live_image.ORDER_LI
 their canaries' verdicts and, once both roles are proven, writes deploy.live_code (reloads()): the build that is rung then
 finds the head's code live and deploys neither the image nor the two stacks. With deploy.promote false nothing is ordered.
 
+FAST-PATH-RELOAD (GATE-SHUTDOWN, D-314; the Torre, 14/11): on GitHub no landing reaches this look and no runner exists,
+so a code-only merge's deploy build asks for the reload itself: deploy.sh publishes the head's bundle and names it in
+last-build.reload {key, sha256, head} while the build is in progress; the look (build_reload()) orders the service alone to
+load it in place (order(): roles ['service'], by: build; one order at a time, never a bundle a reload failed on), and the
+service proves its own reload (live_image.PROVE_*); its `proven` wakes this look, which writes deploy.live_code (reloads()),
+which deploy.sh reads in GET /v1/deploy/status. An order that cannot be made says {state: declined} so the build does not
+wait for it. The build's start is heard by its CodeBuild event (http_port: platform.deploy.started, which wakes this look),
+and while that build may still name its reload (ASK_WINDOW_S from its start, until it leaves its classification) the
+safety look is ASK_LOOK_S.
+
 The knobs are the registry's deploy.* keys. The service has no registry file: DEFAULTS mirror the registry defaults (a
 test pins them), and a `scripts/config set deploy.x` reaches the service as a config.changed event inside the commit
 message of the push to train/events, which the ingress logs like any push. Nothing is cached longer than one look.
@@ -228,6 +238,13 @@ def settled_up(last):
 
 # SLOW-PATH-NO-ROLLOUT-WAIT: the only bundles whose migrations a build may ask for: the code bundle named by its sha256
 MIGRATE_KEY = re.compile(r'artifacts/lambda/tower-code/([0-9a-f]{64})\.zip')
+# FAST-PATH-RELOAD: the newest build CodeBuild said started (http_port.build_state) in the last half hour, and its age
+STARTED = ("select payload->>'build', extract(epoch from clock_timestamp() - occurred_at)::float8 from log.event "
+           "where type = 'platform.deploy.started' and tenant_id is null and occurred_at > now() - interval '30 minutes' "
+           "order by occurred_at desc limit 1")
+ASK_WINDOW_S = 120.0  # how long after its start a build may still name its reload: the classification is its first seconds
+ASK_LOOK_S = 2.0  # the safety look meanwhile (a build's record wakes nothing: Parameter Store has no notification here)
+ASK_STEPS = ('', 'classify', 'code-live', 'reload')  # the build's steps before and while it names its reload
 LIVE_SEEN = ("select distinct payload->>'role' from log.event where type = 'platform.deploy.image_live' and tenant_id is null "
              "and payload->>'digest' = %(digest)s and occurred_at >= to_timestamp(%(since)s::float8)")
 # PROMOTED-RUNNER-WAITS-ALIVE: the roles whose promoted process of a bundle beats live (work.standby_beat.live_at within
@@ -265,7 +282,7 @@ ORDER_DONE = (
     f"with o as (select payload, occurred_at from log.event where event_id = %(order)s and type = '{live_image.RELOAD}' "
     "and occurred_at > now() - interval '1 hour' and (select count(distinct e.payload->>'role') from log.event e "
     f"where e.type = '{live_image.RELOAD}' and e.tenant_id is null and e.occurred_at > now() - interval '1 hour' "
-    "and e.payload->>'order' = %(head)s and e.payload->>'state' = 'proven') = 2 "
+    "and e.payload->>'order' = %(head)s and e.payload->>'state' = 'proven') = %(roles)s "
     f"and not exists (select 1 from log.event f where f.type = '{live_image.RELOAD}' and f.tenant_id is null "
     "and f.occurred_at > now() - interval '7 days' and f.payload->>'state' = 'failed' "
     "and f.payload->>'digest' = %(digest)s)), "
@@ -345,6 +362,9 @@ class AutoDeploy:
         # RELOAD-WITHOUT-STANDBY: the head whose order to load its bundle in place this look follows; the landing whose
         # order waits for the one in flight to settle (head, digest, key, pr_head); the roles whose canary is settled
         self.reload, self.waiting, self.judged = None, None, set()
+        # FAST-PATH-RELOAD: the last-build this look read, the (head, sha256) a build asked to reload already ordered here,
+        # and whether a build that just started may still ask (the safety look is short meanwhile)
+        self.seen_build, self.asked, self.asking = {}, set(), False
 
     # --- the decision -----------------------------------------------------------------------------------------------
     def step(self, force=False):
@@ -364,6 +384,8 @@ class AutoDeploy:
         """The longest the loop waits without an event: short while a ring is in flight (the build's end has no push path
         yet, so it is detected here), long when idle (a lost notification only)."""
         longest = self.check_every_s if self.in_flight or self.building else self.idle_safety_s
+        if self.asking:  # FAST-PATH-RELOAD: a build that just started may name its reload at any second
+            longest = min(longest, ASK_LOOK_S)
         # DEBOUNCE-WAKE: the debounce's end is no event, so a look skipped for it used to come back only at the idle safety
         # (300 s): live 11/11 the build of a landing started 5.6 min after it (#496, #498). The wait is what is left of it.
         return longest if self.due_in is None else min(longest, max(self.due_in, 0) + 0.5)
@@ -455,6 +477,7 @@ class AutoDeploy:
         self.read_overrides(db, now)
         cfg = self.settings()
         self.migrate(db)  # SLOW-PATH-NO-ROLLOUT-WAIT: whatever the ring decides below
+        self.build_reload(db)  # FAST-PATH-RELOAD: the reload a code-only merge's build asks for, ordered at once
         # DEP8b: the fast path is independent of the slow one: every look (a push wakes it) evaluates the new head's fast targets
         # first, whatever deploy.auto, the doorbell, a build in flight or the debounce say; only the base branch's pushes count
         pushes = self.pushes(db, cfg['base_branch'], now)
@@ -640,6 +663,7 @@ class AutoDeploy:
         `-- deploy: not-additive`)."""
         try:
             build = self.last_build()
+            self.seen_build = build if isinstance(build, dict) else {}
             self.building = build.get('status') == 'in_progress'
             ask = build.get('migrate') if isinstance(build.get('migrate'), dict) else {}
             key, sha = str(ask.get('key') or ''), str(ask.get('sha256') or '')
@@ -745,21 +769,62 @@ class AutoDeploy:
         return digest, key, None
 
     # --- RELOAD-WITHOUT-STANDBY: the landing with no standby pair, loaded in place by the ECS tasks --------------------------
-    def order(self, db, head, digest, key, pr_head):
+    def order(self, db, head, digest, key, pr_head, **more):
         """The order to load the landed bundle in place: platform.deploy.image_reload {state: ordered, digest, key, head,
         landed_s}, which the ECS runner obeys first and the ECS service once the runner is proven (live_image.Order). One
         order at a time: while another is not settled this one waits (reloads() asks again, while its head is the base's
-        newest); a bundle a reload failed on is never ordered again."""
+        newest); a bundle a reload failed on is never ordered again. FAST-PATH-RELOAD: more (roles, by, build) goes in the
+        order; one a build asked for never waits (the build would wait for nothing): answers (made, busy, bad)."""
         made, busy, bad, _ = db.rows(ORDER, {
             'id': f'{live_image.RELOAD}:order:{head}', 'digest': digest, 'settle_s': live_image.ORDER_SETTLE_S,
             'landed_at': self.landed_at.get(head) or self.clock(), 'payload': json.dumps(
-                {'state': 'ordered', 'digest': digest, 'key': key, 'head': head, 'pr_head': pr_head, 'order': head})})[0]
+                {'state': 'ordered', 'digest': digest, 'key': key, 'head': head, 'pr_head': pr_head, 'order': head, **more})})[0]
         made, bad = bool(int(made)), bad in (True, 't')
         self.reload = head if made or busy == head else self.reload
-        self.waiting = (head, digest, key, pr_head) if busy and busy != head else None
-        self.say('image', f'ordered: the ECS tasks load {digest[:12]} in place, the runner first' if made else
-                 f'the order of {str(busy)[:12]} is not settled: this one waits' if self.waiting else
+        self.waiting = (head, digest, key, pr_head) if busy and busy != head and not more.get('by') else self.waiting if more.get('by') else None
+        alone = live_image.order_roles(more) != live_image.ROLES
+        self.say('image', f"ordered: the ECS tasks load {digest[:12]} in place, {'the service alone' if alone else 'the runner first'}"
+                 if made else f'the order of {str(busy)[:12]} is not settled: this one waits' if busy and busy != head else
                  f'not ordered: a reload onto {digest[:12]} failed' if bad else 'ordered already', self.clock(), head=head[:12])
+        return made, busy, bad
+
+    def build_reload(self, db):
+        """FAST-PATH-RELOAD (the module's docstring): the reload the deploy build in progress names in last-build.reload
+        {key, sha256, head}, ordered for the service alone, once per (head, sha256) in this process (a process that starts
+        mid-way, the reloaded one, finds the order made and follows it). The ask is the build's own: its head is the build's
+        base_head and the key is the bundle of that sha256. An order that cannot be made is said {state: declined} with
+        why, so the build goes on to the image at once. Also decides `asking` (the short safety look). Never raises."""
+        try:
+            build = self.seen_build or {}
+            started = db.rows(STARTED, {})
+            begun, age = (started[0][0], float(started[0][1])) if started and started[0][0] else (None, None)
+            fresh = begun is not None and age < ASK_WINDOW_S
+            unseen = fresh and begun != build.get('build_id')  # CodeBuild said it started, its record is not written yet
+            self.building = self.building or unseen
+            ask = build.get('reload') if build.get('status') == 'in_progress' and isinstance(build.get('reload'), dict) else None
+            self.asking = bool(unseen or (fresh and begun == build.get('build_id') and build.get('status') == 'in_progress'
+                                          and ask is None and str(build.get('step') or '') in ASK_STEPS))
+            if ask is None:
+                return
+            key, sha, head = str(ask.get('key') or ''), str(ask.get('sha256') or ''), str(ask.get('head') or '')
+            if (head, sha) in self.asked:
+                return
+            self.asked.add((head, sha))
+            named = MIGRATE_KEY.fullmatch(key)
+            if not named or named.group(1) != sha or not re.fullmatch(r'[0-9a-f]{40}', head) or head != build.get('base_head'):
+                self.say('image', f'reload not ordered: {key} @ {head[:12]} is not the code bundle of the build\'s head',
+                         self.clock(), build=build.get('build_id'))
+                return
+            made, busy, bad = self.order(db, head, sha, key, None, roles=['service'], by='build', build=build.get('build_id'))
+            if not made and (bad or (busy and busy != head)):
+                why = (f'a reload onto {sha[:12]} failed in the last 7 days' if bad else
+                       f'the order of {str(busy)[:12]} is not settled')
+                db.rows(live_image.ORDER_SAY, {
+                    'id': f'{live_image.RELOAD}:service:{sha}:declined:{head}:build', 'producer': PRODUCER, 'role': 'service',
+                    'payload': json.dumps({'role': 'service', 'digest': sha, 'state': 'declined', 'order': head, 'head': head,
+                                           'by': 'autodeploy', 'why': why, 'build': build.get('build_id')})})
+        except Exception:  # noqa: BLE001 - the build then deploys the image, as before
+            LOG.exception('autodeploy: the reload a build asked for was not ordered')
 
     def reloads(self, db, heads):
         """The order this look follows (the one it made, or the one a service before it left for the newest head): its
@@ -773,19 +838,23 @@ class AutoDeploy:
         elif self.succeed(db, order) or live_image.said(order, None, 'done'):
             self.reload, self.judged = None, set()  # IN-TASK-STANDBY: the successors have it: the swap is in charge
         else:
-            for role in ROLES:
+            roles = live_image.order_roles(order)  # FAST-PATH-RELOAD: an order of the service alone
+            for role in roles:
                 if role not in self.judged and order['jobs'].get(role):
                     verdict = canary.settle(db, self.tenant, canary.order_key(order['head'], role), publish=self.alert)
                     if verdict is not None and verdict['ok'] is not None:
                         self.judged.add(role)
-            proven = all(live_image.said(order, role, 'proven') for role in ROLES)
+            proven = all(live_image.said(order, role, 'proven') for role in roles)
             if proven and not order['refused'] and not live_image.said(order, None, 'done'):
                 found = db.rows(ORDER_DONE, {
                     'order': f"{live_image.RELOAD}:order:{order['head']}", 'id': f"{live_image.RELOAD}:done:{order['head']}",
-                    'head': order['head'], 'digest': order['digest'], 'tenant': self.tenant, 'newest': order['head'] == newest,
+                    'head': order['head'], 'digest': order['digest'], 'tenant': self.tenant, 'roles': len(roles),
+                    # FAST-PATH-RELOAD: the build's own head is the newest it deploys (no landing names heads on GitHub)
+                    'newest': order['head'] == newest or order.get('by') == 'build',
                     'payload': json.dumps({'state': 'done', 'digest': order['digest'], 'head': order['head'],
                                            'order': order['head']})})
-                self.say('image', f"reloaded in place: both ECS tasks run {order['digest'][:12]} and proved it"
+                said = 'both ECS tasks run' if roles == live_image.ROLES else f"the ECS task of {' and '.join(roles)} runs"
+                self.say('image', f"reloaded in place: {said} {order['digest'][:12]} and proved it"
                          + (f"; deploy.live_code -> {str(found[0][0])[:12]}" if found and found[0][0] else ''),
                          self.clock(), head=order['head'][:12])
             if proven or order['refused'] or order['age_s'] > live_image.ORDER_SETTLE_S:

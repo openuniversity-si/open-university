@@ -52,7 +52,10 @@
     "scripts/tests/covers/infra-engine-repo.json",
     "scripts/tests/infra-gate-looks.test.sh",
     "scripts/tests/test_infra_gate_looks.py",
-    "scripts/tests/covers/infra-gate-looks.json"
+    "scripts/tests/covers/infra-gate-looks.json",
+    "scripts/tests/infra-fast-path-reload.test.sh",
+    "scripts/tests/test_infra_fast_path_reload.py",
+    "scripts/tests/covers/infra-fast-path-reload.json"
   ],
   "battery": {
     "command": "scripts/unit-battery engine-infra-service"
