@@ -48,6 +48,7 @@ import re
 import time
 
 from . import config_data, fastdeploy, forge, live_image, port
+from . import engine  # ENGINE-REPO
 
 LOG = logging.getLogger('tower_infra.prewarm')
 PRODUCER = 'prewarm'
@@ -67,7 +68,7 @@ def unit_of(ref):
 ROLES = ('runner', 'service')
 FAMILIES = {'runner': 'tower-runner', 'service': 'tower-service-standby'}  # 50-runner.json, 30-service.json
 CONTAINERS = {'runner': 'runner', 'service': 'service'}
-REPO = 'openuniversity-si/open-university'
+REPO = engine.DEFAULT  # ENGINE-REPO: the default; engine.repo() is what runs
 QUEUE, RANK, TIMEOUT_S = 'checks', 999000, 300  # gate-infra.check_queue; the rank gate_infra gives a one-check head
 POLL_S, SAFETY_S, START_LIMIT_S, OVERLAP_S = 15, 300, 900, 10
 # IMAGE-PREWARM-C: a retiring runner standby not gone by then is stopped. PREWARM-MERGED-RELEASED: 20 min, not an hour: a
@@ -188,11 +189,16 @@ answer = port.bundle_answer  # IMAGE-SWAP-TIGHTEN: in the port, which the landin
 
 
 class Prewarm:
-    def __init__(self, scope, ecs, cluster, network, tenant=config_data.TENANT, config=None, repo=REPO, clock=time.time,
+    @property
+    def repo(self):
+        """ENGINE-REPO: the one given, else the engine's repository as configured now (engine.repo())."""
+        return self._repo or engine.repo()
+
+    def __init__(self, scope, ecs, cluster, network, tenant=config_data.TENANT, config=None, repo=None, clock=time.time,
                  warm=None):
         self.scope, self.ecs, self.cluster, self.network = scope, ecs, cluster, network
         self.warm = warm  # PORT-WARM-ON-PUSH: asks the port's live alias for its health, as an event (None: nothing)
-        self.tenant, self.config, self.repo, self.clock = tenant, config, repo, clock
+        self.tenant, self.config, self._repo, self.clock = tenant, config, repo, clock
         self.since, self.seen = None, {}  # the newest event read less OVERLAP_S, and the ids read since (read once)
         self.heads = {}  # branch -> its newest head seen
         self.refs = {}  # PREWARM-PREMERGE: head -> the ref its bundle job fetches (a premerge's own, else the branch's)
@@ -862,7 +868,7 @@ def from_boto3(scope, config=None, environ=None):
                        config=Config(connect_timeout=2, read_timeout=5, retries={'max_attempts': 1}))
     return Prewarm(scope, ecs, cluster, {'subnets': subnets, 'securityGroups': groups, 'assignPublicIp': 'ENABLED'},
                    tenant=environ.get('TOWER_CONFIG_TENANT', config_data.TENANT), config=config,
-                   repo=environ.get('TOWER_PREWARM_REPO', REPO), warm=port_warm(lam))
+                   repo=environ.get('TOWER_PREWARM_REPO') or engine.repo(environ), warm=port_warm(lam))
 
 
 def start(scope, stop, wait, config=None, active=None, environ=None, gate=None, make=None):

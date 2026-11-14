@@ -22,6 +22,7 @@ import re
 import time
 
 from .pregate import ENDED, REPO, SHA, TENANT_ID, digest, encode, ours
+from . import engine  # ENGINE-REPO
 
 LOG = logging.getLogger('tower_infra.fullrun')
 QUEUE, RANK, TIMEOUT_S = 'checks', 0, 900  # the checks' queue; below every gate's and pre-gate's rank; gate-infra's timeout
@@ -89,10 +90,15 @@ STATES = ("select payload::text, extract(epoch from occurred_at)::float8 from lo
 
 
 class FullRun:
-    def __init__(self, base_branch='mod/roadmap-integration', repo=REPO, tenant=None, clock=time.time, create=None,
+    @property
+    def repo(self):
+        """ENGINE-REPO: the one given, else the engine's repository as configured now (engine.repo())."""
+        return self._repo or engine.repo()
+
+    def __init__(self, base_branch='mod/roadmap-integration', repo=None, tenant=None, clock=time.time, create=None,
                  cancel=None, publish=None):
         from . import config_data, port
-        self.base_branch, self.repo, self.clock = base_branch, repo, clock
+        self.base_branch, self._repo, self.clock = base_branch, repo, clock
         self.tenant = tenant or config_data.TENANT
         self.create, self.cancel = create or port.create_job, cancel or port.cancel_job
         self.publish = publish

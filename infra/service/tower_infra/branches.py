@@ -17,10 +17,11 @@ import logging
 from pathlib import Path
 import re
 import time
+from . import engine  # ENGINE-REPO
 
 LOG = logging.getLogger('tower_infra.branches')
 EVENT = 'platform.forge.branch_merge'
-REPO = 'openuniversity-si/open-university'
+REPO = engine.DEFAULT  # ENGINE-REPO: the default; engine.repo() is what runs
 SHA = re.compile(r'^[0-9a-f]{40}$')
 BRANCH = re.compile(r'^units/[A-Za-z0-9._/-]{1,120}$')
 BASE = re.compile(r'^[A-Za-z0-9._/-]{1,120}$')
@@ -80,8 +81,13 @@ def refused(error):
 class Merger:
     """The live service's half: each asked merge done once in this look's own clone, with the forge's key."""
 
-    def __init__(self, box, repo=REPO, clock=time.monotonic):
-        self.box, self.repo, self.clock = box, repo, clock
+    @property
+    def repo(self):
+        """ENGINE-REPO: the one given, else the engine's repository as configured now (engine.repo())."""
+        return self._repo or engine.repo()
+
+    def __init__(self, box, repo=None, clock=time.monotonic):
+        self.box, self._repo, self.clock = box, repo, clock
         self.premerged = {}  # PREMERGE: each branch's newest premerge ref, deleted when the next is pushed
         self.made = {}  # MERGE-REUSE: (head, onto) -> the merge commit a premerge made, the very one the delivery pushes
 

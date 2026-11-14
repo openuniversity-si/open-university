@@ -14,10 +14,11 @@ import json
 import logging
 import re
 import time
+from . import engine  # ENGINE-REPO
 
 LOG = logging.getLogger('tower_infra.pregate')
 UNITS = 'refs/heads/units/'
-REPO = 'openuniversity-si/open-university'
+REPO = engine.DEFAULT  # ENGINE-REPO: the default; engine.repo() is what runs
 SHA = re.compile(r'^[0-9a-f]{40}$')
 QUEUE, PLAN_RANK, TIMEOUT_S = 'checks', 1000000, 300  # gate-infra.check_queue; gate_infra.planned's rank
 # GATE-OUTRANKS-PREGATE (criterion 3): the pre-gate's jobs rank under every delivery's (whose ranks reach PLAN_RANK): a
@@ -74,10 +75,15 @@ def ours(body, repo):
 
 
 class Pregate:
-    def __init__(self, base_branch='mod/roadmap-integration', repo=REPO, tenant=None, clock=time.time,
+    @property
+    def repo(self):
+        """ENGINE-REPO: the one given, else the engine's repository as configured now (engine.repo())."""
+        return self._repo or engine.repo()
+
+    def __init__(self, base_branch='mod/roadmap-integration', repo=None, tenant=None, clock=time.time,
                  create=None, observe=None):
         from . import config_data, observations, port
-        self.base_branch, self.repo, self.clock = base_branch, repo, clock
+        self.base_branch, self._repo, self.clock = base_branch, repo, clock
         self.tenant = tenant or config_data.TENANT
         self.create = create or port.create_job
         self.observe = observe or observations.ask  # OBSERVE-ON-PUSH: pre-observe a PR's head

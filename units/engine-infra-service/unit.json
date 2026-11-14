@@ -51,7 +51,10 @@
     "scripts/lib/aws_tenant_isolation_proof.py",
     "scripts/tests/aws-tenant-isolation-proof.test.sh",
     "scripts/tests/test_aws_tenant_isolation_proof.py",
-    "scripts/tests/covers/aws-tenant-isolation-proof.json"
+    "scripts/tests/covers/aws-tenant-isolation-proof.json",
+    "scripts/tests/infra-engine-repo.test.sh",
+    "scripts/tests/test_infra_engine_repo.py",
+    "scripts/tests/covers/infra-engine-repo.json"
   ],
   "battery": {
     "command": "scripts/unit-battery engine-infra-service"

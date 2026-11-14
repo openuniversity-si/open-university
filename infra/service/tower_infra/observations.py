@@ -19,10 +19,11 @@ import logging
 import re
 import time
 from urllib.parse import quote
+from . import engine  # ENGINE-REPO
 
 LOG = logging.getLogger('tower_infra.observations')
 EVENT = 'platform.forge.observation'
-REPO = 'openuniversity-si/open-university'
+REPO = engine.DEFAULT  # ENGINE-REPO: the default; engine.repo() is what runs
 SHA = re.compile(r'^[0-9a-f]{40}$')
 ASKED_S = 600
 PAGE_SIZE, MAX_PAGES = 100, 20
@@ -107,8 +108,13 @@ def pushes_of(rows, repo, branch):
 class Observer:
     """The live service's half: each asked observation read once, with the forge's key, and said."""
 
-    def __init__(self, forge, repo=REPO, clock=time.monotonic):
-        self.forge, self.repo, self.clock = forge, repo, clock
+    @property
+    def repo(self):
+        """ENGINE-REPO: the one given, else the engine's repository as configured now (engine.repo())."""
+        return self._repo or engine.repo()
+
+    def __init__(self, forge, repo=None, clock=time.monotonic):
+        self.forge, self._repo, self.clock = forge, repo, clock
 
     def api(self, path):
         return self.forge.api_get(path)  # forge.OriginForge: the forge's CLI and key
