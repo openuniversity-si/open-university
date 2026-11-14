@@ -8,7 +8,7 @@ archive is commit `567176bb` (D-110). No product command remains here.
 **Where it lives.** GitHub `openuniversity-si/open-university` is the source of truth (public, Apache-2.0, fresh history since 14/11/2026). A change is a pull request against `main`; it lands through GitHub's merge queue, which requires the `tower/gate` commit status. The verifier (a Claude Code thread, never a hosted runner) publishes it with `scripts/verify-commit --sha <commit> --base <base>` on the pull request's head and on the queue's `gh-readonly-queue/main/...` commit. Cursor Origin is a one-way mirror of `main`. The sections below still describe the Origin-era flow (`mod/roadmap-integration`, `scripts/deliver`, the AWS gate) until they are rewritten.
 
 **Resuming.** On `continue` or `continue (docs/RETOMAR.md)`, step 0 is [docs/RETOMAR.md](docs/RETOMAR.md): reach the
-current Origin base, prepare the environment, reconcile merges and active claims, then resume SEMENTE §8 step 3.
+current base (`main` on GitHub, D-314), prepare the environment, reconcile merges and active claims, then resume SEMENTE §8 step 3.
 
 **Do not read** `docs/project/PROJECT-PHASE1-v2.1.md` or `/workspace/frameworks/pesquisa-torre/C-implementacao/projeto/PROJETO-FASE1-v2.1.md`. Your phase pack (the brief you were launched with) contains everything you need.
 

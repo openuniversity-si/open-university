@@ -1,7 +1,7 @@
 @AGENTS.md
 
 On `continue` or `continue (docs/RETOMAR.md)`, follow [docs/RETOMAR.md](docs/RETOMAR.md) as step 0, then resume
-SEMENTE §8 step 3 with the current Origin state and active claims.
+SEMENTE §8 step 3 with the current state of `main` on GitHub and the active claims (D-314).
 
 Follow AGENTS.md for the canonical delivery flow. This repository is the engine of A Torre; Open University is archived at `567176bb` (D-110). Production (Open University's site) is frozen (D-054, `docs/process/RELEASES.md`) until Daniel pauses it.
 

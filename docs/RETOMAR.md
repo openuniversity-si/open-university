@@ -4,64 +4,48 @@ Ao receber `continue` ou `continue (docs/RETOMAR.md)`, execute este passo 0 e de
 [SEMENTE §8, passo 3](SEMENTE.md#8-como-a-sessão-única-usa-a-semente). Reconstrua o estado pelas fontes atuais,
 sem pedir ao dono um resumo. Um brief antigo orienta a busca; os refs, PRs e provas atuais dizem o que já aconteceu.
 
-## 0. Chegar ao Origin
+## 0. Chegar à base no GitHub
 
-O repositório de trabalho é `openuniversity-si/open-university` no Cursor Origin, base
-`mod/roadmap-integration`. O checkout inicial da sessão (Codex ou Claude Code) pode vir do GitHub
-`openuniversity-si/open-university`, arquivado e antigo, sem SEMENTE, `scripts/cycle` ou o Stop hook, e com um CLAUDE.md/AGENTS.md que
-manda usar o GitHub. Nesse caso, ignore esses arquivos e busque o Origin antes de seguir qualquer instrução deles.
+O repositório de trabalho é `openuniversity-si/open-university` no GitHub, base `main` (D-314, desde 14/11/2026). O
+Origin é só um espelho de leitura do `main`, num repositório só da Open University: nada se busca nem se entrega lá. O
+histórico antigo (`mod/roadmap-integration` no Origin) é a era anterior; um brief ou nota que mande buscá-lo é dessa
+era.
 
 1. Localize o checkout e confira `git status --short`. Preserve alterações e worktrees existentes.
-2. Se o CLI faltar, instale-o: `curl -fsSL https://downloads.cursor.com/origin/install.sh | sh` e
-   `export PATH="$HOME/.local/bin:$PATH"`. Ele usa `CURSOR_API_KEY` do ambiente; nunca leia arquivos de credencial.
-3. No checkout existente, configure só o repositório e busque a base explicitamente (o clone inicial pode ter
-   refspec restrito a `main`):
+2. Confira que `origin` é o GitHub (`git remote get-url origin` → `https://github.com/openuniversity-si/open-university`)
+   e busque a base: `git fetch origin main`. Se `origin` apontar para o Origin (um setup antigo o reescrevia), volte-o:
+   `git remote set-url origin https://github.com/openuniversity-si/open-university`.
+3. Se o checkout estiver ocupado por outra unidade, crie um worktree próprio, sem mover o trabalho existente:
+   `git worktree add --detach <caminho-livre> origin/main`. Crie a branch da unidade depois de verificar os claims (§2).
 
-   ```bash
-   git remote set-url origin https://origin.cursor.com/openuniversity-si/open-university.git
-   origin auth setup-git --local
-   git config --replace-all remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
-   git fetch origin mod/roadmap-integration:refs/remotes/origin/mod/roadmap-integration
-   ```
-
-   Se o helper disser `Not logged in` apesar da chave do ambiente, execute
-   `export CURSOR_AUTH_TOKEN="$(origin auth token)"` no mesmo shell e repita o fetch. Nunca imprima o token nem
-   o grave em arquivo, URL ou configuração git. Sem checkout do Origin, o caminho mais curto é um clone novo:
-   `origin auth setup-git`, o `export` acima e
-   `git clone -b mod/roadmap-integration https://origin.cursor.com/openuniversity-si/open-university.git ~/the-tower`.
-   No Claude Code, um diretório fora do projeto da sessão não guarda o `cd` nem as variáveis entre comandos: cada
-   comando entra em `~/the-tower` e exporta `PATH` e `CURSOR_AUTH_TOKEN` de novo.
-4. Se estiver no checkout antigo ou ocupado por outra unidade, crie um worktree próprio, sem mover o trabalho
-   existente: `git worktree add --detach <caminho-livre> origin/mod/roadmap-integration`. Entre nele. Daqui em diante,
-   leia e execute apenas os arquivos da base do Origin. Crie a branch da unidade depois de verificar os claims (§2).
-
-Chave ausente ou acesso negado que não se resolve com o ambiente fornecido:
-`STOP: credential — <erro exato, sem segredos>`. Falha transitória de rede se diagnostica e tenta resolver antes de parar.
+Acesso negado ao GitHub que não se resolve com o ambiente fornecido: `STOP: credential — <erro exato, sem segredos>`.
+Falha transitória de rede se diagnostica e tenta resolver antes de parar.
 
 ## 1. Ligar o ciclo e preparar o ambiente
 
-- Leia [AGENTS.md](../AGENTS.md), [SEMENTE.md](SEMENTE.md) e [METODO.md](padrao/METODO.md) do Origin, além das
+- Leia [AGENTS.md](../AGENTS.md), [SEMENTE.md](SEMENTE.md) e [METODO.md](padrao/METODO.md) da base, além das
   referências que eles exigem. As travas da SEMENTE §3/§6 continuam valendo.
 - Execute `scripts/cycle on` e `bash scripts/cloud/setup.sh` no worktree correto; o SessionStart pode ter rodado no
   checkout antigo. Carregue `source scripts/cloud/env.sh` e execute `scripts/cloud/preflight` no mesmo shell que tem
   o CLI e a credencial. Corrija lacunas de ambiente; lacuna de credencial termina com o `STOP` acima.
 - O Stop hook (`.claude/settings.json` → `scripts/hooks/cycle-stop`) só vale numa sessão do Claude Code aberta no
-  checkout do Origin. Uma sessão nascida no checkout do GitHub carrega o settings dele, sem esse hook: `scripts/cycle
-  on` grava o marcador, mas nada bloqueia o fim do turno. A regra vale do mesmo jeito: toda resposta leva uma chamada
-  de ferramenta até o `STOP:` da lista fechada.
-- Não inicie `tower-runner.service` nem seu timer. Não rode gate nem `pr-ready` no box; o gate roda na sessão cloud.
-  Nenhuma entrega vai para `main`, cuja produção está congelada.
+  checkout deste repositório; numa sessão que não o carrega, `scripts/cycle on` grava o marcador, mas nada bloqueia o
+  fim do turno. A regra vale do mesmo jeito: toda resposta leva uma chamada de ferramenta até o `STOP:` da lista
+  fechada.
+- O gate da AWS está desligado (D-314): não inicie `tower-runner` nem o `tower-runner.service` do box. O gate é o
+  check `tower/gate` do GitHub (`scripts/verify-commit`, que a sessão também roda localmente com `--no-post`); a
+  entrega vai para `main` só pela merge queue.
 
 ## 2. Onde estou (cinco leituras, nesta ordem)
 
-1. **Base:** `git log --oneline --merges -25 origin/mod/roadmap-integration`. Leia além desses 25 merges se a fila
+1. **Base:** `git log --oneline --merges -25 origin/main`. Leia além desses 25 merges se a fila
    citar trabalho anterior. Confirme entregas pelo merge e pela prova, não pela memória da sessão.
-2. **Em voo:** `origin pr list --state open --limit 100`, `origin pr list --state draft --limit 100` e
-   `git ls-remote origin 'refs/heads/units/*'`. Leia também branches citadas pelas PRs e pelo diário; claims não
+2. **Em voo:** as PRs abertas e em rascunho do GitHub (`gh api 'repos/openuniversity-si/open-university/pulls?state=open&per_page=100'`,
+   com `draft` no JSON) e `git ls-remote origin 'refs/heads/*'`. Leia também branches citadas pelas PRs e pelo diário; claims não
    precisam ter prefixo `units/`. Se a lista atingir o limite, amplie a consulta antes de declarar uma unidade livre.
    PR aberta ou em rascunho, branch não integrada ou tarefa explicitamente atribuída a outra sessão são claims.
    Para uma branch sem PR, busque o ref e compare seu head com a base (`git merge-base --is-ancestor <sha>
-   origin/mod/roadmap-integration`): branch já integrada não ocupa a unidade.
+   origin/main`): branch já integrada não ocupa a unidade.
 3. **Fila:** leia [VAZÃO/fila.md](programs/vazao/fila.md), o programa e a fase atual. Desconte entregas confirmadas no
    passo 1, respeite dependências e exclua claims do passo 2. Linha entregue que sobrou é defeito da fila: retire-a
    numa unidade documental pequena, sem refazer a implementação.
@@ -84,7 +68,7 @@ Chave ausente ou acesso negado que não se resolve com o ambiente fornecido:
   corrija e julgue novamente. Não faça merge apenas porque uma prova antiga era verde.
 - Branch abandonada sem PR: abra a PR e termine a unidade, ou registre no diário o descarte e seu motivo. Não apague
   trabalho alheio como limpeza automática.
-- Nunca faça merge da PR #3 do Origin e não mexa na #41, rascunho de Daniel. Por lane, no máximo duas
+- As PRs do Origin (a #3, a #41 rascunho de Daniel, as #721 a #723) são da era anterior: não se mexe nelas. Por lane, no máximo duas
   unidades ao mesmo tempo, uma delas em entrega (VAZÃO F63, lane.md); respeite também o limite de lanes da conta em AGENTS.md.
 
 ## 3a. Pedidos de Daniel e da Torre
@@ -109,9 +93,10 @@ Volte à SEMENTE §8, passo 3: meça vazão, guardas e cota com o estado acima, 
 caiba no orçamento. Esta retomada não altera a intenção nem autoriza mexer em uma unidade atribuída a outra tarefa.
 
 Entregue pelo AGENTS.md: uma branch/worktree por unidade a partir da base atual; plano de commits antes da edição;
-commit e push a cada passo verde com trailer `Plan: N`; PR logo após o primeiro push. Use
-`scripts/deliver --open --branch <branch>` para julgar e integrar o head exato, incorporando a base se ela mudar.
-O merge usa `origin pr merge <N> --expect-head <N>=<sha-completo>`, sempre contra `mod/roadmap-integration`.
+commit e push a cada passo verde com trailer `Plan: N`; PR contra `main` logo após o primeiro push, com auto-merge
+ligado. O `tower/gate` julga o head e o commit da merge queue, e a fila faz o merge; vermelho se corrige na branch,
+com merge do `main` (nunca rebase nem force push). Depois do merge, acompanhe o deploy que ele toca
+(`scripts/deploy status`).
 
 Enquanto o ciclo autônomo estiver em execução, uma unidade entregue leva ao próximo passo 3. O turno só termina com
 `STOP: <login|credential|money|people|quota> — <o que falta>`. Em quota, agende o próprio despertar no reset
@@ -132,4 +117,4 @@ A fila é o estoque disponível. Com uma lane, a linha sai na mesma PR que entre
 várias PRs); com várias lanes, o coordenador retira as linhas entregues em lote, para que as lanes não se choquem
 na mesma tabela ([sistema §4](programs/vazao/sistema.md#4-migração-cada-passo-começa-medindo-e-termina-verificando)).
 Descarte e adiamento ficam com motivo e condição de retorno fora da tabela ativa. Claims se conferem novamente
-no Origin a cada retomada; nenhum retrato datado substitui essa leitura.
+no GitHub a cada retomada; nenhum retrato datado substitui essa leitura.
