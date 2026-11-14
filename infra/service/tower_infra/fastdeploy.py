@@ -44,7 +44,7 @@ FUNCTIONS = ('tower-port-api', 'tower-port-ack-ingress', 'tower-port-webhook-con
 API, INGRESS, CONSUMER = FUNCTIONS
 MODULES = {
     'ingress': (INGRESS,), 'awsjson': (INGRESS,), 'webhook_consumer': (CONSUMER,),
-    **{name: (API, CONSUMER) for name in ('__init__', 'branches', 'canary', 'checks', 'code_bundle', 'config_data', 'database', 'dbinit', 'drills', 'http_port',
+    **{name: (API, CONSUMER) for name in ('__init__', 'branches', 'canary', 'checks', 'code_bundle', 'config_data', 'database', 'dbinit', 'drills', 'engine', 'http_port',
                                           'live_image', 'observations', 'port', 'subscriptions', 'supervisor', 'wake')},
     **{name: FUNCTIONS for name in ('ed25519', 'forge_webhooks')},
 }
