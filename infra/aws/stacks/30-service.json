@@ -227,14 +227,6 @@
                   ]
                 },
                 {
-                  "Sid": "PublishTheForgeKeysToTheWebhookIngress",
-                  "Effect": "Allow",
-                  "Action": "ssm:PutParameter",
-                  "Resource": {
-                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/port/forge-keys"
-                  }
-                },
-                {
                   "Sid": "DecryptItThroughParameterStore",
                   "Effect": "Allow",
                   "Action": "kms:Decrypt",
@@ -696,10 +688,6 @@
                 "Value": "{\"bedrock\":[\"anthropic.claude-haiku-5-5\",\"global.anthropic.claude-haiku-5-5\",\"us.anthropic.claude-haiku-5-5\"],\"bedrock-converse\":[\"amazon.nova-micro-v1:0\",\"us.amazon.nova-micro-v1:0\",\"us.anthropic.claude-haiku-4-5-20251001-v1:0\"]}"
               },
               {
-                "Name": "TOWER_FORGE_KEYS_PARAMETER",
-                "Value": "/tower/port/forge-keys"
-              },
-              {
                 "Name": "TOWER_DOORBELL_FUNCTION",
                 "Value": "tower-deploy-doorbell"
               },
@@ -895,10 +883,6 @@
               {
                 "Name": "TOWER_API_MODELS",
                 "Value": "{\"bedrock\":[\"anthropic.claude-haiku-5-5\",\"global.anthropic.claude-haiku-5-5\",\"us.anthropic.claude-haiku-5-5\"],\"bedrock-converse\":[\"amazon.nova-micro-v1:0\",\"us.amazon.nova-micro-v1:0\",\"us.anthropic.claude-haiku-4-5-20251001-v1:0\"]}"
-              },
-              {
-                "Name": "TOWER_FORGE_KEYS_PARAMETER",
-                "Value": "/tower/port/forge-keys"
               },
               {
                 "Name": "TOWER_DOORBELL_FUNCTION",

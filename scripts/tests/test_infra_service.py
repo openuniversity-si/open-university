@@ -620,7 +620,7 @@ class StackTests(unittest.TestCase):
     def test_the_task_role_connects_as_the_service_login_reads_only_the_forge_key_and_publishes_to_tower_topics(self):
         statements = self.statements('TaskRole')
         self.assertEqual([item['Action'] for item in statements],
-                         ['rds-db:connect', 'ssm:GetParameter', 'ssm:PutParameter', 'ssm:PutParameter', 'kms:Decrypt', 'sns:Publish',
+                         ['rds-db:connect', 'ssm:GetParameter', 'ssm:PutParameter', 'kms:Decrypt', 'sns:Publish',
                           'bedrock-mantle:CreateInference', 'bedrock:InvokeModel',
                           'lambda:InvokeFunction', 'ssm:GetParameter',
                           ['lambda:UpdateFunctionCode', 'lambda:PublishVersion', 'lambda:UpdateAlias', 'lambda:GetAlias',
@@ -637,7 +637,8 @@ class StackTests(unittest.TestCase):
                          ['tower-port-api:*', 'tower-port-webhook-consumer:*', 'tower-port-ack-ingress:*'])
         self.assertEqual(bucket['Condition'], {'StringLike': {'s3:prefix': 'artifacts/lambda/*'}})
         self.assertTrue(objects['Resource']['Fn::Sub'].endswith('/artifacts/lambda/*'))
-        database, key, write_back, publish_keys, decrypt, topics, claude, converse = statements[:8]
+        # GATE-SHUTDOWN: no statement publishes the forge's webhook keys (/tower/port/forge-keys): the ingress is gone
+        database, key, write_back, decrypt, topics, claude, converse = statements[:7]
         self.assertEqual(claude['Resource'], '*')  # D-310: the model ARN of bedrock-mantle is not documented yet
         model, profile = converse['Resource']  # D-311: models and inference profiles only, never provisioned ones
         self.assertEqual((model['Fn::Sub'], profile['Fn::Sub']), ('arn:${AWS::Partition}:bedrock:*::foundation-model/*',
@@ -650,7 +651,7 @@ class StackTests(unittest.TestCase):
         # renewed OAuth credentials are written back: exactly the two CLI sessions, no wildcard (Daniel, through the Torre)
         self.assertEqual([item['Fn::Sub'].split(':parameter')[1] for item in write_back['Resource']],
                          ['/tower/sessions/claude-code', '/tower/sessions/codex'])
-        self.assertTrue(publish_keys['Resource']['Fn::Sub'].endswith(':parameter/tower/port/forge-keys'))  # PORT3: one parameter
+        self.assertNotIn('/tower/port/forge-keys', json.dumps(statements))
         self.assertIn('kms:ViaService', str(decrypt['Condition']))
         given = {item['Name']: item['Value'] for item in self.containers['service']['Environment']}
         self.assertEqual(given['TOWER_FORGE_KEY_PARAMETER'], '/tower/origin/forge-key')

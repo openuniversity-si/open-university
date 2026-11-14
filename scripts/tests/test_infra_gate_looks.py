@@ -16,6 +16,7 @@ sys.path.insert(0, str(SERVICE))
 from tower_infra import __main__ as main, config_data  # noqa: E402
 
 SOURCE = (SERVICE / 'tower_infra' / '__main__.py').read_text(encoding='utf-8')
+STACK = ROOT / 'infra' / 'aws' / 'stacks' / '30-service.json'
 
 
 def serve_node():
@@ -99,6 +100,32 @@ class TheServicesLooks(unittest.TestCase):
         self.assertIn('infra/service/tower_infra/__main__.py', item['x-readers'])
         self.assertIs(config_data.Config(None).get('service.gate_looks'), False)  # no row: the default
         self.assertIs(config_data.validate('service.gate_looks', True), True)  # the Torre may turn them back on
+
+
+class TheServicesStack(unittest.TestCase):
+    """The forge's webhook keys were published to /tower/port/forge-keys for the webhook ingress, which PR #17 deleted:
+    no task of the service is told the parameter, and the task role may no longer write it."""
+
+    def setUp(self):
+        self.resources = json.loads(STACK.read_text(encoding='utf-8'))['Resources']
+
+    def test_no_task_definition_names_the_forge_keys_parameter(self):
+        definitions = {name: item for name, item in self.resources.items() if item['Type'] == 'AWS::ECS::TaskDefinition'}
+        self.assertEqual(set(definitions), {'TaskDefinition', 'StandbyTaskDefinition'})
+        for name, item in definitions.items():
+            for container in item['Properties']['ContainerDefinitions']:
+                given = {each['Name']: each['Value'] for each in container.get('Environment', [])}
+                self.assertNotIn('TOWER_FORGE_KEYS_PARAMETER', given, f"{name}/{container['Name']}")
+                if container['Name'] == 'service':  # the forge's own key is still named: a landing reads it when asked
+                    self.assertEqual(given['TOWER_FORGE_KEY_PARAMETER'], '/tower/origin/forge-key', name)
+
+    def test_the_task_role_may_no_longer_write_the_forge_keys_parameter(self):
+        statements = [each for policy in self.resources['TaskRole']['Properties']['Policies']
+                      for each in policy['PolicyDocument']['Statement']]
+        self.assertNotIn('PublishTheForgeKeysToTheWebhookIngress', [each.get('Sid') for each in statements])
+        self.assertNotIn('forge-keys', STACK.read_text(encoding='utf-8'))
+        writes = [each for each in statements if 'ssm:PutParameter' in json.dumps(each['Action'])]
+        self.assertEqual([each['Sid'] for each in writes], ['WriteBackRenewedCliSessionCredentials'])  # the CLIs' alone
 
 
 if __name__ == '__main__':

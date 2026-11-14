@@ -153,7 +153,9 @@ def refresh_keys(forge_webhooks, workflows):
             if forge_webhooks.refresh(db, url=os.environ.get('TOWER_FORGE_KEYS_URL', forge_webhooks.KEYS_URL)):
                 LOG.info("serve: the forge's webhook keys changed")
             parameter = os.environ.get('TOWER_FORGE_KEYS_PARAMETER')
-            if parameter:  # PORT3: the webhook ingress verifies from this parameter, without a database
+            # PORT3: the webhook ingress verified from this parameter, without a database. GATE-SHUTDOWN: the ingress is
+            # gone (PR #17) and no task definition names the parameter any more, so nothing is published
+            if parameter:
                 import boto3
                 ssm = boto3.client('ssm', region_name=os.environ.get('AWS_REGION'))
                 forge_webhooks.publish(db, lambda name, value: ssm.put_parameter(
