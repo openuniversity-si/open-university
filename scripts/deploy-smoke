@@ -19,7 +19,9 @@
 #      and a canary would be red on every deploy and roll it back. DEPLOY_SMOKE_CANARY says when it runs: `auto` (the
 #      default) asks ECS for tower-runner in the cluster tower (DEPLOY_SMOKE_RUNNER_CLUSTER, _SERVICE): it runs when the
 #      service is ACTIVE with a desired count above 0, it is skipped, and said, when the service is missing, inactive or at
-#      0; an answer ECS did not give (no credential, a transport failure) runs it, so a doubt never loosens the smoke.
+#      0. When ECS does not answer (the deployer's role is not granted it), the runner stack's DesiredCount parameter
+#      (DEPLOY_SMOKE_RUNNER_STACK, tower-app-runner) decides the same way, and a stack that does not exist skips it; when
+#      neither answers (no credential, a transport failure) it runs, so a doubt never loosens the smoke.
 #      `on` always runs it, `off` never (said). Checks 1 to 3 run whatever it says.
 # The URL is DEPLOY_SMOKE_URL or the PortUrl output of tower-app-port. The token is DEPLOY_SMOKE_TOKEN or the SecureString
 # /tower/deploy/smoke-token (an installation token, inside the /tower/deploy/* read the deployer already has); with none
@@ -97,7 +99,26 @@ runner() {
   esac
   if ! desired="$(aws ecs describe-services --cluster "$cluster" --services "$service" \
       --query "services[?status=='ACTIVE'] | [0].desiredCount" --output text 2>/dev/null)"; then
-    return 0  # ECS did not answer: run it
+    # SMOKE-RUNNER-FROM-STACK: ECS did not answer. The deployer's role is not granted ecs:DescribeServices (the boundary
+    # allows ecs:*, the role grants none of it: tower-infra-deploy:e70ed637, 14/11, ran the canary with the runner at 0 and
+    # rolled back). The deployer reads its stacks, and every deploy passes the runner stack's DesiredCount from
+    # infra/aws/parameters.json: that parameter is the runner's desired count as deployed. No answer from it either: run it.
+    local stack="${DEPLOY_SMOKE_RUNNER_STACK:-tower-app-runner}" err
+    err="$(mktemp)"
+    if desired="$(aws cloudformation describe-stacks --stack-name "$stack" \
+        --query "Stacks[0].Parameters[?ParameterKey=='DesiredCount'].ParameterValue | [0]" --output text 2>"$err")"; then
+      rm -f "$err"
+      if [[ "$desired" = 0 ]]; then
+        echo "smoke: the runner stack ($stack) has DesiredCount 0: no runner takes a check, the canary job was skipped"; return 1
+      fi
+      return 0
+    fi
+    if grep -q 'does not exist' "$err"; then
+      rm -f "$err"
+      echo "smoke: the runner stack ($stack) does not exist: no runner takes a check, the canary job was skipped"; return 1
+    fi
+    rm -f "$err"
+    return 0  # neither ECS nor CloudFormation answered: run it
   fi
   if [[ "$desired" =~ ^[0-9]+$ ]] && (( desired > 0 )); then return 0; fi
   if [[ "$desired" = 0 ]]; then
