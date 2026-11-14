@@ -1,0 +1,16 @@
+{
+  "script": "scripts/tests/infra-pregate.test.sh",
+  "covers": [
+    "scripts/tests/infra-pregate.test.sh",
+    "scripts/tests/test_infra_pregate.py",
+    "infra/service/tower_infra/pregate.py",
+    "infra/service/tower_infra/branches.py",
+    "infra/service/tower_infra/port.py",
+    "infra/service/tower_infra/config_data.py",
+    "scripts/lib/gate_infra.py",
+    "scripts/lib/config.py",
+    "infra/db/migrations/*.sql",
+    "scripts/tests/infra_db/psql.py",
+    "scripts/lib/test_db.py"
+  ]
+}

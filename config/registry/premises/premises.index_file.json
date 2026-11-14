@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "PREMISES.md",
+  "x-unit": "path",
+  "description": "Name of the index scripts/premises list writes on demand; never committed anywhere in the repository (P-10), and structure-check refuses a tracked one.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "type": "string",
+  "default": "file",
+  "enum": [
+    "file"
+  ],
+  "x-unit": "enum",
+  "description": "The configuration change store a hermetic test process reads: this checkout's local log, never the shared store on the forge (D-069 item 5). hermetic.install() pins it for the process and hermetic.store_env() gives it to a child process whose environment a test builds. Read from this file, never from the store itself.",
+  "x-readers": [
+    "scripts/lib/hermetic.py",
+    "scripts/lib/config.py"
+  ],
+  "x-source": "TR1; D-068 (3); D-069 item 5"
+}

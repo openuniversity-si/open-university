@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 0.5,
+  "minimum": 0,
+  "x-unit": "ratio",
+  "description": "Gate slots per vCPU when gate.slots is 0: slots = max(1, floor(vCPUs x this)), so a 4-vCPU container runs two gates at a time (D-076 (d), GATE-FAST: an incremental verdict with content reuse runs a few tests, so two verdicts of distinct PRs share the box; measured in docs/units/GATE-FAST/retro.md; GX-03, GA-PG4 set 0.25). Rollback: 0.25.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/gate-isolation.sh"
+  ],
+  "x-source": "D-070 (GX-03)"
+}

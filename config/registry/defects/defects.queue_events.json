@@ -1,0 +1,15 @@
+{
+  "type": "array",
+  "default": [
+    "pr.opened"
+  ],
+  "x-unit": "enum",
+  "description": "Event types whose latest payload names the units an open PR touches.",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "minItems": 1
+}

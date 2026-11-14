@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/generate [<target>|all] [--check] [--list] [--stdout] [--out DIR] [--root DIR]
+# The one generator of derived files (D-069 items 1 and 2): targets are declared in config/registry/generate.json.
+# --check exits 1 when a committed derived file differs from its regeneration (the "generated drift" gate stage).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/generate.py" "$@"

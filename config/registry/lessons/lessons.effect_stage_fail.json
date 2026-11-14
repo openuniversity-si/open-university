@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "FAIL",
+  "x-unit": "enum",
+  "description": "Stage result that counts as an occurrence when a signal names a gate stage.",
+  "x-readers": [
+    "scripts/lib/lessons_effect.py"
+  ]
+}

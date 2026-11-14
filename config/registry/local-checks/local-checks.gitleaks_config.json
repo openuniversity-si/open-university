@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": ".gitleaks.toml",
+  "x-unit": "path",
+  "description": "Gitleaks config (relative to the checkout) used by secret_scan_diff.",
+  "x-readers": [
+    "scripts/lib/local_checks.py",
+    "scripts/lib/retro.py"
+  ],
+  "minLength": 1
+}

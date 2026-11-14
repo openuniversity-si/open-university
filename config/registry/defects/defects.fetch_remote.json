@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "origin",
+  "x-unit": "name",
+  "description": "GX-13: remote the recorded base sha is fetched from when its objects are not local; a fetch that fails leaves no base (nothing is excused).",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ],
+  "minLength": 1
+}

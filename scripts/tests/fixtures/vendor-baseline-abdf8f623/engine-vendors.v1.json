@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/adapters/engine-vendors.v1.json",
+  "title": "Engine vendor catalog (D-069 item 7)",
+  "description": "Every vendor the engine (scripts/) may call: how a call to it is recognized, the adapter modules that may make it, the ports that may load those adapters, and the shrink-only baseline of call sites outside its adapters. Read by scripts/lib/vendor_check.py.",
+  "type": "object",
+  "required": ["description", "vendors"],
+  "additionalProperties": false,
+  "properties": {
+    "description": {"type": "string", "minLength": 1},
+    "vendors": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/vendor"}}
+  },
+  "$defs": {
+    "vendor": {
+      "type": "object",
+      "required": ["name", "kind", "status", "endpoints", "clis", "modules", "adapters", "selectors", "baseline", "note"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+        "kind": {"enum": ["forge", "agent-provider", "ci-runner", "storage", "database", "hosting", "design", "toolchain"]},
+        "status": {"enum": ["active", "slot", "forbidden"], "description": "active has adapters; slot has none yet; forbidden never gets one."},
+        "endpoints": {"type": "array", "items": {"type": "string", "minLength": 3}, "uniqueItems": true, "description": "Host names or API path fragments; a string that contains one is a call."},
+        "clis": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}, "uniqueItems": true, "description": "Command names; running one is a call."},
+        "modules": {"type": "array", "items": {"type": "string", "pattern": "^[@a-z][@a-z0-9_./-]*$"}, "uniqueItems": true, "description": "Python modules or JavaScript packages that are the vendor's client; importing one (or naming its .py file in shell) is a call."},
+        "adapters": {"type": "array", "items": {"type": "string", "pattern": "^scripts/"}, "uniqueItems": true, "description": "Files that may make any call to the vendor."},
+        "selectors": {"type": "array", "items": {"type": "string", "pattern": "^scripts/"}, "uniqueItems": true, "description": "Ports that may import the vendor's adapter modules to select them, and nothing else."},
+        "baseline": {"type": "array", "items": {"type": "string", "pattern": "^scripts/[^:]+:[^:]+$"}, "uniqueItems": true, "description": "path:token of each call outside the adapters that predates the check; the list only shrinks."},
+        "note": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

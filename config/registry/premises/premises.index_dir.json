@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": ".gate/premises",
+  "x-unit": "path",
+  "description": "Directory, ignored by git, where scripts/premises list writes the index by default (P-10).",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ]
+}

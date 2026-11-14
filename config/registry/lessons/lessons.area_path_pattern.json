@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "`([A-Za-z0-9_.*/-]+/[A-Za-z0-9_.*/-]+)`",
+  "x-unit": "regex",
+  "description": "A backticked path in a retro item; it becomes the lesson area (the files it is about).",
+  "x-readers": [
+    "scripts/lib/lesson_ingest.py"
+  ]
+}

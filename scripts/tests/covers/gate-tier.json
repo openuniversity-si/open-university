@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/gate-tier.test.sh",
+  "covers": [
+    "scripts/tests/gate-tier.test.sh",
+    "scripts/tests/test_gate_tier.py",
+    "scripts/lib/gate_tier.py",
+    "scripts/lib/gate-hooks/tier.sh",
+    "scripts/lib/config.py",
+    "config/registry/gate-tier.json",
+    "config/registry/forge-events.json"
+  ]
+}

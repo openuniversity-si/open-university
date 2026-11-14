@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/literals.json",
+  "x-owner": "literals",
+  "x-schema-version": 1,
+  "title": "Unregistered engine literals (LT1)",
+  "description": "The rules of the census of unregistered literals in the engine paths (scripts/lib/literal_census.py, a module of scripts/structure-check): what counts as a value, what is not one, and which base tree bounds each count (D-068 (6), D-069 item 3).",
+  "type": "object",
+  "additionalProperties": false
+}

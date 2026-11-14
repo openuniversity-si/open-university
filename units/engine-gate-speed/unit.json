@@ -1,0 +1,21 @@
+{
+  "id": "engine-gate-speed",
+  "purpose": "Gate speed and test metrics: the digests, the parallel test runner and the test measurements; split to engine-gate-status at its seam (F112).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/gate-eta.json",
+    "scripts/lib/gate_speed.py",
+    "scripts/lib/parallel_tests.py",
+    "scripts/lib/test_metrics.py",
+    "scripts/tests/costs.json",
+    "scripts/tests/gate-speed.test.sh",
+    "scripts/tests/test_gate_speed.py",
+    "scripts/tests/test_test_metrics.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-gate-cache": "^1",
+    "engine-gate-tests": "^1"
+  }
+}

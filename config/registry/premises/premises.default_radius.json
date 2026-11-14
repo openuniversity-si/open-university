@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "low",
+  "x-unit": "enum",
+  "description": "Radius of a proposed premise whose reasons reach nothing larger.",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ]
+}

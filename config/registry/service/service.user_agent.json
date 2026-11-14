@@ -1,0 +1,13 @@
+{
+  "type": "string",
+  "default": "the-tower-runner/1",
+  "x-unit": "text",
+  "description": "The User-Agent every request of a runner to the control plane carries (claim, heartbeat, result), set in one place (ControlTransport.call). The edge in front of today's control plane answers 403 to urllib's default `Python-urllib/<version>`, so a runner without it fell back to git on every poll (GATE-SPEED, D-091). Generic: it names the client, never a vendor.",
+  "x-readers": [
+    "scripts/lib/forge_control.py",
+    "scripts/lib/service_deploy.py",
+    "scripts/lib/service_runner.py",
+    "scripts/lib/service_status.py"
+  ],
+  "x-source": "D-091; docs/operations/services.md"
+}

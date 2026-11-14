@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "mod/roadmap-integration",
+  "x-unit": "branch",
+  "description": "The base branch whose merges scripts/gate-infra backfill judges again (P5 F3): each merge commit's first parent is the base, its second the head.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 5 (P5 F3), D-306"
+}

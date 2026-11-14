@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 0.8,
+  "exclusiveMinimum": 0,
+  "x-unit": "ratio",
+  "description": "DB-VITALS (docs/operations/aws-revisao-arquitetura.md, finding 13): the share of the database's max_connections the peak of open connections may reach before the live service alerts (platform.db.vitals alerts: connections). The peak is the largest count of pg_stat_activity seen on the service's heartbeats in the event's window; past max_connections every new login fails and the engine stops at once.",
+  "x-readers": [
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/vitals.py"
+  ],
+  "x-source": "DB-VITALS"
+}

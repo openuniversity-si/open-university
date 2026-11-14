@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "docs"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "x-unit": "name",
+  "description": "Area ids of scripts/lib/gate-areas.json a delta may touch and still carry the earlier proof. A delta file in any other area, or in none, runs a normal gate.",
+  "x-readers": [
+    "scripts/lib/gate_carry.py"
+  ],
+  "x-source": "D-070"
+}

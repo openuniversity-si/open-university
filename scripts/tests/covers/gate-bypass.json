@@ -1,0 +1,16 @@
+{
+  "script": "scripts/tests/gate-bypass.test.sh",
+  "covers": [
+    "scripts/tests/gate-bypass.test.sh",
+    "scripts/tests/test_gate_bypass.py",
+    "scripts/lib/gate_bypass.py",
+    "scripts/lib/engine_role.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/config.py",
+    "config/registry/gate/gate.bypass.json",
+    "scripts/lib/regime.py",
+    "scripts/lib/forge_events.py",
+    "config/registry/regime/**",
+    "scripts/lib/service_budget.py"
+  ]
+}

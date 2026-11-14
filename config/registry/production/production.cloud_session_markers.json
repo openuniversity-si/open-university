@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string"
+  },
+  "default": [
+    "CLAUDE_CODE_REMOTE",
+    "CLAUDE_CODE_REMOTE_SESSION_ID"
+  ],
+  "x-unit": "count",
+  "description": "Environment variable names whose presence (non-empty) marks a cloud session; a host-side shell has none of them.",
+  "x-readers": [
+    "scripts/lib/production_guard.py"
+  ],
+  "x-source": "D-054; D-069 item 13"
+}

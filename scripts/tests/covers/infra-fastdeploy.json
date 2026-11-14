@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/infra-fastdeploy.test.sh",
+  "covers": [
+    "scripts/tests/infra-fastdeploy.test.sh",
+    "scripts/tests/test_infra_fastdeploy.py",
+    "scripts/tests/test_infra_autodeploy.py",
+    "infra/service/tower_infra/fastdeploy.py",
+    "infra/service/tower_infra/autodeploy.py",
+    "infra/service/tower_infra/port.py",
+    "infra/aws/stacks/30-service.json",
+    "infra/aws/bootstrap.json",
+    "scripts/lib/medir.py",
+    "scripts/lib/deploy_classify.py",
+    "infra/service/tower_infra/wake.py",
+    "scripts/tests/test_infra_aws.py"
+  ]
+}

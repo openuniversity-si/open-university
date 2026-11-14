@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/forge.rate.limited.v1.json",
+  "title": "forge.rate.limited payload v1",
+  "description": "GATE-ON-PUSH R4: the forge refused a call of the one REST client on its primary or secondary rate limit, and every process of the session waited for the block (forge_rate). Recorded at the refusal and published after the block ends, best effort.",
+  "x-natural-key": [
+    "/correlation_id",
+    "/payload/repo",
+    "/payload/at",
+    "/payload/kind",
+    "/payload/method",
+    "/payload/endpoint"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "kind",
+    "method",
+    "endpoint",
+    "at",
+    "blocked_s"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "kind": {
+      "enum": [
+        "primary",
+        "secondary"
+      ],
+      "description": "Which forge limit refused the call (forge_rate.limited)."
+    },
+    "method": {
+      "type": "string",
+      "minLength": 1
+    },
+    "endpoint": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The request path's shape: query dropped, ids as :id."
+    },
+    "at": {
+      "type": "string",
+      "minLength": 1,
+      "description": "When the forge refused the call (RFC 3339, UTC)."
+    },
+    "blocked_s": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The block every process of the session waited for, jitter included."
+    }
+  }
+}

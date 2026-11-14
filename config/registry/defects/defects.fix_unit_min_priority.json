@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 1,
+  "x-unit": "points",
+  "description": "Least priority for which the router opens a fix unit; a defect no PR and no unit feels waits.",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "minimum": 0
+}

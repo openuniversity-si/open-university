@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/quarantine.json",
+  "x-owner": "quarantine",
+  "x-schema-version": 1,
+  "description": "The flaky-test quarantine (plan v3 M7, D-065 V7, D-069 item 5): test.flaked, test.quarantined, test.unquarantined.",
+  "type": "object",
+  "additionalProperties": false
+}

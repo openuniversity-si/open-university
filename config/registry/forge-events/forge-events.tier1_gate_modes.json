@@ -1,0 +1,13 @@
+{
+  "type": "array",
+  "default": [
+    "dev"
+  ],
+  "x-unit": "count",
+  "description": "Deprecated (GX-11, D-070): the gate tier is explicit (gate-hooks/tier.sh, D-B5) and the KD1 switch reads forge-events.adjudicated_tiers. These modes are only the fallback of scripts/lib/gate_tier.py when no tier was derived (a caller outside gate-local); gate_report still passes them in. It stays registered until a later revision removes it (GX-26; schema compat).",
+  "x-readers": [
+    "scripts/lib/gate_report.py",
+    "scripts/lib/gate_status.py"
+  ],
+  "deprecated": true
+}

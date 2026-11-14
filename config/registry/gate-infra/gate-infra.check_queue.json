@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "checks",
+  "minLength": 1,
+  "x-unit": "queue",
+  "description": "The tenant's queue of the check jobs, registered through the port (PUT /v1/queues/<name>).",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+}

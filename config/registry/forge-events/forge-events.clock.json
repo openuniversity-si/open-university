@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "system-utc",
+  "enum": [
+    "system-utc"
+  ],
+  "x-unit": "clock",
+  "description": "Clock the port injects for occurred_at and step durations; tests inject a fake clock object instead.",
+  "x-readers": [
+    "scripts/lib/forge_events.py"
+  ]
+}

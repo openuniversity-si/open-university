@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/rules.json",
+  "x-owner": "rules",
+  "x-schema-version": 1,
+  "description": "The rule register (RULE-AUDIT rule system, Daniel 2026-10-28 16:52, 16:55, 17:08 and 17:09 BRT): every rule that can stop a flow is a record here with its justification, owner, review date, end condition, impact, premises, standing question and, when it stops, its stop record; scripts/rule check turns every rule without one, past its review date or end condition, unanswered, unmeasured, without a root cause or resting on an unsettled premise into a number. First pass: report only. Reader: scripts/lib/rule_registry.py (scripts/rule).",
+  "type": "object",
+  "additionalProperties": false
+}

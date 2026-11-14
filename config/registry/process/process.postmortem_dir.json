@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "docs/process/postmortems",
+  "x-unit": "path",
+  "description": "Directory of the blameless postmortems (D-069 item 9); one file per incident, named by process.postmortem_name_pattern.",
+  "x-readers": [
+    "scripts/lib/postmortem_check.py"
+  ]
+}

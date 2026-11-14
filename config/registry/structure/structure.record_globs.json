@@ -1,0 +1,32 @@
+{
+  "type": "array",
+  "default": [
+    "docs/units/**",
+    "docs/programs/**",
+    "docs/adr/**",
+    "docs/audits/**",
+    "docs/project/**",
+    "docs/process/roadmap/**",
+    "docs/process/postmortems/**",
+    "docs/process/incidents/**",
+    "docs/process/lessons/**",
+    "docs/process/defects/**",
+    "docs/process/premises/**",
+    "docs/process/spikes/**",
+    "docs/domain/DECISIONS.md",
+    "config/registry/structure.json",
+    "config/registry/structure/structure.retired_product_roots.json",
+    "scripts/lib/generated/**",
+    ".gitleaks.toml"
+  ],
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "count",
+  "description": "Globs of the historical records a retired product root may still be named in: they describe the past and are not rewritten (units, programs, ADRs, audits, the roadmap and process records, the decision register), plus the definition of the roots itself and its generated types; and .gitleaks.toml, whose allowlist must name paths of past commits because the secret scan judges the whole history.",
+  "x-readers": [
+    "scripts/lib/retired_products.py"
+  ],
+  "x-source": "D-113 (OU-DECOUPLE F5)"
+}

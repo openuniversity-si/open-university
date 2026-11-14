@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/units-repository.test.sh",
+  "covers": [
+    "scripts/tests/units-repository.test.sh",
+    "scripts/tests/test_repo_unit_claims.py",
+    "scripts/units",
+    "scripts/lib/unit*.py",
+    "scripts/lib/config.py",
+    "scripts/lib/structure.py",
+    "config/registry/units.json",
+    "config/registry/**",
+    "contracts/units/*.json",
+    "units/**",
+    "scripts/tests/covers/*.json",
+    "scripts/**"
+  ]
+}

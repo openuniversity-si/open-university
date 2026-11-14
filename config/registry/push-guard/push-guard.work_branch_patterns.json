@@ -1,0 +1,20 @@
+{
+  "type": "array",
+  "default": [
+    "mod/*",
+    "claude/*",
+    "codex/*",
+    "cursor/*"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "x-unit": "glob",
+  "description": "fnmatch patterns of the session work branches. A branch without its own upstream (none, or one that tracks another branch such as the base it started from) is pushed to <remote>/<branch> and gets that upstream only when it matches one of these.",
+  "x-readers": [
+    "scripts/lib/push_guard.py"
+  ]
+}

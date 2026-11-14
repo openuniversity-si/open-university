@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "sha256",
+  "x-unit": "name",
+  "description": "Hash of an audit entry; each entry carries the digest of the one before, so a hand edit or a removed entry breaks the chain.",
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ]
+}

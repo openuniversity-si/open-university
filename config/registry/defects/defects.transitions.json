@@ -1,0 +1,21 @@
+{
+  "type": "array",
+  "default": [
+    "open>fixing",
+    "open>resolved",
+    "fixing>resolved",
+    "fixing>open",
+    "resolved>verified",
+    "resolved>open",
+    "verified>open"
+  ],
+  "x-unit": "enum",
+  "description": "Allowed status changes, 'from>to'. Every other change is refused. open>resolved (GX-13): an open defect whose test passes on the recorded base (defects.verify_open).",
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ],
+  "items": {
+    "type": "string",
+    "pattern": "^[a-z]+>[a-z]+$"
+  }
+}

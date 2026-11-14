@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2000,
+  "minimum": 0,
+  "maximum": 20000,
+  "x-unit": "chars",
+  "description": "Tail of a red tier-3 run's output the role prints to its session log (the events carry the failing stages, never the log).",
+  "x-readers": [
+    "scripts/lib/battery.py"
+  ]
+}

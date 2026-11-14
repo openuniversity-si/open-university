@@ -1,0 +1,31 @@
+{
+  "script": "scripts/tests/gate-flake.test.sh",
+  "covers": [
+    "scripts/tests/gate-flake.test.sh",
+    "scripts/tests/test_gate_classify_flake.py",
+    "scripts/tests/test_gate_classify_base.py",
+    "scripts/tests/test_gate_flake.py",
+    "scripts/lib/gate_flake.py",
+    "config/registry/gate-flake.json",
+    "scripts/lib/gate_adjudicate.py",
+    "scripts/lib/gate_classify.py",
+    "scripts/lib/config.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/defect_detect.py",
+    "scripts/lib/defect_adapters.py",
+    "scripts/lib/defects.py",
+    "scripts/lib/quarantine.py",
+    "scripts/lib/forge_events.py",
+    "contracts/events/test.flaked.v1.json",
+    "contracts/events/test.quarantined.v1.json",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/gate_proof.py",
+    "scripts/lib/gate_status.py",
+    "scripts/lib/gate_graph.py",
+    "scripts/lib/units.py",
+    "scripts/defects",
+    "scripts/units",
+    "contracts/defects/*.json",
+    "units/*/unit.json"
+  ]
+}

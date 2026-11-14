@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/prepush.json",
+  "x-owner": "prepush",
+  "x-schema-version": 1,
+  "description": "The pre-push check (TX01, T9): scripts/prepush and .githooks/pre-push run, in seconds and on the local diff, the inventory checks, the owning script tests and the open-PR overlap that used to reach only the full gate.",
+  "type": "object",
+  "additionalProperties": false
+}

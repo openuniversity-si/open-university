@@ -1,0 +1,53 @@
+{
+  "version": 3,
+  "stages": {
+    "pr metadata": {
+      "needs": [],
+      "resources": [],
+      "deterministic": false
+    },
+    "no GitHub Actions workflows": {
+      "needs": [],
+      "resources": [],
+      "deterministic": false
+    },
+    "secret scan (tree)": {
+      "needs": [],
+      "resources": [],
+      "deterministic": false
+    },
+    "structure check": {
+      "needs": [],
+      "resources": [],
+      "deterministic": false
+    },
+    "generated drift": {
+      "needs": [],
+      "resources": [],
+      "deterministic": true,
+      "version": 1,
+      "inputs": [
+        "**"
+      ]
+    },
+    "schema compat": {
+      "needs": [],
+      "resources": [],
+      "deterministic": true,
+      "version": 1,
+      "inputs": [
+        "**"
+      ]
+    },
+    "secret scan (history)": {
+      "needs": [],
+      "resources": [],
+      "deterministic": false
+    },
+    "script tests": {
+      "needs": [],
+      "resources": [],
+      "deterministic": false
+    }
+  }
+}

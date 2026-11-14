@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "test.flaked events for one test inside gate-flake.quarantine_window_s (this sighting included) after which the gate emits test.quarantined (quarantine.py). The quarantine changes no policy: the test is still listed and still blocks when it fails twice.",
+  "x-readers": [
+    "scripts/lib/gate_flake.py"
+  ],
+  "x-source": "D-070"
+}

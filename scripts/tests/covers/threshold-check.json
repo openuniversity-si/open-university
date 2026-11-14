@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/threshold-check.test.sh",
+  "covers": [
+    "scripts/tests/threshold-check.test.sh",
+    "scripts/tests/test_threshold_check*.py",
+    "scripts/tests/fixture_copy.py",
+    "scripts/lib/parallel_tests.py",
+    "scripts/lib/threshold_check.py",
+    "scripts/lib/commit_check.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/units.py",
+    "scripts/lib/structure.py",
+    "scripts/lib/config.py",
+    "config/registry/*.json",
+    "contracts/config/registry.v1.json"
+  ]
+}

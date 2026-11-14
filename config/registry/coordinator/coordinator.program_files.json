@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "brief.md",
+    "audit.md",
+    "plan.md",
+    "retro.md"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "path",
+  "description": "The files every program folder holds, in stage order.",
+  "x-readers": [
+    "scripts/lib/program.py",
+    "scripts/lib/program_gate.py"
+  ]
+}

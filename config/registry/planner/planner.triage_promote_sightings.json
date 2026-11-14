@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Sightings of one signature at which triage promotes it to a candidate (a second sighting is a rediscovery; design 1.2).",
+  "x-readers": [
+    "scripts/lib/plan_triage.py",
+    "scripts/plan"
+  ]
+}

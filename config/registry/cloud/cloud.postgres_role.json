@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "postgres",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Superuser role the cluster is initialised with and every cloud client connects as.",
+  "x-readers": [
+    "scripts/cloud/postgres.py"
+  ]
+}

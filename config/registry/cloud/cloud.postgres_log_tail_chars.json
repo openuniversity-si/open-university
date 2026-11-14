@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 200,
+  "minimum": 1,
+  "x-unit": "chars",
+  "description": "Longest server-log line quoted in a startup error.",
+  "x-readers": [
+    "scripts/cloud/postgres.py"
+  ]
+}

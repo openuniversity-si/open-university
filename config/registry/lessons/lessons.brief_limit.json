@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 8,
+  "x-unit": "count",
+  "description": "Most lessons the brief query returns for one area.",
+  "x-readers": [
+    "scripts/lib/lessons_brief.py"
+  ],
+  "minimum": 1
+}

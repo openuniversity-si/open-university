@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "default": 0.3,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "How long each job of scripts/tests/gate-heavy-db.test.sh keeps its place after the rendezvous, so a cap that lets one job too many in still shows in the peak.",
+  "x-readers": [
+    "scripts/tests/gate-heavy-db.test.sh"
+  ]
+}

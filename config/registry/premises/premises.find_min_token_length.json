@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 3,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Shortest word that counts when two statements are compared.",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ]
+}

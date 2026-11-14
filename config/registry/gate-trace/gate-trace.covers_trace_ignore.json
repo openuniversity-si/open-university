@@ -1,0 +1,24 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "minItems": 1,
+  "default": [
+    "config/registry/**",
+    "scripts/lib/generated/**",
+    "scripts/lib/hermetic/**",
+    "docs/domain/DECISIONS.md",
+    ".git/**",
+    ".toolchain/**",
+    "**/node_modules/**",
+    "**/__pycache__/**"
+  ],
+  "x-unit": "glob",
+  "x-source": "D-070, D-268",
+  "description": "Paths (relative to the checkout) the trace never reports: the registry every config.get reads, generated modules, the decisions file every unit-manifest load reads, the harness itself, VCS, toolchain, dependencies and bytecode.",
+  "x-readers": [
+    "scripts/lib/gate_script_tests.py"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 300,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Freshness window of a webhook delivery in the queue consumer: the signed webhook-timestamp may be at most this far from the queue's SentTimestamp. Read per SQS batch from work.config_value (DEP9), the compiled default when no row exists; PUT /v1/config/service.webhook_tolerance_s changes it with no deploy. The port's own accept keeps the compiled 300.",
+  "x-readers": [
+    "infra/service/tower_infra/webhook_consumer.py",
+    "infra/service/tower_infra/config_data.py"
+  ],
+  "x-source": "DEP9 step 2; docs/operations/aws.md 22.5b"
+}

@@ -1,0 +1,13 @@
+{
+  "type": "integer",
+  "default": 0,
+  "minimum": 0,
+  "x-unit": "count",
+  "description": "Optional override of the gates that may run at once on this machine, across all worktrees (D-064 (b)); each holds one slot lock file for its whole run. 0 means derived: max(1, floor(vCPUs x gate.slots_per_vcpu)) (GX-03, D-070). GATE_SLOTS, when set, is an explicit override for one run. Rollback of the sizing: set 3.",
+  "x-readers": [
+    "scripts/lib/gate-isolation.sh",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/gate-local"
+  ],
+  "x-source": "D-064 (b); D-070 (GX-03)"
+}

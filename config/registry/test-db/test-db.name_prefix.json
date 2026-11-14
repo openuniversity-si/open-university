@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "tower_test_tmp_",
+  "pattern": "^tower_test_[h-z][a-z0-9]*_$",
+  "x-unit": "identifier",
+  "description": "Prefix of every throwaway test database. The character after tower_test_ is never hex and never g, so a helper name never matches the per-checkout database tower_test_<10 hex> (scripts/lib/gate-isolation.sh) or an integration database tower_test_g<hex>; the helper drops only names with this prefix.",
+  "x-readers": [
+    "scripts/lib/test_db.py"
+  ]
+}

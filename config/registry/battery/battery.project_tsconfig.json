@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "minLength": 1,
+  "default": "products/web/tsconfig.json",
+  "x-unit": "path",
+  "description": "The TypeScript project's own tsconfig (its compiler settings) that each unit's types project extends; the generated `paths` it extends in turn live wherever the addresses target writes them (TX32). OU-DECOUPLE F5 (D-113): the TypeScript product's folder is products/web.",
+  "x-readers": [
+    "scripts/lib/unit_battery.py",
+    "scripts/tests/test_unit_battery.py"
+  ],
+  "x-source": "plan v3 §7.2; TX32 (the address map leaves the project tsconfig)"
+}

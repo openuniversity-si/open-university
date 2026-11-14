@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 10,
+  "x-unit": "points",
+  "description": "Least priority at which the PRs touching the defect's unit are listed as depending on the fix unit.",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "minimum": 0
+}

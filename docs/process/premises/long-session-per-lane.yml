@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-21"
+slug: "long-session-per-lane"
+statement: "A long session per lane removes the 22 s setup and the cold lint per PR."
+kind: "process"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "report v2 §4.3"
+  quote: null
+  at: null
+status: "inferred"
+radius: "low"
+blast:
+  reasons: ["step:M5"]
+  if_wrong: "M5."
+validate:
+  kind: "measurement"
+  how: "Event session.cold."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "/tmp/open-university-test-db-ddl.lock",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Machine-wide lock file taken by the helper around CREATE DATABASE and DROP DATABASE. Both force a checkpoint on the shared test cluster; taking turns keeps parallel script tests from stacking checkpoints on one cluster, so a single drop does not wait on the others (KF3).",
+  "x-readers": [
+    "scripts/lib/test_db.py"
+  ]
+}

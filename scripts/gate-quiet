@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Kept as a short alias: scripts/gate-local remains the compatibility gate (ADR-24/33). Runs it on the current working tree.
+# shellcheck source=scripts/cloud/root-session.sh
+source "$(cd "$(dirname "$0")" && pwd)/cloud/root-session.sh"
+exec "$(git rev-parse --show-toplevel)/scripts/gate-local" "$@"

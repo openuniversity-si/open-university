@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": ".audit.jsonl",
+  "x-unit": "path",
+  "description": "File suffix of a defect's audit trail, next to its record.",
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ]
+}

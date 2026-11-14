@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": false,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "Whether a unit above its size ceiling fails the ownership check; false reports it as a warning while U4 splits today's large contexts. Flipped to true by one PR citing D-067.",
+  "x-readers": [
+    "scripts/lib/unit_check.py"
+  ],
+  "x-source": "D-067 (7)"
+}

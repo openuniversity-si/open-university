@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/aws-quota-proof.test.sh",
+  "covers": [
+    "scripts/tests/aws-quota-proof.test.sh",
+    "scripts/tests/test_aws_quota_proof.py",
+    "scripts/aws-quota-proof",
+    "scripts/lib/aws_quota_proof.py",
+    "units/engine-infra-service/unit.json"
+  ]
+}

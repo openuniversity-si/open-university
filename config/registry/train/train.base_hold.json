@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": false,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "Unit R1 (docs/units/R1/plan.md, RC-005 proposal (a)): the train holds the queue while the newest real gate result of the base tip, read from the train's checkout (.gate/shadow/<sha>.json), is red. Unknown tips (no result, or a result for another sha) are reported and run; green and released tips run. Default off: the hold changes when the train merges, so an operator switches it on with scripts/config set train.base_hold true --actor <who> --reason <why>, after a red base has been seen to hold and release.",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

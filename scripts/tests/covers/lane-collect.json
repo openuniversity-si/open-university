@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/lane-collect.test.sh",
+  "covers": [
+    "scripts/tests/lane-collect.test.sh",
+    "scripts/tests/test_lane_collect.py",
+    "scripts/lib/lane_collect.py",
+    "scripts/lane",
+    "scripts/lib/lane.py"
+  ]
+}

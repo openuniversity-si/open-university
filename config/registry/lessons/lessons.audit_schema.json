@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "contracts/lessons/audit.v1.json",
+  "x-unit": "path",
+  "description": "JSON Schema 2020-12 of one audit entry.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ]
+}

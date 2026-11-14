@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/plan.input.v1.json",
+  "title": "plan.input payload v1",
+  "description": "An owner ruling (Daniel or A Torre) turned into one event by scripts/plan input (live-planning design 1.1).",
+  "x-owner": "live-planning",
+  "x-schema-version": 1,
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/program",
+    "/payload/by",
+    "/payload/at",
+    "/payload/text"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "program",
+    "by",
+    "at",
+    "text",
+    "ref"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "program": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Program id (docs/programs/<program>/plan.md program.v1)."
+    },
+    "by": {
+      "type": "string",
+      "enum": [
+        "Daniel",
+        "A Torre"
+      ]
+    },
+    "at": {
+      "type": "string",
+      "minLength": 1,
+      "description": "RFC 3339 time of the ruling."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The ruling, in the owner's words or a faithful one-line summary."
+    },
+    "ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Where it was said (chat time, thread, doc), or null."
+    }
+  }
+}

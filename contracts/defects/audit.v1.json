@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/defects/audit.v1.json",
+  "title": "Known base defect audit entry v1",
+  "description": "One line of <slug>.audit.jsonl. Entries are only appended; each carries the digest of the previous one, so removing or editing one breaks the chain (scripts/defects check).",
+  "x-owner": "defects",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "n",
+    "at",
+    "by",
+    "action",
+    "from",
+    "to",
+    "note",
+    "prev",
+    "digest"
+  ],
+  "properties": {
+    "n": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Position in the trail, from 1; entries are only ever appended."
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "by": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who changed it: a tool (defects, the gate) or a lane."
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1,
+      "description": "registered, observed, routed, resolved, verified or reopened."
+    },
+    "from": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "to": {
+      "type": "string",
+      "minLength": 1
+    },
+    "note": {
+      "type": "string"
+    },
+    "prev": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The digest of the previous entry (defects.genesis_digest for the first)."
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "defects.digest_algorithm of this entry without digest, chained through prev."
+    }
+  }
+}

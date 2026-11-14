@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 0.7,
+  "exclusiveMinimum": 0,
+  "x-unit": "ratio",
+  "description": "DB-VITALS (docs/operations/aws-revisao-arquitetura.md, finding 10): the share of service.db_disk_bytes the database may take before the live service alerts (platform.db.vitals alerts: disk, published to the platform's topic once when it starts and once when it ends). The database's size leaves out the write-ahead log and the temporary files, so the alert comes with room left: 0.7 of 20 GiB leaves 6 GiB.",
+  "x-readers": [
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/vitals.py"
+  ],
+  "x-source": "DB-VITALS"
+}

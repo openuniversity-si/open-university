@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 2400,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "How long scripts/deploy follow waits for a build to end (40 min): the CodeBuild project times out at 20 min and an image build plus the RDS update can take half of it, so this is twice the project's limit. Past it, follow exits 2.",
+  "x-readers": [
+    "scripts/lib/deploy.py"
+  ],
+  "x-source": "DEP1"
+}

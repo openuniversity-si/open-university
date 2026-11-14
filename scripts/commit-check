@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Usage: scripts/commit-check --pr N | --fixture FILE
+# D-022 commit discipline of a PR, enforced in the gate by D-025: plan checklist, no fix-up commits,
+# one commit per push, no force push and a head behind its base merges it (FP1), and a gate change cites an
+# approved D-NNN. Exit 1 on a refusal.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/commit_check.py" "$@"

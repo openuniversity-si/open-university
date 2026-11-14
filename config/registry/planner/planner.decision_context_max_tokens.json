@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 20000,
+  "minimum": 1000,
+  "x-unit": "count",
+  "description": "Token budget of the context one planner decision reads: the candidate, the affected units and neighbours, the recent decisions of the partition and the registry records (design 5).",
+  "x-readers": [
+    "scripts/lib/plan_triage.py"
+  ]
+}

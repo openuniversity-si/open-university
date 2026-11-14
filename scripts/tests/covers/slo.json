@@ -1,0 +1,15 @@
+{
+  "script": "scripts/tests/slo.test.sh",
+  "covers": [
+    "scripts/tests/slo.test.sh",
+    "scripts/tests/test_slo.py",
+    "config/registry/slo.json",
+    "config/registry/gate.json",
+    "scripts/lib/slo.py",
+    "scripts/lib/config.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/forge_events.py",
+    "contracts/events/*.json",
+    "scripts/lib/gate_verdicts.py"
+  ]
+}

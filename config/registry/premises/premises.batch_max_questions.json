@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 7,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Most questions in one premise batch for Daniel (plan v3 §8.6); scripts/premises list writes the next batch from the open premises of the blocking radii.",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ]
+}

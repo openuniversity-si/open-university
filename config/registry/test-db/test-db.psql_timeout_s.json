@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 30,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Limit of one psql call of the helper (create, terminate, drop, existence check); the same 30 s limit the claude-session cleanup had. A call over it raises, never passes silently.",
+  "x-readers": [
+    "scripts/lib/test_db.py"
+  ]
+}

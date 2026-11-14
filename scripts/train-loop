@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/train-loop [--help]
+# Keep the train serving: refresh the checkout, run train serve, start again after any exit.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/train_loop.py" "$@"

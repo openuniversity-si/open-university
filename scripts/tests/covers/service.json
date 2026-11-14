@@ -1,0 +1,28 @@
+{
+  "script": "scripts/tests/service.test.sh",
+  "covers": [
+    "scripts/tests/service.test.sh",
+    "scripts/tests/test_service*.py",
+    "scripts/service",
+    "scripts/lib/service.py",
+    "scripts/lib/service_*.py",
+    "config/registry/service.json",
+    "contracts/service/*.json",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/forge_git_ref.py",
+    "scripts/lib/config.py",
+    "config/registry/train.json",
+    "config/registry/forge-events.json",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/parallel_tests.py",
+    "scripts/tests/test_forge_events.py",
+    "scripts/tests/test_forge_git_ref.py",
+    "scripts/lib/train_serve.py",
+    "docs/operations/services.md",
+    "scripts/lib/config_cli.py",
+    "scripts/lib/gate_workflows.py",
+    "services/runner/**",
+    "config/registry/gate.json",
+    "services/control-plane/wrangler.toml"
+  ]
+}

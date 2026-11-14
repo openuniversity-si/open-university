@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 60,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Time limit of one `git push` the hook runs; a push that exceeds it counts as failed and is retried by the next commit (never a force-push).",
+  "x-readers": [
+    "scripts/lib/push_guard.py"
+  ]
+}

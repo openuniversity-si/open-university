@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/lane brief|worktree <unit> | collect <report> [--pr N] [--lanes DIR]
+# The lane brief of one queue unit: its row, the delivery contract and a worktree (VAZÃO F68); collect closes a delivered lane (F69)
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/lane.py" "$@"

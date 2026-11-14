@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 1,
+  "minimum": 1,
+  "maximum": 1,
+  "x-unit": "count",
+  "description": "Re-runs of each failing test at the same head. Exactly one (T4/T8): a test that fails on it stays the PR's own; a second re-run would hide a real intermittent failure.",
+  "x-readers": [
+    "scripts/lib/gate_flake.py"
+  ],
+  "x-source": "D-070"
+}

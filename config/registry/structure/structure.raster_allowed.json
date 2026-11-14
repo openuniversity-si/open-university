@@ -1,0 +1,14 @@
+{
+  "type": "array",
+  "default": [],
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "count",
+  "description": "Regular expressions of the tracked paths a raster image may have. Empty since Open University left (OU-DECOUPLE F4): no image is tracked.",
+  "x-readers": [
+    "scripts/lib/repo_hygiene.py"
+  ],
+  "x-source": "D-105 (OU-DECOUPLE F2)"
+}

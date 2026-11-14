@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    0,
+    1,
+    -1
+  ],
+  "items": {
+    "type": "number"
+  },
+  "uniqueItems": true,
+  "x-unit": "values",
+  "description": "The numbers an engine file may spell outside the registry (the identity, the unit and the sign); every other number in a scanned file is an unregistered literal (LT1, D-069 item 3).",
+  "x-readers": [
+    "scripts/lib/literal_census.py"
+  ],
+  "x-source": "LT1; D-068 (6), D-069 item 3"
+}

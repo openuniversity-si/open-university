@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "unit",
+  "x-unit": "enum",
+  "description": "Blast reason kind that names one unit; premises.medium_min_units of them make the radius medium.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ]
+}

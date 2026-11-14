@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/test-db.json",
+  "x-owner": "test-db",
+  "x-schema-version": 1,
+  "description": "The shared throwaway test-database helper (TI1, D-064 (b), D-069 items 3 and 5): naming, maintenance database and psql limit of every database a test creates and destroys.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "test-db.ddl_lock_path": {
+      "type": "string",
+      "default": "/tmp/open-university-test-db-ddl.lock",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Machine-wide lock file taken by the helper around CREATE DATABASE and DROP DATABASE. Both force a checkpoint on the shared test cluster; taking turns keeps parallel script tests from stacking checkpoints on one cluster, so a single drop does not wait on the others (KF3).",
+      "x-readers": [
+        "scripts/lib/test_db.py"
+      ]
+    },
+    "test-db.ddl_lock_poll_s": {
+      "type": "number",
+      "default": 0.05,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Pause between two tries for test-db.ddl_lock_path while another caller holds it.",
+      "x-readers": [
+        "scripts/lib/test_db.py"
+      ]
+    },
+    "test-db.ddl_lock_wait_s": {
+      "type": "integer",
+      "default": 300,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Longest the helper waits for test-db.ddl_lock_path before it raises. It covers queueing behind other callers only; the psql limit (test-db.psql_timeout_s) starts after the lock is held, so waiting in line never counts against it and the 30 s limit is unchanged.",
+      "x-readers": [
+        "scripts/lib/test_db.py"
+      ]
+    },
+    "test-db.maintenance_database": {
+      "type": "string",
+      "default": "postgres",
+      "x-unit": "identifier",
+      "description": "Database the helper connects to when it creates, terminates backends of and drops a throwaway database (the same maintenance database gate-isolation.sh uses).",
+      "x-readers": [
+        "scripts/lib/test_db.py"
+      ]
+    },
+    "test-db.name_prefix": {
+      "type": "string",
+      "default": "tower_test_tmp_",
+      "pattern": "^tower_test_[h-z][a-z0-9]*_$",
+      "x-unit": "identifier",
+      "description": "Prefix of every throwaway test database. The character after tower_test_ is never hex and never g, so a helper name never matches the per-checkout database tower_test_<10 hex> (scripts/lib/gate-isolation.sh) or an integration database tower_test_g<hex>; the helper drops only names with this prefix.",
+      "x-readers": [
+        "scripts/lib/test_db.py"
+      ]
+    },
+    "test-db.name_token_bytes": {
+      "type": "integer",
+      "default": 8,
+      "minimum": 4,
+      "maximum": 16,
+      "x-unit": "bytes",
+      "description": "Random bytes, written as hex after the prefix, that make one throwaway database name unique.",
+      "x-readers": [
+        "scripts/lib/test_db.py"
+      ]
+    },
+    "test-db.psql_timeout_s": {
+      "type": "integer",
+      "default": 30,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Limit of one psql call of the helper (create, terminate, drop, existence check); the same 30 s limit the claude-session cleanup had. A call over it raises, never passes silently.",
+      "x-readers": [
+        "scripts/lib/test_db.py"
+      ]
+    }
+  }
+}

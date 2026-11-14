@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-55"
+slug: "cloud-background-process-2h"
+statement: "A background process of a Claude Code cloud session lives up to the session's 2 h background limit, and its exit wakes the session (an exit event), so a long scripts/train serve can be restarted from its own exit."
+kind: "vendor"
+scope: "unit:gate-on-push"
+source:
+  who: "agent:session_01N99RyPRXKZsWQesHKFPXVJ"
+  where: "docs/units/GATE-ON-PUSH/plan.md"
+  quote: null
+  at: null
+status: "to-validate"
+radius: "low"
+blast:
+  reasons: ["unit:gate-on-push"]
+  if_wrong: "serve must be restarted by the coordinator's heartbeat instead of its exit event; the periodic sweep still merges, wakes wait for the restart"
+validate:
+  kind: "measurement"
+  how: "Run scripts/train serve in the train-role session's background and read when it ends and whether the session is woken by its exit (train.serve_max_s below 2 h)."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

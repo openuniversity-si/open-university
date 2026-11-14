@@ -1,0 +1,181 @@
+RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT: audit every rule of the group "Configuration registry, literals, generated code and text" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-registry-literals-and-text. One draft PR from mod/rule-audit-registry-literals-and-text into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT: Configuration registry, literals, generated code and text", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They decide where a value lives and how text is written: the registry and its meta-schema, the literal census, generated bindings, contracts, l10n and the text checks.
+
+== YOUR ROWS (exactly these 61; census at PR #775, docs/audits/rules/census.json) ==
+- param:config.guard_key_words | config/registry/config.json:10#config.guard_key_words | snake_case words (or word sequences) that make a parameter key name a secret; such a key must hold only the secret's name. A bare 'token' is | owner: D-068 (4)
+- param:config.guard_name_suffixes | config/registry/config.json:42#config.guard_name_suffixes | Key endings that mark a parameter holding a secret's environment variable name, never its value. | owner: D-068 (4)
+- param:config.guard_name_pattern | config/registry/config.json:61#config.guard_name_pattern | The shape of a secret's name (an environment variable name) that a secret-name key may hold. | owner: D-068 (4)
+- param:config.guard_value_patterns | config/registry/config.json:72#config.guard_value_patterns | Shapes of a secret value (vendor token prefixes, private keys, signed tokens, credentials in a URL); a registry value or a set value that ma | owner: D-068 (4), D-069 item 13
+- param:config.guard_entropy_min_length | config/registry/config.json:97#config.guard_entropy_min_length | Shortest unbroken token-alphabet string the entropy test judges as a possible random secret. | owner: D-068 (4) | can stop: PRs stopped not measured
+- param:config.guard_entropy_min_bits | config/registry/config.json:108#config.guard_entropy_min_bits | Shannon entropy per character from which such a string is refused as a random secret; a hex digest (at most 4 bits) is not. | owner: D-068 (4) | can stop: PRs stopped not measured
+- param:config.guard_entropy_alphabet | config/registry/config.json:119#config.guard_entropy_alphabet | The alphabet of a random secret (base64 and URL-safe base64) the entropy test applies to. | owner: D-068 (4)
+- param:config.store_adapter | config/registry/config.json:130#config.store_adapter | Which forge_events adapter holds the config.changed log: file keeps it in the checkout (config.store_dir), github on the forge, shared by ev | owner: TR1; D-068 (3); D-065 (2); Daniel 2026-10-26 21:08: merge tr | can stop: PRs stopped not measured
+- param:config.store_dir | config/registry/config.json:144#config.store_dir | Directory of the file adapter's log, relative to the checkout (gitignored). Read from this file, never from the store itself. | owner: D-068 (3)
+- param:config.store_cache_ttl_s | config/registry/config.json:155#config.store_cache_ttl_s | How long one read of a remote change store (an adapter whose log lives off this machine, e.g. github) serves config.get in this checkout bef | owner: TR1; D-068 (3); D-069 item 3 | can stop: PRs stopped not measured
+- param:config.store_cache_dir | config/registry/config.json:167#config.store_cache_dir | Directory, relative to the checkout (gitignored), of the snapshot file that lets every process of this checkout share one read of a remote c | owner: TR1; D-068 (3)
+- param:config.store_stale_max_s | config/registry/config.json:177#config.store_stale_max_s | How long after a remote read of the change store expires (config.store_cache_ttl_s) it may still serve config.get in this checkout while the | owner: NANO-UNBLOCK; D-070; TR1 | can stop: PRs stopped not measured
+- param:config.bootstrap_owners | config/registry/config.json:189#config.bootstrap_owners | Registry owners whose parameters configure the machine bootstrap (scripts/cloud/setup.sh, env.sh, toolchain.py, postgres.py; env-premises: s | owner: NANO-UNBLOCK; D-070
+- param:config.literal_check_roots | config/registry/config.json:207#config.literal_check_roots | The engine and tooling paths the structure check scans for literals of registered parameters. | owner: D-068 (6)
+- param:config.literal_check_excludes | config/registry/config.json:225#config.literal_check_excludes | Path prefixes inside those roots that are not scanned for literals: generated types only (the generated drift stage checks them). Tests are  | owner: D-068 (6)
+- param:config.literal_check_suffixes | config/registry/config.json:242#config.literal_check_suffixes | File suffixes the literal scan reads (Python, shell, JavaScript modules). | owner: D-068 (6)
+- param:config.literal_check_shebangs | config/registry/config.json:263#config.literal_check_shebangs | Interpreters whose extensionless scripts (by their #! line) the literal scan reads. | owner: D-068 (6)
+- param:config.store_snapshot_after_events | config/registry/config.json:283#config.store_snapshot_after_events | How many config.changed events may follow the newest config.snapshot before a change through this checkout appends a new one. A reader of a  | owner: TR1; D-068 (3); D-069 items 3, 4 | can stop: PRs stopped not measured
+- param:config.monotonic_patterns | config/registry/config.json:295#config.monotonic_patterns | Globs of registry parameter names that are thresholds (timeouts, limits, maxima, budgets, ceilings, tolerances). The threshold check of stru | owner: TH1; D-069 item 14; enforcement audit 2026-10-26 rule 5
+- param:contracts.schema_dir | config/registry/contracts.json:10#contracts.schema_dir | Directory of every versioned JSON Schema contract (events, config, premises, later units and intents), relative to the repository root. | owner: SHARED CONTRACT v3 §1
+- param:contracts.schema_file_pattern | config/registry/contracts.json:21#contracts.schema_file_pattern | The path every contract file matches: contracts/<area>/<name>.v<N>.json, the version in the file name. | owner: SHARED CONTRACT v3 §1
+- param:generate.targets | config/registry/generate.json:10#generate.targets | Every target of scripts/generate, one entry per unique name; the renderer is scripts/lib/generate_<name>.py. sources are globs from the repo | owner: D-069 items 1 and 2; plan v3.1 delta §2 G1
+- param:generate.codeowners_identities | config/registry/generate.json:199#generate.codeowners_identities | Forge identities (GitHub users or teams, as CODEOWNERS spells them) of each owner lane of units.owners, one entry per lane; a manifest names | owner: D-067 (2); D-069 item 8
+- param:generate.codeowners_header | config/registry/generate.json:343#generate.codeowners_header | Comment block that opens the generated CODEOWNERS. | owner: D-069 item 8
+- param:generate.codeowners_minimal | config/registry/generate.json:353#generate.codeowners_minimal | TX21: whether the codeowners target writes the smallest directory cover of the units' answer (true) or the former one row per manifest glob  | owner: D-070 (TX21)
+- param:l10n.locales | config/registry/l10n.json:10#l10n.locales | Locales a text entry (x-text) may be keyed by; English only for now (D-069 item 15). Adding a locale is a reviewed registry change. | owner: D-069 item 15
+- param:l10n.default_locale | config/registry/l10n.json:29#l10n.default_locale | The locale every text entry must carry and the one a reader falls back to; it must be one of l10n.locales. | owner: D-069 item 15
+- param:l10n.text_owner | config/registry/l10n.json:41#l10n.text_owner | The registry owner whose parameters are all user-facing text: every entry of config/registry/<owner>.json must be x-text, and an x-text entr | owner: plan v3.1 delta §1 (text.*)
+- param:l10n.scoped_files | config/registry/l10n.json:52#l10n.scoped_files | Component files whose every user-visible string must come from the text catalog: JSX text, string children and the l10n.visible_attributes w | owner: plan v3.1 delta §2 L1; P-05
+- param:l10n.scoped_exports | config/registry/l10n.json:100#l10n.scoped_exports | path:identifier of each exported constant of a shared D-063 catalog that has migrated: its initializer must read the text catalog, never spe | owner: plan v3.1 delta §2 L1; P-05
+- param:l10n.visible_attributes | config/registry/l10n.json:118#l10n.visible_attributes | JSX attributes whose string value a reader sees or hears; a literal value in a scoped file is refused. | owner: plan v3.1 delta §2 L1
+- param:l10n.visible_min_letters | config/registry/l10n.json:142#l10n.visible_min_letters | Letters a JSX string needs before it counts as user-visible text (a lone punctuation or symbol is markup). | owner: plan v3.1 delta §2 L1 | can stop: PRs stopped not measured
+- param:literals.allowed_numbers | config/registry/literals.json:11#literals.allowed_numbers | The numbers an engine file may spell outside the registry (the identity, the unit and the sign); every other number in a scanned file is an  | owner: LT1; D-068 (6), D-069 item 3
+- param:literals.allowed_values | config/registry/literals.json:29#literals.allowed_values | The strings a pattern of literals.patterns finds that are not settings: the operating system's standard streams and the portable interpreter | owner: LT1; D-068 (6)
+- param:literals.patterns | config/registry/literals.json:50#literals.patterns | Each kind of unregistered string literal, in order, and the regular expression that finds it inside a Python string or a shell or JavaScript | owner: LT1; D-068 (6), D-069 item 3
+- param:literals.unowned_area | config/registry/literals.json:100#literals.unowned_area | The list area of a scanned file that no unit manifest owns (a fixture, or a checkout without manifests). | owner: LT1; D-067
+- param:literals.baseline | config/registry/literals.json:111#literals.baseline | Deprecated (TX22): the list is no longer read; the allowed counts are the census of the base tree (literals.base_ref). Removed in a later re | owner: LT1; D-063, D-064 (a)
+- param:literals.baseline_description | config/registry/literals.json:123#literals.baseline_description | Deprecated (TX22): the list is no longer read; the allowed counts are the census of the base tree (literals.base_ref). Removed in a later re | owner: LT1; D-063
+- param:literals.base_ref | config/registry/literals.json:135#literals.base_ref | The ref whose merge-base with HEAD is the base tree when the census is given no --base: the allowed count of each unit, kind and value is th | owner: LT1; TX22; D-070
+- param:rules.catalog | config/registry/rules.json:10#rules.catalog | One record per rule that can stop a flow (RULE-AUDIT rule system, Daniel 2026-10-28 16:52, 16:55, 17:08 and 17:09 BRT): id R-<kebab>; statem | owner: D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 
+- param:rules.check_mode | config/registry/rules.json:250#rules.check_mode | What scripts/rule check does with its findings. report (the first pass ordered by Daniel on 2026-10-28): print every count, exit 0. refuse:  | owner: D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and  | can stop: PRs stopped not measured
+- param:rules.max_review_days | config/registry/rules.json:264#rules.max_review_days | Longest a record's review_by may lie after the later of created.on and last_reviewed, so no rule goes unreviewed longer; a review_by beyond  | owner: D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and  | can stop: PRs stopped not measured
+- param:rules.stop_patterns | config/registry/rules.json:276#rules.stop_patterns | How scripts/rule discovers code that can stop a flow: every file matching glob (from the repository root), every line matching regex; group  | owner: D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 
+- param:rules.decision_register | config/registry/rules.json:310#rules.decision_register | The decision register: a D-NNN that owns a rule or retires one must be a table row `| D-NNN |` there. | owner: D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 
+- param:rules.census_file | config/registry/rules.json:320#rules.census_file | The RULE-AUDIT census (one row per rule, requirement or resource use, each with its standing question): scripts/rule question <group> reads  | owner: D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 
+- param:rules.groups_file | config/registry/rules.json:330#rules.groups_file | The RULE-AUDIT groups: scripts/rule question <group> prints the standing question of every census row of the group. | owner: D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 
+- param:text.empty_catalog_title | config/registry/text.json:10#text.empty_catalog_title | Empty catalog heading. | owner: D-063; pilot unit of L1
+- param:text.empty_catalog_body | config/registry/text.json:23#text.empty_catalog_body | Empty catalog body. | owner: D-063; pilot unit of L1
+- param:text.lesson_row_label | config/registry/text.json:36#text.lesson_row_label | Lesson row accessible name template. | owner: D-063; U4 ui-lesson-row
+- decision:D-050 | docs/domain/DECISIONS.md:52 | A value lives in a documented key for its domain. | owner: 2026-10-23 (Daniel, modular series M10; recorded on main 202
+- decision:D-051 | docs/domain/DECISIONS.md:53 | Theme, public copy, limits, and editorial rules are versioned documents. | owner: 2026-10-25 (Daniel's order to start M11, which he approved o
+- decision:D-063 | docs/domain/DECISIONS.md:65 | Every value has one documented catalog key, and the absolute gate ratchets to zero. | owner: 2026-10-26 (A Torre, modularity roadmap step 6 target, Danie
+- decision:D-068 | docs/domain/DECISIONS.md:70 | No engine parameter is a literal: every setting lives in the configuration registry and is read and changed through its API. | owner: 2026-10-26 17:51 (Daniel, CEO, chat; recorded by motor-5 und
+- premise:P-41 | docs/process/premises/no-literal-parameters.yml:2 | No parameter or tunable value stays literal in code: every setting is registered and documented (name, type, default, valid range, owner, re | owner: daniel (Daniel, chat, 2026-10-26 17:51 (motor wave brief, PR
+- refusal:config.value_errors | scripts/lib/config.py:490 | Validates a configuration value against its registry parameter schema and refuses a value shaped like a secret (secret_findings). | owner: D-068, C0 | can stop: PRs stopped not measured
+- refusal:generate.blocked | scripts/lib/generate.py:66 | Not a refusal rule: says why a generator target cannot run now (disabled, or its required sources do not exist), else None. | owner: D-069 items 1 and 2, G1 | can stop: PRs stopped 0
+- refusal:json_schema.errors | scripts/lib/json_schema.py:351 | Generic validator, not a rule of its own: refuses a schema keyword outside the supported subset, then lists every violation of an instance. | owner: P1 | can stop: PRs stopped 0
+- refusal:rule_registry.refusals | scripts/lib/rule_registry.py:529 | The rule register report (RULE-AUDIT): counts record gaps, rules due, ending rules, unanswered questions, stops without a question, stops ne | owner: Daniel 2026-10-28 16:52-17:09 BRT (RULE-AUDIT), D-069, D-072 | can stop: PRs stopped not measured
+- refusal:text_check.entry_errors | scripts/lib/text_check.py:26 | Refuses malformed user-facing text entries: x-text outside the text owner, missing default locale, unknown locales or empty strings. | owner: D-069 item 15, L1, D-063, U4 | can stop: PRs stopped 0
+- refusal:text_check.scoped_file_errors | scripts/lib/text_check.py:71 | Refuses user-visible text literals (JSX text, string children, visible attributes) in the pilot unit's scoped files instead of text.* regist | owner: L1 | can stop: PRs stopped 2
+- refusal:text_check.scoped_export_errors | scripts/lib/text_check.py:91 | Refuses an l10n.scoped_exports site that is no longer exported or still spells a string literal. | owner: L1 | can stop: PRs stopped 0
+
+Kinds: decision 4, parameter 49, premise 1, refusal 7. Estimated work: 72 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/registry-literals-and-text.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 61), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/registry-literals-and-text.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/registry-literals-and-text.md has exactly 61 rows, one per census row of this group, and the verdict
+  counts sum to 61 (quote the command that counts them).
+* docs/audits/rules/registry-literals-and-text.json parses and has the same 61 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json and
+  docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-structure-check-and-premises: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json, docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**
+  - mod/rule-audit-commit-and-pr-discipline: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json, docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**
+  - mod/rule-audit-environment-toolchain-and-supply-chain: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json, docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**
+  - mod/rule-audit-production-release-and-migrations: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json, docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-merge-train-and-delivery: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json, docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**
+  - mod/rule-audit-defects-lessons-and-postmortems: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json, docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-code-architecture-and-units: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json, docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**
+  - mod/rule-audit-gate-selection-proof-and-status: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json, docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**
+  - mod/rule-audit-gate-execution-and-tests: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json, docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**
+  - mod/rule-audit-paid-vendors-and-ai-sessions: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json, docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+72 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

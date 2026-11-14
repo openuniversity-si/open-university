@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/commit-rate.test.sh",
+  "covers": [
+    "scripts/tests/commit-rate.test.sh",
+    "scripts/tests/test_commit_rate.py",
+    "scripts/commit-rate",
+    "scripts/lib/commit_rate.py"
+  ]
+}

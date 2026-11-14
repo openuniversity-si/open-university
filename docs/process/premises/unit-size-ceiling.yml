@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-04"
+slug: "unit-size-ceiling"
+statement: "A unit holds about 1,000 production lines (at most 1,500) and up to 50k tokens of needed context; above that it splits on an event."
+kind: "architecture"
+scope: "global"
+source:
+  who: "model"
+  where: "plan v3 §4.3, from the measured closures"
+  quote: null
+  at: null
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["plan:U0", "decision:D-060", "move:units"]
+  if_wrong: "The U0 map is regenerated with another ceiling: cheap before the first move, costly after it."
+validate:
+  kind: "question"
+  how: "Question 4 of plan v3 §2.1 (yes/no)."
+answer:
+  by: "A Torre"
+  at: "2026-10-26T17:22-03:00"
+  value: "confirmed"
+  quote: "eu não quero ficar sendo o gargalo validando isso tudo"
+  where: "Daniel, chat 17:22: delegation to A Torre to confirm the plan v3 §2.1 questions"
+  evidence: null
+  translation: "I don't want to be the bottleneck validating all of this"
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

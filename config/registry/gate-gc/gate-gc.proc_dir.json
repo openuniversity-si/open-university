@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "/proc",
+  "x-unit": "path",
+  "description": "The process table the folder bound reads to learn which sha directories a live process holds (an open descriptor or a working directory under one); where it does not exist, nothing is known to be held and only the calling gate's own sha and a held gate lock protect.",
+  "x-readers": [
+    "scripts/lib/gate_gc.py"
+  ],
+  "x-source": "D-069 item 4; GATE-GC-CHEIO"
+}

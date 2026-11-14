@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Usage: scripts/structure-check [--root DIR] [--today YYYY-MM-DD] [--base REF] [--pr-body FILE] [--pr N] [--metadata [--no-publish]] [--verbose]
+# Machine half of the structure rites (docs/process/STRUCTURE.md A4, A5, B5, C4, C5): capability files,
+# the decision register, relative doc links, the PR fit-review trailers and commit plan, the D-008 size warning,
+# and with --pr the D-025 commit-check of that PR (scripts/commit-check). --metadata runs only the PR-metadata part and
+# publishes pr.checked v1 (GX-15); the tree part is cached by content (structure.tree_cache_enabled).
+# Exit 1 on an error; warnings never fail. Runs in the local gate as the "structure check" and "pr metadata" stages.
+# VAZÃO F79: a run by hand prints the summary line on green (the warnings stay in the full log, its path printed) and
+# the FAIL lines and the summary on red; --verbose (or STRUCTURE_CHECK_VERBOSE=1) and the gate's --metadata run print all.
+set -euo pipefail
+py="${OU_PYTHON:-python3}"
+lib="$(dirname "$0")/lib/structure.py"
+quiet=1
+[[ -z "${STRUCTURE_CHECK_VERBOSE:-}" ]] || quiet=
+for arg in "$@"; do
+  case "$arg" in --verbose) quiet= ;; --metadata|--snapshot) quiet= ;; esac
+done
+if [[ -z "$quiet" ]]; then
+  args=(); for arg in "$@"; do [[ "$arg" == --verbose ]] || args+=("$arg"); done
+  exec "$py" "$lib" ${args[@]+"${args[@]}"}
+fi
+log="$(mktemp "${TMPDIR:-/tmp}/structure-check.XXXXXX.log")"
+code=0
+"$py" "$lib" "$@" >"$log" 2>&1 || code=$?
+if [[ $code == 0 ]]; then
+  tail -n 1 "$log" | tr -d '\n'
+  printf ' (full log: %s)\n' "$log"
+else
+  grep -v '^WARN ' "$log" | tail -n 40
+  printf 'full log: %s\n' "$log"
+fi
+exit "$code"

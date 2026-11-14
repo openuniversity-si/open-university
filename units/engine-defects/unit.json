@@ -1,0 +1,26 @@
+{
+  "id": "engine-defects",
+  "purpose": "Known base defects as a structural process: registry, detection in the gate, routing by queue impact, lifecycle (D-069 items 4, 8 and 9).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/defects.json",
+    "contracts/defects/**",
+    "contracts/events/defect.*.json",
+    "docs/process/defects/**",
+    "scripts/defects",
+    "scripts/lib/defect_*.py",
+    "scripts/lib/defects.py",
+    "scripts/tests/defects.test.sh",
+    "scripts/tests/test_defect*.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1",
+    "engine-gate-plan": "^1",
+    "engine-gate-report": "^1",
+    "engine-gate-tests": "^1",
+    "engine-premises": "^1",
+    "engine-units": "^1"
+  }
+}

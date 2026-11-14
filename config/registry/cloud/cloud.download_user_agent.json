@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "open-university-toolchain",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "User-Agent header of toolchain downloads.",
+  "x-readers": [
+    "scripts/cloud/toolchain.py"
+  ]
+}

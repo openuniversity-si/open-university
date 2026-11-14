@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-16"
+slug: "catalog-splits-into-units"
+statement: "The catalog splits into about 8-9 units of at most 1,500 lines without breaking G-1-G-6; D-061 backed off a \"publishing\" cut for its cost."
+kind: "architecture"
+scope: "global"
+source:
+  who: "model"
+  where: "plan v3 §4.5"
+  quote: null
+  at: null
+status: "to-validate"
+radius: "medium"
+blast:
+  reasons: ["cell:catalog"]
+  if_wrong: "The catalog cell keeps a ceiling override, as in D-060 today, and becomes the slowest lane; the rest does not change."
+validate:
+  kind: "measurement"
+  how: "U0 measures each candidate unit's closure before moving any file."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

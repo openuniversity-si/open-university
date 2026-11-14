@@ -1,0 +1,20 @@
+{
+  "script": "scripts/tests/defects.test.sh",
+  "covers": [
+    "scripts/tests/defects.test.sh",
+    "scripts/tests/test_defects.py",
+    "scripts/defects",
+    "scripts/lib/defects.py",
+    "scripts/lib/premises.py",
+    "scripts/lib/units.py",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/config.py",
+    "config/registry/defects.json",
+    "contracts/defects/*.json",
+    "contracts/events/*.json",
+    "units/*/unit.json",
+    "scripts/tests/forge_doubles.py"
+  ]
+}

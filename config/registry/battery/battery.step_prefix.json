@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "battery:",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "Prefix of the engine.step.measured step names the battery role emits (battery:run, battery:tier3, battery:bisect).",
+  "x-readers": [
+    "scripts/lib/battery.py"
+  ]
+}

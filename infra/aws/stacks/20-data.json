@@ -1,0 +1,225 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The A1 database (D-303, D-306; P2 F2): RDS PostgreSQL on db.t4g.medium in one zone with 20 GB gp3 and continuous backup, in the private subnets of the network stack, reachable only from the tasks. The master password is a Parameter Store SecureString the Torre creates, read by reference; the service connects with IAM authentication. It holds only the infrastructure's schemas, work and log. About US$ 50 a month (db.t4g.medium, 4 GiB, since 13/11: the micro's 1 GiB kept 414 to 553 MB in swap with ~90 MB free; Daniel 13/11 14:39 BRT, to be reviewed next month); the ladder grows it by the parameters below, and deploy.sh passes infra/aws/parameters.json's data object, since a stack keeps a parameter's previous value otherwise.",
+  "Parameters": {
+    "InstanceClass": {
+      "Type": "String",
+      "Default": "db.t4g.medium",
+      "AllowedPattern": "^db\\.t4g\\.[a-z0-9]+$",
+      "Description": "The class of the ladder (D-303): micro at 1 PR/min, small at 0.1 PR/s, medium at 1 PR/s; the boundary refuses any class outside db.t4g"
+    },
+    "AllocatedStorage": {
+      "Type": "Number",
+      "Default": 20,
+      "MinValue": 20,
+      "Description": "GB of gp3 storage; 20 at 1 PR/min, 100 at 1 PR/s"
+    },
+    "MultiAZ": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ],
+      "Description": "A standby in a second zone, from 0.1 PR/s on"
+    },
+    "EngineVersion": {
+      "Type": "String",
+      "Default": "18",
+      "Description": "The PostgreSQL major version, the one the acceptance test runs on (the toolchain's); work and log use uuidv7()"
+    },
+    "BackupRetentionDays": {
+      "Type": "Number",
+      "Default": 7,
+      "MinValue": 1,
+      "MaxValue": 35,
+      "Description": "Days of automated backup, which keeps point-in-time recovery (continuous backup)"
+    },
+    "SharedBuffers": {
+      "Type": "Number",
+      "Default": 8192,
+      "MinValue": 2048,
+      "Description": "PostgreSQL's shared_buffers in 8 kB pages (8192 = 64 MB). RDS's default is a quarter of the class's memory (184648 kB on the micro) for a database of 147 MB, on a host that keeps 550 to 620 MB in swap (the engine's reading, 12/11): what wakes waits for the disk. A change restarts the database once"
+    },
+    "MaintenanceWindow": {
+      "Type": "String",
+      "Default": "thu:07:57-thu:08:27",
+      "AllowedPattern": "^[a-z]{3}:[0-9]{2}:[0-9]{2}-[a-z]{3}:[0-9]{2}:[0-9]{2}$",
+      "Description": "RDS-WINDOWS-MIRROR: the weekly maintenance window, UTC (ddd:hh:mm-ddd:hh:mm). The value the account had (read 12/11: AWS chose it when the instance was created), now said by the template, so a maintenance never moves to an hour nobody chose"
+    },
+    "BackupWindow": {
+      "Type": "String",
+      "Default": "07:12-07:42",
+      "AllowedPattern": "^[0-9]{2}:[0-9]{2}-[0-9]{2}:[0-9]{2}$",
+      "Description": "RDS-WINDOWS-MIRROR: the daily automated backup's window, UTC (hh:mm-hh:mm), at least 30 minutes and outside the maintenance window. The value the account had (read 12/11)"
+    }
+  },
+  "Resources": {
+    "SubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupName": "tower-data",
+        "DBSubnetGroupDescription": "tower database: the private subnets of the network stack",
+        "SubnetIds": {
+          "Fn::Split": [
+            ",",
+            {
+              "Fn::ImportValue": "tower-network-private-subnets"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "ServerParameters": {
+      "Type": "AWS::RDS::DBParameterGroup",
+      "Properties": {
+        "Description": "tower database: the server's memory sized for the class (shared_buffers, the vacuum's and the maintenance's memory, no parallel workers)",
+        "Family": {
+          "Fn::Join": [
+            "",
+            [
+              "postgres",
+              {
+                "Fn::Select": [
+                  0,
+                  {
+                    "Fn::Split": [
+                      ".",
+                      {
+                        "Ref": "EngineVersion"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        "Parameters": {
+          "shared_buffers": {
+            "Ref": "SharedBuffers"
+          },
+          "maintenance_work_mem": "32768",
+          "autovacuum_work_mem": "16384",
+          "max_parallel_workers_per_gather": "0"
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "Database": {
+      "Type": "AWS::RDS::DBInstance",
+      "DeletionPolicy": "Snapshot",
+      "UpdateReplacePolicy": "Snapshot",
+      "Properties": {
+        "DBInstanceIdentifier": "tower-data",
+        "Engine": "postgres",
+        "EngineVersion": {
+          "Ref": "EngineVersion"
+        },
+        "DBInstanceClass": {
+          "Ref": "InstanceClass"
+        },
+        "AllocatedStorage": {
+          "Ref": "AllocatedStorage"
+        },
+        "StorageType": "gp3",
+        "StorageEncrypted": true,
+        "MultiAZ": {
+          "Ref": "MultiAZ"
+        },
+        "DBName": "tower",
+        "MasterUsername": "tower_owner",
+        "MasterUserPassword": "{{resolve:ssm-secure:/tower/db/master-password:1}}",
+        "EnableIAMDatabaseAuthentication": true,
+        "DBSubnetGroupName": {
+          "Ref": "SubnetGroup"
+        },
+        "DBParameterGroupName": {
+          "Ref": "ServerParameters"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Fn::ImportValue": "tower-network-database-sg"
+          }
+        ],
+        "PubliclyAccessible": false,
+        "BackupRetentionPeriod": {
+          "Ref": "BackupRetentionDays"
+        },
+        "DeletionProtection": true,
+        "AutoMinorVersionUpgrade": true,
+        "CopyTagsToSnapshot": true,
+        "EnablePerformanceInsights": false,
+        "MonitoringInterval": 0,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "tower-data"
+          },
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ],
+        "PreferredMaintenanceWindow": {
+          "Ref": "MaintenanceWindow"
+        },
+        "PreferredBackupWindow": {
+          "Ref": "BackupWindow"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "Endpoint": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "Endpoint.Address"
+        ]
+      },
+      "Export": {
+        "Name": "tower-data-endpoint"
+      }
+    },
+    "Port": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "Endpoint.Port"
+        ]
+      },
+      "Export": {
+        "Name": "tower-data-port"
+      }
+    },
+    "ResourceId": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "DbiResourceId"
+        ]
+      },
+      "Export": {
+        "Name": "tower-data-resource-id"
+      }
+    },
+    "DatabaseName": {
+      "Value": "tower",
+      "Export": {
+        "Name": "tower-data-name"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "type": "array",
+  "default": [
+    "pr.pushed",
+    "pr.ready"
+  ],
+  "x-unit": "text",
+  "description": "Event types whose append evaluates branch age on the PR's channel (P-32). integration.advanced names no PR, so it cannot trigger a per-branch check.",
+  "x-readers": [
+    "scripts/lib/branch_age.py"
+  ]
+}

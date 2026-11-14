@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "GATE-ON-PUSH R4: the budget of GitHub REST calls one `scripts/train run` makes (research.md: at most 20 per merge). Each run that held the lock publishes its count as budget.measured with this metric; a 304 counts as a call.",
+  "x-readers": [
+    "scripts/lib/service_status.py",
+    "scripts/lib/train.py"
+  ],
+  "x-source": "docs/units/GATE-ON-PUSH/plan.md R4 A2"
+}

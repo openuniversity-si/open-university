@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "OU_SUBJECT_ROOT",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Environment variable gate-local exports with the checkout under test; the re-run runs there. Unset (a direct call outside gate-local): the tool checkout.",
+  "x-readers": [
+    "scripts/lib/gate_flake.py"
+  ],
+  "x-source": "D-070"
+}

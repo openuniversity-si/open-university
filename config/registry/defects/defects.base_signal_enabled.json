@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "switch",
+  "description": "GX-32: a failing test of any stage in defects.stages is excused without a base re-run when the base.red that tier 3 published for exactly the proof's base sha lists it with the same signature (and the GX-13 touched rule does not keep it). Off: only script tests are adjudicated, by a base re-run (GX-13 behaviour), and tier 3 (battery) emits no base.red/base.green; the rollback switch.",
+  "x-readers": [
+    "scripts/lib/battery.py",
+    "scripts/lib/defect_detect.py"
+  ]
+}

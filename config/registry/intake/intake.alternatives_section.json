@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "Alternativas",
+  "x-unit": "text",
+  "description": "The plan section with one `### R<n>` per structural root and its table of alternatives.",
+  "x-readers": [
+    "scripts/lib/intake_templates.py"
+  ]
+}

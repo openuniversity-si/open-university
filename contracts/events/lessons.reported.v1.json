@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/lessons.reported.v1.json",
+  "title": "lessons.reported payload v1",
+  "description": "The aggregator wrote the lessons report; digest is the hash of the report so re-running on the same data is a no-op.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/digest"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "digest",
+    "lessons",
+    "classes",
+    "top_class",
+    "top_lost_ms"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 8
+    },
+    "lessons": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "classes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "top_class": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "top_lost_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "process",
+  "x-unit": "enum",
+  "description": "Class of a retro item no class keyword matches.",
+  "x-readers": [
+    "scripts/lib/lesson_ingest.py"
+  ]
+}

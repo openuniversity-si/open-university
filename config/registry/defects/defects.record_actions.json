@@ -1,0 +1,20 @@
+{
+  "type": "array",
+  "default": [
+    "registered",
+    "observed",
+    "routed",
+    "resolved",
+    "verified",
+    "reopened"
+  ],
+  "x-unit": "enum",
+  "description": "Actions an audit entry may name.",
+  "items": {
+    "type": "string"
+  },
+  "minItems": 1,
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ]
+}

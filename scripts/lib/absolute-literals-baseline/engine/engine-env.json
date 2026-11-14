@@ -1,0 +1,72 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/env_manifest.py": {
+      "number -3": 2,
+      "number -6": 1,
+      "number 2": 4,
+      "number 3": 1,
+      "number 300": 2,
+      "number 60": 1
+    },
+    "scripts/lib/preflight.py": {
+      "absolute_path \"/tmp\"": 2,
+      "number 2": 1
+    },
+    "scripts/lib/session_identity.py": {
+      "absolute_path \"/bin/false\"": 2,
+      "absolute_path \"/bin/setpriv\"": 1,
+      "absolute_path \"/bin/sh\"": 1,
+      "absolute_path \"/bin/su\"": 1,
+      "absolute_path \"/etc/group\"": 2,
+      "absolute_path \"/etc/passwd\"": 3,
+      "absolute_path \"/root\"": 1,
+      "absolute_path \"/tmp\"": 2,
+      "absolute_path \"/tmp/ou-xdg-runtime-0\"": 1,
+      "absolute_path \"/usr/bin/runuser\"": 1,
+      "absolute_path \"/usr/bin/setpriv\"": 1,
+      "absolute_path \"/usr/bin/su\"": 1,
+      "absolute_path \"/usr/bin/useradd\"": 1,
+      "absolute_path \"/usr/sbin/nologin\"": 4,
+      "absolute_path \"/usr/sbin/runuser\"": 1,
+      "absolute_path \"/usr/sbin/useradd\"": 1,
+      "number 2": 3,
+      "number 420": 1,
+      "number 438": 2,
+      "number 448": 2,
+      "number 493": 3,
+      "number 5": 1,
+      "number 6": 1,
+      "number 73": 1
+    },
+    "scripts/lib/toolchain_manifest.py": {
+      "number 2": 2,
+      "number 3": 1,
+      "url \"https://github.com/astral-sh/python-build-standalone/releases/download/\"": 1,
+      "url \"https://github.com/cli/cli/releases/download/v\"": 1,
+      "url \"https://github.com/gitleaks/gitleaks/releases/download/v\"": 1,
+      "url \"https://github.com/pnpm/pnpm/releases/download/v\"": 1,
+      "url \"https://github.com/theseus-rs/postgresql-binaries/releases/download/\"": 1,
+      "url \"https://nodejs.org/dist/v\"": 1,
+      "url \"https://registry.npmjs.org/vercel/-/vercel-\"": 1
+    },
+    "scripts/tests/test_env.py": {
+      "duration \"1h\"": 1,
+      "duration \"60s\"": 1,
+      "number 2": 1,
+      "number 3": 1,
+      "number 3600": 1,
+      "number 60": 1
+    },
+    "scripts/tests/test_preflight.py": {
+      "number 16": 1,
+      "number 2": 2,
+      "number 30": 1,
+      "number 64": 1,
+      "port \"127.0.0.1:54322\"": 1
+    },
+    "scripts/tests/test_toolchain_pins.py": {
+      "number 2": 1
+    }
+  }
+}

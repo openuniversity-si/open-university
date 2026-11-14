@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/units/gate-suite-renames.v1.json",
+  "title": "Gate suite renames v1",
+  "description": "units/<id>/gate-suite-renames.json (D-067, plan v3 U1): the baseline tests a unit renamed or moved, keyed by the Vitest project each one left. A retained test cannot leave the gate (D-069 item 5); a rename says which live test replaced it. scripts/generate gate-suite-renames joins every unit's file into the one table scripts/lib/gate_suite.py reads, so no pull request edits a shared list.",
+  "x-owner": "units",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": {"type": "array", "items": {"$ref": "#/$defs/rename"}},
+  "propertyNames": {"pattern": "^[a-z][a-z-]*$"},
+  "$defs": {
+    "row": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"type": "string", "minLength": 1},
+      "description": "[project, file, test title], all strings: the identity of one test in the suite listing."
+    },
+    "rename": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {"from": {"$ref": "#/$defs/row"}, "to": {"$ref": "#/$defs/row"}}
+    }
+  }
+}

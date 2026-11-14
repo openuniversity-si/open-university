@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/quarantine list
+# The flaky-test quarantine (plan v3 M7, D-065 V7): the open quarantines, replayed from the repository log through the
+# forge_events port; overdue past quarantine.max_age_s.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/quarantine.py" "$@"

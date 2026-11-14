@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 5,
+  "x-unit": "count",
+  "description": "Most launches inside one launch_rate_window_s.",
+  "x-readers": [
+    "scripts/lib/coordinator.py"
+  ],
+  "minimum": 1
+}

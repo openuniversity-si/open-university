@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "test_*.py",
+  "x-unit": "glob",
+  "description": "File name of a Python test, directly in tests_dir or in one module directory below it (the TX24 form <module>/test_*.py).",
+  "x-readers": [
+    "scripts/lib/test_orphans.py"
+  ]
+}

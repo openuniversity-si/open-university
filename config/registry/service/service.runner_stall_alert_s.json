@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 180.0,
+  "exclusiveMinimum": 0,
+  "x-unit": "seconds",
+  "description": "RUNNER-STALL-ALERT (docs/operations/aws-revisao-arquitetura.md, findings 2 and 3): how long, in seconds, a run the service handed over to the runner (work.run `starting`) may wait to be taken before the live service alerts (platform.runner.stalled, published to the platform's topic once when it starts and once when it ends). A run handed over is taken within a second by a free slot (the service dispatches only up to the runner's registered capacity), and a runner task the rollout replaced warms for 63 s at p50 (80 s at most, scripts/medir prewarm_s); a run not taken is reaped at its lease (5 minutes) and handed over again, so the limit stays under the lease: 180 s covers the warm-up twice and still alerts before the first reap.",
+  "x-readers": [
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/stall.py"
+  ],
+  "x-source": "RUNNER-STALL-ALERT"
+}

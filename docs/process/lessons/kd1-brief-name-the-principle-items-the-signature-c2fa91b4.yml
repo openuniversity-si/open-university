@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-c2fa91b4"
+slug: "kd1-brief-name-the-principle-items-the-signature-c2fa91b4"
+title: "Brief: name the principle items, the signature source and where registry writes are"
+source:
+  unit: "KD1"
+  retro: "docs/units/KD1/retro.md"
+  section: 5
+  ref: "L3"
+class: "brief"
+kind: "brief-template"
+change: "Brief: name the principle items, the signature source and where registry writes are committed (section 1). Owner: A Torre."
+owner: "a-torre"
+status: "proposed"
+area: []
+signals: []
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

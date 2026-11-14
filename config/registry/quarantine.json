@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/quarantine.json",
+  "x-owner": "quarantine",
+  "x-schema-version": 1,
+  "description": "The flaky-test quarantine (plan v3 M7, D-065 V7, D-069 item 5): test.flaked, test.quarantined, test.unquarantined.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "quarantine.max_age_s": {
+      "type": "integer",
+      "default": 259200,
+      "minimum": 3600,
+      "x-unit": "s",
+      "description": "Age of an open quarantine after which `scripts/quarantine list` marks it overdue: the owner's stabilizing PR is late and the maestro escalates.",
+      "x-readers": [
+        "scripts/lib/quarantine.py"
+      ]
+    },
+    "quarantine.step_prefix": {
+      "type": "string",
+      "default": "quarantine:",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "Prefix of the engine.step.measured step names the quarantine emits (quarantine:flaked, quarantine:release).",
+      "x-readers": [
+        "scripts/lib/quarantine.py"
+      ]
+    },
+    "quarantine.test_roots": {
+      "type": "array",
+      "default": [
+        ""
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "path",
+      "description": "Prefixes tried, in order, to turn a test id (a test file as the runner prints it, relative to its package) into a repository path for the unit manifests' globs. The defect register derives a test's owner with the same prefixes.",
+      "x-readers": [
+        "scripts/lib/defects.py",
+        "scripts/lib/quarantine.py"
+      ]
+    },
+    "quarantine.unknown_owner": {
+      "type": "string",
+      "default": "maestro",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Owner of a quarantined test that no unit manifest (units/<id>/unit.json) covers: today every test, until U0's manifests exist. This owner may also release such a test with any merged stabilizing PR.",
+      "x-readers": [
+        "scripts/lib/quarantine.py"
+      ]
+    }
+  }
+}

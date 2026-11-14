@@ -1,0 +1,22 @@
+{
+  "type": "array",
+  "default": [
+    "ordering=same commit,in order,before its",
+    "brief=brief,process message",
+    "env=wrapper,config store,toolchain,shell",
+    "drift=cross-reference,generated,catalog,heading",
+    "boundary=port,ownership,manifest,vendor",
+    "check-gap=structure stage,after each commit,per commit,a gate-local test,hook",
+    "api-misuse=signature,api",
+    "test-fragility=pinned,fixture",
+    "single-writer=one writer,two writers"
+  ],
+  "x-unit": "text",
+  "description": "Class of a retro item: the first entry whose keyword (a lowercase word or phrase, matched at a word start) occurs in the item, as class=keyword,keyword.",
+  "x-readers": [
+    "scripts/lib/lesson_ingest.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

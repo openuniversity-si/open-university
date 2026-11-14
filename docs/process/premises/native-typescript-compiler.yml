@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-24"
+slug: "native-typescript-compiler"
+statement: "The native TypeScript compiler and a content cache bring a unit's types to about 1 s."
+kind: "architecture"
+scope: "global"
+source:
+  who: "model"
+  where: "external reference, not measured here"
+  quote: null
+  at: null
+status: "inferred"
+radius: "low"
+blast:
+  reasons: ["step:wave-4"]
+  if_wrong: "Wave 4."
+validate:
+  kind: "measurement"
+  how: "Event gate.slow."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

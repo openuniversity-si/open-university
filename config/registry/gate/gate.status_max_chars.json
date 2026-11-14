@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 60000,
+  "x-unit": "chars",
+  "description": "GV1: size cap of the status comment (GitHub allows 65536); the collapsed machine events are cut first, the table never.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "minimum": 1
+}

@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "tower/gate",
+  "x-unit": "text",
+  "description": "Context name of the commit status the gate writes for a PR head.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ]
+}

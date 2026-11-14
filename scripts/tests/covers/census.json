@@ -1,0 +1,20 @@
+{
+  "script": "scripts/tests/census.test.sh",
+  "covers": [
+    "scripts/tests/census.test.sh",
+    "scripts/tests/test_census.py",
+    "scripts/census",
+    "scripts/lib/census.py",
+    "scripts/lib/audit_chain.py",
+    "scripts/lib/units.py",
+    "scripts/lib/config.py",
+    "scripts/lib/json_schema.py",
+    "config/registry/census.json",
+    "config/registry/units.json",
+    "contracts/units/census.v1.json",
+    "scripts/lib/generate_census.py",
+    "scripts/lib/generate.py",
+    "config/registry/generate.json",
+    "scripts/tests/fixture_copy.py"
+  ]
+}

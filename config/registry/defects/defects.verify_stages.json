@@ -1,0 +1,15 @@
+{
+  "type": "array",
+  "default": [
+    "script tests"
+  ],
+  "x-unit": "enum",
+  "description": "Stages the gate re-runs on the base for a resolved defect to verify it.",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "minItems": 1
+}

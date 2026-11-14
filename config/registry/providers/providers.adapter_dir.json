@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "scripts/lib/adapters",
+  "pattern": "^scripts/[a-z0-9/_-]+$",
+  "x-unit": "path",
+  "description": "Directory every new adapter module lives in; the vendor check refuses a new adapter elsewhere.",
+  "x-readers": [
+    "scripts/lib/vendor_check.py"
+  ],
+  "x-source": "plan v3.1 delta §2 R1"
+}

@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "<!-- gate-status v1 -->",
+  "x-unit": "text",
+  "description": "GV1: first line of the gate status comment; the head sha and gate mode follow it so one comment exists per head and mode.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ]
+}

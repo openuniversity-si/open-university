@@ -1,0 +1,25 @@
+{
+  "type": "string",
+  "default": "mod/roadmap-integration",
+  "minLength": 1,
+  "x-unit": "branch",
+  "description": "Integration branch the train builds every batch on and merges into (D-054: PRs target it, a release merges it into main).",
+  "x-readers": [
+    "scripts/lib/coordinator_launch.py",
+    "scripts/lib/covers_cost.py",
+    "scripts/lib/defect_router.py",
+    "scripts/lib/deliver.py",
+    "scripts/lib/flow_metrics.py",
+    "scripts/lib/gate_bypass.py",
+    "scripts/lib/local_checks.py",
+    "scripts/lib/prepush.py",
+    "scripts/lib/push_guard.py",
+    "scripts/lib/service_runner.py",
+    "scripts/lib/service_status.py",
+    "scripts/lib/stall_report.py",
+    "scripts/lib/train.py",
+    "scripts/lib/train_loop.py",
+    "scripts/lib/train_serve.py",
+    "scripts/lib/usage.py"
+  ]
+}

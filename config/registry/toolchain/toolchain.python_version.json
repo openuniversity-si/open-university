@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "3.12.15",
+  "x-unit": "version",
+  "description": "Standalone CPython release the engine scripts run on.",
+  "x-readers": [
+    "scripts/lib/gate_result_cache.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/toolchain_manifest.py"
+  ]
+}

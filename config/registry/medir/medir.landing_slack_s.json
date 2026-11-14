@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 0.2,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "P5 F3's second criterion: the shadow's ready to landed p50 at most the box's merge through Origin (p50) plus this, the forge's number plus our ~0.2 s (ARQUITETURA-ALVO §7).",
+  "x-readers": [
+    "scripts/lib/medir.py"
+  ],
+  "x-source": "MEDIR 4 (P5 F3)"
+}

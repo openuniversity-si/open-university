@@ -1,0 +1,7 @@
+# db-migrations retro (U4)
+
+1. **Brief.** It asked to move the unit into `units/db-migrations/`; S1 (P-03) keeps units logical, so nothing moved and no old path needed deleting. Moving `apps/web/drizzle/` would also have edited files other units own (`drizzle.config.ts`, the journal checks in `structure.py` and `assets.py`, the migration tests). It named branch `mod/u4-db-migrations`; the session's branch is `claude/u4-db-migrations-ueql3u`.
+2. **Audit and plan.** Zero literals, 1,295 lines under `units.size_ceiling`, no TypeScript importer. The battery was green with no step at all, because the manifest had no contract and the unit holds only SQL and JSON.
+3. **Change.** The contract slot now names the journal (`meta/_journal.json`, 1.0.0), the one file every reader depends on. It is the first bare `@ou/<id>` key generated into `apps/web/tsconfig.json`; tsc, the architecture checker and vitest's derived aliases (exact match for a bare key) accept it, and the battery gained its contract step. No new check was added for the journal: structure-check's D-054 tests already prove it (D-069 item 1).
+4. **Gate.** One gate-dev on the final head; stages and wall time are in the PR comment.
+5. **Lessons.** (a) A unit with no code can still publish a contract when one file is what its readers depend on; the contract entry need not be TypeScript (owner: platform-lane). (b) The migration number is the train's to allocate (P-06); a lane that adds a migration takes the next number from the train, not from the journal by hand.

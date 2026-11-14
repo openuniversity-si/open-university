@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/gate-areas.test.sh",
+  "covers": [
+    "scripts/tests/gate-areas.test.sh",
+    "scripts/tests/test_gate_areas*.py",
+    "scripts/tests/test_gate_plan*.py",
+    "scripts/lib/gate_areas.py",
+    "scripts/lib/gate-areas.json",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/gate_report.py"
+  ]
+}

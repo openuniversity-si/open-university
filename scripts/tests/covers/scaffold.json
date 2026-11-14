@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/scaffold.test.sh",
+  "covers": [
+    "scripts/tests/scaffold.test.sh",
+    "scripts/tests/test_scaffold.py",
+    "scripts/scaffold",
+    "scripts/lib/scaffold.py",
+    "scripts/lib/generate_registry.py",
+    "scripts/lib/registry_readers.py",
+    "scripts/lib/json_schema.py",
+    "contracts/config/registry.v1.json"
+  ]
+}

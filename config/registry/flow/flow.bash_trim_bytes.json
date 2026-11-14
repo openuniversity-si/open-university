@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 7000,
+  "x-unit": "bytes",
+  "description": "Bash output size (stdout plus stderr, in bytes) above which the lane's PostToolUse hook shows the model only the head, the tail and a hint to read by range with rg -n or sed -n; about 2k tokens.",
+  "x-readers": [
+    "scripts/lib/bash_trim.py"
+  ],
+  "x-source": "F80; 03/11 lane census: median 4 calls over 2k tokens (154k weighted), one whole-file cat 82k"
+}

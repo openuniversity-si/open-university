@@ -1,0 +1,13 @@
+{
+  "type": "integer",
+  "default": 120,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Timeout of each git command the train runs (fetch, merge-tree, commit-tree, rev-parse).",
+  "x-readers": [
+    "scripts/lib/forge_git_ref.py",
+    "scripts/lib/service_runner.py",
+    "scripts/lib/train_git.py",
+    "scripts/lib/train_serve.py"
+  ]
+}

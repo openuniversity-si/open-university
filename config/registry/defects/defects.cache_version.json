@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 1,
+  "x-unit": "version",
+  "description": "Part of the base-outcome cache key; bump it to discard every cached outcome.",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ],
+  "minimum": 1
+}

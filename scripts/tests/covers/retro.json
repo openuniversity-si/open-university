@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/retro.test.sh",
+  "covers": [
+    "scripts/tests/retro.test.sh",
+    "scripts/tests/test_retro.py",
+    "scripts/lib/retro.py",
+    "config/registry/retro.json",
+    "scripts/retro"
+  ]
+}

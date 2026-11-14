@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "schemas.lock.json",
+  "x-unit": "path",
+  "description": "File in the contracts directory holding the sha256 of every locked schema; a locked schema never changes.",
+  "x-readers": [
+    "scripts/lib/event_contracts.py"
+  ]
+}

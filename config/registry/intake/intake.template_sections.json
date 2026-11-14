@@ -1,0 +1,129 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "name": "intake",
+      "title": "intake",
+      "header": " INTAKE (Padrão v6, D-077): translate the external request into our understanding. Complete on its own; it does not tell the research or the audit what to do. ",
+      "sections": [
+        {
+          "heading": "Pedido",
+          "comment": " The request, literal, with who asked and when. Do not interpret. "
+        },
+        {
+          "heading": "Intenção",
+          "comment": " The real why behind the request. "
+        },
+        {
+          "heading": "Contexto",
+          "comment": " Current state, deadlines, what came before, dependencies. "
+        },
+        {
+          "heading": "Regras",
+          "comment": " D-NNN decisions, premises (P-NN) and Padrão rules that apply. "
+        },
+        {
+          "heading": "Problema real",
+          "comment": " One sentence, plus the metric that says \"resolved\". "
+        },
+        {
+          "heading": "Lacunas",
+          "comment": " What I do not know and on whom it depends. If only the requester knows, ask before spending effort. "
+        }
+      ]
+    },
+    {
+      "name": "research",
+      "title": "research",
+      "header": " RESEARCH (Padrão v6, D-077): look outward, starting from the intake's real problem. About one page, ~15 minutes; an obvious reference takes one line. Complete on its own; it raises no questions for the audit. ",
+      "sections": [
+        {
+          "heading": "Quem já resolveu",
+          "comment": " 3-5 real references: link and what each solves. "
+        },
+        {
+          "heading": "Estado da arte",
+          "comment": " The standard solution, the most advanced one, and what each requires. "
+        },
+        {
+          "heading": "Encaixe em nós",
+          "comment": " Copy directly / adapt / does not fit, with the reason for each. "
+        },
+        {
+          "heading": "Escada de ambição",
+          "comment": " The minimum useful step now (the plan's \"Cheapest useful effort\") -> the path to the state of the art. "
+        }
+      ]
+    },
+    {
+      "name": "audit",
+      "title": "audit",
+      "header": " AUDIT (Padrão v7, D-077, D-081): read-only, cheap evidence. Complete on its own; it states causes and never dictates the plan's work. ",
+      "sections": [
+        {
+          "heading": "Entradas",
+          "comment": " Links to this unit's intake.md and research.md, read as inputs: the real problem and the state of the art. They inform the audit; they do not dictate its questions, which the audit builds on its own. "
+        },
+        {
+          "heading": "Findings",
+          "comment": " Numbered findings, each with its evidence (file:line, command, PR). "
+        },
+        {
+          "heading": "Causas raiz",
+          "comment": " 5 Whys + fishbone, blameless (Padrão v7, D-081). One `### R<n>. <title>` per root cause; several causes are several branches. Each root: `Cadeia de porquês:` with at least three numbered whys (usually ~5), `1. Por que …? …`, down to a STRUCTURAL cause we control (a missing rule, a missing mechanism, a wrong design). \"Someone made a mistake\" or \"a flaky run\" is never a stop: ask why the system let it happen. Then `Classe:` with one of: bug local | regra faltando | mecanismo faltando | arquitetura/desenho, and `Evidência:`. State causes only; NO solution here (the plan weighs the alternatives).\n\n### R1. <the cause, in one line>\nCadeia de porquês:\n1. Por que <the finding>? <answer, with evidence>\n2. Por que <that answer>? <answer>\n3. Por que <that answer>? <answer>\nClasse: <bug local | regra faltando | mecanismo faltando | arquitetura/desenho>\nEvidência: <file:line, command, PR>\n"
+        },
+        {
+          "heading": "Distância do estado da arte",
+          "comment": " Where our current code stands against the reference in research.md (\"Estado da arte\"): what we already have, what is missing, which rung of the \"Escada de ambição\" we are on. "
+        },
+        {
+          "heading": "Base defects expected",
+          "comment": " Known defects of the base this unit will meet, and their owners; \"None known\" is an answer. "
+        }
+      ]
+    },
+    {
+      "name": "plan",
+      "title": "plan",
+      "header": " PLAN (Padrão v7, D-077, D-081): reads audit.md's `## Causas raiz` and research.md's `## Escada de ambição`; decides before it executes. The PR description mirrors this file. ",
+      "sections": [
+        {
+          "heading": "Alternativas",
+          "comment": " For each root of audit.md whose class is structural (regra faltando, mecanismo faltando, arquitetura/desenho), a `### R<n>` with 2-4 alternatives at different levels: remendo (the symptom) / corrige a classe (every instance of the cause) / redesenho (the state of the art from research.md). A `bug local` needs none. Criteria: resolve a raiz?, custo, reversibilidade, risco, degrau (rung of the escada de ambição).\n\n### R1 <the root, as audit.md names it>\n| Alternativa | Nível | Resolve a raiz? | Custo | Reversibilidade | Risco | Degrau |\n|---|---|---|---|---|---|---|\n| A1 <option> | remendo | não: <why> | <minutes, quota> | <how to undo> | <what can go wrong> | 0 |\n| A2 <option> | corrige a classe | sim | … | … | … | 1 |\n| A3 <option> | redesenho | sim | … | … | … | 3 |\n"
+        },
+        {
+          "heading": "Escolha",
+          "comment": " One line per structural root: `- R<n> → A<k>: <justification against the criteria>`. A `remendo` is allowed only with the reason and a `Follow-up: <unit, issue or PR that fixes the root>` on that line or the lines under it. "
+        },
+        {
+          "heading": "Commits",
+          "comment": " The commits as a dependency graph (3-8, D-025), each with the files it owns (no file owned by two parallel commits) and which run in parallel. "
+        },
+        {
+          "heading": "Premises",
+          "comment": " `Premises: P-NN, …` or `Premises: none`; each with its blast radius; CRITICAL when its failure changes scope, spends money, touches production or the source of truth. "
+        },
+        {
+          "heading": "Tests",
+          "comment": " The targeted tests per commit and the single final gate. "
+        },
+        {
+          "heading": "Base defects expected",
+          "comment": " Known defects of the base this unit will meet, and their owners; \"None known\" is an answer. "
+        },
+        {
+          "heading": "Cheapest useful effort",
+          "lines": "Action: <the most expensive action of the plan>\nCost: <minutes, quota, money>\nRequirement: <who needs its result: a person, a role or a lane, never the gate, the train or the tests>\nCheaper rejected: <the cheaper paths considered and why each does not satisfy the requirement>"
+        }
+      ]
+    }
+  ],
+  "items": {
+    "type": "object"
+  },
+  "x-unit": "text",
+  "description": "The four process templates (docs/process/templates/): per template its title, the comment under the header and each section's heading with its hint comment (or the raw lines of the effort block). scripts/intake-templates renders them; the drift test fails when a committed template differs from the render or misses a section the registry names (D-205).",
+  "x-readers": [
+    "scripts/lib/intake_templates.py"
+  ]
+}

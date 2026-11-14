@@ -1,0 +1,1264 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The factory bootstrap (D-303): no long-lived AWS key. Deploys run inside AWS in CodeBuild under roles bounded by tower-boundary; the session only rings a doorbell with a token that is not an AWS credential, and the build deploys the base head from Origin. Applied by hand in the console, never by the pipeline; the budget torre-motor-teto-60 stays outside it.",
+  "Parameters": {
+    "OriginRepoUrl": {
+      "Type": "String",
+      "Default": "https://origin.cursor.com/openuniversity-si/open-university.git"
+    },
+    "BaseBranch": {
+      "Type": "String",
+      "Default": "mod/roadmap-integration"
+    },
+    "DoorbellTokenSha256": {
+      "Type": "String",
+      "NoEcho": true,
+      "AllowedPattern": "^[0-9a-f]{64}$",
+      "Description": "SHA-256 (hex) of the doorbell token; the token goes to the session secrets, never to AWS"
+    },
+    "AlertEmail": {
+      "Type": "String",
+      "Default": "",
+      "Description": "Optional address for deploy results; empty subscribes nobody"
+    }
+  },
+  "Conditions": {
+    "HasAlertEmail": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "AlertEmail"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "Boundary": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "tower-boundary",
+        "Description": {
+          "Fn::Sub": "Upper limit of every factory role (D-303): the A1 services in ${AWS::Region}, IAM only for tower-app-* roles that carry this boundary, and nothing on users, keys, budgets, the account or the bootstrap"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "WorkloadServicesInTheStackRegion",
+              "Effect": "Allow",
+              "Action": [
+                "ec2:*",
+                "ecs:*",
+                "ecr:*",
+                "rds:*",
+                "rds-db:connect",
+                "lambda:*",
+                "apigateway:*",
+                "sqs:*",
+                "s3:*",
+                "ssm:*",
+                "logs:*",
+                "cloudwatch:*",
+                "sns:*",
+                "application-autoscaling:*",
+                "cloudformation:*",
+                "codebuild:StartBuild",
+                "codebuild:BatchGetBuilds",
+                "kms:Decrypt",
+                "kms:DescribeKey",
+                "kms:GenerateDataKey*",
+                "sts:GetCallerIdentity",
+                "iam:GetRole",
+                "iam:CreateServiceLinkedRole"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": {
+                    "Ref": "AWS::Region"
+                  }
+                }
+              }
+            },
+            {
+              "Sid": "ClaudeInBedrockInference",
+              "Effect": "Allow",
+              "Action": "bedrock-mantle:CreateInference",
+              "Resource": "*"
+            },
+            {
+              "Sid": "BedrockModelsByConverse",
+              "Effect": "Allow",
+              "Action": "bedrock:InvokeModel",
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-micro-v1:0"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/us.amazon.nova-micro-v1:0"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0"
+                }
+              ]
+            },
+            {
+              "Sid": "KeyGrantsOnlyForAwsServices",
+              "Effect": "Allow",
+              "Action": "kms:CreateGrant",
+              "Resource": "*",
+              "Condition": {
+                "Bool": {
+                  "kms:GrantIsForAWSResource": "true"
+                },
+                "StringEquals": {
+                  "aws:RequestedRegion": {
+                    "Ref": "AWS::Region"
+                  }
+                }
+              }
+            },
+            {
+              "Sid": "AppRolesCarryThisBoundary",
+              "Effect": "Allow",
+              "Action": [
+                "iam:CreateRole",
+                "iam:PutRolePolicy",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:DeleteRolePolicy"
+              ],
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/tower-app-*"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "iam:PermissionsBoundary": {
+                    "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/tower-boundary"
+                  }
+                }
+              }
+            },
+            {
+              "Sid": "AppRolesLifecycle",
+              "Effect": "Allow",
+              "Action": [
+                "iam:DeleteRole",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:UpdateAssumeRolePolicy",
+                "iam:GetRolePolicy",
+                "iam:ListRolePolicies",
+                "iam:ListAttachedRolePolicies",
+                "iam:PassRole",
+                "iam:UpdateRoleDescription",
+                "iam:UpdateRole",
+                "iam:ListRoleTags",
+                "iam:ListInstanceProfilesForRole"
+              ],
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/tower-app-*"
+              }
+            },
+            {
+              "Sid": "PassTheExecutionRoleOnlyToCloudFormation",
+              "Effect": "Allow",
+              "Action": "iam:PassRole",
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/tower-cfn-exec"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "iam:PassedToService": "cloudformation.amazonaws.com"
+                }
+              }
+            },
+            {
+              "Sid": "NoUsersKeysOrBoundaryChanges",
+              "Effect": "Deny",
+              "Action": [
+                "iam:CreateUser",
+                "iam:CreateAccessKey",
+                "iam:CreateLoginProfile",
+                "iam:UpdateLoginProfile",
+                "iam:AttachUserPolicy",
+                "iam:PutUserPolicy",
+                "iam:CreateGroup",
+                "iam:CreatePolicy",
+                "iam:CreatePolicyVersion",
+                "iam:SetDefaultPolicyVersion",
+                "iam:DeletePolicy",
+                "iam:PutRolePermissionsBoundary",
+                "iam:DeleteRolePermissionsBoundary",
+                "organizations:*",
+                "account:*",
+                "budgets:*",
+                "ce:*"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "CostDesignOfA1",
+              "Effect": "Deny",
+              "Action": [
+                "ec2:RunInstances",
+                "ec2:RequestSpotInstances",
+                "ec2:CreateNatGateway",
+                "ec2:AllocateAddress",
+                "lambda:PutProvisionedConcurrencyConfig",
+                "rds:CreateDBCluster"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "DatabaseClassesOfTheLadder",
+              "Effect": "Deny",
+              "Action": [
+                "rds:CreateDBInstance",
+                "rds:ModifyDBInstance"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringNotLike": {
+                  "rds:DatabaseClass": "db.t4g.*"
+                }
+              }
+            },
+            {
+              "Sid": "TheBootstrapIsOutOfReach",
+              "Effect": "Deny",
+              "Action": "iam:*",
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/tower-infra-deployer"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/tower-doorbell"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/tower-boundary"
+                }
+              ]
+            },
+            {
+              "Sid": "TheExecutionRoleIsOutOfReachButPassable",
+              "Effect": "Deny",
+              "NotAction": "iam:PassRole",
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/tower-cfn-exec"
+              }
+            },
+            {
+              "Sid": "TheBootstrapStackIsOutOfReach",
+              "Effect": "Deny",
+              "NotAction": [
+                "cloudformation:DescribeStacks",
+                "cloudformation:GetTemplate"
+              ],
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/tower-bootstrap/*"
+              }
+            },
+            {
+              "Sid": "TheDeployerIsOutOfReach",
+              "Effect": "Deny",
+              "Action": [
+                "codebuild:UpdateProject",
+                "codebuild:DeleteProject",
+                "lambda:UpdateFunctionCode",
+                "lambda:UpdateFunctionConfiguration",
+                "lambda:DeleteFunction",
+                "lambda:AddPermission",
+                "lambda:RemovePermission",
+                "lambda:UpdateFunctionUrlConfig",
+                "lambda:DeleteFunctionUrlConfig"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:project/tower-infra-deploy"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-deploy-doorbell"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "CfnExecRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "tower-cfn-exec",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudformation.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "PermissionsBoundary": {
+          "Ref": "Boundary"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Ref": "Boundary"
+          }
+        ]
+      }
+    },
+    "DeployerRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "tower-infra-deployer",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "codebuild.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "PermissionsBoundary": {
+          "Ref": "Boundary"
+        },
+        "Policies": [
+          {
+            "PolicyName": "deploy-app-stacks",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "DeployOnlyAppStacks",
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:CreateStack",
+                    "cloudformation:UpdateStack",
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:DescribeStackEvents",
+                    "cloudformation:CreateChangeSet",
+                    "cloudformation:DescribeChangeSet",
+                    "cloudformation:ExecuteChangeSet",
+                    "cloudformation:DeleteChangeSet",
+                    "cloudformation:GetTemplateSummary"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/tower-app-*/*"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:changeSet/*/*"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "ReadTemplates",
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:ValidateTemplate",
+                    "cloudformation:ListStacks"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "PassTheExecutionRole",
+                  "Effect": "Allow",
+                  "Action": "iam:PassRole",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "CfnExecRole",
+                      "Arn"
+                    ]
+                  },
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:PassedToService": "cloudformation.amazonaws.com"
+                    }
+                  }
+                },
+                {
+                  "Sid": "ReadTheOriginKeyAndTheLastDeploy",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/origin/*"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/deploy/*"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "ReadTheParametersTheStacksName",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/port/*"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/db/*"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "RecordTheLastDeploy",
+                  "Effect": "Allow",
+                  "Action": "ssm:PutParameter",
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/deploy/last-sha"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/deploy/last-build"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "LogInToTheImageRegistry",
+                  "Effect": "Allow",
+                  "Action": "ecr:GetAuthorizationToken",
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "PushTheImagesOfTheBase",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:DescribeRepositories",
+                    "ecr:CreateRepository",
+                    "ecr:PutLifecyclePolicy",
+                    "ecr:DescribeImages",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:InitiateLayerUpload",
+                    "ecr:UploadLayerPart",
+                    "ecr:CompleteLayerUpload",
+                    "ecr:PutImage"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/tower-*"
+                  }
+                },
+                {
+                  "Sid": "RecordTheImages",
+                  "Effect": "Allow",
+                  "Action": "ssm:PutParameter",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/deploy/image/*"
+                  }
+                },
+                {
+                  "Sid": "PublishTheLambdaPackages",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObject",
+                    "s3:GetObject"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::tower-outputs-${AWS::AccountId}-${AWS::Region}/artifacts/lambda/*"
+                  }
+                },
+                {
+                  "Sid": "DecryptThroughParameterStore",
+                  "Effect": "Allow",
+                  "Action": "kms:Decrypt",
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": {
+                        "Fn::Sub": "ssm.${AWS::Region}.amazonaws.com"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Sid": "WriteItsLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/tower/infra-deploy*"
+                  }
+                },
+                {
+                  "Sid": "ReportTheResult",
+                  "Effect": "Allow",
+                  "Action": "sns:Publish",
+                  "Resource": {
+                    "Ref": "AlertsTopic"
+                  }
+                },
+                {
+                  "Sid": "ReadTheConsumerLogForTheAckSmoke",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:FilterLogEvents",
+                    "logs:GetLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/tower-port-webhooks"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/tower-port-webhooks:*"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "ReadTheBootstrapStackForItsDrift",
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:GetTemplate"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/tower-bootstrap/*"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DeployLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/tower/infra-deploy",
+        "RetentionInDays": 30
+      }
+    },
+    "AlertsTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "tower-platform-events"
+      }
+    },
+    "AlertsEmail": {
+      "Type": "AWS::SNS::Subscription",
+      "Condition": "HasAlertEmail",
+      "Properties": {
+        "Protocol": "email",
+        "Endpoint": {
+          "Ref": "AlertEmail"
+        },
+        "TopicArn": {
+          "Ref": "AlertsTopic"
+        }
+      }
+    },
+    "AlertsTopicPolicy": {
+      "Type": "AWS::SNS::TopicPolicy",
+      "Properties": {
+        "Topics": [
+          {
+            "Ref": "AlertsTopic"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2008-10-17",
+          "Statement": [
+            {
+              "Sid": "OwnerAccount",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "*"
+              },
+              "Action": [
+                "SNS:GetTopicAttributes",
+                "SNS:SetTopicAttributes",
+                "SNS:AddPermission",
+                "SNS:RemovePermission",
+                "SNS:DeleteTopic",
+                "SNS:Subscribe",
+                "SNS:ListSubscriptionsByTopic",
+                "SNS:Publish"
+              ],
+              "Resource": {
+                "Ref": "AlertsTopic"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceOwner": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            },
+            {
+              "Sid": "BudgetsPublishTheDeployCostAlarm",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "budgets.amazonaws.com"
+              },
+              "Action": "SNS:Publish",
+              "Resource": {
+                "Ref": "AlertsTopic"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            },
+            {
+              "Sid": "EventBridgePublishesTheEngineImpairedRule",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com"
+              },
+              "Action": "SNS:Publish",
+              "Resource": {
+                "Ref": "AlertsTopic"
+              },
+              "Condition": {
+                "ArnEquals": {
+                  "aws:SourceArn": {
+                    "Fn::GetAtt": [
+                      "EngineImpairedRule",
+                      "Arn"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "AlertsToTorreQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "tower-alerts-torre",
+        "MessageRetentionPeriod": 1209600,
+        "SqsManagedSseEnabled": true,
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "AlertsToTorreQueuePolicy": {
+      "Type": "AWS::SQS::QueuePolicy",
+      "Properties": {
+        "Queues": [
+          {
+            "Ref": "AlertsToTorreQueue"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "ThePlatformTopicSendsHere",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "sns.amazonaws.com"
+              },
+              "Action": "sqs:SendMessage",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AlertsToTorreQueue",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "ArnEquals": {
+                  "aws:SourceArn": {
+                    "Ref": "AlertsTopic"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "AlertsToTorre": {
+      "Type": "AWS::SNS::Subscription",
+      "Properties": {
+        "TopicArn": {
+          "Ref": "AlertsTopic"
+        },
+        "Protocol": "sqs",
+        "Endpoint": {
+          "Fn::GetAtt": [
+            "AlertsToTorreQueue",
+            "Arn"
+          ]
+        },
+        "RawMessageDelivery": true
+      }
+    },
+    "DeployCostAlarm": {
+      "Type": "AWS::Budgets::Budget",
+      "DependsOn": "AlertsTopicPolicy",
+      "Properties": {
+        "Budget": {
+          "BudgetName": "tower-deploy-codebuild-20",
+          "BudgetType": "COST",
+          "TimeUnit": "MONTHLY",
+          "BudgetLimit": {
+            "Amount": 20,
+            "Unit": "USD"
+          },
+          "CostFilters": {
+            "Service": [
+              "CodeBuild"
+            ]
+          },
+          "CostTypes": {
+            "IncludeCredit": false,
+            "IncludeRefund": false
+          }
+        },
+        "NotificationsWithSubscribers": [
+          {
+            "Notification": {
+              "NotificationType": "ACTUAL",
+              "ComparisonOperator": "GREATER_THAN",
+              "Threshold": 100,
+              "ThresholdType": "PERCENTAGE"
+            },
+            "Subscribers": [
+              {
+                "SubscriptionType": "SNS",
+                "Address": {
+                  "Ref": "AlertsTopic"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "DeployProject": {
+      "Type": "AWS::CodeBuild::Project",
+      "DependsOn": [
+        "DeployLogs"
+      ],
+      "Properties": {
+        "Name": "tower-infra-deploy",
+        "Description": "Builds the images infra/*/Dockerfile of the base head into tower-* repositories and deploys infra/aws/stacks/*.json as tower-app-* stacks (D-303)",
+        "ServiceRole": {
+          "Fn::GetAtt": [
+            "DeployerRole",
+            "Arn"
+          ]
+        },
+        "Artifacts": {
+          "Type": "NO_ARTIFACTS"
+        },
+        "Environment": {
+          "Type": "ARM_CONTAINER",
+          "ComputeType": "BUILD_GENERAL1_SMALL",
+          "Image": "aws/codebuild/amazonlinux-aarch64-standard:3.0",
+          "EnvironmentVariables": [
+            {
+              "Name": "ORIGIN_REPO_URL",
+              "Value": {
+                "Ref": "OriginRepoUrl"
+              }
+            },
+            {
+              "Name": "BASE_BRANCH",
+              "Value": {
+                "Ref": "BaseBranch"
+              }
+            },
+            {
+              "Name": "CFN_EXEC_ROLE_ARN",
+              "Value": {
+                "Fn::GetAtt": [
+                  "CfnExecRole",
+                  "Arn"
+                ]
+              }
+            },
+            {
+              "Name": "ALERTS_TOPIC_ARN",
+              "Value": {
+                "Ref": "AlertsTopic"
+              }
+            },
+            {
+              "Name": "IMAGE_REGISTRY",
+              "Value": {
+                "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}"
+              }
+            },
+            {
+              "Name": "DEPLOY_BUDGET_S",
+              "Value": "2400"
+            }
+          ],
+          "PrivilegedMode": true
+        },
+        "Source": {
+          "Type": "NO_SOURCE",
+          "BuildSpec": "version: 0.2\nenv:\n  shell: bash\n  parameter-store:\n    CURSOR_API_KEY: /tower/origin/api-key\nphases:\n  install:\n    commands:\n      - curl -fsSL https://downloads.cursor.com/origin/install.sh | sh\n      - export PATH=\"$HOME/.local/bin:$PATH\" && origin --version && origin auth setup-git\n  build:\n    commands:\n      - export PATH=\"$HOME/.local/bin:$PATH\"\n      - export CURSOR_AUTH_TOKEN=\"$(origin auth token)\" && test -n \"$CURSOR_AUTH_TOKEN\"\n      - git clone --quiet --single-branch --branch \"$BASE_BRANCH\" \"$ORIGIN_REPO_URL\" repo\n      - head=$(git -C repo rev-parse HEAD) && echo \"base head $head\"\n      - test -f repo/infra/aws/deploy.sh || { echo \"repo/infra/aws/deploy.sh is missing in the base head $head, so nothing was deployed (and nothing recorded)\"; false; }\n      - bash repo/infra/aws/deploy.sh\n  post_build:\n    commands:\n      - aws sns publish --topic-arn \"$ALERTS_TOPIC_ARN\" --subject \"tower deploy $CODEBUILD_BUILD_SUCCEEDING\" --message \"build $CODEBUILD_BUILD_ID, base head ${head:-unknown}\" || true\n"
+        },
+        "ConcurrentBuildLimit": 1,
+        "TimeoutInMinutes": 45,
+        "LogsConfig": {
+          "CloudWatchLogs": {
+            "Status": "ENABLED",
+            "GroupName": "/tower/infra-deploy"
+          }
+        },
+        "Cache": {
+          "Type": "LOCAL",
+          "Modes": [
+            "LOCAL_DOCKER_LAYER_CACHE",
+            "LOCAL_CUSTOM_CACHE"
+          ]
+        }
+      }
+    },
+    "DoorbellRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "tower-doorbell",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "PermissionsBoundary": {
+          "Ref": "Boundary"
+        },
+        "Policies": [
+          {
+            "PolicyName": "ring-the-deploy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "StartOnlyTheDeployBuild",
+                  "Effect": "Allow",
+                  "Action": "codebuild:StartBuild",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DeployProject",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "WriteItsLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/tower-deploy-doorbell*"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DoorbellLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/tower-deploy-doorbell",
+        "RetentionInDays": 14
+      }
+    },
+    "DoorbellFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "DoorbellLogs"
+      ],
+      "Properties": {
+        "FunctionName": "tower-deploy-doorbell",
+        "Runtime": "nodejs22.x",
+        "Architectures": [
+          "arm64"
+        ],
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DoorbellRole",
+            "Arn"
+          ]
+        },
+        "Timeout": 10,
+        "MemorySize": 128,
+        "Environment": {
+          "Variables": {
+            "PROJECT": {
+              "Ref": "DeployProject"
+            },
+            "TOKEN_SHA256": {
+              "Ref": "DoorbellTokenSha256"
+            }
+          }
+        },
+        "Code": {
+          "ZipFile": "const crypto = require('crypto');\nconst { CodeBuildClient, StartBuildCommand } = require('@aws-sdk/client-codebuild');\nconst codebuild = new CodeBuildClient({});\n// The doorbell (D-303): a valid token only starts the deploy build; the build itself reads the base head from Origin,\n// so a caller can never choose what is deployed. The token is compared by its SHA-256, in constant time.\n// AUTO1: a DIRECT invocation (lambda:Invoke, no Function URL: the event has neither requestContext nor headers) is\n// authenticated by IAM, which only lets a principal granted lambda:InvokeFunction on this function ARN get here, so it\n// needs no token; a Function URL call always carries requestContext and keeps the token path unchanged. Both paths\n// then share the one-build-at-a-time start below (CodeBuild's concurrent limit of 1 answers 409).\nexports.handler = async (event) => {\n  const viaUrl = !!(event && (event.requestContext || event.headers));\n  if (viaUrl) {\n    const header = (event.headers && event.headers.authorization) || '';\n    const token = header.startsWith('Bearer ') ? header.slice(7) : '';\n    const want = Buffer.from(process.env.TOKEN_SHA256 || '', 'hex');\n    const got = crypto.createHash('sha256').update(token).digest();\n    if (!token || want.length !== got.length || !crypto.timingSafeEqual(got, want)) {\n      return { statusCode: 401, body: 'unauthorized' };\n    }\n  }\n  try {\n    const out = await codebuild.send(new StartBuildCommand({ projectName: process.env.PROJECT }));\n    return { statusCode: 202, body: JSON.stringify({ build: out.build.id }) };\n  } catch (error) {\n    return { statusCode: 409, body: JSON.stringify({ error: error.name }) };\n  }\n};\n"
+        }
+      }
+    },
+    "DoorbellUrl": {
+      "Type": "AWS::Lambda::Url",
+      "Properties": {
+        "AuthType": "NONE",
+        "TargetFunctionArn": {
+          "Fn::GetAtt": [
+            "DoorbellFunction",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "DoorbellUrlPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunctionUrl",
+        "FunctionName": {
+          "Ref": "DoorbellFunction"
+        },
+        "Principal": "*",
+        "FunctionUrlAuthType": "NONE"
+      }
+    },
+    "DoorbellUrlInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "DoorbellFunction"
+        },
+        "Principal": "*",
+        "InvokedViaFunctionUrl": true
+      }
+    },
+    "DeployStateRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": "tower-infra-deploy-state",
+        "Description": "DEP-EVENTS: every CodeBuild Build State Change of tower-infra-deploy is pushed to the port (tower-port-api:live), so the end of a deploy wakes the autodeploy by event instead of the SSM read",
+        "State": "ENABLED",
+        "EventPattern": {
+          "source": [
+            "aws.codebuild"
+          ],
+          "detail-type": [
+            "CodeBuild Build State Change"
+          ],
+          "detail": {
+            "project-name": [
+              "tower-infra-deploy"
+            ]
+          }
+        },
+        "Targets": [
+          {
+            "Id": "tower-port-api-live",
+            "Arn": {
+              "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+            }
+          }
+        ]
+      }
+    },
+    "DeployStateInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "DeployStateRule",
+            "Arn"
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "StackStateRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": "tower-app-stack-state",
+        "Description": "SLOW-PATH-NO-ROLLOUT-WAIT: the end of every operation of a tower-app-* stack (a CloudFormation Stack Status Change) is pushed to the port (tower-port-api:live), so the rollout a deploy build started and did not wait for wakes the autodeploy by event",
+        "State": "ENABLED",
+        "EventPattern": {
+          "source": [
+            "aws.cloudformation"
+          ],
+          "detail-type": [
+            "CloudFormation Stack Status Change"
+          ],
+          "detail": {
+            "stack-id": [
+              {
+                "prefix": {
+                  "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/tower-app-"
+                }
+              }
+            ],
+            "status-details": {
+              "status": [
+                "CREATE_COMPLETE",
+                "CREATE_FAILED",
+                "ROLLBACK_COMPLETE",
+                "ROLLBACK_FAILED",
+                "UPDATE_COMPLETE",
+                "UPDATE_FAILED",
+                "UPDATE_ROLLBACK_COMPLETE",
+                "UPDATE_ROLLBACK_FAILED"
+              ]
+            }
+          }
+        },
+        "Targets": [
+          {
+            "Id": "tower-port-api-live",
+            "Arn": {
+              "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+            }
+          }
+        ]
+      }
+    },
+    "StackStateInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "StackStateRule",
+            "Arn"
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "EngineImpairedRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": "tower-engine-impaired",
+        "Description": "ECS cannot keep the engine's tasks up (start impaired, deployment failed, no placement): straight to the platform's topic, no code of the engine in the path",
+        "State": "ENABLED",
+        "EventPattern": {
+          "source": [
+            "aws.ecs"
+          ],
+          "detail-type": [
+            "ECS Service Action",
+            "ECS Deployment State Change"
+          ],
+          "detail": {
+            "eventName": [
+              "SERVICE_TASK_START_IMPAIRED",
+              "SERVICE_DEPLOYMENT_FAILED",
+              "SERVICE_TASK_PLACEMENT_FAILURE"
+            ]
+          }
+        },
+        "Targets": [
+          {
+            "Id": "tower-platform-events",
+            "Arn": {
+              "Ref": "AlertsTopic"
+            }
+          }
+        ]
+      }
+    },
+    "EcsTaskStoppedRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": "tower-ecs-task-stopped",
+        "State": "ENABLED",
+        "Description": "ECS-STOPS-IN-LOG: every stopped task of the cluster tower, with its stopCode and stoppedReason, to the alias tower-port-api:live",
+        "EventPattern": {
+          "source": [
+            "aws.ecs"
+          ],
+          "detail-type": [
+            "ECS Task State Change"
+          ],
+          "detail": {
+            "clusterArn": [
+              {
+                "Fn::Sub": "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/tower"
+              }
+            ],
+            "lastStatus": [
+              "STOPPED"
+            ]
+          }
+        },
+        "Targets": [
+          {
+            "Id": "tower-port-api-live",
+            "Arn": {
+              "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+            }
+          }
+        ]
+      }
+    },
+    "EcsTaskStoppedInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "EcsTaskStoppedRule",
+            "Arn"
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "EcsServiceActionRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": "tower-ecs-service-action",
+        "State": "ENABLED",
+        "Description": "ECS-STOPS-IN-LOG: the warnings and errors of the services of the cluster tower (a placement failure, a start impaired) to the alias tower-port-api:live",
+        "EventPattern": {
+          "source": [
+            "aws.ecs"
+          ],
+          "detail-type": [
+            "ECS Service Action"
+          ],
+          "resources": [
+            {
+              "prefix": {
+                "Fn::Sub": "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/tower/"
+              }
+            }
+          ],
+          "detail": {
+            "eventType": [
+              "WARN",
+              "ERROR"
+            ]
+          }
+        },
+        "Targets": [
+          {
+            "Id": "tower-port-api-live",
+            "Arn": {
+              "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+            }
+          }
+        ]
+      }
+    },
+    "EcsServiceActionInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "EcsServiceActionRule",
+            "Arn"
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "DoorbellUrl": {
+      "Value": {
+        "Fn::GetAtt": [
+          "DoorbellUrl",
+          "FunctionUrl"
+        ]
+      },
+      "Description": "The URL the session rings after a merge (a POST with Authorization: Bearer)"
+    },
+    "DeployProjectName": {
+      "Value": {
+        "Ref": "DeployProject"
+      }
+    },
+    "CfnExecRoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "CfnExecRole",
+          "Arn"
+        ]
+      }
+    },
+    "BoundaryArn": {
+      "Value": {
+        "Ref": "Boundary"
+      }
+    },
+    "AlertsTopicArn": {
+      "Value": {
+        "Ref": "AlertsTopic"
+      }
+    }
+  }
+}

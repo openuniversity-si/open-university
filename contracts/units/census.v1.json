@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/units/census.v1.json",
+  "title": "Census event v1",
+  "description": "One line of units/<id>/census.jsonl (CENSO-NO-MANIFESTO; D-063, D-064 a, D-067): one event of the unit's append-only literal census. The live census of a unit is the fold of its events in order. scripts/census is the only writer. scripts/census check, run by structure-check, refuses a line that is not this shape, a file that is not the writer's canonical rendering, a broken digest chain, a history whose events at the base are not a prefix of its events now, and a live path that resolves to no unit, to two units or to another unit. It replaces the per-area files scripts/lib/literal-catalogs/<area>.json and scripts/lib/absolute-literals-baseline/<area>.json (the unversioned shapes `{description, catalogs}` and `{description, files}`), which scripts/generate census now derives on demand.",
+  "x-owner": "units",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["n", "at", "by", "op", "census", "path", "why", "prev", "digest"],
+  "properties": {
+    "n": {"type": "integer", "minimum": 1, "description": "The event's position in the record, from 1, with no gaps."},
+    "at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "The UTC date the writer recorded the event."},
+    "by": {"type": "string", "minLength": 1, "description": "Who ran the writer: --actor, else git user.email, else $USER."},
+    "op": {"enum": ["add", "set", "remove"], "description": "add: the path is new to this census of the unit. set: it replaces the live entry. remove: the live entry goes."},
+    "census": {"enum": ["catalog", "baseline"], "description": "catalog: a D-063 literal catalog, a file whose literals are the documented keys of a domain. baseline: an absolute-census exception, a file whose remaining offenders are still allowed (D-063, D-064 a)."},
+    "path": {"type": "string", "minLength": 1, "pattern": "^[^/].*[^/]$", "description": "The repository path the entry is about. It must belong to this record's unit and to no other (units.units_of)."},
+    "entry": {"description": "The live entry after an add or a set; absent on a remove.", "oneOf": [{"$ref": "#/$defs/catalog"}, {"$ref": "#/$defs/baseline"}]},
+    "why": {"type": "string", "minLength": 1, "description": "The reason the writer was given (--why)."},
+    "prev": {"type": "string", "minLength": 1, "description": "The digest of the event before, or census.genesis_digest for the first."},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]+$", "description": "census.digest_algorithm of the event without this field (scripts/lib/audit_chain.py)."}
+  },
+  "$defs": {
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domains", "holds"],
+      "properties": {
+        "domains": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "description": "The D-050 and D-063 domains whose values the file holds."},
+        "holds": {"type": "string", "minLength": 1, "description": "One sentence on what the file holds."},
+        "generatedFrom": {"type": "string", "minLength": 1, "description": "The source a generator writes the file from; its keys are documented there."},
+        "builders": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "description": "A schema catalog's builder modules (import specifiers): it may call what it imports from them and pass them expression callbacks, and nothing else."}
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z_]+ \"[\\s\\S]*\"$"},
+      "additionalProperties": {"type": "integer", "minimum": 1},
+      "description": "Per `<kind> <value as JSON>`, how many times the file may still spell it. Read from the absolute scan, never typed."
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/defect.registered.v1.json",
+  "title": "defect.registered payload v1",
+  "description": "The registry opened a defect (status open) for a test and signature it did not know; the owner is derived from the unit ownership map.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/defect"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "defect",
+    "test",
+    "signature",
+    "owner",
+    "area"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "defect": {
+      "type": "string",
+      "pattern": "^KD-[0-9a-f]{6,}$"
+    },
+    "test": {
+      "type": "string",
+      "minLength": 1
+    },
+    "signature": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "area": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

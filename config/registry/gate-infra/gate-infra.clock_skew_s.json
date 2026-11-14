@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 60,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "Seconds the first read of the log reaches back before the adapter's clock, so a database clock behind it loses no event.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+}

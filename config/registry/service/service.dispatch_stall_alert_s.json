@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 120.0,
+  "exclusiveMinimum": 0,
+  "x-unit": "seconds",
+  "description": "DISPATCH-STALL-ALERT (docs/operations/aws-revisao-arquitetura.md, finding 32): how long, in seconds, a job that a dispatcher would start now (a first candidate of its queue whose route has a free slot it may take) may stay queued before a service process that stands by alerts (platform.dispatch.stalled, published to the platform's topic once when it starts and once when it ends). A live dispatcher starts such a job on its next tick (service.dispatch_s, 1 s), and a service that takes the role over does it within seconds of the swap or of a failover (deploy.live_stale_s, 10 s); 120 s is past every one of those and well under the 7.7 minutes of 11/11 with no dispatch and no alert.",
+  "x-readers": [
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/stall.py"
+  ],
+  "x-source": "DISPATCH-STALL-ALERT"
+}

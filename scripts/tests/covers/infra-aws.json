@@ -1,0 +1,16 @@
+{
+  "script": "scripts/tests/infra-aws.test.sh",
+  "covers": [
+    "scripts/tests/infra-aws.test.sh",
+    "scripts/tests/test_infra_aws.py",
+    "infra/**",
+    "units/engine-infra-aws/unit.json",
+    "docs/domain/decisions/D-303.md",
+    "docs/domain/decisions/D-304.md",
+    "docs/domain/decisions/D-305.md",
+    "docs/domain/decisions/D-306.md",
+    "docs/arquitetura-referencia/PLANO-DE-IMPLEMENTACAO.md",
+    "config/registry/toolchain/toolchain.postgres_version.json",
+    "infra/service/tower_infra/live_image.py"
+  ]
+}

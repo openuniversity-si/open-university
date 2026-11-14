@@ -1,0 +1,21 @@
+{
+  "id": "engine-literals",
+  "purpose": "The census of unregistered literals in the engine paths, bounded per unit by the census of the base tree (LT1, D-068 (6), D-069 item 3, TX22).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/literals.json",
+    "scripts/lib/literal_census.py",
+    "scripts/tests/literals.test.sh",
+    "scripts/tests/test_literal_census.py",
+    "scripts/tests/test_literal_census_derived.py",
+    "scripts/tests/test_literal_census_cache.py",
+    "scripts/tests/fixtures/unregistered-literals/**"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-config-check": "^1",
+    "engine-production": "^1",
+    "engine-units": "^1"
+  }
+}

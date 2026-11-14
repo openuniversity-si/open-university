@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 10,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Daniel's goal for the whole script suite judged on A Torre's runner (GATE-SPEED, D-092): `scripts/test-suite` reports a wall above it as a miss. Report-only: the wall never fails a run, a failing test does.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "D-090; D-092; docs/units/GATE-SPEED/intake.md"
+}

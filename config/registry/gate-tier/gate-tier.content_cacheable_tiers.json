@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    1,
+    2
+  ],
+  "items": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 3
+  },
+  "x-unit": "count",
+  "description": "D-076 (P-56, partially refutes P-43): gate tiers that reuse a script-test or stage PASS by content (its key: the files it reads, the attested toolchain_id, the judging runner), with gate.content_cache_enabled on. Tier 3 (the battery, the periodic full net) is never listed. gate-tier.cacheable_tiers keeps the box-local carry-over and recorded verdicts to tier 1.",
+  "x-readers": [
+    "scripts/lib/gate_tier.py"
+  ],
+  "x-source": "D-076"
+}

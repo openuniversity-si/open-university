@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/program-gate check PROGRAM [--events FILE] [--now RFC3339] | retro PROGRAM [--write]
+# The program gate (D-069 CO1): every unit merged and the measurable goal met; the program retro from the unit retros.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/program_gate.py" "$@"

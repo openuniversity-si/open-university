@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "envelope.v1.json",
+  "x-unit": "path",
+  "description": "Envelope schema every emitted and read event is validated against.",
+  "x-readers": [
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/premises.py"
+  ]
+}

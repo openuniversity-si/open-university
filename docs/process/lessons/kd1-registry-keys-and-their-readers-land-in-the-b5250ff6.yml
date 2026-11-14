@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-b5250ff6"
+slug: "kd1-registry-keys-and-their-readers-land-in-the-b5250ff6"
+title: "Registry keys and their readers land in the same commit"
+source:
+  unit: "KD1"
+  retro: "docs/units/KD1/retro.md"
+  section: 5
+  ref: "L1"
+class: "ordering"
+kind: "helper"
+change: "Registry keys and their readers land in the same commit; add a helper that checks it (F1). Owner: engine lane."
+owner: "engine-lane"
+status: "proposed"
+area: []
+signals: [{"event": "gate.failed", "stage": "structure check", "pattern": null}]
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

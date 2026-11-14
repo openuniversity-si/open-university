@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/gate.passed.v4.json",
+  "title": "gate.passed payload v4",
+  "description": "v4 of the tier-1/2/3 gate verdict (GX-37, contracts first): additive over v3 with the proof-binding fields of GA2 \u00a76 (head/base trees and sha, gate_version, toolchain_id, selection digest, input_digest, per-stage cache and carry state, cost, lane_id). Readers accept v3 and v4; tier-2/3 verdicts have pr null and go to the repository channel.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/pr",
+    "/payload/sha",
+    "/payload/plan",
+    "/payload/input_digest"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "tier",
+    "plan",
+    "stages",
+    "missing_stages",
+    "input_digest",
+    "head_tree",
+    "base_sha",
+    "base_tree",
+    "gate_version",
+    "toolchain_id",
+    "selection",
+    "cost",
+    "lane_id"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "The PR; null for a tier-2/3 verdict published on the repository channel."
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "tier": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3,
+      "description": "Explicit gate tier (1 per-PR, 2 batch, 3 release/battery); never derived from the mode."
+    },
+    "plan": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The gate mode that ran (dev, db, noite, ...)."
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/stage"
+      },
+      "description": "Every stage that ran, with its time, class, cache and carry state."
+    },
+    "missing_stages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Stages the plan expected that did not pass."
+    },
+    "input_hash": {
+      "$ref": "defs.v1.json#/$defs/sha256",
+      "description": "sha256 of the judged commit, the plan and its expected stages."
+    },
+    "cached_tests": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cached_test"
+      },
+      "description": "Script tests reported as cached PASS: the id, the key that matched and the run that recorded the PASS."
+    },
+    "known_defects": {
+      "type": "array",
+      "description": "Failing tests that fail on the integration base with the same signature: base defects, listed and not blocking.",
+      "items": {
+        "$ref": "#/$defs/known_defect"
+      }
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "digest"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "How tests were selected (all, selective, ...)."
+        },
+        "units": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "digest": {
+          "$ref": "defs.v1.json#/$defs/sha256",
+          "description": "sha256 of the canonical selection."
+        }
+      }
+    },
+    "head_tree": {
+      "$ref": "#/$defs/git_object",
+      "description": "Tree sha of the judged head."
+    },
+    "base_sha": {
+      "$ref": "defs.v1.json#/$defs/commit",
+      "description": "Recorded by the producer: baseRefOid (tier 1), batch base (tier 2), tip (tier 3); never resolved from a local ref."
+    },
+    "base_tree": {
+      "$ref": "#/$defs/git_object"
+    },
+    "gate_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Id (sha) of the tooling that judged: the base tip's gate."
+    },
+    "toolchain_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "toolchain_manifest.install_id() of the environment that ran it."
+    },
+    "observed_versions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Tool versions seen by the run."
+    },
+    "input_digest": {
+      "$ref": "defs.v1.json#/$defs/sha256",
+      "description": "sha256 over head_tree, base_sha, plan, selection.digest, toolchain_id, gate_version (recipe in docs/process/EVENTS.md; scripts/lib/gate_digest.py)."
+    },
+    "carried_from": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "sha",
+        "delta_files"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha": {
+          "$ref": "defs.v1.json#/$defs/sha"
+        },
+        "delta_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "description": "Present when part of the proof is carried from an earlier verdict; absent when everything ran."
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wall_s",
+        "cpu_s",
+        "rest_calls",
+        "queue_wait_s",
+        "cache_hits",
+        "cache_misses"
+      ],
+      "properties": {
+        "wall_s": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Wall seconds."
+        },
+        "cpu_s": {
+          "type": "number",
+          "minimum": 0,
+          "description": "CPU seconds."
+        },
+        "rest_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "queue_wait_s": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Seconds waiting for a slot."
+        },
+        "cache_hits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_misses": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "What the verdict cost (O-12)."
+    },
+    "lane_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "description": "Lane decided at the gate; null when none."
+    }
+  },
+  "$defs": {
+    "cached_test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "key",
+        "source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The script test reported as a cached PASS."
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The input-hash key that matched the recorded PASS."
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The run (commit) that recorded the PASS."
+        }
+      }
+    },
+    "known_defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "stage",
+        "signature",
+        "base_sha",
+        "defect"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The failing test id."
+        },
+        "stage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signature": {
+          "type": "string"
+        },
+        "base_sha": {
+          "$ref": "defs.v1.json#/$defs/commit"
+        },
+        "defect": {
+          "type": "string",
+          "pattern": "^KD-[0-9a-f]{6,}$"
+        }
+      }
+    },
+    "git_object": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "result",
+        "duration_ms",
+        "class",
+        "cached",
+        "inputs_digest"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "raw_result": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ],
+          "description": "The stage's own result before adjudication excused it."
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "class": {
+          "$ref": "defs.v1.json#/$defs/class"
+        },
+        "started_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "UTC start time (RFC 3339)."
+        },
+        "cached": {
+          "type": "boolean"
+        },
+        "carried_from": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "event_id",
+            "sha"
+          ],
+          "properties": {
+            "event_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha": {
+              "$ref": "defs.v1.json#/$defs/sha"
+            }
+          }
+        },
+        "inputs_digest": {
+          "$ref": "defs.v1.json#/$defs/sha256",
+          "description": "sha256 of this stage's own inputs, so it can be reused alone."
+        }
+      }
+    }
+  }
+}

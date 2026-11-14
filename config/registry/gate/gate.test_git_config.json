@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "scripts/lib/hermetic/gitconfig",
+  "x-unit": "path",
+  "description": "The git configuration every script test sees (GATE-SPEED F1, D-118): GIT_CONFIG_GLOBAL names this file of the judge's checkout and GIT_CONFIG_NOSYSTEM is set, so the box's global and system git configuration (signing, hooks, filters, identity) never reach a test.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ]
+}

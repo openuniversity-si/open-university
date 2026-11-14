@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 100,
+  "minimum": 1,
+  "maximum": 100,
+  "x-unit": "count",
+  "description": "Open PRs the one REST list reads (GitHub's largest page is 100); with more open PRs the overlap check judges the first page.",
+  "x-readers": [
+    "scripts/lib/prepush.py"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/literals.test.sh",
+  "covers": [
+    "scripts/tests/literals.test.sh",
+    "scripts/tests/test_literal_census.py",
+    "scripts/tests/test_literal_census_cache.py",
+    "scripts/tests/fixtures/unregistered-literals/**",
+    "scripts/lib/literal_census.py",
+    "config/registry/literals.json",
+    "scripts/lib/config_check.py",
+    "scripts/lib/units.py",
+    "scripts/lib/config.py",
+    "scripts/lib/structure.py",
+    "scripts/structure-check",
+    "scripts/lib/source_facts.py"
+  ]
+}

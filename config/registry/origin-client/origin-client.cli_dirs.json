@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "default": [
+    "~/.local/bin"
+  ],
+  "x-unit": "path",
+  "description": "Directories searched for the Origin CLI when it is neither pinned by origin-client.cli_env nor on PATH, a leading ~ being the user's home. A cloud session installs it in ~/.local/bin, which a fresh lane shell did not always have on PATH (8 bootstrap calls a lane, F81).",
+  "x-readers": [
+    "scripts/cloud/env.sh",
+    "scripts/lib/deliver.py",
+    "scripts/lib/forge_origin_client.py",
+    "scripts/lib/origin_remote.py"
+  ],
+  "x-source": "VAZ\u00c3O F81 (lane bootstrap ledger, 03/11)"
+}

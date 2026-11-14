@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 300,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Seconds one toolchain download may take.",
+  "x-readers": [
+    "scripts/cloud/toolchain.py"
+  ]
+}

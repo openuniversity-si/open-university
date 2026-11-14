@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/defect.detected.v1.json",
+  "title": "defect.detected payload v1",
+  "description": "The gate re-ran a test that failed on a PR on the integration base and it failed there with the same signature: a base defect, not the PR's. Non-blocking for the PR; the registry records it.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/defect",
+    "/payload/base_sha",
+    "/payload/pr"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "defect",
+    "test",
+    "signature",
+    "owner",
+    "base_sha",
+    "stage",
+    "run"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "defect": {
+      "type": "string",
+      "pattern": "^KD-[0-9a-f]{6,}$"
+    },
+    "test": {
+      "type": "string",
+      "minLength": 1
+    },
+    "signature": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_sha": {
+      "$ref": "defs.v1.json#/$defs/commit"
+    },
+    "stage": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

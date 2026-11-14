@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/cloud.json",
+  "x-owner": "cloud",
+  "x-schema-version": 1,
+  "description": "The cloud machine setup and the pinned toolchain (engine-cloud, U4, D-068, D-069 item 3): the project PostgreSQL, downloads, setup locks and the egress proxy defaults.",
+  "type": "object",
+  "additionalProperties": false
+}

@@ -1,0 +1,17 @@
+{
+  "id": "engine-rules",
+  "purpose": "The rule register (RULE-AUDIT): every rule that can stop a flow is a record with its justification, owner, review date, end condition, premises, standing question and stop record, counted by scripts/rule.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/rules.json",
+    "scripts/lib/rule_registry.py",
+    "scripts/rule",
+    "scripts/tests/rule.test.sh",
+    "scripts/tests/test_rule_registry.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-premises": "^1"
+  }
+}

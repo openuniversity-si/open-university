@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "refs/train/combined/",
+  "pattern": "^refs/[a-z0-9/-]+/$",
+  "x-unit": "ref",
+  "description": "Local ref prefix that keeps each batch combined head (<prefix><batch_id>) for the tier-2 run and for audit; never pushed.",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

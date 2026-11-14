@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/base.green.v1.json",
+  "title": "base.green payload v1",
+  "description": "Tier 3 saw the base tip green again after a base.red (GX-37; produced by GX-32).",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/base_sha"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "base_sha",
+    "cleared"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "The PR; null on the repository channel."
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "base_sha": {
+      "$ref": "defs.v1.json#/$defs/commit"
+    },
+    "cleared": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Test ids that were listed by the last base.red and now pass."
+    }
+  }
+}

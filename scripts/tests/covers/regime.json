@@ -1,0 +1,15 @@
+{
+  "script": "scripts/tests/regime.test.sh",
+  "covers": [
+    "scripts/tests/regime.test.sh",
+    "scripts/tests/test_regime.py",
+    "scripts/lib/regime.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/config.py",
+    "config/registry/regime.json",
+    "config/registry/regime/**",
+    "scripts/lib/generated/config_registry_regime.py",
+    "contracts/events/lock.lifted.v1.json",
+    "contracts/events/defs.v1.json"
+  ]
+}

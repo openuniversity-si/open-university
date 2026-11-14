@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 4,
+  "minimum": 1,
+  "x-unit": "bytes",
+  "description": "Bytes of code per token when a closure is converted to tokens.",
+  "x-readers": [
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "plan v3 §4.3 (~4 bytes per token, an estimate)"
+}

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/defects list|show <id>|record ...|resolve <id> ...|check [--base REF]
+# The known-defect registry (KD1, D-069 items 4, 8 and 9): defects are recorded, resolved and checked here, never by hand.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/defects.py" "$@"

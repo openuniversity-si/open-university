@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "18.6",
+  "x-unit": "version",
+  "description": "PostgreSQL release of the local test database.",
+  "x-readers": [
+    "scripts/lib/toolchain_manifest.py",
+    "scripts/lib/preflight.py"
+  ]
+}

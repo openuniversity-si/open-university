@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/release-policy.test.sh",
+  "covers": [
+    "scripts/tests/release-policy.test.sh",
+    "scripts/tests/test_release_policy.py",
+    "scripts/release-policy.json",
+    "scripts/lib/release_policy.py",
+    "config/registry/release.json"
+  ]
+}

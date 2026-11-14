@@ -1,0 +1,13 @@
+# Rows of DECISIONS.md written by hand before the records were the only path (D-217): grandfathered, never added to.
+D-223
+D-224
+D-232
+D-235
+# D-243, D-245, D-246, D-247: lines of history renumbered from duplicate ids (D-248 became D-256); lane 1 decision, 2026-11-01.
+D-243
+D-245
+D-246
+D-247
+# D-268 and D-269: lane 2 rows of 31/10 and 01/11 (G1), written before the records were the only path and renumbered from D-202 and D-204, which collided with the base (lane 1, 01/11)
+D-268
+D-269

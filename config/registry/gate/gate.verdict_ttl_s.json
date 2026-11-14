@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 604800,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Age after which a recorded answer of scripts/gate-verdict is a miss and the gate runs again; a record stored in the future is also a miss.",
+  "x-readers": [
+    "scripts/lib/gate_verdict.py",
+    "scripts/tests/test_gate_verdict.py"
+  ],
+  "x-source": "D-070 (GATE-API)"
+}

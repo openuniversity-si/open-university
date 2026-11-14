@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-37"
+slug: "stock-and-quota-not-limits"
+statement: "Work stock and quota are not limits now."
+kind: "capacity"
+scope: "global"
+source:
+  who: "daniel"
+  where: "addendum"
+  quote: null
+  at: null
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["plan:lanes"]
+  if_wrong: "If wrong, 1M/day is limited by tokens; the partition cuts tokens per PR 3-5x (estimate)."
+validate:
+  kind: "none"
+  how: null
+answer:
+  by: "Daniel"
+  at: null
+  value: "confirmed"
+  quote: null
+  where: "Daniel, addendum"
+  evidence: null
+  translation: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

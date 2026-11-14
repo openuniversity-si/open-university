@@ -1,0 +1,16 @@
+{
+  "script": "scripts/tests/infra-lifecycle.test.sh",
+  "covers": [
+    "scripts/tests/infra-lifecycle.test.sh",
+    "scripts/tests/test_infra_lifecycle.py",
+    "scripts/tests/infra_db/psql.py",
+    "infra/service/tower_infra/lifecycle.py",
+    "infra/service/tower_infra/__main__.py",
+    "infra/service/tower_infra/code_bundle.py",
+    "infra/service/tower_infra/supervisor.py",
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/port.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/db/migrations/*.sql"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "type": "number",
+  "default": 1,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "The failure limit of a webhook ACK (PORT4, Daniel 08/11): the seconds the ingress may take to answer Origin's webhook, a cold start included. It is an acceptance criterion, not a timeout setting: it cuts nothing, and the 10 s Origin gives is not changed. Any single delivery over it is a failure (over_limit in the ingress log line, listed by scripts/medir), never a percentile. The stack hands it to the ingress as TOWER_INGRESS_ACK_LIMIT_S.",
+  "x-readers": [
+    "infra/service/tower_infra/ingress.py",
+    "scripts/lib/config_latency.py",
+    "scripts/lib/medir.py"
+  ],
+  "x-source": "PORT4 (Daniel 08/11 14:19 and 14:39 BRT)"
+}

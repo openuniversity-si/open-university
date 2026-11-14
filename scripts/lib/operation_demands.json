@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "decisions": [
+    "D-285",
+    "D-283"
+  ],
+  "consumers": {
+    "scripts/lib/train.py": [
+      "approvals",
+      "calls",
+      "change",
+      "merge"
+    ],
+    "scripts/lib/gate_report.py": [
+      "change"
+    ],
+    "scripts/lib/gate_status.py": [
+      "change",
+      "set_status",
+      "upsert_comment"
+    ],
+    "scripts/lib/pr_ready.py": [
+      "change"
+    ],
+    "scripts/lib/train_box.py": [
+      "change"
+    ],
+    "scripts/lib/train_queue.py": [
+      "change",
+      "open_changes"
+    ],
+    "scripts/lib/train_verdict.py": [
+      "change",
+      "merge",
+      "open_changes"
+    ],
+    "scripts/lib/replay_branch.py": [
+      "change_commits",
+      "close_change",
+      "comment",
+      "find_change",
+      "open_change",
+      "pull"
+    ],
+    "scripts/lib/lessons.py": [
+      "comments"
+    ],
+    "scripts/lib/stall_report.py": [
+      "comments",
+      "open_changes",
+      "pull",
+      "pushes"
+    ],
+    "scripts/lib/engine_role.py": [
+      "lock",
+      "unlock"
+    ],
+    "scripts/lib/service_lock.py": [
+      "unlock"
+    ],
+    "scripts/lib/defect_router.py": [
+      "open_changes"
+    ],
+    "scripts/lib/flow_check.py": [
+      "open_pulls"
+    ],
+    "scripts/lib/prepush.py": [
+      "open_pulls"
+    ],
+    "scripts/lib/premises.py": [
+      "change",
+      "change_files"
+    ],
+    "scripts/lib/structure.py": [
+      "change",
+      "comments"
+    ],
+    "scripts/lib/commit_check.py": [
+      "comments",
+      "pushes",
+      "pull",
+      "change_commits",
+      "change_files",
+      "commit_files",
+      "compare",
+      "force_pushes"
+    ],
+    "scripts/lib/gate_policy.py": [
+      "change"
+    ],
+    "scripts/lib/idea_to_prod.py": [
+      "comments",
+      "closed_changes"
+    ],
+    "scripts/lib/gate_pin.py": [
+      "change"
+    ],
+    "scripts/lib/gate_explain.py": [
+      "change"
+    ],
+    "scripts/lib/merge_behind.py": [
+      "compare"
+    ],
+    "scripts/lib/decision_next.py": [
+      "open_pulls",
+      "pull"
+    ],
+    "scripts/lib/service_runner.py": [
+      "open_pulls"
+    ]
+  },
+  "proofs": {
+    "origin": {
+      "pushes": "scripts/tests/forge_events/test_origin_history.py::OriginHistory::test_pushes_answers_from_the_reflog",
+      "force_pushes": "scripts/tests/forge_events/test_origin_history.py::OriginHistory::test_force_pushes_keeps_only_the_moves_that_are_not_fast_forwards",
+      "change": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_change_names_the_head_the_base_and_the_body",
+      "comment": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_comment_append_and_list_preserve_text_and_order",
+      "comments": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_comment_append_and_list_preserve_text_and_order",
+      "upsert_comment": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_upsert_edits_exact_marker_and_keeps_other_comments",
+      "open_pulls": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_open_pulls_include_drafts_and_filter_the_base",
+      "pull": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_pull_metadata_is_port_shaped",
+      "lock": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_lock_lease_renewal_expiry_and_owner_release",
+      "unlock": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_lock_lease_renewal_expiry_and_owner_release",
+      "calls": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_calls_are_copied_from_the_clients_request_counter",
+      "change_commits": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_change_commits_preserve_parent_edges",
+      "find_change": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_find_change_selects_latest_matching_head_including_closed",
+      "open_change": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_open_then_close_change_preserves_requested_fields",
+      "close_change": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_open_then_close_change_preserves_requested_fields",
+      "set_status": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_set_status_publishes_the_verdict_on_the_head",
+      "merge": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_merge_takes_the_judged_head_and_names_the_merge_commit",
+      "open_changes": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_open_changes_are_the_undrafted_changes_of_that_base",
+      "approvals": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_approvals_are_the_identities_whose_latest_review_approves",
+      "change_files": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_change_files_preserve_names_across_pages",
+      "commit_files": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_commit_files_preserve_names",
+      "compare": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_compare_preserves_merge_base_and_distance",
+      "closed_changes": "scripts/tests/forge_events/test_forge_contract.py::OriginContract::test_closed_changes_preserves_merged_facts_and_inclusive_since"
+    },
+    "file": {},
+    "git-ref": {},
+    "memory": {
+      "change": "scripts/tests/test_forge_events.py::MemoryEvidence::test_change_copies_the_requested_metadata",
+      "set_status": "scripts/tests/test_forge_events.py::MemoryEvidence::test_status_preserves_all_fields"
+    }
+  },
+  "unknowns": [
+    {
+      "id": "reach",
+      "what": "The static floor is operation_relations.sites under scripts/lib. Dynamic receivers, getattr, shell callers and consumers outside that tree remain unknown, never evidence of compatibility."
+    },
+    {
+      "id": "direct-change",
+      "what": "change is adjacent (17 dispatched + 1 direct = 18). Three reach-through sites rely on factory/constructor preflight; raw adapter construction outside the port is not guarded."
+    },
+    {
+      "id": "git-ref",
+      "what": "C2 measures GitRefs.merge, not GitRefAdapter. It has no proof of forge merge semantics and cannot authorize that operation."
+    }
+  ]
+}

@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/push-guard.json",
+  "x-owner": "push-guard",
+  "x-schema-version": 1,
+  "description": "The push and stall guard (X1, D-022, D-025, D-069): the auto-push hook, the replay-branch remedy and the session stall signal.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "push-guard.decision_marker": {
+      "type": "string",
+      "default": "Decision:",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "Start of the line that records a decision the session took; it clears every earlier owner wait of the PR.",
+      "x-readers": [
+        "scripts/lib/decision_wait.py"
+      ]
+    },
+    "push-guard.enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "Whether the versioned post-commit and post-merge hooks (.githooks) push each new commit of a work branch on their own. Off: the hooks do nothing and the session pushes by hand (D-022 still refuses a batched push).",
+      "x-readers": [
+        "scripts/lib/push_guard.py"
+      ]
+    },
+    "push-guard.event_producer": {
+      "type": "string",
+      "default": "push-guard",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Producer name of the events the push guard emits (engine.step.measured of replay-branch, the session heartbeat and stall events).",
+      "x-readers": [
+        "scripts/lib/replay_branch.py",
+        "scripts/lib/push_guard.py",
+        "scripts/lib/stall_report.py"
+      ]
+    },
+    "push-guard.git_timeout_s": {
+      "type": "integer",
+      "default": 120,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Time limit of one local git step of scripts/replay-branch (fetch, worktree, cherry-pick, merge); a step that exceeds it stops the replay, and a rerun resumes it.",
+      "x-readers": [
+        "scripts/lib/replay_branch.py"
+      ]
+    },
+    "push-guard.heartbeat_adapter": {
+      "type": "string",
+      "default": "file",
+      "enum": [
+        "file"
+      ],
+      "x-unit": "enum",
+      "description": "forge_events adapter the hook writes engine.session.heartbeat to (repository channel). file: a log inside the checkout's git directory (push-guard.heartbeat_log_dir), so a failed push is recorded even when the forge is unreachable; the stall report reads pushes from the forge itself.",
+      "x-readers": [
+        "scripts/lib/push_guard.py"
+      ]
+    },
+    "push-guard.heartbeat_log_dir": {
+      "type": "string",
+      "default": "push-guard/events",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Directory of the file adapter's heartbeat log, relative to the git common directory of the checkout that made the commit (never versioned, one per checkout).",
+      "x-readers": [
+        "scripts/lib/push_guard.py"
+      ]
+    },
+    "push-guard.hooks_path": {
+      "type": "string",
+      "default": ".githooks",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Versioned hook directory, relative to the checkout, that scripts/cloud/env.sh sets as core.hooksPath when the checkout has none.",
+      "x-readers": [
+        "scripts/lib/push_guard.py",
+        "scripts/cloud/env.sh"
+      ]
+    },
+    "push-guard.owner_wait_phrases": {
+      "type": "array",
+      "default": [
+        "decision for the owner",
+        "waiting for your decision",
+        "awaiting your decision",
+        "waiting for the owner",
+        "waiting on the owner",
+        "needs an owner decision",
+        "BLOCKED:"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "text",
+      "description": "Phrases that mark a PR comment as waiting on an owner decision (DECIDE, THEN REPORT, Daniel 2026-10-26 21:29). Matched case-insensitively outside code spans, fences and quotes; a phrase that ends in ':' counts only at the start of a line.",
+      "x-readers": [
+        "scripts/lib/decision_wait.py"
+      ]
+    },
+    "push-guard.protected_branches": {
+      "type": "array",
+      "default": [
+        "main"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "name",
+      "description": "Branches the hook never pushes, besides the integration branch train.base_branch (always protected): a release or production branch only changes by its own pipeline (D-054).",
+      "x-readers": [
+        "scripts/lib/push_guard.py"
+      ]
+    },
+    "push-guard.push_timeout_s": {
+      "type": "integer",
+      "default": 60,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Time limit of one `git push` the hook runs; a push that exceeds it counts as failed and is retried by the next commit (never a force-push).",
+      "x-readers": [
+        "scripts/lib/push_guard.py"
+      ]
+    },
+    "push-guard.remote": {
+      "type": "string",
+      "default": "origin",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Git remote a session publishes its work branch to: the hook pushes there and sets the branch's upstream to <remote>/<branch>.",
+      "x-readers": [
+        "scripts/lib/commit_check.py",
+        "scripts/lib/deliver.py",
+        "scripts/lib/gate_bypass.py",
+        "scripts/lib/lane_collect.py",
+        "scripts/lib/prepush.py",
+        "scripts/lib/program.py",
+        "scripts/lib/push_guard.py",
+        "scripts/lib/structure.py",
+        "scripts/lib/usage.py"
+      ]
+    },
+    "push-guard.replaced_comment": {
+      "type": "string",
+      "default": "Replaced by #{new}: scripts/replay-branch replayed this PR's own commits one push per commit on {branch} (D-022 batched push). This PR is closed; continue on #{new}.",
+      "pattern": "\\{new\\}",
+      "x-unit": "text",
+      "description": "Comment scripts/replay-branch posts on the replaced PR before closing it; {new} is the replacement PR and {branch} its branch.",
+      "x-readers": [
+        "scripts/lib/replay_branch.py"
+      ]
+    },
+    "push-guard.replay_max": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Highest replay number scripts/replay-branch tries for one branch before it stops and names the taken branches.",
+      "x-readers": [
+        "scripts/lib/replay_branch.py"
+      ]
+    },
+    "push-guard.replay_step": {
+      "type": "string",
+      "default": "push-guard:replay",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "engine.step.measured step name of one scripts/replay-branch run.",
+      "x-readers": [
+        "scripts/lib/replay_branch.py"
+      ]
+    },
+    "push-guard.replay_suffix": {
+      "type": "string",
+      "default": "-r{n}",
+      "pattern": "\\{n\\}",
+      "x-unit": "text",
+      "description": "Suffix of a replacement branch: <old branch><suffix>, {n} the first free replay number (scripts/replay-branch).",
+      "x-readers": [
+        "scripts/lib/replay_branch.py"
+      ]
+    },
+    "push-guard.stall_no_push_s": {
+      "type": "integer",
+      "default": 1800,
+      "minimum": 60,
+      "x-unit": "s",
+      "description": "An open PR whose branch had no push for this long is stalled (no_push), unless the gate passed on its head (it then waits on the merger, not on its session).",
+      "x-readers": [
+        "scripts/lib/stall_report.py"
+      ]
+    },
+    "push-guard.stall_red_gate_s": {
+      "type": "integer",
+      "default": 900,
+      "minimum": 60,
+      "x-unit": "s",
+      "description": "An open PR whose latest gate verdict is gate.failed with no push after it for this long is stalled (red_gate).",
+      "x-readers": [
+        "scripts/lib/stall_report.py"
+      ]
+    },
+    "push-guard.supersedes_line": {
+      "type": "string",
+      "default": "Supersedes #{old} (D-022 batched push, replayed by scripts/replay-branch)",
+      "pattern": "\\{old\\}",
+      "x-unit": "text",
+      "description": "Line appended to the replacement PR body; {old} is the replaced PR.",
+      "x-readers": [
+        "scripts/lib/replay_branch.py"
+      ]
+    },
+    "push-guard.work_branch_patterns": {
+      "type": "array",
+      "default": [
+        "mod/*",
+        "claude/*",
+        "codex/*",
+        "cursor/*"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "glob",
+      "description": "fnmatch patterns of the session work branches. A branch without its own upstream (none, or one that tracks another branch such as the base it started from) is pushed to <remote>/<branch> and gets that upstream only when it matches one of these.",
+      "x-readers": [
+        "scripts/lib/push_guard.py"
+      ]
+    }
+  }
+}

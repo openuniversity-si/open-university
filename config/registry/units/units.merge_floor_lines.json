@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 150,
+  "minimum": 0,
+  "x-unit": "lines",
+  "description": "A candidate below this many production lines joins its closest sibling while the pair stays within units.size_target.",
+  "x-readers": [
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "D-067 (4), plan v3 §4.5"
+}

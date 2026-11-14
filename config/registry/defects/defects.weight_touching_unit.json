@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 10,
+  "x-unit": "points",
+  "description": "Priority points for each open PR whose units include the defect's unit (impact on the queue, never time).",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "minimum": 0
+}

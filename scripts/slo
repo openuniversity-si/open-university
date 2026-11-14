@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/slo evaluate|show [--pr N ...]
+# Folds the event log into the SLOs of config/registry/slo.json (O1, D-069 item 6). `evaluate` emits slo.breached for
+# each SLO outside its entry and exits 1 on a breach; `show` only prints. Run it on an event, never on a clock (P-32).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/slo.py" "$@"

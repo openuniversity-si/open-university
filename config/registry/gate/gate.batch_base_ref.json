@@ -1,0 +1,13 @@
+{
+  "type": "string",
+  "default": "origin/mod/roadmap-integration",
+  "x-unit": "ref",
+  "description": "The ref a batch is merged onto and diffed against when scripts/gate-batch is given no --base.",
+  "x-readers": [
+    "scripts/gate-batch",
+    "scripts/lib/defect_detect.py",
+    "scripts/lib/defect_router.py",
+    "scripts/lib/gate_batch.py",
+    "scripts/lib/gate_pin.py"
+  ]
+}

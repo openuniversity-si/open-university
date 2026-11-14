@@ -1,0 +1,30 @@
+{
+  "script": "scripts/tests/train-reuse.test.sh",
+  "covers": [
+    "scripts/tests/train-reuse.test.sh",
+    "scripts/tests/test_train_reuse.py",
+    "scripts/tests/test_train.py",
+    "scripts/lib/train_reuse.py",
+    "scripts/lib/train.py",
+    "scripts/lib/train_git.py",
+    "scripts/lib/engine_role.py",
+    "config/registry/train-reuse.json",
+    "config/registry/train.json",
+    "config/registry/gate-tier.json",
+    "config/registry/gate-proof.json",
+    "config/registry/forge-events.json",
+    "scripts/lib/gate_batch.py",
+    "scripts/lib/gate_proof.py",
+    "scripts/lib/gate_keys.py",
+    "scripts/lib/gate_digest.py",
+    "scripts/lib/toolchain_manifest.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/config.py",
+    "contracts/events/*.json",
+    "scripts/lib/gate_select.py",
+    "scripts/tests/memory_git.py",
+    "scripts/lib/service_budget.py",
+    "scripts/tests/fixture_copy.py"
+  ]
+}

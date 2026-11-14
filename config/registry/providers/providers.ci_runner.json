@@ -1,0 +1,13 @@
+{
+  "type": "string",
+  "default": "local",
+  "enum": [
+    "local"
+  ],
+  "x-unit": "adapter",
+  "description": "CI runner adapter that runs a PR's gate: local runs the gate command in this checkout, on a laptop or a provider cloud session alike. GitHub Actions is never one.",
+  "x-readers": [
+    "scripts/lib/adapters/ci_runner.py"
+  ],
+  "x-source": "AGENTS.md (no GitHub Actions or third-party CI); plan v3.1 delta §2 R1"
+}

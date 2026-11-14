@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/config-latency [--key K] [--timeout-s N] [--look-ms N] [--json]
+# Milliseconds from a config change (a PUT of the key's current value) to the AWS service reading it (DEP9 step 2). No value changes.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+PYTHONPATH="$here/lib${PYTHONPATH:+:$PYTHONPATH}" exec "${OU_PYTHON:-python3}" "$here/lib/config_latency.py" "$@"

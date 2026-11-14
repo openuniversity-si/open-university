@@ -1,0 +1,14 @@
+{
+  "type": "string",
+  "default": "origin",
+  "enum": [
+    "origin",
+    "file"
+  ],
+  "x-unit": "adapter",
+  "description": "Storage adapter behind the port: origin (Cursor Origin, D-283) or file (local append-only JSON Lines log). The default is origin since the ORIGIN-FINISH cut-over (Daniel 03/11 00:10 BRT); the GitHub adapter left the port (D-293).",
+  "x-readers": [
+    "scripts/lib/forge_events.py",
+    "scripts/lib/gate_status.py"
+  ]
+}

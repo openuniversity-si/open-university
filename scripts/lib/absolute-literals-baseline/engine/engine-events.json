@@ -1,0 +1,88 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/branch_age.py": {
+      "number 3600": 1
+    },
+    "scripts/lib/event_contracts.py": {
+      "number 2": 3
+    },
+    "scripts/lib/forge_events.py": {
+      "number 1000": 2,
+      "number 2": 5,
+      "number 80": 1
+    },
+    "scripts/tests/forge_events/test_emit.py": {
+      "number 10": 2,
+      "number 18": 1,
+      "number 19": 1,
+      "number 2": 5,
+      "number 2026": 2,
+      "number 26": 2,
+      "number 3": 1,
+      "number 7": 11,
+      "number 8": 1
+    },
+    "scripts/tests/forge_events/test_gate_evidence.py": {
+      "number 0.25": 1,
+      "number 2": 3,
+      "number 250": 1,
+      "number 3.5": 1,
+      "number 3500": 1,
+      "number 7": 11
+    },
+    "scripts/tests/forge_events/test_loopback.py": {
+      "number 0.01": 1,
+      "number 10": 1,
+      "number 12": 2,
+      "number 2": 1,
+      "number 200": 1,
+      "number 3": 1,
+      "number 3000": 2,
+      "number 42": 2,
+      "number 7": 13,
+      "url \"http://127.0.0.1:\"": 1
+    },
+    "scripts/tests/forge_events/test_replay.py": {
+      "number 10": 2,
+      "number 1000": 1,
+      "number 1500": 2,
+      "number 2": 5,
+      "number 20": 2,
+      "number 7": 22,
+      "number 8": 7,
+      "number 9": 1,
+      "number 900": 1
+    },
+    "scripts/tests/test_branch_age.py": {
+      "number 10": 1,
+      "number 12": 1,
+      "number 2": 3,
+      "number 2026": 1,
+      "number 26": 1,
+      "number 40": 6,
+      "number 504": 2
+    },
+    "scripts/tests/test_event_contracts.py": {
+      "number 2": 7,
+      "number 3": 3,
+      "number 4": 1,
+      "number 40": 3,
+      "number 64": 1,
+      "number 7": 1,
+      "number 9": 1,
+      "url \"http://json-schema.org/draft-07/schema#\"": 1
+    },
+    "scripts/tests/test_forge_events.py": {
+      "number 10": 1,
+      "number 1200": 1,
+      "number 18": 1,
+      "number 2": 2,
+      "number 2026": 1,
+      "number 26": 1,
+      "number 40": 3,
+      "number 64": 1,
+      "number 7": 1
+    }
+  }
+}

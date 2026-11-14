@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/delivery.json",
+  "x-owner": "delivery",
+  "x-schema-version": 1,
+  "description": "The delivery tail: ship-tail, ship-verify, merge-phase and their tests (D-054, unit engine-delivery).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "delivery.batch": {
+      "type": "string",
+      "default": "auto",
+      "enum": [
+        "off",
+        "auto"
+      ],
+      "x-unit": "enum",
+      "description": "VAZÃO F36, D-297 (docs/programs/vazao/design-trem.md §5): off keeps scripts/deliver one PR at a time (the one-key rollback); auto (default since F70, D-297) makes a branch delivery wait in the box queue (delivery.box_queue_dir) and lead one batch (scripts/train run --box) when it wins the box's lock with two or more live deliveries waiting, with k from train.batch_size_by_red. Turn on with scripts/config set delivery.batch auto --reason '<the meter's line>' only when scripts/flow-metrics --constraint names the box and p <= 0.25 over the last 50; back to off when p passes 0.25, when the batches' tier-2 runs per resolved PR reach 1.0 over the last 10 batches, when a shadow tip turns red after a green batch, or when the tree proof fails. F64: under auto a delivery leads a batch only while scripts/flow-metrics --constraint reads 'batch: ready' (box busy >= 0.70 over the last hour and p <= 0.25 over train.batch_red_window); otherwise it takes the single path.",
+      "x-readers": [
+        "scripts/lib/deliver.py"
+      ],
+      "x-source": "VAZÃO F36 (docs/programs/vazao/design-trem.md §5)"
+    },
+    "delivery.box_queue_dir": {
+      "type": "string",
+      "default": "~/.cache/the-tower/box-queue",
+      "x-unit": "path",
+      "description": "The box queue (VAZÃO F36, D-297 (b), scripts/lib/box_queue.py): one pr-N.json per delivery waiting for delivery.gate_lock_path and one pr-N.result.json per member a batch leader resolved. Process coordination like the lock, never flow state: the record is the forge's. Outside every checkout, so every worktree of the box shares it.",
+      "x-readers": [
+        "scripts/lib/box_queue.py"
+      ],
+      "x-source": "VAZÃO F36 (docs/programs/vazao/design-trem.md §2)"
+    },
+    "delivery.closes_pattern": {
+      "type": "string",
+      "default": "^F[0-9]{2}[a-z]?$",
+      "x-unit": "pattern",
+      "description": "The shape of the legacy --closes argument (a retired phase id such as F01 or F04c); merge-phase accepts it for compatibility and ignores it.",
+      "x-readers": [
+        "scripts/lib/release_policy.py"
+      ],
+      "x-source": "D-054; D-068; D-069 item 3"
+    },
+    "delivery.gate_lock_log": {
+      "type": "string",
+      "default": "~/.cache/the-tower/gate-lock.jsonl",
+      "x-unit": "path",
+      "description": "The box's lock log (VAZÃO F38): one JSON line per hold, with pr, waited_s (seconds it waited for the lock), held_s (seconds it held it) and at (when it released it). A delivery's line (scripts/deliver) has the PR number and no kind, plus cpu_s, the CPU-seconds (user + system) the hold's children used (the gate, the base merge and the merge), and vcpus, the CPUs the box gives the process (F71), so the log shows CPU-s per PR against the box's ceiling and the idle share of the hold. Two kind values mark the lines that are not deliveries, both with pr null and without cpu_s or vcpus: kind suite is a whole suite (scripts/test-suite, F58) that held delivery.gate_lock_path, a hold of the box like a delivery; kind suite_slot is a --changed suite that held one of its slots beside it (F65, gate.changed_suite_slots), not the box's lock, so it is reported apart and stays out of the box's busy share and waits. scripts/flow-metrics --constraint reads it to say how busy the box was, so the current constraint is a measure published every cycle, not a guess. Outside every checkout, so every worktree of the box writes one log.",
+      "x-readers": [
+        "scripts/lib/deliver.py",
+        "scripts/lib/flow_metrics.py",
+        "scripts/lib/fronts.py",
+        "scripts/lib/lane_collect.py",
+        "scripts/lib/medir.py",
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "VAZÃO F38 (docs/programs/vazao/sistema.md)"
+    },
+    "delivery.gate_lock_path": {
+      "type": "string",
+      "default": "~/.cache/the-tower/gate.lock",
+      "x-unit": "path",
+      "description": "The box's gate lock (VAZÃO F23): scripts/deliver holds an exclusive flock on this file while its gate runs, and scripts/test-suite while a whole suite runs, so the deliveries of several lanes on one box queue for the CPU instead of sharing it (three concurrent suites took 346 s each against 113 s alone, with failures under load). Outside every checkout, so every worktree and clone of the box shares it.",
+      "x-readers": [
+        "scripts/lib/box_queue.py",
+        "scripts/lib/deliver.py",
+        "scripts/test-suite"
+      ],
+      "x-source": "VAZÃO F23 (docs/programs/vazao/sistema.md)"
+    },
+    "delivery.judge": {
+      "type": "string",
+      "default": "infra",
+      "enum": [
+        "box",
+        "infra"
+      ],
+      "x-unit": "enum",
+      "description": "GATE-INFRA 3 (P5 F4): who judges and lands a delivery. infra (the default since 08/11, Daniel 17:28 BRT) has scripts/deliver merge the base into the branch and then the infrastructure judge the head and land it with the expected head (scripts/lib/gate_infra.py land, through the port, with TOWER_PORT_URL and TOWER_PORT_TOKEN); box is today's gate on the box and its merge. The default is the switch: a checkout's own change store overrides it, and `scripts/config set delivery.judge box --actor <who> --reason <why>` is the one-key rollback. It was turned on without waiting for the performance criteria (ready_to_landed, the gate time of a fresh head, the 1 s ACK), which stay obligations: docs/operations/aws.md section 17.",
+      "x-readers": [
+        "scripts/lib/deliver.py"
+      ],
+      "x-source": "GATE-INFRA 3 (P5 F4), D-306"
+    },
+    "delivery.merge_allowed_bases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "main",
+        "rewrite/v1"
+      ],
+      "minItems": 1,
+      "x-unit": "count",
+      "description": "The base branches scripts/merge-phase integrates into; any other base is refused.",
+      "x-readers": [
+        "scripts/lib/release_policy.py"
+      ],
+      "x-source": "D-054; D-068; D-069 item 3"
+    },
+    "delivery.successor_poll_s": {
+      "type": "number",
+      "default": 2,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "READY-BEFORE-LANDING: seconds between two reads of GET /v1/deploy/status while a delivery at the front waits for its successors to be warm (delivery.successor_wait_s bounds the wait).",
+      "x-readers": [
+        "scripts/lib/deliver.py"
+      ],
+      "x-source": "READY-BEFORE-LANDING"
+    },
+    "delivery.successor_wait_s": {
+      "type": "integer",
+      "default": 240,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "READY-BEFORE-LANDING: the most seconds a delivery at the front of the merge train waits, before it lands, for the in-task successors of its branch's bundle to be warm and beating in both roles (platform.deploy.successor {state: warm}; GET /v1/deploy/ready). 0 lands at once. FRONT-WAITS-RUNNER-BACK: 240, not 60: the runner is one Fargate Spot task, and when Spot takes it the next task is up, warm and holding its successor about three minutes later (12/11 01:20:37 to 01:23:34 UTC); a delivery that reaches the front in that window waits for it here, where the long time belongs, and swaps in a second, instead of landing with no standby onto the order's path or the slow one. The wait ends at once when the bundle's want was withdrawn or a successor gave up (state failed). Past it the delivery lands as it is: the landing's own order is the net.",
+      "x-readers": [
+        "scripts/lib/deliver.py"
+      ],
+      "x-source": "READY-BEFORE-LANDING"
+    },
+    "delivery.test_fake_ready_max_s": {
+      "type": "integer",
+      "default": 60,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Longest a script suite waits for its loopback REST fake to be ready (port file written and a TCP connect accepted) before it reports that the fake did not start. The wait ends the moment the fake is ready, so a loaded machine only delays the suite; it fails at once when the fake process exited. Replaces a fixed count of looks (HD1).",
+      "x-readers": [
+        "scripts/tests/rest_fake.py"
+      ],
+      "x-source": "HD1; mirrors gate.script_test_rendezvous_wait_s"
+    },
+    "delivery.test_fake_start_wait_s": {
+      "type": "number",
+      "default": 0.05,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Seconds the loopback REST fake's readiness probe (scripts/tests/rest_fake.py --wait-ready) waits between two looks for its port file and listening socket.",
+      "x-readers": [
+        "scripts/tests/rest_fake.py"
+      ],
+      "x-source": "D-069 item 5"
+    },
+    "delivery.train": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "TRAIN-FRONT-FIRST (Daniel 09/11 10:48 BRT): the merge train. With delivery.judge infra, a delivery joins its base branch's queue in the port when it starts; only the front lands, the others check and wait for the front's landed/left event (long poll on the port), and a front that lands moves the base: the next re-merges and re-judges only if its diff conflicts or the changed files reach its checks. false: the delivery lands as before, without the queue.",
+      "x-readers": [
+        "scripts/lib/deliver.py"
+      ],
+      "x-source": "TRAIN-FRONT-FIRST"
+    },
+    "delivery.train_lease_s": {
+      "type": "integer",
+      "default": 900,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "TRAIN-LEASE: how many seconds an entry of the merge train stays valid without its own delivery renewing it. The delivery renews on each of its events (joined, checks started, checks decided, every long poll it asks); an entry whose lease ran out is a dead process: the port marks it `expired` (platform.train.expired) when a join, wait, renew or end arrives or the long poll hits its safety timeout, and the next waiter is woken. A SAFETY timeout for a dead delivery, never a clock the live ones follow: it replaces `scripts/deliver --queue-drop` for a front that died.",
+      "x-readers": [
+        "scripts/lib/deliver.py"
+      ],
+      "x-source": "TRAIN-LEASE"
+    },
+    "delivery.train_rounds": {
+      "type": "integer",
+      "default": 360,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "TRAIN-FRONT-FIRST: how many long polls (each ends at the port's own safety timeout, 20 s, or at once on an event) a delivery asks while it waits for the front before it leaves the queue and reports. A bound against a front that never ends, not a clock the wait follows.",
+      "x-readers": [
+        "scripts/lib/deliver.py"
+      ],
+      "x-source": "TRAIN-FRONT-FIRST"
+    }
+  }
+}

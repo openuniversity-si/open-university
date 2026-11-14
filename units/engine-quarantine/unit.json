@@ -1,0 +1,16 @@
+{
+  "id": "engine-quarantine",
+  "purpose": "The flaky-test quarantine: test.flaked, test.quarantined and test.unquarantined with an owner (D-065 V7, M7).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/lib/quarantine.py",
+    "scripts/quarantine",
+    "scripts/tests/quarantine.test.sh",
+    "scripts/tests/test_quarantine.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1"
+  }
+}

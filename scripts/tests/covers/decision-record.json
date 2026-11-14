@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/decision-record.test.sh",
+  "covers": [
+    "scripts/tests/decision-record.test.sh",
+    "scripts/tests/test_decision_record.py",
+    "scripts/decision-record",
+    "scripts/lib/decision_record.py",
+    "scripts/lib/decision_table.py"
+  ]
+}

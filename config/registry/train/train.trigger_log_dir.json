@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": ".gate/train",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Directory, relative to the checkout, of the output of the `scripts/train run` that the producer of pr.ready starts in the background (Transport v0, train_trigger.py).",
+  "x-readers": [
+    "scripts/lib/train_trigger.py",
+    "scripts/lib/train_verdict.py"
+  ]
+}

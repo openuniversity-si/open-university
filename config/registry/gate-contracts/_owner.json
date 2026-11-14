@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-contracts.json",
+  "x-owner": "gate-contracts",
+  "x-schema-version": 1,
+  "description": "Which locked version of an event contract a producer emits by default (GX-37, D-070).",
+  "type": "object",
+  "additionalProperties": false
+}

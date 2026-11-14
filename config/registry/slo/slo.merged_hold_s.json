@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 10800,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "How long the merge pace must hold: the rolling window is checked at every merge of the last slo.merged_hold_s seconds of the log (plan v3 §9.2: at least 3 hours). Until the log covers the hold plus one window the SLO reports no data.",
+  "x-readers": [
+    "scripts/lib/slo.py"
+  ]
+}

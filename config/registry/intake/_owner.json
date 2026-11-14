@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/intake.json",
+  "x-owner": "intake",
+  "x-schema-version": 1,
+  "description": "The intake and research check (INTAKE-RESEARCH; D-077) and the root-cause and alternatives check (AUDIT-ROOT-CAUSE; D-081): the files a unit or program folder created after each rule carries, and their sections.",
+  "type": "object",
+  "additionalProperties": false
+}

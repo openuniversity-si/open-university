@@ -1,0 +1,16 @@
+{
+  "type": "string",
+  "default": "origin",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Git remote the train fetches the integration tip and PR heads from (plain git, any forge).",
+  "x-readers": [
+    "scripts/lib/covers_cost.py",
+    "scripts/lib/forge_git_ref.py",
+    "scripts/lib/gate_bypass.py",
+    "scripts/lib/service_runner.py",
+    "scripts/lib/train_git.py",
+    "scripts/lib/train_loop.py",
+    "scripts/lib/train_serve.py"
+  ]
+}

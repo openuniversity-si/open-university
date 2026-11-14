@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 2000,
+  "minimum": 1,
+  "maximum": 4000,
+  "x-unit": "chars",
+  "description": "The tail of a job's output carried in its result (contracts/service/result.v1.json log_tail, at most 4000).",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-086; docs/operations/services.md"
+}

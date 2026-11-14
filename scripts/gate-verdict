@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# The gate as an API (GATE-API, D-070): give it a head, it runs the tests and returns the result.
+#   scripts/gate-verdict --head <sha> [--base <sha>] [--pr <n>] [--no-run] [--json]
+# Exit 0 PASSED, 1 FAILED (then one `red <stage>: <class>` line per red stage), 4 UNOBSERVABLE (the gate could not run
+# or its input could not be read: never a result about the code), 64 usage. The contract is the docstring of
+# scripts/lib/gate_verdict.py and docs/padrao/v5/gate-verdict.md. stdout holds only the answer.
+# Like the gate, it reads the registry and this checkout's local change log, never the shared store (D-069 item 5).
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$here/cloud/env.sh" ]]; then
+  # shellcheck source=scripts/cloud/env.sh
+  source "$here/cloud/env.sh"
+fi
+export OU_CONFIG_STORE=file
+exec "${OU_PYTHON:-python3}" "$here/lib/gate_verdict.py" "$@"

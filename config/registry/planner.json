@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/planner.json",
+  "x-owner": "planner",
+  "x-schema-version": 1,
+  "description": "The live-planning coordinator (D-071): triage thresholds, decision context size, the plan log branch, the launch hold and the on/off switch.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "planner.decision_context_max_tokens": {
+      "type": "integer",
+      "default": 20000,
+      "minimum": 1000,
+      "x-unit": "count",
+      "description": "Token budget of the context one planner decision reads: the candidate, the affected units and neighbours, the recent decisions of the partition and the registry records (design 5).",
+      "x-readers": [
+        "scripts/lib/plan_triage.py"
+      ]
+    },
+    "planner.launch_hold_path": {
+      "type": "string",
+      "default": "",
+      "x-unit": "path",
+      "description": "Path of the global launch-hold file the coordinator maps to a hold-all in the folded plan; empty means there is none.",
+      "x-readers": [
+        "scripts/lib/coordinator.py",
+        "scripts/lib/plan_live.py"
+      ]
+    },
+    "planner.log_branch": {
+      "type": "string",
+      "default": "plan/live",
+      "minLength": 1,
+      "x-unit": "ref",
+      "description": "Branch holding docs/programs/<program>/plan-log.jsonl, the append-only plan.changed log, with the planner as its single writer (LP-P1, D-071).",
+      "x-readers": [
+        "docs/process/live-planning.md",
+        "scripts/lib/plan_live.py",
+        "scripts/lib/program.py"
+      ]
+    },
+    "planner.overrun_factor": {
+      "type": "number",
+      "default": 2.0,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "A unit whose elapsed session time passes its estimate times this factor is an overrun input, evaluated when its next event arrives (gate-excellence plan: over 2x stops).",
+      "x-readers": [
+        "scripts/lib/plan_triage.py"
+      ]
+    },
+    "planner.partition_recent_decisions": {
+      "type": "integer",
+      "default": 10,
+      "minimum": 0,
+      "x-unit": "count",
+      "description": "How many of the latest decisions of a partition (program, area) a decision reads as context.",
+      "x-readers": [
+        "scripts/lib/plan_triage.py",
+        "scripts/lib/plan_live.py"
+      ]
+    },
+    "planner.triage_promote_sightings": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Sightings of one signature at which triage promotes it to a candidate (a second sighting is a rediscovery; design 1.2).",
+      "x-readers": [
+        "scripts/lib/plan_triage.py",
+        "scripts/plan"
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 5,
+  "x-unit": "paths",
+  "description": "Overlapping paths named in the re-gate reason.",
+  "x-readers": [
+    "scripts/lib/merge_behind.py"
+  ],
+  "minimum": 1,
+  "x-source": "D-070"
+}

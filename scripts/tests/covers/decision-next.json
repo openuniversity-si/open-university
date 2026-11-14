@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/decision-next.test.sh",
+  "covers": [
+    "scripts/tests/decision-next.test.sh",
+    "scripts/tests/test_decision_next.py",
+    "scripts/decision-next",
+    "scripts/lib/decision_next.py",
+    "scripts/tests/fixtures/decision-next.json",
+    "scripts/lib/forge_events.py"
+  ]
+}

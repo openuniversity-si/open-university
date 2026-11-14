@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "low",
+    "high",
+    "critical"
+  ],
+  "x-unit": "enum",
+  "description": "Class names by rising priority: below high_priority, from high_priority, from critical_priority.",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "minItems": 3,
+  "maxItems": 3
+}

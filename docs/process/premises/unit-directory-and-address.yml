@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-03"
+slug: "unit-directory-and-address"
+statement: "Each unit lives in units/<id>/ and is imported only through its stable address @ou/<id>; it becomes a workspace package once spike S1 passes on Next 16."
+kind: "architecture"
+scope: "global"
+source:
+  who: "model"
+  where: "plan v3 §4.2"
+  quote: null
+  at: null
+status: "validated"
+radius: "high"
+blast:
+  reasons: ["plan:U0", "plan:U3a", "plan:U4", "plan:S1", "move:units"]
+  if_wrong: "Units stay logical, in directories, and the checker keeps guarding the boundaries; at 100x everything would have to move again."
+validate:
+  kind: "question"
+  how: "Question 3 of plan v3 §2.1 (yes/no)."
+answer:
+  by: "measurement:S1"
+  at: "2026-10-27T01:04:50Z"
+  value: "validated"
+  quote: null
+  where: "spike S1, docs/process/spikes/S1-progress-workspace-package.md"
+  evidence: "S1: progress as a workspace package builds (39.8 s vs 40.6 s) and its tests pass, but tsc -b fails (79 TS6307: the unit imports app code), the unit battery turns green on 1 file, and the address generator drops the unit (59 structure-check errors). Units stay logical until kernel and platform are packages; the @ou/<id> address is the stable seam."
+  translation: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

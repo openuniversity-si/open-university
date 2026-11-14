@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": ".yml",
+  "x-unit": "path",
+  "description": "File suffix of a lesson record.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ]
+}

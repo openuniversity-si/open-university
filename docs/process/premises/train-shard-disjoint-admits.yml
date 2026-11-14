@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-54"
+slug: "train-shard-disjoint-admits"
+statement: "A cold, verified v4 tier-1 gate.passed of plan dev on an older integration tip B (every D-075 condition except base == tip) also proves the PR on the current tip T when B is an ancestor of both the head H and T, T is at most train.shard_admit_max_behind first-parent merges past B, neither B..H nor B..T touches a train.shard_admit_never path (lockfiles, root manifests, the registry, the gate, unit manifests), and the units+dependents shard keys of B..H and B..T, both computed from the manifests at T with generated outputs counted as shared paths, are disjoint; the train may then merge H on T without a re-gate, and the merged tree (tree(H) plus the changes of B..T) is the computed merge of the two. Admission acts only with train.shard_admit on; shadow measures it first. This partially refutes P-43 (the exact merged tree) for this path only."
+kind: "process"
+scope: "global"
+source:
+  who: "daniel"
+  where: "A Torre, 29/10 14:51 and 14:52 BRT: Daniel's direction to unify TRAIN-VERDICT and TRAIN-SHARD-ADMIT, shard admission as the core"
+  quote: "O Gate via API não resolveria justamente o problema da base dinâmica? Com 1.000 PRs/dia a base sempre estará desatualizada."
+  at: "2026-10-29T14:51:00-03:00"
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["decision:D-075", "decision:D-065", "decision:D-070", "premise:P-43", "premise:P-53"]
+  if_wrong: "A PR admitted behind the tip can land a tree no gate judged and break the integration branch through an interaction the unit manifests do not declare; set train.shard_admit to shadow or off (one key) and revert the s- merges since the last green tier-3 confirm (git revert -m 1); every PR behind the tip falls back to D-075's strict rule."
+validate:
+  kind: "measurement"
+  how: "Shadow first (docs/units/TRAIN-SHARD-ADMIT/plan.md §4): over at least 7 days and 50 would-admit decisions, zero would-admits whose merged tree turns red in the next tier 2 or gate-noite while the strict path stays green, and a would-admit rate of at least 20 % of the base-moved refusals; then, with train.shard_admit on, every admitted PR's next tier-3 confirm green."
+answer:
+  by: "Daniel"
+  at: "2026-10-29T14:52:00-03:00"
+  value: "confirmed"
+  quote: "O Gate via API não resolveria justamente o problema da base dinâmica? Com 1.000 PRs/dia a base sempre estará desatualizada."
+  where: "Daniel (CEO), 29/10/2026 14:51 BRT, and his 14:52 BRT order to unify TRAIN-VERDICT and TRAIN-SHARD-ADMIT with shard admission as the core, behind train.shard_admit (default shadow); recorded through A Torre"
+  evidence: null
+  translation: "Wouldn't the gate as an API solve exactly the dynamic-base problem? At 1,000 PRs a day the base will always be behind."
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

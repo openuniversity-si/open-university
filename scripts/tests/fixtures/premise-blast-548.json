@@ -1,0 +1,57 @@
+{
+  "correlation_id": "P-04",
+  "event_id": "1e61e07fcb0f7ef1e93099eaa6f3625c1a92dfc9c50963392c43f79926aecf7e",
+  "occurred_at": "2026-10-28T22:51:02Z",
+  "payload": {
+    "blocking": false,
+    "dependents": {
+      "plans": [
+        "docs/units/U4-app-course/plan.md",
+        "docs/units/U4-engine-capture/plan.md",
+        "docs/units/U4-engine-cloud/plan.md",
+        "docs/units/U4/plan.md",
+        "docs/units/app-home/plan.md",
+        "docs/units/catalog-authoring-server/plan.md",
+        "docs/units/catalog-compile/plan.md",
+        "docs/units/catalog-hierarchy/plan.md",
+        "docs/units/catalog-release-server/plan.md",
+        "docs/units/catalog-ship-server/plan.md",
+        "docs/units/config-theme/plan.md",
+        "docs/units/db-catalog-io/plan.md",
+        "docs/units/db-migrations/plan.md",
+        "docs/units/engine-env/plan.md",
+        "docs/units/engine-github/plan.md",
+        "docs/units/engine-premises/plan.md",
+        "docs/units/engine-production/plan.md",
+        "docs/units/engine-test-support/plan.md",
+        "docs/units/engine-wrappers/plan.md",
+        "docs/units/fidelity-references/plan.md",
+        "docs/units/media-server/plan.md",
+        "docs/units/release-domain/plan.md",
+        "docs/units/site-server/plan.md",
+        "docs/units/tooling-catalog-cli-content/plan.md",
+        "docs/units/tooling-literals/audit.md",
+        "docs/units/tooling-media/plan.md",
+        "docs/units/tooling-perf/plan.md",
+        "docs/units/ui-foundation/plan.md",
+        "docs/units/ui-identity/plan.md",
+        "docs/units/ui-lesson-row/plan.md",
+        "docs/units/ui-shell/audit.md",
+        "docs/units/ui-showcase/plan.md",
+        "docs/units/ui-universities/plan.md",
+        "docs/units/web-build/plan.md"
+      ],
+      "prs": []
+    },
+    "id": "P-04",
+    "radius": "high",
+    "reasons": [
+      "plan:U0",
+      "decision:D-060",
+      "move:units"
+    ]
+  },
+  "producer": "scripts/premises",
+  "type": "premise.blast",
+  "version": 1
+}

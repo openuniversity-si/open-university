@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 10,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Time limit of the one quiet git fetch of the open PR heads this checkout lacks. Past it, or on any fetch error, the overlap check compares the heads already present.",
+  "x-readers": [
+    "scripts/lib/prepush.py"
+  ]
+}

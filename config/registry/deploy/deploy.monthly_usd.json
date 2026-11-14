@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 30.0,
+  "exclusiveMinimum": 0,
+  "x-unit": "usd",
+  "description": "Hard stop: no ring while the estimated CodeBuild spend of the calendar month (settled cycle seconds x deploy.usd_per_min; an unsettled ring at the shorter of the 45 min timeout and the time to the next ring) is at or above this. Below deploy.alarm_usd the alarm speaks first. The account cap is US$60.",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py"
+  ],
+  "x-source": "AUTO1"
+}

@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 500,
+  "minimum": 1,
+  "x-unit": "events",
+  "description": "Events one read of the tenant's log answers at most; the next read starts at the last one seen.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+}

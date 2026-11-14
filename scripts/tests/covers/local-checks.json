@@ -1,0 +1,16 @@
+{
+  "script": "scripts/tests/local-checks.test.sh",
+  "covers": [
+    "scripts/tests/local-checks.test.sh",
+    "scripts/tests/test_local_checks.py",
+    "scripts/commit-check",
+    "scripts/lib/commit_check.py",
+    "scripts/lib/local_checks.py",
+    "scripts/lib/decision_table.py",
+    "scripts/lib/config_check.py",
+    "scripts/lib/structure.py",
+    "scripts/lib/config.py",
+    ".githooks/pre-push",
+    "config/registry/local-checks.json"
+  ]
+}

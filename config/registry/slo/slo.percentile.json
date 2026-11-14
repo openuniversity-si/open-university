@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 95,
+  "minimum": 1,
+  "maximum": 100,
+  "x-unit": "percent",
+  "description": "Percentile the *_p95_s SLOs measure (nearest rank).",
+  "x-readers": [
+    "scripts/lib/budgets.py",
+    "scripts/lib/slo.py"
+  ]
+}

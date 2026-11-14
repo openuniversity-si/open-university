@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "tower/test-results",
+  "minLength": 1,
+  "x-unit": "ref",
+  "description": "GATE-SPEED F10 (D-130): the branch (refs/heads/<name>) on the forge whose tip holds every script test PASS of the last gate.test_cache_ttl_s by its input key (scripts/lib/shared_results.py), moved forward only over git like train.wake_ref. A run with OU_SHARED_RESULTS=1 reads it once and publishes the PASSes it adds in one push, so a box that starts empty runs only the tests whose inputs no box has judged.",
+  "x-readers": [
+    "scripts/lib/shared_results.py"
+  ]
+}

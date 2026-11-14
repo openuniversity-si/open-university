@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "tower-gate-pin",
+  "minLength": 1,
+  "pattern": "^[A-Za-z0-9._-]+$",
+  "x-unit": "name",
+  "description": "Directory, under gate.slot_dir, of the pinned tool worktrees: <gate.slot_dir>/<gate-pin.dir>/<clone id>/<base sha> (one per base sha and clone, shared under a lock; D-A5 as amended by plan §3.3).",
+  "x-readers": [
+    "scripts/lib/gate_pin.py"
+  ],
+  "x-source": "D-070"
+}

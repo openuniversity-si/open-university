@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string",
+    "pattern": "^scripts/tests/[A-Za-z0-9_.-]+\\.test\\.sh$"
+  },
+  "default": [
+    "scripts/tests/uid0-probe.test.sh"
+  ],
+  "x-unit": "tests",
+  "description": "UID0-FROM-BASE (the Torre, 13/11 ~14:15 BRT): the script tests that need a real uid 0 process (the uid 0 probe: postgres, git and npm as root). Checks run as the check user (tower-check, CHECK-NOT-ROOT, the review's finding 14), so these run as root from the base's landed code, never from the PR's head: the gate's job and the full run's name the base's commit and ask for root, and the runner gives root only to a commit the forge pushed to the base branch. Their coverage is the base's, not the PR's change.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "the Torre, 13/11 ~14:15 BRT"
+}

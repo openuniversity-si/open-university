@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 1048576,
+  "minimum": 1,
+  "x-unit": "bytes",
+  "description": "Size past which the runner's JSONL log is rotated.",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-086; docs/operations/services.md"
+}

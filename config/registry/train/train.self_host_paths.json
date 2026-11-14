@@ -1,0 +1,27 @@
+{
+  "type": "array",
+  "default": [
+    "config/registry/**",
+    "scripts/cloud/toolchain.json",
+    "scripts/gate-*",
+    "scripts/lib/gate*",
+    "scripts/lib/toolchain_*",
+    "scripts/lib/train*",
+    "scripts/train*",
+    "scripts/structure-check",
+    "scripts/lib/structure.py",
+    "scripts/commit-check",
+    "scripts/lib/commit_check.py"
+  ],
+  "uniqueItems": true,
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "glob",
+  "description": "The toolchain set (D-079): a PR whose change (tip...head) touches one of these globs brings its own attestation (the registry and the gate are part of toolchain_id), so with train.self_host on its foreign toolchain_id is judged by the dual verdict instead of refused. A PR that touches none is judged by the strict rule.",
+  "x-readers": [
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-079; docs/units/TRAIN-ADMIT-GATE-CHANGE/plan.md"
+}

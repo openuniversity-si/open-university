@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": ".gate/verdicts",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Directory, relative to the checkout (gitignored), of the recorded answers of scripts/gate-verdict, kept through the storage port, one per head and input_digest. Only a tier-1 call reads or writes it (gate-tier.cacheable_tiers; D-065 (5), D-070 (b), P-43).",
+  "x-readers": [
+    "scripts/lib/gate_verdict.py",
+    "scripts/tests/test_gate_verdict.py"
+  ],
+  "x-source": "D-070 (GATE-API)"
+}

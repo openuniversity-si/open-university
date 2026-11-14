@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/env-premises.json",
+  "x-owner": "env-premises",
+  "x-schema-version": 1,
+  "description": "Machine premises (TX12, D-070): values a test or the session identity needs before any session state exists. A bootstrap owner (config.bootstrap_owners): config.get returns the registry value and never reads the shared change store, so a store without token, rate-limited or with an empty cache never decides them.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "env-premises.probe_timeout_s": {
+      "type": "integer",
+      "default": 30,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "How long a test's machine-premise probe may take (the dropped uid running the interpreter, sudo -n true, env.sh placing a shim guard) before the premise counts as not holding.",
+      "x-readers": [
+        "scripts/tests/test_root_identity.py",
+        "scripts/tests/test_claude_session.py"
+      ],
+      "x-source": "TX12; D-070"
+    },
+    "env-premises.session_id_ceiling": {
+      "type": "integer",
+      "default": 1000,
+      "minimum": 2,
+      "x-unit": "count",
+      "description": "First uid/gid the session identity never uses (exclusive); from it up are ordinary host accounts.",
+      "x-readers": [
+        "scripts/lib/session_identity.py"
+      ],
+      "x-source": "TX12; D-070"
+    },
+    "env-premises.session_id_floor": {
+      "type": "integer",
+      "default": 100,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Lowest uid/gid the session identity creates for a missing user (inclusive); below it are system accounts.",
+      "x-readers": [
+        "scripts/lib/session_identity.py"
+      ],
+      "x-source": "TX12; D-070"
+    }
+  }
+}

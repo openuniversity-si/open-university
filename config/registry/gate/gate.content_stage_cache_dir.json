@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "~/.cache/open-university/gate-stages",
+  "x-unit": "path",
+  "description": "D-076: where a --cold verdict keeps the stage results it records and reuses by content, apart from its fresh build cache (GATE_BUILD_CACHE_DIR); a leading ~ is the home directory. gate-verdict --cold exports it as GATE_STAGE_CACHE_DIR, which gate_result_cache reads before the build cache.",
+  "x-readers": [
+    "scripts/lib/gate_verdict.py"
+  ],
+  "x-source": "D-076"
+}

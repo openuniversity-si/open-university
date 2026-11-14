@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 0.25,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Seconds between two reads of the tenant's log while at most one check of the head is still running or the landing is in flight: the verdict is then seconds away (the landing takes ~2 s after the last check), so the slower gate-infra.poll_s would add half of it on average to a wait that ends within the next tick (AWS9). Never above gate-infra.poll_s. GATE-POLL (13/11): 0.25, under gate-infra.poll_s's 0.5.",
+  "x-readers": [
+    "scripts/lib/deliver.py",
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "AWS9"
+}

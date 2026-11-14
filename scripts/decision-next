@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/decision-next [--help]
+# The next free decision number: after the base's last one and after every number an open PR cites (D-183).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/decision_next.py" "$@"

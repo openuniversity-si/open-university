@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises"
+  ],
+  "x-unit": "count",
+  "description": "Fields every payload schema must require so consumers always have the subject, unit and premises.",
+  "x-readers": [
+    "scripts/lib/branch_age.py",
+    "scripts/lib/event_contracts.py"
+  ]
+}

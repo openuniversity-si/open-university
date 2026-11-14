@@ -1,0 +1,6 @@
+# ui-showcase retro (U4)
+
+1. **Brief.** It asked to move the unit into `units/ui-showcase/`; S1 (P-03) keeps units logical, the unit's stylesheets and sibling imports name the current paths, so nothing moved and no old path needed deleting. Importers already use `@ou/ui-showcase`.
+2. **Result.** Audit, contract document, `showcase/contract.ts` (version 1.0.0) pinned to the imports by `contract.test.ts`, the manifest `contract` and `battery.command`, the generated `@ou/ui-showcase` address, and `CreditsList.tsx` and `AreaGrid.tsx` joined `l10n.scoped_files`. The one visible string ("Last updated" in `LegalPage.tsx`) did NOT move: editing its markup line trips the D-006 visual guard and no `visual: yes` capability exists. Follow-up once one does. Zero tunable literals: the allowlist for these files was already zero.
+3. **Gate.** The stage table and wall time are in the PR comment. Battery `scripts/unit-battery ui-showcase` green in about 5 s.
+4. **Lessons.** `scripts/generate` with no target only prints the docs; committed outputs need `scripts/generate <target>`. The battery's contract step reads tracked files, so `git add` the entry before running it. Deep-path importers mean the contract test matches `@ou/ui-showcase/<path>`, not a bare address.

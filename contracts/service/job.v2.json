@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/service/job.v2.json",
+  "title": "Service job v2",
+  "description": "One job on the control-plane queue: gate, train, sweep or deploy. A deploy checks the merged control-plane tree and uploads only when it differs. Every kind runs under the same runner budget (D-291).",
+  "x-owner": "service",
+  "x-schema-version": 2,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "repo",
+    "pr",
+    "sha",
+    "source",
+    "reason",
+    "requested_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(gate|train|sweep|deploy):[0-9a-z#.-]+$",
+      "description": "kind:pr#sha, or sweep:<requested_at minute>."
+    },
+    "kind": {
+      "enum": [
+        "gate",
+        "train",
+        "sweep",
+        "deploy"
+      ]
+    },
+    "repo": {
+      "type": "string",
+      "pattern": "^[^/]+/[^/]+$"
+    },
+    "pr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "source": {
+      "enum": [
+        "git",
+        "control",
+        "admin",
+        "sweep"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What made it: a new head, a wake record, a requeue, the sweep timer."
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

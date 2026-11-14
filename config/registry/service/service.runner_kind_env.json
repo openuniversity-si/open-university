@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "OU_RUNNER_KIND",
+  "x-unit": "text",
+  "description": "The variable naming what a runner runs on (box, vm, actions, session, other; contracts/service/result.v1.json).",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-086; docs/operations/services.md"
+}

@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/infra-config-data.test.sh",
+  "covers": [
+    "scripts/tests/infra-config-data.test.sh",
+    "scripts/tests/test_infra_config_data.py",
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/port.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/service/tower_infra/wake.py",
+    "infra/service/tower_infra/autodeploy.py",
+    "infra/db/migrations/0010_config_values.sql",
+    "config/registry/service/service.dispatch_s.json",
+    "config/registry/service/service.forge_keys_every_s.json",
+    "scripts/tests/test_infra_autodeploy.py",
+    "scripts/tests/test_infra_aws.py"
+  ]
+}

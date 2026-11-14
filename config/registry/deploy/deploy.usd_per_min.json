@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 0.005,
+  "exclusiveMinimum": 0,
+  "x-unit": "usd/min",
+  "description": "CodeBuild price of the deployer's compute used by the guard: BUILD_GENERAL1_SMALL Linux x86 is US$0.005 a minute; the project runs ARM (US$0.0034), so the guard overestimates by a third on purpose.",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py"
+  ],
+  "x-source": "AUTO1"
+}

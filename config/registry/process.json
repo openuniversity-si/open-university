@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/process.json",
+  "x-owner": "process",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "process.branch_max_age_h": {
+      "type": "integer",
+      "default": 48,
+      "minimum": 1,
+      "x-unit": "h",
+      "description": "A branch whose first event is older than this many hours is stale: branch.stale is emitted when a trigger event (process.branch_trigger_types) is appended (D-069 item 11; P-32, events never a clock).",
+      "x-readers": [
+        "scripts/lib/branch_age.py"
+      ]
+    },
+    "process.branch_trigger_types": {
+      "type": "array",
+      "default": [
+        "pr.pushed",
+        "pr.ready"
+      ],
+      "x-unit": "text",
+      "description": "Event types whose append evaluates branch age on the PR's channel (P-32). integration.advanced names no PR, so it cannot trigger a per-branch check.",
+      "x-readers": [
+        "scripts/lib/branch_age.py"
+      ]
+    },
+    "process.decisions_register": {
+      "type": "string",
+      "default": "docs/domain/DECISIONS.md",
+      "x-unit": "path",
+      "description": "The decision register (ADRs); a row a PR adds or changes must cite its premises (D-066, D-069 item 10).",
+      "x-readers": [
+        "scripts/lib/decision_premises.py"
+      ]
+    },
+    "process.postmortem_check_heading": {
+      "type": "string",
+      "default": "Preventing check",
+      "x-unit": "text",
+      "description": "Heading of the section that names the check and the test that prevent the incident's class (D-069 item 9).",
+      "x-readers": [
+        "scripts/lib/postmortem_check.py"
+      ]
+    },
+    "process.postmortem_dir": {
+      "type": "string",
+      "default": "docs/process/postmortems",
+      "x-unit": "path",
+      "description": "Directory of the blameless postmortems (D-069 item 9); one file per incident, named by process.postmortem_name_pattern.",
+      "x-readers": [
+        "scripts/lib/postmortem_check.py"
+      ]
+    },
+    "process.postmortem_name_pattern": {
+      "type": "string",
+      "default": "^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*\\.md$",
+      "x-unit": "regex",
+      "description": "File name of a postmortem: its incident date and a slug (YYYY-MM-DD-slug.md).",
+      "x-readers": [
+        "scripts/lib/postmortem_check.py"
+      ]
+    },
+    "process.postmortem_ref_check": {
+      "type": "string",
+      "default": "check",
+      "x-unit": "text",
+      "description": "Label of a `- check: <file>` line under the preventing-check heading: a gate check file that must exist.",
+      "x-readers": [
+        "scripts/lib/postmortem_check.py"
+      ]
+    },
+    "process.postmortem_ref_test": {
+      "type": "string",
+      "default": "test",
+      "x-unit": "text",
+      "description": "Label of a `- test: <file>::<name>` line under the preventing-check heading: a test that must exist in that file.",
+      "x-readers": [
+        "scripts/lib/postmortem_check.py"
+      ]
+    },
+    "process.postmortem_template": {
+      "type": "string",
+      "default": "TEMPLATE.md",
+      "x-unit": "path",
+      "description": "The postmortem template inside process.postmortem_dir; it is not itself checked as an incident.",
+      "x-readers": [
+        "scripts/lib/postmortem_check.py"
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 100,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Minimum Python source files before the structure check uses its worker pool; small fixture trees use the same inline checks.",
+  "x-readers": [
+    "scripts/lib/structure.py"
+  ],
+  "x-source": "D-291"
+}

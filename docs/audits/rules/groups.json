@@ -1,0 +1,357 @@
+{
+ "program": "RULE-AUDIT",
+ "phase": 0,
+ "census": "docs/audits/rules/census.json",
+ "census_rows": 1017,
+ "grouped_rows": 1017,
+ "group_count": 16,
+ "count_command": "python3 -c \"import json; g=json.load(open('docs/audits/rules/groups.json')); c=json.load(open('docs/audits/rules/census.json')); ids=[i for x in g['groups'] for i in x['rows']]; print(len(c['rows']), len(ids), len(set(ids)), set(ids)==set(r['id'] for r in c['rows']))\"",
+ "estimate_model": {
+  "minutes_per_row": {
+   "parameter-threshold": 0.75,
+   "parameter-value": 0.25,
+   "decision": 2.5,
+   "refusal": 4.0,
+   "premise": 1.5,
+   "routine": 3.0,
+   "resource": 2.0
+  },
+  "overhead_per_group_min": 15,
+  "note": "estimated_minutes = the rows' minutes + the per-group overhead (branch, PR, report, gate wait); every group is cut so that one session of 60 to 90 minutes finishes it"
+ },
+ "run_order_rule": "largest expected unblock first: descending PRs stopped by the group's refusals (stops_measured_prs, PR history), then rows that can stop the flow, then the order of A Torre's 28/10 firings (lane ownership 6, plan completeness 5, missing gate stage 2, staleness 1)",
+ "groups": [
+  {
+   "id": "structure-check-and-premises",
+   "title": "Structure check, lanes, review trailer and the premise register",
+   "common": "They are what structure-check refuses on every PR: lane ownership, the fit review trailer, plan completeness, unit companions, and the premise line and register (D-066) that every plan cites.",
+   "domains": [
+    "structure-and-lanes",
+    "premise-register"
+   ],
+   "row_count": 64,
+   "kinds": {
+    "decision": 8,
+    "parameter": 46,
+    "premise": 5,
+    "refusal": 5
+   },
+   "estimated_minutes": 82,
+   "can_stop_rows": 20,
+   "stops_measured_prs": 11,
+   "unblock": "lane ownership refused 6 PRs on 28/10 and a structure rule landed at 15:43 refused all twenty open PRs at pr metadata",
+   "rows": ["param:structure.protected_files", "param:structure.integration_branch_pattern", "param:structure.visual_paths", "param:structure.always_visual_extensions", "param:structure.markup_line_pattern", "param:structure.test_file_pattern", "param:structure.tree_cache_enabled", "param:structure.tree_cache_version", "param:structure.event_producer", "param:structure.tree_cache_dir", "decision:D-010", "decision:D-011", "decision:D-013", "decision:D-021", "decision:D-026", "decision:D-055", "decision:D-069", "premise:P-05", "premise:P-13", "premise:P-39", "refusal:structure.review_errors", "refusal:structure.plan_completeness_errors", "refusal:structure.lane_errors", "refusal:unit_check.companion_errors", "param:premises.register_dir", "param:premises.record_suffix", "param:premises.record_schema", "param:premises.event_schema_dir", "param:premises.index_file", "param:premises.index_dir", "param:premises.radii", "param:premises.blocking_radii", "param:premises.warning_radii", "param:premises.default_radius", "param:premises.high_reason_kinds", "param:premises.unit_reason_kind", "param:premises.medium_reason_kinds", "param:premises.medium_min_units", "param:premises.open_statuses", "param:premises.settled_statuses", "param:premises.refused_statuses", "param:premises.quoted_statuses", "param:premises.measured_statuses", "param:premises.line_name", "param:premises.none_token", "param:premises.missing_line_fails", "param:premises.id_prefix", "param:premises.id_min_digits", "param:premises.find_min_score", "param:premises.duplicate_min_score", "param:premises.find_limit", "param:premises.find_min_token_length", "param:premises.digest_algorithm", "param:premises.producer", "param:premises.event_version", "param:premises.plan_globs", "param:premises.batch_max_questions", "param:premises.high_blast_unit_share_percent", "param:premises.quote_required_statuses", "param:premises.unquoted_grandfathered", "decision:D-066", "premise:P-11", "premise:P-30", "refusal:premises.record_errors"],
+   "run_order": 1
+  },
+  {
+   "id": "commit-and-pr-discipline",
+   "title": "Commit, push and PR body discipline",
+   "common": "They decide what a commit, a push and a PR body must carry before the gate accepts it: the commit plan, the Plan trailers, one commit per push, no fix-up or force push, the effort block, the pre-push and push-guard checks.",
+   "domains": [
+    "commit-and-pr-discipline"
+   ],
+   "row_count": 59,
+   "kinds": {
+    "decision": 3,
+    "parameter": 48,
+    "refusal": 8
+   },
+   "estimated_minutes": 75,
+   "can_stop_rows": 8,
+   "stops_measured_prs": 10,
+   "unblock": "plan completeness and pr metadata refusals stopped PRs on 28/10 (plan completeness 5); these rules judge every PR body and every push",
+   "rows": ["param:effort.heading", "param:effort.fields", "param:effort.requirement_field", "param:effort.placeholders", "param:effort.owners", "param:effort.owner_registry", "param:effort.machine_words", "param:effort.rule_doc", "param:effort.plan_glob", "param:effort.plan_baseline", "param:local-checks.checks", "param:local-checks.total_budget_ms", "param:local-checks.state_file", "param:local-checks.body_env", "param:local-checks.gitleaks_config", "param:local-checks.gitleaks_timeout_s", "param:plan-tick.base_ref", "param:plan-tick.required_gate_kind", "param:plan-tick.event_producer", "param:plan-tick.short_sha_chars", "param:prepush.tests_budget_s", "param:prepush.test_workers", "param:prepush.stop_grace_s", "param:prepush.state_file", "param:prepush.scrub_prefixes", "param:prepush.rest_timeout_s", "param:prepush.open_prs_page_size", "param:prepush.fetch_timeout_s", "param:prepush.event_names_test", "param:push-guard.enabled", "param:push-guard.remote", "param:push-guard.protected_branches", "param:push-guard.work_branch_patterns", "param:push-guard.push_timeout_s", "param:push-guard.hooks_path", "param:push-guard.git_timeout_s", "param:push-guard.replay_suffix", "param:push-guard.replay_max", "param:push-guard.event_producer", "param:push-guard.replay_step", "param:push-guard.supersedes_line", "param:push-guard.replaced_comment", "param:push-guard.owner_wait_phrases", "param:push-guard.decision_marker", "param:push-guard.heartbeat_adapter", "param:push-guard.stall_no_push_s", "param:push-guard.stall_red_gate_s", "param:push-guard.heartbeat_log_dir", "decision:D-008", "decision:D-022", "decision:D-025", "refusal:commit_check.plan_errors", "refusal:commit_check.fixup_errors", "refusal:commit_check.push_errors", "refusal:commit_check.force_push_errors", "refusal:commit_check.gate_errors", "refusal:effort.errors", "refusal:effort.body_errors", "refusal:effort.plan_errors"],
+   "run_order": 2
+  },
+  {
+   "id": "registry-literals-and-text",
+   "title": "Configuration registry, literals, generated code and text",
+   "common": "They decide where a value lives and how text is written: the registry and its meta-schema, the literal census, generated bindings, contracts, l10n and the text checks.",
+   "domains": [
+    "registry-and-literals"
+   ],
+   "row_count": 61,
+   "kinds": {
+    "decision": 4,
+    "parameter": 49,
+    "premise": 1,
+    "refusal": 7
+   },
+   "estimated_minutes": 72,
+   "can_stop_rows": 16,
+   "stops_measured_prs": 2,
+   "unblock": "registry and literal checks run on every PR that touches a value",
+   "rows": ["param:config.guard_key_words", "param:config.guard_name_suffixes", "param:config.guard_name_pattern", "param:config.guard_value_patterns", "param:config.guard_entropy_min_length", "param:config.guard_entropy_min_bits", "param:config.guard_entropy_alphabet", "param:config.store_adapter", "param:config.store_dir", "param:config.store_cache_ttl_s", "param:config.store_cache_dir", "param:config.store_stale_max_s", "param:config.bootstrap_owners", "param:config.literal_check_roots", "param:config.literal_check_excludes", "param:config.literal_check_suffixes", "param:config.literal_check_shebangs", "param:config.store_snapshot_after_events", "param:config.monotonic_patterns", "param:contracts.schema_dir", "param:contracts.schema_file_pattern", "param:generate.targets", "param:generate.codeowners_identities", "param:generate.codeowners_header", "param:generate.codeowners_minimal", "param:l10n.locales", "param:l10n.default_locale", "param:l10n.text_owner", "param:l10n.scoped_files", "param:l10n.scoped_exports", "param:l10n.visible_attributes", "param:l10n.visible_min_letters", "param:literals.allowed_numbers", "param:literals.allowed_values", "param:literals.patterns", "param:literals.unowned_area", "param:literals.baseline", "param:literals.baseline_description", "param:literals.base_ref", "param:rules.catalog", "param:rules.check_mode", "param:rules.max_review_days", "param:rules.stop_patterns", "param:rules.decision_register", "param:rules.census_file", "param:rules.groups_file", "param:text.empty_catalog_title", "param:text.empty_catalog_body", "param:text.lesson_row_label", "decision:D-050", "decision:D-051", "decision:D-063", "decision:D-068", "premise:P-41", "refusal:config.value_errors", "refusal:generate.blocked", "refusal:json_schema.errors", "refusal:rule_registry.refusals", "refusal:text_check.entry_errors", "refusal:text_check.scoped_file_errors", "refusal:text_check.scoped_export_errors"],
+   "run_order": 3
+  },
+  {
+   "id": "environment-toolchain-and-supply-chain",
+   "title": "Machine environment, toolchain and supply chain",
+   "common": "They decide what a machine must have before work starts: the pinned toolchain, the cloud setup and local database, the environment manifest and premises, the lockfiles, vendors and dependency scope.",
+   "domains": [
+    "environment"
+   ],
+   "row_count": 69,
+   "kinds": {
+    "decision": 2,
+    "parameter": 55,
+    "premise": 2,
+    "refusal": 10
+   },
+   "estimated_minutes": 86,
+   "can_stop_rows": 13,
+   "stops_measured_prs": 2,
+   "unblock": "env-class failures stop a PR before it starts (idea-to-prod runs env-check first)",
+   "rows": ["param:cloud.postgres_host", "param:cloud.postgres_port", "param:cloud.postgres_database", "param:cloud.postgres_role", "param:cloud.postgres_ready_wait_s", "param:cloud.postgres_query_timeout_s", "param:cloud.postgres_log_tail_chars", "param:cloud.postgres_lock_path", "param:cloud.postgres_encoding", "param:cloud.postgres_locale", "param:cloud.postgres_socket_permissions", "param:cloud.download_timeout_s", "param:cloud.download_chunk_bytes", "param:cloud.download_user_agent", "param:cloud.postgres_binaries", "param:cloud.postgres_test_settings", "param:cloud.fonts_package", "param:cloud.offline_seed_paths", "param:cloud.setup_lock_path", "param:cloud.setup_log_path", "param:cloud.setup_log_tail_lines", "param:cloud.bootstrap_python_minimum", "param:cloud.proxy_direct_hosts", "param:cloud.proxy_silenced_warning", "param:cloud.root_gate_checkout_root", "param:env-premises.session_id_floor", "param:env-premises.session_id_ceiling", "param:env-premises.probe_timeout_s", "param:env.advisory_audit_timeout_s", "param:env.registry_view_timeout_s", "param:env.build_smoke_timeout_s", "param:env.tool_version_probe_timeout_s", "param:env.session_id_floor", "param:env.session_id_ceiling", "param:env.gate_preflight_probes", "param:env.gate_preflight_budget_s", "param:supply-chain.allowed_registries", "param:supply-chain.pnpm_default_registry", "param:supply-chain.integrity_pattern", "param:supply-chain.grantable_env_names", "param:supply-chain.refused_env_names", "param:supply-chain.agent_key_scopes", "param:toolchain.node_version", "param:toolchain.pnpm_version", "param:toolchain.python_version", "param:toolchain.python_release_tag", "param:toolchain.claude_cli_version", "param:toolchain.gh_version", "param:toolchain.gitleaks_version", "param:toolchain.vercel_version", "param:toolchain.postgres_version", "param:toolchain.postgres_revision", "param:toolchain.observed_tools", "param:toolchain.lockfile_packages", "param:toolchain.frozen_install_scan_paths", "decision:D-027", "decision:D-062", "premise:P-26", "premise:P-33", "refusal:env_manifest.version_errors", "refusal:env_manifest.toolchain_errors", "refusal:supply_chain_check.lockfile_errors", "refusal:supply_chain_check.allowlist_errors", "refusal:supply_chain_check.scope_errors", "refusal:toolchain_check.lockfile_errors", "refusal:toolchain_check.frozen_errors", "refusal:toolchain_check.pin_errors", "refusal:vendor_check.catalog_errors", "refusal:vendor_check.shrink_errors"],
+   "run_order": 4
+  },
+  {
+   "id": "production-release-and-migrations",
+   "title": "Production freeze, release policy and database migrations",
+   "common": "They guard what can reach production: the freeze (D-054), the release policy, the production guard, the Neon migration path and its order, previews, and the definition of a working site.",
+   "domains": [
+    "production-release"
+   ],
+   "row_count": 41,
+   "kinds": {
+    "decision": 6,
+    "parameter": 28,
+    "premise": 1,
+    "refusal": 6
+   },
+   "estimated_minutes": 72,
+   "can_stop_rows": 9,
+   "stops_measured_prs": 2,
+   "unblock": "the only rules here that protect an irreversible risk; audited after the queue-stopping groups",
+   "rows": ["param:neon.migrate_timeout_s", "param:neon.migrate_output_tail_lines", "param:neon.database_name", "param:neon.role_name", "param:neon.preview_branch_name", "param:neon.api_timeout_s", "param:neon.pr_branch_max_age_s", "param:neon.pr_branch_limit", "param:neon.branch_total_limit", "param:neon.pr_compute_cu", "param:neon.pr_suspend_timeout_s", "param:neon.health_attempts", "param:neon.health_poll_s", "param:neon.health_request_timeout_s", "param:neon.build_restore_timeout_s", "param:neon.doctor_timeout_s", "param:neon.server_stop_timeout_s", "param:neon.redacted_run_timeout_s", "param:neon.hook_mode_timeout_s", "param:neon.hook_loader_timeout_s", "param:neon.hook_pipe_read_bytes", "param:production.forbidden_entrypoints", "param:production.cloud_session_markers", "param:production.refusal_exit_code", "param:production.invocation_allowed_paths", "param:production.scanned_suffixes", "param:production.scanned_roots", "param:release.merged_prs_per_release", "decision:D-023", "decision:D-035", "decision:D-036", "decision:D-038", "decision:D-046", "decision:D-054", "premise:P-35", "refusal:migration_order.prod_refusal", "refusal:migration_order.merge_block", "refusal:neon_migrate.refuse_production", "refusal:production_guard.refusal", "refusal:release_policy.refuse_frozen", "refusal:release_policy.refuse_merge"],
+   "run_order": 5
+  },
+  {
+   "id": "planning-events-and-launch",
+   "title": "Planning, the event contract and session launch",
+   "common": "They decide how work is planned, woken and launched: the coordinator, its launch rate and retry budget, the event contract that wakes sessions (events, never a clock), the planners, program plans, the decision wait, and the premises the planning rests on.",
+   "domains": [
+    "planning-and-launch"
+   ],
+   "row_count": 99,
+   "kinds": {
+    "decision": 2,
+    "parameter": 84,
+    "premise": 11,
+    "refusal": 2
+   },
+   "estimated_minutes": 80,
+   "can_stop_rows": 2,
+   "stops_measured_prs": 2,
+   "unblock": "launch limits, plan blocks and the decision wait decide how many sessions run at once",
+   "rows": ["param:coordinator.programs_dir", "param:coordinator.program_schema", "param:coordinator.program_files", "param:coordinator.plan_file", "param:coordinator.plan_fence", "param:coordinator.template_dir", "param:coordinator.event_assigned", "param:coordinator.event_opened", "param:coordinator.event_ready", "param:coordinator.event_merged", "param:coordinator.event_ended", "param:coordinator.event_failed", "param:coordinator.max_sessions", "param:coordinator.launch_rate_max", "param:coordinator.launch_rate_window_s", "param:coordinator.retry_budget", "param:coordinator.quota_headroom_percent", "param:coordinator.lane_item", "param:coordinator.router_by", "param:coordinator.producer", "param:coordinator.actions", "param:coordinator.padrao_dir", "param:coordinator.padrao_version", "param:coordinator.padrao_manifest", "param:coordinator.brief_defects_limit", "param:coordinator.launcher_default", "param:coordinator.launcher_argv", "param:coordinator.launcher_session_pattern", "param:coordinator.launcher_timeout_s", "param:coordinator.goal_window_s", "param:coordinator.metrics", "param:coordinator.unit_retro_path", "param:coordinator.retro_heading", "param:coordinator.retro_section_lines", "param:coordinator.retro_marker", "param:forge-events.contracts_dir", "param:forge-events.contracts_lock", "param:forge-events.envelope_schema", "param:forge-events.event_id_algorithm", "param:forge-events.subject_fields", "param:forge-events.repo", "param:forge-events.adapter", "param:forge-events.file_kinds", "param:forge-events.local_log_dir", "param:forge-events.clock", "param:forge-events.github_comment_marker", "param:forge-events.github_comment_max_chars", "param:forge-events.github_trusted_associations", "param:forge-events.github_log_issue", "param:forge-events.github_page_size", "param:forge-events.github_max_pages", "param:forge-events.github_timeout_s", "param:forge-events.gate_producer", "param:forge-events.tier1_gate_modes", "param:forge-events.adjudicated_tiers", "param:forge-events.gate_step_prefix", "param:forge-events.subject_exempt_schemas", "param:forge-events.status_enabled", "param:forge-events.status_context_gate", "param:forge-events.status_description_chars", "param:forge-events.status_digest_chars", "param:planner-lp6.lock_ref", "param:planner-lp6.lock_lease_s", "param:planner-lp6.producer", "param:planner-lp6.append_retries", "param:planner-lp6.remote", "param:planner-lp6.log_branch_base", "param:planner-lp6.git_error_chars", "param:planner-lp6.workdir", "param:planner-lp6.wake_adapter", "param:planner-lp6.wake_argv", "param:planner-lp6.wake_session_env", "param:planner-lp6.wake_timeout_s", "param:planner-lp6.wake_dry_run_dir", "param:planner-lp6.chars_per_token", "param:planner-lp6.candidate_schema", "param:planner.triage_promote_sightings", "param:planner.decision_context_max_tokens", "param:planner.partition_recent_decisions", "param:planner.overrun_factor", "param:planner.log_branch", "param:planner.launch_hold_path", "param:planner.subagents_max", "param:planner.enabled", "decision:D-007", "decision:D-071", "premise:P-09", "premise:P-21", "premise:P-23", "premise:P-29", "premise:P-31", "premise:P-32", "premise:P-40", "premise:P-48", "premise:P-49", "premise:P-50", "premise:P-51", "refusal:decision_wait.errors", "refusal:program.plan_block"],
+   "run_order": 6
+  },
+  {
+   "id": "merge-train-and-delivery",
+   "title": "Merge train, merge rule and the delivery tail",
+   "common": "They decide when a gated head may merge and how it ships: how far behind its base it may be, the train batch, its lock and bisection, unit ownership refusals, aggregates, and the frozen delivery tail.",
+   "domains": [
+    "merge-train"
+   ],
+   "row_count": 89,
+   "kinds": {
+    "decision": 2,
+    "parameter": 79,
+    "premise": 6,
+    "refusal": 2
+   },
+   "estimated_minutes": 84,
+   "can_stop_rows": 4,
+   "stops_measured_prs": 1,
+   "unblock": "staleness (behind the base) refused PRs on 28/10 and the train is the only merger (D-065)",
+   "rows": ["param:aggregates.context_files_ceiling", "param:aggregates.context_lines_ceiling", "param:aggregates.package_tables", "param:aggregates.context_map_description", "param:aggregates.node_address_hook", "param:aggregates.intents_renderer", "param:aggregates.render_timeout", "param:aggregates.renames_file", "param:delivery.test_fake_start_attempts", "param:delivery.test_fake_ready_max_s", "param:delivery.test_fake_start_wait_s", "param:delivery.command_timeout_s", "param:delivery.log_tail_lines", "param:delivery.install_timeout_s", "param:delivery.production_check_wait_s", "param:delivery.commit_sha_pattern", "param:delivery.sha_display_length", "param:delivery.sha_short_length", "param:delivery.min_rollback_commit", "param:delivery.deployment_list_limit", "param:delivery.compare_file_limit", "param:delivery.health_url", "param:delivery.health_timeout_s", "param:delivery.promote_timeout_s", "param:delivery.capture_timeout_s", "param:delivery.image_capture_timeout_s", "param:delivery.merge_timeout_s", "param:delivery.hard_check_timeout_s", "param:delivery.scripts_only_hard_check_timeout_s", "param:delivery.current_deployment_check_timeout_s", "param:delivery.rollback_candidate_check_timeout_s", "param:delivery.rollback_restored_check_timeout_s", "param:delivery.rollback_recheck_timeout_s", "param:delivery.e2e_lock_path", "param:delivery.ship_verify_lock_path", "param:delivery.evidence_suffix_length", "param:delivery.merge_allowed_bases", "param:delivery.closes_pattern", "param:gate.batch_base_ref", "param:gate.batch_max_prs", "param:merge.max_behind_base", "param:merge.require_exact_head", "param:merge.require_mergeable", "param:merge.tier1_requires_base_merge", "param:merge.regate_on_overlap", "param:merge.compare_page_size", "param:merge.compare_max_pages", "param:merge.paths_shown", "param:train.enabled", "param:train.batch_size", "param:train.queue_growing_batches", "param:train.queue_since_last_batch", "param:train.base_branch", "param:train.producer", "param:train.git_remote", "param:train.combined_ref_prefix", "param:train.batch_id_chars", "param:train.git_timeout_s", "param:train.git_author_name", "param:train.git_author_email", "param:train.step_prefix", "param:train.tier2_command", "param:train.tier2_timeout_s", "param:train.tier2_log_chars", "param:train.halt_classes", "param:train.bisection_max_runs", "param:train.rebuild_max", "param:train.lock_ref", "param:train.lock_lease_s", "param:train.lock_lease_margin_s", "param:train.session_id_env", "param:train.unit_manifests", "param:train.shard_key", "param:train.shard_shadow", "param:train.publish_aggregates", "param:train.published_aggregates", "param:train.aggregates_ref", "param:train.trigger_log_dir", "param:train.trigger_mode", "decision:D-020", "decision:D-065", "premise:P-10", "premise:P-14", "premise:P-15", "premise:P-18", "premise:P-27", "premise:P-47", "refusal:commit_check.rebase_errors", "refusal:train_ownership.refusals"],
+   "run_order": 7
+  },
+  {
+   "id": "defects-lessons-and-postmortems",
+   "title": "Known defects, lessons and postmortems",
+   "common": "They decide how a failure becomes knowledge: the known-defect register, the lessons vocabulary and audit chain, the postmortem check and the blocker evaluation step (D-072).",
+   "domains": [
+    "defects-and-lessons"
+   ],
+   "row_count": 101,
+   "kinds": {
+    "decision": 1,
+    "parameter": 95,
+    "premise": 1,
+    "refusal": 4
+   },
+   "estimated_minutes": 81,
+   "can_stop_rows": 21,
+   "stops_measured_prs": 0,
+   "unblock": "postmortem and chain checks refuse on failure paths, not on every PR",
+   "rows": ["param:defects.stages", "param:defects.base_signal_enabled", "param:defects.cache_dir", "param:defects.cache_version", "param:defects.cache_ttl_s", "param:defects.rerun_command", "param:defects.rerun_worktree_prefix", "param:defects.rerun_timeout_s", "param:defects.verify_stages", "param:defects.verify_open", "param:defects.never_excuse_touched", "param:defects.base_env", "param:defects.fetch_remote", "param:defects.rerun_install_command", "param:defects.register_dir", "param:defects.record_suffix", "param:defects.record_schema", "param:defects.id_prefix", "param:defects.id_hash_chars", "param:defects.statuses", "param:defects.transitions", "param:defects.digest_algorithm", "param:defects.genesis_digest", "param:defects.unknown_owner", "param:defects.producer", "param:defects.list_columns", "param:defects.audit_suffix", "param:defects.audit_schema", "param:defects.record_actions", "param:defects.weight_touching_unit", "param:defects.weight_dependent_unit", "param:defects.weight_masked_test", "param:defects.critical_priority", "param:defects.high_priority", "param:defects.fix_unit_min_priority", "param:defects.depends_min_priority", "param:defects.priority_classes", "param:defects.fix_item", "param:defects.queue_events", "param:defects.router_by", "param:defects.route_note", "param:lessons.register_dir", "param:lessons.record_suffix", "param:lessons.audit_suffix", "param:lessons.record_schema", "param:lessons.audit_schema", "param:lessons.id_prefix", "param:lessons.id_hash_chars", "param:lessons.slug_max_chars", "param:lessons.digest_algorithm", "param:lessons.genesis_digest", "param:lessons.statuses", "param:lessons.transitions", "param:lessons.classes", "param:lessons.kinds", "param:lessons.owners", "param:lessons.owner_aliases", "param:lessons.unknown_owner", "param:lessons.producer", "param:lessons.list_columns", "param:lessons.record_actions", "param:lessons.by_default", "param:lessons.effect_window_days", "param:lessons.effect_verdicts", "param:lessons.effect_stage_fail", "param:lessons.levels", "param:lessons.default_level", "param:lessons.ingest_glob", "param:lessons.ingest_section", "param:lessons.retro_comment_title", "param:lessons.title_max_chars", "param:lessons.default_class", "param:lessons.default_kind", "param:lessons.class_keywords", "param:lessons.kind_keywords", "param:lessons.signal_map", "param:lessons.ingest_by", "param:lessons.area_path_pattern", "param:lessons.report_path", "param:lessons.report_title", "param:lessons.report_top", "param:lessons.report_unknown_cost", "param:lessons.report_digest_chars", "param:lessons.brief_limit", "param:lessons.brief_general", "param:lessons.brief_statuses", "param:process.branch_max_age_h", "param:process.branch_trigger_types", "param:process.decisions_register", "param:process.postmortem_check_heading", "param:process.postmortem_dir", "param:process.postmortem_name_pattern", "param:process.postmortem_ref_check", "param:process.postmortem_ref_test", "param:process.postmortem_template", "decision:D-072", "premise:P-52", "refusal:audit_chain.chain_errors", "refusal:defects.chain_errors", "refusal:lessons.vocabulary_errors", "refusal:postmortem_check.errors_for"],
+   "run_order": 8
+  },
+  {
+   "id": "performance-budgets-and-slo",
+   "title": "Performance budgets, visual capture and SLOs",
+   "common": "They set the numbers the site and the engine are held to: bundle and latency budgets, the capture and pixel parity settings, and the service levels of the gate and the train.",
+   "domains": [
+    "budgets-and-performance"
+   ],
+   "row_count": 64,
+   "kinds": {
+    "decision": 1,
+    "parameter": 61,
+    "refusal": 2
+   },
+   "estimated_minutes": 62,
+   "can_stop_rows": 11,
+   "stops_measured_prs": 0,
+   "unblock": "budgets are report-first; pixels are report-only",
+   "rows": ["param:budgets.admin_list_read_ms_max", "param:budgets.baseline_path", "param:budgets.bundle_globs", "param:budgets.bundle_home_initial_js_bytes", "param:budgets.bundle_initial_js_bytes", "param:budgets.bundle_subject", "param:budgets.factory_bench_dry_run_ms", "param:budgets.factory_bench_write_ms", "param:budgets.min_samples", "param:budgets.page_latency_p95_ms", "param:budgets.percent_whole", "param:budgets.perf_font_bytes", "param:budgets.perf_image_bytes", "param:budgets.perf_total_bytes", "param:budgets.perf_viewport_desktop_px", "param:budgets.perf_viewport_mobile_px", "param:budgets.pr_changed_lines", "param:budgets.pr_commits_max", "param:budgets.pr_commits_min", "param:budgets.producer", "param:budgets.regression_tolerance_percent", "param:budgets.tighten_only", "param:budgets.web_bundle_bytes_max", "param:budgets.window_samples", "param:capture.production_base_url", "param:capture.production_paths", "param:capture.parity_route_count", "param:capture.viewport_widths", "param:capture.viewport_height", "param:capture.navigation_timeout_ms", "param:capture.session_timeout_ms", "param:capture.direct_image_wait_timeout_ms", "param:capture.parity_image_wait_timeout_ms", "param:capture.direct_scroll_step_px", "param:capture.parity_scroll_step_px", "param:capture.raster_channel_tolerance", "param:capture.locale", "param:capture.timezone", "param:capture.chromium_flags", "param:capture.parity_chromium_flags", "param:capture.blocked_video_domain", "param:capture.webkit_image", "param:capture.webkit_container", "param:capture.webkit_shm_size", "param:capture.webkit_start_attempts", "param:capture.webkit_start_interval_s", "param:slo.tier1_target", "param:slo.gate_slow_window", "param:slo.gate_slow_median", "param:slo.gate_tier1_p95_s", "param:slo.train_queue_time_p95_s", "param:slo.merged_prs_per_hour_min", "param:slo.merged_window_s", "param:slo.merged_hold_s", "param:slo.gate_failure_rate_max_percent", "param:slo.percentile", "param:slo.sample_window_events", "param:slo.min_samples", "param:slo.producer", "param:slo.step", "param:slo.dashboard_path", "decision:D-037", "refusal:budgets.schema_errors", "refusal:perf_tests.listing_errors"],
+   "run_order": 9
+  },
+  {
+   "id": "github-calls-and-rate-budget",
+   "title": "GitHub calls and the rate budget",
+   "common": "They decide what the engine reads and writes on GitHub and how much: the REST client, its retries and rate limits, the gate status and PR metadata calls, merges, lock refs, and the premises that GitHub is the source of truth and that the forge can be swapped.",
+   "domains": [
+    "forge-and-events",
+    "github-calls"
+   ],
+   "row_count": 50,
+   "kinds": {
+    "decision": 1,
+    "parameter": 31,
+    "premise": 3,
+    "refusal": 1,
+    "resource": 14
+   },
+   "estimated_minutes": 71,
+   "can_stop_rows": 9,
+   "stops_measured_prs": 0,
+   "unblock": "a GitHub rate limit stops every session at once (the GX-FIX incident of 27/10)",
+   "rows": ["param:gate.forge_writes_per_run_max", "param:gate.forge_reads_per_run_max", "param:github-client.request_attempts", "param:github-client.retry_backoff_s", "param:github-client.cli_timeout_s", "param:github-client.cli_call_cap_s", "param:github-client.api_origin", "param:github-client.neon_origin", "param:github-client.vercel_origin", "param:github-client.loopback_hosts", "param:github-client.user_agent", "param:github-client.accept", "param:github-client.api_version", "param:github-client.merge_method", "param:github-client.protected_branches", "param:github-client.probe_timeout_s", "param:github-client.probe_max_bytes", "param:github-client.write_budget_per_minute", "param:github-client.write_budget_per_hour", "param:github-client.secondary_wait_min_s", "param:github-client.backoff_jitter_s", "param:github-client.max_wait_s", "param:github-client.secondary_markers", "param:github-client.limited_statuses", "param:github-client.write_state_path", "param:github-client.write_state_env", "param:github-client.write_window_minute_s", "param:github-client.write_window_hour_s", "param:github-client.limit_body_bytes", "param:github-client.limit_retries", "param:github-client.count_file_env", "decision:D-009", "premise:P-02", "premise:P-22", "premise:P-34", "refusal:forge_rate.refused", "resource:github-rest-client", "resource:github-forge-event-log", "resource:github-config-store", "resource:github-gate-status", "resource:github-pr-metadata-fetch", "resource:github-gate-selection-reads", "resource:github-merge", "resource:github-production-tail", "resource:github-credentials-probe", "resource:github-idea-to-prod-reads", "resource:github-premises-pr-reads", "resource:github-replay-branch", "resource:github-git-lock-refs", "resource:github-git-fetch"],
+   "run_order": 10
+  },
+  {
+   "id": "code-architecture-and-units",
+   "title": "Code architecture, contexts and units",
+   "common": "They fix how the code is cut: contexts and their rings, the database package, translators, unit manifests and size ceilings, and the architecture premises behind the rewrite into units.",
+   "domains": [
+    "code-architecture"
+   ],
+   "row_count": 61,
+   "kinds": {
+    "decision": 8,
+    "parameter": 42,
+    "premise": 11
+   },
+   "estimated_minutes": 70,
+   "can_stop_rows": 3,
+   "stops_measured_prs": 0,
+   "unblock": "architecture checks refuse import edges; the premises behind the unit rewrite are mostly undated",
+   "rows": ["param:architecture.source_root", "param:architecture.web_root", "param:architecture.tooling_root", "param:architecture.fidelity_root", "param:architecture.source_file", "param:architecture.test_file", "param:architecture.non_production", "param:architecture.package_file", "param:architecture.package_skip", "param:architecture.vendor_map", "param:architecture.contract_registry", "param:architecture.layer_order", "param:architecture.default_layer", "param:architecture.sql_start", "param:architecture.wrapper_max_lines", "param:units.size_target", "param:units.size_ceiling", "param:units.context_budget", "param:units.manifest_dir", "param:units.manifest_file", "param:units.manifest_schema", "param:units.decision_register", "param:units.owners", "param:units.production_globs", "param:units.test_globs", "param:units.companions", "param:units.size_exempt_globs", "param:units.tsconfig_files", "param:units.import_extensions", "param:units.python_import_dirs", "param:units.cochange_commits", "param:units.cochange_max_files", "param:units.cochange_weight", "param:units.import_weight", "param:units.merge_floor_lines", "param:units.merge_min_affinity", "param:units.bytes_per_token", "param:units.oversize_fails", "param:units.event_producer", "param:units.measure_step", "param:units.address_scope", "param:units.addresses_step", "decision:D-029", "decision:D-056", "decision:D-057", "decision:D-058", "decision:D-059", "decision:D-060", "decision:D-061", "decision:D-067", "premise:P-00", "premise:P-01", "premise:P-03", "premise:P-04", "premise:P-06", "premise:P-07", "premise:P-16", "premise:P-19", "premise:P-24", "premise:P-25", "premise:P-28"],
+   "run_order": 11
+  },
+  {
+   "id": "gate-selection-proof-and-status",
+   "title": "Gate selection, proof reuse and status",
+   "common": "They decide which stages and tests the gate runs, which proofs it reuses or pins, and what it reports back (status, ETA, trace): what makes a gate fast or makes it run everything again.",
+   "domains": [
+    "gate-selection",
+    "gate-reporting"
+   ],
+   "row_count": 96,
+   "kinds": {
+    "decision": 2,
+    "parameter": 87,
+    "premise": 6,
+    "refusal": 1
+   },
+   "estimated_minutes": 81,
+   "can_stop_rows": 2,
+   "stops_measured_prs": 0,
+   "unblock": "a missing gate stage refused 2 PRs on 28/10; selection and reuse decide the wall time of every gate",
+   "rows": ["param:gate-areas.db_import_scope", "param:gate-areas.db_import_roots", "param:gate-areas.db_adapter_modules", "param:gate-areas.db_import_packages", "param:gate-areas.db_tsconfig", "param:gate-areas.db_unreadable_fallback", "param:gate-carry.carry_over_enabled", "param:gate-carry.carry_over_areas", "param:gate-contracts.gate_passed_version", "param:gate-contracts.gate_failed_version", "param:gate-gc.stage_timeout_s", "param:gate-gc.reports_keep", "param:gate-gc.build_cache_keep", "param:gate-gc.kill_grace_s", "param:gate-gc.timeout_exit_code", "param:gate-gc.log_tail_lines", "param:gate-inputs.enabled", "param:gate-inputs.schema_version", "param:gate-pin.enabled", "param:gate-pin.dir", "param:gate-pin.report_only_on_gate_change", "param:gate-pin.keep_worktrees", "param:gate-proof.event_version", "param:gate-proof.cpu_stat_path", "param:gate-tests.covers_dir", "param:gate-tests.map_check", "param:gate-tests.fallback", "param:gate-tier.battery", "param:gate-tier.per_pr", "param:gate-tier.batch", "param:gate-tier.working_tree", "param:gate-tier.cacheable_tiers", "param:gate-web-readers.enabled", "param:gate-web-readers.web_root", "param:gate-web-readers.test_globs", "param:gate-web-readers.unknown_globs", "param:gate-web-readers.read_calls", "param:gate-web-readers.static_words", "param:gate-web-readers.stage_unit", "param:gate-web-readers.stage_int", "param:gate-web-readers.stage_alone", "param:gate.select_enabled", "param:gate.full_battery_globs", "param:gate.scoped_globs", "param:gate.scoped_unit_test_globs", "param:gate.scoped_int_test_globs", "param:gate.scoped_lint_suffixes", "param:gate.stage_cache_enabled", "param:gate.stage_cache_ttl_s", "param:gate.stage_cache_version", "param:gate.test_cache_enabled", "param:gate.test_cache_ttl_s", "param:gate.test_cache_version", "param:gate.test_cache_dir", "param:gate.test_cache_common_inputs", "param:session-cache.tier1_enabled", "param:session-cache.key_version", "param:train-reuse.reuse_attested_proofs", "param:train-reuse.tier2_plan", "decision:D-070", "premise:P-20", "premise:P-42", "premise:P-43", "premise:P-46", "param:gate-eta.eta_quantile", "param:gate-eta.eta_history_events", "param:gate-eta.started_enabled", "param:gate-eta.fallback_stage_s", "param:gate-eta.report_quantiles", "param:gate-eta.report_last_gates", "param:gate-trace.covers_trace_mode", "param:gate-trace.covers_trace_ignore", "param:gate-trace.covers_trace_max_listed", "param:gate.tier1_target_s", "param:gate.slow_window_events", "param:gate.slow_median_s", "param:gate.ceiling_s", "param:gate.failing_tests_max", "param:gate.failing_signature_chars", "param:gate.status_enabled", "param:gate.status_marker", "param:gate.status_min_interval_s", "param:gate.status_one_per_pr", "param:gate.status_sha_chars", "param:gate.explain_list_max", "param:gate.explain_clip_chars", "param:gate.status_earlier_heads", "param:gate.status_history_runs", "param:gate.status_timeout_s", "param:gate.status_find_pages", "param:gate.status_max_chars", "param:gate.class_line_prefix", "decision:D-012", "premise:P-36", "premise:P-44", "refusal:gate_timing_report.eta_errors"],
+   "run_order": 12
+  },
+  {
+   "id": "gate-execution-and-tests",
+   "title": "Gate execution, test isolation and quarantine",
+   "common": "They decide how the gate runs tests once selected: slots, timeouts, worktree isolation, the test database, hermetic test environment, flake handling, quarantine and the battery.",
+   "domains": [
+    "gate-execution"
+   ],
+   "row_count": 84,
+   "kinds": {
+    "decision": 1,
+    "parameter": 81,
+    "premise": 2
+   },
+   "estimated_minutes": 62,
+   "can_stop_rows": 1,
+   "stops_measured_prs": 0,
+   "unblock": "every gate run spends these slots and timeouts; the WebKit premise failure (48 of 50 failures on PR #724) lives here",
+   "rows": ["param:battery.alone_globs", "param:battery.alone_int_globs", "param:battery.alone_max_workers", "param:battery.timing_scan_roots", "param:battery.timing_scan_suffixes", "param:battery.unit_time_limit", "param:battery.enabled", "param:battery.producer", "param:battery.step_prefix", "param:battery.lock_ref", "param:battery.lock_lease_s", "param:battery.tier3_command", "param:battery.tier3_timeout_s", "param:battery.tier3_log_chars", "param:battery.bisection_max_runs", "param:battery.unit_steps", "param:battery.unit_types_dir", "param:battery.project_tsconfig", "param:battery.contract_test_globs", "param:battery.unit_step", "param:battery.unit_producer", "param:battery.unit_log_lines", "param:gate-flake.enabled", "param:gate-flake.reruns", "param:gate-flake.stages", "param:gate-flake.never_excuse_touched", "param:gate-flake.quarantine_after", "param:gate-flake.quarantine_window_s", "param:gate-flake.subject_env", "param:gate-flake.rerun_store_prefix", "param:gate-flake.rerun_source", "param:gate.slots", "param:gate.slots_per_vcpu", "param:gate.script_tests_per_vcpu", "param:gate.slot_dir", "param:gate.slot_poll_s", "param:gate.tool_probe_timeout_s", "param:gate.git_timeout_s", "param:gate.script_tests_concurrency", "param:gate.script_tests_log_lines", "param:gate.test_tmp_root", "param:gate.test_tmp_mode", "param:gate.test_env_scrub_prefixes", "param:gate.test_env_scrub_names", "param:gate.test_env_keep", "param:gate.heavy_db_slots", "param:gate.script_test_rendezvous_wait_s", "param:gate.script_test_hold_s", "param:gate.worktree_dir", "param:gate.worktree_id_length", "param:gate.worktree_port_base", "param:gate.worktree_port_span", "param:gate.preflight_enabled", "param:quarantine.unknown_owner", "param:quarantine.step_prefix", "param:quarantine.max_age_s", "param:quarantine.test_roots", "param:test-db.name_prefix", "param:test-db.name_token_bytes", "param:test-db.maintenance_database", "param:test-db.psql_timeout_s", "param:test-db.ddl_lock_path", "param:test-db.ddl_lock_poll_s", "param:test-db.ddl_lock_wait_s", "param:test-orphans.tests_dir", "param:test-orphans.test_glob", "param:test-orphans.skip_dirs", "param:tests.random_seed", "param:tests.timeout_ms", "param:tests.script_timeout_ms", "param:tests.int_timeout_ms", "param:tests.author_race_rounds", "param:tests.author_race_lead_ms", "param:tests.hook_timeout_ms", "param:tests.network_allowed", "param:tests.loopback_hosts", "param:tests.clock_start", "param:tests.check_roots", "param:tests.harness_files", "param:tests.unhermetic_sites", "param:tests.config_store", "decision:D-064", "premise:P-12", "premise:P-38"],
+   "run_order": 13
+  },
+  {
+   "id": "paid-vendors-and-ai-sessions",
+   "title": "Paid vendors, AI sessions and the free-tier caps",
+   "common": "They decide what the engine spends money or quota on outside GitHub: Neon, Vercel, Cloudflare R2, Mux, Figma, AI sessions and the model ladder, downloads, and the cap that keeps the proof store free (D-073).",
+   "domains": [
+    "resource-spend",
+    "paid-calls"
+   ],
+   "row_count": 35,
+   "kinds": {
+    "decision": 1,
+    "parameter": 13,
+    "premise": 3,
+    "resource": 18
+   },
+   "estimated_minutes": 62,
+   "can_stop_rows": 0,
+   "stops_measured_prs": 0,
+   "unblock": "spend rules stop few PRs but cap money and quota",
+   "rows": ["param:providers.model_ladder", "param:providers.model_escalate_after_failures", "param:providers.model_escalation_step", "param:providers.agent_default", "param:providers.agent_claude_cli", "param:providers.agent_claude_model_pattern", "param:providers.ci_runner", "param:providers.ci_local_command", "param:providers.storage_adapter", "param:providers.vendor_catalog", "param:providers.vendor_catalog_schema", "param:providers.vendor_check_excludes", "param:providers.adapter_dir", "decision:D-073", "premise:P-08", "premise:P-37", "premise:P-45", "resource:neon-api-pr-branch", "resource:neon-api-migrate", "resource:neon-credentials-probe", "resource:vercel-api-production-check", "resource:vercel-cli-promote-rollback", "resource:vercel-preview-deploy", "resource:production-health-probe", "resource:vercel-credentials-probe", "resource:claude-session-launch", "resource:claude-agent-turn", "resource:claude-planner-wake", "resource:r2-media-storage", "resource:mux-video", "resource:figma-spec-api", "resource:toolchain-downloads", "resource:npm-registry-install", "resource:playwright-browser-download", "resource:pypi-fonttools-install"],
+   "run_order": 14
+  },
+  {
+   "id": "routines-and-daemons",
+   "title": "Routines, hooks and daemons that run without a person",
+   "common": "They are the work the engine does on its own: the end-of-day battery, the session and git hooks, the role sessions (train, battery, planner, coordinator), the watchers and the box daemons (train-loop, guard, vigia, watchers).",
+   "domains": [
+    "routines"
+   ],
+   "row_count": 22,
+   "kinds": {
+    "routine": 22
+   },
+   "estimated_minutes": 81,
+   "can_stop_rows": 0,
+   "stops_measured_prs": 0,
+   "unblock": "the train loop and the box daemons hold and release the merge queue",
+   "rows": ["routine:gate-noite-end-of-day", "routine:session-start-setup-hook", "routine:cursor-environment-setup", "routine:git-post-commit-push-guard", "routine:git-pre-push-local-checks", "routine:claude-clock-tools-preapproved", "routine:weekly-metric-report", "routine:daily-pg-dump-backup", "routine:merge-train-role-session", "routine:train-detached-trigger", "routine:battery-role", "routine:program-coordinator", "routine:planner-role-session", "routine:lane-sessions", "routine:stall-report", "routine:slo-dashboard", "routine:gate-stage-watcher", "routine:box-train-loop", "routine:box-guard", "routine:box-vigia", "routine:box-watchers", "routine:box-side-launcher-and-maestro"],
+   "run_order": 15
+  },
+  {
+   "id": "product-domain-rules",
+   "title": "Product and catalog domain rules",
+   "common": "They are Daniel's product decisions on the catalog: covers, areas and subareas, courses, editions, videos, generated texts, the visual identity and the factory batch.",
+   "domains": [
+    "product-domain"
+   ],
+   "row_count": 22,
+   "kinds": {
+    "decision": 21,
+    "premise": 1
+   },
+   "estimated_minutes": 69,
+   "can_stop_rows": 0,
+   "stops_measured_prs": 0,
+   "unblock": "product rules stop no engine queue; they are audited last",
+   "rows": ["decision:D-001", "decision:D-002", "decision:D-003", "decision:D-004", "decision:D-005", "decision:D-006", "decision:D-014", "decision:D-015", "decision:D-016", "decision:D-017", "decision:D-018", "decision:D-019", "decision:D-024", "decision:D-028", "decision:D-030", "decision:D-031", "decision:D-032", "decision:D-033", "decision:D-034", "decision:D-052", "decision:D-053", "premise:P-17"],
+   "run_order": 16
+  }
+ ]
+}

@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "docs/units/*/retro.md",
+  "x-unit": "path",
+  "description": "Retro files the ingestion reads: one per unit, docs/units/<unit>/retro.md.",
+  "x-readers": [
+    "scripts/lib/lesson_ingest.py"
+  ]
+}

@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/plan.changed.v1.json",
+  "title": "plan.changed payload v1",
+  "description": "The planner (or A Torre by hand) changed a program's live plan: one line of docs/programs/<program>/plan-log.jsonl on the plan/live branch (live-planning design 3.1-3.2). Append-only, hash-chained; the single contract for this event (D-071).",
+  "x-owner": "live-planning",
+  "x-schema-version": 1,
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/program",
+    "/payload/version"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "program",
+    "version",
+    "parent",
+    "ops",
+    "inputs",
+    "judgment",
+    "intention",
+    "expected_effect",
+    "decided_by",
+    "reversible",
+    "escalated",
+    "digest"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "program": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Program id (docs/programs/<program>/plan.md program.v1)."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "This change's version n; plan.md program.v1 is version 0."
+    },
+    "parent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "digest"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "n-1. A writer whose parent is not the current head is refused (optimistic concurrency)."
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{64}|)$",
+          "description": "Digest of the parent line; empty for version 0."
+        }
+      }
+    },
+    "ops": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "op"
+        ],
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": [
+              "add_unit",
+              "set_unit",
+              "remove_unit",
+              "set_deps",
+              "reorder",
+              "set_estimate",
+              "hold",
+              "release",
+              "brief_line",
+              "rescope",
+              "redo",
+              "continue",
+              "register_defect",
+              "apply_lesson",
+              "escalate",
+              "note"
+            ],
+            "description": "Closed set of graph operations, each validated against program.v1 after the fold."
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The unit the op acts on, or null for a program-level op."
+          },
+          "args": {
+            "type": "object",
+            "description": "Op arguments: the fields set, the deps, the brief line, the hold reason and release condition."
+          }
+        }
+      },
+      "description": "Ordered operations; applying them in order to the parent plan gives this version."
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Event ids or refs that triggered the change (context)."
+    },
+    "judgment": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "The answers to the design 2.1 questions that mattered, at most 10 lines."
+    },
+    "intention": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One sentence: what this change is for."
+    },
+    "expected_effect": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What should become measurably better."
+    },
+    "decided_by": {
+      "type": "string",
+      "enum": [
+        "planner",
+        "A Torre",
+        "Daniel"
+      ]
+    },
+    "reversible": {
+      "type": "boolean"
+    },
+    "escalated": {
+      "type": "boolean",
+      "description": "True when a question for Daniel (scope, money, production, source of truth) was prepared."
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 of the canonical line without this field, including parent.digest: the hash chain."
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "default": 60,
+  "x-unit": "s",
+  "description": "GV1, GX-16: least time between two live edits of the status comment (an edit happens at a stage end only); the start and the final edit always go out.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "minimum": 0
+}

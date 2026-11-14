@@ -1,0 +1,24 @@
+{
+  "id": "engine-lessons",
+  "purpose": "The lessons registry: what every unit retro taught, its root-cause class, the change it asks for and its measured effect (D-069 items 4 and 9).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/lessons.json",
+    "contracts/lessons/**",
+    "contracts/events/lesson*.json",
+    "docs/process/lessons/**",
+    "docs/process/lessons.md",
+    "docs/operations/lessons-guide.md",
+    "scripts/lessons",
+    "scripts/lib/audit_chain.py",
+    "scripts/lib/lesson*.py",
+    "scripts/tests/lessons.test.sh",
+    "scripts/tests/test_lesson*.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1",
+    "engine-premises": "^1"
+  }
+}

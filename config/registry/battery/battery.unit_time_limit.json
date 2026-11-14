@@ -1,0 +1,13 @@
+{
+  "type": "number",
+  "default": 10,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Longest wall time of one unit's battery (types, tests and contract).",
+  "x-readers": [
+    "docs/process/EVENTS.md",
+    "scripts/lib/budgets.py",
+    "scripts/lib/unit_battery.py"
+  ],
+  "x-source": "D-065 (4); D-069 item 14"
+}

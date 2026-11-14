@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 900,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "The timeout of one check job on the container executor, the gate's own per-check budget.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+}

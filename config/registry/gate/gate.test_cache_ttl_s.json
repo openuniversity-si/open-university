@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 604800,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Age after which a recorded script test PASS is a miss and the test runs again; a marker stored in the future is also a miss.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/shared_results.py"
+  ]
+}

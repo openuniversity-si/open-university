@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 1000,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Merged PRs since the last release after which release.ready is emitted (or a milestone).",
+  "x-readers": [
+    "docs/process/EVENTS.md",
+    "scripts/lib/battery.py"
+  ],
+  "x-source": "D-065; P-35"
+}

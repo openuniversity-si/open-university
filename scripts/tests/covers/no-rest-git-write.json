@@ -1,0 +1,8 @@
+{
+  "script": "scripts/tests/no-rest-git-write.test.sh",
+  "covers": [
+    "scripts/tests/no-rest-git-write.test.sh",
+    "scripts/tests/test_no_rest_git_write.py",
+    "scripts/lib/**/*.py"
+  ]
+}

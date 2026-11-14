@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 2,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "READY-BEFORE-LANDING: seconds between two reads of GET /v1/deploy/status while a delivery at the front waits for its successors to be warm (delivery.successor_wait_s bounds the wait).",
+  "x-readers": [
+    "scripts/lib/deliver.py"
+  ],
+  "x-source": "READY-BEFORE-LANDING"
+}

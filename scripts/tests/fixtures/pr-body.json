@@ -1,0 +1,23 @@
+{
+  "title": "FLUXO-AMPLO: teste do corpo",
+  "action": "one body from the commits",
+  "cost": "no state",
+  "requirement": "engine-lane needs one body per PR",
+  "cheaper": "typing each body",
+  "session": "https://claude.ai/code/session_01FixtureFixtureFixture",
+  "commits": [
+    "first thing\n\nPlan: 1\n",
+    "second thing\n\nPlan: 2\n",
+    "again the first item\n\nPlan: 1\n"
+  ],
+  "items": [
+    {
+      "number": 1,
+      "subject": "first thing"
+    },
+    {
+      "number": 2,
+      "subject": "second thing"
+    }
+  ]
+}

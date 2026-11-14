@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "refs/train/aggregates",
+  "minLength": 1,
+  "x-unit": "ref",
+  "description": "Local ref the train keeps the aggregates commit on; publishing it to the forge is the forge port's job.",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

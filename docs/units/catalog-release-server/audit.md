@@ -1,0 +1,11 @@
+# catalog-release-server audit (U4)
+
+Read-only findings, base `mod/roadmap-integration` b2f77f18.
+
+- Unit: 7 files under `apps/web/src/catalog/server/` (`doctor`, `home`, `invalidate`, `list-projection`, `redirects`, `release-routes`, `releases`), 727 lines, under `units.size_ceiling` (no `unit.oversize`). Owner `catalog-lane`.
+- Physical form: S1 keeps units logical (P-03 `validated`). The files keep their paths and share `catalog/server/` with five other catalog units, so nothing moves and nothing is deleted (D-029). `units/<id>/` holds only the manifest; `@ou/catalog-release-server/*` is generated into `apps/web/tsconfig.json`.
+- Importers (consumer units, not edited): `catalog-application` (`application/admin-handlers.ts`, `testing/bench.ts`), `catalog-authoring-server` (`reference.ts`, `courses.ts`), `catalog-ship-server` (`deletion.ts`, `ship-batch.ts`, `batch-apply.ts`), `catalog-server-core` (`deps.ts`) and the unit's own `errors.test.ts` (through `@ou/catalog-release-server/invalidate`). Besides that one, they import by relative path inside `catalog/server/` and `../server/`; rewriting them is a consumer edit and is left to the owning PRs.
+- Imported surface (the contract): `releases` (`publishRelease`, `scheduleActivation`, `Publication`, `ReleaseSummary`), `doctor` (`runDoctor`, `Finding`), `home` (`getHome`, `putHome`), `redirects` (`createRedirect`, `deleteRedirect`, `listRedirects`), `release-routes` (`activateRelease`, `createRelease`, `getRelease`, `listReleases`), `list-projection` (`projectCoursePage`), `invalidate` (`invalidateCatalog`).
+- Tunables: `config_check.literal_findings` reports none for the seven files and no `x-literal-sites` entry names them. The D-063 absolute census (`absolute-literals-baseline/catalog.json`) still lists 232 prose and vocabulary offenders there (doctor finding texts, HTTP status codes, event and intent names); it is shared with the whole catalog area and shrinks only through the D-063 catalogs, as in the other U4 units.
+- UI text: none; the doctor texts are operator findings, not user-facing copy.
+- Battery: `scripts/unit-battery catalog-release-server` green in 5.7 s (types 8 files, unit 1 file) against `battery.unit_time_limit`. Tests are hermetic: in-memory catalog, no network.

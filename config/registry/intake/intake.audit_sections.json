@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "Entradas",
+    "Distância do estado da arte"
+  ],
+  "x-unit": "text",
+  "description": "The `## ` sections the audit file carries, each non-empty (Daniel 29/10 16:26 BRT): the inputs it read and how far our code is from the research's state of the art.",
+  "minItems": 1,
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-readers": [
+    "scripts/lib/intake_templates.py"
+  ]
+}

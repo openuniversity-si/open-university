@@ -1,0 +1,100 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "name": "script-tests",
+      "mode": "each",
+      "cwd": ".",
+      "include": [
+        "scripts/tests/*.test.sh"
+      ],
+      "commands": [
+        [
+          "bash",
+          "{file}"
+        ]
+      ]
+    }
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "name",
+      "mode",
+      "cwd",
+      "commands"
+    ],
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "mode": {
+        "enum": [
+          "types",
+          "files",
+          "each"
+        ]
+      },
+      "cwd": {
+        "type": "string",
+        "minLength": 1
+      },
+      "include": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "include_entries": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9_]*$"
+        }
+      },
+      "exclude": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "exclude_entries": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9_]*$"
+        }
+      },
+      "globals": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "commands": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "x-unit": "steps",
+  "description": "The steps of a unit's battery (scripts/unit-battery <id>, tier 1): each takes the unit's files under its cwd that match include (globs, plus the values of include_entries) and no exclude; mode types writes a per-unit tsconfig ({project}) with the unit's TypeScript files and the step's globals, files passes them all ({files}), each runs the command once per file ({file}). A step with no file is skipped. Every step runs; the steps run concurrently. The engine's one step is its script tests; the TypeScript steps of products/web left with that product (OU-DECOUPLE F5, D-113; D-298), and a product that brings TypeScript back adds its own types and files steps.",
+  "x-readers": [
+    "scripts/lib/unit_battery.py"
+  ],
+  "x-source": "P-12; veto V5; plan v3 §4.2 item 6"
+}

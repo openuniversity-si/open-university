@@ -1,0 +1,14 @@
+{
+  "type": "array",
+  "default": [],
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "count",
+  "description": "Tracked paths the legacy-address rule does not scan. Empty since Open University's own copy of the rule left with it (OU-DECOUPLE F4).",
+  "x-readers": [
+    "scripts/lib/repo_hygiene.py"
+  ],
+  "x-source": "D-105 (OU-DECOUPLE F2)"
+}

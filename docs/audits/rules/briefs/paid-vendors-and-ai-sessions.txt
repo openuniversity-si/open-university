@@ -1,0 +1,155 @@
+RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS: audit every rule of the group "Paid vendors, AI sessions and the free-tier caps" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-paid-vendors-and-ai-sessions. One draft PR from mod/rule-audit-paid-vendors-and-ai-sessions into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS: Paid vendors, AI sessions and the free-tier caps", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They decide what the engine spends money or quota on outside GitHub: Neon, Vercel, Cloudflare R2, Mux, Figma, AI sessions and the model ladder, downloads, and the cap that keeps the proof store free (D-073).
+
+== YOUR ROWS (exactly these 35; census at PR #775, docs/audits/rules/census.json) ==
+- param:providers.model_ladder | config/registry/providers.json:10#providers.model_ladder | Model rungs from the least to the most capable. A step's tier picks its rung; escalation moves up this order and never down. model is the pr | owner: plan v3.1 delta §4 (model per PR)
+- param:providers.model_escalate_after_failures | config/registry/providers.json:35#providers.model_escalate_after_failures | Real (code-class) failures on one model after which the step moves up the ladder; flakes and env failures do not count. | owner: plan v3.1 delta §4 (escalate one model after two real failur
+- param:providers.model_escalation_step | config/registry/providers.json:44#providers.model_escalation_step | How many rungs one escalation climbs; the top rung stays the top. | owner: plan v3.1 delta §4 (escalate one model)
+- param:providers.agent_default | config/registry/providers.json:53#providers.agent_default | Agent provider adapter a caller gets when it names none; codex and cursor are documented slots without an adapter yet. | owner: plan v3.1 delta §2 R1
+- param:providers.agent_claude_cli | config/registry/providers.json:62#providers.agent_claude_cli | The Claude Code CLI the Claude adapter runs (a name on PATH or a path). | owner: plan v3.1 delta §2 R1
+- param:providers.agent_claude_model_pattern | config/registry/providers.json:71#providers.agent_claude_model_pattern | Model ids and aliases the Claude adapter serves; a ladder rung of provider claude must match it. | owner: plan v3.1 delta §2 R1
+- param:providers.ci_runner | config/registry/providers.json:80#providers.ci_runner | CI runner adapter that runs a PR's gate: local runs the gate command in this checkout, on a laptop or a provider cloud session alike. GitHub | owner: AGENTS.md (no GitHub Actions or third-party CI); plan v3.1 d
+- param:providers.ci_local_command | config/registry/providers.json:89#providers.ci_local_command | Gate command the local runner executes with --pr N, relative to the repository root. | owner: AGENTS.md (scripts/gate-dev --pr <n>)
+- param:providers.storage_adapter | config/registry/providers.json:98#providers.storage_adapter | Storage adapter behind the storage port: local keeps each key as a file under the caller's directory (the tier-1 result cache today). | owner: plan v3.1 delta §2 R1
+- param:providers.vendor_catalog | config/registry/providers.json:107#providers.vendor_catalog | The engine vendor catalog: each vendor's endpoints, CLIs and client modules, its adapters and selectors, and the shrink-only baseline of cal | owner: D-069 item 7
+- param:providers.vendor_catalog_schema | config/registry/providers.json:116#providers.vendor_catalog_schema | JSON Schema the vendor catalog is validated against. | owner: D-069 item 2
+- param:providers.vendor_check_excludes | config/registry/providers.json:125#providers.vendor_check_excludes | Path prefixes of the engine paths (config.literal_check_roots) the vendor check does not scan: test doubles name vendors on purpose, and gen | owner: D-069 item 7; LT1
+- param:providers.adapter_dir | config/registry/providers.json:135#providers.adapter_dir | Directory every new adapter module lives in; the vendor check refuses a new adapter elsewhere. | owner: plan v3.1 delta §2 R1
+- decision:D-073 | docs/domain/DECISIONS.md:75 | The shared proof store (GX-35) is approved only inside Cloudflare R2's permanent free allowance and never bills. | owner: 2026-10-28 09:14 (Daniel, CEO, chat; pt-BR, literal; recorde
+- premise:P-08 | docs/process/premises/concurrent-cloud-sessions.yml:2 | The account sustains about 30-45 concurrent cloud sessions and allows launching a session per call. | owner: orchestrator (report v2 §4.2 (not measured))
+- premise:P-37 | docs/process/premises/stock-and-quota-not-limits.yml:2 | Work stock and quota are not limits now. | owner: daniel (addendum)
+- premise:P-45 | docs/process/premises/gate-shared-paid-store-deferred.yml:2 | GA-P04: a shared paid proof store is DEFERRED (deferred spend): planned as wave 3 with an estimated cost; nothing paid without Daniel's OK. | owner: A Torre (A Torre 27/10 13:03 under Daniel's delegation (plan
+- resource:neon-api-pr-branch | scripts/lib/neon_pr.py:104 | Neon API client: creates (:152), lists and deletes/prunes (:115, :122) disposable pr-<n> child branches of production with compute endpoints | owner: ADR-34, D-054
+- resource:neon-api-migrate | scripts/lib/neon_migrate.py:39 | Asks the Neon API for the v1-preview and production branch URIs, reads migration ledgers and applies forward migrations with pnpm db:migrate | owner: D-035, D-054
+- resource:neon-credentials-probe | scripts/lib/credentials.py:149 | Preflight authenticated probe of console.neon.tech /api/v2/projects/<id>. | owner: AGENTS.md Cloud setup
+- resource:vercel-api-production-check | scripts/lib/production_check.py:186 | Verifies the production deployment identity (v9 projects, v6/v13 deployments), real page markup and every rendered cover (:117); the guarded | owner: ADR-32, D-054
+- resource:vercel-cli-promote-rollback | scripts/lib/ship_verify.py:77 | `vercel promote <previous> --yes` when a hard production failure is confirmed (refuse_frozen first). | owner: ADR-32
+- resource:vercel-preview-deploy | scripts/preview-deploy:70 | One on-demand Vercel preview build of a release head through the vercel CLI (preview-policy.json), refused while frozen and in cloud session | owner: D-046, D-065
+- resource:production-health-probe | scripts/lib/ship_verify.py:84 | GET https://openuniversity.si/api/health?delivery=<uuid> (cache-busted) after a merge. | owner: ADR-32
+- resource:vercel-credentials-probe | scripts/lib/credentials.py:162 | Preflight authenticated probe of api.vercel.com /v9/projects/<id>. | owner: AGENTS.md Cloud setup
+- resource:claude-session-launch | scripts/lib/adapters/launcher_claude.py:26 | `claude --remote <brief>` starts one Claude Code cloud session per unit launch (timeout 120 s); the coordinator caps launches at 5 per 300 s | owner: D-069 CO1
+- resource:claude-agent-turn | scripts/lib/adapters/agent_claude.py:34 | `claude --print --output-format json --model M --effort E`: one non-interactive turn through the agent port and model ladder (escalates afte | owner: D-069 item 7, plan v3.1 R1
+- resource:claude-planner-wake | scripts/lib/adapters/planner_wake_claude.py:31 | `claude --remote --resume <session> <message>` wakes the planner session; planner-lp6.wake_adapter defaults to dry-run (writes a file). | owner: LP6, D-071
+- resource:r2-media-storage | apps/web/src/media/server/r2.ts:85 | S3 calls (aws4fetch) to <account>.r2.cloudflarestorage.com for media objects, behind a physical-slot budget; reached through the admin API a | owner: D-062, ADR-35
+- resource:mux-video | apps/web/e2e/fixtures/no-video-guard.ts:1 | No call site in scripts/ or apps/web/src; only the e2e guard blocks *.mux.com requests in tests (AGENTS.md: no video in tests). | owner: AGENTS.md rules
+- resource:figma-spec-api | apps/web/scripts/figma-spec.ts:28 | GET api.figma.com/v1/files/<key>/nodes with FIGMA_TOKEN (`pnpm figma:spec`); the engine has no Figma caller. | owner: AGENTS.md (Figma GET only)
+- resource:toolchain-downloads | scripts/cloud/toolchain.py:43 | Checksum-verified downloads of Python (python-build-standalone), pnpm, gh, gitleaks and PostgreSQL binaries from github.com releases, Node f | owner: D-069 item 12
+- resource:npm-registry-install | scripts/gate-local:295 | `pnpm install --frozen-lockfile --prefer-offline` of apps/web from registry.npmjs.org in the gate (also :401) and setup.sh:152. | owner: D-069 items 12-13
+- resource:playwright-browser-download | scripts/gate-local:452 | `playwright install chromium` (and webkit at :454 for the battery) from the Playwright CDN; setup.sh:168 seeds Chromium. | owner: ADR-34
+- resource:pypi-fonttools-install | scripts/cloud/fonts.py:47 | pip install fonttools[woff] into the pinned Python from PyPI (or the seeded wheelhouse when offline) so e2e can unpack Inter. | owner: GX-29
+
+Kinds: decision 1, parameter 13, premise 3, resource 18. Estimated work: 62 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/paid-vendors-and-ai-sessions.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 35), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/paid-vendors-and-ai-sessions.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/paid-vendors-and-ai-sessions.md has exactly 35 rows, one per census row of this group, and the verdict
+  counts sum to 35 (quote the command that counts them).
+* docs/audits/rules/paid-vendors-and-ai-sessions.json parses and has the same 35 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json and
+  docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-structure-check-and-premises: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json, docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**
+  - mod/rule-audit-commit-and-pr-discipline: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json, docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**
+  - mod/rule-audit-registry-literals-and-text: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json, docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**
+  - mod/rule-audit-environment-toolchain-and-supply-chain: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json, docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**
+  - mod/rule-audit-production-release-and-migrations: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json, docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-merge-train-and-delivery: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json, docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**
+  - mod/rule-audit-defects-lessons-and-postmortems: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json, docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-code-architecture-and-units: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json, docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**
+  - mod/rule-audit-gate-selection-proof-and-status: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json, docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**
+  - mod/rule-audit-gate-execution-and-tests: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json, docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+62 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

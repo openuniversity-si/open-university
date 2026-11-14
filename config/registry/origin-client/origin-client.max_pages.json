@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Pages one paged read follows before it refuses rather than returning a silently truncated list.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "FORGE-PORT (CANALE8)"
+}

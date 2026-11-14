@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/test-orphans.test.sh",
+  "covers": [
+    "scripts/tests/test-orphans.test.sh",
+    "scripts/tests/test_test_orphans*.py",
+    "scripts/lib/test_orphans.py",
+    "scripts/lib/gate_script_tests.py",
+    "config/registry/test-orphans.json",
+    "scripts/lib/registry_readers.py"
+  ]
+}

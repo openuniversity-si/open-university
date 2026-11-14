@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "contracts/events",
+  "x-unit": "path",
+  "description": "Directory of the event envelope and payload JSON Schemas, relative to the repository root.",
+  "x-readers": [
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/prepush.py"
+  ]
+}

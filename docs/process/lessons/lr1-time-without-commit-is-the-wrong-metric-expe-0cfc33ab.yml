@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-0cfc33ab"
+slug: "lr1-time-without-commit-is-the-wrong-metric-expe-0cfc33ab"
+title: "Time without commit is the wrong metric; expect a commit-time band from history"
+source:
+  unit: "LR1"
+  retro: "owner-message:2026-10-27T01:53"
+  section: 5
+  ref: "M1"
+class: "process"
+kind: "config"
+change: "The expected time between commits is a band derived from the recorded commit history by step size (registered config, no literal); alert only above the band. Time without a commit alone is not the metric."
+owner: "engine-commit-plan"
+status: "proposed"
+area: ["scripts/lib/commit_check.py", "scripts/lib/push_guard.py"]
+signals: []
+applied: null
+effect: null
+level: "program"
+padrao_candidate: false

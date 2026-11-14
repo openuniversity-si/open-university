@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 60000,
+  "minimum": 1000,
+  "maximum": 65536,
+  "x-unit": "chars",
+  "description": "Maximum body size of one event-board comment; shared by the Origin board and its overflow store.",
+  "x-readers": [
+    "scripts/lib/forge_events.py"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/gate-regime-lock.test.sh",
+  "covers": [
+    "scripts/tests/gate-regime-lock.test.sh",
+    "scripts/tests/test_gate_regime_lock.py",
+    "scripts/lib/gate_bypass.py",
+    "scripts/lib/train.py",
+    "scripts/lib/regime.py",
+    "scripts/lib/engine_role.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/config.py",
+    "config/registry/regime.json",
+    "config/registry/regime/**",
+    "scripts/lib/service_budget.py"
+  ]
+}

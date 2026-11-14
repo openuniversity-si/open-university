@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 20,
+  "x-unit": "count",
+  "description": "Most known defects listed in a launch brief.",
+  "x-readers": [
+    "scripts/lib/coordinator_launch.py"
+  ],
+  "minimum": 0
+}

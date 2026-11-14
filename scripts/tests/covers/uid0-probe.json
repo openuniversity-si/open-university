@@ -1,0 +1,19 @@
+{
+  "script": "scripts/tests/uid0-probe.test.sh",
+  "covers": [
+    "scripts/tests/uid0-probe.test.sh",
+    "scripts/tests/test_uid0_probe.py",
+    "config/registry/*.json",
+    "scripts/cloud/postgres.py",
+    "scripts/cloud/root-session.sh",
+    "scripts/cloud/setup.sh",
+    "scripts/cloud/toolchain.json",
+    "scripts/lib/config.py",
+    "scripts/lib/hermetic.py",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/session_identity.py",
+    "scripts/lib/toolchain_manifest.py",
+    "scripts/tests/machine_premise.py",
+    "scripts/tests/root_probe.py"
+  ]
+}

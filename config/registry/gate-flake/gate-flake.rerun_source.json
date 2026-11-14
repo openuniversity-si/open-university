@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "flake-rerun",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "The source name the re-run passes to gate_test_cache.run.",
+  "x-readers": [
+    "scripts/lib/gate_flake.py"
+  ],
+  "x-source": "D-070"
+}

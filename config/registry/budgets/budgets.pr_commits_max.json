@@ -1,0 +1,14 @@
+{
+  "type": "integer",
+  "default": 0,
+  "minimum": 0,
+  "x-literal-names": [
+    "PLAN_MAX"
+  ],
+  "x-unit": "commits",
+  "description": "Most items of a PR's commit plan; 0, the default, sets no maximum (D-307: a PR is split by its content, never by a counter).",
+  "x-readers": [
+    "scripts/lib/commit_check.py"
+  ],
+  "x-source": "D-022, D-025, D-307"
+}

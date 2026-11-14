@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/push-guard.json",
+  "x-owner": "push-guard",
+  "x-schema-version": 1,
+  "description": "The push and stall guard (X1, D-022, D-025, D-069): the auto-push hook, the replay-branch remedy and the session stall signal.",
+  "type": "object",
+  "additionalProperties": false
+}

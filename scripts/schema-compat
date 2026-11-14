@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/schema-compat [--base REF] [--root DIR]
+# Every contracts/**/<name>.v<N>.json changes only additively within its version; a breaking change is a new version
+# (expand->contract, P-07). Exit 1 on an error. Runs in the local gate as the "schema compat" stage (D-069 item 2).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/schema_compat.py" "$@"

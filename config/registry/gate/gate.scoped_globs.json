@@ -1,0 +1,12 @@
+{
+  "type": "array",
+  "default": [],
+  "x-unit": "glob",
+  "description": "The only paths whose change may narrow the selection to the units that own them; a changed path outside these (and outside the documentation class and the tooling paths) runs the full battery. OU-DECOUPLE F5 (D-113): empty since Open University's web sources left; a product that comes back lists its source tree here.",
+  "items": {
+    "type": "string"
+  },
+  "x-readers": [
+    "scripts/lib/gate_select.py"
+  ]
+}

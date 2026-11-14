@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "scripts/lib/absolute-literals-baseline/engine",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Deprecated (TX22): the list is no longer read; the allowed counts are the census of the base tree (literals.base_ref). Removed in a later revision (D-068 (3), expand then contract). Was: Directory of the engine's shrink-only list of unregistered literals (D-063 style, D-064 a): one <unit>.json per unit with the literals each file still spells, per kind and value. The census must equal it, and against the base no unit allows a value more times.",
+  "x-readers": [
+    "docs/units/TX22/plan.md"
+  ],
+  "x-source": "LT1; D-063, D-064 (a)",
+  "deprecated": true
+}

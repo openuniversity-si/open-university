@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-9d7ca4a8"
+slug: "gv1-the-structure-check-direct-vendor-call-rule-9d7ca4a8"
+title: "The structure-check \"direct vendor call\" rule could name the port method to add"
+source:
+  unit: "GV1"
+  retro: "docs/units/GV1/retro.md"
+  section: 5
+  ref: "L3"
+class: "boundary"
+kind: "check"
+change: "The structure-check \"direct vendor call\" rule could name the port method to add (owner: engine lane, `unit_check.py` message)."
+owner: "engine-lane"
+status: "proposed"
+area: []
+signals: [{"event": "gate.failed", "stage": "structure check", "pattern": null}]
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

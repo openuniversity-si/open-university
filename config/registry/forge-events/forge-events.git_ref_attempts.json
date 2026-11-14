@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 8,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "EVENTS-REF (E1, D-273): fast-forward attempts of one append to the git-ref log before it fails; each attempt reads the tip again, so a rival's record is kept. Lost races only, never a refused transport.",
+  "x-readers": [
+    "scripts/lib/forge_events.py",
+    "scripts/lib/forge_git_ref.py"
+  ],
+  "x-source": "D-273; docs/units/EVENTS-REF/plan.md"
+}

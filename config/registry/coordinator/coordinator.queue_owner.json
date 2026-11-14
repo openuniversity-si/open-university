@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "queue",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "D-277: the owner a program unit carries when no lane holds it (a lane closed by quota). The coordinator never launches such a unit; it waits, pending, until a decision gives it a lane.",
+  "x-readers": [
+    "scripts/lib/coordinator.py"
+  ],
+  "x-source": "D-277; docs/programs/fluxo-amplo/plan.md"
+}

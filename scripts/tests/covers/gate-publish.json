@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/gate-publish.test.sh",
+  "covers": [
+    "scripts/tests/gate-publish.test.sh",
+    "scripts/tests/test_gate_publish.py",
+    "scripts/lib/gate_publish.py",
+    "scripts/lib/gate_tier.py"
+  ]
+}

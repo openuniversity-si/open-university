@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 1000,
+  "minimum": 1,
+  "x-unit": "events",
+  "description": "Events one read of the tenant's log answers while scripts/medir pages through it.",
+  "x-readers": [
+    "scripts/lib/medir.py"
+  ],
+  "x-source": "MEDIR 1 (P6 F1)"
+}

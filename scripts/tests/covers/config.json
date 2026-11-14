@@ -1,0 +1,28 @@
+{
+  "script": "scripts/tests/config.test.sh",
+  "covers": [
+    "scripts/tests/config.test.sh",
+    "scripts/tests/test_config.py",
+    "scripts/lib/config.py",
+    "scripts/tests/test_json_schema.py",
+    "scripts/lib/json_schema.py",
+    "contracts/**",
+    "scripts/lib/generate.py",
+    "scripts/lib/generate_*.py",
+    "scripts/generate",
+    "scripts/lib/config_cli.py",
+    "scripts/config",
+    "scripts/lib/config_check.py",
+    "scripts/lib/structure.py",
+    "scripts/structure-check",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/parallel_tests.py",
+    "scripts/lib/git_objects.py",
+    "scripts/lib/registry_readers.py",
+    "scripts/tests/test_config_api.py",
+    "scripts/tests/test_config_check.py",
+    "scripts/lib/python_source.py",
+    "scripts/lib/source_facts.py"
+  ]
+}

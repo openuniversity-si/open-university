@@ -1,0 +1,28 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/gate-local",
+    "scripts/lib/gate-*.sh",
+    "scripts/lib/gate-hooks/**",
+    "scripts/lib/gate-build.py",
+    "scripts/lib/gate-stages.json",
+    "scripts/lib/gate-stage-inputs.json",
+    "scripts/lib/gate_graph.py",
+    "scripts/lib/gate_keys.py",
+    "scripts/lib/gate_result_cache.py",
+    "scripts/lib/gate_select.py",
+    "scripts/lib/gate_speed.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/hermetic/**"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "glob",
+  "description": "D-076: the files of the judging tooling (the tool root, the base tip's under the pin) that run a script test or a stage and decide its result: the part of gate_version a cached result depends on. Their content is in every script-test and stage key (gate_keys.key_parts), so a change to how the gate runs a test misses every cache while a change to the code under test misses only the tests that read it.",
+  "x-readers": [
+    "scripts/lib/gate_keys.py"
+  ],
+  "x-source": "D-076"
+}

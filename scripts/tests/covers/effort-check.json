@@ -1,0 +1,15 @@
+{
+  "script": "scripts/tests/effort-check.test.sh",
+  "covers": [
+    "scripts/tests/effort-check.test.sh",
+    "scripts/tests/test_structure_effort.py",
+    "scripts/lib/effort.py",
+    "scripts/lib/structure.py",
+    "scripts/lib/config.py",
+    "config/registry/effort.json",
+    "config/registry/units.json",
+    "config/registry/config.json",
+    "contracts/config/registry.v1.json",
+    "scripts/lib/generated/config_registry_effort.py"
+  ]
+}

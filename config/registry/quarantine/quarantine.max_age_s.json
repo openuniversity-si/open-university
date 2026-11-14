@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 259200,
+  "minimum": 3600,
+  "x-unit": "s",
+  "description": "Age of an open quarantine after which `scripts/quarantine list` marks it overdue: the owner's stabilizing PR is late and the maestro escalates.",
+  "x-readers": [
+    "scripts/lib/quarantine.py"
+  ]
+}

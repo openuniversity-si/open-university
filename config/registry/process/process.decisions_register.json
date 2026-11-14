@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "docs/domain/DECISIONS.md",
+  "x-unit": "path",
+  "description": "The decision register (ADRs); a row a PR adds or changes must cite its premises (D-066, D-069 item 10).",
+  "x-readers": [
+    "scripts/lib/decision_premises.py"
+  ]
+}

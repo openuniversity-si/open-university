@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 1,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "The dispatcher's safety tick (DEP9): the longest the infrastructure service waits between two passes when no notification wakes it (work freed, a run started). It is a failure timeout, not a trigger: the passes are woken by LISTEN/NOTIFY (migration 0006). Read at runtime from work.config_value, the compiled default when no row exists; PUT /v1/config/service.dispatch_s changes it within about a second, without a deploy.",
+  "x-readers": [
+    "infra/service/tower_infra/__main__.py",
+    "infra/service/tower_infra/config_data.py"
+  ],
+  "x-source": "DEP9; docs/operations/aws.md 22.5"
+}

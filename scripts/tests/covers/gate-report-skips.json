@@ -1,0 +1,19 @@
+{
+  "script": "scripts/tests/gate-report-skips.test.sh",
+  "covers": [
+    "scripts/tests/gate-report-skips.test.sh",
+    "scripts/tests/test_gate_report_skips*.py",
+    "scripts/tests/test_gate_report_v4*.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/gate_skips.py",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/gate_proof.py",
+    "scripts/lib/gate_digest.py",
+    "scripts/lib/toolchain_manifest.py",
+    "scripts/lib/gate_keys.py",
+    "config/registry/toolchain.json",
+    "config/registry/gate-proof.json",
+    "scripts/lib/gate-hooks/proof.sh",
+    "scripts/lib/gate_incident.py"
+  ]
+}

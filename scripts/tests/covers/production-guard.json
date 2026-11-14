@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/production-guard.test.sh",
+  "covers": [
+    "scripts/tests/production-guard.test.sh",
+    "scripts/tests/test_production_guard.py",
+    "scripts/lib/production_guard.py",
+    "config/registry/production.json",
+    "scripts/lib/config.py",
+    "scripts/lib/hermetic.py",
+    "scripts/tests/fixture_copy.py"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 900,
+  "minimum": 60,
+  "x-unit": "s",
+  "description": "An open PR whose latest gate verdict is gate.failed with no push after it for this long is stalled (red_gate).",
+  "x-readers": [
+    "scripts/lib/stall_report.py"
+  ]
+}

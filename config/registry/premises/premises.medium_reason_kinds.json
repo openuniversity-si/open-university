@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "plan",
+    "cell"
+  ],
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Blast reason kinds that make the computed radius at least medium (a lane's plan, a cell).",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

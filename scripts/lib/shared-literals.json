@@ -1,0 +1,10 @@
+{
+  "description": "D-064 (c): the values written in two or more census areas that are not yet in the common catalog (a catalog entry of the census, scripts/census add --catalog), each with a documented reason. scripts/structure-check fails on a value of 2+ areas that is not here, and on an entry the base branch does not have: the list only shrinks. An entry that no longer spans 2+ areas is a warning; integration drops it. The bare 0, 1, true and \"\" are the remainder domain and are not listed. OU-DECOUPLE F5 (D-113): every value listed was the deleted product's, so the list is empty.",
+  "reasons": {
+    "several-meanings": "Written in 3+ areas with more than one meaning (an entity kind, a field name, a status, a separator, a short token); the common-catalog pass (PR #481) left it out until each meaning gets its own key.",
+    "number-per-area": "A number whose meaning differs per area (a limit, a size, a timeout, a position); each meaning moves to its own key, the common one when the meaning is shared.",
+    "remainder": "The boolean false, deferred with the bare 0, 1 and true to the remainder domain (D-050, D-063).",
+    "two-areas": "Written in exactly two areas before D-064; triage pending in step 6 (one meaning goes to the common catalog, several meanings get one key each)."
+  },
+  "values": {}
+}

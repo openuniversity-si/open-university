@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/infra-ondemand.test.sh",
+  "covers": [
+    "scripts/tests/infra-ondemand.test.sh",
+    "scripts/tests/test_infra_ondemand.py",
+    "infra/service/tower_infra/ondemand.py",
+    "infra/service/tower_infra/prewarm.py"
+  ]
+}

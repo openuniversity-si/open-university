@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/repeats.test.sh",
+  "covers": [
+    "scripts/tests/repeats.test.sh",
+    "scripts/tests/test_repeats.py",
+    "scripts/repeats",
+    "scripts/lib/repeats.py",
+    "scripts/lib/usage.py",
+    "docs/process/repeats.md",
+    "docs/process/repeats-measures.jsonl"
+  ]
+}

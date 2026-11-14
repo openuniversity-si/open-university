@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 1800,
+  "minimum": 60,
+  "x-unit": "s",
+  "description": "Longest one tier-2 run may take before it counts as red (class env: the train halts and ejects nobody); P-15 expects about 240 s. The train lock lease is this plus train.lock_lease_margin_s.",
+  "x-readers": [
+    "scripts/lib/train.py",
+    "scripts/lib/train_git.py",
+    "scripts/lib/train_verdict.py"
+  ]
+}

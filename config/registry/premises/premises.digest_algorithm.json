@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "sha256",
+  "x-unit": "enum",
+  "description": "hashlib algorithm of the dependents seal and of event ids.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "engine-units",
+  "purpose": "The unit manifests, the map generator and the ownership check (D-067).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "contracts/units/cell.v1.json",
+    "scripts/lib/unit_battery.py",
+    "scripts/lib/unit_check.py",
+    "scripts/lib/unit_map.py",
+    "scripts/lib/units.py",
+    "scripts/tests/test_unit_battery.py",
+    "scripts/tests/test_unit_check.py",
+    "scripts/tests/test_unit_map.py",
+    "scripts/tests/test_units.py",
+    "scripts/tests/units.test.sh",
+    "scripts/tests/units-repository.test.sh",
+    "scripts/unit-battery",
+    "scripts/units"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-config-check": "^1",
+    "engine-events": "^1",
+    "engine-operations": "^1"
+  }
+}

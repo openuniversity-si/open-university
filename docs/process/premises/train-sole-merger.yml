@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-18"
+slug: "train-sole-merger"
+statement: "The train as the only merger fulfils the AGENTS.md rule \"Do not merge your own PR\"; at 10x it has its own identity."
+kind: "process"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "report v2 §5.2"
+  quote: null
+  at: null
+status: "inferred"
+radius: "medium"
+blast:
+  reasons: ["plan:M3"]
+  if_wrong: "M3 and veto V3 change who merges."
+validate:
+  kind: "veto"
+  how: "Veto V3 of plan v3 §9.3."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

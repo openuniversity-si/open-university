@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "~/.cache/the-tower/lanes.jsonl",
+  "x-unit": "path",
+  "description": "The quota and time ledger (VAZÃO F59): one JSON line per session transcript (each lane and its coordinator), with the unit and the PR read from the brief and the run, the tokens by kind and weighted, the start, the end and the tool calls. Written by scripts/usage --lanes DIR --write from the transcripts the harness keeps; never typed by hand. Outside every checkout, so every worktree of the box shares it.",
+  "x-readers": [
+    "scripts/lib/usage.py",
+    "scripts/lib/flow_metrics.py",
+    "scripts/lib/fronts.py"
+  ],
+  "x-source": "VAZÃO F59 (docs/programs/vazao/fila.md)"
+}

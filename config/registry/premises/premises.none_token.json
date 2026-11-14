@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "none",
+  "x-unit": "text",
+  "description": "Value of a Premises: line that depends on no premise.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ]
+}

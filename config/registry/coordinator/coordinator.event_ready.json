@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "pr.ready",
+  "x-unit": "text",
+  "description": "The event type that means the PR is ready; the status view folds it.",
+  "x-readers": [
+    "scripts/lib/program.py"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/regime.json",
+  "x-owner": "regime",
+  "x-schema-version": 1,
+  "description": "The exception regime (D-260): the recorded state in which every lock of the engine lifts except the kept ones (money, other people).",
+  "type": "object",
+  "additionalProperties": false
+}

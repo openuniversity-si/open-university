@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "docs/",
+    "scripts/"
+  ],
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "count",
+  "description": "Path prefixes of the tracked files scanned for a merge conflict marker (structure.conflict_marker_pattern).",
+  "x-readers": [
+    "scripts/lib/repo_hygiene.py"
+  ],
+  "x-source": "D-189"
+}

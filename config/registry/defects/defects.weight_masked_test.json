@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 1,
+  "x-unit": "points",
+  "description": "Priority points for each script test that covers the defect's area or its own test and so cannot be trusted while it fails.",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "minimum": 0
+}

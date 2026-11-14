@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 300,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "The budget of one runner job from its claim to its result (D-291; Daniel 02/11 23:06 BRT: 180 s; 23:35 BRT: 300 s, the measured tier 2 of 162 s plus margin, I-ddaca17c). The one source of the budget: the runner reads it from its checkout's registry and service_deploy.py sends it to the control plane as the Worker var BUDGET_S, which leases a claimed job for exactly this long. The runner hands the job its deadline (TOWER_JOB_DEADLINE), sends TERM one second before it and KILL at it, and answers over_budget with the phase that was running; the train's lock expires at the same deadline, so a dead holder never blocks the next job past it.",
+  "x-readers": [
+    "scripts/lib/service_budget.py",
+    "scripts/lib/service_deploy.py"
+  ],
+  "x-source": "D-291; docs/units/TRAIN-DEFINITIVE/plan.md"
+}

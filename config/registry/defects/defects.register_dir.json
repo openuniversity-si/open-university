@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "docs/process/defects",
+  "x-unit": "path",
+  "description": "Directory of the known-defect registry: one record per defect, named <slug> plus defects.record_suffix (D-069 items 4, 8 and 9).",
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "type": "array",
+  "default": [
+    "title",
+    "alt",
+    "aria-label",
+    "aria-description",
+    "aria-placeholder",
+    "placeholder",
+    "label"
+  ],
+  "items": {
+    "type": "string",
+    "pattern": "^[a-z][a-z-]*$"
+  },
+  "minItems": 1,
+  "uniqueItems": true,
+  "x-unit": "attributes",
+  "description": "JSX attributes whose string value a reader sees or hears; a literal value in a scoped file is refused.",
+  "x-readers": [
+    "scripts/lib/text_check.py"
+  ],
+  "x-source": "plan v3.1 delta §2 L1"
+}

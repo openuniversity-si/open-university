@@ -1,0 +1,385 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/units.json",
+  "x-owner": "units",
+  "x-schema-version": 1,
+  "description": "The unit of parallelism (D-065 (4), plan v3 §4.3, P-04).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "units.bytes_per_token": {
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "x-unit": "bytes",
+      "description": "Bytes of code per token when a closure is converted to tokens.",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "plan v3 §4.3 (~4 bytes per token, an estimate)"
+    },
+    "units.cochange_commits": {
+      "type": "integer",
+      "default": 400,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Co-change window: the newest non-merge commits of the git log the generator reads.",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "D-067 (4), plan v3 §4.5"
+    },
+    "units.cochange_max_files": {
+      "type": "integer",
+      "default": 40,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "A commit touching more production files than this is a bulk change and is left out of co-change.",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "plan v3 §4.1 (p90 of 40 files per PR)"
+    },
+    "units.cochange_weight": {
+      "type": "number",
+      "default": 0.6,
+      "minimum": 0,
+      "maximum": 1,
+      "x-unit": "ratio",
+      "description": "Weight of co-change (share of commits touching both sets) in the affinity of two candidates.",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "D-067 (4), plan v3 §4.5"
+    },
+    "units.companions": {
+      "type": "array",
+      "default": [
+        {
+          "companion": "scripts/tests/covers/*.json",
+          "primary": "scripts/tests/*.test.sh"
+        }
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "companion",
+          "primary"
+        ],
+        "properties": {
+          "companion": {
+            "type": "string",
+            "minLength": 1
+          },
+          "primary": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "x-unit": "path",
+      "description": "Companion files that follow their primary file's unit (TX21, T1/T2: derived, never hand-kept): a path matching `companion` belongs to the unit of `primary` with the same `*` (one path segment). A claim of the companion by that same unit is allowed; a claim by another unit is an error naming the manifest line to remove. A companion whose primary has no unit keeps its own claims.",
+      "x-readers": [
+        "scripts/lib/unit_check.py",
+        "scripts/lib/units.py"
+      ],
+      "x-source": "D-067 (6); D-070 (TX21)"
+    },
+    "units.context_budget": {
+      "type": "integer",
+      "default": 50000,
+      "minimum": 1,
+      "x-unit": "tokens",
+      "description": "Context an agent needs to change a unit, at most.",
+      "x-readers": [
+        "docs/process/EVENTS.md",
+        "scripts/lib/units.py",
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "P-04 (plan v3 §2.1)"
+    },
+    "units.decision_register": {
+      "type": "string",
+      "default": "docs/domain/DECISIONS.md",
+      "x-unit": "path",
+      "description": "Register a manifest's budget override and decisions must cite (D-NNN rows).",
+      "x-readers": [
+        "scripts/lib/structure.py",
+        "scripts/lib/units.py"
+      ],
+      "x-source": "D-067 (plan v3 §4.2)"
+    },
+    "units.event_producer": {
+      "type": "string",
+      "default": "units",
+      "x-unit": "text",
+      "description": "Producer name of the events the unit tools emit (unit.oversize, engine.step.measured).",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "D-067 (7); contracts/events/envelope.v1.json"
+    },
+    "units.import_extensions": {
+      "type": "array",
+      "default": [
+        ".ts",
+        ".tsx",
+        ".mts",
+        ".mjs",
+        ".js",
+        "/index.ts",
+        "/index.tsx"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "path",
+      "description": "Suffixes tried, in order, to resolve an extensionless TypeScript or JavaScript import.",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "D-067 (4), plan v3 §4.5"
+    },
+    "units.import_weight": {
+      "type": "number",
+      "default": 0.4,
+      "minimum": 0,
+      "maximum": 1,
+      "x-unit": "ratio",
+      "description": "Weight of import density (links per file of the smaller set) in the affinity of two candidates.",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "D-067 (4), plan v3 §4.5"
+    },
+    "units.manifest_dir": {
+      "type": "string",
+      "default": "units",
+      "x-unit": "path",
+      "description": "Directory that holds one folder per unit, units/<id>/.",
+      "x-readers": [
+        "scripts/lib/unit_check.py",
+        "scripts/lib/units.py"
+      ],
+      "x-source": "D-067 (plan v3 §4.2)"
+    },
+    "units.manifest_file": {
+      "type": "string",
+      "default": "unit.json",
+      "x-unit": "path",
+      "description": "File name of a unit manifest inside units/<id>/.",
+      "x-readers": [
+        "scripts/lib/units.py"
+      ],
+      "x-source": "D-067 (plan v3 §4.2)"
+    },
+    "units.manifest_schema": {
+      "type": "string",
+      "default": "contracts/units/unit.v1.json",
+      "x-unit": "path",
+      "description": "JSON Schema every unit manifest satisfies.",
+      "x-readers": [
+        "scripts/lib/structure.py",
+        "scripts/lib/units.py"
+      ],
+      "x-source": "D-067 (plan v3 §4.2)"
+    },
+    "units.measure_step": {
+      "type": "string",
+      "default": "units.measure",
+      "x-unit": "text",
+      "description": "Step name of the unit measurement in engine.step.measured.",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "D-069 item 6"
+    },
+    "units.merge_floor_lines": {
+      "type": "integer",
+      "default": 150,
+      "minimum": 0,
+      "x-unit": "lines",
+      "description": "A candidate below this many production lines joins its closest sibling while the pair stays within units.size_target.",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "D-067 (4), plan v3 §4.5"
+    },
+    "units.merge_min_affinity": {
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0,
+      "maximum": 1,
+      "x-unit": "ratio",
+      "description": "Least affinity at which the clustering of a flat file group merges two clusters.",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "D-067 (4), plan v3 §4.5"
+    },
+    "units.oversize_fails": {
+      "type": "boolean",
+      "default": false,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "Whether a unit above its size ceiling fails the ownership check; false reports it as a warning while U4 splits today's large contexts. Flipped to true by one PR citing D-067.",
+      "x-readers": [
+        "scripts/lib/unit_check.py"
+      ],
+      "x-source": "D-067 (7)"
+    },
+    "units.owners": {
+      "type": "array",
+      "default": [
+        "kernel-lane",
+        "catalog-lane",
+        "platform-lane",
+        "ui-lane",
+        "app-lane",
+        "config-lane",
+        "media-lane",
+        "release-lane",
+        "admin-lane",
+        "site-lane",
+        "playback-lane",
+        "factory-lane",
+        "identity-lane",
+        "progress-lane",
+        "tooling-lane",
+        "fidelity-lane",
+        "engine-lane",
+        "testing-lane"
+      ],
+      "x-unit": "enum",
+      "description": "Lanes a manifest may name as owner (D-065 (4), D-069 item 8); a lane exclusively owns its units.",
+      "x-readers": [
+        "scripts/lib/units.py",
+        "scripts/lib/effort.py"
+      ],
+      "x-source": "D-067; plan v3 §4.5 cells and §9.2 A2 lanes",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      }
+    },
+    "units.production_globs": {
+      "type": "array",
+      "default": [
+        "scripts/**"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "path",
+      "description": "Globs of the files that are production code or build data; each must belong to exactly one unit (minus units.test_globs).",
+      "x-readers": [
+        "scripts/lib/unit_map.py",
+        "scripts/lib/unit_check.py"
+      ],
+      "x-source": "D-067 (6); plan v3 §4.1 (747 production files)"
+    },
+    "units.python_import_dirs": {
+      "type": "array",
+      "default": [
+        "scripts/lib"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "path",
+      "description": "Directories a Python sibling import (import config) resolves against, besides the importer's own.",
+      "x-readers": [
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "D-067 (4), plan v3 §4.5"
+    },
+    "units.size_ceiling": {
+      "type": "integer",
+      "default": 1500,
+      "minimum": 1,
+      "x-unit": "lines",
+      "description": "Production lines a unit may not exceed; above it unit.oversize is emitted.",
+      "x-readers": [
+        "docs/process/EVENTS.md",
+        "scripts/lib/units.py",
+        "scripts/lib/unit_map.py",
+        "scripts/lib/unit_check.py"
+      ],
+      "x-source": "P-04 (plan v3 §2.1)"
+    },
+    "units.size_exempt_globs": {
+      "type": "array",
+      "default": [
+        "**/*.json",
+        "scripts/lib/literal-catalogs/**",
+        "scripts/lib/generated/**"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "path",
+      "description": "Production files that count toward no unit size: data files (JSON catalogs, baselines, snapshots, configs; D-064 amendment) and generated files.",
+      "x-readers": [
+        "scripts/lib/unit_map.py",
+        "scripts/lib/unit_check.py"
+      ],
+      "x-source": "D-064 amendment; D-069 item 1 (generated files)"
+    },
+    "units.size_target": {
+      "type": "integer",
+      "default": 1000,
+      "minimum": 1,
+      "x-unit": "lines",
+      "description": "Production lines a unit aims at; above it the unit is a candidate to split.",
+      "x-readers": [
+        "docs/process/EVENTS.md",
+        "scripts/lib/units.py",
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "P-04 (plan v3 §2.1)"
+    },
+    "units.test_globs": {
+      "type": "array",
+      "default": [
+        "**/*.test.*",
+        "**/*.test-helpers.ts",
+        "**/testing/**",
+        "**/fixtures/**",
+        "**/__fixtures__/**",
+        "**/*.snap",
+        "scripts/tests/**"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "path",
+      "description": "Globs of test and fixture files inside the production globs; they belong to at most one unit and count toward no size.",
+      "x-readers": [
+        "scripts/lib/unit_map.py",
+        "scripts/lib/unit_check.py"
+      ],
+      "x-source": "D-067 (6)"
+    },
+    "units.tsconfig_files": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "path",
+      "description": "TypeScript configs whose compilerOptions.paths resolve import aliases for the import graph. Empty: the engine has no TypeScript package (OU-DECOUPLE F5, D-113); a product names its config here.",
+      "x-readers": [
+        "scripts/lib/structure.py",
+        "scripts/lib/unit_map.py"
+      ],
+      "x-source": "D-067 (4), plan v3 §4.5"
+    }
+  }
+}

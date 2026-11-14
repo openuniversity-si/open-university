@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/battery.green.v1.json",
+  "title": "battery.green payload v1",
+  "description": "The tier-3 battery is green on tip sha.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/sha"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "duration_ms",
+    "failing"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "failing": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

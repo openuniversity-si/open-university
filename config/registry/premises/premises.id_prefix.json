@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "P-",
+  "x-unit": "text",
+  "description": "Prefix of a premise id.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ]
+}

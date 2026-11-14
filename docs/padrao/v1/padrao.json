@@ -1,0 +1,16 @@
+{
+  "contract": "padrao.v1",
+  "version": "v1",
+  "description": "The Padrão (the versioned way of doing) installed as the Motor's launch rules. The brief renderer appends each rule file, in this order. A change is a new version folder; executions produce lessons that propose it (lessons with padrao_candidate).",
+  "rules": [
+    {"id": "save-often", "file": "save-often.md"},
+    {"id": "decide-then-report", "file": "decide-then-report.md"},
+    {"id": "think-before-acting", "file": "think-before-acting.md"},
+    {"id": "parallelize", "file": "parallelize.md"},
+    {"id": "audit-and-plan", "file": "audit-and-plan.md"},
+    {"id": "no-probe-prs", "file": "no-probe-prs.md"},
+    {"id": "fix-the-class", "file": "fix-the-class.md"},
+    {"id": "retro-before-merge", "file": "retro-before-merge.md"},
+    {"id": "agent-tree", "file": "agent-tree.md"}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 48,
+  "minimum": 1,
+  "x-unit": "h",
+  "description": "A branch whose first event is older than this many hours is stale: branch.stale is emitted when a trigger event (process.branch_trigger_types) is appended (D-069 item 11; P-32, events never a clock).",
+  "x-readers": [
+    "scripts/lib/branch_age.py"
+  ]
+}

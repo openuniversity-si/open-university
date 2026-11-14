@@ -1,0 +1,553 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/forge-events.json",
+  "x-owner": "forge-events",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "forge-events.adapter": {
+      "type": "string",
+      "default": "origin",
+      "enum": [
+        "origin",
+        "file"
+      ],
+      "x-unit": "adapter",
+      "description": "Storage adapter behind the port: origin (Cursor Origin, D-283) or file (local append-only JSON Lines log). The default is origin since the ORIGIN-FINISH cut-over (Daniel 03/11 00:10 BRT); the GitHub adapter left the port (D-293).",
+      "x-readers": [
+        "scripts/lib/forge_events.py",
+        "scripts/lib/gate_status.py"
+      ]
+    },
+    "forge-events.adjudicated_tiers": {
+      "type": "array",
+      "default": [
+        1,
+        2
+      ],
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 3
+      },
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Gate tiers (explicit, derived by gate-hooks/tier.sh: --tier3 3, --pr 1, --sha without --pr 2) whose run adjudicates known base defects and reports them (the KD1 switch, GX-11, D-070). [1] restores the per-PR-only adjudication.",
+      "x-readers": [
+        "scripts/lib/gate_tier.py"
+      ],
+      "x-source": "D-070; plan-v2 GX-11, D-B5"
+    },
+    "forge-events.attribution_url": {
+      "type": "string",
+      "default": "https://claude.com/claude-code",
+      "x-unit": "url",
+      "description": "The link of the attribution footer that scripts/pr-body writes at the end of every PR body (D-208).",
+      "x-readers": [
+        "scripts/lib/pr_body.py"
+      ],
+      "x-source": "D-208"
+    },
+    "forge-events.board_comment_max_chars": {
+      "type": "integer",
+      "default": 60000,
+      "minimum": 1000,
+      "maximum": 65536,
+      "x-unit": "chars",
+      "description": "Maximum body size of one event-board comment; shared by the Origin board and its overflow store.",
+      "x-readers": [
+        "scripts/lib/forge_events.py"
+      ]
+    },
+    "forge-events.board_issue": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "x-unit": "issue",
+      "description": "BOARD (CANALE2): the issue that holds the board (one comment per section of forge-events.board_sections, edited in place). 0: no board; the board kinds stay where forge-events.adapter puts them. Set once the issue exists.",
+      "x-readers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "x-source": "CANALE2; docs/units/BOARD/plan.md"
+    },
+    "forge-events.board_overflow_ref": {
+      "type": "string",
+      "default": "train/board",
+      "pattern": "^[a-z0-9][a-z0-9/_.-]*$",
+      "x-unit": "ref",
+      "description": "BOARD (CANALE2): the branch under refs/heads/ that keeps the full text of a board section cut at the comment limit (create and fast-forward, D-070).",
+      "x-readers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "x-source": "CANALE2; docs/units/BOARD/plan.md"
+    },
+    "forge-events.board_sections": {
+      "type": "array",
+      "default": [
+        {
+          "section": "train",
+          "kinds": [
+            "train.batch.started",
+            "train.batch.shards",
+            "train.batch.green",
+            "train.queue.empty"
+          ]
+        },
+        {
+          "section": "base",
+          "kinds": [
+            "integration.advanced"
+          ]
+        },
+        {
+          "section": "slo",
+          "kinds": [
+            "slo.breached"
+          ]
+        },
+        {
+          "section": "defects",
+          "kinds": [
+            "defect.verified"
+          ]
+        }
+      ],
+      "x-unit": "sections",
+      "description": "BOARD (CANALE2): each board section (section) and the event kinds it shows (kinds); these kinds go to the git-ref log and the board instead of a comment once forge-events.board_issue is set. The seven are the repeated state of the channel on 01/11 (79 % of #865).",
+      "x-readers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "x-source": "CANALE2; docs/units/BOARD/intake.md",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "section",
+          "kinds"
+        ],
+        "properties": {
+          "section": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "kinds": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.]*$"
+            }
+          }
+        }
+      }
+    },
+    "forge-events.check_run_publisher": {
+      "type": "string",
+      "enum": [
+        "client",
+        "control",
+        "port"
+      ],
+      "default": "port",
+      "x-unit": "enum",
+      "description": "Who posts the gate's Origin check run (tower/gate). client: the Origin client with the session's credential, which Origin refuses unless it is an oit_ installation token. control: the control plane's POST /v1/check-run, which mints the installation token from the Origin app's key it alone holds (ORIGIN_APP_PRIVATE_KEY) and answers 503 while that secret is absent (D-299). port: the engine's port (POST /v1/check-run), posted by the live service on AWS with the app's key from Parameter Store (/tower/origin/factory-app-signing-key; CHECK-RUN-AWS), the Worker off the path.",
+      "x-readers": [
+        "scripts/lib/forge_origin.py",
+        "scripts/lib/gate_status.py"
+      ],
+      "x-source": "D-299; CHECK-RUN-AWS"
+    },
+    "forge-events.claim_tries": {
+      "type": "integer",
+      "default": 10,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "How many refused claim pushes scripts/decision-next --claim makes before it gives up (D-189).",
+      "x-readers": [
+        "scripts/lib/decision_next.py"
+      ],
+      "x-source": "D-189"
+    },
+    "forge-events.clock": {
+      "type": "string",
+      "default": "system-utc",
+      "enum": [
+        "system-utc"
+      ],
+      "x-unit": "clock",
+      "description": "Clock the port injects for occurred_at and step durations; tests inject a fake clock object instead.",
+      "x-readers": [
+        "scripts/lib/forge_events.py"
+      ]
+    },
+    "forge-events.contracts_dir": {
+      "type": "string",
+      "default": "contracts/events",
+      "x-unit": "path",
+      "description": "Directory of the event envelope and payload JSON Schemas, relative to the repository root.",
+      "x-readers": [
+        "scripts/lib/event_contracts.py",
+        "scripts/lib/prepush.py"
+      ]
+    },
+    "forge-events.contracts_lock": {
+      "type": "string",
+      "default": "schemas.lock.json",
+      "x-unit": "path",
+      "description": "File in the contracts directory holding the sha256 of every locked schema; a locked schema never changes.",
+      "x-readers": [
+        "scripts/lib/event_contracts.py"
+      ]
+    },
+    "forge-events.control_token_env": {
+      "type": "string",
+      "default": "TOWER_EVENTS_TOKEN",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "x-unit": "name",
+      "description": "CONTROL-CHANNEL (CANALE7): the environment variable that holds the control plane's events token (the Worker's EVENTS_TOKEN secret); the value is never read from a file or printed.",
+      "x-readers": [
+        "scripts/lib/forge_control.py"
+      ],
+      "x-source": "docs/units/CONTROL-CHANNEL/plan.md"
+    },
+    "forge-events.envelope_schema": {
+      "type": "string",
+      "default": "envelope.v1.json",
+      "x-unit": "path",
+      "description": "Envelope schema every emitted and read event is validated against.",
+      "x-readers": [
+        "scripts/lib/event_contracts.py",
+        "scripts/lib/premises.py"
+      ]
+    },
+    "forge-events.event_comment_marker": {
+      "type": "string",
+      "default": "<!-- forge-events v1 -->",
+      "x-unit": "text",
+      "description": "The event comment marker ignored by decision-wait scans.",
+      "x-readers": [
+        "scripts/lib/decision_wait.py"
+      ]
+    },
+    "forge-events.event_id_algorithm": {
+      "type": "string",
+      "default": "sha256",
+      "enum": [
+        "sha256"
+      ],
+      "x-unit": "algorithm",
+      "description": "Hash of producer, type and natural key that forms event_id (the idempotency key).",
+      "x-readers": [
+        "scripts/lib/event_contracts.py"
+      ]
+    },
+    "forge-events.file_kinds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.]*$"
+      },
+      "default": [
+        "engine.step.measured",
+        "gate.started"
+      ],
+      "x-unit": "names",
+      "description": "GX-FIX-forge-rate (D-070): event kinds stored in the local file log (forge-events.local_log_dir) whatever forge-events.adapter is. High-volume measurement kinds (one per test or step) never become issue comments; a reader of the port sees both logs of a channel. GX-25: gate.started is file-routed too, because a gate run is already at its bound of GitHub writes (gate.forge_writes_per_run_max); one key moves it back to the forge.",
+      "x-readers": [
+        "scripts/lib/forge_events.py"
+      ]
+    },
+    "forge-events.gate_producer": {
+      "type": "string",
+      "default": "gate_report",
+      "x-unit": "name",
+      "description": "Producer name of the gate's events; part of every gate event id.",
+      "x-readers": [
+        "scripts/lib/gate_bypass.py",
+        "scripts/lib/gate_carry.py",
+        "scripts/lib/gate_report.py",
+        "scripts/lib/gate_status.py"
+      ]
+    },
+    "forge-events.gate_step_prefix": {
+      "type": "string",
+      "default": "gate:",
+      "x-unit": "text",
+      "description": "Prefix of the engine.step.measured step name for each gate stage (gate:<stage>).",
+      "x-readers": [
+        "scripts/lib/gate_report.py",
+        "scripts/lib/gate_timing_report.py",
+        "scripts/lib/slo.py"
+      ]
+    },
+    "forge-events.git_ref_attempts": {
+      "type": "integer",
+      "default": 8,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "EVENTS-REF (E1, D-273): fast-forward attempts of one append to the git-ref log before it fails; each attempt reads the tip again, so a rival's record is kept. Lost races only, never a refused transport.",
+      "x-readers": [
+        "scripts/lib/forge_events.py",
+        "scripts/lib/forge_git_ref.py"
+      ],
+      "x-source": "D-273; docs/units/EVENTS-REF/plan.md"
+    },
+    "forge-events.git_ref_log": {
+      "type": "string",
+      "default": "train/events",
+      "pattern": "^[a-z0-9][a-z0-9/_.-]*$",
+      "x-unit": "ref",
+      "description": "EVENTS-REF (E1, D-273): the branch name under refs/heads/ that holds the event log's state kinds, one commit per append, written by create and fast-forward over git (forge_git_ref.GitRefAdapter). Shared by every channel; never deleted or rewound.",
+      "x-readers": [
+        "scripts/lib/forge_git_ref.py"
+      ],
+      "x-source": "D-273; docs/units/EVENTS-REF/plan.md"
+    },
+    "forge-events.git_ref_window": {
+      "type": "integer",
+      "default": 2000,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "EVENTS-REF (E1, D-273): records (commits) of the git-ref log a windowed read covers (ForgeEvents.read_recent, D-085): the newest git_ref_window appends of every channel; a read of the whole log reads every commit.",
+      "x-readers": [
+        "scripts/lib/forge_git_ref.py"
+      ],
+      "x-source": "D-273; docs/units/EVENTS-REF/plan.md"
+    },
+    "forge-events.local_log_dir": {
+      "type": "string",
+      "default": ".gate/events",
+      "x-unit": "path",
+      "description": "Directory of the file adapter's append-only logs, relative to the repository root (gitignored).",
+      "x-readers": [
+        "scripts/lib/forge_events.py"
+      ]
+    },
+    "forge-events.log_adapter": {
+      "type": "string",
+      "default": "git-ref",
+      "enum": [
+        "git-ref",
+        "file"
+      ],
+      "x-unit": "adapter",
+      "description": "CONTROL-CHANNEL (CANALE7, D-282): the adapter that stores every event kind not routed elsewhere, when it differs from forge-events.adapter, which keeps the forge's other operations (change, merge, status). git-ref: the train/events branch on Origin (EVENTS-REF, D-273), the default for good since D-300 (VAZÃO F61, D-296 made permanent): the diary and the gate proof live there, never on Cloudflare. The control plane's /v1/events left the enum (D-300, SEMENTE §6: no double path). The GitHub adapter left the port (D-293).",
+      "x-readers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "x-source": "D-282; docs/units/CONTROL-CHANNEL/plan.md; D-296; D-300"
+    },
+    "forge-events.origin_check_suite_key": {
+      "type": "string",
+      "default": "tower",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "Stable check-suite key of the gate verdict. Required checks match the app plus this key.",
+      "x-readers": [
+        "scripts/lib/forge_origin_client.py"
+      ],
+      "x-source": "D-283"
+    },
+    "forge-events.origin_check_suite_name": {
+      "type": "string",
+      "default": "Tower",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "Display name of the gate's check suite. Matching uses the key, not this name.",
+      "x-readers": [
+        "scripts/lib/forge_origin_client.py"
+      ],
+      "x-source": "D-283"
+    },
+    "forge-events.origin_status_map": {
+      "type": "array",
+      "default": [
+        {
+          "state": "error",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "state": "failure",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "state": "pending",
+          "status": "in_progress"
+        },
+        {
+          "state": "success",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "state",
+          "status"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "minLength": 1
+          },
+          "conclusion": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "minItems": 1,
+      "x-unit": "map",
+      "description": "Gate status to Origin check-run status and, when the run is finished, conclusion. A state with no row is refused.",
+      "x-readers": [
+        "scripts/lib/forge_origin_client.py"
+      ],
+      "x-source": "D-283"
+    },
+    "forge-events.repo": {
+      "type": "string",
+      "default": "openuniversity-si/open-university",
+      "x-unit": "owner/name",
+      "description": "Repository whose change and repository channels the port reads and writes by default.",
+      "x-readers": [
+        "scripts/lib/battery.py",
+        "scripts/lib/budgets.py",
+        "scripts/lib/commit_check.py",
+        "scripts/lib/config.py",
+        "scripts/lib/coordinator_launch.py",
+        "scripts/lib/decision_next.py",
+        "scripts/lib/defect_detect.py",
+        "scripts/lib/defect_router.py",
+        "scripts/lib/defects.py",
+        "scripts/lib/flow_metrics.py",
+        "scripts/lib/forge_events.py",
+        "scripts/lib/forge_origin.py",
+        "scripts/lib/gate_bypass.py",
+        "scripts/lib/gate_carry.py",
+        "scripts/lib/gate_explain.py",
+        "scripts/lib/gate_infra.py",
+        "scripts/lib/gate_pin.py",
+        "scripts/lib/gate_policy.py",
+        "scripts/lib/gate_report.py",
+        "scripts/lib/gate_status.py",
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/gate_timing_report.py",
+        "scripts/lib/idea_to_prod.py",
+        "scripts/lib/lessons.py",
+        "scripts/lib/lessons_report.py",
+        "scripts/lib/origin_remote.py",
+        "scripts/lib/plan_triage.py",
+        "scripts/lib/pr_ready.py",
+        "scripts/lib/premises.py",
+        "scripts/lib/prepush.py",
+        "scripts/lib/program.py",
+        "scripts/lib/push_guard.py",
+        "scripts/lib/quarantine.py",
+        "scripts/lib/release_policy.py",
+        "scripts/lib/replay_branch.py",
+        "scripts/lib/service_runner.py",
+        "scripts/lib/service_status.py",
+        "scripts/lib/slo.py",
+        "scripts/lib/stall_report.py",
+        "scripts/lib/structure.py",
+        "scripts/lib/threshold_check.py",
+        "scripts/lib/train.py",
+        "scripts/lib/unit_battery.py",
+        "scripts/lib/unit_map.py"
+      ]
+    },
+    "forge-events.status_context_gate": {
+      "type": "string",
+      "default": "tower/gate",
+      "x-unit": "text",
+      "description": "Context name of the commit status the gate writes for a PR head.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ]
+    },
+    "forge-events.status_description_chars": {
+      "type": "integer",
+      "default": 140,
+      "minimum": 20,
+      "maximum": 140,
+      "x-unit": "chars",
+      "description": "Longest commit status description (GitHub cuts at 140).",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ]
+    },
+    "forge-events.status_digest_chars": {
+      "type": "integer",
+      "default": 12,
+      "minimum": 4,
+      "maximum": 40,
+      "x-unit": "chars",
+      "description": "Characters of the verdict input_digest shown in the commit status description.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ]
+    },
+    "forge-events.status_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "Whether the gate writes its own commit status (GX-17); false turns it off without touching the verdict.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ]
+    },
+    "forge-events.subject_exempt_schemas": {
+      "type": "array",
+      "default": [
+        "premise.blast.v1.json",
+        "premise.confirmed.v1.json",
+        "premise.proposed.v1.json",
+        "premise.refuted.v1.json"
+      ],
+      "x-unit": "count",
+      "description": "Payload schemas merged before the port that carry no subject or natural key (scripts/premises prints them, P1). The list only shrinks: each leaves when its v2 with the subject replaces it (expand->contract); the port refuses to emit them.",
+      "x-readers": [
+        "scripts/lib/event_contracts.py"
+      ]
+    },
+    "forge-events.subject_fields": {
+      "type": "array",
+      "default": [
+        "repo",
+        "pr",
+        "sha",
+        "unit",
+        "premises"
+      ],
+      "x-unit": "count",
+      "description": "Fields every payload schema must require so consumers always have the subject, unit and premises.",
+      "x-readers": [
+        "scripts/lib/branch_age.py",
+        "scripts/lib/event_contracts.py"
+      ]
+    },
+    "forge-events.tier1_gate_modes": {
+      "type": "array",
+      "default": [
+        "dev"
+      ],
+      "x-unit": "count",
+      "description": "Deprecated (GX-11, D-070): the gate tier is explicit (gate-hooks/tier.sh, D-B5) and the KD1 switch reads forge-events.adjudicated_tiers. These modes are only the fallback of scripts/lib/gate_tier.py when no tier was derived (a caller outside gate-local); gate_report still passes them in. It stays registered until a later revision removes it (GX-26; schema compat).",
+      "x-readers": [
+        "scripts/lib/gate_report.py",
+        "scripts/lib/gate_status.py"
+      ],
+      "deprecated": true
+    }
+  }
+}

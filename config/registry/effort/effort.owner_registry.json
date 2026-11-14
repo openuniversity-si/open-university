@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "units.owners",
+  "x-unit": "name",
+  "description": "Registry list whose entries (the unit lanes, D-067 (2), D-069 item 8) also count as owners.",
+  "x-readers": [
+    "scripts/lib/effort.py",
+    "scripts/lib/pr_body.py"
+  ]
+}

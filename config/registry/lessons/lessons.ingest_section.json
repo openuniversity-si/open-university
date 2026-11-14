@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 5,
+  "x-unit": "count",
+  "description": "Number of the retro section that holds the lessons (the RETRO template: 1 brief, 2 audit and plan, 3 execution, 4 gate, 5 lessons).",
+  "x-readers": [
+    "scripts/lib/lesson_ingest.py"
+  ],
+  "minimum": 1
+}

@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/lib"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "path",
+  "description": "Directories a Python sibling import (import config) resolves against, besides the importer's own.",
+  "x-readers": [
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "D-067 (4), plan v3 §4.5"
+}

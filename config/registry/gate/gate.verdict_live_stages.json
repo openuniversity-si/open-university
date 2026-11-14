@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "pr metadata"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "x-unit": "names",
+  "description": "Stages scripts/gate-verdict runs live and never records, because their input is not the head, base and toolchain (P-42: the structure/metadata check always reruns). The PR metadata check runs before every PR answer.",
+  "x-readers": [
+    "scripts/lib/gate_verdict.py",
+    "scripts/tests/test_gate_verdict.py"
+  ],
+  "x-source": "D-070 (GATE-API); P-42"
+}

@@ -1,0 +1,34 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "companion": "scripts/tests/covers/*.json",
+      "primary": "scripts/tests/*.test.sh"
+    }
+  ],
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "companion",
+      "primary"
+    ],
+    "properties": {
+      "companion": {
+        "type": "string",
+        "minLength": 1
+      },
+      "primary": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "x-unit": "path",
+  "description": "Companion files that follow their primary file's unit (TX21, T1/T2: derived, never hand-kept): a path matching `companion` belongs to the unit of `primary` with the same `*` (one path segment). A claim of the companion by that same unit is allowed; a claim by another unit is an error naming the manifest line to remove. A companion whose primary has no unit keeps its own claims.",
+  "x-readers": [
+    "scripts/lib/unit_check.py",
+    "scripts/lib/units.py"
+  ],
+  "x-source": "D-067 (6); D-070 (TX21)"
+}

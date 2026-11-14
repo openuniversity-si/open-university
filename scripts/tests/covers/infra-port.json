@@ -1,0 +1,22 @@
+{
+  "script": "scripts/tests/infra-port.test.sh",
+  "covers": [
+    "scripts/tests/infra-port.test.sh",
+    "scripts/tests/test_infra_port.py",
+    "infra/service/tower_infra/port.py",
+    "infra/service/tower_infra/subscriptions.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/service/tower_infra/migrations.py",
+    "infra/db/migrations/**",
+    "docs/domain/decisions/D-309.md",
+    "infra/aws/stacks/40-port.json",
+    "infra/aws/stacks/30-service.json",
+    "infra/service/requirements.txt",
+    "units/engine-infra-service/unit.json",
+    "scripts/lib/test_db.py",
+    "config/registry/test-db.json",
+    "infra/service/tower_infra/wake.py",
+    "infra/service/tower_infra/canary.py",
+    "config/registry/gate-infra/gate-infra.call_timeout_s.json"
+  ]
+}

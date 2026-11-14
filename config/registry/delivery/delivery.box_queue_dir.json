@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "~/.cache/the-tower/box-queue",
+  "x-unit": "path",
+  "description": "The box queue (VAZÃO F36, D-297 (b), scripts/lib/box_queue.py): one pr-N.json per delivery waiting for delivery.gate_lock_path and one pr-N.result.json per member a batch leader resolved. Process coordination like the lock, never flow state: the record is the forge's. Outside every checkout, so every worktree of the box shares it.",
+  "x-readers": [
+    "scripts/lib/box_queue.py"
+  ],
+  "x-source": "VAZÃO F36 (docs/programs/vazao/design-trem.md §2)"
+}

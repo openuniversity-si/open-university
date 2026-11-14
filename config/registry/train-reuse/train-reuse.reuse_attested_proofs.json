@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "GX-31 (D-070, GA-P02 strict, P-43): before a tier-2 run (the batch head or a bisection probe) the train looks for a gate.passed at the v4 proof version on the repository channel, read through a forge adapter that keeps only trusted author associations (the port re-validates every event_id), whose input_digest, head tree, base, plan, selection, attested toolchain_id (GX-28) and gate_version equal the ones it recomputes; a match is the verdict and nothing runs, anything else runs. Off is the one-key rollback: tier 2 never reuses (D-065 (5) as before GX-31).",
+  "x-readers": [
+    "scripts/lib/train_reuse.py"
+  ],
+  "x-flag": true,
+  "x-source": "D-070; plan-v2 GX-31, D-B8"
+}

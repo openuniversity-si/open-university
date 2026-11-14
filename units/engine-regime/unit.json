@@ -1,0 +1,19 @@
+{
+  "id": "engine-regime",
+  "purpose": "The exception regime (D-260): the recorded state, the question every lock asks, and the lock.lifted event.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/regime.json",
+    "config/registry/regime/**",
+    "contracts/events/lock.lifted.v1.json",
+    "docs/process/exception-regime.md",
+    "scripts/lib/regime.py",
+    "scripts/tests/regime.test.sh",
+    "scripts/tests/test_regime.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1"
+  }
+}

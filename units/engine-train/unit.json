@@ -1,0 +1,32 @@
+{
+  "id": "engine-train",
+  "purpose": "The merge train: the batch run and its drain loop, its git workspace, the aggregates it regenerates and the base tip's gate result it reads before a merge.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/lib/train.py",
+    "scripts/lib/train_aggregates.py",
+    "scripts/lib/train_base_gate.py",
+    "scripts/lib/train_box.py",
+    "scripts/lib/train_git.py",
+    "scripts/tests/test_train.py",
+    "scripts/tests/train.test.sh",
+    "scripts/tests/train/**",
+    "scripts/train"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-delivery": "^1",
+    "engine-events": "^1",
+    "engine-flow": "^1",
+    "engine-gate-ops": "^1",
+    "engine-gate-verdict": "^1",
+    "engine-generate": "^1",
+    "engine-git-ref": "^1",
+    "engine-quarantine": "^1",
+    "engine-regime": "^1",
+    "engine-role": "^1",
+    "engine-train-admission": "^1",
+    "engine-units": "^1"
+  }
+}

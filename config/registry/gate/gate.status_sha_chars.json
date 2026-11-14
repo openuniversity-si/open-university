@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 12,
+  "x-unit": "count",
+  "description": "GX-16: characters of a head or cache-key sha shown in the status comment and by gate-dev --explain / --why (GX-26).",
+  "x-readers": [
+    "scripts/lib/gate_explain.py",
+    "scripts/lib/gate_status.py",
+    "scripts/lib/gate_timing_report.py"
+  ],
+  "minimum": 1
+}

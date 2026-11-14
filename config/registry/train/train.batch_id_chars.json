@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 12,
+  "minimum": 8,
+  "maximum": 64,
+  "x-unit": "chars",
+  "description": "Hex characters of the sha256 that forms a batch id (b-<hex>) from the base tip and the batch heads.",
+  "x-readers": [
+    "scripts/lib/train.py",
+    "scripts/lib/train_verdict.py"
+  ]
+}

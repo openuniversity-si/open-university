@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 10.0,
+  "exclusiveMinimum": 0,
+  "x-unit": "seconds",
+  "description": "IMAGE-SWAP-FAILOVER (docs/operations/aws.md 22.9): how long, in seconds, the image a pointer names (deploy.live_image_<role>) may go without a live beat before an ECS task standing by takes the role back. A process that is live because the pointer names its digest stamps work.standby_beat.live_at (migration 0016) every 2 s at most while it works: the service after each good dispatch tick, the runner at each TAKE and from the keeper of each run in flight. Each ECS task standing by reads, in the statement of its own standby beat (about once a second), the seconds since the newest live beat of the pointed digest or since the pointer's write, whichever is later, on the database clock; past this value it empties the pointer by compare-and-swap (platform.deploy.image_retired, by: failover) and, not strict, works at once. 10 s is five missed beats and several times the worst dispatch tick measured live at a swap on the db.t4g.micro (1.5 s); a clean stop (SIGTERM) does not wait for it: the standby hands the pointer back first (by: handback).",
+  "x-readers": [
+    "infra/service/tower_infra/live_image.py"
+  ],
+  "x-source": "IMAGE-SWAP-FAILOVER"
+}

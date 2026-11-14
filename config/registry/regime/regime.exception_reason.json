@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "GitHub secondary rate limit refuses writes and the flow stops; Daniel: in exception every lock lifts except money and other people",
+  "x-unit": "text",
+  "description": "The break that caused the regime.",
+  "x-readers": [
+    "scripts/lib/regime.py"
+  ],
+  "x-source": "D-260"
+}

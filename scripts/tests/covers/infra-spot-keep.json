@@ -1,0 +1,21 @@
+{
+  "script": "scripts/tests/infra-spot-keep.test.sh",
+  "covers": [
+    "scripts/tests/infra-spot-keep.test.sh",
+    "scripts/tests/test_infra_spot_keep.py",
+    "scripts/tests/test_infra_mechanisms.py",
+    "scripts/tests/infra_db/psql.py",
+    "infra/service/tower_infra/runner.py",
+    "infra/service/tower_infra/lifecycle.py",
+    "infra/service/tower_infra/supervisor.py",
+    "infra/service/tower_infra/port.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/service/tower_infra/mechanisms.py",
+    "infra/service/tower_infra/migrations.py",
+    "infra/service/tower_infra/__main__.py",
+    "infra/db/migrations/**",
+    "scripts/lib/medir.py",
+    "scripts/lib/test_db.py",
+    "config/registry/test-db.json"
+  ]
+}

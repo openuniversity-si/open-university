@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Real (code-class) failures on one model after which the step moves up the ladder; flakes and env failures do not count.",
+  "x-readers": [
+    "scripts/lib/adapters/model_ladder.py"
+  ],
+  "x-source": "plan v3.1 delta §4 (escalate one model after two real failures)"
+}

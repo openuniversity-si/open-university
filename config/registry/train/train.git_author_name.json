@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "Open University train",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "Author and committer name of the local combined-head merge commits (never pushed; the forge writes the real merge commits).",
+  "x-readers": [
+    "scripts/lib/forge_git_ref.py",
+    "scripts/lib/train_git.py"
+  ]
+}

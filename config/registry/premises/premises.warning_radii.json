@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    "medium"
+  ],
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Radii whose unsettled premise only warns when cited; the other radii are only counted.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

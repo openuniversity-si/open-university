@@ -1,0 +1,192 @@
+"""Choose the script tests that cover a diff. An uncovered scripts path runs the whole suite.
+
+The map is built on demand from one manifest per test, <gate-tests.covers_dir>/<test>.json ({script, covers}),
+and the selector files of gate-tests.fallback (GX-08, D-070; D-065 V4: no PR edits an aggregate). A `modules` field
+left in a manifest is read as nothing (VAZÃO F57): no script test installs a package.
+"""
+import json
+from pathlib import Path
+import sys
+
+import config
+from gate_areas import glob_match
+
+ROOT = Path(__file__).resolve().parents[2]
+# The registry is read from the checkout this module lives in, never from the tool root's config.py (the gate runs the head's code under the base tip's tooling).
+SUFFIX = '.test.sh'
+MANIFEST_SUFFIX = '.json'
+
+
+class ScriptTestMapError(ValueError):
+    pass
+
+
+def discover(root=ROOT):
+    directory = Path(root) / 'scripts' / 'tests'
+    return tuple(sorted(path.relative_to(root).as_posix() for path in directory.glob('*' + SUFFIX)))
+
+
+def manifest_path(script, root=ROOT, directory=None):
+    name = Path(script).name[:-len(SUFFIX)]
+    return (directory or Path(root) / config.get('gate-tests.covers_dir', ROOT)) / f'{name}.json'
+
+
+def entry(raw, source):
+    """Validate one {script, covers} object; returns the parsed entry."""
+    if not isinstance(raw, dict):
+        raise ScriptTestMapError(f'{source}: each test must be an object')
+    script = raw.get('script')
+    covers = raw.get('covers')
+    if not isinstance(script, str) or not script.endswith(SUFFIX):
+        raise ScriptTestMapError(f'{source}: test script must be a {SUFFIX} path')
+    if not isinstance(covers, list) or not covers or not all(isinstance(item, str) and item for item in covers):
+        raise ScriptTestMapError(f'{script}: covers must be a non-empty list of globs')
+    return {'script': script, 'covers': tuple(covers)}
+
+
+def load(root=ROOT):
+    """The map; the registry is stat'ed once for the whole load (config.reading), not once per manifest path."""
+    with config.reading():
+        return _load(Path(root))
+
+
+def _load(root):
+    directory = root / config.get('gate-tests.covers_dir', ROOT)
+    found = discover(root)
+    parsed = []
+    for script in found:
+        target = manifest_path(script, root, directory)
+        try:
+            raw = json.loads(target.read_text())
+        except OSError:
+            raise ScriptTestMapError(f'{script}: no covers manifest {target.relative_to(root).as_posix()} (write one)') from None
+        except json.JSONDecodeError as error:
+            raise ScriptTestMapError(f'cannot read {target.relative_to(root).as_posix()}: {error}') from None
+        item = entry(raw, target.name)
+        if item['script'] != script:
+            raise ScriptTestMapError(f'{target.relative_to(root).as_posix()} declares {item["script"]}, expected {script}')
+        parsed.append(item)
+    known = {manifest_path(script, root, directory).name for script in found}
+    stray = sorted(path.name for path in directory.glob('*.json') if path.name not in known) if directory.is_dir() else []
+    if stray:
+        raise ScriptTestMapError(f'covers manifest without a script test: {", ".join(stray)}')
+    fallback = config.get('gate-tests.fallback', ROOT)
+    if not fallback:
+        raise ScriptTestMapError('fallback must list the selector files')
+    return {'fallback': tuple(fallback), 'tests': tuple(parsed), 'scripts': found}
+
+
+def check(root=ROOT):
+    """Errors for the structure of the map: every script test has exactly one valid manifest."""
+    try:
+        load(root)
+    except ScriptTestMapError as error:
+        return [str(error)]
+    return []
+
+
+def covers_script(path, scripts):
+    """The script test a covers manifest path belongs to, or None when `path` is not the manifest of an existing test."""
+    directory = Path(config.get('gate-tests.covers_dir', ROOT))
+    manifest = Path(path)
+    if manifest.parent != directory or manifest.suffix != MANIFEST_SUFFIX:
+        return None
+    script = (directory.parent / (manifest.stem + SUFFIX)).as_posix()
+    return script if script in scripts else None
+
+
+def select(paths, mapping=None):
+    """Return (tests, reason). Doubt, an empty diff, or a selector change runs every test.
+    A covers manifest is data about one test, not selector code: it selects that test, the map check and every
+    test whose own covers glob matches the manifest path."""
+    mapping = mapping if mapping is not None else load()
+    scripts = mapping['scripts']
+    paths = [str(path) for path in paths or []]
+    if not paths:
+        return scripts, 'empty diff; full script suite'
+    paths = by_readers(paths)
+    manifests = {path: covers_script(path, scripts) for path in paths}
+    rest = [path for path in paths if manifests[path] is None]
+    for path in rest:
+        if any(glob_match(path, pattern) for pattern in mapping['fallback']):
+            return scripts, f'selector changed: {path}'
+    # Outside scripts/, a path counts only when a script test covers it (a registry file or contract it reads).
+    def covered(path):
+        return any(glob_match(path, pattern) for test in mapping['tests'] for pattern in test['covers'])
+    owned = [path for path in rest if path.startswith('scripts/') or covered(path)]
+    if not owned and len(rest) == len(paths):
+        return scripts, 'no scripts path; full script suite'
+    wanted = set()
+    if len(rest) != len(paths):
+        wanted.update(script for script in manifests.values() if script)
+        wanted.add(config.get('gate-tests.map_check', ROOT))
+        # A test whose own covers glob meets a manifest path reads the manifests (covers-cost, units-repository):
+        # its cache key moves with the manifest, so the selection runs it too.
+        wanted.update(test['script'] for path in paths if manifests[path] for test in mapping['tests']
+                      if any(glob_match(path, pattern) for pattern in test['covers']))
+    for path in owned:
+        hits = [test['script'] for test in mapping['tests'] if any(glob_match(path, pattern) for pattern in test['covers'])]
+        if not hits:
+            return scripts, f'uncovered path: {path}'
+        wanted.update(hits)
+    reason = f'{len(wanted)} script test(s) cover the diff'
+    named = [path for path in paths if manifests[path]]
+    if named:
+        reason += f'; covers manifest {", ".join(named)} selects its own test, the map check and the tests whose covers match it'
+    return tuple(script for script in scripts if script in wanted), reason
+
+
+def trace_check(reads, test, root=ROOT, mapping=None):
+    """The covers trace (GX-29, B-13), report-only. `reads` are checkout-relative files a Python script test opened;
+    `test` is its scripts/tests/test_*.py path. Returns {'declared': whether a covers manifest names `test`, 'under':
+    the reads no declared glob of the manifests naming it covers and gate-trace.covers_trace_ignore does not exempt}."""
+    mapping = mapping if mapping is not None else load(root)
+    # A Python test can be named by several manifests (the shell tests that run it): what any of them declares is declared.
+    owners = [item for item in mapping['tests'] if any(glob_match(test, pattern) for pattern in item['covers'])]
+    if not owners:
+        return {'declared': False, 'under': []}
+    declared = [pattern for item in owners for pattern in item['covers']]
+    ignore = config.get('gate-trace.covers_trace_ignore', ROOT)
+    under = [path for path in reads
+             if not any(glob_match(path, pattern) for pattern in declared)
+             and not any(glob_match(path, pattern) for pattern in ignore)]
+    return {'declared': True, 'under': under}
+
+
+def by_readers(paths, root=None):
+    """R5 A2 (D-102): split registry keys select by their readers (registry_readers.expand) while
+    gate.select_by_readers is on; the checkout judged is the working directory's, where the gate runs this."""
+    if not config.get('gate.select_by_readers', ROOT):
+        return paths
+    import registry_readers
+    checkout = Path(root) if root else Path.cwd()
+    return registry_readers.expand(paths, checkout if (checkout / 'config' / 'registry').is_dir() else ROOT)
+
+
+def select_plan(plan):
+    if not isinstance(plan, dict):
+        raise ScriptTestMapError('plan must be an object')
+    if plan.get('kind') == 'full':
+        mapping = load()
+        return mapping['scripts'], 'full area plan; full script suite'
+    return select(plan.get('paths') or [])
+
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=('select', 'check'))
+    parser.add_argument('plan', nargs='?', help='select: the area plan file')
+    args = parser.parse_args()
+    try:
+        if args.action == 'check':
+            errors = check()
+            print('\n'.join(errors) or 'script test map ok')
+            sys.exit(1 if errors else 0)
+        plan = json.loads(Path(args.plan).read_text()) if args.plan else None
+        chosen, reason = select_plan(plan) if plan is not None else select([])
+        print(f'# {reason}')
+        print('\n'.join(chosen))
+    except (OSError, json.JSONDecodeError, ScriptTestMapError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

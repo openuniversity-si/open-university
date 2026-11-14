@@ -1,0 +1,14 @@
+{
+  "type": "array",
+  "default": [],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "argv",
+  "description": "The absolute scan that scripts/census add and sync read baseline counts from, run from the repository root. It prints one `path:line: kind \"value\" (role)` line per offender. A person never types a count. Empty (the default): the scan is the engine's own literal census (literal_census.occurrences over config.literal_check_*, judged by literals.*), so add and sync work in the engine; a product declares its own scanner here (OU-DECOUPLE F5, D-113: the only declared scanner was the deleted product's).",
+  "x-readers": [
+    "scripts/lib/census.py"
+  ],
+  "x-source": "CENSO-NO-MANIFESTO; D-063"
+}

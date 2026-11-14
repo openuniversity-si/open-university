@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string"
+  },
+  "default": [
+    "main",
+    "rewrite/v1"
+  ],
+  "minItems": 1,
+  "x-unit": "count",
+  "description": "The base branches scripts/merge-phase integrates into; any other base is refused.",
+  "x-readers": [
+    "scripts/lib/release_policy.py"
+  ],
+  "x-source": "D-054; D-068; D-069 item 3"
+}

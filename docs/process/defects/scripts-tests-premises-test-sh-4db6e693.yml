@@ -1,0 +1,10 @@
+# Known defect record (D-069 items 4, 8 and 9, contracts/defects/defect.v2.json). Change it with scripts/defects; the trail is append-only.
+id: "KD-4db6e693"
+slug: "scripts-tests-premises-test-sh-4db6e693"
+test: "scripts/tests/premises.test.sh"
+stage: "script tests"
+signature: "AssertionError: Items in the first set but not the second:"
+summary: "Repository.test_repository_register_is_valid: a premise answered by 'measurement:S1' where the register expects 'A Torre'"
+status: "resolved"
+evidence: [{"base_sha": "974cab54d73b1692bf0e9bd29df3bcf0719528bd", "run": "kd1-seed: defect_detect.rerun on 974cab54d73b1692bf0e9bd29df3bcf0719528bd (2026-10-27)", "result": "fail", "signature": "AssertionError: Items in the first set but not the second:", "at": "2026-10-27T03:39:07.935Z"}]
+fix: null

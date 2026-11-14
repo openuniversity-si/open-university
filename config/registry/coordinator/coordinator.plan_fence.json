@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "json program.v1",
+  "x-unit": "text",
+  "description": "The info string of the fenced block in plan.md that carries the graph.",
+  "x-readers": [
+    "scripts/lib/program.py"
+  ]
+}

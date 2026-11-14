@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    0.5,
+    0.95
+  ],
+  "items": {
+    "type": "number",
+    "exclusiveMinimum": 0,
+    "maximum": 1
+  },
+  "minItems": 1,
+  "x-unit": "ratio",
+  "description": "The quantiles `scripts/service metrics` reports for each latency (green to merged), by nearest rank: p50 and p95, the shape of the targets (intake T2, T3).",
+  "x-readers": [
+    "scripts/lib/service_status.py"
+  ],
+  "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/intake.md"
+}

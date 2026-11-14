@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 1,
+  "x-unit": "count",
+  "description": "Most unit sessions running at once on the account; no launch above it. 1 since D-281 (Daniel, 01/11 15:30 BRT: only the channel redesign runs, one piece at a time; 5 by D-277 before it); a lane is added again only by a new decision with the quota measured.",
+  "x-readers": [
+    "scripts/lib/coordinator.py"
+  ],
+  "minimum": 1,
+  "x-source": "D-277, D-281"
+}

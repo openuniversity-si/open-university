@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/config list|get|describe|set|diff|history|revert ... (scripts/lib/config_cli.py --help)
+# The configuration registry API (D-068): read, change, audit and revert engine parameters without touching code.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/config_cli.py" "$@"

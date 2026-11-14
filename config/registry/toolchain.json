@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/toolchain.json",
+  "x-owner": "toolchain",
+  "x-schema-version": 1,
+  "description": "Pinned versions of the build and gate toolchain (D-069 item 12). scripts/cloud/toolchain.json keeps only the checksums keyed by these versions.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "toolchain.claude_cli_version": {
+      "type": "string",
+      "default": "2.1.311",
+      "x-unit": "version",
+      "description": "Claude Code CLI release the cloud sessions run (observed with `claude --version`); recorded for the cache key and reproducibility, not installed by setup.",
+      "x-readers": [
+        "scripts/lib/gate_result_cache.py",
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/toolchain_manifest.py"
+      ]
+    },
+    "toolchain.gitleaks_version": {
+      "type": "string",
+      "default": "8.30.1",
+      "x-unit": "version",
+      "description": "gitleaks release used by the secret-scanning stage.",
+      "x-readers": [
+        "scripts/lib/toolchain_manifest.py"
+      ]
+    },
+    "toolchain.node_version": {
+      "type": "string",
+      "default": "22.23.3",
+      "x-unit": "version",
+      "description": "Node.js release the gate, the cloud setup and the cache key run on.",
+      "x-readers": [
+        "scripts/lib/gate_result_cache.py",
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/toolchain_manifest.py"
+      ]
+    },
+    "toolchain.observed_tools": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "python",
+          "node",
+          "gitleaks",
+          "postgres"
+        ]
+      },
+      "default": [
+        "python",
+        "node",
+        "gitleaks",
+        "postgres"
+      ],
+      "x-unit": "names",
+      "description": "Tools whose installed version is observed into the attested toolchain_id (cache keys, v4 proof observed_versions). chromium (a Playwright browser) left with its probe (vazão F54): the engine drives none since OU-DECOUPLE F5 (D-113). gh and the Vercel CLI left the toolchain (vazão F6), pnpm too (vazão F16).",
+      "x-readers": [
+        "scripts/lib/toolchain_manifest.py"
+      ]
+    },
+    "toolchain.postgres_revision": {
+      "type": "string",
+      "default": "18.6.1",
+      "x-unit": "version",
+      "description": "theseus-rs/postgresql-binaries revision that carries the pinned PostgreSQL build.",
+      "x-readers": [
+        "scripts/lib/toolchain_manifest.py"
+      ]
+    },
+    "toolchain.postgres_version": {
+      "type": "string",
+      "default": "18.6",
+      "x-unit": "version",
+      "description": "PostgreSQL release of the local test database.",
+      "x-readers": [
+        "scripts/lib/toolchain_manifest.py",
+        "scripts/lib/preflight.py"
+      ]
+    },
+    "toolchain.python_release_tag": {
+      "type": "string",
+      "default": "20261020",
+      "x-unit": "version",
+      "description": "python-build-standalone release tag that carries the pinned CPython build.",
+      "x-readers": [
+        "scripts/lib/toolchain_manifest.py"
+      ]
+    },
+    "toolchain.python_version": {
+      "type": "string",
+      "default": "3.12.15",
+      "x-unit": "version",
+      "description": "Standalone CPython release the engine scripts run on.",
+      "x-readers": [
+        "scripts/lib/gate_result_cache.py",
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/toolchain_manifest.py"
+      ]
+    }
+  }
+}

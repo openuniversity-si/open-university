@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Usage: scripts/flow-metrics [--base REF] [--since DATE] [--tz ZONE] [--json] [--cycles] [--durability K] [--admit BASE..HEAD] [--lanes N] [--rework] [--hourly N] [--rolling] [--prs N] [--closed-hours N] [--pr-rework K] [--guards [--gate-runs N]] [--quota N]
+# FLUXO-AMPLO (D-137): integrated commits per day (raw) and the counted ones, with the guard ratios, from git history.
+# Read-only and local git only, except --guards, which also reads the gate verdicts of the last N merged PRs from
+# the forge event port (one read per PR channel, no loop). --quota N reads the local quota ledger (F59).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/flow_metrics.py" "$@"

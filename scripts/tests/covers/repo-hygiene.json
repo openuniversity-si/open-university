@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/repo-hygiene.test.sh",
+  "covers": [
+    "scripts/tests/repo-hygiene.test.sh",
+    "scripts/tests/test_repo_hygiene*.py",
+    "scripts/lib/repo_hygiene.py",
+    "config/registry/structure.json",
+    "config/registry/structure/**"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 160,
+  "x-unit": "count",
+  "description": "GX-26 (D-070): longest error or gap text gate-dev --explain prints for a cause it cannot decide.",
+  "x-readers": [
+    "scripts/lib/gate_explain.py"
+  ],
+  "minimum": 1
+}

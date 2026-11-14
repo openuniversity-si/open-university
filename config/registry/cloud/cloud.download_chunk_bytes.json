@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 1048576,
+  "minimum": 1,
+  "x-unit": "bytes",
+  "description": "Chunk size for toolchain downloads and checksum reads.",
+  "x-readers": [
+    "scripts/cloud/toolchain.py"
+  ]
+}

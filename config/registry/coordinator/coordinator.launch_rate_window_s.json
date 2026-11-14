@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 300,
+  "x-unit": "s",
+  "description": "Length of the launch-rate window, counted from work.assigned events.",
+  "x-readers": [
+    "scripts/lib/coordinator.py"
+  ],
+  "minimum": 1
+}

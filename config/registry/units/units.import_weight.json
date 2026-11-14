@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 0.4,
+  "minimum": 0,
+  "maximum": 1,
+  "x-unit": "ratio",
+  "description": "Weight of import density (links per file of the smaller set) in the affinity of two candidates.",
+  "x-readers": [
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "D-067 (4), plan v3 §4.5"
+}

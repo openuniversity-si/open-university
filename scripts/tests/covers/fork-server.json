@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/fork-server.test.sh",
+  "covers": [
+    "scripts/tests/fork-server.test.sh",
+    "scripts/tests/test_fork_server.py",
+    "scripts/lib/fork_server.py",
+    "scripts/lib/fork-shim.c",
+    "scripts/lib/hermetic/**",
+    "config/registry/gate.json",
+    "scripts/cloud/env.sh"
+  ]
+}

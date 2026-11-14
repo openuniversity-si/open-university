@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    ".css"
+  ],
+  "minItems": 1,
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "count",
+  "description": "Extensions under structure.visual_paths whose every change is visual, whatever the lines say.",
+  "x-readers": [
+    "scripts/lib/visual_guard.py"
+  ],
+  "x-source": "D-006, D-069 (SG1)"
+}

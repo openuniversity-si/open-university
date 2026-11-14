@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "unit-battery",
+  "x-unit": "text",
+  "description": "Step name of a unit battery in engine.step.measured; each of its steps is <name>.<step>.",
+  "x-readers": [
+    "scripts/lib/budgets.py",
+    "scripts/lib/unit_battery.py"
+  ],
+  "x-source": "D-069 item 6"
+}

@@ -1,0 +1,25 @@
+{
+  "script": "scripts/tests/train-role.test.sh",
+  "covers": [
+    "scripts/tests/train-role.test.sh",
+    "scripts/tests/test_train_role.py",
+    "scripts/tests/test_train.py",
+    "scripts/train",
+    "scripts/lib/train_trigger.py",
+    "scripts/lib/train.py",
+    "scripts/lib/train_git.py",
+    "scripts/lib/engine_role.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/config.py",
+    "config/registry/train.json",
+    "contracts/events/*.json",
+    "scripts/lib/train_ownership.py",
+    "scripts/lib/gate_areas.py",
+    "scripts/lib/quarantine.py",
+    "config/registry/quarantine.json",
+    "scripts/lib/train_queue.py",
+    "scripts/tests/memory_git.py",
+    "scripts/lib/service_budget.py",
+    "scripts/tests/forge_doubles.py"
+  ]
+}

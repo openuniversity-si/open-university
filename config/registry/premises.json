@@ -1,0 +1,477 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/premises.json",
+  "x-owner": "premises",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "premises.batch_max_questions": {
+      "type": "integer",
+      "default": 7,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Most questions in one premise batch for Daniel (plan v3 §8.6); scripts/premises list writes the next batch from the open premises of the blocking radii.",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.blocking_radii": {
+      "type": "array",
+      "default": [
+        "high"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Radii whose unsettled premise refuses a Premises: line that cites it (veto V0).",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.default_radius": {
+      "type": "string",
+      "default": "low",
+      "x-unit": "enum",
+      "description": "Radius of a proposed premise whose reasons reach nothing larger.",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.digest_algorithm": {
+      "type": "string",
+      "default": "sha256",
+      "x-unit": "enum",
+      "description": "hashlib algorithm of the dependents seal and of event ids.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.duplicate_min_score": {
+      "type": "number",
+      "default": 0.8,
+      "minimum": 0,
+      "maximum": 1,
+      "x-unit": "ratio",
+      "description": "Similarity (0-1) from which scripts/premises propose refuses a statement as a duplicate of an existing premise.",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.event_schema_dir": {
+      "type": "string",
+      "default": "contracts/events",
+      "x-unit": "path",
+      "description": "Directory of the event payload schemas, <type>.v<version>.json.",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.event_version": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Version of the premise.* event payloads written.",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.find_limit": {
+      "type": "integer",
+      "default": 5,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Most matches scripts/premises find prints.",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.find_min_score": {
+      "type": "number",
+      "default": 0.4,
+      "minimum": 0,
+      "maximum": 1,
+      "x-unit": "ratio",
+      "description": "Similarity (0-1) from which scripts/premises find lists an existing premise.",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.find_min_token_length": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Shortest word that counts when two statements are compared.",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.high_blast_unit_share_percent": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "maximum": 100,
+      "x-unit": "percent",
+      "description": "Share of the active units a premise must reach for its computed radius to be the largest one (plan v3 §8.5); applied when the active unit count is known (scripts/premises propose --active-units, until the U0 manifests exist).",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.high_reason_kinds": {
+      "type": "array",
+      "default": [
+        "decision",
+        "veto",
+        "gate",
+        "migration",
+        "production",
+        "security",
+        "move"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Blast reason kinds (<kind>:<target>) that make the computed radius the largest one: a decision or veto, or something costly to undo.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.id_min_digits": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Minimum digits of a premise id number (P-00).",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.id_prefix": {
+      "type": "string",
+      "default": "P-",
+      "x-unit": "text",
+      "description": "Prefix of a premise id.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.index_dir": {
+      "type": "string",
+      "default": ".gate/premises",
+      "x-unit": "path",
+      "description": "Directory, ignored by git, where scripts/premises list writes the index by default (P-10).",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.index_file": {
+      "type": "string",
+      "default": "PREMISES.md",
+      "x-unit": "path",
+      "description": "Name of the index scripts/premises list writes on demand; never committed anywhere in the repository (P-10), and structure-check refuses a tracked one.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.line_name": {
+      "type": "string",
+      "default": "Premises",
+      "x-unit": "text",
+      "description": "Name of the body line that lists the premises a plan or PR depends on, next to the B5 trailers.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.measured_statuses": {
+      "type": "array",
+      "default": [
+        "validated"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Statuses whose answer needs the measurement's evidence (answer.evidence).",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.medium_min_units": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Units a premise must reach for its computed radius to be at least medium.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.medium_reason_kinds": {
+      "type": "array",
+      "default": [
+        "plan",
+        "cell"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Blast reason kinds that make the computed radius at least medium (a lane's plan, a cell).",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.missing_line_fails": {
+      "type": "boolean",
+      "default": false,
+      "x-unit": "flag",
+      "x-flag": true,
+      "description": "v1 switch of D-066: when true a PR body without a Premises: line fails structure-check; in v0 it is a warning.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.none_token": {
+      "type": "string",
+      "default": "none",
+      "x-unit": "text",
+      "description": "Value of a Premises: line that depends on no premise.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.open_statuses": {
+      "type": "array",
+      "default": [
+        "inferred",
+        "to-validate"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Statuses of a premise without an answer.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.plan_globs": {
+      "type": "array",
+      "default": [
+        "docs/**/*.md"
+      ],
+      "x-unit": "path",
+      "description": "Tracked files scanned for Premises: lines when the blast of a premise is computed.",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.producer": {
+      "type": "string",
+      "default": "premises",
+      "x-unit": "name",
+      "description": "Producer name in the event envelope; it must match the envelope's producer pattern (contracts/events/envelope.v1.json), or every reader of the repository channel would quarantine the event (ENV-FIX-PREMISE-BLAST).",
+      "x-readers": [
+        "scripts/lib/premises.py"
+      ]
+    },
+    "premises.quote_required_statuses": {
+      "type": "array",
+      "default": [
+        "confirmed"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Settled statuses that need a non-empty literal quote in the answer before a Premises: line may rely on them, and before scripts/premises answer records them (D-069 item 10). Without the quote a cited premise is treated as unsettled: a blocking radius fails, a warning radius warns.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.quoted_statuses": {
+      "type": "array",
+      "default": [
+        "confirmed",
+        "refuted",
+        "superseded"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Statuses whose answer needs a literal quote or a link to the message (answer.quote or answer.where); a paraphrase stays inferred.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.radii": {
+      "type": "array",
+      "default": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Radius names, from the smallest to the largest blast. A computed radius may be raised by hand, never lowered.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.record_schema": {
+      "type": "string",
+      "default": "contracts/premises/premise.v1.json",
+      "x-unit": "path",
+      "description": "JSON Schema 2020-12 of a premise record.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.record_suffix": {
+      "type": "string",
+      "default": ".yml",
+      "x-unit": "path",
+      "description": "File suffix of a premise record.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.refused_statuses": {
+      "type": "array",
+      "default": [
+        "refuted",
+        "superseded"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Statuses a Premises: line may not cite (unless the PR records that premise).",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.register_dir": {
+      "type": "string",
+      "default": "docs/process/premises",
+      "x-unit": "path",
+      "description": "Directory of the premise register: one record per premise, named <slug> plus premises.record_suffix (D-066).",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.settled_statuses": {
+      "type": "array",
+      "default": [
+        "confirmed",
+        "validated"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Statuses that settle a premise, so citing it never blocks.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "premises.unit_reason_kind": {
+      "type": "string",
+      "default": "unit",
+      "x-unit": "enum",
+      "description": "Blast reason kind that names one unit; premises.medium_min_units of them make the radius medium.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ]
+    },
+    "premises.unquoted_grandfathered": {
+      "type": "array",
+      "default": [
+        "P-27",
+        "P-28",
+        "P-29",
+        "P-30",
+        "P-31",
+        "P-32",
+        "P-33",
+        "P-34",
+        "P-35",
+        "P-36",
+        "P-37",
+        "P-38",
+        "P-39",
+        "P-40"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Premise ids confirmed before the quote rule (answer has a link, no quote). Shrink-only: remove an id when its quote is recorded; never add one.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string",
+        "pattern": "^P-[0-9]{2,}$"
+      }
+    },
+    "premises.warning_radii": {
+      "type": "array",
+      "default": [
+        "medium"
+      ],
+      "uniqueItems": true,
+      "x-unit": "count",
+      "description": "Radii whose unsettled premise only warns when cited; the other radii are only counted.",
+      "x-readers": [
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

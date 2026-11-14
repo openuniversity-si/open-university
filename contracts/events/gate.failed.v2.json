@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/gate.failed.v2.json",
+  "title": "gate.failed payload v2",
+  "description": "Tier-1 (or other plan) gate verdict on a PR head; THE gate evidence (D-065), emitted by gate_report. v2 (GS1) adds the cached script tests and the failing tests with their signatures.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/pr",
+    "/payload/sha",
+    "/payload/plan",
+    "/payload/input_hash"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "tier",
+    "plan",
+    "stages",
+    "missing_stages",
+    "input_hash"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "tier": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "Gate tier (1 = per-PR gate-dev); null for other plans."
+    },
+    "plan": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The gate mode that ran (dev, db, noite, ...)."
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "$ref": "defs.v1.json#/$defs/stage"
+      },
+      "description": "Every stage that ran, with its time and class."
+    },
+    "missing_stages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Stages the plan expected that did not pass."
+    },
+    "input_hash": {
+      "$ref": "defs.v1.json#/$defs/sha256",
+      "description": "sha256 of the judged commit, the plan and its expected stages."
+    },
+    "cached_tests": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cached_test"
+      },
+      "description": "Script tests reported as cached PASS: the id, the key that matched and the run that recorded the PASS."
+    },
+    "failing_tests": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/test_failure"
+      },
+      "description": "The tests that failed in this run, id and normalized signature, so a failure is classified without a session; capped at gate.failing_tests_max."
+    },
+    "failing_tests_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many failing tests the run saw before the cap."
+    }
+  },
+  "$defs": {
+    "cached_test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "key",
+        "source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The script test reported as a cached PASS."
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The input-hash key that matched the recorded PASS."
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The run (commit) that recorded the PASS."
+        }
+      }
+    },
+    "test_failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "stage",
+        "signature"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The failing test: the script test path, the vitest `|project| file > suite > name`, or the browser `project file > title`."
+        },
+        "stage": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The gate stage whose log the test failed in."
+        },
+        "signature": {
+          "type": "string",
+          "description": "The first error line, normalized (digits, absolute paths and colour codes removed, capped), so the same failure compares equal across runs and bases."
+        }
+      }
+    }
+  }
+}

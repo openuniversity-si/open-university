@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/preflight.test.sh",
+  "covers": [
+    "scripts/tests/preflight.test.sh",
+    "scripts/tests/test_preflight.py",
+    "scripts/lib/preflight.py",
+    "scripts/lib/credentials.py",
+    "scripts/lib/toolchain_manifest.py",
+    "scripts/cloud/preflight",
+    "scripts/cloud/toolchain.json",
+    "config/registry/toolchain.json"
+  ]
+}

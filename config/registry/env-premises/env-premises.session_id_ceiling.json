@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 1000,
+  "minimum": 2,
+  "x-unit": "count",
+  "description": "First uid/gid the session identity never uses (exclusive); from it up are ordinary host accounts.",
+  "x-readers": [
+    "scripts/lib/session_identity.py"
+  ],
+  "x-source": "TX12; D-070"
+}

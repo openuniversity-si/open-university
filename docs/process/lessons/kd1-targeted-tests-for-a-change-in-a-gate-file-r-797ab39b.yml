@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-797ab39b"
+slug: "kd1-targeted-tests-for-a-change-in-a-gate-file-r-797ab39b"
+title: "Targeted tests for a change in a gate file run through the gate's own wrapper"
+source:
+  unit: "KD1"
+  retro: "docs/units/KD1/retro.md"
+  section: 5
+  ref: "L8"
+class: "env"
+kind: "check"
+change: "Targeted tests for a change in a gate file run through the gate's own wrapper (F8), and the structure stage runs per commit (F5, F9). Owner: engine lane."
+owner: "engine-lane"
+status: "proposed"
+area: []
+signals: []
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

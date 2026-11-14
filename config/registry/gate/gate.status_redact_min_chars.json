@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 4,
+  "x-unit": "chars",
+  "description": "GX-16: the shortest value of a credential-named environment variable (token, password, secret, api key, database url) that the gate status redacts from a failing-test row before any forge sees it; a shorter value is too common to replace. Moved from github_cli's redact when the GitHub adapter left (D-293).",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "minimum": 1
+}

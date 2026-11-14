@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 30,
+  "minimum": 1,
+  "x-unit": "lines",
+  "description": "Lines of the setup log printed when a setup step fails.",
+  "x-readers": [
+    "scripts/cloud/setup.sh"
+  ]
+}

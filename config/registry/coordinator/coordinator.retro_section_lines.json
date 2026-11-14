@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 40,
+  "x-unit": "lines",
+  "description": "Most lines of one unit retro section carried into the program retro.",
+  "x-readers": [
+    "scripts/lib/program_gate.py"
+  ],
+  "minimum": 1
+}

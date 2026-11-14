@@ -1,0 +1,8 @@
+{
+  "script": "scripts/tests/claude-settings.test.sh",
+  "covers": [
+    "scripts/tests/claude-settings.test.sh",
+    "scripts/tests/test_claude_settings.py",
+    ".claude/settings.json"
+  ]
+}

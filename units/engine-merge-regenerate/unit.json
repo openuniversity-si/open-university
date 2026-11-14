@@ -1,0 +1,17 @@
+{
+  "id": "engine-merge-regenerate",
+  "purpose": "The git merge driver of committed generated files (CENSO-NO-MANIFESTO 3bis): a conflict in a committed generated file such as CODEOWNERS is settled by regenerating the file from the merged sources.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/lib/merge_regenerate.py",
+    "scripts/merge-regenerate",
+    "scripts/tests/merge-regenerate.test.sh",
+    "scripts/tests/test_merge_regenerate.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-generate": "^1",
+    "engine-units": "^1"
+  }
+}

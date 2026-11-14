@@ -1,0 +1,184 @@
+RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES: audit every rule of the group "Structure check, lanes, review trailer and the premise register" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-structure-check-and-premises. One draft PR from mod/rule-audit-structure-check-and-premises into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES: Structure check, lanes, review trailer and the premise register", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They are what structure-check refuses on every PR: lane ownership, the fit review trailer, plan completeness, unit companions, and the premise line and register (D-066) that every plan cites.
+
+== YOUR ROWS (exactly these 64; census at PR #775, docs/audits/rules/census.json) ==
+- param:structure.protected_files | config/registry/structure.json:10#structure.protected_files | Paths only the integration flow edits: the roadmap step log and the generated aggregates. Any other PR that changes one fails structure-chec | owner: D-006, D-069 (SG1)
+- param:structure.integration_branch_pattern | config/registry/structure.json:29#structure.integration_branch_pattern | Regular expression of the head branches that belong to the integration flow and may change the protected files. | owner: D-006, D-069 (SG1)
+- param:structure.visual_paths | config/registry/structure.json:39#structure.visual_paths | Globs (`**` crosses folders, `*` does not) of the files whose change is a visual change unless it is logic only; tests are never visual. | owner: D-006, D-069 (SG1)
+- param:structure.always_visual_extensions | config/registry/structure.json:59#structure.always_visual_extensions | Extensions under structure.visual_paths whose every change is visual, whatever the lines say. | owner: D-006, D-069 (SG1)
+- param:structure.markup_line_pattern | config/registry/structure.json:76#structure.markup_line_pattern | Regular expression of an added or removed line of a .tsx file that is markup or styling. A .tsx change with no such line is logic only and n | owner: D-006, D-069 (SG1)
+- param:structure.test_file_pattern | config/registry/structure.json:86#structure.test_file_pattern | Regular expression of the test and fixture paths that never count as a visual change. | owner: D-006, D-069 (SG1)
+- param:structure.tree_cache_enabled | config/registry/structure.json:96#structure.tree_cache_enabled | GX-15 (D-070, B-11): structure-check reuses a passing tree part (the modules that read only the head, base and merge-base trees) when its co | owner: D-070 (GX-15) | can stop: PRs stopped not measured
+- param:structure.tree_cache_version | config/registry/structure.json:106#structure.tree_cache_version | Version mixed into the tree part's cache key; raising it drops every recorded tree pass. | owner: D-070 (GX-15) | can stop: PRs stopped not measured
+- param:structure.event_producer | config/registry/structure.json:117#structure.event_producer | GX-15 (D-070): the producer name of the pr.checked events that `structure-check --metadata` publishes through the forge_events port. | owner: D-070 (GX-15)
+- param:structure.tree_cache_dir | config/registry/structure.json:128#structure.tree_cache_dir | Where passing tree parts are kept, through the storage port (providers.storage_adapter); a leading ~ is the home directory. STRUCTURE_TREE_C | owner: D-070 (GX-15)
+- decision:D-010 | docs/domain/DECISIONS.md:22 | Structure before speed | owner: 2026-10-22 (this register)
+- decision:D-011 | docs/domain/DECISIONS.md:23 | A Torre is the formal owner of the structure | owner: 2026-10-22
+- decision:D-013 | docs/domain/DECISIONS.md:25 | structural design is approved | owner: 2026-10-22 (design approval)
+- decision:D-021 | docs/domain/DECISIONS.md:33 | Parallel lanes for the structural plan | owner: 2026-10-22 11:52 and 12:53 (Daniel, chat)
+- decision:D-026 | docs/domain/DECISIONS.md:38 | Keeping an old asset is a cost to justify, not the default. | owner: 2026-10-22 14:55 (Daniel, chat; root cause incident 2026-10-
+- decision:D-055 | docs/domain/DECISIONS.md:57 | There is no review step. | owner: 2026-10-25 14:21 (Daniel, relayed by the roadmap orchestrato
+- decision:D-069 | docs/domain/DECISIONS.md:71 | Engineering standard for every change, aimed at 1k, then 10k, eventually 1M PRs per day. | owner: 2026-10-26 17:55 (Daniel, CEO, chat; decided by A Torre; rec
+- premise:P-05 | docs/process/premises/literal-lanes-are-unit-lanes.yml:2 | The literal fronts become lanes over groups of units: each lane migrates its unit and zeroes its literals in the same pass (U4); there are n | owner: model (plan v3 §5.3)
+- premise:P-13 | docs/process/premises/exclusive-unit-ownership.yml:2 | Exclusive ownership: one lane per unit at a time; a unit's PRs are serial. | owner: orchestrator (report v2 §4.3 (front) + plan v3)
+- premise:P-39 | docs/process/premises/ou-rules.yml:2 | OU rules: no literals (D-063), the database as an isolated package (D-056), registered intents (D-060), few decisions for Daniel (he only ve | owner: daniel (standing rules)
+- refusal:structure.review_errors | scripts/lib/structure.py:116 | Refuses an 'approved' Fit-Review trailer without an APPROVED independent review comment for the exact head, a latest review that is not APPR | owner: D-054, D-055, B5 | can stop: PRs stopped 0
+- refusal:structure.plan_completeness_errors | scripts/lib/structure.py:463 | Refuses plan items of the PR body that no real commit with a 'Plan: N' trailer ticks (an empty commit ticks nothing; GX-21). | owner: GX-21 | can stop: PRs stopped 6
+- refusal:structure.lane_errors | scripts/lib/structure.py:474 | Refuses a change that touches units of several lanes (the lane is undecidable), using train_ownership's lanes() rule (GX-21, LANE-OWN). | owner: GX-21, LANE-OWN | can stop: PRs stopped 3
+- refusal:unit_check.companion_errors | scripts/lib/unit_check.py:59 | Refuses a companion file claimed by a unit other than its primary file's unit (TX21, D-067 (6)), naming the manifest line to remove. | owner: TX21, D-067 (6) | can stop: PRs stopped 2
+- param:premises.register_dir | config/registry/premises.json:9#premises.register_dir | Directory of the premise register: one record per premise, named <slug> plus premises.record_suffix (D-066). | owner: nobody named
+- param:premises.record_suffix | config/registry/premises.json:19#premises.record_suffix | File suffix of a premise record. | owner: nobody named
+- param:premises.record_schema | config/registry/premises.json:29#premises.record_schema | JSON Schema 2020-12 of a premise record. | owner: nobody named
+- param:premises.event_schema_dir | config/registry/premises.json:39#premises.event_schema_dir | Directory of the event payload schemas, <type>.v<version>.json. | owner: nobody named
+- param:premises.index_file | config/registry/premises.json:48#premises.index_file | Name of the index scripts/premises list writes on demand; never committed anywhere in the repository (P-10), and structure-check refuses a t | owner: nobody named
+- param:premises.index_dir | config/registry/premises.json:58#premises.index_dir | Directory, ignored by git, where scripts/premises list writes the index by default (P-10). | owner: nobody named
+- param:premises.radii | config/registry/premises.json:67#premises.radii | Radius names, from the smallest to the largest blast. A computed radius may be raised by hand, never lowered. | owner: nobody named
+- param:premises.blocking_radii | config/registry/premises.json:86#premises.blocking_radii | Radii whose unsettled premise refuses a Premises: line that cites it (veto V0). | owner: nobody named
+- param:premises.warning_radii | config/registry/premises.json:102#premises.warning_radii | Radii whose unsettled premise only warns when cited; the other radii are only counted. | owner: nobody named
+- param:premises.default_radius | config/registry/premises.json:118#premises.default_radius | Radius of a proposed premise whose reasons reach nothing larger. | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.high_reason_kinds | config/registry/premises.json:127#premises.high_reason_kinds | Blast reason kinds (<kind>:<target>) that make the computed radius the largest one: a decision or veto, or something costly to undo. | owner: nobody named
+- param:premises.unit_reason_kind | config/registry/premises.json:149#premises.unit_reason_kind | Blast reason kind that names one unit; premises.medium_min_units of them make the radius medium. | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.medium_reason_kinds | config/registry/premises.json:159#premises.medium_reason_kinds | Blast reason kinds that make the computed radius at least medium (a lane's plan, a cell). | owner: nobody named
+- param:premises.medium_min_units | config/registry/premises.json:176#premises.medium_min_units | Units a premise must reach for its computed radius to be at least medium. | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.open_statuses | config/registry/premises.json:187#premises.open_statuses | Statuses of a premise without an answer. | owner: nobody named
+- param:premises.settled_statuses | config/registry/premises.json:204#premises.settled_statuses | Statuses that settle a premise, so citing it never blocks. | owner: nobody named
+- param:premises.refused_statuses | config/registry/premises.json:221#premises.refused_statuses | Statuses a Premises: line may not cite (unless the PR records that premise). | owner: nobody named
+- param:premises.quoted_statuses | config/registry/premises.json:238#premises.quoted_statuses | Statuses whose answer needs a literal quote or a link to the message (answer.quote or answer.where); a paraphrase stays inferred. | owner: nobody named
+- param:premises.measured_statuses | config/registry/premises.json:256#premises.measured_statuses | Statuses whose answer needs the measurement's evidence (answer.evidence). | owner: nobody named
+- param:premises.line_name | config/registry/premises.json:272#premises.line_name | Name of the body line that lists the premises a plan or PR depends on, next to the B5 trailers. | owner: nobody named
+- param:premises.none_token | config/registry/premises.json:282#premises.none_token | Value of a Premises: line that depends on no premise. | owner: nobody named
+- param:premises.missing_line_fails | config/registry/premises.json:292#premises.missing_line_fails | v1 switch of D-066: when true a PR body without a Premises: line fails structure-check; in v0 it is a warning. | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.id_prefix | config/registry/premises.json:303#premises.id_prefix | Prefix of a premise id. | owner: nobody named
+- param:premises.id_min_digits | config/registry/premises.json:313#premises.id_min_digits | Minimum digits of a premise id number (P-00). | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.find_min_score | config/registry/premises.json:324#premises.find_min_score | Similarity (0-1) from which scripts/premises find lists an existing premise. | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.duplicate_min_score | config/registry/premises.json:335#premises.duplicate_min_score | Similarity (0-1) from which scripts/premises propose refuses a statement as a duplicate of an existing premise. | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.find_limit | config/registry/premises.json:346#premises.find_limit | Most matches scripts/premises find prints. | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.find_min_token_length | config/registry/premises.json:356#premises.find_min_token_length | Shortest word that counts when two statements are compared. | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.digest_algorithm | config/registry/premises.json:366#premises.digest_algorithm | hashlib algorithm of the dependents seal and of event ids. | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.producer | config/registry/premises.json:376#premises.producer | Producer name in the event envelope. | owner: nobody named
+- param:premises.event_version | config/registry/premises.json:385#premises.event_version | Version of the premise.* event payloads written. | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.plan_globs | config/registry/premises.json:395#premises.plan_globs | Tracked files scanned for Premises: lines when the blast of a premise is computed. | owner: nobody named
+- param:premises.batch_max_questions | config/registry/premises.json:409#premises.batch_max_questions | Most questions in one premise batch for Daniel (plan v3 §8.6); scripts/premises list writes the next batch from the open premises of the blo | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.high_blast_unit_share_percent | config/registry/premises.json:419#premises.high_blast_unit_share_percent | Share of the active units a premise must reach for its computed radius to be the largest one (plan v3 §8.5); applied when the active unit co | owner: nobody named | can stop: PRs stopped not measured
+- param:premises.quote_required_statuses | config/registry/premises.json:430#premises.quote_required_statuses | Settled statuses that need a non-empty literal quote in the answer before a Premises: line may rely on them, and before scripts/premises ans | owner: nobody named
+- param:premises.unquoted_grandfathered | config/registry/premises.json:446#premises.unquoted_grandfathered | Premise ids confirmed before the quote rule (answer has a link, no quote). Shrink-only: remove an id when its quote is recorded; never add o | owner: nobody named
+- decision:D-066 | docs/domain/DECISIONS.md:68 | Every premise a plan or PR depends on is registered with a blast radius, and an unconfirmed high-radius premise blocks only the work that de | owner: 2026-10-26 16:18 and 17:22 (Daniel, CEO, chat: a system to v
+- premise:P-11 | docs/process/premises/one-decision-per-file.yml:2 | One decision per file (docs/domain/decisions/D-NNN.md) with a generated index; ids (D, P, CAP, migration) allocated at merge by the train. | owner: orchestrator (report v2 §10)
+- premise:P-30 | docs/process/premises/premise-validation-system.yml:2 | A system validates premises easily and quickly, with a blast radius. | owner: daniel (chat 16:18)
+- refusal:premises.record_errors | scripts/lib/premises.py:171 | Refuses a premise record whose file name, status, radius (below its computed blast floor), answer (quote/evidence) or sealed dependents dige | owner: D-066, V0, D-065, LP7, D-071 | can stop: PRs stopped 0
+
+Kinds: decision 8, parameter 46, premise 5, refusal 5. Estimated work: 82 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/structure-check-and-premises.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 64), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/structure-check-and-premises.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/structure-check-and-premises.md has exactly 64 rows, one per census row of this group, and the verdict
+  counts sum to 64 (quote the command that counts them).
+* docs/audits/rules/structure-check-and-premises.json parses and has the same 64 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json and
+  docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-commit-and-pr-discipline: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json, docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**
+  - mod/rule-audit-registry-literals-and-text: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json, docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**
+  - mod/rule-audit-environment-toolchain-and-supply-chain: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json, docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**
+  - mod/rule-audit-production-release-and-migrations: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json, docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-merge-train-and-delivery: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json, docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**
+  - mod/rule-audit-defects-lessons-and-postmortems: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json, docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-code-architecture-and-units: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json, docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**
+  - mod/rule-audit-gate-selection-proof-and-status: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json, docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**
+  - mod/rule-audit-gate-execution-and-tests: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json, docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**
+  - mod/rule-audit-paid-vendors-and-ai-sessions: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json, docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+82 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

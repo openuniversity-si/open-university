@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 400,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Co-change window: the newest non-merge commits of the git log the generator reads.",
+  "x-readers": [
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "D-067 (4), plan v3 §4.5"
+}

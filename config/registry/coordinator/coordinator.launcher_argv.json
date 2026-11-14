@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    "claude",
+    "--remote"
+  ],
+  "x-unit": "command",
+  "description": "The Claude Code cloud CLI and its flags; the brief is appended as the last argument.",
+  "x-readers": [
+    "scripts/lib/adapters/launcher_claude.py"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "minItems": 1
+}

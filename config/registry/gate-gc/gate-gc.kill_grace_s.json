@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 5,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Seconds between the TERM and the KILL sent to a stage that ran past its limit.",
+  "x-readers": [
+    "scripts/lib/gate-runner.sh",
+    "scripts/lib/gate_gc.py"
+  ],
+  "x-source": "D-070; plan GX-19"
+}

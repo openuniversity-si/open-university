@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 15,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Seconds `scripts/train serve` waits between two `git ls-remote` reads of train.wake_ref (GATE-ON-PUSH R2): the delay between a wake and its run. A read of git, never of the REST budget.",
+  "x-readers": [
+    "scripts/lib/train_serve.py"
+  ],
+  "x-source": "docs/units/GATE-ON-PUSH/plan.md R2 A2"
+}

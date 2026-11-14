@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "default": 0.05,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "How often a script test running at its CPU share looks in the suite's jobserver for a CPU another test freed (GATE-SPEED F1, D-118; scripts/lib/parallel_tests.py). Read by the suite and handed to each test as OU_TEST_JOBSERVER_POLL_S.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ]
+}

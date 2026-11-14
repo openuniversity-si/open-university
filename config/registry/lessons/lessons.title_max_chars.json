@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 90,
+  "x-unit": "count",
+  "description": "Characters of a lesson title taken from the first sentence of its retro item.",
+  "x-readers": [
+    "scripts/lib/lesson_ingest.py"
+  ],
+  "minimum": 20
+}

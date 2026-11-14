@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "The train's on/off switch (D-065 V3, D-069 item 11). Off: `scripts/train run` exits without taking the lock and the per-session merge rule of AGENTS.md holds. Switched on only by a config.changed event (scripts/config set). Read from the shared store or the registry default: a run whose change store is machine-local (OU_CONFIG_STORE=file) and overrides it refuses to run (GA-PG8, GX-06). Default on since GX-06: with train.trigger_mode emit_only only the designated train-role session runs the train, so nothing runs until the coordinator starts that session; off is the rollback to the per-session merge rule.",
+  "x-readers": [
+    "scripts/lib/service_status.py",
+    "scripts/lib/train.py"
+  ]
+}

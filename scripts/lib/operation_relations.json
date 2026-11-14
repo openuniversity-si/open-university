@@ -1,0 +1,1259 @@
+{
+  "version": 1,
+  "subject": "forge operations the engine dispatches through the forge_events port",
+  "revision": "2e8cfc6f28c3f619de5859adecafb3a5788d563e",
+  "decisions": [
+    "D-285",
+    "D-287"
+  ],
+  "observation": "TRAIN-ORIGIN-INTEGRATION combined call sites and census measured by operation_relations.py. Existing D-287 responsibility acceptance and adapter declarations are preserved.",
+  "census": {
+    "operations": 23,
+    "sites": 65,
+    "files": 25,
+    "scanned": "scripts/lib",
+    "excluded": [
+      "scripts/tests",
+      "scripts/lib/forge_events.py",
+      "scripts/lib/forge_origin.py",
+      "scripts/lib/forge_origin_client.py",
+      "scripts/lib/forge_git_ref.py"
+    ],
+    "receiver": "a call whose receiver names the port (port, self.port, role.port(...), reader, publisher, events) or the adapter it reaches (port.adapter, adapter_from_config())",
+    "floor": "a floor, not a ceiling: a call reached by getattr, **kwargs or a test double is not counted (audit F3)"
+  },
+  "responsibility": {
+    "rule": "an operation's responsible is declared, never inferred: not from the adapter that implements it, not from the lane that owns the file that calls it (D-285, audit F2/F3)",
+    "accepted": {
+      "approvals": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "calls": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "change": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "change_commits": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "change_files": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "close_change": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "closed_changes": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "comment": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "comments": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "commit_files": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "compare": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "find_change": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "force_pushes": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "lock": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "merge": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "open_change": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "open_changes": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "open_pulls": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "pull": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "pushes": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "set_status": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "unlock": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ],
+      "upsert_comment": [
+        {
+          "responsible": "engine-lane",
+          "accepted_by": "engine-lane",
+          "evidence": "docs/domain/decisions/D-287.md"
+        }
+      ]
+    },
+    "note": "engine-lane explicitly accepts all 23 declared operations (D-287); attribution is declared, never inferred, and C5 still refuses an operation without a single accepted responsible"
+  },
+  "operations": [
+    {
+      "name": "approvals",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/train.py",
+          "line": 206,
+          "consumer": "owned",
+          "unit": "engine-train",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/train.py"
+      ],
+      "units": [
+        "engine-train"
+      ],
+      "unknowns": [
+        "not exercised by the flow read here: every manifest carries owner=engine-lane and none carries lane, so train_ownership only reaches it with a foreign lane (audit F4)"
+      ]
+    },
+    {
+      "name": "calls",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/train.py",
+          "line": 644,
+          "consumer": "forge_calls",
+          "unit": "engine-train",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/train.py"
+      ],
+      "units": [
+        "engine-train"
+      ]
+    },
+    {
+      "name": "change",
+      "dispatch": "direct",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/gate_explain.py",
+          "line": 54,
+          "consumer": "identity",
+          "unit": "engine-gate-run",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/gate_pin.py",
+          "line": 106,
+          "consumer": "pr_identity",
+          "unit": "engine-gate-verdict",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/gate_policy.py",
+          "line": 84,
+          "consumer": "identity",
+          "unit": "engine-gate-plan",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/gate_report.py",
+          "line": 97,
+          "consumer": "emit_evidence",
+          "unit": "engine-gate-speed",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/gate_report.py",
+          "line": 121,
+          "consumer": "ready_hook",
+          "unit": "engine-gate-speed",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/gate_report.py",
+          "line": 252,
+          "consumer": "main",
+          "unit": "engine-gate-speed",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/gate_status.py",
+          "line": 161,
+          "consumer": "publish_started",
+          "unit": "engine-gate-speed",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/pr_ready.py",
+          "line": 67,
+          "consumer": "recorded_base",
+          "unit": "engine-commit-plan",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/premises.py",
+          "line": 414,
+          "consumer": "fetch_body",
+          "unit": "engine-premises",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/structure.py",
+          "line": 145,
+          "consumer": "fetch_review",
+          "unit": "engine-structure",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train.py",
+          "line": 190,
+          "consumer": "one",
+          "unit": "engine-train",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train.py",
+          "line": 219,
+          "consumer": "refused",
+          "unit": "engine-train",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train.py",
+          "line": 516,
+          "consumer": "merge",
+          "unit": "engine-train",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train_queue.py",
+          "line": 153,
+          "consumer": "build",
+          "unit": "engine-train-admission",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train_verdict.py",
+          "line": 232,
+          "consumer": "open_candidates",
+          "unit": "engine-train-admission",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train_verdict.py",
+          "line": 261,
+          "consumer": "refreshed",
+          "unit": "engine-train-admission",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train_verdict.py",
+          "line": 511,
+          "consumer": "merge_admitted",
+          "unit": "engine-train-admission",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train_box.py",
+          "line": 103,
+          "consumer": "admit",
+          "unit": "engine-train",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train_box.py",
+          "line": 129,
+          "consumer": "lead",
+          "unit": "engine-train",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/gate_explain.py",
+        "scripts/lib/gate_pin.py",
+        "scripts/lib/gate_policy.py",
+        "scripts/lib/gate_report.py",
+        "scripts/lib/gate_status.py",
+        "scripts/lib/pr_ready.py",
+        "scripts/lib/premises.py",
+        "scripts/lib/structure.py",
+        "scripts/lib/train.py",
+        "scripts/lib/train_box.py",
+        "scripts/lib/train_queue.py",
+        "scripts/lib/train_verdict.py"
+      ],
+      "units": [
+        "engine-commit-plan",
+        "engine-gate-plan",
+        "engine-gate-run",
+        "engine-gate-speed",
+        "engine-gate-verdict",
+        "engine-premises",
+        "engine-structure",
+        "engine-train",
+        "engine-train-admission"
+      ],
+      "unknowns": [
+        "dispatched directly, not through _operation, so an adapter without it fails with AttributeError at the call site instead of the port's named refusal (audit F5/F6)",
+        "three of its sites cross into port.adapter, where the port does not check the operation at all"
+      ]
+    },
+    {
+      "name": "change_commits",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/commit_check.py",
+          "line": 224,
+          "consumer": "fetch",
+          "unit": "engine-commit-plan",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/replay_branch.py",
+          "line": 89,
+          "consumer": "replay",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/commit_check.py",
+        "scripts/lib/replay_branch.py"
+      ],
+      "units": [
+        "engine-commit-plan",
+        "engine-push-guard"
+      ]
+    },
+    {
+      "name": "change_files",
+      "responsible": "engine-lane",
+      "unknowns": [],
+      "dispatch": "operation",
+      "sites": [
+        {
+          "file": "scripts/lib/commit_check.py",
+          "line": 256,
+          "consumer": "fetch",
+          "unit": "engine-commit-plan",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/premises.py",
+          "line": 493,
+          "consumer": "fetch_pr",
+          "unit": "engine-premises",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/commit_check.py",
+        "scripts/lib/premises.py"
+      ],
+      "units": [
+        "engine-commit-plan",
+        "engine-premises"
+      ]
+    },
+    {
+      "name": "close_change",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/replay_branch.py",
+          "line": 134,
+          "consumer": "replay",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/replay_branch.py"
+      ],
+      "units": [
+        "engine-push-guard"
+      ]
+    },
+    {
+      "name": "closed_changes",
+      "responsible": "engine-lane",
+      "dispatch": "operation",
+      "sites": [
+        {
+          "file": "scripts/lib/idea_to_prod.py",
+          "line": 33,
+          "consumer": "prs",
+          "unit": "engine-idea-to-prod",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/idea_to_prod.py"
+      ],
+      "units": [
+        "engine-idea-to-prod"
+      ]
+    },
+    {
+      "name": "comment",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/replay_branch.py",
+          "line": 133,
+          "consumer": "replay",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/replay_branch.py"
+      ],
+      "units": [
+        "engine-push-guard"
+      ]
+    },
+    {
+      "name": "comments",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/commit_check.py",
+          "line": 225,
+          "consumer": "fetch",
+          "unit": "engine-commit-plan",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/idea_to_prod.py",
+          "line": 40,
+          "consumer": "live_at",
+          "unit": "engine-idea-to-prod",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/lessons.py",
+          "line": 349,
+          "consumer": "main",
+          "unit": "engine-lessons",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/stall_report.py",
+          "line": 57,
+          "consumer": "stalls",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/structure.py",
+          "line": 146,
+          "consumer": "fetch_review",
+          "unit": "engine-structure",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/commit_check.py",
+        "scripts/lib/idea_to_prod.py",
+        "scripts/lib/lessons.py",
+        "scripts/lib/stall_report.py",
+        "scripts/lib/structure.py"
+      ],
+      "units": [
+        "engine-commit-plan",
+        "engine-idea-to-prod",
+        "engine-lessons",
+        "engine-push-guard",
+        "engine-structure"
+      ]
+    },
+    {
+      "name": "commit_files",
+      "responsible": "engine-lane",
+      "unknowns": [],
+      "dispatch": "operation",
+      "sites": [
+        {
+          "file": "scripts/lib/commit_check.py",
+          "line": 251,
+          "consumer": "fetch",
+          "unit": "engine-commit-plan",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/commit_check.py"
+      ],
+      "units": [
+        "engine-commit-plan"
+      ]
+    },
+    {
+      "name": "compare",
+      "responsible": "engine-lane",
+      "unknowns": [],
+      "dispatch": "operation",
+      "sites": [
+        {
+          "file": "scripts/lib/commit_check.py",
+          "line": 234,
+          "consumer": "fetch",
+          "unit": "engine-commit-plan",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/merge_behind.py",
+          "line": 57,
+          "consumer": "measure",
+          "unit": "engine-delivery",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/commit_check.py",
+        "scripts/lib/merge_behind.py"
+      ],
+      "units": [
+        "engine-commit-plan",
+        "engine-delivery"
+      ]
+    },
+    {
+      "name": "find_change",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/replay_branch.py",
+          "line": 128,
+          "consumer": "replay",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/replay_branch.py"
+      ],
+      "units": [
+        "engine-push-guard"
+      ]
+    },
+    {
+      "name": "force_pushes",
+      "responsible": "engine-lane",
+      "unknowns": [],
+      "dispatch": "operation",
+      "sites": [
+        {
+          "file": "scripts/lib/commit_check.py",
+          "line": 228,
+          "consumer": "fetch",
+          "unit": "engine-commit-plan",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/commit_check.py"
+      ],
+      "units": [
+        "engine-commit-plan"
+      ]
+    },
+    {
+      "name": "lock",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/engine_role.py",
+          "line": 154,
+          "consumer": "renew",
+          "unit": "engine-role",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/engine_role.py",
+          "line": 177,
+          "consumer": "run",
+          "unit": "engine-role",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/engine_role.py"
+      ],
+      "units": [
+        "engine-role"
+      ]
+    },
+    {
+      "name": "merge",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/train.py",
+          "line": 495,
+          "consumer": "merge",
+          "unit": "engine-train",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train_verdict.py",
+          "line": 499,
+          "consumer": "merge_admitted",
+          "unit": "engine-train-admission",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/train.py",
+        "scripts/lib/train_verdict.py"
+      ],
+      "units": [
+        "engine-train",
+        "engine-train-admission"
+      ]
+    },
+    {
+      "name": "open_change",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/replay_branch.py",
+          "line": 131,
+          "consumer": "replay",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/replay_branch.py"
+      ],
+      "units": [
+        "engine-push-guard"
+      ]
+    },
+    {
+      "name": "open_changes",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/defect_router.py",
+          "line": 38,
+          "consumer": "queue",
+          "unit": "engine-defects",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/stall_report.py",
+          "line": 71,
+          "consumer": "report",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train_queue.py",
+          "line": 140,
+          "consumer": "build",
+          "unit": "engine-train-admission",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/train_verdict.py",
+          "line": 231,
+          "consumer": "open_candidates",
+          "unit": "engine-train-admission",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/defect_router.py",
+        "scripts/lib/stall_report.py",
+        "scripts/lib/train_queue.py",
+        "scripts/lib/train_verdict.py"
+      ],
+      "units": [
+        "engine-defects",
+        "engine-push-guard",
+        "engine-train-admission"
+      ]
+    },
+    {
+      "name": "open_pulls",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/decision_next.py",
+          "line": 52,
+          "consumer": "open_pulls",
+          "unit": "engine-records",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/flow_check.py",
+          "line": 104,
+          "consumer": "open_pulls",
+          "unit": "engine-flow",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/prepush.py",
+          "line": 440,
+          "consumer": "open_pulls",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/service_runner.py",
+          "line": 103,
+          "consumer": "remote_heads",
+          "unit": "engine-service",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/decision_next.py",
+        "scripts/lib/flow_check.py",
+        "scripts/lib/prepush.py",
+        "scripts/lib/service_runner.py"
+      ],
+      "units": [
+        "engine-flow",
+        "engine-push-guard",
+        "engine-records",
+        "engine-service"
+      ],
+      "unknowns": [
+        "one of its two sites builds the adapter from configuration instead of taking the port (audit F6)"
+      ]
+    },
+    {
+      "name": "pull",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/commit_check.py",
+          "line": 223,
+          "consumer": "fetch",
+          "unit": "engine-commit-plan",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/decision_next.py",
+          "line": 53,
+          "consumer": "open_pulls",
+          "unit": "engine-records",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/replay_branch.py",
+          "line": 86,
+          "consumer": "replay",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/stall_report.py",
+          "line": 40,
+          "consumer": "stalls",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/commit_check.py",
+        "scripts/lib/decision_next.py",
+        "scripts/lib/replay_branch.py",
+        "scripts/lib/stall_report.py"
+      ],
+      "units": [
+        "engine-commit-plan",
+        "engine-push-guard",
+        "engine-records"
+      ]
+    },
+    {
+      "name": "pushes",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/commit_check.py",
+          "line": 227,
+          "consumer": "fetch",
+          "unit": "engine-commit-plan",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/stall_report.py",
+          "line": 41,
+          "consumer": "stalls",
+          "unit": "engine-push-guard",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/commit_check.py",
+        "scripts/lib/stall_report.py"
+      ],
+      "units": [
+        "engine-commit-plan",
+        "engine-push-guard"
+      ]
+    },
+    {
+      "name": "set_status",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/gate_status.py",
+          "line": 323,
+          "consumer": "set_status",
+          "unit": "engine-gate-speed",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/gate_status.py",
+          "line": 356,
+          "consumer": "set_status",
+          "unit": "engine-gate-speed",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/gate_status.py",
+          "line": 464,
+          "consumer": "check_hooks",
+          "unit": "engine-gate-speed",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/gate_status.py",
+          "line": 464,
+          "consumer": "publish",
+          "unit": "engine-gate-speed",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "units": [
+        "engine-gate-speed"
+      ]
+    },
+    {
+      "name": "unlock",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/engine_role.py",
+          "line": 188,
+          "consumer": "run",
+          "unit": "engine-role",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/engine_role.py",
+          "line": 190,
+          "consumer": "run",
+          "unit": "engine-role",
+          "crossing": "port"
+        },
+        {
+          "file": "scripts/lib/service_lock.py",
+          "line": 15,
+          "consumer": "release",
+          "unit": "engine-service",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/engine_role.py",
+        "scripts/lib/service_lock.py"
+      ],
+      "units": [
+        "engine-role",
+        "engine-service"
+      ]
+    },
+    {
+      "name": "upsert_comment",
+      "dispatch": "operation",
+      "responsible": "engine-lane",
+      "sites": [
+        {
+          "file": "scripts/lib/gate_status.py",
+          "line": 328,
+          "consumer": "publish",
+          "unit": "engine-gate-speed",
+          "crossing": "port"
+        }
+      ],
+      "consumers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "units": [
+        "engine-gate-speed"
+      ],
+      "unknowns": [
+        "absent from the Origin adapter, and its only site crosses into port.adapter, so the gate fails by name past the port (audit F5)"
+      ]
+    }
+  ],
+  "adapters": [
+    {
+      "adapter": "origin",
+      "class": "OriginAdapter",
+      "module": "scripts/lib/forge_origin.py",
+      "public_methods": 27,
+      "implements": [
+        "approvals",
+        "calls",
+        "change",
+        "change_commits",
+        "change_files",
+        "close_change",
+        "closed_changes",
+        "comment",
+        "comments",
+        "commit_files",
+        "compare",
+        "find_change",
+        "force_pushes",
+        "lock",
+        "merge",
+        "open_change",
+        "open_changes",
+        "open_pulls",
+        "pull",
+        "pushes",
+        "set_status",
+        "unlock",
+        "upsert_comment"
+      ],
+      "missing": []
+    },
+    {
+      "adapter": "file",
+      "class": "FileAdapter",
+      "module": "scripts/lib/forge_events.py",
+      "public_methods": 4,
+      "implements": [
+        "change"
+      ],
+      "missing": [
+        "approvals",
+        "calls",
+        "change_commits",
+        "change_files",
+        "close_change",
+        "closed_changes",
+        "comment",
+        "comments",
+        "commit_files",
+        "compare",
+        "find_change",
+        "force_pushes",
+        "lock",
+        "merge",
+        "open_change",
+        "open_changes",
+        "open_pulls",
+        "pull",
+        "pushes",
+        "set_status",
+        "unlock",
+        "upsert_comment"
+      ]
+    },
+    {
+      "adapter": "git-ref",
+      "class": "GitRefs",
+      "module": "scripts/lib/forge_git_ref.py",
+      "public_methods": 8,
+      "implements": [
+        "merge"
+      ],
+      "missing": [
+        "approvals",
+        "calls",
+        "change",
+        "change_commits",
+        "change_files",
+        "close_change",
+        "closed_changes",
+        "comment",
+        "comments",
+        "commit_files",
+        "compare",
+        "find_change",
+        "force_pushes",
+        "lock",
+        "open_change",
+        "open_changes",
+        "open_pulls",
+        "pull",
+        "pushes",
+        "set_status",
+        "unlock",
+        "upsert_comment"
+      ]
+    }
+  ],
+  "journal": {
+    "note": "the port also holds the journal surface (build, emit, batched, publish, read, read_window, read_recent, evaluate_branch_age); those are not forge operations and are outside this relation, though the train does read the journal (audit F1)"
+  },
+  "unknowns": [
+    {
+      "id": "behaviour",
+      "affects": [
+        "approvals",
+        "calls",
+        "change",
+        "change_commits",
+        "change_files",
+        "close_change",
+        "comment",
+        "comments",
+        "commit_files",
+        "compare",
+        "find_change",
+        "force_pushes",
+        "lock",
+        "merge",
+        "open_change",
+        "open_changes",
+        "open_pulls",
+        "pull",
+        "pushes",
+        "set_status",
+        "unlock",
+        "upsert_comment"
+      ],
+      "what": "Method presence is not behavioral equivalence; operation_demands records concrete per-adapter proofs. Capability availability is not adapter selection.",
+      "evidence": [
+        "docs/units/ARQ-FORGE-CAPABILITIES/audit.md"
+      ],
+      "state": "open"
+    },
+    {
+      "id": "reach",
+      "affects": [
+        "approvals",
+        "calls",
+        "change",
+        "change_commits",
+        "change_files",
+        "close_change",
+        "comment",
+        "comments",
+        "commit_files",
+        "compare",
+        "find_change",
+        "force_pushes",
+        "lock",
+        "merge",
+        "open_change",
+        "open_changes",
+        "open_pulls",
+        "pull",
+        "pushes",
+        "set_status",
+        "unlock",
+        "upsert_comment"
+      ],
+      "what": "the census is textual reach over scripts/lib; an entrypoint in bash (scripts/gate-local), a call through getattr, **kwargs or a test double, and a consumer outside scripts/lib are not observed (audit F3/F8)",
+      "evidence": [
+        "scripts/gate-local:126",
+        "scripts/gate-local:190"
+      ],
+      "state": "open"
+    },
+    {
+      "id": "vendor-baseline",
+      "affects": [],
+      "what": "The GitHub artifact-hosting baseline remains outside the forge adapters: binary release downloads are not forge operations.",
+      "evidence": [
+        "scripts/lib/adapters/engine-vendors.json"
+      ],
+      "state": "open"
+    },
+    {
+      "id": "substitutability",
+      "affects": [
+        "calls",
+        "change_commits",
+        "close_change",
+        "comment",
+        "comments",
+        "find_change",
+        "lock",
+        "open_change",
+        "open_pulls",
+        "pull",
+        "pushes",
+        "unlock",
+        "upsert_comment"
+      ],
+      "what": "Origin lacks pushes and force_pushes; required commit discipline refuses before reads. Available operations have behavioral proofs in operation_demands; this does not change adapter selection.",
+      "evidence": [
+        "docs/architecture/ENGINE-OPERATIONS.md"
+      ],
+      "state": "open"
+    },
+    {
+      "id": "selection",
+      "affects": [],
+      "what": "which forge is selected is read from configuration and is not part of this relation; the relation records capability, never the running selection (R6)",
+      "evidence": [
+        "scripts/lib/forge_events.py:261"
+      ],
+      "state": "open"
+    }
+  ],
+  "engine": {
+    "names": [
+      "lock",
+      "unlock",
+      "change",
+      "open_changes",
+      "merge",
+      "approvals",
+      "calls"
+    ],
+    "note": "the train chain reaches these names, and reads the journal besides; read is not one of the operations above. approvals is declared and implemented but no flow read here exercises it (audit F4)",
+    "evidence": [
+      "scripts/lib/engine_role.py:133",
+      "scripts/lib/engine_role.py:155",
+      "scripts/lib/engine_role.py:161",
+      "scripts/lib/train.py:181",
+      "scripts/lib/train.py:197",
+      "scripts/lib/train.py:477",
+      "scripts/lib/train.py:497",
+      "scripts/lib/train.py:609",
+      "scripts/lib/train_queue.py:140",
+      "scripts/lib/train_queue.py:153",
+      "scripts/lib/train_verdict.py:231",
+      "scripts/lib/train_verdict.py:232",
+      "scripts/lib/train_verdict.py:499",
+      "scripts/lib/train_verdict.py:511"
+    ]
+  }
+}

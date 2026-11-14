@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 600,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "How often the infrastructure service re-reads the forge's webhook public keys between ticks (a safety refresh of a key rotation, P4 F2b). Read at runtime from work.config_value (DEP9), the compiled default when no row exists.",
+  "x-readers": [
+    "infra/service/tower_infra/__main__.py",
+    "infra/service/tower_infra/config_data.py"
+  ],
+  "x-source": "DEP9; docs/operations/aws.md 22.5"
+}

@@ -1,0 +1,7 @@
+# web-build retro (U4)
+
+1. **Brief.** It asked to move the unit into `units/web-build/`, publish a contract and have importers use `@ou/web-build`. S1 (P-03) keeps units logical, and these files are the web project's own config, which Next, tsc, vitest, Playwright, eslint, drizzle-kit and pnpm find by name at `apps/web/`. Nothing moved, so nothing was deleted (D-029).
+2. **Contract.** A manifest contract was tried (`next.config.ts`, 1.0.0). The unit's home is the project root, so the generator gives it no address and the battery's contract step went red; the manifest was restored. The published surface and the expand->contract path are in `contract.md` (P-07). Decision recorded: no contract slot until the generator can address a root-level unit; the generator belongs to another unit and was not touched.
+3. **Literals and battery.** Zero literals found, no allowlist entry; `scripts/unit-battery web-build` green in about 5 s. No test of its own, nothing to quarantine.
+4. **Gate.** The first gate-dev failed only in structure check on the `github` vendor-port baseline (D-069 item 7), which this docs-only PR does not touch; the base moved (engine-vendors), so the base was merged and the gate rerun. Stages and time are in the PR comment.
+5. **Lesson.** A unit whose files are the project root's config needs the address rule to allow a root-level home before it can publish a contract (owner: engine-units).

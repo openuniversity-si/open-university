@@ -1,0 +1,16 @@
+{
+  "id": "engine-retro",
+  "purpose": "RETRO-API: the store that receives each session's log and keeps it, byte for byte, with one index (Daniel 2026-10-28; D-054).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/retro.json",
+    "scripts/lib/retro.py",
+    "scripts/retro",
+    "scripts/tests/retro.test.sh",
+    "scripts/tests/test_retro.py"
+  ],
+  "requires": {
+    "engine-config": "^1"
+  }
+}

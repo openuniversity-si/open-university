@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-gc.json",
+  "x-owner": "gate-gc",
+  "x-schema-version": 1,
+  "description": "Gate hygiene (GX-19, D-070): the per-stage time limit and the retention of report directories and build-cache entries.",
+  "type": "object",
+  "additionalProperties": false
+}

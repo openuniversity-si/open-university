@@ -1,0 +1,189 @@
+RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN: audit every rule of the group "Machine environment, toolchain and supply chain" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-environment-toolchain-and-supply-chain. One draft PR from mod/rule-audit-environment-toolchain-and-supply-chain into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN: Machine environment, toolchain and supply chain", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They decide what a machine must have before work starts: the pinned toolchain, the cloud setup and local database, the environment manifest and premises, the lockfiles, vendors and dependency scope.
+
+== YOUR ROWS (exactly these 69; census at PR #775, docs/audits/rules/census.json) ==
+- param:cloud.postgres_host | config/registry/cloud.json:10#cloud.postgres_host | Address the project-local PostgreSQL listens on and every client of it connects to. | owner: nobody named
+- param:cloud.postgres_port | config/registry/cloud.json:21#cloud.postgres_port | Default port of the project-local PostgreSQL; the OU_POSTGRES_PORT environment variable overrides it for one shell. | owner: nobody named
+- param:cloud.postgres_database | config/registry/cloud.json:34#cloud.postgres_database | Database the toolchain PostgreSQL guarantees at startup (each checkout then gets its own tower_test_<hash> database). | owner: nobody named
+- param:cloud.postgres_role | config/registry/cloud.json:44#cloud.postgres_role | Superuser role the cluster is initialised with and every cloud client connects as. | owner: nobody named
+- param:cloud.postgres_ready_wait_s | config/registry/cloud.json:54#cloud.postgres_ready_wait_s | Seconds pg_ctl waits for the server to accept connections. | owner: nobody named
+- param:cloud.postgres_query_timeout_s | config/registry/cloud.json:64#cloud.postgres_query_timeout_s | Seconds one psql probe may run before it counts as down. | owner: nobody named
+- param:cloud.postgres_log_tail_chars | config/registry/cloud.json:74#cloud.postgres_log_tail_chars | Longest server-log line quoted in a startup error. | owner: nobody named
+- param:cloud.postgres_lock_path | config/registry/cloud.json:84#cloud.postgres_lock_path | Lock that serialises concurrent startups of the project PostgreSQL (shared by the session uid and uid 0). | owner: nobody named
+- param:cloud.postgres_encoding | config/registry/cloud.json:94#cloud.postgres_encoding | Encoding of the cluster and of psql clients. | owner: nobody named
+- param:cloud.postgres_locale | config/registry/cloud.json:104#cloud.postgres_locale | Locale of the cluster created by initdb. | owner: nobody named
+- param:cloud.postgres_socket_permissions | config/registry/cloud.json:114#cloud.postgres_socket_permissions | Unix socket mode of the cluster when uid 0 hands the server to the service user, so the session uid can reach it. | owner: nobody named
+- param:cloud.download_timeout_s | config/registry/cloud.json:124#cloud.download_timeout_s | Seconds one toolchain download may take. | owner: nobody named
+- param:cloud.download_chunk_bytes | config/registry/cloud.json:134#cloud.download_chunk_bytes | Chunk size for toolchain downloads and checksum reads. | owner: nobody named
+- param:cloud.download_user_agent | config/registry/cloud.json:144#cloud.download_user_agent | User-Agent header of toolchain downloads. | owner: nobody named
+- param:cloud.postgres_binaries | config/registry/cloud.json:154#cloud.postgres_binaries | PostgreSQL programs the toolchain exposes as shims in .toolchain/bin. | owner: nobody named
+- param:cloud.postgres_test_settings | config/registry/cloud.json:173#cloud.postgres_test_settings | name=value settings setup.sh applies to the project-local test cluster (ALTER SYSTEM, reload). CREATE/DROP DATABASE each force a checkpoint; | owner: nobody named
+- param:cloud.fonts_package | config/registry/cloud.json:191#cloud.fonts_package | pip requirement e2e installs to unpack the approved Inter font. | owner: nobody named
+- param:cloud.offline_seed_paths | config/registry/cloud.json:201#cloud.offline_seed_paths | Directories scripts/cloud/setup.sh seeds so a dev gate runs with the network denied after install (GX-29): the Playwright browsers, the pnpm | owner: nobody named
+- param:cloud.setup_lock_path | config/registry/cloud.json:222#cloud.setup_lock_path | Lock that serialises concurrent runs of the cloud setup. | owner: nobody named
+- param:cloud.setup_log_path | config/registry/cloud.json:232#cloud.setup_log_path | Log the cloud setup writes its quiet steps to. | owner: nobody named
+- param:cloud.setup_log_tail_lines | config/registry/cloud.json:242#cloud.setup_log_tail_lines | Lines of the setup log printed when a setup step fails. | owner: nobody named
+- param:cloud.bootstrap_python_minimum | config/registry/cloud.json:252#cloud.bootstrap_python_minimum | Oldest Python (major, minor) the setup accepts to run the toolchain installer before the pinned Python exists. | owner: nobody named
+- param:cloud.proxy_direct_hosts | config/registry/cloud.json:270#cloud.proxy_direct_hosts | Loopback names appended to NO_PROXY when an egress proxy is set, so local services stay direct. | owner: nobody named
+- param:cloud.proxy_silenced_warning | config/registry/cloud.json:289#cloud.proxy_silenced_warning | Node warning code silenced when NODE_USE_ENV_PROXY is enabled for the egress proxy. | owner: nobody named
+- param:cloud.root_gate_checkout_root | config/registry/cloud.json:299#cloud.root_gate_checkout_root | Slot checkout root for gates run as uid 0, a place the unprivileged uids of script tests can traverse. | owner: nobody named
+- param:env-premises.session_id_floor | config/registry/env-premises.json:10#env-premises.session_id_floor | Lowest uid/gid the session identity creates for a missing user (inclusive); below it are system accounts. | owner: TX12; D-070
+- param:env-premises.session_id_ceiling | config/registry/env-premises.json:21#env-premises.session_id_ceiling | First uid/gid the session identity never uses (exclusive); from it up are ordinary host accounts. | owner: TX12; D-070
+- param:env-premises.probe_timeout_s | config/registry/env-premises.json:32#env-premises.probe_timeout_s | How long a test's machine-premise probe may take (the dropped uid running the interpreter, sudo -n true, env.sh placing a shim guard) before | owner: TX12; D-070
+- param:env.advisory_audit_timeout_s | config/registry/env.json:10#env.advisory_audit_timeout_s | How long env-check waits for `pnpm audit` before it reports advisories as not checked. | owner: nobody named | can stop: PRs stopped not measured
+- param:env.registry_view_timeout_s | config/registry/env.json:20#env.registry_view_timeout_s | How long env-update waits for `pnpm view <package> versions` per critical dependency. | owner: nobody named | can stop: PRs stopped not measured
+- param:env.build_smoke_timeout_s | config/registry/env.json:30#env.build_smoke_timeout_s | How long the env-update build smoke (`pnpm build`-class command) may run before the update is refused. | owner: nobody named | can stop: PRs stopped not measured
+- param:env.tool_version_probe_timeout_s | config/registry/env.json:40#env.tool_version_probe_timeout_s | How long a pinned tool may take to print its version banner during preflight and install checks. | owner: nobody named
+- param:env.session_id_floor | config/registry/env.json:50#env.session_id_floor | Deprecated (TX12, D-070): replaced by env-premises.session_id_floor, a bootstrap owner read that never costs a change-store read; nothing re | owner: nobody named
+- param:env.session_id_ceiling | config/registry/env.json:61#env.session_id_ceiling | Deprecated (TX12, D-070): replaced by env-premises.session_id_ceiling, a bootstrap owner read that never costs a change-store read; nothing  | owner: nobody named
+- param:env.gate_preflight_probes | config/registry/env.json:72#env.gate_preflight_probes | The probes of the gate preflight (scripts/lib/preflight.py gate), in order: the local test PostgreSQL (started when its binary matches, like | owner: D-070 (GX-01)
+- param:env.gate_preflight_budget_s | config/registry/env.json:96#env.gate_preflight_budget_s | How long the gate preflight (scripts/lib/preflight.py gate, before the gate lock, slot and worktree) may take on a machine with a gap, from  | owner: D-070 (GX-01)
+- param:supply-chain.allowed_registries | config/registry/supply-chain.json:10#supply-chain.allowed_registries | Registries a pnpm-lock.yaml package may resolve from (https, ending in a slash). A tarball URL outside them, and a .npmrc registry outside t | owner: nobody named
+- param:supply-chain.pnpm_default_registry | config/registry/supply-chain.json:27#supply-chain.pnpm_default_registry | Registry pnpm resolves a lockfile entry from when the entry has no tarball URL and no .npmrc registry is set. It must be one of supply-chain | owner: nobody named
+- param:supply-chain.integrity_pattern | config/registry/supply-chain.json:37#supply-chain.integrity_pattern | Shape of the integrity hash (subresource integrity: algorithm, dash, base64 digest) every pnpm-lock.yaml package must carry. | owner: nobody named
+- param:supply-chain.grantable_env_names | config/registry/supply-chain.json:47#supply-chain.grantable_env_names | Names of the secrets an engine agent role may be granted (names only, never values; the values stay in the secret store or the egress proxy) | owner: nobody named
+- param:supply-chain.refused_env_names | config/registry/supply-chain.json:68#supply-chain.refused_env_names | Secret names no agent role may ever hold (AGENTS.md: the bypass secret, auth, R2, Mux and blob credentials stay off cloud agents). A name he | owner: nobody named
+- param:supply-chain.agent_key_scopes | config/registry/supply-chain.json:93#supply-chain.agent_key_scopes | Least privilege (D-069 item 13): the secret names each agent role may hold, nothing else. Names only; a name must be in grantable_env_names  | owner: nobody named
+- param:toolchain.node_version | config/registry/toolchain.json:10#toolchain.node_version | Node.js release the gate, the cloud setup and the cache key run on. | owner: nobody named
+- param:toolchain.pnpm_version | config/registry/toolchain.json:21#toolchain.pnpm_version | pnpm release installed by the cloud setup; apps/web/package.json packageManager must agree. | owner: nobody named
+- param:toolchain.python_version | config/registry/toolchain.json:31#toolchain.python_version | Standalone CPython release the engine scripts run on. | owner: nobody named
+- param:toolchain.python_release_tag | config/registry/toolchain.json:41#toolchain.python_release_tag | python-build-standalone release tag that carries the pinned CPython build. | owner: nobody named
+- param:toolchain.claude_cli_version | config/registry/toolchain.json:50#toolchain.claude_cli_version | Claude Code CLI release the cloud sessions run (observed with `claude --version`); recorded for the cache key and reproducibility, not insta | owner: nobody named
+- param:toolchain.gh_version | config/registry/toolchain.json:60#toolchain.gh_version | GitHub CLI release installed by the cloud setup. | owner: nobody named
+- param:toolchain.gitleaks_version | config/registry/toolchain.json:69#toolchain.gitleaks_version | gitleaks release used by the secret-scanning stage. | owner: nobody named
+- param:toolchain.vercel_version | config/registry/toolchain.json:78#toolchain.vercel_version | Vercel CLI release installed by the cloud setup. | owner: nobody named
+- param:toolchain.postgres_version | config/registry/toolchain.json:87#toolchain.postgres_version | PostgreSQL release of the local test database. | owner: nobody named
+- param:toolchain.postgres_revision | config/registry/toolchain.json:97#toolchain.postgres_revision | theseus-rs/postgresql-binaries revision that carries the pinned PostgreSQL build. | owner: nobody named
+- param:toolchain.observed_tools | config/registry/toolchain.json:106#toolchain.observed_tools | Tools whose installed version is observed into the attested toolchain_id (cache keys, v4 proof observed_versions); chromium is the Playwrigh | owner: nobody named
+- param:toolchain.lockfile_packages | config/registry/toolchain.json:128#toolchain.lockfile_packages | Packages whose pnpm-lock.yaml must match their package.json (frozen lockfile, D-069 item 12). | owner: nobody named
+- param:toolchain.frozen_install_scan_paths | config/registry/toolchain.json:142#toolchain.frozen_install_scan_paths | Gate files in which every `pnpm install` must use --frozen-lockfile. | owner: nobody named
+- decision:D-027 | docs/domain/DECISIONS.md:39 | The environment is code, not a fixed backdrop. | owner: 2026-10-22 14:55 (Daniel, chat; root cause incident 2026-10-
+- decision:D-062 | docs/domain/DECISIONS.md:64 | Each vendor has one driver module, every dependency is declared, and Vercel Blob and Mux are retired. | owner: 2026-10-26 (A Torre, modularity roadmap step 5 target; recor
+- premise:P-26 | docs/process/premises/cloud-hosts-reachable.yml:2 | cdn.playwright.dev and media.openuniversity.si are reachable from the cloud environment. | owner: orchestrator (report v2 A0 (blocked in #488))
+- premise:P-33 | docs/process/premises/everything-in-the-cloud.yml:2 | Everything runs in the cloud; the box is off the critical path. | owner: daniel (standing rules)
+- refusal:env_manifest.version_errors | scripts/lib/env_manifest.py:57 | Checks that every critical dependency of the environment manifest (scripts/cloud/toolchain.json) is a dependency of apps/web pinned to the s | owner: D-027 | can stop: PRs stopped 0
+- refusal:env_manifest.toolchain_errors | scripts/lib/env_manifest.py:93 | Checks that the pinned tools in .toolchain answer the registry versions (no toolchain at all is only a warning). | owner: D-027 | can stop: PRs stopped 0
+- refusal:supply_chain_check.lockfile_errors | scripts/lib/supply_chain_check.py:54 | Refuses a pnpm lockfile entry without an integrity hash of the registered shape, a tarball outside the allowed registries, or an implicit re | owner: D-069 item 13, S2 | can stop: PRs stopped 0
+- refusal:supply_chain_check.allowlist_errors | scripts/lib/supply_chain_check.py:81 | Refuses a locked package that is a retired vendor or is not in the vendor map's packages/transitive allowlist (warns on stale transitive ent | owner: D-069 item 13, S2 | can stop: PRs stopped 0
+- refusal:supply_chain_check.scope_errors | scripts/lib/supply_chain_check.py:100 | Refuses agent key scopes that grant a forbidden secret, name an env name outside supply-chain.grantable_env_names, give one role two scopes, | owner: D-069 item 13, S2 | can stop: PRs stopped 0
+- refusal:toolchain_check.lockfile_errors | scripts/lib/toolchain_check.py:58 | Refuses a package whose pnpm-lock.yaml is missing, has no root importer, or disagrees with package.json specifiers or overrides (what a froz | owner: D-069 item 12 | can stop: PRs stopped 0
+- refusal:toolchain_check.frozen_errors | scripts/lib/toolchain_check.py:87 | Refuses a `pnpm install` in the scanned gate files that does not pass --frozen-lockfile. | owner: D-069 item 12 | can stop: PRs stopped 0
+- refusal:toolchain_check.pin_errors | scripts/lib/toolchain_check.py:100 | Refuses package.json packageManager / engines.node values that disagree with the registry's pnpm and node pins. | owner: D-069 item 12 | can stop: PRs stopped 2
+- refusal:vendor_check.catalog_errors | scripts/lib/vendor_check.py:148 | Refuses a vendor catalog whose adapters or selectors do not exist, a forbidden vendor with adapters or baseline, or a slot vendor with adapt | owner: D-069 item 7, R1 | can stop: PRs stopped 0
+- refusal:vendor_check.shrink_errors | scripts/lib/vendor_check.py:161 | Keeps the vendor baseline shrink-only against the base catalog and requires new adapters under scripts/lib/adapters/ (D-069 item 7). | owner: D-069 item 7 | can stop: PRs stopped 0
+
+Kinds: decision 2, parameter 55, premise 2, refusal 10. Estimated work: 86 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/environment-toolchain-and-supply-chain.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 69), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/environment-toolchain-and-supply-chain.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/environment-toolchain-and-supply-chain.md has exactly 69 rows, one per census row of this group, and the verdict
+  counts sum to 69 (quote the command that counts them).
+* docs/audits/rules/environment-toolchain-and-supply-chain.json parses and has the same 69 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json and
+  docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-structure-check-and-premises: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json, docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**
+  - mod/rule-audit-commit-and-pr-discipline: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json, docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**
+  - mod/rule-audit-registry-literals-and-text: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json, docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**
+  - mod/rule-audit-production-release-and-migrations: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json, docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-merge-train-and-delivery: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json, docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**
+  - mod/rule-audit-defects-lessons-and-postmortems: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json, docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-code-architecture-and-units: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json, docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**
+  - mod/rule-audit-gate-selection-proof-and-status: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json, docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**
+  - mod/rule-audit-gate-execution-and-tests: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json, docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**
+  - mod/rule-audit-paid-vendors-and-ai-sessions: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json, docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+86 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

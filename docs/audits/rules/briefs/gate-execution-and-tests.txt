@@ -1,0 +1,204 @@
+RULE-AUDIT-GATE-EXECUTION-AND-TESTS: audit every rule of the group "Gate execution, test isolation and quarantine" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-gate-execution-and-tests. One draft PR from mod/rule-audit-gate-execution-and-tests into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-GATE-EXECUTION-AND-TESTS: Gate execution, test isolation and quarantine", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They decide how the gate runs tests once selected: slots, timeouts, worktree isolation, the test database, hermetic test environment, flake handling, quarantine and the battery.
+
+== YOUR ROWS (exactly these 84; census at PR #775, docs/audits/rules/census.json) ==
+- param:battery.alone_globs | config/registry/battery.json:9#battery.alone_globs | Vitest files without a database that run in the `perf` project of the performance tests stage, alone after every parallel suite: *.perf.test | owner: nobody named
+- param:battery.alone_int_globs | config/registry/battery.json:26#battery.alone_int_globs | Vitest files on the integration database (an isolated clone per file) that assert elapsed time; they run in the `perf-int` project of the pe | owner: nobody named
+- param:battery.alone_max_workers | config/registry/battery.json:42#battery.alone_max_workers | Vitest workers of the perf and perf-int projects: one file at a time, so a timing assertion never shares the CPUs with another test. | owner: nobody named
+- param:battery.timing_scan_roots | config/registry/battery.json:53#battery.timing_scan_roots | Directories the performance-test check scans for test files that assert elapsed time. | owner: nobody named
+- param:battery.timing_scan_suffixes | config/registry/battery.json:68#battery.timing_scan_suffixes | File suffixes the performance-test check reads as test files. | owner: nobody named
+- param:battery.unit_time_limit | config/registry/battery.json:86#battery.unit_time_limit | Longest wall time of one unit's battery (types, tests and contract). | owner: D-065 (4); D-069 item 14
+- param:battery.enabled | config/registry/battery.json:98#battery.enabled | The battery role's on/off switch (D-065 (5), D-069 item 11). Off: `scripts/battery run` exits without reading a log or taking the lock, and  | owner: nobody named
+- param:battery.producer | config/registry/battery.json:108#battery.producer | Producer name of every battery role event (battery.green, battery.red, battery.culprit, release.ready, engine.step.measured); part of each e | owner: nobody named
+- param:battery.step_prefix | config/registry/battery.json:118#battery.step_prefix | Prefix of the engine.step.measured step names the battery role emits (battery:run, battery:tier3, battery:bisect). | owner: nobody named
+- param:battery.lock_ref | config/registry/battery.json:128#battery.lock_ref | Branch name of the battery lock in the forge (refs/heads/<name>), naming the lock owner; one holder runs the role until no newer integration | owner: nobody named
+- param:battery.lock_lease_s | config/registry/battery.json:138#battery.lock_lease_s | Lease of the battery lock from each take or renewal; an expired lock may be taken over. Renewed before every tier-3 run, so the role refuses | owner: nobody named
+- param:battery.tier3_command | config/registry/battery.json:148#battery.tier3_command | Tier-3 command, relative to the repository root, run on an integration tip (its sha is appended): the full battery with a fresh build cache, | owner: D-065 (5); V7
+- param:battery.tier3_timeout_s | config/registry/battery.json:167#battery.tier3_timeout_s | Longest one tier-3 run may take before it counts as red (stage timeout). | owner: nobody named
+- param:battery.tier3_log_chars | config/registry/battery.json:177#battery.tier3_log_chars | Tail of a red tier-3 run's output the role prints to its session log (the events carry the failing stages, never the log). | owner: nobody named
+- param:battery.bisection_max_runs | config/registry/battery.json:188#battery.bisection_max_runs | Most tier-3 runs one batch bisection may spend over the tips advanced since the last green tip (enough for 2^6 = 64 tips). When they run out | owner: nobody named
+- param:battery.unit_steps | config/registry/battery.json:198#battery.unit_steps | The steps of a unit's battery (scripts/unit-battery <id>, tier 1): each takes the unit's files under its cwd that match include (globs, plus | owner: P-12; veto V5; plan v3 §4.2 item 6
+- param:battery.unit_types_dir | config/registry/battery.json:406#battery.unit_types_dir | Directory, ignored by git, where the battery writes each unit's tsconfig for its types step. | owner: plan v3 §7.2 (one TypeScript project per unit)
+- param:battery.project_tsconfig | config/registry/battery.json:416#battery.project_tsconfig | The TypeScript project's own tsconfig (its compiler settings) that each unit's types project extends; the generated `paths` it extends in tu | owner: plan v3 §7.2; TX32 (the address map leaves the project tscon
+- param:battery.contract_test_globs | config/registry/battery.json:428#battery.contract_test_globs | Test files that prove a unit's contract from the consumer's side; a unit's battery also runs those of the units that require it (P-12: the c | owner: P-12; plan v3 §4.2 items 3 and 6
+- param:battery.unit_step | config/registry/battery.json:445#battery.unit_step | Step name of a unit battery in engine.step.measured; each of its steps is <name>.<step>. | owner: D-069 item 6
+- param:battery.unit_producer | config/registry/battery.json:455#battery.unit_producer | Producer name of the events a unit battery (scripts/unit-battery, tier 1) emits; the tier-3 battery role has its own, battery.producer. | owner: contracts/events/envelope.v1.json
+- param:battery.unit_log_lines | config/registry/battery.json:465#battery.unit_log_lines | Lines of a failing battery step's output the report keeps. | owner: D-069 item 6
+- param:gate-flake.enabled | config/registry/gate-flake.json:9#gate-flake.enabled | TX11 (D-070, docs/units/TX11/plan.md): after the known-base-defect step, a failing test of gate-flake.stages that the PR did not touch is re | owner: D-070
+- param:gate-flake.reruns | config/registry/gate-flake.json:20#gate-flake.reruns | Re-runs of each failing test at the same head. Exactly one (T4/T8): a test that fails on it stays the PR's own; a second re-run would hide a | owner: D-070
+- param:gate-flake.stages | config/registry/gate-flake.json:32#gate-flake.stages | Gate stages whose failing tests are re-run alone through gate_test_cache.run. A stage outside this list is never attributed flake. | owner: D-070
+- param:gate-flake.never_excuse_touched | config/registry/gate-flake.json:49#gate-flake.never_excuse_touched | A failing test whose own file, covers manifest or declared covers the PR changed (defect_detect.touched) is not re-run and stays the PR's: a | owner: D-070
+- param:gate-flake.quarantine_after | config/registry/gate-flake.json:59#gate-flake.quarantine_after | test.flaked events for one test inside gate-flake.quarantine_window_s (this sighting included) after which the gate emits test.quarantined ( | owner: D-070
+- param:gate-flake.quarantine_window_s | config/registry/gate-flake.json:70#gate-flake.quarantine_window_s | Window, ending at the gate's clock, in which earlier test.flaked events of the same test count toward gate-flake.quarantine_after. | owner: D-070
+- param:gate-flake.subject_env | config/registry/gate-flake.json:81#gate-flake.subject_env | Environment variable gate-local exports with the checkout under test; the re-run runs there. Unset (a direct call outside gate-local): the t | owner: D-070
+- param:gate-flake.rerun_store_prefix | config/registry/gate-flake.json:92#gate-flake.rerun_store_prefix | Prefix of the throwaway cache directory the re-run uses, so it neither reads nor writes a gate_test_cache marker; deleted afterwards. | owner: D-070
+- param:gate-flake.rerun_source | config/registry/gate-flake.json:103#gate-flake.rerun_source | The source name the re-run passes to gate_test_cache.run. | owner: D-070
+- param:gate.slots | config/registry/gate.json:52#gate.slots | Optional override of the gates that may run at once on this machine, across all worktrees (D-064 (b)); each holds one slot lock file for its | owner: D-064 (b); D-070 (GX-03)
+- param:gate.slots_per_vcpu | config/registry/gate.json:65#gate.slots_per_vcpu | Gate slots per vCPU when gate.slots is 0: slots = max(1, floor(vCPUs x this)), so a 4-vCPU container runs one gate at a time (GX-03, GA-PG4) | owner: D-070 (GX-03)
+- param:gate.script_tests_per_vcpu | config/registry/gate.json:77#gate.script_tests_per_vcpu | Script tests per vCPU: the concurrency of the script tests is min(gate.script_tests_concurrency, floor(vCPUs x this)), at least 1 (GX-03, GA | owner: D-070 (GX-03)
+- param:gate.slot_dir | config/registry/gate.json:88#gate.slot_dir | Directory of the gate slot lock files tower-gate.slot<N> (D-064 (b)). GATE_SLOT_DIR, when set, is an explicit override for one run. | owner: D-064 (b)
+- param:gate.slot_poll_s | config/registry/gate.json:99#gate.slot_poll_s | Seconds between checks for a free gate slot while every slot is busy; contention, not a wait for the gate itself. GATE_SLOT_POLL, when set,  | owner: D-064 (b)
+- param:gate.tool_probe_timeout_s | config/registry/gate.json:110#gate.tool_probe_timeout_s | Timeout of the node and gitleaks version probes that key the gate's speed record (gate_speed.py); a probe that times out records 'unknown'. | owner: D-064 (f); D-069 item 14
+- param:gate.git_timeout_s | config/registry/gate.json:121#gate.git_timeout_s | Timeout of each git call the gate's speed record makes (gate_speed.py), such as the tree and file hashes that key the caches. | owner: D-064 (f); D-069 item 14
+- param:gate.script_tests_concurrency | config/registry/gate.json:282#gate.script_tests_concurrency | Cap on the script tests that run at the same time in the gate; the rest wait for a free place. The effective concurrency is min(this, floor( | owner: nobody named
+- param:gate.script_tests_log_lines | config/registry/gate.json:293#gate.script_tests_log_lines | Lines of a failing script test output the gate prints. | owner: nobody named
+- param:gate.test_tmp_root | config/registry/gate.json:303#gate.test_tmp_root | TX10 (T6): directory under which each script test gets its own TMPDIR for one run, removed afterwards. Not the gate's own TMPDIR, which may  | owner: TX10; D-070
+- param:gate.test_tmp_mode | config/registry/gate.json:314#gate.test_tmp_mode | TX10 (T6): octal mode of a script test's private TMPDIR; world-traversable so a test that drops root can enter it. | owner: TX10; D-070
+- param:gate.test_env_scrub_prefixes | config/registry/gate.json:325#gate.test_env_scrub_prefixes | TX10 (T6): a gate variable with one of these prefixes never reaches a script test; the test runs as it would outside the gate (scripts/run t | owner: TX10; D-070
+- param:gate.test_env_scrub_names | config/registry/gate.json:342#gate.test_env_scrub_names | TX10 (T6): further gate variables removed from a script test's environment. The forge count file (github-client.count_file_env) is always re | owner: TX10; D-070
+- param:gate.test_env_keep | config/registry/gate.json:358#gate.test_env_keep | TX10 (T6): the slot contract a nested gate in a script test shares with its parent (gate-isolation.sh ou_gate_slot_acquire); removing it wou | owner: TX10; D-070
+- param:gate.heavy_db_slots | config/registry/gate.json:376#gate.heavy_db_slots | Heavy database stages (the stages that declare the heavy_db resource in scripts/lib/gate-stages.json: integration tests, smoke database, db  | owner: nobody named
+- param:gate.script_test_rendezvous_wait_s | config/registry/gate.json:387#gate.script_test_rendezvous_wait_s | Longest a script test waits for its own concurrent jobs to reach a rendezvous before it counts the overlap it got (scripts/tests/gate-heavy- | owner: nobody named
+- param:gate.script_test_hold_s | config/registry/gate.json:397#gate.script_test_hold_s | How long each job of scripts/tests/gate-heavy-db.test.sh keeps its place after the rendezvous, so a cap that lets one job too many in still  | owner: nobody named
+- param:gate.worktree_dir | config/registry/gate.json:621#gate.worktree_dir | Base directory of the per-worktree gate resources (D-069 items 3 and 5): each checkout gets <base>/<id>/ with its temp dir (TMPDIR for the b | owner: nobody named
+- param:gate.worktree_id_length | config/registry/gate.json:632#gate.worktree_id_length | Hex digits of sha256(checkout path) that name a worktree's resource directory and seed its port; the same derivation as the test database na | owner: nobody named
+- param:gate.worktree_port_base | config/registry/gate.json:643#gate.worktree_port_base | First port of the range the per-worktree e2e server draws from. The range sits below the ephemeral range so no outgoing connection holds a p | owner: nobody named
+- param:gate.worktree_port_span | config/registry/gate.json:654#gate.worktree_port_span | Number of ports in the per-worktree e2e range. A worktree starts at its hash modulo this span and takes the next port no other live gate has | owner: nobody named
+- param:gate.preflight_enabled | config/registry/gate.json:677#gate.preflight_enabled | Whether scripts/gate-local runs the gate preflight (scripts/lib/preflight.py gate, probes env.gate_preflight_probes) before it takes the gat | owner: D-070 (GX-01)
+- param:quarantine.unknown_owner | config/registry/quarantine.json:10#quarantine.unknown_owner | Owner of a quarantined test that no unit manifest (units/<id>/unit.json) covers: today every test, until U0's manifests exist. This owner ma | owner: nobody named
+- param:quarantine.step_prefix | config/registry/quarantine.json:20#quarantine.step_prefix | Prefix of the engine.step.measured step names the quarantine emits (quarantine:flaked, quarantine:release). | owner: nobody named
+- param:quarantine.max_age_s | config/registry/quarantine.json:30#quarantine.max_age_s | Age of an open quarantine after which `scripts/quarantine list` marks it overdue: the owner's stabilizing PR is late and the maestro escalat | owner: nobody named
+- param:quarantine.test_roots | config/registry/quarantine.json:40#quarantine.test_roots | Prefixes tried, in order, to turn a test id (a test file as the runner prints it, relative to its package) into a repository path for the un | owner: nobody named
+- param:test-db.name_prefix | config/registry/test-db.json:10#test-db.name_prefix | Prefix of every throwaway test database. The character after tower_test_ is never hex and never g, so a helper name never matches the per-ch | owner: nobody named
+- param:test-db.name_token_bytes | config/registry/test-db.json:20#test-db.name_token_bytes | Random bytes, written as hex after the prefix, that make one throwaway database name unique. | owner: nobody named
+- param:test-db.maintenance_database | config/registry/test-db.json:31#test-db.maintenance_database | Database the helper connects to when it creates, terminates backends of and drops a throwaway database (the same maintenance database gate-i | owner: nobody named
+- param:test-db.psql_timeout_s | config/registry/test-db.json:40#test-db.psql_timeout_s | Limit of one psql call of the helper (create, terminate, drop, existence check); the same 30 s limit the claude-session cleanup had. A call  | owner: nobody named
+- param:test-db.ddl_lock_path | config/registry/test-db.json:50#test-db.ddl_lock_path | Machine-wide lock file taken by the helper around CREATE DATABASE and DROP DATABASE. Both force a checkpoint on the shared test cluster; tak | owner: nobody named
+- param:test-db.ddl_lock_poll_s | config/registry/test-db.json:60#test-db.ddl_lock_poll_s | Pause between two tries for test-db.ddl_lock_path while another caller holds it. | owner: nobody named
+- param:test-db.ddl_lock_wait_s | config/registry/test-db.json:70#test-db.ddl_lock_wait_s | Longest the helper waits for test-db.ddl_lock_path before it raises. It covers queueing behind other callers only; the psql limit (test-db.p | owner: nobody named
+- param:test-orphans.tests_dir | config/registry/test-orphans.json:10#test-orphans.tests_dir | Directory of the Python tests and of their *.test.sh wrappers, relative to the repository root. | owner: nobody named
+- param:test-orphans.test_glob | config/registry/test-orphans.json:19#test-orphans.test_glob | File name of a Python test, directly in tests_dir or in one module directory below it (the TX24 form <module>/test_*.py). | owner: nobody named
+- param:test-orphans.skip_dirs | config/registry/test-orphans.json:28#test-orphans.skip_dirs | Directories under tests_dir that hold data, not tests: a test_*.py in them is a fixture and needs no wrapper. | owner: nobody named
+- param:tests.random_seed | config/registry/tests.json:10#tests.random_seed | Seed of every random source in unit and script tests: Python's random module (scripts/lib/hermetic.py) and Math.random (apps/web/test/hermet | owner: nobody named
+- param:tests.timeout_ms | config/registry/tests.json:22#tests.timeout_ms | Per-test timeout of the vitest unit project: the value it already ran with (vitest's default). Never raised to hide a slow test (D-069 items | owner: nobody named
+- param:tests.script_timeout_ms | config/registry/tests.json:32#tests.script_timeout_ms | Per-test timeout of Python script tests. They had no bound before H1; this one equals the longest explicit subprocess timeout those tests al | owner: nobody named
+- param:tests.int_timeout_ms | config/registry/tests.json:42#tests.int_timeout_ms | Per-test timeout of the vitest integration project (local database), as the project already ran with. | owner: nobody named
+- param:tests.author_race_rounds | config/registry/tests.json:52#tests.author_race_rounds | Rounds of the shared-author slug race in the bundle-apply integration test: each round releases two applies on the same instant. | owner: nobody named
+- param:tests.author_race_lead_ms | config/registry/tests.json:62#tests.author_race_lead_ms | How far ahead of the clock the shared-author slug race arms its release instant, so both applies are parked at the trigger before it. Each r | owner: nobody named
+- param:tests.hook_timeout_ms | config/registry/tests.json:72#tests.hook_timeout_ms | Hook timeout of the vitest integration project (database reseeding in beforeEach), as the project already ran with. | owner: nobody named
+- param:tests.network_allowed | config/registry/tests.json:82#tests.network_allowed | When false, unit and script tests cannot open a connection to any host outside tests.loopback_hosts: connect, UDP send and name resolution r | owner: nobody named
+- param:tests.loopback_hosts | config/registry/tests.json:92#tests.loopback_hosts | Hosts a hermetic test may still reach: its own fixture servers on the loopback interface. | owner: nobody named
+- param:tests.clock_start | config/registry/tests.json:110#tests.clock_start | RFC 3339 instant at which the injected test clock starts; tests advance it explicitly and never read the wall clock. | owner: nobody named
+- param:tests.check_roots | config/registry/tests.json:121#tests.check_roots | Prefixes of the repository whose test files (test_*.py, *_test.py, *.test.ts/mjs, not *.int.test.ts) the hermetic check judges. | owner: nobody named
+- param:tests.harness_files | config/registry/tests.json:140#tests.harness_files | Test files that prove the harness itself and so must call the forbidden forms (a socket to a refused host, Math.random). The hermetic check  | owner: nobody named
+- param:tests.unhermetic_sites | config/registry/tests.json:155#tests.unhermetic_sites | Test files that predate the hermetic rules, as path:RULE (wall_clock, random, socket). Against the base this list only shrinks; a new site i | owner: nobody named
+- param:tests.config_store | config/registry/tests.json:174#tests.config_store | The configuration change store a hermetic test process reads: this checkout's local log, never the shared store on the forge (D-069 item 5). | owner: TR1; D-068 (3); D-069 item 5 | can stop: PRs stopped not measured
+- decision:D-064 | docs/domain/DECISIONS.md:66 | Modular process, no bottleneck. | owner: 2026-10-26 13:47–13:53 (Daniel, chat; recorded by the roadma
+- premise:P-12 | docs/process/premises/tier1-is-unit-battery.yml:2 | Tier 1 is the unit's battery (types, tests and the direct consumers' contract); tiers 2 and 3 run fresh. | owner: orchestrator (report v2 V5 + plan v3)
+- premise:P-38 | docs/process/premises/ten-second-battery.yml:2 | Guiding question: what stops the battery from running in 10 s? No physical law does. | owner: daniel (addendum)
+
+Kinds: decision 1, parameter 81, premise 2. Estimated work: 62 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/gate-execution-and-tests.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 84), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/gate-execution-and-tests.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/gate-execution-and-tests.md has exactly 84 rows, one per census row of this group, and the verdict
+  counts sum to 84 (quote the command that counts them).
+* docs/audits/rules/gate-execution-and-tests.json parses and has the same 84 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json and
+  docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-structure-check-and-premises: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json, docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**
+  - mod/rule-audit-commit-and-pr-discipline: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json, docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**
+  - mod/rule-audit-registry-literals-and-text: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json, docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**
+  - mod/rule-audit-environment-toolchain-and-supply-chain: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json, docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**
+  - mod/rule-audit-production-release-and-migrations: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json, docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-merge-train-and-delivery: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json, docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**
+  - mod/rule-audit-defects-lessons-and-postmortems: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json, docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-code-architecture-and-units: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json, docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**
+  - mod/rule-audit-gate-selection-proof-and-status: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json, docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**
+  - mod/rule-audit-paid-vendors-and-ai-sessions: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json, docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+62 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-12"
+slug: "tier1-is-unit-battery"
+statement: "Tier 1 is the unit's battery (types, tests and the direct consumers' contract); tiers 2 and 3 run fresh."
+kind: "process"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "report v2 V5 + plan v3"
+  quote: null
+  at: null
+status: "inferred"
+radius: "medium"
+blast:
+  reasons: ["plan:U3a", "plan:M3"]
+  if_wrong: "If Daniel requires the whole battery per PR, the 10 s target falls and throughput per lane falls about 30%."
+validate:
+  kind: "veto"
+  how: "Veto V5 of plan v3 §9.3."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

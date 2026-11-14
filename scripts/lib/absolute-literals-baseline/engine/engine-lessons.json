@@ -1,0 +1,64 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/lesson_ingest.py": {
+      "number 2": 2,
+      "number 3": 1
+    },
+    "scripts/lib/lessons.py": {
+      "number 2": 3
+    },
+    "scripts/lib/lessons_effect.py": {
+      "number 2": 1,
+      "number 3": 1
+    },
+    "scripts/lib/lessons_report.py": {
+      "number 1000": 1
+    },
+    "scripts/tests/test_lesson_ingest.py": {
+      "number 10": 1,
+      "number 2": 2,
+      "number 2026": 1,
+      "number 27": 1,
+      "number 3": 6,
+      "number 40": 1,
+      "number 5": 1,
+      "number 9": 1
+    },
+    "scripts/tests/test_lessons.py": {
+      "number 10": 1,
+      "number 2": 2,
+      "number 2026": 1,
+      "number 27": 1,
+      "number 3": 3,
+      "number 5": 3,
+      "number 581": 2
+    },
+    "scripts/tests/test_lessons_effect.py": {
+      "number -2": 2,
+      "number -200": 1,
+      "number -3": 1,
+      "number 10": 1,
+      "number 1000": 1,
+      "number 14": 1,
+      "number 2": 4,
+      "number 200": 1,
+      "number 2026": 1,
+      "number 3": 2,
+      "number 30": 2,
+      "number 5": 7,
+      "number 60": 1,
+      "number 9": 1
+    },
+    "scripts/tests/test_lessons_report.py": {
+      "number 10": 1,
+      "number 2": 6,
+      "number 2000": 1,
+      "number 2026": 1,
+      "number 3": 2,
+      "number 3000": 1,
+      "number 5": 1,
+      "number 5000": 1
+    }
+  }
+}

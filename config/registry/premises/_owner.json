@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/premises.json",
+  "x-owner": "premises",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false
+}

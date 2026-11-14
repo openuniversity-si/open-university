@@ -1,0 +1,14 @@
+{
+  "first": 5,
+  "second": 3,
+  "third": 4,
+  "before_tool": 400,
+  "tail_before": 10,
+  "tail_after": 9,
+  "numbers": [1, 2],
+  "write_count": 2,
+  "long_calls": 100,
+  "short_calls": 50,
+  "write_calls": 2,
+  "write_numbers": [1]
+}

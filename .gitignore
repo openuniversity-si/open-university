@@ -1,0 +1,41 @@
+# Dependencies (OU-DECOUPLE F5, D-113: the Next.js, Playwright, fidelity and Vercel outputs left with Open University)
+node_modules/
+.pnpm-store/
+
+# Test output
+coverage/
+
+# Env files (never commit secrets)
+.env*
+!.env.example
+
+# OS / editor
+.DS_Store
+*.log
+
+# Raster images are not source; the repository commits none.
+*.[pP][nN][gG]
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[gG][iI][fF]
+*.[wW][eE][bB][pP]
+*.[aA][vV][iI][fF]
+*.[bB][mM][pP]
+*.[tT][iI][fF]
+*.[tT][iI][fF][fF]
+*.[iI][cC][oO]
+
+# Local Python operation helpers
+__pycache__/
+
+# Per-machine gate records. The merge commit and its gate proof are the record.
+.gate/
+
+# Pinned interpreters and CLIs installed by scripts/cloud/setup.sh. Not source.
+.toolchain
+
+# Local change store of the configuration registry (D-068; config.store_path)
+/.tower/
+
+# RETRO-API session-log store (docs/units/RETRO-API/audit.md): local until a unit chooses the central copy
+/retro/

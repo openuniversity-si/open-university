@@ -1,0 +1,44 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/cloud-webkit": {
+      "absolute_path \"/run\"": 2,
+      "host \"127.0.0.1\"": 2,
+      "number 2": 1
+    },
+    "scripts/lib/capture-page.mjs": {
+      "number 200": 3
+    },
+    "scripts/lib/cloud-webkit.mjs": {
+      "host \"0.0.0.0\"": 1
+    },
+    "scripts/lib/direct-image-capture.mjs": {
+      "number 2": 2,
+      "number 200": 3
+    },
+    "scripts/lib/direct_image_normalize.py": {
+      "number 2": 1
+    },
+    "scripts/lib/media-parity.mjs": {
+      "number 100": 2,
+      "number 2": 2,
+      "number 2026": 1
+    },
+    "scripts/lib/production-capture.mjs": {
+      "number 2": 1,
+      "number 3": 2
+    },
+    "scripts/lib/prune-inherited-audit.mjs": {
+      "number 2": 2
+    },
+    "scripts/lib/raster-parity.mjs": {
+      "number 3": 1
+    },
+    "scripts/tests/engine-capture-config.test.mjs": {
+      "url \"https://${domain}/a\"": 1,
+      "url \"https://example.com/${domain}\"": 1,
+      "url \"https://not${domain}/a\"": 1,
+      "url \"https://stream.${domain}/a.m3u8\"": 1
+    }
+  }
+}

@@ -1,0 +1,8 @@
+# GX-37 audit
+
+- Base `mod/roadmap-integration` 4bc4dd04. Cited sources verified present: `contracts/events/gate.{passed,failed}.v3.json`, `env.drift.v1.json` (no producer note in EVENTS.md), `schemas.lock.json`, `scripts/lib/event_contracts.py` (`lock`, `check`), `scripts/generate` (targets in `config/registry/generate.json`), `scripts/tests/test_event_contracts.py`, GA2 §6 and Q14 in `docs/programs/gate-excellence/audit-2-opus.md`.
+- Tests that bind this unit: `test_events_md_and_the_schemas_name_the_same_events` (every catalog type must have a row in the EVENTS.md `## Events` table, and only those), `test_every_payload_carries_subject_unit_and_premises` (every payload except the premise.* exemptions needs repo, pr, sha, unit, premises; the exemption list lives in `config/registry/forge-events.json`, owned by GX-17, so `plan.changed` carries the subject fields instead of being exempted).
+- Nothing emits or reads the new types yet; the unit is additive and behaviour-preserving.
+- `pr` is nullable in v4 verdicts and the new events where tier 2/3 or the repository channel has no PR; the v3 `defs.pr` is an integer, so v4 declares its own nullable `pr`.
+- Correction (A Torre, 27/10): `plan.changed.v1` is owned by LP2 (mod/lp2); removed in a normal commit. After LP2 merges, merge the base and regenerate `schemas.lock.json`.
+- Finding: `ForgeEvents.build` emits the newest locked version by default, so locking v4 made every default gate.passed/failed emit (and every test fixture) require v4 fields. Class fix: registry pins `gate-contracts.gate_{passed,failed}_version` (default 3) read by `forge_events.default_version`; `gate_report` and the fixtures are unchanged. The two tests that asserted "newest = default" now assert the pin.

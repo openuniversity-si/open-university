@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/coordinator.json",
+  "x-owner": "coordinator",
+  "x-schema-version": 1,
+  "description": "The program coordinator and program registry (D-069 CO1): programs as first-class objects, the decision function, the launch adapter and the program gate.",
+  "type": "object",
+  "additionalProperties": false
+}

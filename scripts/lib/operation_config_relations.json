@@ -1,0 +1,420 @@
+{
+  "version": 1,
+  "subject": "configuration boundaries of the declared forge operation recorte",
+  "revision": "de4ec2784",
+  "decisions": [
+    "D-285"
+  ],
+  "observation": "All split forge-events registry keys are classified. Consumers reproduce x-readers and are independently confronted with literal source reads. Operational assignments name method evidence; adjacent journal and engine configuration and forge selection do not invent operational ownership. Unknown former Origin settings and stale readers remain exposed. C5 connects findings to refusal. Sharing never follows from a common reader alone.",
+  "keys": [
+    {
+      "name": "forge-events.adapter",
+      "kind": "selection",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_events.py",
+        "scripts/lib/gate_status.py"
+      ],
+      "reason": "adapter_from_config selects the forge or its journal adapter; this is not operational ownership."
+    },
+    {
+      "name": "forge-events.adjudicated_tiers",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/gate_tier.py"
+      ],
+      "reason": "gate_tier.adjudicated controls known-defect adjudication, not a forge operation."
+    },
+    {
+      "name": "forge-events.attribution_url",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/pr_body.py"
+      ],
+      "reason": "pr_body.footer renders attribution for PR bodies; no exclusive port operation is proven."
+    },
+    {
+      "name": "forge-events.board_issue",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "reason": "adapter_from_config enables the adjacent event board."
+    },
+    {
+      "name": "forge-events.board_overflow_ref",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "reason": "board_adapter configures overflow storage for the adjacent event board."
+    },
+    {
+      "name": "forge-events.board_sections",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "reason": "board_adapter maps event kinds into adjacent board sections."
+    },
+    {
+      "name": "forge-events.check_run_publisher",
+      "kind": "operation",
+      "operations": [
+        "set_status"
+      ],
+      "consumers": [
+        "scripts/lib/forge_origin.py",
+        "scripts/lib/gate_status.py"
+      ],
+      "reason": "forge_origin.adapter_from_config chooses who posts the set_status check run (D-299)."
+    },
+    {
+      "name": "forge-events.claim_tries",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/decision_next.py"
+      ],
+      "reason": "decision_next.reserve retries git-based number reservation, outside the port operations."
+    },
+    {
+      "name": "forge-events.clock",
+      "kind": "operation",
+      "operations": [
+        "lock"
+      ],
+      "consumers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "reason": "ForgeEvents.lock constructs lease timestamps with its configured clock."
+    },
+    {
+      "name": "forge-events.contracts_dir",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/event_contracts.py",
+        "scripts/lib/prepush.py"
+      ],
+      "reason": "event_contracts and prepush inspect event schemas."
+    },
+    {
+      "name": "forge-events.contracts_lock",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/event_contracts.py"
+      ],
+      "reason": "event_contracts checks locked schemas."
+    },
+    {
+      "name": "forge-events.control_token_env",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_control.py"
+      ],
+      "reason": "ControlAdapter authenticates the adjacent journal service."
+    },
+    {
+      "name": "forge-events.envelope_schema",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/event_contracts.py",
+        "scripts/lib/premises.py"
+      ],
+      "reason": "event_contracts and premises build and validate event envelopes."
+    },
+    {
+      "name": "forge-events.event_id_algorithm",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/event_contracts.py"
+      ],
+      "reason": "event_contracts constructs envelope identifiers."
+    },
+    {
+      "name": "forge-events.file_kinds",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "reason": "adapter_from_config routes event kinds to the local journal."
+    },
+    {
+      "name": "forge-events.gate_producer",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/gate_bypass.py",
+        "scripts/lib/gate_carry.py",
+        "scripts/lib/gate_report.py",
+        "scripts/lib/gate_status.py"
+      ],
+      "reason": "Gate consumers identify event producers."
+    },
+    {
+      "name": "forge-events.gate_step_prefix",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/gate_report.py",
+        "scripts/lib/gate_timing_report.py",
+        "scripts/lib/slo.py"
+      ],
+      "reason": "Gate timing consumers classify event step names."
+    },
+    {
+      "name": "forge-events.git_ref_attempts",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_events.py",
+        "scripts/lib/forge_git_ref.py"
+      ],
+      "reason": "GitRefLog and board_adapter retry journal or board appends, not GitRefs.merge."
+    },
+    {
+      "name": "forge-events.git_ref_log",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_git_ref.py"
+      ],
+      "reason": "GitRefLog names its adjacent event journal."
+    },
+    {
+      "name": "forge-events.git_ref_window",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_git_ref.py"
+      ],
+      "reason": "GitRefLog and ControlAdapter bound journal reading."
+    },
+    {
+      "name": "forge-events.event_comment_marker",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/decision_wait.py"
+      ],
+      "reason": "decision_wait ignores marked event comments when looking for a human decision."
+    },
+    {
+      "name": "forge-events.board_comment_max_chars",
+      "kind": "operation",
+      "operations": [
+        "upsert_comment"
+      ],
+      "consumers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "reason": "forge_events.board_adapter configures the adjacent event board body budget."
+    },
+    {
+      "name": "forge-events.local_log_dir",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "reason": "FileAdapter stores the adjacent local event journal."
+    },
+    {
+      "name": "forge-events.log_adapter",
+      "kind": "selection",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/forge_events.py"
+      ],
+      "reason": "adapter_from_config selects the forge or its journal adapter; this is not operational ownership."
+    },
+    {
+      "name": "forge-events.origin_check_suite_key",
+      "kind": "operation",
+      "operations": [
+        "set_status"
+      ],
+      "consumers": [
+        "scripts/lib/forge_origin_client.py"
+      ],
+      "reason": "OriginClient.publish_check_run constructs the suite key."
+    },
+    {
+      "name": "forge-events.origin_check_suite_name",
+      "kind": "operation",
+      "operations": [
+        "set_status"
+      ],
+      "consumers": [
+        "scripts/lib/forge_origin_client.py"
+      ],
+      "reason": "OriginClient.publish_check_run constructs the suite name."
+    },
+    {
+      "name": "forge-events.origin_status_map",
+      "kind": "operation",
+      "operations": [
+        "set_status"
+      ],
+      "consumers": [
+        "scripts/lib/forge_origin_client.py"
+      ],
+      "reason": "OriginClient.publish_check_run maps the operation state."
+    },
+    {
+      "name": "forge-events.repo",
+      "kind": "operation",
+      "operations": [
+        "approvals",
+        "change",
+        "change_commits",
+        "close_change",
+        "comment",
+        "comments",
+        "find_change",
+        "lock",
+        "merge",
+        "open_change",
+        "open_changes",
+        "open_pulls",
+        "pull",
+        "pushes",
+        "set_status",
+        "unlock",
+        "upsert_comment"
+      ],
+      "consumers": [
+        "scripts/lib/battery.py",
+        "scripts/lib/budgets.py",
+        "scripts/lib/commit_check.py",
+        "scripts/lib/config.py",
+        "scripts/lib/coordinator_launch.py",
+        "scripts/lib/decision_next.py",
+        "scripts/lib/defect_detect.py",
+        "scripts/lib/defect_router.py",
+        "scripts/lib/defects.py",
+        "scripts/lib/flow_metrics.py",
+        "scripts/lib/forge_events.py",
+        "scripts/lib/forge_origin.py",
+        "scripts/lib/gate_bypass.py",
+        "scripts/lib/gate_carry.py",
+        "scripts/lib/gate_explain.py",
+        "scripts/lib/gate_infra.py",
+        "scripts/lib/gate_pin.py",
+        "scripts/lib/gate_policy.py",
+        "scripts/lib/gate_report.py",
+        "scripts/lib/gate_status.py",
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/gate_timing_report.py",
+        "scripts/lib/idea_to_prod.py",
+        "scripts/lib/lessons.py",
+        "scripts/lib/lessons_report.py",
+        "scripts/lib/origin_remote.py",
+        "scripts/lib/plan_triage.py",
+        "scripts/lib/pr_ready.py",
+        "scripts/lib/premises.py",
+        "scripts/lib/prepush.py",
+        "scripts/lib/program.py",
+        "scripts/lib/push_guard.py",
+        "scripts/lib/quarantine.py",
+        "scripts/lib/release_policy.py",
+        "scripts/lib/replay_branch.py",
+        "scripts/lib/service_runner.py",
+        "scripts/lib/service_status.py",
+        "scripts/lib/slo.py",
+        "scripts/lib/stall_report.py",
+        "scripts/lib/structure.py",
+        "scripts/lib/threshold_check.py",
+        "scripts/lib/train.py",
+        "scripts/lib/unit_battery.py",
+        "scripts/lib/unit_map.py"
+      ],
+      "reason": "Repository identity is passed to repository-scoped port operations; calls reads process counters without a repository. Adjacent consumers also use it.",
+      "shared": true
+    },
+    {
+      "name": "forge-events.status_context_gate",
+      "kind": "operation",
+      "operations": [
+        "set_status"
+      ],
+      "consumers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "reason": "gate_status.publish_status names the status context."
+    },
+    {
+      "name": "forge-events.status_description_chars",
+      "kind": "operation",
+      "operations": [
+        "set_status"
+      ],
+      "consumers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "reason": "gate_status.description and Origin check-run rendering bound status text."
+    },
+    {
+      "name": "forge-events.status_digest_chars",
+      "kind": "operation",
+      "operations": [
+        "set_status"
+      ],
+      "consumers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "reason": "gate_status.description truncates the digest rendered in status text."
+    },
+    {
+      "name": "forge-events.status_enabled",
+      "kind": "operation",
+      "operations": [
+        "set_status"
+      ],
+      "consumers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "reason": "gate_status.publish_status controls whether the operation is called."
+    },
+    {
+      "name": "forge-events.subject_exempt_schemas",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/event_contracts.py"
+      ],
+      "reason": "event_contracts and ForgeEvents build and validate event subjects."
+    },
+    {
+      "name": "forge-events.subject_fields",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/branch_age.py",
+        "scripts/lib/event_contracts.py"
+      ],
+      "reason": "event_contracts and branch_age read envelope subject fields."
+    },
+    {
+      "name": "forge-events.tier1_gate_modes",
+      "kind": "adjacent",
+      "operations": [],
+      "consumers": [
+        "scripts/lib/gate_report.py",
+        "scripts/lib/gate_status.py"
+      ],
+      "reason": "gate_report and gate_status choose reporting tiers, outside operation ownership."
+    }
+  ]
+}

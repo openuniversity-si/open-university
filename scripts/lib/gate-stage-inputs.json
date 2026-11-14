@@ -1,0 +1,5 @@
+{
+  "$comment": "GX-23 (B-15, GA-P10, D-070): the inputs a stage reads, from an access trace. gate_result_cache keys a declared stage on shared_inputs + inputs + traced; a stage not listed here keeps its gate-stages.json inputs. OU-DECOUPLE F5 (D-113): the web stages declared here (lint, typecheck, integration tests) and their package lockfiles left with Open University; no engine stage is cached, so none is declared. Rollback: set gate-inputs.enabled false.",
+  "shared_inputs": [],
+  "stages": {}
+}

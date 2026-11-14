@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/release.json",
+  "x-owner": "release",
+  "x-schema-version": 1,
+  "description": "The release controller (D-065, roadmap step 8).",
+  "type": "object",
+  "additionalProperties": false
+}

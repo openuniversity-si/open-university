@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/lessons/lesson.v1.json",
+  "title": "Lesson v1",
+  "description": "One lesson a unit retro produced. Changed only through scripts/lessons; the audit trail is the append-only, hash-chained <slug>.audit.jsonl next to it (contracts/lessons/audit.v1.json) (D-069 items 4 and 9).",
+  "x-owner": "lessons",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "slug",
+    "title",
+    "source",
+    "class",
+    "kind",
+    "change",
+    "owner",
+    "status",
+    "area",
+    "signals",
+    "applied",
+    "effect"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^LR-[0-9a-f]{6,}$",
+      "description": "lessons.id_prefix plus the dedup hash of (source unit, source ref, title)."
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "The file name, derived from the title and the id."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One line that names the problem."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "retro",
+        "section",
+        "ref"
+      ],
+      "properties": {
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The unit whose retro found it."
+        },
+        "retro": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where it was read: a retro path or \"pr-comment:<n>\"."
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Retro section number (1 brief, 2 audit and plan, 3 execution, 4 gate, 5 lessons)."
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The item inside the section: a table id (F5) or a list number (L2)."
+        }
+      }
+    },
+    "class": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Root-cause class, one of lessons.classes."
+    },
+    "kind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Kind of change, one of lessons.kinds."
+    },
+    "change": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The concrete change that would have prevented it: a rule, brief template, config, tool, shared helper or check."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One of lessons.owners."
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One of lessons.statuses."
+    },
+    "area": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Path globs or unit ids the lesson is about; scripts/lessons for-area matches a unit area against them."
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event",
+          "stage",
+          "pattern"
+        ],
+        "properties": {
+          "event": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Event type in the log that counts as one occurrence, e.g. gate.failed."
+          },
+          "stage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Gate stage the occurrence is in; null for any."
+          },
+          "pattern": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Regular expression matched against the failing test ids and signatures of the event; null for any."
+          }
+        }
+      },
+      "description": "What an occurrence of the class looks like in the event log; the effect is measured by counting them before and after the lesson was applied."
+    },
+    "applied": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "pr",
+        "at",
+        "ref"
+      ],
+      "properties": {
+        "pr": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The merge commit, file or command that carries the change."
+        }
+      }
+    },
+    "effect": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "measured_at",
+        "window_days",
+        "before",
+        "after",
+        "verdict"
+      ],
+      "properties": {
+        "measured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "window_days": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "before": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Occurrences of the signals in the window before applied.at."
+        },
+        "after": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Occurrences in the window after applied.at."
+        },
+        "verdict": {
+          "type": "string",
+          "minLength": 1,
+          "description": "improved, unchanged, worse or insufficient-data."
+        }
+      }
+    },
+    "level": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where the lesson applies, one of lessons.levels (commit, pr, program, venture). Optional: a record without it is read as lessons.default_level."
+    },
+    "padrao_candidate": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when the lesson applies to every venture and is to be lifted later into the central Padr\u00e3o in A Torre. Optional, false when absent. Nothing lifts it yet."
+    }
+  }
+}

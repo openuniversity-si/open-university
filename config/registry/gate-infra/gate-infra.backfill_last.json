@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 60,
+  "minimum": 1,
+  "x-unit": "merges",
+  "description": "The merges scripts/gate-infra backfill judges again by default: enough for P5 F3's 50 PRs (medir.shadow_prs) with room for the ones that differ.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 5 (P5 F3), D-306"
+}

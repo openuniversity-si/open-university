@@ -1,0 +1,20 @@
+{
+  "script": "scripts/tests/infra-autodeploy.test.sh",
+  "covers": [
+    "scripts/tests/infra-autodeploy.test.sh",
+    "scripts/tests/test_infra_autodeploy.py",
+    "infra/service/tower_infra/autodeploy.py",
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/live_image.py",
+    "infra/service/tower_infra/fastdeploy.py",
+    "config/registry/deploy/*.json",
+    "config/registry/deploy.json",
+    "infra/service/tower_infra/wake.py",
+    "scripts/tests/test_infra_aws.py",
+    "infra/aws/stacks/30-service.json",
+    "infra/aws/bootstrap.json",
+    "infra/service/tower_infra/__main__.py",
+    "infra/service/tower_infra/ingress.py",
+    "infra/db/migrations/0009_wake_deploy.sql"
+  ]
+}

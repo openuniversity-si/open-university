@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "maestro",
+  "x-unit": "name",
+  "description": "Owner of a defect whose test no unit manifest covers.",
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ]
+}

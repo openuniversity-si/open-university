@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "scripts/gate-dev",
+  "pattern": "^scripts/[a-z][a-z0-9-]*$",
+  "x-unit": "path",
+  "description": "Gate command the local runner executes with --pr N, relative to the repository root.",
+  "x-readers": [
+    "scripts/lib/adapters/ci_local.py"
+  ],
+  "x-source": "AGENTS.md (scripts/gate-dev --pr <n>)"
+}

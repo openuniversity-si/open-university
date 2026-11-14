@@ -1,0 +1,8 @@
+{
+  "script": "scripts/tests/memory-git.test.sh",
+  "covers": [
+    "scripts/tests/memory-git.test.sh",
+    "scripts/tests/test_memory_git.py",
+    "scripts/tests/memory_git.py"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-infra.json",
+  "x-owner": "gate-infra",
+  "x-schema-version": 1,
+  "description": "The gate over the infrastructure (GATE-INFRA 2, P5 F2; D-306): the adapter of our management that judges a PR head with the infrastructure's jobs through the port.",
+  "type": "object",
+  "additionalProperties": false
+}

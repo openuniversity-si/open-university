@@ -1,0 +1,161 @@
+RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS: audit every rule of the group "Production freeze, release policy and database migrations" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-production-release-and-migrations. One draft PR from mod/rule-audit-production-release-and-migrations into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS: Production freeze, release policy and database migrations", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They guard what can reach production: the freeze (D-054), the release policy, the production guard, the Neon migration path and its order, previews, and the definition of a working site.
+
+== YOUR ROWS (exactly these 41; census at PR #775, docs/audits/rules/census.json) ==
+- param:neon.migrate_timeout_s | config/registry/neon.json:10#neon.migrate_timeout_s | Seconds one `pnpm db:migrate` child (apply, dry-run or ledger read) may run before neon-migrate gives up. | owner: D-063; D-068; D-069 item 3 | can stop: PRs stopped not measured
+- param:neon.migrate_output_tail_lines | config/registry/neon.json:22#neon.migrate_output_tail_lines | Lines of redacted child output a failed migration prints. | owner: D-063; D-068; D-069 item 3 | can stop: PRs stopped not measured
+- param:neon.database_name | config/registry/neon.json:34#neon.database_name | Database whose connection URI neon-migrate and neon-pr request. | owner: D-063; D-068; D-069 item 3
+- param:neon.role_name | config/registry/neon.json:45#neon.role_name | Application role whose connection URI neon-migrate and neon-pr request. | owner: D-063; D-068; D-069 item 3
+- param:neon.preview_branch_name | config/registry/neon.json:56#neon.preview_branch_name | Neon branch that production migrations follow (D-035). | owner: D-063; D-068; D-069 item 3
+- param:neon.api_timeout_s | config/registry/neon.json:67#neon.api_timeout_s | Seconds one Neon API request may take. | owner: D-063; D-068; D-069 item 3
+- param:neon.pr_branch_max_age_s | config/registry/neon.json:79#neon.pr_branch_max_age_s | Age after which a disposable pr-<n> branch is pruned even when its PR is open. | owner: D-063; D-068; D-069 item 3
+- param:neon.pr_branch_limit | config/registry/neon.json:90#neon.pr_branch_limit | Most disposable pr-<n> branches that may exist; creating another is refused. | owner: D-063; D-068; D-069 item 3
+- param:neon.branch_total_limit | config/registry/neon.json:102#neon.branch_total_limit | Most Neon branches in the project; creating a PR branch at this count is refused. | owner: D-063; D-068; D-069 item 3
+- param:neon.pr_compute_cu | config/registry/neon.json:114#neon.pr_compute_cu | Autoscaling minimum and maximum, in compute units, a PR branch endpoint must have (cost envelope). | owner: D-063; D-068; D-069 item 3
+- param:neon.pr_suspend_timeout_s | config/registry/neon.json:126#neon.pr_suspend_timeout_s | Idle seconds before a PR branch compute suspends (cost envelope). | owner: D-063; D-068; D-069 item 3
+- param:neon.health_attempts | config/registry/neon.json:138#neon.health_attempts | Health polls before the PR acceptance server is declared not ready. | owner: D-063; D-068; D-069 item 3
+- param:neon.health_poll_s | config/registry/neon.json:150#neon.health_poll_s | Pause between health polls of the PR acceptance server. | owner: D-063; D-068; D-069 item 3
+- param:neon.health_request_timeout_s | config/registry/neon.json:162#neon.health_request_timeout_s | Seconds one health request to the PR acceptance server may take. | owner: D-063; D-068; D-069 item 3
+- param:neon.build_restore_timeout_s | config/registry/neon.json:174#neon.build_restore_timeout_s | Seconds restoring the production build cache for `next start` may take. | owner: D-063; D-068; D-069 item 3
+- param:neon.doctor_timeout_s | config/registry/neon.json:186#neon.doctor_timeout_s | Seconds the catalog doctor request may take before the acceptance reports transport (D-027). | owner: D-063; D-068; D-069 item 3
+- param:neon.server_stop_timeout_s | config/registry/neon.json:198#neon.server_stop_timeout_s | Seconds to wait for the acceptance server to stop after terminate before it is killed. | owner: D-063; D-068; D-069 item 3
+- param:neon.redacted_run_timeout_s | config/registry/neon.json:210#neon.redacted_run_timeout_s | Seconds one redacted child command (fingerprint, migrate rerun) may run. | owner: D-063; D-068; D-069 item 3
+- param:neon.hook_mode_timeout_s | config/registry/neon.json:222#neon.hook_mode_timeout_s | Seconds per mode a db-gate hook group may run. | owner: D-063; D-068; D-069 item 3
+- param:neon.hook_loader_timeout_s | config/registry/neon.json:234#neon.hook_loader_timeout_s | Seconds the read-only R2 hook loader may run. | owner: D-063; D-068; D-069 item 3
+- param:neon.hook_pipe_read_bytes | config/registry/neon.json:246#neon.hook_pipe_read_bytes | Bytes read from the hook loader pipe. | owner: D-063; D-068; D-069 item 3
+- param:production.forbidden_entrypoints | config/registry/production.json:10#production.forbidden_entrypoints | The scripts under scripts/ that change or probe production; a cloud session never runs them and a PR diff never adds an invocation of them. | owner: D-054; D-069 item 13
+- param:production.cloud_session_markers | config/registry/production.json:19#production.cloud_session_markers | Environment variable names whose presence (non-empty) marks a cloud session; a host-side shell has none of them. | owner: D-054; D-069 item 13
+- param:production.refusal_exit_code | config/registry/production.json:28#production.refusal_exit_code | Exit status of a production entrypoint that refuses to run in a cloud session. | owner: D-054; D-069 item 13 | can stop: PRs stopped not measured
+- param:production.invocation_allowed_paths | config/registry/production.json:38#production.invocation_allowed_paths | Path globs where a diff may add a mention of a forbidden entrypoint: the entrypoints and delivery code themselves, the gate test map, the db | owner: D-054; D-069 item 13
+- param:production.scanned_suffixes | config/registry/production.json:69#production.scanned_suffixes | File suffixes the invocation scan reads under scripts/ and apps/web/ (the empty string is an extensionless script). | owner: D-054; D-069 item 13
+- param:production.scanned_roots | config/registry/production.json:78#production.scanned_roots | Path prefixes whose added lines the invocation scan reads. | owner: D-054; D-069 item 13
+- param:release.merged_prs_per_release | config/registry/release.json:10#release.merged_prs_per_release | Merged PRs since the last release after which release.ready is emitted (or a milestone). | owner: D-065; P-35
+- decision:D-023 | docs/domain/DECISIONS.md:35 | Legacy v1 restore proof retired | owner: 2026-10-22 14:53 (Daniel, chat; supersedes the 14:52 restore
+- decision:D-035 | docs/domain/DECISIONS.md:47 | One ship path for the rehearsal blockers. | owner: 2026-10-23 (Daniel, ship rehearsal)
+- decision:D-036 | docs/domain/DECISIONS.md:48 | One ship, and production does not run ahead of its database. | owner: 2026-10-23 (Daniel, ship rehearsal 4; recorded on the integr
+- decision:D-038 | docs/domain/DECISIONS.md:50 | The site is working only when one definition says so. | owner: 2026-10-23 (Daniel, A Torre)
+- decision:D-046 | docs/domain/DECISIONS.md:51 | A Vercel preview is deployed once per pull request, on demand. | owner: 2026-10-23 (Daniel, CEO; next free id after D-045 on the ope
+- decision:D-054 | docs/domain/DECISIONS.md:56 | The modularity roadmap runs in eight steps on one integration branch, and production waits for the host swap. | owner: 2026-10-25 (Daniel, modularity roadmap; recorded by the road
+- premise:P-35 | docs/process/premises/zero-users.yml:2 | Zero users: no deploy or preview per PR; a rare release (about 1,000 PRs or a milestone); the site may go down; question constraints before  | owner: daniel (addendum 2)
+- refusal:migration_order.prod_refusal | scripts/lib/migration_order.py:26 | Says why production may not migrate (D-035): v1-preview not reset from the production branch, no reset timestamp, unreadable ledgers, previe | owner: D-035 | can stop: PRs stopped 0
+- refusal:migration_order.merge_block | scripts/lib/migration_order.py:64 | Refuses to merge a commit that adds a Drizzle migration v1-preview does not have yet, or when the PR file list or preview ledger cannot be r | owner: D-035 | can stop: PRs stopped 1
+- refusal:neon_migrate.refuse_production | scripts/lib/neon_migrate.py:130 | Production follows preview: reads the v1-preview and production ledgers through the Neon API and raises unless prod_refusal allows; returns  | owner: nobody named | can stop: PRs stopped 1
+- refusal:production_guard.refusal | scripts/lib/production_guard.py:25 | Refuses a production entrypoint inside a cloud session (a production.cloud_session_markers variable is set), naming D-054 and the host-swap  | owner: D-054 | can stop: PRs stopped 0
+- refusal:release_policy.refuse_frozen | scripts/lib/release_policy.py:29 | Raises Refused for any production write to a real (non-loopback) host while scripts/release-policy.json says frozen (D-054). | owner: D-054 | can stop: PRs stopped 0
+- refusal:release_policy.refuse_merge | scripts/lib/release_policy.py:37 | Raises Refused for a merge into the production branch whose head is not this repository's release branch, and for any such merge while froze | owner: D-054 | can stop: PRs stopped 0
+
+Kinds: decision 6, parameter 28, premise 1, refusal 6. Estimated work: 72 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/production-release-and-migrations.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 41), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/production-release-and-migrations.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/production-release-and-migrations.md has exactly 41 rows, one per census row of this group, and the verdict
+  counts sum to 41 (quote the command that counts them).
+* docs/audits/rules/production-release-and-migrations.json parses and has the same 41 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json and
+  docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-structure-check-and-premises: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json, docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**
+  - mod/rule-audit-commit-and-pr-discipline: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json, docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**
+  - mod/rule-audit-registry-literals-and-text: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json, docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**
+  - mod/rule-audit-environment-toolchain-and-supply-chain: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json, docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-merge-train-and-delivery: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json, docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**
+  - mod/rule-audit-defects-lessons-and-postmortems: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json, docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-code-architecture-and-units: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json, docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**
+  - mod/rule-audit-gate-selection-proof-and-status: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json, docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**
+  - mod/rule-audit-gate-execution-and-tests: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json, docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**
+  - mod/rule-audit-paid-vendors-and-ai-sessions: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json, docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+72 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

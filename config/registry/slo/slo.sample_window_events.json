@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 100,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Most recent samples (tier-1 verdicts, merged PRs) each SLO value is computed over.",
+  "x-readers": [
+    "scripts/lib/slo.py"
+  ]
+}

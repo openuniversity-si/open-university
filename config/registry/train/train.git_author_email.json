@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "train@open-university.invalid",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "Author and committer email of the local combined-head merge commits.",
+  "x-readers": [
+    "scripts/lib/forge_git_ref.py",
+    "scripts/lib/train_git.py"
+  ]
+}

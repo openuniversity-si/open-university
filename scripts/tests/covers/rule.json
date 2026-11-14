@@ -1,0 +1,18 @@
+{
+  "script": "scripts/tests/rule.test.sh",
+  "covers": [
+    "scripts/tests/rule.test.sh",
+    "scripts/tests/test_rule_registry.py",
+    "scripts/rule",
+    "scripts/lib/rule_registry.py",
+    "config/registry/rules.json",
+    "scripts/lib/premises.py",
+    "scripts/lib/config.py",
+    "scripts/lib/json_schema.py",
+    "config/registry/premises.json",
+    "contracts/premises/premise.v1.json",
+    "docs/process/premises/*.yml",
+    "units/engine-rules/unit.json",
+    "scripts/tests/fixture_copy.py"
+  ]
+}

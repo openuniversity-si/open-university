@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "OU_GATE_BASE_SHA",
+  "x-unit": "name",
+  "description": "GX-13: environment variable holding the recorded base the proof is bound to (gate-local exports it, GX-38: tier 1 the PR's baseRefOid, tier 2 the batch base). Set but empty: no recorded base, nothing is excused. Unset (a call outside gate-local): the local gate.batch_base_ref is resolved.",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ],
+  "minLength": 1
+}

@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 1800,
+  "minimum": 60,
+  "x-unit": "s",
+  "description": "An open PR whose branch had no push for this long is stalled (no_push), unless the gate passed on its head (it then waits on the merger, not on its session).",
+  "x-readers": [
+    "scripts/lib/stall_report.py"
+  ]
+}

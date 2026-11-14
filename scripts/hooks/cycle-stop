@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Claude Code Stop hook (.claude/settings.json): reads the hook event on stdin and prints a block answer while the
+# SEMENTE cycle is on and the last message is not a closed-list `STOP: <reason>` (I-0d1c3a25). Local only.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/../lib/cycle_stop.py" hook

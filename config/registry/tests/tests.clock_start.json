@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "2026-01-01T00:00:00Z",
+  "minLength": 1,
+  "x-unit": "timestamp",
+  "description": "RFC 3339 instant at which the injected test clock starts; tests advance it explicitly and never read the wall clock.",
+  "x-readers": [
+    "scripts/lib/hermetic.py"
+  ]
+}

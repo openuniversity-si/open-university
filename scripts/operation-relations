@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/operation-relations [--root DIR] (scripts/lib/operation_relations.py --help)
+# The observed relation of the engine's forge operations (D-285, C2): every operation, its call sites, its consumers,
+# its adapter implementations and the unknowns, confronted with the tree.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/operation_relations.py" "$@"

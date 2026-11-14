@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 1,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "Base of the pause before a call to the port is tried again: the pause is a full jitter (random from 0 to the cap) of this base doubled at each try, unless the answer carries a Retry-After.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2c (P5 F2), D-306"
+}

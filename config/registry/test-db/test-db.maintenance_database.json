@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "postgres",
+  "x-unit": "identifier",
+  "description": "Database the helper connects to when it creates, terminates backends of and drops a throwaway database (the same maintenance database gate-isolation.sh uses).",
+  "x-readers": [
+    "scripts/lib/test_db.py"
+  ]
+}

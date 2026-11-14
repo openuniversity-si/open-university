@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/train.batch.shards.v1.json",
+  "title": "train.batch.shards payload v1",
+  "description": "Shadow mode (SH-1): the shard key of every member of a batch and of the batch, the shards the batch would form and the key collisions. Measurement only; the train merges as before.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/batch_id"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "batch_id",
+    "base_sha",
+    "shard_key",
+    "members",
+    "union_key",
+    "shards",
+    "collisions"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "batch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "shard_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pr", "key"],
+        "properties": {
+          "pr": {"$ref": "defs.v1.json#/$defs/pr"},
+          "key": {"type": "array", "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    "union_key": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "shards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "prs"],
+        "properties": {
+          "key": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "prs": {"$ref": "defs.v1.json#/$defs/prs"}
+        }
+      }
+    },
+    "collisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["prs", "key", "files"],
+        "properties": {
+          "prs": {"$ref": "defs.v1.json#/$defs/prs"},
+          "key": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "files": {"type": "array", "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    }
+  }
+}

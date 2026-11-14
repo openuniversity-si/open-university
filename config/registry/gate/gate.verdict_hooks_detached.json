@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "GATE-SPEED R4 (D-092): the tier-1 verdict hooks (gate.slow and the SLO evaluation over every PR channel the repository window names) run in a detached process after the verdict is published and recorded, so the gate answers without waiting for them; their output is verdict_hooks.log in the run's logs. Off is the rollback: they run inline before the gate returns.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "x-source": "D-092; docs/units/GATE-SPEED/plan.md"
+}

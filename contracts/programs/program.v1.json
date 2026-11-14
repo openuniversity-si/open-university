@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/programs/program.v1.json",
+  "title": "Program plan v1 (D-069)",
+  "description": "The PR graph of a program: the data block of docs/programs/<program>/plan.md. A program is a brief (the complaint), an audit, this plan, the executions (units), a program gate (the complaint measured as solved), a retro and an integration. Additive within v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "program", "complaint", "units"],
+  "properties": {
+    "contract": {"const": "program.v1"},
+    "program": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "description": "The folder name under docs/programs."},
+    "complaint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symptom", "evidence", "goal"],
+      "properties": {
+        "symptom": {"type": "string", "minLength": 1},
+        "evidence": {"type": "string", "minLength": 1},
+        "goal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric", "comparator", "target", "unit"],
+          "properties": {
+            "metric": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$", "description": "A name the program gate can measure from events (scripts/lib/program_gate.py)."},
+            "comparator": {"enum": ["gte", "lte"]},
+            "target": {"type": "number"},
+            "unit": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "units": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "depends_on", "owner", "model", "wave", "done"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*$", "description": "The unit's name in the brief; its lower-case form is the unit field of its events."},
+          "title": {"type": "string"},
+          "depends_on": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+          "owner": {"type": "string", "minLength": 1, "description": "The lane that runs the unit."},
+          "model": {"type": "string", "minLength": 1},
+          "wave": {"type": "integer", "minimum": 1},
+          "done": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "description": "Done criteria."},
+          "area": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "Paths or globs the unit will touch; the lessons for those paths go into its launch brief."},
+          "pr": {"type": ["integer", "null"], "minimum": 1, "description": "The unit's PR once known; its merge is read from events, never written here."}
+        }
+      }
+    }
+  }
+}

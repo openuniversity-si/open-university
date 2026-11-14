@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "refuted",
+    "superseded"
+  ],
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Statuses a Premises: line may not cite (unless the PR records that premise).",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 30,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Seconds pg_ctl waits for the server to accept connections.",
+  "x-readers": [
+    "scripts/cloud/postgres.py"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "script": "scripts/tests/infra-db.test.sh",
+  "covers": [
+    "scripts/tests/infra-db.test.sh",
+    "scripts/tests/test_infra_db.py",
+    "scripts/tests/infra_db/**",
+    "infra/db/**",
+    "docs/arquitetura-referencia/anexos/*.sql",
+    "docs/domain/decisions/D-308.md",
+    "units/engine-infra-db/unit.json",
+    "scripts/lib/test_db.py",
+    "config/registry/test-db.json"
+  ]
+}

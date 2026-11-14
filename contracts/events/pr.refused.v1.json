@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/pr.refused.v1.json",
+  "title": "pr.refused payload v1",
+  "description": "The train refused the PR head before building the batch: it changes files of units its lane does not own and the owner has not approved (D-069 item 8). The lane asks the owner or splits the change.",
+  "x-natural-key": ["/payload/repo", "/payload/pr", "/payload/sha"],
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["repo", "pr", "sha", "unit", "premises", "reason", "units", "files"],
+  "properties": {
+    "repo": {"$ref": "defs.v1.json#/$defs/repo"},
+    "pr": {"$ref": "defs.v1.json#/$defs/pr"},
+    "sha": {"$ref": "defs.v1.json#/$defs/sha"},
+    "unit": {"$ref": "defs.v1.json#/$defs/unit"},
+    "premises": {"$ref": "defs.v1.json#/$defs/premises"},
+    "reason": {"enum": ["ownership"]},
+    "units": {"type": "array", "uniqueItems": true, "minItems": 1, "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}, "description": "Units outside the lane whose files the head changes."},
+    "files": {"type": "array", "items": {"type": "string"}, "description": "The changed files of those units."}
+  }
+}

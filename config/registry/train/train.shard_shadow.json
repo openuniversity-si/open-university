@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "While true, start_batch emits train.batch.shards for each batch: the key of every member and of the batch, the shards it would form and the key collisions. Measurement only: the verdict and the merge path never read it. Off: nothing is computed or emitted.",
+  "x-readers": [
+    "scripts/lib/train_shard.py"
+  ]
+}

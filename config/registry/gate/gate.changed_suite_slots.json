@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "How many `scripts/test-suite --changed` runs judge at once on the box (VAZÃO F65). A lane's --changed suite no longer queues on the box lock (delivery.gate_lock_path), which stays the deliveries'; it takes one of this many slot locks next to it (suite-slot-<i>.lock) and runs under nice (gate.changed_suite_nice). Each slot hold is a line of kind suite_slot in delivery.gate_lock_log.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "VAZÃO F65 (docs/programs/vazao/fila.md); D-297; D-092"
+}

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/lessons list|show <id>|add ...|apply <id> --ref R|retire <id> --why W|check [--base REF]|ingest|effect|report [--write|--check]|for-area PATH...
+# The lessons registry (LR1, D-069 items 4 and 9): lessons are added, applied, retired and checked here, never by hand.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/lessons.py" "$@"

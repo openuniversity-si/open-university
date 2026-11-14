@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "slo:evaluate",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "engine.step.measured step name of one reader run.",
+  "x-readers": [
+    "scripts/lib/slo.py"
+  ]
+}

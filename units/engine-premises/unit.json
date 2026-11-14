@@ -1,0 +1,19 @@
+{
+  "id": "engine-premises",
+  "purpose": "The premise register (D-066).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/lib/decision_premises.py",
+    "scripts/lib/premises.py",
+    "scripts/premises",
+    "scripts/tests/premises.test.sh",
+    "scripts/tests/test_decision_premises.py",
+    "scripts/tests/test_premises.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1",
+    "engine-gate-plan": "^1"
+  }
+}

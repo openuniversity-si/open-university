@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "en",
+  "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+  "x-unit": "locale",
+  "description": "The locale every text entry must carry and the one a reader falls back to; it must be one of l10n.locales.",
+  "x-readers": [
+    "scripts/lib/scaffold.py",
+    "scripts/lib/text_check.py"
+  ],
+  "x-source": "D-069 item 15"
+}

@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/aws-ack-integration-probe.test.sh",
+  "covers": [
+    "scripts/tests/aws-ack-integration-probe.test.sh",
+    "scripts/tests/test_aws_ack_integration_probe.py",
+    "scripts/aws-ack-integration-probe",
+    "scripts/lib/aws_ack_integration_probe.py",
+    "units/engine-infra-service/unit.json"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "Premises",
+  "x-unit": "text",
+  "description": "Name of the body line that lists the premises a plan or PR depends on, next to the B5 trailers.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ]
+}

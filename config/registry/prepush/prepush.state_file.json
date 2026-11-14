@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "prepush-state.json",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "File name, resolved with git rev-parse --git-path, where prepush records each script test's last local run. A test stopped at the end of prepush.tests_budget_s is deferred to the gate at once on the next runs, so a slow test costs the budget once, not on every push; delete the file to try it again.",
+  "x-readers": [
+    "scripts/lib/prepush.py"
+  ]
+}

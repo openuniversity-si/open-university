@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "confirmed",
+    "refuted",
+    "superseded"
+  ],
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Statuses whose answer needs a literal quote or a link to the message (answer.quote or answer.where); a paraphrase stays inferred.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

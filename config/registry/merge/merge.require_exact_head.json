@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "GX-22 (D-070): merge-phase merges only the exact gated head (--match-head-commit), so a push after the proof makes the merge fail instead of merging an unproven head. Off drops the pin; the proof is still read for the head merge-phase saw.",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ],
+  "x-flag": true,
+  "x-source": "D-070"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "Time a test stopped at the end of prepush.tests_budget_s gets between SIGTERM to its process group (its EXIT traps clean up) and SIGKILL.",
+  "x-readers": [
+    "scripts/lib/prepush.py"
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/gate-batch": {
+      "number 2": 6
+    },
+    "scripts/gate-local": {
+      "host \"localhost\"": 1,
+      "number 127": 1,
+      "number 2": 11,
+      "number 3": 2,
+      "number 666": 1,
+      "number 9": 2
+    },
+    "scripts/lib/gate-budget.sh": {
+      "number 1000": 7
+    },
+    "scripts/lib/gate-build.py": {
+      "number 12": 2,
+      "number 2": 1,
+      "number 3": 1,
+      "number 4": 2,
+      "number 5": 2
+    },
+    "scripts/lib/gate-isolation.sh": {
+      "host \"127.0.0.1\"": 1,
+      "host \"localhost\"": 1,
+      "number 127": 1,
+      "number 16": 1,
+      "number 2": 4,
+      "number 4": 1,
+      "number 666": 2,
+      "number 777": 2
+    },
+    "scripts/lib/gate-runner.sh": {
+      "absolute_path \"/tmp/gate-local-\"": 2,
+      "number -8": 1,
+      "number 1000": 5,
+      "number 2": 3,
+      "number 3": 3,
+      "number 4": 1,
+      "number 666": 1
+    },
+    "scripts/lib/gate_batch.py": {
+      "number 2": 4,
+      "number 200": 1
+    },
+    "scripts/tests/gate-batch.test.sh": {
+      "number 2": 4
+    },
+    "scripts/tests/gate-db.test.sh": {
+      "number 2": 2,
+      "number 3": 5,
+      "number 7": 15,
+      "number 99": 1,
+      "url \"http://127.0.0.1:$port\"": 1,
+      "url \"https://example.test/pr/7\"": 1
+    },
+    "scripts/tests/gate-heavy-db.test.sh": {
+      "number 0.05": 1,
+      "number 2": 4,
+      "number 3": 2,
+      "number 5": 1,
+      "number 7": 2
+    },
+    "scripts/tests/gate-local/budget.test.sh": {
+      "duration \"180.000s\"": 1,
+      "duration \"180s\"": 4,
+      "duration \"70.500s\"": 1,
+      "duration \"75.250s\"": 1,
+      "duration \"90s\"": 1,
+      "number 120000": 1,
+      "number 180": 2,
+      "number 180000": 2,
+      "number 180001": 2,
+      "number 42": 1,
+      "number 42000": 1,
+      "number 5000": 2
+    },
+    "scripts/tests/gate-local/runner.test.sh": {
+      "absolute_path \"/tmp/gate-local-runner_failure.log\"": 1,
+      "number 100": 1,
+      "number 100000": 1,
+      "number 200000": 1,
+      "number 23": 2
+    },
+    "scripts/tests/gate-local/secret-scan.test.sh": {
+      "number 18": 1
+    },
+    "scripts/tests/gate-local/verdict.test.sh": {
+      "number 3": 1
+    },
+    "scripts/tests/test_gate_batch.py": {
+      "number 2": 1
+    },
+    "scripts/tests/test_gate_db.py": {
+      "absolute_path \"/bin\"": 1,
+      "absolute_path \"/tmp\"": 1,
+      "number 16": 1,
+      "number 17": 2,
+      "number 2": 2,
+      "number 4": 1,
+      "number 7": 6,
+      "number 700": 1,
+      "number 701": 1,
+      "url \"postgresql://tower_v1_app:s3cr3t-pass@ep-fake-123.us-east-1.aws.neon.tech/tower_v1?sslmode=require\"": 1
+    }
+  }
+}

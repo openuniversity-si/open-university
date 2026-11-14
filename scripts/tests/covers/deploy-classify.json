@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/deploy-classify.test.sh",
+  "covers": [
+    "scripts/tests/deploy-classify.test.sh",
+    "scripts/tests/test_deploy_classify.py",
+    "scripts/deploy-classify",
+    "scripts/lib/deploy_classify.py",
+    "infra/aws/stacks/*.json",
+    "infra/service/tower_infra/*.py"
+  ]
+}

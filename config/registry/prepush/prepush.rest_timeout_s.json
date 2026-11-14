@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 4,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Timeout of the one REST list of the open PRs (scripts/lib/github_api.py, max_wait_s 0, so a recorded rate-limit block never makes it wait), and the time prepush waits for that list in all, retries included. Past it the overlap check is skipped, never waited for.",
+  "x-readers": [
+    "scripts/lib/prepush.py"
+  ]
+}

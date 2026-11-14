@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "OU_GATE_SLOT",
+    "OU_GATE_SLOT_OWNER",
+    "OU_GATE_SLOTS"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "name",
+  "description": "TX10 (T6): the slot contract a nested gate in a script test shares with its parent (gate-isolation.sh ou_gate_slot_acquire); removing it would make a nested gate wait for the slot its parent holds.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "TX10; D-070"
+}

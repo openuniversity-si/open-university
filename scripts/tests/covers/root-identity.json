@@ -1,0 +1,27 @@
+{
+  "script": "scripts/tests/root-identity.test.sh",
+  "covers": [
+    "scripts/tests/root-identity.test.sh",
+    "scripts/tests/test_root_identity.py",
+    "config/registry/*.json",
+    "scripts/**/*.cjs",
+    "scripts/**/*.js",
+    "scripts/**/*.mjs",
+    "scripts/**/*.ts",
+    "scripts/**/*.tsx",
+    "scripts/*.py",
+    "scripts/cloud/**/*.py",
+    "scripts/cloud/setup.sh",
+    "scripts/cloud/toolchain.json",
+    "scripts/gate-local",
+    "scripts/hooks/**/*.py",
+    "scripts/lib/**/*.py",
+    "scripts/lib/operation_demands.json",
+    "scripts/tests/machine_premise.py",
+    "services/**/*.cjs",
+    "services/**/*.js",
+    "services/**/*.mjs",
+    "services/**/*.ts",
+    "services/**/*.tsx"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "Escolha",
+  "x-unit": "text",
+  "description": "The plan section with one `R<n> → A<k>: <justification>` line per structural root.",
+  "x-readers": [
+    "scripts/lib/intake_templates.py"
+  ]
+}

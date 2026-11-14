@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 3,
+  "minimum": 1,
+  "x-unit": "tests",
+  "description": "VAZÃO F102: the fewest tests a run must start for it to start a fork server (gate.fork_server). The server costs about a second to build its client and warm up, which a run of one or two tests (a --changed suite on a small diff) does not earn back; below this count every test starts fresh interpreters.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ]
+}

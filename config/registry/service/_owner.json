@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/service.json",
+  "x-owner": "service",
+  "x-schema-version": 1,
+  "description": "The gate and the train as services (GATE-TRAIN-SERVICES, D-086, ADR-41): the Tower runner, its transports and the status, health and metrics surface.",
+  "type": "object",
+  "additionalProperties": false
+}

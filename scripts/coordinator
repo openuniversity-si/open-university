@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/coordinator next|status|run PROGRAM [--events FILE] [--apply]
+# The program coordinator (D-069 CO1): decides what runs next from the program graph and the event log. Dry run by default.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/coordinator.py" "$@"

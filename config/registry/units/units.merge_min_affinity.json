@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 0.1,
+  "minimum": 0,
+  "maximum": 1,
+  "x-unit": "ratio",
+  "description": "Least affinity at which the clustering of a flat file group merges two clusters.",
+  "x-readers": [
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "D-067 (4), plan v3 §4.5"
+}

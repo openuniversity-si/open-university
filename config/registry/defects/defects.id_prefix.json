@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "KD-",
+  "x-unit": "text",
+  "description": "Prefix of a defect id; the id is the prefix plus the first defects.id_hash_chars hex digits of the hash of (test id, normalized signature), so one defect has one id on every branch.",
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ]
+}

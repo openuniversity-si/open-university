@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/train.batch.green.v1.json",
+  "title": "train.batch.green payload v1",
+  "description": "The batch passed tier 2 on the combined tree; its PRs merge.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/batch_id"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "batch_id",
+    "prs",
+    "merge_shas",
+    "tree_sha"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "batch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prs": {
+      "$ref": "defs.v1.json#/$defs/prs"
+    },
+    "merge_shas": {
+      "type": "array",
+      "items": {
+        "$ref": "defs.v1.json#/$defs/commit"
+      }
+    },
+    "tree_sha": {
+      "$ref": "defs.v1.json#/$defs/commit"
+    }
+  }
+}

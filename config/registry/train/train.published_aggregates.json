@@ -1,0 +1,14 @@
+{
+  "type": "array",
+  "default": [],
+  "uniqueItems": true,
+  "items": {
+    "type": "string",
+    "pattern": "^[a-z][a-z0-9-]*$"
+  },
+  "x-unit": "enum",
+  "description": "Names of the scripts/generate targets the train renders into its aggregates commit; empty today, because every aggregate is read on demand.",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

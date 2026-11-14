@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 10,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "Tier-1 gate time target (D-065 (5)); gate.slow and the SLOs (O1) compare against it.",
+  "x-readers": [
+    "docs/process/EVENTS.md",
+    "scripts/lib/slo.py"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/shared-results.test.sh",
+  "covers": [
+    "scripts/tests/shared-results.test.sh",
+    "scripts/tests/test_shared_results.py",
+    "scripts/lib/shared_results.py",
+    "scripts/lib/forge_git_ref.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/gate-dev",
+    "config/registry/gate.json",
+    "config/registry/train.json"
+  ]
+}

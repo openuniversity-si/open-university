@@ -1,0 +1,9 @@
+[Unit]
+Description=Tower runner liveness: restarts the runner when its heartbeat is stale (a hung process, not only a crash)
+After=tower-runner.service
+
+[Service]
+Type=oneshot
+WorkingDirectory={root}
+Environment=PATH={root}/.toolchain/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/bin/sh -c '{root}/scripts/service liveness || systemctl --user restart tower-runner.service'

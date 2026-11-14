@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "padrao.json",
+  "x-unit": "path",
+  "description": "The rule list of a Padrão version folder.",
+  "x-readers": [
+    "scripts/lib/coordinator_launch.py"
+  ]
+}

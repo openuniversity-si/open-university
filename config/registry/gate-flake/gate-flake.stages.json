@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "script tests"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "x-unit": "name",
+  "description": "Gate stages whose failing tests are re-run alone through gate_test_cache.run. A stage outside this list is never attributed flake.",
+  "x-readers": [
+    "scripts/lib/gate_flake.py"
+  ],
+  "x-source": "D-070"
+}

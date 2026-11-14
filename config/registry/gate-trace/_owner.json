@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-trace.json",
+  "x-owner": "gate-trace",
+  "x-schema-version": 1,
+  "description": "The covers trace (GX-29, B-13, D-070): the hermetic harness records the files a Python script test opens, and the test reports the ones outside its declared covers. Report-only.",
+  "type": "object",
+  "additionalProperties": false
+}

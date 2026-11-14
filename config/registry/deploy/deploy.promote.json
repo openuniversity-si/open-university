@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "IMAGE-PREWARM-C (docs/operations/aws.md 22.9 and 22.9a): whether a landing (platform.deploy.landed) promotes: when the merge is code-only, runs the PR head's code bundle and both roles have a healthy standby of it, the autodeploy writes deploy.live_image_runner and deploy.live_image_service to that bundle in one statement (platform.deploy.image_swap). True (the default) is today's rule, every landing promotes; false lets the landings accumulate for the slow path (a later unit chooses what to promote and when).",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py"
+  ],
+  "x-source": "IMAGE-PREWARM-C"
+}

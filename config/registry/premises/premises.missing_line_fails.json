@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": false,
+  "x-unit": "flag",
+  "x-flag": true,
+  "description": "v1 switch of D-066: when true a PR body without a Premises: line fails structure-check; in v0 it is a warning.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ]
+}

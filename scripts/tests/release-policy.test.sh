@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# The production freeze and the release unit (D-054). No network.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/../.." && pwd)"
+PYTHONDONTWRITEBYTECODE=1 exec python3 "$root/scripts/tests/test_release_policy.py"

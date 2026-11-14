@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 20261026,
+  "minimum": 0,
+  "maximum": 4294967295,
+  "x-unit": "seed",
+  "description": "Seed of every random source in script tests: Python's random module (scripts/lib/hermetic.py). The same seed gives the same run (D-069 item 5).",
+  "x-readers": [
+    "scripts/lib/hermetic.py"
+  ]
+}

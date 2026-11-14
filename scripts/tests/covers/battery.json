@@ -1,0 +1,20 @@
+{
+  "script": "scripts/tests/battery.test.sh",
+  "covers": [
+    "scripts/tests/battery.test.sh",
+    "scripts/tests/test_battery.py",
+    "scripts/battery",
+    "scripts/lib/battery.py",
+    "scripts/lib/defect_adapters.py",
+    "scripts/lib/gate_failures.py",
+    "config/registry/defects.json",
+    "scripts/lib/engine_role.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/config.py",
+    "config/registry/battery.json",
+    "config/registry/release.json",
+    "contracts/events/*.json",
+    "scripts/lib/service_budget.py"
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/adapters/ci_local.py": {
+      "number 1000": 1,
+      "number 3": 1
+    },
+    "scripts/lib/adapters/model_ladder.py": {
+      "number 2": 2
+    },
+    "scripts/tests/test_ports_agent.py": {
+      "absolute_path \"/tmp\"": 2,
+      "number 10": 2,
+      "number 100": 2,
+      "number 18": 1,
+      "number 2": 1,
+      "number 2026": 1,
+      "number 250": 2,
+      "number 26": 1,
+      "number 40": 4,
+      "number 5": 1,
+      "number 7": 2,
+      "number 85": 1
+    },
+    "scripts/tests/test_ports_ci_runner.py": {
+      "number 1.25": 1,
+      "number 1250": 1,
+      "number 2": 1,
+      "number 30.0": 1,
+      "number 30000": 1,
+      "number 506": 1
+    },
+    "scripts/tests/test_ports_contract.py": {
+      "number 2": 1
+    },
+    "scripts/tests/test_ports_model_ladder.py": {
+      "number 2": 10,
+      "number 3": 1,
+      "number 5": 2
+    },
+    "scripts/tests/test_ports_storage.py": {
+      "number 2": 1,
+      "number 64": 5
+    },
+    "scripts/tests/test_vendor_check.py": {
+      "number 2": 4,
+      "number 3": 3,
+      "number 4": 2,
+      "number 5": 2,
+      "number 6": 1,
+      "number 7": 1,
+      "url \"https://api.acme.test/v1\"": 2
+    }
+  }
+}

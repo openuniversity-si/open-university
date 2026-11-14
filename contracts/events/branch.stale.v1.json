@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/branch.stale.v1.json",
+  "title": "branch.stale payload v1",
+  "description": "A PR branch is older than process.branch_max_age_h: its first event on the PR channel (opened_at) is that old when a trigger event (pr.pushed, pr.ready) is appended. Evaluated on the event, never on a clock (P-32); one event per branch, by its natural key.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/pr",
+    "/payload/opened_at"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "opened_at",
+    "age_h",
+    "max_age_h"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "opened_at": {
+      "type": "string",
+      "minLength": 1,
+      "description": "RFC 3339 UTC occurred_at of the branch's first event on its PR channel."
+    },
+    "age_h": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Hours between opened_at and the injected clock when the trigger was appended."
+    },
+    "max_age_h": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The process.branch_max_age_h in force when the event was emitted."
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/production_guard.py": {
+      "number 2": 2,
+      "number 3": 1,
+      "number 6": 1,
+      "number 80": 1
+    },
+    "scripts/lib/site_health.py": {
+      "number 180": 1,
+      "number 2": 3,
+      "number 600": 1
+    },
+    "scripts/tests/test_preview_deploy.py": {
+      "host \"127.0.0.1\"": 1,
+      "number 2": 3,
+      "number 200": 1,
+      "number 3": 2,
+      "number 40": 3,
+      "number 404": 1,
+      "number 493": 2,
+      "url \"https://example.test/pull/\"": 1
+    },
+    "scripts/tests/test_production_check.py": {
+      "host \"api.vercel.com\"": 1,
+      "host \"test.vercel.app\"": 1,
+      "number 2": 4,
+      "number 200": 10,
+      "number 3": 2,
+      "number 302": 2,
+      "number 384": 2,
+      "number 4": 2,
+      "number 40": 5,
+      "number 402": 2,
+      "number 403": 1,
+      "number 404": 2,
+      "number 420": 1,
+      "number 503": 3,
+      "number 63": 1,
+      "number 64": 8,
+      "number 65": 1,
+      "number 7": 2,
+      "number 7200.0": 2,
+      "url \"http://media.openuniversity.si\"": 1,
+      "url \"https://media.\"": 1,
+      "url \"https://media.openuniversity.si\"": 1,
+      "url \"https://media.openuniversity.si.other.test\"": 1,
+      "url \"https://media.openuniversity.si/covers/course-1/poster_9x16/\"": 1,
+      "url \"https://media.openuniversity.si/m/\"": 4,
+      "url \"https://openuniversity.si\"": 1,
+      "url \"https://openuniversity.si/api/health\"": 1,
+      "url \"https://other.test\"": 2,
+      "url \"https://other.test/covers/example.webp\"": 2,
+      "url \"https://previous-store.example\"": 1,
+      "url \"https://test.vercel.app\"": 4,
+      "url \"https://user:password@media.openuniversity.si\"": 1
+    },
+    "scripts/tests/test_production_guard.py": {
+      "number 2": 1
+    }
+  }
+}

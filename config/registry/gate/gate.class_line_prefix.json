@@ -1,0 +1,15 @@
+{
+  "type": "string",
+  "default": "GATE-CLASS:",
+  "minLength": 1,
+  "pattern": "^\\S+$",
+  "x-unit": "text",
+  "description": "Prefix of the one machine line every red stage and every driver abort prints: `<prefix> <stage>\\t<class>` (D-027 classes code, env or contract; GX-01, D-070). A consumer (the train, GX-02) reads this line instead of the human class line.",
+  "x-readers": [
+    "scripts/lib/engine_role.py",
+    "scripts/lib/gate_classify.py",
+    "scripts/lib/gate_status.py",
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-070 (GX-01)"
+}

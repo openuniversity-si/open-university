@@ -1,0 +1,53 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "state": "error",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "state": "failure",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "state": "pending",
+      "status": "in_progress"
+    },
+    {
+      "state": "success",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "state",
+      "status"
+    ],
+    "properties": {
+      "state": {
+        "type": "string",
+        "minLength": 1
+      },
+      "status": {
+        "type": "string",
+        "minLength": 1
+      },
+      "conclusion": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "minItems": 1,
+  "x-unit": "map",
+  "description": "Gate status to Origin check-run status and, when the run is finished, conclusion. A state with no row is refused.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "D-283"
+}

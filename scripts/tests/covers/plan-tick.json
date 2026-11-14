@@ -1,0 +1,27 @@
+{
+  "script": "scripts/tests/plan-tick.test.sh",
+  "covers": [
+    "scripts/tests/plan-tick.test.sh",
+    "scripts/tests/test_plan_tick*.py",
+    "scripts/tests/test_gate_v4_readers*.py",
+    "scripts/tests/test_pr_ready*.py",
+    "scripts/plan-tick",
+    "scripts/lib/plan_tick.py",
+    "scripts/pr-ready",
+    "scripts/lib/pr_ready.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/train_trigger.py",
+    "scripts/lib/config.py",
+    "config/registry/*.json",
+    "contracts/events/*.json",
+    "scripts/lib/gate_verdicts.py",
+    "scripts/lib/gate_digest.py",
+    "scripts/lib/slo.py",
+    "scripts/lib/stall_report.py",
+    "scripts/lib/train.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/train_queue.py",
+    "scripts/tests/forge_doubles.py"
+  ]
+}

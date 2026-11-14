@@ -1,0 +1,32 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "description": "Claude Code writes a turnAttributionKey on the launch-prompt line of every transcript; its value is a UUID (a turn id, not a credential). gitleaks' generic-api-key matches it on the key name, so without this exception the store refuses every real transcript (docs/units/RETRO-API/audit.md A11). Only that key with a UUID-shaped value is excepted; the same value under any other key is still refused.",
+      "regex": "turnAttributionKey\\W{1,6}[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+    }
+  ],
+  "x-unit": "text",
+  "description": "Exceptions the retro store's secret scan adds on top of the repo's own gitleaks config (local-checks.gitleaks_config, unchanged): each regex is matched against a finding's match text (gitleaks regexTarget match). The repo-wide scan does not read this.",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "description",
+      "regex"
+    ],
+    "properties": {
+      "description": {
+        "type": "string",
+        "minLength": 1
+      },
+      "regex": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "x-readers": [
+    "scripts/lib/retro.py"
+  ]
+}

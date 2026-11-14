@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/forge-git-ref.test.sh",
+  "covers": [
+    "scripts/tests/forge-git-ref.test.sh",
+    "scripts/tests/test_forge_git_ref.py",
+    "scripts/lib/forge_git_ref.py",
+    "scripts/lib/config.py",
+    "config/registry/train.json",
+    "scripts/lib/git_objects.py",
+    "scripts/tests/test_git_objects.py"
+  ]
+}

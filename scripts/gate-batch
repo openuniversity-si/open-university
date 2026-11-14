@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# scripts/gate-batch [--base REF] <ref>...   (also: scripts/gate-dev --batch <ref>...)
+# scripts/gate-batch --tier 2 <combined>    (the train's tier 2, train.tier2_command, GX-30): gates the train's own
+#   combined commit with the union plan of GATE_BATCH_MEMBERS (space-separated heads) on GATE_BATCH_BASE; the commit
+#   must have exactly their union's tree. Fresh caches are the caller's (engine_role.CommandGate).
+# Gates the union of several PRs' changes once and says which PRs a red run implicates (GS1; scripts/lib/gate_batch.py).
+#   1. merge every ref onto the base in a throwaway commit (no branch or index is touched); a PR that conflicts is
+#      reported and left out
+#   2. run scripts/gate-local --dev on that commit with the union area plan and per-unit selection
+#   3. print the attribution as JSON: per PR its implicated failing tests (id), clear or not, its conflicting files
+# Exit 0 when the batch is green and every PR is clear, 1 when a PR is implicated or conflicts, 2 on a usage error.
+# Refs are commits, branches or PR heads fetched into the repository. Secrets are never printed.
+set -uo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+py="${OU_PYTHON:-python3}"
+base_args=() head_args=()
+if [[ "${1:-}" == --tier ]]; then
+  base_args=(--base "${GATE_BATCH_BASE:-}") head_args=(--tier "${2:-}" --head "${3:-}" ${4:+--tier-extra "$4"})
+  read -r -a members <<<"${GATE_BATCH_MEMBERS:-}"
+  set -- "${members[@]}"
+elif [[ "${1:-}" == --base ]]; then
+  [[ $# -ge 2 ]] || { echo "gate-batch: --base needs a ref" >&2; exit 2; }
+  base_args=(--base "$2")
+  shift 2
+fi
+[[ $# -gt 0 ]] || { echo "usage: scripts/gate-batch [--base REF] <ref>..." >&2; exit 2; }
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+head="$("$py" "$here/lib/gate_batch.py" plan "${base_args[@]}" "${head_args[@]}" --output "$work/plan.json" "$@")" || exit 2
+echo "gate-batch: combined head $head"
+"$here/gate-local" --dev --sha "$head" --plan-file "$work/plan.json" >"$work/gate.out" 2>&1
+rc=$?
+cat "$work/gate.out"
+reports="$(sed -n 's/^Gate reports: //p' "$work/gate.out" | head -1)"
+[[ -n "$reports" && -d "$reports" ]] || { echo "gate-batch: the gate wrote no reports" >&2; exit 2; }
+"$py" "$here/lib/gate_batch.py" attribute --plan "$work/plan.json" --reports "$reports" | tee "$reports/batch.json"
+attributed=${PIPESTATUS[0]}
+[[ $rc -eq 0 && $attributed -eq 0 ]] || exit 1

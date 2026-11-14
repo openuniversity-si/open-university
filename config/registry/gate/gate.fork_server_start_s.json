@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "default": 10,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "GATE-SPEED F4 (D-122): how long a suite run waits for its fork server to listen before it runs every test with fresh interpreters instead.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ]
+}

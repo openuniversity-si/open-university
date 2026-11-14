@@ -1,0 +1,13 @@
+{
+  "type": "string",
+  "default": "local",
+  "enum": [
+    "local"
+  ],
+  "x-unit": "adapter",
+  "description": "Storage adapter behind the storage port: local keeps each key as a file under the caller's directory (the tier-1 result cache today).",
+  "x-readers": [
+    "scripts/lib/adapters/storage.py"
+  ],
+  "x-source": "plan v3.1 delta §2 R1"
+}

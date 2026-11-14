@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "America/Sao_Paulo",
+  "x-unit": "text",
+  "description": "The time zone of the times a decision row carries (`YYYY-MM-DD HH:MM BRT`, stamped by scripts/decision-next --claim).",
+  "x-readers": [
+    "scripts/lib/structure.py"
+  ],
+  "x-source": "D-196"
+}

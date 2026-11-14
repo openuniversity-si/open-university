@@ -1,0 +1,36 @@
+{
+  "id": "engine-gate-verdict",
+  "purpose": "The gate verdict: the batch and pinned-result judgement of a head.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/gate-pin.json",
+    "scripts/gate-batch",
+    "scripts/gate-shadow",
+    "scripts/gate-verdict",
+    "scripts/lib/gate_batch.py",
+    "scripts/lib/gate_pin.py",
+    "scripts/lib/gate_shadow.py",
+    "scripts/lib/gate_verdict.py",
+    "scripts/lib/merge_composition.py",
+    "scripts/tests/gate-batch.test.sh",
+    "scripts/tests/gate-pin.test.sh",
+    "scripts/tests/gate-shadow.test.sh",
+    "scripts/tests/gate-verdict.test.sh",
+    "scripts/tests/test_gate_batch.py",
+    "scripts/tests/test_gate_pin.py",
+    "scripts/tests/test_gate_shadow.py",
+    "scripts/tests/test_gate_verdict.py"
+  ],
+  "requires": {
+    "engine-cloud": "^1",
+    "engine-commit-plan": "^1",
+    "engine-config": "^1",
+    "engine-events": "^1",
+    "engine-gate-ops": "^1",
+    "engine-gate-plan": "^1",
+    "engine-gate-report": "^1",
+    "engine-gate-status": "^1",
+    "engine-units": "^1"
+  }
+}

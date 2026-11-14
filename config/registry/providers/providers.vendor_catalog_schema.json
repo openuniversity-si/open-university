@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "contracts/adapters/engine-vendors.v1.json",
+  "pattern": "^contracts/.+\\.v[1-9][0-9]*\\.json$",
+  "x-unit": "path",
+  "description": "JSON Schema the vendor catalog is validated against.",
+  "x-readers": [
+    "scripts/lib/structure.py",
+    "scripts/lib/vendor_check.py"
+  ],
+  "x-source": "D-069 item 2"
+}

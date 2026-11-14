@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "GATE-SPEED R6 (D-092): a Tower runner whose checkout's scripts/ changed with the base (a refresh before a train job) re-executes itself between jobs, so a fix merged to the base reaches it without a manual restart. Off is the rollback: it keeps the code it started with until it exits.",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-092; docs/operations/services.md"
+}

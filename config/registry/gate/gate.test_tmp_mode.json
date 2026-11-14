@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "0o755",
+  "pattern": "^0o[0-7]{3}$",
+  "x-unit": "text",
+  "description": "TX10 (T6): octal mode of a script test's private TMPDIR; world-traversable so a test that drops root can enter it.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "TX10; D-070"
+}

@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 10,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "How many refused claim pushes scripts/decision-next --claim makes before it gives up (D-189).",
+  "x-readers": [
+    "scripts/lib/decision_next.py"
+  ],
+  "x-source": "D-189"
+}

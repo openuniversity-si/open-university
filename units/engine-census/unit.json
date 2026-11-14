@@ -1,0 +1,20 @@
+{
+  "id": "engine-census",
+  "purpose": "The literal census of each unit (CENSO-NO-MANIFESTO; D-063, D-064 a, D-067): the append-only record units/<id>/census.jsonl, its one writer scripts/census, its check and the derived per-area view.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/census.json",
+    "scripts/census",
+    "scripts/lib/census.py",
+    "scripts/lib/generate_census.py",
+    "scripts/tests/census.test.sh",
+    "scripts/tests/test_census.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-lessons": "^1",
+    "engine-literals": "^1",
+    "engine-units": "^1"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "type": "array",
+  "default": [
+    "kernel-lane",
+    "catalog-lane",
+    "platform-lane",
+    "ui-lane",
+    "app-lane",
+    "config-lane",
+    "media-lane",
+    "release-lane",
+    "admin-lane",
+    "site-lane",
+    "playback-lane",
+    "factory-lane",
+    "identity-lane",
+    "progress-lane",
+    "tooling-lane",
+    "fidelity-lane",
+    "engine-lane",
+    "testing-lane"
+  ],
+  "x-unit": "enum",
+  "description": "Lanes a manifest may name as owner (D-065 (4), D-069 item 8); a lane exclusively owns its units.",
+  "x-readers": [
+    "scripts/lib/units.py",
+    "scripts/lib/effort.py"
+  ],
+  "x-source": "D-067; plan v3 §4.5 cells and §9.2 A2 lanes",
+  "items": {
+    "type": "string",
+    "pattern": "^[a-z0-9][a-z0-9-]*$"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "type": "array",
+  "default": [
+    "Daniel",
+    "A Torre",
+    "coordinator",
+    "learner",
+    "learners",
+    "student",
+    "students",
+    "reader",
+    "readers",
+    "user",
+    "users",
+    "operator",
+    "author",
+    "reviewer",
+    "maintainer"
+  ],
+  "x-unit": "text",
+  "description": "People and roles a requirement may name as the one who needs the result; the lanes come from effort.owner_registry.",
+  "minItems": 1,
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-readers": [
+    "scripts/lib/effort.py",
+    "scripts/lib/pr_body.py"
+  ]
+}

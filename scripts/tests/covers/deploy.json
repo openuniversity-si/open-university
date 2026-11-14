@@ -1,0 +1,22 @@
+{
+  "script": "scripts/tests/deploy.test.sh",
+  "covers": [
+    "scripts/tests/deploy.test.sh",
+    "scripts/tests/test_deploy.py",
+    "scripts/deploy",
+    "scripts/deploy-smoke",
+    "scripts/lib/deploy.py",
+    "scripts/lib/gate_infra.py",
+    "infra/aws/deploy.sh",
+    "infra/aws/order.json",
+    "infra/aws/parameters.json",
+    "infra/aws/stacks/50-runner.json",
+    "infra/aws/bootstrap.json",
+    "infra/aws/stacks/40-port.json",
+    "infra/service/tower_infra/**",
+    "config/registry/gate-infra.json",
+    "config/registry/gate-infra/**",
+    "units/engine-gate-infra/unit.json",
+    "scripts/tests/test_deploy_sh.py"
+  ]
+}

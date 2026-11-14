@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "22.23.3",
+  "x-unit": "version",
+  "description": "Node.js release the gate, the cloud setup and the cache key run on.",
+  "x-readers": [
+    "scripts/lib/gate_result_cache.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/toolchain_manifest.py"
+  ]
+}

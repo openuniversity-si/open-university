@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 1,
+  "minimum": 1,
+  "x-unit": "rungs",
+  "description": "How many rungs one escalation climbs; the top rung stays the top.",
+  "x-readers": [
+    "scripts/lib/adapters/model_ladder.py"
+  ],
+  "x-source": "plan v3.1 delta §4 (escalate one model)"
+}

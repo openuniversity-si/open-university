@@ -1,0 +1,15 @@
+{
+  "type": "array",
+  "default": [],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "path",
+  "description": "TypeScript configs whose compilerOptions.paths resolve import aliases for the import graph. Empty: the engine has no TypeScript package (OU-DECOUPLE F5, D-113); a product names its config here.",
+  "x-readers": [
+    "scripts/lib/structure.py",
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "D-067 (4), plan v3 §4.5"
+}

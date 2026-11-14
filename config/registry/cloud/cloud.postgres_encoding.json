@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "UTF8",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Encoding of the cluster and of psql clients.",
+  "x-readers": [
+    "scripts/cloud/postgres.py"
+  ]
+}

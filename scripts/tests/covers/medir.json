@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/medir.test.sh",
+  "covers": [
+    "scripts/tests/medir.test.sh",
+    "scripts/tests/test_medir.py",
+    "scripts/medir",
+    "scripts/lib/medir.py",
+    "config/registry/medir.json",
+    "config/registry/medir/**",
+    "units/engine-medir/unit.json"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/effort.json",
+  "x-owner": "effort",
+  "x-schema-version": 1,
+  "description": "The cheapest-useful-effort check (EFFORT-STEP; D-069 items 4, 8 and 9, D-065 (5)): the block a plan and a PR body carry.",
+  "type": "object",
+  "additionalProperties": false
+}

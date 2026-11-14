@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-c1fae074"
+slug: "kd1-never-push-code-after-the-final-gate-without-c1fae074"
+title: "Never push code after the final gate without re-gating"
+source:
+  unit: "KD1"
+  retro: "docs/units/KD1/retro.md"
+  section: 5
+  ref: "L9"
+class: "check-gap"
+kind: "check"
+change: "Never push code after the final gate without re-gating (Daniel, 00:4x). Run 2 passed on `d7c8bb1e`; I then pushed `ddf5740b` (gate-local) and the retro, so the head `a87cbb6e` was ungated until run 3. The merge rule is already \"gate green on the exact head\"; the gap was mine, between the green gate and the next push. Prevention: the auto-push hook (or `scripts/pr-ready`) should print \"head moved since the last gate pass\" when a push follows a `.dev.pass` of an older sha (engine lane / owner: gate owner)."
+owner: "gate-lane"
+status: "proposed"
+area: ["scripts/pr-ready"]
+signals: [{"event": "gate.failed", "stage": "structure check", "pattern": null}]
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

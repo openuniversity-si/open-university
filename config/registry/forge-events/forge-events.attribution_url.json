@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "https://claude.com/claude-code",
+  "x-unit": "url",
+  "description": "The link of the attribution footer that scripts/pr-body writes at the end of every PR body (D-208).",
+  "x-readers": [
+    "scripts/lib/pr_body.py"
+  ],
+  "x-source": "D-208"
+}

@@ -1,0 +1,15 @@
+#!/bin/sh
+# D-222 (5): regenerate and stage the derived files this commit's sources feed (scripts/lib/generate_stage.sh); a generation error refuses the commit.
+# D-236 (lane 1): then the cheap structure sub-checks on the commit path (commit_check --local --only structure_fast), so a structure refusal comes at commit, not at push.
+# Only a commit made in this checkout runs these: a commit in another repository that uses these hooks (a test fixture) has its own sources.
+# D-069 item 5 (03/11, control plane down): a hook judges this tree, so it reads the registry and this checkout's local
+# change log, never the shared store on the control plane (scripts/lib/config.py store_kind).
+export OU_CONFIG_STORE=file
+here="$(cd "$(dirname "$0")/.." && pwd -P)"
+top="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+[ "$(cd "$top" && pwd -P)" = "$here" ] || exit 0
+sh "$here/scripts/lib/generate_stage.sh" || exit 1
+check="$here/scripts/lib/commit_check.py"
+[ -f "$check" ] || exit 0
+"${OU_PYTHON:-python3}" "$check" --local --only structure_fast || exit 1
+exit 0

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/contract.changed.v1.json",
+  "title": "contract.changed payload v1",
+  "description": "A unit contract changed between versions.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/unit",
+    "/payload/sha",
+    "/payload/new_version"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "old_version",
+    "new_version",
+    "change"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "old_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "new_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "change": {
+      "enum": [
+        "additive",
+        "breaking"
+      ]
+    }
+  }
+}

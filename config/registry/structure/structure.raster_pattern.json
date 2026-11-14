@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "\\.(?:png|jpe?g|gif|webp|avif|bmp|tiff?|ico)$",
+  "x-unit": "text",
+  "description": "Regular expression (case-insensitive) of a raster image path. Images live in object storage, never in git (AGENTS.md); ported from Open University's raster asset guard.",
+  "x-readers": [
+    "scripts/lib/repo_hygiene.py"
+  ],
+  "x-source": "D-105 (OU-DECOUPLE F2)"
+}

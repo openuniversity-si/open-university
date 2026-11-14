@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 0,
+  "minimum": 0,
+  "x-unit": "issue",
+  "description": "BOARD (CANALE2): the issue that holds the board (one comment per section of forge-events.board_sections, edited in place). 0: no board; the board kinds stay where forge-events.adapter puts them. Set once the issue exists.",
+  "x-readers": [
+    "scripts/lib/forge_events.py"
+  ],
+  "x-source": "CANALE2; docs/units/BOARD/plan.md"
+}

@@ -1,0 +1,25 @@
+{
+  "script": "scripts/tests/generate.test.sh",
+  "covers": [
+    "scripts/tests/generate.test.sh",
+    "scripts/tests/test_generate*.py",
+    "scripts/tests/test_aggregates*.py",
+    "scripts/lib/generate.py",
+    "scripts/lib/generate_*.py",
+    "scripts/lib/config.py",
+    "scripts/lib/json_schema.py",
+    "contracts/**",
+    "scripts/gate-local",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/gate-areas.json",
+    "scripts/lib/units.py",
+    "scripts/lib/generate_registry.py",
+    "scripts/lib/gate_areas.py",
+    "docs/programs/fluxo-amplo/plan.md",
+    "docs/process/briefs/fluxo-amplo/*.md",
+    "docs/process/lane.md",
+    "docs/process/lane-digest.md",
+    "config/registry/generate.json",
+    ".gitattributes"
+  ]
+}

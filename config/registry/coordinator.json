@@ -1,0 +1,382 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/coordinator.json",
+  "x-owner": "coordinator",
+  "x-schema-version": 1,
+  "description": "The program coordinator and program registry (D-069 CO1): programs as first-class objects, the decision function, the launch adapter and the program gate.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "coordinator.actions": {
+      "type": "array",
+      "default": [
+        "launch",
+        "mark_blocked",
+        "open_fix_unit",
+        "enqueue",
+        "escalate"
+      ],
+      "x-unit": "enum",
+      "description": "The action vocabulary of next(), in the order a run applies them.",
+      "x-readers": [
+        "scripts/lib/coordinator.py"
+      ]
+    },
+    "coordinator.brief_defects_limit": {
+      "type": "integer",
+      "default": 20,
+      "x-unit": "count",
+      "description": "Most known defects listed in a launch brief.",
+      "x-readers": [
+        "scripts/lib/coordinator_launch.py"
+      ],
+      "minimum": 0
+    },
+    "coordinator.event_assigned": {
+      "type": "string",
+      "default": "work.assigned",
+      "x-unit": "text",
+      "description": "The event type that means a unit was launched; the status view folds it.",
+      "x-readers": [
+        "scripts/lib/coordinator.py",
+        "scripts/lib/plan_triage.py",
+        "scripts/lib/program.py"
+      ]
+    },
+    "coordinator.event_ended": {
+      "type": "string",
+      "default": "session.ended",
+      "x-unit": "text",
+      "description": "The event type that means the unit session ended; the status view folds it.",
+      "x-readers": [
+        "scripts/lib/program.py"
+      ]
+    },
+    "coordinator.event_failed": {
+      "type": "string",
+      "default": "session.failed",
+      "x-unit": "text",
+      "description": "The event type that means the unit session failed; the status view folds it.",
+      "x-readers": [
+        "scripts/lib/coordinator.py",
+        "scripts/lib/program.py"
+      ]
+    },
+    "coordinator.event_merged": {
+      "type": "string",
+      "default": "pr.merged",
+      "x-unit": "text",
+      "description": "The event type that means the PR merged; the status view folds it.",
+      "x-readers": [
+        "scripts/lib/plan_triage.py",
+        "scripts/lib/program.py",
+        "scripts/lib/program_gate.py"
+      ]
+    },
+    "coordinator.event_opened": {
+      "type": "string",
+      "default": "pr.opened",
+      "x-unit": "text",
+      "description": "The event type that means the unit opened its PR; the status view folds it.",
+      "x-readers": [
+        "scripts/lib/program.py"
+      ]
+    },
+    "coordinator.event_ready": {
+      "type": "string",
+      "default": "pr.ready",
+      "x-unit": "text",
+      "description": "The event type that means the PR is ready; the status view folds it.",
+      "x-readers": [
+        "scripts/lib/program.py"
+      ]
+    },
+    "coordinator.goal_window_s": {
+      "type": "integer",
+      "default": 86400,
+      "x-unit": "s",
+      "description": "The trailing window the goal metrics are measured over (a day).",
+      "x-readers": [
+        "scripts/lib/program_gate.py"
+      ],
+      "minimum": 1
+    },
+    "coordinator.lane_item": {
+      "type": "string",
+      "default": "{program}/{unit}#{attempt}",
+      "x-unit": "text",
+      "description": "The work.assigned item of a launch; the attempt number keeps a relaunch a new event.",
+      "x-readers": [
+        "scripts/lib/coordinator.py"
+      ]
+    },
+    "coordinator.launch_rate_max": {
+      "type": "integer",
+      "default": 5,
+      "x-unit": "count",
+      "description": "Most launches inside one launch_rate_window_s.",
+      "x-readers": [
+        "scripts/lib/coordinator.py"
+      ],
+      "minimum": 1
+    },
+    "coordinator.launch_rate_window_s": {
+      "type": "integer",
+      "default": 300,
+      "x-unit": "s",
+      "description": "Length of the launch-rate window, counted from work.assigned events.",
+      "x-readers": [
+        "scripts/lib/coordinator.py"
+      ],
+      "minimum": 1
+    },
+    "coordinator.launcher_argv": {
+      "type": "array",
+      "default": [
+        "claude",
+        "--remote"
+      ],
+      "x-unit": "command",
+      "description": "The Claude Code cloud CLI and its flags; the brief is appended as the last argument.",
+      "x-readers": [
+        "scripts/lib/adapters/launcher_claude.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "coordinator.launcher_default": {
+      "type": "string",
+      "default": "claude",
+      "x-unit": "adapter",
+      "description": "Launcher adapter used when none is named.",
+      "x-readers": [
+        "scripts/lib/adapters/launcher.py"
+      ]
+    },
+    "coordinator.launcher_session_pattern": {
+      "type": "string",
+      "default": "session_[A-Za-z0-9]+",
+      "x-unit": "regex",
+      "description": "What the CLI prints for the new session id.",
+      "x-readers": [
+        "scripts/lib/adapters/launcher_claude.py"
+      ],
+      "format": "regex"
+    },
+    "coordinator.launcher_timeout_s": {
+      "type": "integer",
+      "default": 120,
+      "x-unit": "s",
+      "description": "Seconds a launch command may run.",
+      "x-readers": [
+        "scripts/lib/adapters/launcher_claude.py"
+      ],
+      "minimum": 1
+    },
+    "coordinator.max_sessions": {
+      "type": "integer",
+      "default": 1,
+      "x-unit": "count",
+      "description": "Most unit sessions running at once on the account; no launch above it. 1 since D-281 (Daniel, 01/11 15:30 BRT: only the channel redesign runs, one piece at a time; 5 by D-277 before it); a lane is added again only by a new decision with the quota measured.",
+      "x-readers": [
+        "scripts/lib/coordinator.py"
+      ],
+      "minimum": 1,
+      "x-source": "D-277, D-281"
+    },
+    "coordinator.metrics": {
+      "type": "array",
+      "default": [
+        "prs_merged_per_day",
+        "prs_merged_per_hour"
+      ],
+      "x-unit": "enum",
+      "description": "The goal metrics the program gate can measure from pr.merged events.",
+      "x-readers": [
+        "scripts/lib/program_gate.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "coordinator.padrao_dir": {
+      "type": "string",
+      "default": "docs/padrao",
+      "x-unit": "path",
+      "description": "Where the versioned Padrão folders live.",
+      "x-readers": [
+        "scripts/lib/coordinator_launch.py"
+      ]
+    },
+    "coordinator.padrao_manifest": {
+      "type": "string",
+      "default": "padrao.json",
+      "x-unit": "path",
+      "description": "The rule list of a Padrão version folder.",
+      "x-readers": [
+        "scripts/lib/coordinator_launch.py"
+      ]
+    },
+    "coordinator.padrao_version": {
+      "type": "string",
+      "default": "v8",
+      "x-unit": "text",
+      "description": "The active Padrão version folder the brief renderer installs.",
+      "x-readers": [
+        "scripts/lib/coordinator_launch.py"
+      ]
+    },
+    "coordinator.plan_fence": {
+      "type": "string",
+      "default": "json program.v1",
+      "x-unit": "text",
+      "description": "The info string of the fenced block in plan.md that carries the graph.",
+      "x-readers": [
+        "scripts/lib/program.py"
+      ]
+    },
+    "coordinator.plan_file": {
+      "type": "string",
+      "default": "plan.md",
+      "x-unit": "path",
+      "description": "The program file whose fenced data block is the PR graph.",
+      "x-readers": [
+        "scripts/lib/program.py"
+      ]
+    },
+    "coordinator.producer": {
+      "type": "string",
+      "default": "coordinator",
+      "x-unit": "text",
+      "description": "Event producer name of the coordinator.",
+      "x-readers": [
+        "scripts/lib/coordinator.py"
+      ]
+    },
+    "coordinator.program_files": {
+      "type": "array",
+      "default": [
+        "brief.md",
+        "audit.md",
+        "plan.md",
+        "retro.md"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "path",
+      "description": "The files every program folder holds, in stage order.",
+      "x-readers": [
+        "scripts/lib/program.py",
+        "scripts/lib/program_gate.py"
+      ]
+    },
+    "coordinator.program_schema": {
+      "type": "string",
+      "default": "contracts/programs/program.v1.json",
+      "x-unit": "path",
+      "description": "The schema of a plan.md data block.",
+      "x-readers": [
+        "scripts/lib/program.py"
+      ]
+    },
+    "coordinator.programs_dir": {
+      "type": "string",
+      "default": "docs/programs",
+      "x-unit": "path",
+      "description": "Where each program keeps brief.md, audit.md, plan.md and retro.md.",
+      "x-readers": [
+        "scripts/lib/program.py"
+      ]
+    },
+    "coordinator.queue_owner": {
+      "type": "string",
+      "default": "queue",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "D-277: the owner a program unit carries when no lane holds it (a lane closed by quota). The coordinator never launches such a unit; it waits, pending, until a decision gives it a lane.",
+      "x-readers": [
+        "scripts/lib/coordinator.py"
+      ],
+      "x-source": "D-277; docs/programs/fluxo-amplo/plan.md"
+    },
+    "coordinator.quota_headroom_percent": {
+      "type": "number",
+      "default": 10,
+      "x-unit": "percent",
+      "description": "Quota remaining below which nothing launches; an unknown quota does not block.",
+      "x-readers": [
+        "scripts/lib/coordinator.py"
+      ],
+      "minimum": 0
+    },
+    "coordinator.retro_heading": {
+      "type": "string",
+      "default": "^#{1,6}\\s+(?:\\d+\\.\\s*)?Lessons\\b",
+      "x-unit": "regex",
+      "description": "The heading whose section of a unit retro the program retro carries.",
+      "x-readers": [
+        "scripts/lib/program_gate.py"
+      ],
+      "format": "regex"
+    },
+    "coordinator.retro_marker": {
+      "type": "string",
+      "default": "padrao_candidate",
+      "x-unit": "text",
+      "description": "The marker the program retro puts on lessons that propose a Padrão change.",
+      "x-readers": [
+        "scripts/lib/program_gate.py"
+      ]
+    },
+    "coordinator.retro_section_lines": {
+      "type": "integer",
+      "default": 40,
+      "x-unit": "lines",
+      "description": "Most lines of one unit retro section carried into the program retro.",
+      "x-readers": [
+        "scripts/lib/program_gate.py"
+      ],
+      "minimum": 1
+    },
+    "coordinator.retry_budget": {
+      "type": "integer",
+      "default": 2,
+      "x-unit": "count",
+      "description": "Failed sessions of one unit after which the coordinator escalates instead of relaunching.",
+      "x-readers": [
+        "scripts/lib/coordinator.py"
+      ],
+      "minimum": 0
+    },
+    "coordinator.router_by": {
+      "type": "string",
+      "default": "coordinator",
+      "x-unit": "text",
+      "description": "The actor recorded when the coordinator asks the defect router for fix units.",
+      "x-readers": [
+        "scripts/lib/coordinator.py"
+      ]
+    },
+    "coordinator.template_dir": {
+      "type": "string",
+      "default": "_template",
+      "x-unit": "path",
+      "description": "The folder under coordinator.programs_dir that is the program template, not a program.",
+      "x-readers": [
+        "scripts/lib/program.py"
+      ]
+    },
+    "coordinator.unit_retro_path": {
+      "type": "string",
+      "default": "docs/units/{unit}/retro.md",
+      "x-unit": "path",
+      "description": "Where a unit keeps its retro; {unit} is the unit id as written in plan.md.",
+      "x-readers": [
+        "scripts/lib/program_gate.py"
+      ]
+    }
+  }
+}

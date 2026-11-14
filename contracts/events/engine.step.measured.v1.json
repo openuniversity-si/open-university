@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/engine.step.measured.v1.json",
+  "title": "engine.step.measured payload v1",
+  "description": "Observability (D-069 item 6): one engine step with its duration from the injected clock.",
+  "x-natural-key": [
+    "/correlation_id",
+    "/payload/repo",
+    "/payload/pr",
+    "/payload/sha",
+    "/payload/step"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "step",
+    "duration_ms",
+    "tokens_in",
+    "tokens_out",
+    "model",
+    "provider",
+    "result",
+    "retries"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "step": {
+      "type": "string",
+      "minLength": 1
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tokens_in": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tokens_out": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "provider": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "result": {
+      "enum": [
+        "ok",
+        "fail",
+        "blocked"
+      ]
+    },
+    "retries": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

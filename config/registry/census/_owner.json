@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/census.json",
+  "x-owner": "census",
+  "x-schema-version": 1,
+  "description": "The literal census of each unit (CENSO-NO-MANIFESTO; D-063, D-064 a, D-067): where a unit keeps its append-only census record, how the record is sealed, and the per-area files it replaces, which are now a derived view.",
+  "type": "object",
+  "additionalProperties": false
+}

@@ -1,0 +1,18 @@
+{
+  "script": "scripts/tests/infra-service.test.sh",
+  "covers": [
+    "scripts/tests/infra-service.test.sh",
+    "scripts/tests/test_infra_service.py",
+    "infra/service/**",
+    "infra/db/migrations/**",
+    "infra/aws/stacks/30-service.json",
+    "infra/aws/stacks/20-data.json",
+    "infra/aws/stacks/10-network.json",
+    "infra/aws/bootstrap.json",
+    "infra/aws/deploy.sh",
+    "docs/arquitetura-referencia/ARQUITETURA-ALVO.md",
+    "units/engine-infra-service/unit.json",
+    "scripts/lib/test_db.py",
+    "config/registry/test-db.json"
+  ]
+}

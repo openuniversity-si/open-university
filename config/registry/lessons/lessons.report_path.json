@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "docs/process/lessons.md",
+  "x-unit": "path",
+  "description": "Where the aggregator writes the generated lessons report.",
+  "x-readers": [
+    "scripts/lib/lessons_report.py"
+  ]
+}

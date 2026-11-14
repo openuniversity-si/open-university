@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "contracts/defects/defect.v2.json",
+  "x-unit": "path",
+  "description": "JSON Schema 2020-12 of a defect record.",
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ]
+}

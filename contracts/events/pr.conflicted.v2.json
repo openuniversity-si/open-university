@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/pr.conflicted.v2.json",
+  "title": "pr.conflicted payload v2",
+  "description": "The train handed the PR back to its lane without merging it, and says why (D-075). cause textual: the head does not merge onto the tip and files names every conflicted path (at least one). Any other cause carries no files and names the real cause in detail: not-admitted (a head the train already re-verdicted still does not admit), unpushable (the train cannot push its resync to the branch), forge-refused (the forge refused the pinned merge). The lane makes a new head and re-emits pr.ready.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/pr",
+    "/payload/sha",
+    "/payload/tip_sha"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "files",
+    "tip_sha",
+    "cause",
+    "detail"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tip_sha": {
+      "$ref": "defs.v1.json#/$defs/commit"
+    },
+    "cause": {
+      "enum": [
+        "textual",
+        "not-admitted",
+        "unpushable",
+        "forge-refused"
+      ]
+    },
+    "detail": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "cause": {
+          "const": "textual"
+        },
+        "files": {
+          "minItems": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "cause": {
+          "enum": [
+            "not-admitted",
+            "unpushable",
+            "forge-refused"
+          ]
+        },
+        "files": {
+          "maxItems": 0
+        }
+      }
+    }
+  ]
+}

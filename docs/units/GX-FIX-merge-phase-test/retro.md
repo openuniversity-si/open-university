@@ -1,0 +1,8 @@
+# GX-FIX-merge-phase-test retro
+
+1. Brief: one base defect, clear and sufficient: GX-22 (#722) reworded `scripts/merge-phase` ("local gate" -> "event log") and `apps/web/src/site/domain/no-github-actions.test.ts:20` still pinned the old phrase, so unit-tests went red on every gate that selects site tests (#586 #592 #615 #622 #632 #643 #662).
+2. Audit and plan held: one file, no parallel work; the test title was kept because the gate's suite baseline lists it.
+3. Execution (01:43Z-01:44Z): skeleton c373b753, plan c69d7607, fix a7f7d046; targeted vitest before = 1 failed (`expected ... to contain 'local gate'`), after = 2 passed. Diff: the test plus docs/units only (site-lane).
+4. Wait (01:44Z-02:04Z): `gate-dev --pr 730` could not start in the cloud session: the config-store read got GitHub 429 (`wait 976 s`, over `github-client.max_wait_s` 120 s) and the SessionStart setup stopped at its first registry read, so the session had no pinned toolchain. Not this PR's fault; the class is fixed in #735 (NANO-UNBLOCK items 1-2).
+5. Gate: one run, after the limit window passed: MERGEABLE on a7f7d046 at 02:04Z (5m39s, 14 writes, 33 reads), gate.passed e271f8dae23b at 02:09:30Z. pr.ready was not emitted because this retro (plan item 4) was missing; handed over to NANO-UNBLOCK at 02:09Z.
+6. Lesson (owner: engine gate test selection): #722's own gate did not run this site test although the test reads `scripts/merge-phase` as text; a test that reads another unit's file needs that edge declared so the change that edits the file runs it. Lesson (owner: brief template): require the retro commit before the final gate so the gate that passes is the one that emits pr.ready.

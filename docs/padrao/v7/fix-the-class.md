@@ -1,0 +1,3 @@
+# Fix the class, not the instance (Daniel 23:46)
+
+The gate is the final check, never a discovery loop. Before the gate, run only the targeted tests of the step you changed; the selective gate (per-test cache) runs everything else your change affects, so never re-run full suites by hand. When any test fails, search the whole codebase for the same pattern and fix every occurrence in ONE commit, preferably through one shared helper so new code cannot repeat it. Every failure is treated as a class from the FIRST one: before fixing, ask why it happened and where else the same cause exists, then fix them all. A second failure from a cause already seen is an incident (the class fix was incomplete): stop and report it in the PR.

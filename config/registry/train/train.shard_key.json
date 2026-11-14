@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "units+dependents",
+  "enum": [
+    "units+dependents"
+  ],
+  "x-unit": "enum",
+  "description": "How the train computes the shard key of a PR or batch (SH-1, design-sharded-tier2.md 4.1): the units its files touch, plus every unit that requires one of them (transitively), plus every changed path no unit claims and no generated target outputs. units+dependents is the only value understood; any other is an error, never a fallback.",
+  "x-readers": [
+    "scripts/lib/train_shard.py"
+  ]
+}

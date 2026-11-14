@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 8,
+  "minimum": 7,
+  "maximum": 40,
+  "x-unit": "chars",
+  "description": "Characters of a commit sha that pr.ready and the gate's pr.ready hook print (the event keeps the full sha).",
+  "x-readers": [
+    "scripts/lib/pr_ready.py",
+    "scripts/lib/gate_report.py"
+  ]
+}

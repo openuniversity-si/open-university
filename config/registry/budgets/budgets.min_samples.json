@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 3,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Fewest measurements a metric needs before the baseline is written or a verdict can fail; below it the state is no_data and nothing is invented.",
+  "x-readers": [
+    "scripts/lib/budgets.py"
+  ],
+  "x-source": "D-069 item 14; B1"
+}

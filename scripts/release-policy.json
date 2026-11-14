@@ -1,0 +1,9 @@
+{
+  "decision": "D-054",
+  "frozen": true,
+  "until": "the release pipeline of roadmap step 8",
+  "queue": "docs/process/host-swap-queue.md",
+  "rules": "docs/process/RELEASES.md",
+  "production_branch": "main",
+  "release_branch": "mod/roadmap-integration"
+}

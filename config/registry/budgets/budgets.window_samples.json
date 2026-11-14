@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Newest measurements per metric and subject the baseline and the check fold into one p95.",
+  "x-readers": [
+    "scripts/lib/budgets.py"
+  ],
+  "x-source": "D-069 item 14; B1"
+}

@@ -1,0 +1,23 @@
+{
+  "type": "array",
+  "default": [
+    "**/*.test.*",
+    "**/*.test-helpers.ts",
+    "**/testing/**",
+    "**/fixtures/**",
+    "**/__fixtures__/**",
+    "**/*.snap",
+    "scripts/tests/**"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "path",
+  "description": "Globs of test and fixture files inside the production globs; they belong to at most one unit and count toward no size.",
+  "x-readers": [
+    "scripts/lib/unit_map.py",
+    "scripts/lib/unit_check.py"
+  ],
+  "x-source": "D-067 (6)"
+}

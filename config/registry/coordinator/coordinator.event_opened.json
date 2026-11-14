@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "pr.opened",
+  "x-unit": "text",
+  "description": "The event type that means the unit opened its PR; the status view folds it.",
+  "x-readers": [
+    "scripts/lib/program.py"
+  ]
+}

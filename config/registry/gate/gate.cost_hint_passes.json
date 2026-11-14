@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Cold passes `scripts/test-suite --metrics --write-costs` runs, each on its own empty result store; a test's cost hint is the least of its walls (VAZÃO F52). A wait never makes a test faster: one pass under a stall or a busy box wrote 32-34 s for four tests that take 2-4 s, and the least of two passes drops it.",
+  "x-readers": [
+    "scripts/lib/test_metrics.py"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/contracts.json",
+  "x-owner": "contracts",
+  "x-schema-version": 1,
+  "description": "Where the versioned contracts live and how their files are named (D-068 (5), D-069 item 2); the schema compat stage reads them.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contracts.schema_dir": {
+      "type": "string",
+      "default": "contracts",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Directory of every versioned JSON Schema contract (events, config, premises, later units and intents), relative to the repository root.",
+      "x-readers": [
+        "scripts/lib/schema_compat.py"
+      ],
+      "x-source": "SHARED CONTRACT v3 §1"
+    },
+    "contracts.schema_file_pattern": {
+      "type": "string",
+      "default": "^contracts/(?:[a-z0-9-]+/)+[a-z0-9][a-z0-9.-]*\\.v[1-9][0-9]*\\.json$",
+      "format": "regex",
+      "x-unit": "regex",
+      "description": "The path every contract file matches: contracts/<area>/<name>.v<N>.json, the version in the file name.",
+      "x-readers": [
+        "scripts/lib/schema_compat.py"
+      ],
+      "x-source": "SHARED CONTRACT v3 §1"
+    }
+  }
+}

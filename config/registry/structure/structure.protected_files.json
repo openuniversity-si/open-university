@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    "docs/process/roadmap/STATUS.md",
+    "docs/architecture/CONTEXTS.md",
+    "docs/domain/INTENTS.md"
+  ],
+  "minItems": 1,
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "count",
+  "description": "Paths only the integration flow edits: the roadmap step log and the generated aggregates. Any other PR that changes one fails structure-check.",
+  "x-readers": [
+    "scripts/lib/visual_guard.py"
+  ],
+  "x-source": "D-006, D-069 (SG1)"
+}

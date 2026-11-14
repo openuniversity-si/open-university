@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 300,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "The longest the absolute scan may run before scripts/census stops it.",
+  "x-readers": [
+    "scripts/lib/census.py"
+  ],
+  "x-source": "CENSO-NO-MANIFESTO"
+}

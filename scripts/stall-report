@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/stall-report [--base BRANCH] [--emit]
+# Stalled sessions (X1): the open PRs with no push, a red gate left unanswered, or a comment waiting on the owner,
+# as JSON for the orchestrator; --emit records each as engine.session.stalled. On demand, never a loop.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/stall_report.py" "$@"

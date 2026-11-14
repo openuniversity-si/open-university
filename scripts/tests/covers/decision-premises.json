@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/decision-premises.test.sh",
+  "covers": [
+    "scripts/tests/decision-premises.test.sh",
+    "scripts/tests/test_decision_premises.py",
+    "scripts/lib/decision_premises.py",
+    "scripts/lib/premises.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/config.py",
+    "config/registry/premises.json",
+    "contracts/premises/premise.v1.json",
+    "docs/process/premises/*.yml",
+    "docs/domain/DECISIONS.md"
+  ]
+}

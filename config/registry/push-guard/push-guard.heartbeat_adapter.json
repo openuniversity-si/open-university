@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "file",
+  "enum": [
+    "file"
+  ],
+  "x-unit": "enum",
+  "description": "forge_events adapter the hook writes engine.session.heartbeat to (repository channel). file: a log inside the checkout's git directory (push-guard.heartbeat_log_dir), so a failed push is recorded even when the forge is unreachable; the stall report reads pushes from the forge itself.",
+  "x-readers": [
+    "scripts/lib/push_guard.py"
+  ]
+}

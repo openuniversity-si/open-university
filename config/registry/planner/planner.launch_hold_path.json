@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "",
+  "x-unit": "path",
+  "description": "Path of the global launch-hold file the coordinator maps to a hold-all in the folded plan; empty means there is none.",
+  "x-readers": [
+    "scripts/lib/coordinator.py",
+    "scripts/lib/plan_live.py"
+  ]
+}

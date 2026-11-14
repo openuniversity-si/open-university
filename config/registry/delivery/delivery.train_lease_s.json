@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 900,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "TRAIN-LEASE: how many seconds an entry of the merge train stays valid without its own delivery renewing it. The delivery renews on each of its events (joined, checks started, checks decided, every long poll it asks); an entry whose lease ran out is a dead process: the port marks it `expired` (platform.train.expired) when a join, wait, renew or end arrives or the long poll hits its safety timeout, and the next waiter is woken. A SAFETY timeout for a dead delivery, never a clock the live ones follow: it replaces `scripts/deliver --queue-drop` for a front that died.",
+  "x-readers": [
+    "scripts/lib/deliver.py"
+  ],
+  "x-source": "TRAIN-LEASE"
+}

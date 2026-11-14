@@ -1,0 +1,14 @@
+{
+  "type": "integer",
+  "default": 600,
+  "minimum": 1,
+  "x-literal-names": [
+    "SIZE_BUDGET"
+  ],
+  "x-unit": "lines",
+  "description": "Changed lines of a PR, tests and generated files excluded, above which structure-check warns.",
+  "x-readers": [
+    "scripts/lib/structure.py"
+  ],
+  "x-source": "D-008"
+}

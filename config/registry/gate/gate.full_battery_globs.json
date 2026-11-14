@@ -1,0 +1,30 @@
+{
+  "type": "array",
+  "default": [
+    "config/**",
+    "contracts/**",
+    "scripts/lib/**",
+    "scripts/gate*",
+    "scripts/cloud/**",
+    "scripts/structure-check",
+    "scripts/commit-check",
+    "scripts/generate",
+    ".githooks/**",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "package.json",
+    ".node-version",
+    ".npmrc",
+    "units/**",
+    ".gitleaks.toml"
+  ],
+  "x-unit": "glob",
+  "description": "Path classes that always run the full battery: the config registry, contracts, the engine, shared code, lockfiles and toolchain, the ownership map itself and tool configuration (GS1, fail closed). OU-DECOUPLE F5 (D-113): Open University's web package classes left with it.",
+  "items": {
+    "type": "string"
+  },
+  "x-readers": [
+    "scripts/lib/gate_select.py"
+  ],
+  "x-source": "GS1 brief, lever 1"
+}

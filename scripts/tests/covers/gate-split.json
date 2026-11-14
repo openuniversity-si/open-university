@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/gate-split.test.sh",
+  "covers": [
+    "scripts/tests/gate-split.test.sh",
+    "scripts/tests/test_gate_split.py",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/gate_noite.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/gate-stages-baseline.json",
+    "scripts/tests/forge_doubles.py"
+  ]
+}

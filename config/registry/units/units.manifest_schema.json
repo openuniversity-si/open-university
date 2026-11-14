@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "contracts/units/unit.v1.json",
+  "x-unit": "path",
+  "description": "JSON Schema every unit manifest satisfies.",
+  "x-readers": [
+    "scripts/lib/structure.py",
+    "scripts/lib/units.py"
+  ],
+  "x-source": "D-067 (plan v3 §4.2)"
+}

@@ -1,0 +1,14 @@
+{
+  "type": "array",
+  "default": [],
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "count",
+  "description": "Globs (`**` crosses folders, `*` does not) of the files whose change is a visual change unless it is logic only; tests are never visual. Empty: no product with a visual surface is in the engine (OU-DECOUPLE F5, D-113); a product declares its own globs here.",
+  "x-readers": [
+    "scripts/lib/visual_guard.py"
+  ],
+  "x-source": "D-006, D-069 (SG1)"
+}

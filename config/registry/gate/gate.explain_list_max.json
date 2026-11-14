@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 3,
+  "x-unit": "count",
+  "description": "GX-26 (D-070): failing tests that gate-dev --why lists.",
+  "x-readers": [
+    "scripts/lib/gate_explain.py"
+  ],
+  "minimum": 1
+}

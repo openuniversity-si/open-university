@@ -1,0 +1,18 @@
+{
+  "script": "scripts/tests/schema-compat.test.sh",
+  "covers": [
+    "scripts/tests/schema-compat.test.sh",
+    "scripts/tests/test_schema_compat.py",
+    "scripts/schema-compat",
+    "scripts/lib/schema_compat.py",
+    "scripts/lib/config_check.py",
+    "scripts/lib/generate.py",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/config.py",
+    "scripts/gate-local",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/gate-areas.json",
+    "config/registry/**",
+    "contracts/**"
+  ]
+}

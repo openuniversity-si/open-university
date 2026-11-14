@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "",
+  "x-unit": "digest",
+  "description": "IMAGE-PREWARM-A (docs/operations/aws.md 22.9): the image digest (or content tag) of the live service. A service process whose TOWER_IMAGE_DIGEST is set and differs from a non-empty pointer stands by: healthy, but it takes no work (no dispatcher tick, session follow, subscription delivery, forge-key refresh, autodeploy look or migration). Empty (the default) is no pointer: every process works, as before. A write notifies tower_config (migration 0010), so the swap is seen at once; the standby that turns live records platform.deploy.image_live {role, digest, swap_s}.",
+  "x-readers": [
+    "infra/service/tower_infra/live_image.py"
+  ],
+  "x-source": "IMAGE-PREWARM-A"
+}

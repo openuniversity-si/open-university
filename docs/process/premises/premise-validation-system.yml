@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-30"
+slug: "premise-validation-system"
+statement: "A system validates premises easily and quickly, with a blast radius."
+kind: "process"
+scope: "global"
+source:
+  who: "daniel"
+  where: "chat 16:18"
+  quote: null
+  at: "2026-10-26T16:18-03:00"
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["decision:D-066", "veto:V0", "plan:P1"]
+  if_wrong: "P1, veto V0 and plan v3 §8."
+validate:
+  kind: "none"
+  how: null
+answer:
+  by: "Daniel"
+  at: "2026-10-26T16:18-03:00"
+  value: "confirmed"
+  quote: null
+  where: "Daniel, chat 16:18"
+  evidence: null
+  translation: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

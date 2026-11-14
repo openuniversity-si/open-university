@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "TOWER_EVENTS_TOKEN",
+  "pattern": "^[A-Z][A-Z0-9_]*$",
+  "x-unit": "name",
+  "description": "CONTROL-CHANNEL (CANALE7): the environment variable that holds the control plane's events token (the Worker's EVENTS_TOKEN secret); the value is never read from a file or printed.",
+  "x-readers": [
+    "scripts/lib/forge_control.py"
+  ],
+  "x-source": "docs/units/CONTROL-CHANNEL/plan.md"
+}

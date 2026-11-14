@@ -1,0 +1,45 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/gate-impact.py": {
+      "number 2": 1
+    },
+    "scripts/lib/gate_graph.py": {
+      "absolute_path \"/bin/bash\"": 1,
+      "number 2": 3,
+      "number 3": 2
+    },
+    "scripts/lib/gate_policy.py": {
+      "number 2": 3
+    },
+    "scripts/lib/gate_script_tests.py": {
+      "number 2": 1
+    },
+    "scripts/lib/gate_select.py": {
+      "number 2": 2
+    },
+    "scripts/lib/gate_suite.py": {
+      "number 2": 2,
+      "number 40": 1
+    },
+    "scripts/tests/test_gate_areas.py": {
+      "number 2": 1
+    },
+    "scripts/tests/test_gate_graph.py": {
+      "number 2": 4,
+      "number 3": 7,
+      "number 4": 1,
+      "number 5": 2,
+      "number 8": 2,
+      "number 9": 1
+    },
+    "scripts/tests/test_gate_script_tests.py": {
+      "number 2": 1
+    },
+    "scripts/tests/test_gate_select.py": {
+      "number 2": 1,
+      "number 20": 1,
+      "number 40": 1
+    }
+  }
+}

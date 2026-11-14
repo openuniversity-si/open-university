@@ -1,0 +1,39 @@
+{
+  "id": "engine-infra-aws",
+  "purpose": "The factory's AWS infrastructure as code (D-303): the declared budget, the keyless bootstrap and the stacks the deployer applies.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "infra/aws/**",
+    "docs/operations/aws.md",
+    "scripts/tests/infra-aws.test.sh",
+    "scripts/tests/test_infra_aws.py",
+    "scripts/tests/covers/infra-aws.json",
+    "scripts/deploy-classify",
+    "scripts/deploy-smoke",
+    "scripts/lib/deploy_classify.py",
+    "scripts/tests/deploy-classify.test.sh",
+    "scripts/tests/test_deploy_classify.py",
+    "scripts/tests/covers/deploy-classify.json",
+    "scripts/tests/infra-fastdeploy.test.sh",
+    "scripts/tests/test_infra_fastdeploy.py",
+    "scripts/tests/covers/infra-fastdeploy.json",
+    "scripts/lambda-package",
+    "scripts/lib/lambda_package.py",
+    "scripts/tests/lambda-package.test.sh",
+    "scripts/tests/test_lambda_package.py",
+    "scripts/tests/covers/lambda-package.json"
+  ],
+  "battery": {
+    "command": "scripts/unit-battery engine-infra-aws"
+  },
+  "decisions": [
+    "D-303",
+    "D-304",
+    "D-305",
+    "D-306"
+  ],
+  "premises": [
+    "P-27"
+  ]
+}

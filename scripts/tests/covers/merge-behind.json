@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/merge-behind.test.sh",
+  "covers": [
+    "scripts/tests/merge-behind.test.sh",
+    "scripts/tests/test_merge_behind.py",
+    "scripts/tests/test_plan_tick.py",
+    "scripts/lib/merge_behind.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/config.py",
+    "config/registry/merge.json",
+    "scripts/tests/forge_pin.py"
+  ]
+}

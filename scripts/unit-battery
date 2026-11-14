@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/unit-battery <unit> [--json] [--emit [--pr N]] (scripts/lib/unit_battery.py --help)
+# Tier 1 for a unit (P-12, veto V5): its project types, its tests and its contract, within battery.unit_time_limit.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/unit_battery.py" "$@"

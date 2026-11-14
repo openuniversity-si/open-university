@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/slo.json",
+  "x-owner": "slo",
+  "x-schema-version": 1,
+  "description": "Service level objectives of the engine (D-069 item 6).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "slo.dashboard_path": {
+      "type": "string",
+      "default": ".gate/dashboard/slo.md",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Where scripts/dashboard writes the generated Markdown, relative to the repository root; the path is gitignored and a PR never commits it (P-10).",
+      "x-readers": [
+        "scripts/lib/slo.py"
+      ]
+    },
+    "slo.gate_failure_rate_max_percent": {
+      "type": "number",
+      "default": 20,
+      "minimum": 0,
+      "maximum": 100,
+      "x-unit": "percent",
+      "description": "Highest share of failed tier-1 gate verdicts among the last slo.sample_window_events (plan v3 §9.2 sets none; first value tuned by a PR when slo.breached asks).",
+      "x-readers": [
+        "scripts/lib/slo.py",
+        "docs/process/EVENTS.md"
+      ]
+    },
+    "slo.gate_tier1_p95_s": {
+      "type": "number",
+      "default": 10,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Tier-1 gate wall time (sum of its stages) that the 95th percentile of the last slo.sample_window_events tier-1 verdicts may not exceed. First value: the existing target gate.tier1_target_s (D-065 (5)); the reader enforces the smaller of the two, and a test refuses an SLO looser than that target.",
+      "x-readers": [
+        "scripts/lib/slo.py",
+        "docs/process/EVENTS.md"
+      ]
+    },
+    "slo.merged_hold_s": {
+      "type": "integer",
+      "default": 10800,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "How long the merge pace must hold: the rolling window is checked at every merge of the last slo.merged_hold_s seconds of the log (plan v3 §9.2: at least 3 hours). Until the log covers the hold plus one window the SLO reports no data.",
+      "x-readers": [
+        "scripts/lib/slo.py"
+      ]
+    },
+    "slo.merged_prs_per_hour_min": {
+      "type": "integer",
+      "default": 42,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Fewest pr.merged events allowed in any slo.merged_window_s window, the pace of 1,000 PRs a day (plan v3 §9.2: the last 42 merges within 60 minutes).",
+      "x-readers": [
+        "scripts/lib/slo.py",
+        "docs/process/EVENTS.md"
+      ]
+    },
+    "slo.merged_window_s": {
+      "type": "integer",
+      "default": 3600,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Length of the window in which slo.merged_prs_per_hour_min merges must land (plan v3 §9.2: 60 minutes).",
+      "x-readers": [
+        "scripts/lib/slo.py"
+      ]
+    },
+    "slo.min_samples": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Fewest samples an SLO needs before it can breach; below it the SLO reports no data (the same size as gate.slow_window_events).",
+      "x-readers": [
+        "scripts/lib/slo.py"
+      ]
+    },
+    "slo.percentile": {
+      "type": "integer",
+      "default": 95,
+      "minimum": 1,
+      "maximum": 100,
+      "x-unit": "percent",
+      "description": "Percentile the *_p95_s SLOs measure (nearest rank).",
+      "x-readers": [
+        "scripts/lib/budgets.py",
+        "scripts/lib/slo.py"
+      ]
+    },
+    "slo.producer": {
+      "type": "string",
+      "default": "slo_reader",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Producer name of slo.breached and of the reader's own engine.step.measured; part of every event id.",
+      "x-readers": [
+        "scripts/lib/slo.py"
+      ]
+    },
+    "slo.sample_window_events": {
+      "type": "integer",
+      "default": 100,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Most recent samples (tier-1 verdicts, merged PRs) each SLO value is computed over.",
+      "x-readers": [
+        "scripts/lib/slo.py"
+      ]
+    },
+    "slo.step": {
+      "type": "string",
+      "default": "slo:evaluate",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "engine.step.measured step name of one reader run.",
+      "x-readers": [
+        "scripts/lib/slo.py"
+      ]
+    },
+    "slo.train_queue_time_p95_s": {
+      "type": "number",
+      "default": 900,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Queue time (pr.ready to pr.merged of the same head) that the 95th percentile of the last slo.sample_window_events merged PRs may not exceed. First value: three tier-2 runs of about 240 s (premise P-15, plan v3 §9.2) plus margin; tuned by a PR when slo.breached asks.",
+      "x-readers": [
+        "scripts/lib/slo.py",
+        "docs/process/EVENTS.md"
+      ]
+    }
+  }
+}

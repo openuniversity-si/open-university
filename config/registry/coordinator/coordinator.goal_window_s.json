@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 86400,
+  "x-unit": "s",
+  "description": "The trailing window the goal metrics are measured over (a day).",
+  "x-readers": [
+    "scripts/lib/program_gate.py"
+  ],
+  "minimum": 1
+}

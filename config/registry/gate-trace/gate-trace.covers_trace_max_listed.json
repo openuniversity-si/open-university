@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "x-unit": "count",
+  "x-source": "D-070",
+  "description": "Most undeclared paths one test lists in its trace report; the count of the rest is printed.",
+  "x-readers": [
+    "scripts/lib/hermetic.py"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": ".gate/dashboard/slo.md",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Where scripts/dashboard writes the generated Markdown, relative to the repository root; the path is gitignored and a PR never commits it (P-10).",
+  "x-readers": [
+    "scripts/lib/slo.py"
+  ]
+}

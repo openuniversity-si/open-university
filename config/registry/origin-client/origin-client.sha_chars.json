@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "items": {
+    "type": "integer"
+  },
+  "minItems": 1,
+  "uniqueItems": true,
+  "default": [
+    40,
+    64
+  ],
+  "x-unit": "count",
+  "description": "Lengths in hex characters of a full commit SHA (SHA-1, SHA-256); a merge guard needs one of these, never an abbreviation.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "FORGE-PORT (CANALE8)"
+}

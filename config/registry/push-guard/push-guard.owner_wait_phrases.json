@@ -1,0 +1,23 @@
+{
+  "type": "array",
+  "default": [
+    "decision for the owner",
+    "waiting for your decision",
+    "awaiting your decision",
+    "waiting for the owner",
+    "waiting on the owner",
+    "needs an owner decision",
+    "BLOCKED:"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "x-unit": "text",
+  "description": "Phrases that mark a PR comment as waiting on an owner decision (DECIDE, THEN REPORT, Daniel 2026-10-26 21:29). Matched case-insensitively outside code spans, fences and quotes; a phrase that ends in ':' counts only at the start of a line.",
+  "x-readers": [
+    "scripts/lib/decision_wait.py"
+  ]
+}

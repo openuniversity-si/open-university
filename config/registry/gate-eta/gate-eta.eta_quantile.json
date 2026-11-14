@@ -1,0 +1,14 @@
+{
+  "type": "number",
+  "default": 0.5,
+  "exclusiveMinimum": 0,
+  "maximum": 1,
+  "x-unit": "fraction",
+  "description": "Quantile of the stage durations (engine.step.measured, slo.step_stats) that the gate's ETA uses per stage (0.5 is p50). gate.started.expected_wall_s is the critical path over these.",
+  "x-readers": [
+    "scripts/lib/gate_status.py",
+    "scripts/lib/gate_timing_report.py",
+    "scripts/lib/slo.py"
+  ],
+  "x-source": "D-070; plan-v2 GX-25, D-B8"
+}

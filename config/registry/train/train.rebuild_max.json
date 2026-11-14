@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 0,
+  "x-unit": "count",
+  "description": "Rebuilds per batch (F-16, GX-30): when the integration tip moved between build and merge, or the forge refused a member after a proven prefix merged, the train rebuilds what is left on the new tip and runs tier 2 on it again, at most this many times; past it a base move halts (TrainHalt) and refused leftovers wait for the next batch. 0 is the rollback to halt-on-move and leftovers-wait.",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

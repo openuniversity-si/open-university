@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/fronts status [--lanes DIR] [--json]
+# The fronts in flight (VAZÃO F69): each lane of the current coordinator not yet merged, with its unit, PR, weighted
+# tokens, lock wait and lost time, from the quota ledger (refreshed from the transcripts), the lock log and the friction log.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/fronts.py" "$@"

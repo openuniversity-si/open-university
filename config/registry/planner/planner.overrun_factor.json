@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "default": 2.0,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "A unit whose elapsed session time passes its estimate times this factor is an overrun input, evaluated when its next event arrives (gate-excellence plan: over 2x stops).",
+  "x-readers": [
+    "scripts/lib/plan_triage.py"
+  ]
+}

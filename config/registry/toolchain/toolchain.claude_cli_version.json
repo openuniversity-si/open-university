@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "2.1.311",
+  "x-unit": "version",
+  "description": "Claude Code CLI release the cloud sessions run (observed with `claude --version`); recorded for the cache key and reproducibility, not installed by setup.",
+  "x-readers": [
+    "scripts/lib/gate_result_cache.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/toolchain_manifest.py"
+  ]
+}

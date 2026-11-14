@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "unit.json",
+  "x-unit": "path",
+  "description": "File name of a unit manifest inside units/<id>/.",
+  "x-readers": [
+    "scripts/lib/units.py"
+  ],
+  "x-source": "D-067 (plan v3 §4.2)"
+}

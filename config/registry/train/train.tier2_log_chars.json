@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 2000,
+  "minimum": 0,
+  "maximum": 20000,
+  "x-unit": "chars",
+  "description": "Tail of the tier-2 output carried in pr.ejected.log (the log excerpt only; the failed stage and its class come from the gate's class line over the whole output, GX-02).",
+  "x-readers": [
+    "scripts/lib/train_git.py",
+    "scripts/lib/train_verdict.py"
+  ]
+}

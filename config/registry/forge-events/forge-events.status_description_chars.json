@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 140,
+  "minimum": 20,
+  "maximum": 140,
+  "x-unit": "chars",
+  "description": "Longest commit status description (GitHub cuts at 140).",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ]
+}

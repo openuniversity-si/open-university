@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "minItems": 1,
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Radius names, from the smallest to the largest blast. A computed radius may be raised by hand, never lowered.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

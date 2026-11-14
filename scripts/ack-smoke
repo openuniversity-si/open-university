@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# PORT7-SWITCH: the post-deploy ACK smoke for AckPath=sqs; on failure it redeploys the stack with AckPath=lambda.
+# scripts/lib/ack_smoke.py says how; needs the aws CLI as the deployer role; prints no secret.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+exec "${OU_PYTHON:-python3}" "$root/scripts/lib/ack_smoke.py" "$@"

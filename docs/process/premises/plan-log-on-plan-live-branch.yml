@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-48"
+slug: "plan-log-on-plan-live-branch"
+statement: "A dedicated plan/live branch, appended by one writer, is an acceptable home for the live-planning decision log; GitHub stays the source of truth and nothing moves to a new store."
+kind: "process"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "docs/programs/live-planning/design.md#8"
+  quote: null
+  at: "2026-10-27T18:30:00Z"
+status: "confirmed"
+radius: "medium"
+blast:
+  reasons: ["plan:live-planning"]
+  if_wrong: "Fall back to the forge event log (comments) as the record; the fold is the same."
+validate:
+  kind: "none"
+  how: null
+answer:
+  by: "A Torre"
+  at: "2026-10-27T18:30:00Z"
+  value: "confirmed"
+  quote: "Depois faz o que você acha julga melhor aí."
+  where: "Daniel 13:03 27/10/2026, delegation of premise decisions to A Torre (D-070); LP-P1 decided by A Torre, reversible"
+  evidence: "docs/programs/live-planning/design.md section 8"
+  translation: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

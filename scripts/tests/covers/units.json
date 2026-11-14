@@ -1,0 +1,25 @@
+{
+  "script": "scripts/tests/units.test.sh",
+  "covers": [
+    "scripts/tests/units.test.sh",
+    "scripts/tests/test_unit*.py",
+    "scripts/units",
+    "scripts/lib/unit*.py",
+    "scripts/lib/config.py",
+    "scripts/lib/json_schema.py",
+    "config/registry/units.json",
+    "contracts/units/*.json",
+    "scripts/lib/structure.py",
+    "contracts/config/registry.v1.json",
+    "config/registry/config.json",
+    "config/registry/forge-events.json",
+    "config/registry/generate.json",
+    "config/registry/battery.json",
+    "scripts/lib/forge_events.py",
+    "contracts/events/defs.v1.json",
+    "contracts/events/engine.step.measured.v1.json",
+    "contracts/events/envelope.v1.json",
+    "contracts/events/unit.oversize.v1.json",
+    "scripts/lib/source_facts.py"
+  ]
+}

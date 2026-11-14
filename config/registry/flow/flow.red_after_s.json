@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 900,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "flow-check's train part is red when a woken PR waits, or the silence after a merge lasts, longer than this (D-209).",
+  "x-readers": [
+    "scripts/lib/flow_check.py"
+  ],
+  "x-source": "D-209; lane 1 incident (01/11)"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "engine-wrappers",
+  "purpose": "Repository-root wrappers of the web tools.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/run",
+    "scripts/test-suite",
+    "scripts/tests/run.test.sh"
+  ],
+  "requires": {
+    "engine-cloud": "^1",
+    "engine-gate-cache": "^1"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "type": "array",
+  "default": [
+    "env",
+    "contract"
+  ],
+  "uniqueItems": true,
+  "items": {
+    "type": "string",
+    "enum": [
+      "code",
+      "env",
+      "contract"
+    ]
+  },
+  "x-unit": "enum",
+  "description": "Gate classes (D-027, the class line of GX-01) of a red tier-2 run or bisection probe that halt the train for a person instead of ejecting a member; env also emits env.drift. Only a class outside this list ejects (cause culprit). [] restores eject-on-anything (GX-02, D-070).",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ],
+  "x-source": "D-070; docs/programs/gate-excellence/plan.md §3.3 GX-02"
+}

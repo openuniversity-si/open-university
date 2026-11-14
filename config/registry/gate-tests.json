@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-tests.json",
+  "x-owner": "gate-tests",
+  "x-schema-version": 1,
+  "description": "Where the gate learns which script tests cover which paths (GX-08, D-070): the per-test covers manifests and the selector files that run the whole script suite.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate-tests.covers_dir": {
+      "type": "string",
+      "default": "scripts/tests/covers",
+      "x-unit": "path",
+      "description": "Directory of the per-test covers manifests, one <test>.json per scripts/tests/*.test.sh with script and covers (a leftover modules field has no effect, VAZÃO F57). A new test writes its own (scripts/scaffold does); no PR edits an aggregate map (D-065 V4).",
+      "x-readers": [
+        "scripts/lib/gate_script_tests.py",
+        "scripts/lib/unit_battery.py"
+      ]
+    },
+    "gate-tests.fallback": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "config/registry/gate-tests.json",
+        "scripts/lib/gate_script_tests.py",
+        "scripts/gate-local",
+        "scripts/lib/gate-runner.sh"
+      ],
+      "x-unit": "glob",
+      "description": "Selector files: a change to one runs every script test, because the choice of tests itself changed. A covers manifest is not one: it selects its own test, the map check (gate-tests.map_check) and every test whose covers glob matches the manifest path.",
+      "x-readers": [
+        "scripts/lib/gate_script_tests.py"
+      ]
+    },
+    "gate-tests.map_check": {
+      "type": "string",
+      "default": "scripts/tests/gate-script-tests.test.sh",
+      "x-unit": "path",
+      "description": "The script test that validates the whole covers map (one valid manifest per script test). A covers manifest change selects it with the manifest's own test.",
+      "x-readers": [
+        "scripts/lib/gate_script_tests.py"
+      ]
+    }
+  }
+}

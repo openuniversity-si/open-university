@@ -1,0 +1,42 @@
+{
+  "id": "engine-coordinator",
+  "purpose": "The program coordinator: programs as first-class objects, the event-driven decision function, the launch adapter and Padr\u00e3o, the program gate and retro (D-069 CO1).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/coordinator.json",
+    "config/registry/planner.json",
+    "contracts/events/plan.candidate.v1.json",
+    "contracts/events/plan.changed.v1.json",
+    "contracts/events/plan.input.v1.json",
+    "contracts/events/plan.note.v1.json",
+    "contracts/programs/**",
+    "docs/operations/coordinator.md",
+    "docs/process/live-planning.md",
+    "docs/padrao/**",
+    "docs/programs/**",
+    "scripts/coordinator",
+    "scripts/lib/coordinator.py",
+    "scripts/lib/coordinator_launch.py",
+    "scripts/lib/plan_live.py",
+    "scripts/lib/program.py",
+    "scripts/lib/program_gate.py",
+    "scripts/program",
+    "scripts/program-gate",
+    "scripts/tests/coordinator.test.sh",
+    "scripts/tests/fixtures/live-planning-fold.json",
+    "scripts/tests/program.test.sh",
+    "scripts/tests/test_coordinator.py",
+    "scripts/tests/test_coordinator_launch.py",
+    "scripts/tests/test_plan_live.py",
+    "scripts/tests/test_program.py",
+    "scripts/tests/test_program_gate.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-defects": "^1",
+    "engine-events": "^1",
+    "engine-lessons": "^1",
+    "engine-train": "^1"
+  }
+}

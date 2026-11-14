@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-inputs.json",
+  "x-owner": "gate-inputs",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate-inputs.enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "GX-23 (B-15, GA-P10, D-070): the lint, typecheck, unit tests and integration tests caches key on the inputs declared in scripts/lib/gate-stage-inputs.json (plus its traced read set) instead of the whole tree. Off is the rollback: lint and typecheck key on every tracked file and the stages on their gate-stages.json inputs, byte for byte as before GX-23.",
+      "x-readers": [
+        "scripts/lib/gate_result_cache.py"
+      ],
+      "x-flag": true,
+      "x-source": "D-070"
+    },
+    "gate-inputs.schema_version": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "x-unit": "version",
+      "description": "Version of the declared-inputs schema (scripts/lib/gate-stage-inputs.json). It is part of every narrowed key, so a change in how inputs are read misses every narrowed cache entry without bumping gate.stage_cache_version.",
+      "x-readers": [
+        "scripts/lib/gate_result_cache.py"
+      ],
+      "x-source": "D-070"
+    }
+  }
+}

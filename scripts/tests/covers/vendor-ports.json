@@ -1,0 +1,22 @@
+{
+  "script": "scripts/tests/vendor-ports.test.sh",
+  "covers": [
+    "scripts/tests/vendor-ports.test.sh",
+    "scripts/tests/test_ports_*.py",
+    "scripts/lib/adapters/**",
+    "scripts/lib/config.py",
+    "config/registry/providers.json",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/event_contracts.py",
+    "contracts/events/*.json",
+    "scripts/tests/test_vendor_check.py",
+    "scripts/lib/vendor_check.py",
+    "scripts/lib/config_check.py",
+    "scripts/lib/json_schema.py",
+    "contracts/adapters/*.json",
+    "scripts/lib/structure.py",
+    "scripts/structure-check",
+    "scripts/tests/test_vendor_classification.py",
+    "scripts/lib/source_facts.py"
+  ]
+}

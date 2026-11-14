@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "maestro",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Owner of a quarantined test that no unit manifest (units/<id>/unit.json) covers: today every test, until U0's manifests exist. This owner may also release such a test with any merged stabilizing PR.",
+  "x-readers": [
+    "scripts/lib/quarantine.py"
+  ]
+}

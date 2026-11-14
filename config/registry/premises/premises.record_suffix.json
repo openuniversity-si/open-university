@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": ".yml",
+  "x-unit": "path",
+  "description": "File suffix of a premise record.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ]
+}

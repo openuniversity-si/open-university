@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/battery run [--owner NAME] | scripts/battery pending
+# The battery role (plan v3 M6, D-065 (5)): tier 3 on integration.advanced through the forge_events port. Off until the
+# registry flag battery.enabled is switched on by a config.changed event (docs/process/EVENTS.md).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/battery.py" "$@"

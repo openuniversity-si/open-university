@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 8,
+  "x-unit": "count",
+  "description": "Characters of the dedup hash kept in the id.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "minimum": 6
+}

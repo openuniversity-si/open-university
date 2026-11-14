@@ -1,0 +1,25 @@
+{
+  "script": "scripts/tests/budgets.test.sh",
+  "covers": [
+    "scripts/tests/budgets.test.sh",
+    "scripts/tests/test_budgets.py",
+    "scripts/tests/test_budgets_check.py",
+    "scripts/budgets",
+    "scripts/lib/budgets.py",
+    "config/registry/budgets.json",
+    "config/registry/battery.json",
+    "config/baselines/budgets.json",
+    "contracts/budgets/**",
+    "contracts/events/*.json",
+    "scripts/lib/slo.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/config.py",
+    "scripts/lib/budget_check.py",
+    "scripts/tests/test_budget_check.py",
+    "scripts/lib/config_check.py",
+    "docs/operations/budgets.md",
+    "scripts/tests/fixtures/budgets.json"
+  ]
+}

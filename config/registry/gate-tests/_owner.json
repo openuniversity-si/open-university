@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-tests.json",
+  "x-owner": "gate-tests",
+  "x-schema-version": 1,
+  "description": "Where the gate learns which script tests cover which paths (GX-08, D-070): the per-test covers manifests and the selector files that run the whole script suite.",
+  "type": "object",
+  "additionalProperties": false
+}

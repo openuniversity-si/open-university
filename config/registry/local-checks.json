@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/local-checks.json",
+  "x-owner": "local-checks",
+  "x-schema-version": 1,
+  "description": "The registry-driven fast local check (LR1, D-069): checks as data with owner and cost budget, run before a push by scripts/commit-check --local.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "local-checks.body_env": {
+      "type": "string",
+      "default": "OU_PR_BODY_FILE",
+      "x-unit": "name",
+      "description": "Environment variable naming a file with the PR body, for the checks that need it when --body-file is not given.",
+      "x-readers": [
+        "scripts/lib/local_checks.py"
+      ],
+      "minLength": 1
+    },
+    "local-checks.checks": {
+      "type": "array",
+      "default": [
+        {
+          "id": "one_push_per_commit",
+          "owner": "push-guard",
+          "budget_ms": 1500,
+          "handler": "one_push_per_commit",
+          "stage": "local",
+          "enabled": true
+        },
+        {
+          "id": "no_history_rewrite",
+          "owner": "push-guard",
+          "budget_ms": 1500,
+          "handler": "no_history_rewrite",
+          "stage": "local",
+          "enabled": true
+        },
+        {
+          "id": "gate_change_cites_decision",
+          "owner": "engine-commit-plan",
+          "budget_ms": 1500,
+          "handler": "gate_change_cites_decision",
+          "stage": "local",
+          "enabled": true
+        },
+        {
+          "id": "secret_scan_diff",
+          "owner": "gate",
+          "budget_ms": 8000,
+          "handler": "secret_scan_diff",
+          "stage": "local",
+          "enabled": true
+        },
+        {
+          "id": "no_registered_literals",
+          "owner": "config",
+          "budget_ms": 6000,
+          "handler": "no_registered_literals",
+          "stage": "local",
+          "enabled": true
+        },
+        {
+          "id": "structure_fast",
+          "owner": "structure",
+          "budget_ms": 12000,
+          "handler": "structure_fast",
+          "stage": "local",
+          "enabled": true
+        },
+        {
+          "id": "config_check",
+          "owner": "structure",
+          "budget_ms": 6000,
+          "handler": "structure_config_check",
+          "stage": "local",
+          "enabled": true
+        },
+        {
+          "id": "literal_census",
+          "owner": "structure",
+          "budget_ms": 4000,
+          "handler": "structure_literal_census",
+          "stage": "local",
+          "enabled": true
+        },
+        {
+          "id": "vendor",
+          "owner": "structure",
+          "budget_ms": 4000,
+          "handler": "structure_vendor",
+          "stage": "local",
+          "enabled": true
+        },
+        {
+          "id": "unit_check",
+          "owner": "structure",
+          "budget_ms": 2500,
+          "handler": "structure_unit_check",
+          "stage": "local",
+          "enabled": true
+        },
+        {
+          "id": "decision_table",
+          "owner": "engine-records",
+          "budget_ms": 500,
+          "handler": "decision_table",
+          "stage": "local",
+          "enabled": true
+        }
+      ],
+      "x-unit": "targets",
+      "description": "The local check registry (LR1, D-069): one entry per check, as data. id names the check; owner is the unit or lane answerable for it; budget_ms is its cost budget; handler is a name of local_checks.HANDLERS or module:function; stage is local (runs before a push) or gate (skipped locally); enabled switches it off. A check over its budget moves to the gate (the state file records it). Other tooling, such as a lessons kind=check, adds a check by appending an entry.",
+      "x-readers": [
+        "scripts/lib/local_checks.py"
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "owner",
+          "budget_ms",
+          "handler",
+          "stage",
+          "enabled"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "budget_ms": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "handler": {
+            "type": "string",
+            "minLength": 1
+          },
+          "stage": {
+            "enum": [
+              "local",
+              "gate"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "uniqueItems": true
+    },
+    "local-checks.gitleaks_config": {
+      "type": "string",
+      "default": ".gitleaks.toml",
+      "x-unit": "path",
+      "description": "Gitleaks config (relative to the checkout) used by secret_scan_diff.",
+      "x-readers": [
+        "scripts/lib/local_checks.py",
+        "scripts/lib/retro.py"
+      ],
+      "minLength": 1
+    },
+    "local-checks.gitleaks_timeout_s": {
+      "type": "integer",
+      "default": 60,
+      "x-unit": "s",
+      "description": "Time secret_scan_diff waits for gitleaks before the check is skipped.",
+      "x-readers": [
+        "scripts/lib/local_checks.py",
+        "scripts/lib/retro.py"
+      ],
+      "minimum": 1
+    },
+    "local-checks.state_file": {
+      "type": "string",
+      "default": "local-checks-state.json",
+      "x-unit": "path",
+      "description": "File name, resolved with git rev-parse --git-path, where the checks moved to the gate are recorded. A check stays in the registry; the state only makes the next local runs skip it.",
+      "x-readers": [
+        "scripts/lib/local_checks.py"
+      ],
+      "minLength": 1
+    },
+    "local-checks.total_budget_ms": {
+      "type": "integer",
+      "default": 30000,
+      "x-unit": "ms",
+      "description": "Budget of all local checks together. Over it the run reports it; a single check over its own budget moves to the gate.",
+      "x-readers": [
+        "scripts/lib/local_checks.py"
+      ],
+      "minimum": 1
+    }
+  }
+}

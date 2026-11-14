@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 16,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Sha directories kept under the gate record directory's reports (the folder bound, beside the per-(sha, mode) gate-gc.reports_keep): every push adds a sha, so without it the folder grows without ceiling. The most recent win; a sha a live gate writes or a live process holds is never removed. Set from the readers' need: two train batches (train.batch_size x train.queue_growing_batches), never below gate.status_history_runs.",
+  "x-readers": [
+    "scripts/lib/gate_explain.py",
+    "scripts/lib/gate_gc.py"
+  ],
+  "x-source": "D-070, D-069 item 4; GATE-GC-CHEIO audit step 3; review by 2026-11-28"
+}

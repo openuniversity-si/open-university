@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "docs/units/{unit}/retro.md",
+  "x-unit": "path",
+  "description": "Where a unit keeps its retro; {unit} is the unit id as written in plan.md.",
+  "x-readers": [
+    "scripts/lib/program_gate.py"
+  ]
+}

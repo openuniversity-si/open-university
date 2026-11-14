@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/gate-infra-check.test.sh",
+  "covers": [
+    "scripts/tests/gate-infra-check.test.sh",
+    "scripts/tests/test_gate_infra_check.py",
+    "scripts/lib/gate_infra.py",
+    "scripts/lib/gate_status.py",
+    "config/registry/gate/gate.check_run_required.json",
+    "config/registry/gate/gate.check_run_enabled.json"
+  ]
+}

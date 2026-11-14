@@ -1,0 +1,9 @@
+{
+  "type": "boolean",
+  "default": false,
+  "x-unit": "flag",
+  "description": "Optional PR comment panel. The bounded gate publishes its authoritative verdict and measurements to the engine journal; PR comment rendering is off by default and never required to answer. Enabling the panel explicitly includes its forge cost in the gate budget.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ]
+}

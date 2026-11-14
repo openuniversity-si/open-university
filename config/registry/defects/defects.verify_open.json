@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "switch",
+  "description": "GX-13: re-run the test of every open defect on the recorded base at each adjudication; one that passes there moves open -> resolved through scripts/defects sync (resolved -> verified on a later pass). Off: only resolved defects are verified (KD1 behaviour).",
+  "x-readers": [
+    "scripts/lib/defect_detect.py",
+    "scripts/lib/defects.py"
+  ]
+}

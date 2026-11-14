@@ -1,0 +1,14 @@
+{
+  "type": "string",
+  "default": "batch",
+  "enum": [
+    "batch",
+    "verdict"
+  ],
+  "x-unit": "enum",
+  "description": "How the train admits a queued PR (D-075, amends D-065 (5)). batch (default): every PR goes through a batch and its tier-2 run, as before. verdict: the train merges a PR alone, with no tier-2 run, when the gate.passed its pr.ready rests on proves the exact merged tree (train_admit.admissible: a cold verified v4 dev proof based on the tip, whose head contains the tip, with the attested toolchain, the tip's gate_version and a recomputed input_digest equal to its own); any other PR takes train.verdict_fallback. Changed only through the shared store (scripts/config set ... --reason); batch is the one-key rollback.",
+  "x-readers": [
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-075; docs/units/TRAIN-VERDICT/plan.md"
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-contracts.json",
+  "x-owner": "gate-contracts",
+  "x-schema-version": 1,
+  "description": "Which locked version of an event contract a producer emits by default (GX-37, D-070).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate-contracts.gate_failed_version": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 1,
+      "x-unit": "version",
+      "description": "Version of gate.failed emitted when the caller names none (the registry default). A newly locked version is not emitted until its producer moves and this entry changes (GX-09 sets 4); readers accept every locked version.",
+      "x-readers": [
+        "scripts/lib/forge_events.py",
+        "docs/process/EVENTS.md"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-contracts.gate_passed_version": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 1,
+      "x-unit": "version",
+      "description": "Version of gate.passed emitted when the caller names none (the registry default). A newly locked version is not emitted until its producer moves and this entry changes (GX-09 sets 4); readers accept every locked version.",
+      "x-readers": [
+        "scripts/lib/forge_events.py",
+        "docs/process/EVENTS.md"
+      ],
+      "x-source": "D-070"
+    }
+  }
+}

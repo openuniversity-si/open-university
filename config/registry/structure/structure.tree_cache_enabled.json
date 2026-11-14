@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "GX-15 (D-070, B-11), amended by D-291: reuse complete tree diagnostics when their exact content key matches. The current policy verdict and PR metadata are always computed live. Off runs every module every time.",
+  "x-readers": [
+    "scripts/lib/structure.py"
+  ],
+  "x-source": "D-070 (GX-15)"
+}

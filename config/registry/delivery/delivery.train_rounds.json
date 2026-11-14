@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 360,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "TRAIN-FRONT-FIRST: how many long polls (each ends at the port's own safety timeout, 20 s, or at once on an event) a delivery asks while it waits for the front before it leaves the queue and reports. A bound against a front that never ends, not a clock the wait follows.",
+  "x-readers": [
+    "scripts/lib/deliver.py"
+  ],
+  "x-source": "TRAIN-FRONT-FIRST"
+}

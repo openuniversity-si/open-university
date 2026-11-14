@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 600000,
+  "minimum": 1,
+  "x-unit": "ms",
+  "description": "Per-test timeout of Python script tests. They had no bound before H1; this one equals the longest explicit subprocess timeout those tests already use (600 s, the toolchain bootstrap of a fresh gate checkout), so a hung test fails instead of stalling the gate and no test that passed before fails. Tightened only by measurement (D-069 items 5, 14).",
+  "x-readers": [
+    "scripts/lib/hermetic.py"
+  ]
+}

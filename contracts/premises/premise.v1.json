@@ -1,0 +1,265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/premises/premise.v1.json",
+  "title": "Premise record v1",
+  "description": "One premise of the register docs/process/premises/<slug>.yml (D-066), written as a strict YAML subset whose every value is a JSON scalar or flow list. Status, radius and answer semantics come from config/registry/premises.json.",
+  "x-owner": "premises",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "slug",
+    "statement",
+    "kind",
+    "scope",
+    "source",
+    "status",
+    "radius",
+    "blast",
+    "validate",
+    "answer",
+    "dependents",
+    "supersedes"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^P-[0-9]{2,}$",
+      "description": "P-NN; the train allocates it at merge from v1 (D-066)."
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "Stable name; the file is <slug>.yml."
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What is assumed, in one sentence."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "product",
+        "architecture",
+        "process",
+        "capacity",
+        "vendor",
+        "security"
+      ]
+    },
+    "scope": {
+      "type": "string",
+      "pattern": "^(global|cell:[a-z0-9/-]+|unit:[a-z0-9/-]+)$",
+      "description": "global, cell:<id> or unit:<id>; a narrower scope inherits the wider ones."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "who",
+        "where",
+        "quote",
+        "at"
+      ],
+      "properties": {
+        "who": {
+          "type": "string",
+          "minLength": 1,
+          "description": "daniel, orchestrator, agent:<session> or model."
+        },
+        "where": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Where it was said or inferred."
+        },
+        "quote": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Literal words of the source, if any."
+        },
+        "at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "RFC 3339 time, or null when the source gives none."
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "description": "One of config premises.open_statuses, settled_statuses or refused_statuses."
+    },
+    "radius": {
+      "type": "string",
+      "description": "One of config premises.radii; never below the radius computed from blast.reasons."
+    },
+    "blast": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reasons",
+        "if_wrong"
+      ],
+      "properties": {
+        "reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]+:\\S"
+          },
+          "description": "<kind>:<target>, e.g. decision:D-065, veto:V3, unit:catalog, plan:U0."
+        },
+        "if_wrong": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What changes in the plan if the premise is wrong."
+        }
+      }
+    },
+    "validate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "how"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "question",
+            "measurement",
+            "experiment",
+            "veto",
+            "none"
+          ]
+        },
+        "how": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The question, measurement or experiment that settles it."
+        }
+      }
+    },
+    "answer": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "by",
+        "at",
+        "value",
+        "quote",
+        "where",
+        "evidence",
+        "translation"
+      ],
+      "properties": {
+        "by": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Daniel, A Torre (within its delegation) or measurement:<experiment>."
+        },
+        "at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "RFC 3339 time of the answer."
+        },
+        "value": {
+          "type": "string",
+          "description": "Equals status."
+        },
+        "quote": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Literal words of the answer (the original language)."
+        },
+        "where": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Link or reference to the message that holds the answer."
+        },
+        "evidence": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "What the measurement observed."
+        },
+        "translation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "English rendering of a quote in another language."
+        }
+      }
+    },
+    "dependents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plans",
+        "prs",
+        "digest"
+      ],
+      "properties": {
+        "plans": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "prs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16,}$",
+          "description": "Seal written by scripts/premises over plans and prs; a hand edit breaks it."
+        }
+      },
+      "description": "Computed from Premises: lines and written only by scripts/premises; never hand-edited."
+    },
+    "supersedes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^P-[0-9]{2,}$"
+      }
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Context that is not part of the premise itself."
+    }
+  }
+}

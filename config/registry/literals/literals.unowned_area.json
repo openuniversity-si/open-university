@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "unowned",
+  "pattern": "^[a-z][a-z0-9-]*$",
+  "x-unit": "name",
+  "description": "The list area of a scanned file that no unit manifest owns (a fixture, or a checkout without manifests).",
+  "x-readers": [
+    "scripts/lib/literal_census.py"
+  ],
+  "x-source": "LT1; D-067"
+}

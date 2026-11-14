@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Per-PR development gate; see AGENTS.md and docs/operations/local-gate.md.
+#   scripts/gate-dev --pr <n> --explain   print the plan, selection, carried stages, cache hits and preflight; runs nothing (GX-26)
+#   scripts/gate-dev --why [<report dir>] print why a red run failed (the latest report by default) (GX-26); a red run names its own folder (D-258)
+set -euo pipefail
+here="$(dirname "$0")"
+py="${OU_PYTHON:-python3}"
+# GATE-SPEED F11 (D-135): a PR's gate (and the train's batch gate, which runs through here) reads the script test PASSes
+# other boxes published by input key and publishes its own (scripts/lib/shared_results.py, D-130); OU_SHARED_RESULTS=0
+# turns it off. The end-of-day battery and tier 3 do not pass through here and always run every test.
+export OU_SHARED_RESULTS="${OU_SHARED_RESULTS:-1}"
+# GS1: --batch <ref>... gates the union of several PRs once and attributes the result to each (scripts/gate-batch).
+if [[ "${1:-}" == --batch ]]; then
+  shift
+  exec "$here/gate-batch" "$@"
+fi
+# GX-26: the two read-only questions never reach gate-local (no lock, slot, worktree or stage).
+if [[ "${1:-}" == --why ]]; then
+  shift
+  exec "$py" "$here/lib/gate_explain.py" why "$@"
+fi
+pr="" explain=0 sha_arg=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  case "${args[i]}" in
+    --explain) explain=1 ;;
+    --pr) pr="${args[i + 1]:-}" ;;
+    --sha) sha_arg="${args[i + 1]:-}" ;;
+  esac
+done
+if [[ $explain -eq 1 ]]; then
+  exec "$py" "$here/lib/gate_explain.py" explain --pr "$pr" # argparse refuses a missing --pr
+fi
+# D-291: the real gate has one decision/setup path; no proof lookup runs before it (gate-fast left in #60).
+# D-258: the run gets its own report folder, named as gate-local names it (reports/<sha>/, or reports/working-tree/), and a red
+# run ends with the answer --why gives about that folder, never about the newest report on disk. The exit code is kept.
+run_sha=working-tree
+[[ -z "$sha_arg" ]] || run_sha="$(git rev-parse --verify -q "$sha_arg^{commit}" || echo "$sha_arg")"
+record="${GATE_RECORD_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.gate/records}"
+report_dir="${GATE_REPORT_DIR:-$record/reports/$run_sha/dev-$(date +%Y%m%dT%H%M%S)-$$}"
+mkdir -p "$report_dir"
+rc=0
+GATE_REPORT_DIR="$report_dir" "$here/gate-local" --dev "$@" &
+child=$!
+trap 'kill -TERM "$child" 2>/dev/null || true' TERM INT
+wait "$child" || rc=$?
+trap - TERM INT
+if [[ $rc -ne 0 ]]; then
+  "$py" "$here/lib/gate_explain.py" why "$report_dir" >&2 || true
+fi
+exit "$rc"

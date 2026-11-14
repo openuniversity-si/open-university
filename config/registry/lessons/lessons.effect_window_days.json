@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 14,
+  "x-unit": "d",
+  "description": "Days before and after a lesson was applied that the effect counts. An after-window not yet over, or no occurrence in either window, is insufficient data, never a number.",
+  "x-readers": [
+    "scripts/lib/lessons_effect.py"
+  ],
+  "minimum": 1
+}

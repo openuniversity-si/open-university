@@ -1,0 +1,15 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string"
+  },
+  "default": [
+    "covers",
+    "fixtures"
+  ],
+  "x-unit": "names",
+  "description": "Directories under tests_dir that hold data, not tests: a test_*.py in them is a fixture and needs no wrapper.",
+  "x-readers": [
+    "scripts/lib/test_orphans.py"
+  ]
+}

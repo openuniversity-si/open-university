@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "/tmp/open-university-cloud-setup.lock",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Lock that serialises concurrent runs of the cloud setup.",
+  "x-readers": [
+    "scripts/cloud/setup.sh"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-proof.json",
+  "x-owner": "gate-proof",
+  "x-schema-version": 1,
+  "description": "The gate verdict's proof (GX-10, D-070): which gate.passed/gate.failed version the gate produces.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate-proof.cpu_stat_path": {
+      "type": "string",
+      "default": "/proc/{pid}/stat",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Per-process CPU counters (proc(5)) of the gate driver: cost.cpu_s of the v4 verdict is the utime+stime+cutime+cstime delta of the gate-local process between the proof hook and the report; {pid} is that process. Absent off Linux: cpu_s is 0.",
+      "x-readers": [
+        "scripts/lib/gate_proof.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-proof.event_version": {
+      "type": "integer",
+      "default": 4,
+      "enum": [
+        3,
+        4
+      ],
+      "x-unit": "version",
+      "description": "Version of the gate verdict the gate produces (GX-10, GA-P01). 4 adds the proof binding (head/base trees, gate_version, toolchain_id, selection, input_digest, cost, lane_id) when the run is fully bound (a sha, a recorded base and a tier); a run that is not keeps v3. 3 is the rollback: today's v3 payload, byte for byte.",
+      "x-readers": [
+        "scripts/lib/gate_proof.py"
+      ],
+      "x-source": "D-070"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "script": "scripts/tests/program.test.sh",
+  "covers": [
+    "scripts/tests/program.test.sh",
+    "scripts/tests/test_program.py",
+    "scripts/tests/test_plan_live*.py",
+    "scripts/tests/test_plan_triage*.py",
+    "scripts/lib/config.py",
+    "config/registry/coordinator.json",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/event_contracts.py",
+    "contracts/events/*.json",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/program.py",
+    "contracts/programs/**",
+    "docs/programs/**",
+    "scripts/program"
+  ]
+}

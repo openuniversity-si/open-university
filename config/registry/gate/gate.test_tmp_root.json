@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "/tmp",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "TX10 (T6): directory under which each script test gets its own TMPDIR for one run, removed afterwards. Not the gate's own TMPDIR, which may be a private 0700 path a test that drops root cannot enter.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "TX10; D-070"
+}

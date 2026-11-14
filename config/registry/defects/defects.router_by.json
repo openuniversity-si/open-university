@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "defect-router",
+  "x-unit": "name",
+  "description": "Name written in the trail when the router moves a defect to fixing.",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "minLength": 1
+}

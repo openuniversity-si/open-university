@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/lambda-package.test.sh",
+  "covers": [
+    "scripts/tests/lambda-package.test.sh",
+    "scripts/tests/test_lambda_package.py",
+    "scripts/lambda-package",
+    "scripts/lib/lambda_package.py",
+    "scripts/gate-check",
+    "scripts/lib/gate_infra.py",
+    "infra/aws/deploy.sh",
+    "infra/aws/stacks/40-port.json",
+    "infra/aws/stacks/50-runner.json",
+    "infra/service/requirements-lambda.txt",
+    "infra/service/tower_infra/**",
+    "infra/ingress/__init__.py"
+  ]
+}

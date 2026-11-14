@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "CLAUDE_CODE_REMOTE_SESSION_ID",
+    "CLAUDE_CODE_SESSION_ID"
+  ],
+  "uniqueItems": true,
+  "items": {
+    "type": "string",
+    "pattern": "^[A-Z][A-Z0-9_]*$"
+  },
+  "x-unit": "enum",
+  "description": "Environment variables, in order, whose first set value is the session id that names the train lock owner (train@<session id>, unique per session); with none set the owner is train@host:pid (GX-06).",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ],
+  "x-source": "D-070; docs/programs/gate-excellence/plan.md §3.3 GX-06"
+}

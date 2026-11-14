@@ -1,0 +1,15 @@
+{
+  "type": "array",
+  "default": [
+    "launch",
+    "mark_blocked",
+    "open_fix_unit",
+    "enqueue",
+    "escalate"
+  ],
+  "x-unit": "enum",
+  "description": "The action vocabulary of next(), in the order a run applies them.",
+  "x-readers": [
+    "scripts/lib/coordinator.py"
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/unit.oversize.v1.json",
+  "title": "unit.oversize payload v1",
+  "description": "The unit exceeds its size budget; a split PR follows.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/unit",
+    "/payload/sha"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "size_lines",
+    "budget_lines"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "size_lines": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "budget_lines": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

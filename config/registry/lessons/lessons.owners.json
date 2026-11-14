@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    "a-torre",
+    "engine-lane",
+    "gate-lane",
+    "structure-owner",
+    "engine-commit-plan"
+  ],
+  "x-unit": "enum",
+  "description": "Owners a lesson may name; the ingestion normalizes the retro wording (lessons.owner_aliases) to one of these.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string"
+  }
+}

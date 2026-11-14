@@ -1,0 +1,20 @@
+[Unit]
+Description=Tower runner: the gate and the train as a service, with no AI session (ADR-41)
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory={root}
+Environment=OU_RUNNER_KIND={kind}
+Environment=PATH={root}/.toolchain/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=%h/.config/tower/runner.env
+ExecStart={root}/scripts/service runner
+Restart=always
+RestartSec=10
+KillMode=control-group
+TimeoutStopSec=1
+
+[Install]
+WantedBy=default.target

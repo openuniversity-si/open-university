@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/decision-record [--help]
+# Writes one decision record, docs/domain/decisions/D-NNN.md, with its number and time from the claim (D1, D-217).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/decision_record.py" "$@"

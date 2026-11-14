@@ -1,0 +1,20 @@
+{
+  "type": "array",
+  "default": [
+    "open",
+    "fixing",
+    "resolved",
+    "verified"
+  ],
+  "x-unit": "enum",
+  "description": "The lifecycle, in order: open (detected and registered), fixing (the router opened a fix unit), resolved (the fix merged), verified (the gate saw the test pass on the base).",
+  "x-readers": [
+    "scripts/lib/coordinator.py",
+    "scripts/lib/coordinator_launch.py",
+    "scripts/lib/defects.py"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "minItems": 4
+}

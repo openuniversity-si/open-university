@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# One entry command for a gate or a test, the same locally and in the cloud (D-069 item 12).
+# Usage: scripts/run [--print] gate [<name>] [args...]   runs scripts/gate-<name> (default: dev)
+#        scripts/run [--print] test <name> [args...]     runs scripts/tests/<name>.test.sh
+#        scripts/run [--print] test test_<name>.py [...] runs that module the way its wrapper does (F94, #205)
+# It sources the non-secret defaults of scripts/cloud/env.sh and execs the existing script: no behavior of its own.
+# A test runs the way the gate runs it (TX10): `bash <file>`, so no exec bit is needed, with the gate's local
+# configuration pin (OU_CONFIG_STORE=file, scripts/gate-local) and the hermetic harness first on PYTHONPATH
+# (gate_test_cache.run).
+# --print names the command and runs nothing.
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+usage() { echo "usage: scripts/run [--print] gate [<name>] [args...] | test <name> [args...]" >&2; exit 2; }
+print_only=0
+if [[ "${1:-}" == --print ]]; then
+  print_only=1
+  shift
+fi
+kind="${1:-}"
+[[ -n "$kind" ]] || usage
+shift
+case "$kind" in
+  gate)
+    name=dev
+    if [[ $# -gt 0 && "$1" != -* ]]; then
+      name="$1"
+      shift
+    fi
+    script="$root/scripts/gate-$name"
+    ;;
+  test)
+    [[ $# -gt 0 ]] || usage
+    case "$1" in
+      *.py)
+        script="$root/scripts/tests/$(basename "$1")"
+        if [[ ! -f "$script" ]]; then
+          # a module in a subfolder of scripts/tests/ (forge_events/...): first match by name
+          found="$(find "$root/scripts/tests" -mindepth 2 -name "$(basename "$1")" -type f | LC_ALL=C sort | head -1)"
+          [[ -z "$found" ]] || script="$found"
+        fi
+        ;;
+      *) script="$root/scripts/tests/$1.test.sh" ;;
+    esac
+    shift
+    ;;
+  *) usage ;;
+esac
+if [[ "$kind" == test ]]; then exists=-f; else exists=-x; fi
+test "$exists" "$script" || { echo "scripts/run: no such $kind: ${script#"$root"/}" >&2; exit 2; }
+if [[ $print_only -eq 1 ]]; then
+  echo "${script#"$root"/}${*:+ $*}"
+  exit 0
+fi
+# shellcheck source=scripts/cloud/env.sh
+source "$root/scripts/cloud/env.sh"
+if [[ "$kind" == test ]]; then
+  export OU_CONFIG_STORE=file PYTHONPATH="$root/scripts/lib/hermetic${PYTHONPATH:+:$PYTHONPATH}"
+  if [[ "$script" == *.py ]]; then
+    # a module run directly gets the gate's wrapper environment: no bytecode, the same interpreter
+    PYTHONDONTWRITEBYTECODE=1 exec python3 "$script" "$@"
+  fi
+  exec bash "$script" "$@"
+fi
+exec "$script" "$@"

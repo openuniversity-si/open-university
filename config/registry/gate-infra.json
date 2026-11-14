@@ -1,0 +1,291 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-infra.json",
+  "x-owner": "gate-infra",
+  "x-schema-version": 1,
+  "description": "The gate over the infrastructure (GATE-INFRA 2, P5 F2; D-306): the adapter of our management that judges a PR head with the infrastructure's jobs through the port.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate-infra.backfill_last": {
+      "type": "integer",
+      "default": 60,
+      "minimum": 1,
+      "x-unit": "merges",
+      "description": "The merges scripts/gate-infra backfill judges again by default: enough for P5 F3's 50 PRs (medir.shadow_prs) with room for the ones that differ.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 5 (P5 F3), D-306"
+    },
+    "gate-infra.backfill_ref": {
+      "type": "string",
+      "default": "mod/roadmap-integration",
+      "x-unit": "branch",
+      "description": "The base branch whose merges scripts/gate-infra backfill judges again (P5 F3): each merge commit's first parent is the base, its second the head.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 5 (P5 F3), D-306"
+    },
+    "gate-infra.box_cache": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "A script test whose key the box's test cache holds a valid pass for (gate_test_cache.lookup) is not made a job: the box skips it too, and the memoization of the infrastructure does the same for what it ran itself. Verdicts keep them as box_cached. Off: every selected test is a job.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "AWS2"
+    },
+    "gate-infra.call_backoff_s": {
+      "type": "number",
+      "default": 1,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "Base of the pause before a call to the port is tried again: the pause is a full jitter (random from 0 to the cap) of this base doubled at each try, unless the answer carries a Retry-After.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2c (P5 F2), D-306"
+    },
+    "gate-infra.call_max_wait_s": {
+      "type": "number",
+      "default": 60,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "Seconds of pauses one call to the port may spend in retries (gate-infra.call_retries bounds the count): a Retry-After that would pass it, or a throttle that lasts, fails the call with the status and the tries made.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "AWS5"
+    },
+    "gate-infra.call_retries": {
+      "type": "integer",
+      "default": 8,
+      "minimum": 0,
+      "x-unit": "calls",
+      "description": "Times a call to the port is tried again after a transient answer (429 of the API Gateway's throttle, 502, 503, 504, a dropped connection): the port's Lambda starting cold answers 503 past the HTTP API's 30 s.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2c (P5 F2), D-306"
+    },
+    "gate-infra.call_timeout_s": {
+      "type": "number",
+      "default": 30,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Seconds one call to the port may take.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+    },
+    "gate-infra.check_queue": {
+      "type": "string",
+      "default": "checks",
+      "minLength": 1,
+      "x-unit": "queue",
+      "description": "The tenant's queue of the check jobs, registered through the port (PUT /v1/queues/<name>).",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+    },
+    "gate-infra.check_timeout_s": {
+      "type": "number",
+      "default": 900,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "The timeout of one check job on the container executor, the gate's own per-check budget.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+    },
+    "gate-infra.clock_skew_s": {
+      "type": "number",
+      "default": 60,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "Seconds the first read of the log reaches back before the adapter's clock, so a database clock behind it loses no event.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+    },
+    "gate-infra.create_parallel": {
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "x-unit": "calls",
+      "description": "Jobs of a head created through the port at once: one POST each, which were made one after the other (18 round trips before the first check could start on a cold Lambda). Kept low enough that bursts stay under the port's throttle (infra/aws/stacks/40-port.json: 10 requests/s, burst 20; 8 at once drew 429 in backfill).",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "AWS2"
+    },
+    "gate-infra.deploy_poll_max_s": {
+      "type": "number",
+      "default": 60,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "The longest pause between two reads of GET /v1/deploy/status while scripts/deploy follow waits (the backoff from gate-infra.deploy_poll_s stops here).",
+      "x-readers": [
+        "scripts/lib/deploy.py"
+      ],
+      "x-source": "DEP1"
+    },
+    "gate-infra.deploy_poll_s": {
+      "type": "number",
+      "default": 15,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Seconds between the first two reads of GET /v1/deploy/status while scripts/deploy follow waits for a build; the pause grows by half each read up to gate-infra.deploy_poll_max_s.",
+      "x-readers": [
+        "scripts/lib/deploy.py"
+      ],
+      "x-source": "DEP1"
+    },
+    "gate-infra.deploy_ring_timeout_s": {
+      "type": "number",
+      "default": 15,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Seconds scripts/deploy ring waits for the doorbell's answer. The ring is never repeated: a second ring while a build runs answers 409.",
+      "x-readers": [
+        "scripts/lib/deploy.py"
+      ],
+      "x-source": "DEP1"
+    },
+    "gate-infra.deploy_since_skew_s": {
+      "type": "number",
+      "default": 120,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "Seconds before follow's start that a recorded build still counts as the one being followed (a build started by a ring just before follow, on a clock that differs a little from the build's).",
+      "x-readers": [
+        "scripts/lib/deploy.py"
+      ],
+      "x-source": "DEP1"
+    },
+    "gate-infra.deploy_wait_s": {
+      "type": "number",
+      "default": 2400,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "How long scripts/deploy follow waits for a build to end (40 min): the CodeBuild project times out at 20 min and an image build plus the RDS update can take half of it, so this is twice the project's limit. Past it, follow exits 2.",
+      "x-readers": [
+        "scripts/lib/deploy.py"
+      ],
+      "x-source": "DEP1"
+    },
+    "gate-infra.land_queue": {
+      "type": "string",
+      "default": "land",
+      "minLength": 1,
+      "x-unit": "queue",
+      "description": "The tenant's queue of the landing jobs, registered through the port.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+    },
+    "gate-infra.landing_attempts": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 1,
+      "x-unit": "attempts",
+      "description": "Attempts of a landing job; head_moved is never retried (land-with-expected-head).",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+    },
+    "gate-infra.log_limit": {
+      "type": "integer",
+      "default": 500,
+      "minimum": 1,
+      "x-unit": "events",
+      "description": "Events one read of the tenant's log answers at most; the next read starts at the last one seen.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+    },
+    "gate-infra.metadata_blind_wait_s": {
+      "type": "number",
+      "default": 300,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "METADATA-FORGE-RETRY (docs/operations/aws-revisao-arquitetura.md, finding 22): seconds of pauses the gate may spend trying `pr metadata` again while its only refusals are the forge not answering the read of the PR (gate-infra.call_retries bounds the count, gate-infra.call_backoff_s the pauses). On 11/11 03:04 UTC the forge answered 503 for about three minutes and a delivery was red at `pr metadata` with nothing wrong in its PR; a delivery judged again costs six minutes or more, so waiting five for the forge is the cheaper side. Past it the stage is red, by name: the forge did not answer.",
+      "x-readers": [
+        "scripts/lib/deliver.py",
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "METADATA-FORGE-RETRY"
+    },
+    "gate-infra.poll_last_s": {
+      "type": "number",
+      "default": 0.25,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Seconds between two reads of the tenant's log while at most one check of the head is still running or the landing is in flight: the verdict is then seconds away (the landing takes ~2 s after the last check), so the slower gate-infra.poll_s would add half of it on average to a wait that ends within the next tick (AWS9). Never above gate-infra.poll_s. GATE-POLL (13/11): 0.25, under gate-infra.poll_s's 0.5.",
+      "x-readers": [
+        "scripts/lib/deliver.py",
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "AWS9"
+    },
+    "gate-infra.poll_s": {
+      "type": "number",
+      "default": 0.5,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Seconds between two reads of the tenant's log while the adapter waits for a head's verdict: one port call per read, never one per job. Each read is a wait of up to this much on the verdict. GATE-POLL (13/11, criterion 3): 0.5, not 2: in the gates #688 to #705 the checks, all from the cache, ended by 0.5 to 1.0 s and the verdict was read at ~3.0 s (checks_s p50 3.09 s), the rest the 2 s between two reads; a read is one port call of ~50 ms.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+    },
+    "gate-infra.root_from_base_tests": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^scripts/tests/[A-Za-z0-9_.-]+\\.test\\.sh$"
+      },
+      "default": [
+        "scripts/tests/uid0-probe.test.sh"
+      ],
+      "x-unit": "tests",
+      "description": "UID0-FROM-BASE (the Torre, 13/11 ~14:15 BRT): the script tests that need a real uid 0 process (the uid 0 probe: postgres, git and npm as root). Checks run as the check user (tower-check, CHECK-NOT-ROOT, the review's finding 14), so these run as root from the base's landed code, never from the PR's head: the gate's job and the full run's name the base's commit and ask for root, and the runner gives root only to a commit the forge pushed to the base branch. Their coverage is the base's, not the PR's change.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "the Torre, 13/11 ~14:15 BRT"
+    },
+    "gate-infra.said_chars": {
+      "type": "integer",
+      "default": 500,
+      "minimum": 1,
+      "x-unit": "characters",
+      "description": "Characters of what a tool said (a plan that failed, a refusal of the port, pr metadata) that a verdict keeps, from its end.",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+    },
+    "gate-infra.wait_s": {
+      "type": "number",
+      "default": 1800,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Seconds the adapter waits for a head's verdict before it answers late (the checks and the landing go on in the infrastructure).",
+      "x-readers": [
+        "scripts/lib/gate_infra.py"
+      ],
+      "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+    }
+  }
+}

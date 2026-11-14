@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "user",
+  "minLength": 1,
+  "x-unit": "enum",
+  "description": "The namespace type GET /namespaces returns for the caller's own account; the only identity the public API attests for a user credential.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "the official Origin OpenAPI 3.1 spec (Namespace.type)"
+}

@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "sha256",
+  "enum": [
+    "sha256"
+  ],
+  "x-unit": "algorithm",
+  "description": "Hash of producer, type and natural key that forms event_id (the idempotency key).",
+  "x-readers": [
+    "scripts/lib/event_contracts.py"
+  ]
+}

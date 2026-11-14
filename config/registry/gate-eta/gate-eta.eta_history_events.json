@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 50,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Newest engine.step.measured events per stage that the ETA reads from the ledger.",
+  "x-readers": [
+    "scripts/lib/gate_status.py",
+    "scripts/lib/slo.py"
+  ],
+  "x-source": "D-070; plan-v2 GX-25, D-B8"
+}

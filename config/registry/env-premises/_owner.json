@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/env-premises.json",
+  "x-owner": "env-premises",
+  "x-schema-version": 1,
+  "description": "Machine premises (TX12, D-070): values a test or the session identity needs before any session state exists. A bootstrap owner (config.bootstrap_owners): config.get returns the registry value and never reads the shared change store, so a store without token, rate-limited or with an empty cache never decides them.",
+  "type": "object",
+  "additionalProperties": false
+}

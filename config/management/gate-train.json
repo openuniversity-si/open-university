@@ -1,0 +1,401 @@
+{
+  "description": "The gate and the train as the default configuration of our management over the infrastructure (GATE-INFRA 1, P5 F1; ARQUITETURA-ALVO §7): one rule per rule of today, with the text of the table, the infrastructure mechanism that carries it, the work.job parameters our management sets for it, where today's rule lives and its value. A value the registry or a gate file already holds is named ({\"registry\": key} or {\"file\": path}), never copied, so each fact keeps one source. Management, not infrastructure: nothing here enters infra/ (D-306). scripts/tests/test_gate_train_config.py checks that no rule of §7 is missing.",
+  "source": "docs/arquitetura-referencia/ARQUITETURA-ALVO.md#7-o-gate-e-o-trem-continuam",
+  "mechanisms": {
+    "none": "no mechanism: the rule runs in the executor or as a check of the structure stage",
+    "check": "a check job on the container executor, its output reused by the digest of its inputs",
+    "forge": "a job of the forge executor before the checks",
+    "dependency": "work.dependency: a job that waits for others, judged again when they change",
+    "landing": "the landing job of the forge executor, with its dependencies and the exclusive key of the branch",
+    "retry": "the retry policy of the job",
+    "not-before": "a job that is not dispatched before its time",
+    "log": "read from the raw log (log.event) by our management"
+  },
+  "rules": [
+    {
+      "id": "local-checks",
+      "today": "as checagens locais antes do push (`.githooks/pre-push`, `commit-check --local`, ~5 s)",
+      "infrastructure": "nenhum: rodam no ambiente do executor",
+      "management": "o brief de todo trabalho de código manda rodá-las antes de empurrar, como o hook faz hoje",
+      "mechanism": "none",
+      "where": [
+        ".githooks/pre-push",
+        "scripts/lib/prepush.py",
+        "scripts/lib/commit_check.py"
+      ],
+      "registry": [
+        "local-checks.checks",
+        "local-checks.total_budget_ms"
+      ],
+      "value": {
+        "brief": "run scripts/commit-check --local before every push, as .githooks/pre-push does"
+      }
+    },
+    {
+      "id": "always-stages",
+      "today": "as sete etapas sempre presentes (`pr metadata`, `no GitHub Actions workflows`, `secret scan (tree)`, `structure check`, `generated drift`, `schema compat`, `secret scan (history)`)",
+      "infrastructure": "trabalhos de checagem no executor contêiner, com cache de resultado",
+      "management": "as sete, em todo head de PR",
+      "mechanism": "check",
+      "job": {
+        "selector": {
+          "adapter": "container"
+        },
+        "memoize": true
+      },
+      "where": [
+        "scripts/lib/gate-areas.json"
+      ],
+      "value": {
+        "stages": {
+          "file": "scripts/lib/gate-areas.json",
+          "key": "always"
+        },
+        "on": "every PR head"
+      }
+    },
+    {
+      "id": "selected-script-tests",
+      "today": "os testes de script escolhidos pelo mapa de áreas (`scripts/lib/gate-areas.json`) e pelos covers (`scripts/tests/covers/`)",
+      "infrastructure": "um trabalho por teste escolhido, com a saída reaproveitada pelo digest das entradas",
+      "management": "o mapa e os covers de hoje, sem mudança",
+      "mechanism": "check",
+      "job": {
+        "selector": {
+          "adapter": "container"
+        },
+        "memoize": true
+      },
+      "where": [
+        "scripts/lib/gate-areas.json",
+        "scripts/tests/covers",
+        "scripts/lib/gate_script_tests.py"
+      ],
+      "value": {
+        "one_job_per": "selected script test",
+        "map": {
+          "file": "scripts/lib/gate-areas.json"
+        },
+        "covers": {
+          "dir": "scripts/tests/covers"
+        },
+        "cache_key": "the executor and the digest of the inputs"
+      }
+    },
+    {
+      "id": "exact-head",
+      "today": "a verificação no head exato (`gate-dev --pr`)",
+      "infrastructure": "a entrada do trabalho é a árvore exata, e a chave do cache vem dela",
+      "management": "uma PR fica pronta quando toda checagem exigida passou no head dela",
+      "mechanism": "check",
+      "job": {
+        "selector": {
+          "adapter": "container"
+        },
+        "memoize": true
+      },
+      "where": [
+        "scripts/gate-dev",
+        "scripts/lib/gate_pin.py"
+      ],
+      "value": {
+        "input": "the exact tree of the head",
+        "ready_when": "every required check passed on the head"
+      }
+    },
+    {
+      "id": "base-merge-before-checks",
+      "today": "juntar a base no ramo antes do gate, só com merge commit, nunca rebase",
+      "infrastructure": "o adaptador do forge junta a base no ramo; o método de merge é parâmetro do pouso",
+      "management": "merge commit, nunca rebase",
+      "mechanism": "forge",
+      "job": {
+        "selector": {
+          "adapter": "forge"
+        }
+      },
+      "where": [
+        "scripts/lib/deliver.py",
+        "scripts/lib/commit_check.py"
+      ],
+      "value": {
+        "merge_base_into_branch": true,
+        "method": "merge",
+        "rebase": false
+      }
+    },
+    {
+      "id": "rejudge-on-base-move",
+      "today": "julgar de novo quando a base anda durante o gate",
+      "infrastructure": "o cache torna a nova checagem barata; as dependências se reavaliam",
+      "management": "a mesma regra",
+      "mechanism": "dependency",
+      "job": {
+        "memoize": true
+      },
+      "where": [
+        "scripts/lib/deliver.py"
+      ],
+      "value": {
+        "judge_again_when_the_base_moves": true
+      }
+    },
+    {
+      "id": "land-with-expected-head",
+      "today": "pousar com `--expect-head`",
+      "infrastructure": "o pouso pelo forge com o head esperado e a chave exclusiva do ramo",
+      "management": "a mesma regra",
+      "mechanism": "landing",
+      "job": {
+        "selector": {
+          "adapter": "forge"
+        },
+        "queue": "land",
+        "exclusive_key": "{forge}:{repo}:{base}"
+      },
+      "where": [
+        "scripts/lib/deliver.py"
+      ],
+      "registry": [
+        "train.base_branch",
+        "forge-events.repo"
+      ],
+      "value": {
+        "expect_head": true,
+        "method": "merge",
+        "base": {
+          "registry": "train.base_branch"
+        },
+        "repo": {
+          "registry": "forge-events.repo"
+        },
+        "depends_on": "every required check, succeeded"
+      }
+    },
+    {
+      "id": "commit-discipline",
+      "today": "a disciplina de commits (o plano com pelo menos um item e sem máximo, D-307; os trailers `Plan: N`; nenhum commit de conserto; um commit por push; nenhum force push; a mudança de gate que cita uma decisão aprovada)",
+      "infrastructure": "nenhum: são checagens",
+      "management": "a etapa `structure check`",
+      "mechanism": "none",
+      "where": [
+        "scripts/lib/commit_check.py",
+        "scripts/lib/plan_tick.py"
+      ],
+      "registry": [
+        "budgets.pr_commits_min",
+        "budgets.pr_commits_max"
+      ],
+      "value": {
+        "stage": "structure check"
+      }
+    },
+    {
+      "id": "trailers",
+      "today": "os trailers `Fit-Review` e `Premises`",
+      "infrastructure": "nenhum",
+      "management": "a etapa `structure check`",
+      "mechanism": "none",
+      "where": [
+        "scripts/lib/structure.py"
+      ],
+      "value": {
+        "stage": "structure check"
+      }
+    },
+    {
+      "id": "batch",
+      "today": "o lote na caixa com `delivery.batch` em `auto` (D-297): quem acha dois ou mais esperando lidera um lote, provado pelo veredito verde do lote e pela prova de árvore",
+      "infrastructure": "um pouso cuja entrada leva vários heads; as checagens no head da união; as dependências; a chave exclusiva",
+      "management": "lotear quando dois ou mais esperam",
+      "mechanism": "landing",
+      "job": {
+        "selector": {
+          "adapter": "forge"
+        },
+        "queue": "land",
+        "exclusive_key": "{forge}:{repo}:{base}"
+      },
+      "where": [
+        "scripts/lib/deliver.py",
+        "scripts/lib/train.py",
+        "scripts/lib/box_queue.py"
+      ],
+      "registry": [
+        "delivery.batch",
+        "train.batch_size_by_red"
+      ],
+      "value": {
+        "mode": {
+          "registry": "delivery.batch"
+        },
+        "size": {
+          "registry": "train.batch_size_by_red"
+        },
+        "lead_when_waiting_at_least": 2,
+        "checks_on": "the head of the union"
+      }
+    },
+    {
+      "id": "tree-proof",
+      "today": "a prova de árvore depois do pouso",
+      "infrastructure": "uma checagem que depende do pouso",
+      "management": "a mesma regra",
+      "mechanism": "check",
+      "job": {
+        "selector": {
+          "adapter": "container"
+        },
+        "memoize": true
+      },
+      "where": [
+        "scripts/lib/train.py"
+      ],
+      "value": {
+        "depends_on": "the landing, succeeded"
+      }
+    },
+    {
+      "id": "docs-outside-box-lock",
+      "today": "a entrega sem teste de script fora da trava da caixa (D-301)",
+      "infrastructure": "a trava da caixa deixa de existir: as checagens rodam em paralelo pela capacidade, e só o pouso tem chave exclusiva",
+      "management": "sem efeito; fica como histórico",
+      "mechanism": "none",
+      "where": [
+        "scripts/lib/deliver.py"
+      ],
+      "value": {
+        "effect": "none: only the landing holds an exclusive key",
+        "kept_as": "history (D-301)"
+      }
+    },
+    {
+      "id": "script-tests-under-bypass",
+      "today": "com o gate desligado, os testes de script ainda rodam e um vermelho reprova (D-302)",
+      "infrastructure": "nenhum",
+      "management": "a mesma regra",
+      "mechanism": "none",
+      "where": [
+        "scripts/lib/gate_bypass.py"
+      ],
+      "registry": [
+        "gate.bypass"
+      ],
+      "value": {
+        "script_tests_still_required": true
+      }
+    },
+    {
+      "id": "exception-regime",
+      "today": "o regime de exceção (D-260): toda trava se levanta, menos dinheiro e pessoas",
+      "infrastructure": "nenhum",
+      "management": "a mesma configuração, até Daniel encerrá-lo",
+      "mechanism": "none",
+      "where": [
+        "scripts/lib/gate_bypass.py"
+      ],
+      "registry": [
+        "regime.exception_active",
+        "regime.exception_kept"
+      ],
+      "value": {
+        "active": {
+          "registry": "regime.exception_active"
+        },
+        "kept": {
+          "registry": "regime.exception_kept"
+        },
+        "until": "Daniel ends it"
+      }
+    },
+    {
+      "id": "gate-ceiling",
+      "today": "o teto de 180 s do gate, que só avisa (D-064 f)",
+      "infrastructure": "o registro tem o início e o fim de cada trabalho",
+      "management": "a mesma medida, lida do registro",
+      "mechanism": "log",
+      "where": [
+        "scripts/gate-local"
+      ],
+      "registry": [
+        "gate.ceiling_s"
+      ],
+      "value": {
+        "ceiling_s": {
+          "registry": "gate.ceiling_s"
+        },
+        "warning_only": true,
+        "measured_from": "the start and the end of each job in log.event"
+      }
+    },
+    {
+      "id": "red-class",
+      "today": "a classe de uma etapa vermelha: código, ambiente ou contrato (D-027)",
+      "infrastructure": "o desfecho e o erro, brutos",
+      "management": "a mesma classificação",
+      "mechanism": "log",
+      "where": [
+        "scripts/lib/gate_classify.py"
+      ],
+      "value": {
+        "classes": [
+          "code",
+          "env",
+          "contract"
+        ],
+        "from": "the outcome and the error of the run, raw"
+      }
+    },
+    {
+      "id": "nightly-battery",
+      "today": "a bateria inteira à noite na base (`gate-noite`) e a fuga de seleção",
+      "infrastructure": "trabalhos com `not_before`",
+      "management": "a mesma agenda",
+      "mechanism": "not-before",
+      "job": {
+        "selector": {
+          "adapter": "container"
+        },
+        "not_before": "the end of each day"
+      },
+      "where": [
+        "scripts/gate-noite",
+        "scripts/lib/gate_noite.py"
+      ],
+      "value": {
+        "command": "scripts/gate-noite",
+        "on": "the fetched base",
+        "every": "day"
+      }
+    },
+    {
+      "id": "flake-rerun",
+      "today": "a reexecução de um teste suspeito de flake",
+      "infrastructure": "a retentativa",
+      "management": "a mesma política para os trabalhos de checagem",
+      "mechanism": "retry",
+      "job": {
+        "retry_on": [
+          "failed"
+        ],
+        "max_attempts": {
+          "registry": "gate-flake.reruns",
+          "plus": 1
+        }
+      },
+      "where": [
+        "scripts/lib/gate_flake.py"
+      ],
+      "registry": [
+        "gate-flake.reruns",
+        "gate-flake.stages"
+      ],
+      "value": {
+        "for": "the check jobs",
+        "stages": {
+          "registry": "gate-flake.stages"
+        }
+      }
+    }
+  ]
+}

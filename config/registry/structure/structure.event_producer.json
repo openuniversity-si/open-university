@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "structure-check",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "GX-15 (D-070): the producer name of the pr.checked events that `structure-check --metadata` publishes through the forge_events port.",
+  "x-readers": [
+    "scripts/lib/structure.py"
+  ],
+  "x-source": "D-070 (GX-15)"
+}

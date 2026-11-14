@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "^(?:<{7}|>{7})(?: |$)",
+  "x-unit": "text",
+  "description": "Regular expression of a merge conflict marker line (the opening and closing marks; the middle mark of seven equals signs is also a heading underline, so a file is refused for the other two). No tracked text file under structure.conflict_marker_roots may hold one.",
+  "x-readers": [
+    "scripts/lib/repo_hygiene.py"
+  ],
+  "x-source": "D-189"
+}

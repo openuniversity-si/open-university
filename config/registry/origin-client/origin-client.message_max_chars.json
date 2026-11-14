@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 300,
+  "minimum": 1,
+  "x-unit": "characters",
+  "description": "Characters of the API's own error message an error keeps; the sentence that names the failure, never the response body.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "FORGE-PORT (CANALE8)"
+}

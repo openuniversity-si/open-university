@@ -1,0 +1,85 @@
+{
+  "base": "| Id | Date |\n|---|---|\n| D-001 | a |\n| D-179 | b |\n| D-180 | c |\n",
+  "base_numbers": [
+    1,
+    179,
+    180
+  ],
+  "cases": [
+    {
+      "name": "follows the base when nothing is cited",
+      "texts": [],
+      "expect": "D-181"
+    },
+    {
+      "name": "skips a number an open pull cites",
+      "texts": [
+        "FLUXO-AMPLO (D-181): lane-ship"
+      ],
+      "expect": "D-182"
+    },
+    {
+      "name": "a citation below the base does not move the number back",
+      "texts": [
+        "cites D-140 and D-150"
+      ],
+      "expect": "D-181"
+    },
+    {
+      "name": "the largest citation wins",
+      "texts": [
+        "D-190",
+        "D-185 and D-188"
+      ],
+      "expect": "D-191"
+    }
+  ],
+  "pulls": [
+    {
+      "number": 893,
+      "title": "lane-ship (D-181)",
+      "body": "D-181 again"
+    },
+    {
+      "number": 890,
+      "title": "gate units (D-179)",
+      "body": ""
+    }
+  ],
+  "excluded_pull": 893,
+  "expect_without_exclusion": "D-182",
+  "expect_with_exclusion": "D-181",
+  "listing": [
+    {
+      "number": 7,
+      "title": "T (D-190)",
+      "body": null
+    }
+  ],
+  "listing_expect": [
+    {
+      "number": 7,
+      "title": "T (D-190)",
+      "body": ""
+    }
+  ],
+  "claims": {
+    "lines": [
+      "abc\trefs/heads/claude/decision-claims/D-190",
+      "def\trefs/heads/claude/decision-claims/D-192",
+      "ghi\trefs/heads/claude/other/D-500"
+    ],
+    "expect": [
+      190,
+      192
+    ],
+    "tries": 3,
+    "race_first": 1,
+    "race_pushes": 2,
+    "race_step": 1
+  },
+  "clock": {
+    "utc": "2026-11-01T02:28:00+00:00",
+    "brt": "31/10 23:28 BRT"
+  }
+}

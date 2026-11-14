@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-15"
+slug: "tier2-cloud-duration"
+statement: "Tier 2 in the cloud takes about 240 s."
+kind: "capacity"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "report v2 §11 (estimate)"
+  quote: null
+  at: null
+status: "to-validate"
+radius: "medium"
+blast:
+  reasons: ["plan:M3"]
+  if_wrong: "Above 400 s today's train does fewer than 42/h and needs shards before dawn."
+validate:
+  kind: "measurement"
+  how: "The first 3 batches measure it."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

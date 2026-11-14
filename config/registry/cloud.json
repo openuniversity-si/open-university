@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/cloud.json",
+  "x-owner": "cloud",
+  "x-schema-version": 1,
+  "description": "The cloud machine setup and the pinned toolchain (engine-cloud, U4, D-068, D-069 item 3): the project PostgreSQL, downloads, setup locks and the egress proxy defaults.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "cloud.bootstrap_python_minimum": {
+      "type": "array",
+      "default": [
+        3,
+        9
+      ],
+      "x-unit": "version",
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "Oldest Python (major, minor) the setup accepts to run the toolchain installer before the pinned Python exists.",
+      "x-readers": [
+        "scripts/cloud/setup.sh"
+      ]
+    },
+    "cloud.download_backoff_s": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "Seconds before the second try of a toolchain download; each next pause is twice the one before (1, 2, 4 s).",
+      "x-readers": [
+        "scripts/cloud/toolchain.py"
+      ]
+    },
+    "cloud.download_chunk_bytes": {
+      "type": "integer",
+      "default": 1048576,
+      "minimum": 1,
+      "x-unit": "bytes",
+      "description": "Chunk size for toolchain downloads and checksum reads.",
+      "x-readers": [
+        "scripts/cloud/toolchain.py"
+      ]
+    },
+    "cloud.download_timeout_s": {
+      "type": "integer",
+      "default": 300,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Seconds one toolchain download may take.",
+      "x-readers": [
+        "scripts/cloud/toolchain.py"
+      ]
+    },
+    "cloud.download_tries": {
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Tries of one toolchain download before setup fails with 'download failed' (a runner's cold task meets a network that is not ready).",
+      "x-readers": [
+        "scripts/cloud/toolchain.py"
+      ]
+    },
+    "cloud.download_user_agent": {
+      "type": "string",
+      "default": "open-university-toolchain",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "User-Agent header of toolchain downloads.",
+      "x-readers": [
+        "scripts/cloud/toolchain.py"
+      ]
+    },
+    "cloud.postgres_binaries": {
+      "type": "array",
+      "default": [
+        "psql",
+        "pg_ctl",
+        "initdb",
+        "createdb"
+      ],
+      "x-unit": "name",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "description": "PostgreSQL programs the toolchain exposes as shims in .toolchain/bin.",
+      "x-readers": [
+        "scripts/cloud/toolchain.py"
+      ]
+    },
+    "cloud.postgres_database": {
+      "type": "string",
+      "default": "tower_test_f02",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Database the toolchain PostgreSQL guarantees at startup (each checkout then gets its own tower_test_<hash> database).",
+      "x-readers": [
+        "scripts/cloud/postgres.py",
+        "scripts/lib/test_db.py"
+      ]
+    },
+    "cloud.postgres_encoding": {
+      "type": "string",
+      "default": "UTF8",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Encoding of the cluster and of psql clients.",
+      "x-readers": [
+        "scripts/cloud/postgres.py"
+      ]
+    },
+    "cloud.postgres_host": {
+      "type": "string",
+      "default": "127.0.0.1",
+      "minLength": 1,
+      "x-unit": "host",
+      "description": "Address the project-local PostgreSQL listens on and every client of it connects to.",
+      "x-readers": [
+        "scripts/cloud/postgres.py",
+        "scripts/cloud/env.sh"
+      ]
+    },
+    "cloud.postgres_locale": {
+      "type": "string",
+      "default": "C",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Locale of the cluster created by initdb.",
+      "x-readers": [
+        "scripts/cloud/postgres.py"
+      ]
+    },
+    "cloud.postgres_lock_path": {
+      "type": "string",
+      "default": "/tmp/open-university-postgres.lock",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Lock that serialises concurrent startups of the project PostgreSQL (shared by the session uid and uid 0).",
+      "x-readers": [
+        "scripts/cloud/postgres.py"
+      ]
+    },
+    "cloud.postgres_log_tail_chars": {
+      "type": "integer",
+      "default": 200,
+      "minimum": 1,
+      "x-unit": "chars",
+      "description": "Longest server-log line quoted in a startup error.",
+      "x-readers": [
+        "scripts/cloud/postgres.py"
+      ]
+    },
+    "cloud.postgres_port": {
+      "type": "integer",
+      "default": 54322,
+      "minimum": 1,
+      "maximum": 65535,
+      "x-unit": "port",
+      "description": "Default port of the project-local PostgreSQL; the OU_POSTGRES_PORT environment variable overrides it for one shell.",
+      "x-readers": [
+        "scripts/cloud/postgres.py",
+        "scripts/cloud/env.sh",
+        "scripts/cloud/setup.sh"
+      ]
+    },
+    "cloud.postgres_query_timeout_s": {
+      "type": "integer",
+      "default": 15,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Seconds one psql probe may run before it counts as down.",
+      "x-readers": [
+        "scripts/cloud/postgres.py"
+      ]
+    },
+    "cloud.postgres_ready_wait_s": {
+      "type": "integer",
+      "default": 30,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Seconds pg_ctl waits for the server to accept connections.",
+      "x-readers": [
+        "scripts/cloud/postgres.py"
+      ]
+    },
+    "cloud.postgres_role": {
+      "type": "string",
+      "default": "postgres",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Superuser role the cluster is initialised with and every cloud client connects as.",
+      "x-readers": [
+        "scripts/cloud/postgres.py"
+      ]
+    },
+    "cloud.postgres_socket_permissions": {
+      "type": "string",
+      "default": "0777",
+      "pattern": "^0[0-7]{3}$",
+      "x-unit": "mode",
+      "description": "Unix socket mode of the cluster when uid 0 hands the server to the service user, so the session uid can reach it.",
+      "x-readers": [
+        "scripts/cloud/postgres.py"
+      ]
+    },
+    "cloud.postgres_test_settings": {
+      "type": "array",
+      "default": [
+        "fsync=off",
+        "synchronous_commit=off",
+        "full_page_writes=off"
+      ],
+      "x-unit": "setting",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z_]+=[a-z0-9]+$"
+      },
+      "minItems": 1,
+      "description": "name=value settings setup.sh applies to the project-local test cluster (ALTER SYSTEM, reload). CREATE/DROP DATABASE each force a checkpoint; with durability off the checkpoint no longer waits on the disk behind a loaded gate (GX-29, C1 cold gate: claude-session teardown over 30 s). The cluster holds throwaway data only.",
+      "x-readers": [
+        "scripts/cloud/setup.sh"
+      ]
+    },
+    "cloud.proxy_direct_hosts": {
+      "type": "array",
+      "default": [
+        "localhost",
+        "127.0.0.1",
+        "::1",
+        "[::1]"
+      ],
+      "x-unit": "host",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "description": "Loopback names appended to NO_PROXY when an egress proxy is set, so local services stay direct.",
+      "x-readers": [
+        "scripts/cloud/env.sh"
+      ]
+    },
+    "cloud.proxy_silenced_warning": {
+      "type": "string",
+      "default": "UNDICI-EHPA",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Node warning code silenced when NODE_USE_ENV_PROXY is enabled for the egress proxy.",
+      "x-readers": [
+        "scripts/cloud/env.sh"
+      ]
+    },
+    "cloud.root_gate_checkout_root": {
+      "type": "string",
+      "default": "/var/tmp/open-university/gate-checkouts",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Slot checkout root for gates run as uid 0, a place the unprivileged uids of script tests can traverse.",
+      "x-readers": [
+        "scripts/cloud/env.sh"
+      ]
+    },
+    "cloud.setup_lock_path": {
+      "type": "string",
+      "default": "/tmp/open-university-cloud-setup.lock",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Lock that serialises concurrent runs of the cloud setup.",
+      "x-readers": [
+        "scripts/cloud/setup.sh"
+      ]
+    },
+    "cloud.setup_log_path": {
+      "type": "string",
+      "default": "/tmp/open-university-cloud-setup.log",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Log the cloud setup writes its quiet steps to.",
+      "x-readers": [
+        "scripts/cloud/setup.sh"
+      ]
+    },
+    "cloud.setup_log_tail_lines": {
+      "type": "integer",
+      "default": 30,
+      "minimum": 1,
+      "x-unit": "lines",
+      "description": "Lines of the setup log printed when a setup step fails.",
+      "x-readers": [
+        "scripts/cloud/setup.sh"
+      ]
+    }
+  }
+}

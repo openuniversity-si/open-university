@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "**/*.contract.test.ts",
+    "**/*.contract.test.tsx"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "glob",
+  "description": "Test files that prove a unit's contract from the consumer's side; a unit's battery also runs those of the units that require it (P-12: the contract of the direct consumers).",
+  "x-readers": [
+    "scripts/lib/unit_battery.py"
+  ],
+  "x-source": "P-12; plan v3 §4.2 items 3 and 6"
+}

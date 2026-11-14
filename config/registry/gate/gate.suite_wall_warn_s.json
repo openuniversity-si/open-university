@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 1,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Above this wall the whole-suite judgement prints a warning (Daniel: ideal at most 1 s, above it a warning kept visible).",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "D-090; D-092"
+}

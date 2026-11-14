@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/gate-timing-report.test.sh",
+  "covers": [
+    "scripts/tests/gate-timing-report.test.sh",
+    "scripts/tests/test_gate_timing_report.py",
+    "scripts/lib/gate_timing_report.py",
+    "scripts/lib/gate-stages.json",
+    "config/registry/gate-eta.json",
+    "config/registry/forge-events.json",
+    "scripts/lib/config.py"
+  ]
+}

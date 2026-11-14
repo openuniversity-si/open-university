@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 8,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Sha directories kept under the report-only (advisory) record directory's reports: the same folder bound as gate-gc.reports_shas_keep for the head tooling's advisory runs, whose verdict is already posted on the PR. Set from the readers' need: one train batch (train.batch_size).",
+  "x-readers": [
+    "scripts/lib/gate_gc.py"
+  ],
+  "x-source": "D-070, D-069 item 4; GATE-GC-CHEIO audit step 3; review by 2026-11-28"
+}

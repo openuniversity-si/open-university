@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Heavy database stages (the stages that declare the heavy_db resource in scripts/lib/gate-stages.json: integration tests, smoke database, db schema/migrations) that may run at once on this machine, across every parallel gate run; each holds one lock file in gate.slot_dir for the length of its command. GATE_HEAVY_DB_SLOTS, when set, is an explicit override for one run.",
+  "x-readers": [
+    "scripts/lib/gate-isolation.sh",
+    "scripts/lib/gate_graph.py"
+  ]
+}

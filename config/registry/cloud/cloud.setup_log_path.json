@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "/tmp/open-university-cloud-setup.log",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Log the cloud setup writes its quiet steps to.",
+  "x-readers": [
+    "scripts/cloud/setup.sh"
+  ]
+}

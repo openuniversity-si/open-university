@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 1,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Version of the premise.* event payloads written.",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ]
+}

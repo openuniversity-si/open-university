@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/defect-lifecycle.test.sh",
+  "covers": [
+    "scripts/tests/defect-lifecycle.test.sh",
+    "scripts/tests/test_defect_lifecycle.py",
+    "scripts/tests/test_defects.py",
+    "scripts/lib/defect_detect.py",
+    "scripts/lib/defect_router.py",
+    "scripts/lib/defects.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/config.py",
+    "config/registry/defects.json",
+    "contracts/events/*.json",
+    "units/*/unit.json",
+    "scripts/tests/forge_doubles.py"
+  ]
+}

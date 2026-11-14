@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-8ad89017"
+slug: "gv1-gate-local-test-sh-reads-the-shared-config-s-8ad89017"
+title: "`gate-local.test.sh` reads the shared config store unless `OU_CONFIG_STORE=file`"
+source:
+  unit: "GV1"
+  retro: "docs/units/GV1/retro.md"
+  section: 5
+  ref: "L4"
+class: "env"
+kind: "config"
+change: "`gate-local.test.sh` reads the shared config store unless `OU_CONFIG_STORE=file`; the test should set it itself (owner: gate area, test fix, not done here: gate tests are KD1/GS1 territory)."
+owner: "gate-lane"
+status: "proposed"
+area: []
+signals: []
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

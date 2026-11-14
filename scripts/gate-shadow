@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Usage: scripts/gate-shadow run [REF] | latest
+# While the gate bypass is on (D-151) the real gate still runs, for measurement only: `run` gates REF (default
+# origin/mod/roadmap-integration after a fetch) with GATE_BYPASS=0 and --report-only (no events, no record, no pr.ready),
+# and writes .gate/shadow/<sha>.json {sha, passed, wall_s}; it exits 1 and prints BASE BROKEN when the real gate fails.
+# `latest` prints the newest result. Never blocks a merge. Run it in the background, in the session container.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/gate_shadow.py" "$@"

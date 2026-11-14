@@ -1,0 +1,20 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/gate-local",
+    "--dev",
+    "--report-only",
+    "--sha"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "count",
+  "description": "The second leg of the dual verdict (D-079): the head's own tooling, run in a checkout of the head (gate_pin.head_tooling) with fresh build and test caches and no carry-over (cold, P-43), the head sha appended; report-only, so it publishes no event, record or pr.ready. Exit 0 is PASSED; anything else, a timeout (train.tier2_timeout_s) or a run that cannot start refuses (fail closed). Measured as train:self-host.",
+  "x-readers": [
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-079; docs/operations/train.md"
+}

@@ -1,0 +1,8 @@
+{
+  "script": "scripts/tests/infra-prune.test.sh",
+  "covers": [
+    "scripts/tests/infra-prune.test.sh",
+    "scripts/tests/test_infra_prune.py",
+    "infra/service/tower_infra/prune.py"
+  ]
+}

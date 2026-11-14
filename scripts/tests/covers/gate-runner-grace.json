@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/gate-runner-grace.test.sh",
+  "covers": [
+    "scripts/tests/gate-runner-grace.test.sh",
+    "scripts/tests/test_gate_runner_grace.py",
+    "scripts/lib/gate-runner.sh",
+    "scripts/lib/gate_classify.py",
+    "scripts/lib/gate_status.py",
+    "scripts/lib/config.py",
+    "scripts/lib/json_schema.py",
+    "config/registry/gate-gc.json"
+  ]
+}

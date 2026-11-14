@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "research.md",
+  "x-unit": "path",
+  "description": "The RESEARCH file of a folder: who already solved the intake's real problem and how it fits us.",
+  "x-readers": [
+    "scripts/lib/program.py"
+  ]
+}

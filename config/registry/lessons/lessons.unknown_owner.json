@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "engine-lane",
+  "x-unit": "text",
+  "description": "Owner of a lesson whose retro text names none of lessons.owners.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ]
+}

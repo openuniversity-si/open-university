@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/rule-challenge list|check
+# The rule-challenge records of docs/process/rule-challenges (D-138): list them (open grade 2 and 3 first) or check
+# their format. Reads local files only.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/rule_challenges.py" "$@"

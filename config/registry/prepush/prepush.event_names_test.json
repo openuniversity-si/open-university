@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "scripts/tests/test_event_contracts.py::Contracts.test_events_md_and_the_schemas_name_the_same_events",
+  "pattern": "^[^:]+\\.py::[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+  "x-unit": "text",
+  "description": "<test file>::<TestCase>.<method> of the event names check (docs/process/EVENTS.md and contracts/events name the same events), which lives only in that test; prepush runs that one method in process (about 20 ms) and names, for each event it finds on one side only, the side to fix. A checkout without the file skips the check.",
+  "x-readers": [
+    "scripts/lib/prepush.py"
+  ]
+}

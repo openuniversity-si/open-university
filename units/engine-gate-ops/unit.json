@@ -1,0 +1,26 @@
+{
+  "id": "engine-gate-ops",
+  "purpose": "Gate operations: bypass, garbage collection, shadow runs and gate incidents.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/gate-gc.json",
+    "config/registry/gate/gate.bypass.json",
+    "scripts/lib/gate_bypass.py",
+    "scripts/lib/gate_gc.py",
+    "scripts/tests/gate-bypass.test.sh",
+    "scripts/tests/gate-gc.test.sh",
+    "scripts/tests/test_gate_bypass.py",
+    "scripts/tests/test_gate_gc.py",
+    "scripts/lib/gate_incident.py",
+    "scripts/tests/gate-incident.test.sh",
+    "scripts/tests/test_gate_incident.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1",
+    "engine-gate-status": "^1",
+    "engine-gate-verdict": "^1",
+    "engine-regime": "^1"
+  }
+}

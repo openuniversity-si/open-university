@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/usage [--help]
+# What a session did, counted from its transcript: tool calls by kind and the scripts it ran (D-208).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/usage.py" "$@"

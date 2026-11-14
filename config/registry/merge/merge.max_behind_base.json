@@ -1,0 +1,13 @@
+{
+  "type": "integer",
+  "default": 20,
+  "x-unit": "commits",
+  "description": "GX-22 (B-18, D-070): most commits a gated head may be behind the current base tip. merge-phase re-gates a head beyond it (or behind with overlapping changes, merge.regate_on_overlap); with merge.tier1_requires_base_merge off it is also the commit-check limit for a head that carries no merge of the base. Shown as \"N behind, limit M\".",
+  "x-readers": [
+    "scripts/lib/commit_check.py",
+    "scripts/lib/merge_behind.py",
+    "scripts/lib/train.py"
+  ],
+  "minimum": 0,
+  "x-source": "D-070"
+}

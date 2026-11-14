@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/decision-table.test.sh",
+  "covers": [
+    "scripts/tests/decision-table.test.sh",
+    "scripts/tests/test_decision_table.py",
+    "scripts/decision-table",
+    "scripts/lib/decision_table.py"
+  ]
+}

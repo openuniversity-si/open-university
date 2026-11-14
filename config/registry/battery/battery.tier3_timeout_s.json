@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 3600,
+  "minimum": 60,
+  "x-unit": "s",
+  "description": "Longest one tier-3 run may take before it counts as red (stage timeout).",
+  "x-readers": [
+    "scripts/lib/battery.py"
+  ]
+}

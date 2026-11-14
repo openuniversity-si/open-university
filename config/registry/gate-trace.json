@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-trace.json",
+  "x-owner": "gate-trace",
+  "x-schema-version": 1,
+  "description": "The covers trace (GX-29, B-13, D-070): the hermetic harness records the files a Python script test opens, and the test reports the ones outside its declared covers. Report-only.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate-trace.covers_trace_ignore": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "default": [
+        "config/registry/**",
+        "scripts/lib/generated/**",
+        "scripts/lib/hermetic/**",
+        "docs/domain/DECISIONS.md",
+        ".git/**",
+        ".toolchain/**",
+        "**/node_modules/**",
+        "**/__pycache__/**"
+      ],
+      "x-unit": "glob",
+      "x-source": "D-070, D-268",
+      "description": "Paths (relative to the checkout) the trace never reports: the registry every config.get reads, generated modules, the decisions file every unit-manifest load reads, the harness itself, VCS, toolchain, dependencies and bytecode.",
+      "x-readers": [
+        "scripts/lib/gate_script_tests.py"
+      ]
+    },
+    "gate-trace.covers_trace_max_listed": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "x-unit": "count",
+      "x-source": "D-070",
+      "description": "Most undeclared paths one test lists in its trace report; the count of the rest is printed.",
+      "x-readers": [
+        "scripts/lib/hermetic.py"
+      ]
+    },
+    "gate-trace.covers_trace_mode": {
+      "type": "string",
+      "default": "report",
+      "enum": [
+        "off",
+        "report"
+      ],
+      "x-unit": "mode",
+      "x-source": "D-070",
+      "description": "report: a Python script test lists, on stderr at exit, the files it read outside its declared covers (never a failure). off: nothing is recorded. A blocking mode is a later decision.",
+      "x-readers": [
+        "scripts/lib/hermetic.py"
+      ]
+    }
+  }
+}

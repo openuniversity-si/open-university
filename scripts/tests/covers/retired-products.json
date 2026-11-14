@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/retired-products.test.sh",
+  "covers": [
+    "scripts/tests/retired-products.test.sh",
+    "scripts/tests/test_retired_products*.py",
+    "scripts/lib/retired_products.py",
+    "config/registry/structure.json",
+    "config/registry/structure/**"
+  ]
+}

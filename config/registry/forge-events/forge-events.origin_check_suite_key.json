@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "tower",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "Stable check-suite key of the gate verdict. Required checks match the app plus this key.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "D-283"
+}

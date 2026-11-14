@@ -1,0 +1,27 @@
+{
+  "clock": {
+    "utc": "2026-11-01T02:28:00+00:00",
+    "brt": "31/10 23:28 BRT"
+  },
+  "sections": [
+    "flow metrics",
+    "lanes",
+    "train",
+    "service",
+    "base gate",
+    "units of fluxo-amplo"
+  ],
+  "commands": [
+    "metrics",
+    "lanes",
+    "lane status",
+    "train queue",
+    "service",
+    "gate",
+    "coordinator"
+  ],
+  "failing": "scripts/service",
+  "base": "| Id | Date |\n|---|---|\n| D-001 | a |\n| D-190 | b |\n",
+  "next_decision": 191,
+  "review_pr": 981
+}

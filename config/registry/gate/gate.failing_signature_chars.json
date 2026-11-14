@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 160,
+  "minimum": 1,
+  "x-unit": "chars",
+  "description": "Length cap of the normalized signature of a failing test in the verdict.",
+  "x-readers": [
+    "scripts/lib/gate_failures.py"
+  ]
+}

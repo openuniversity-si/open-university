@@ -1,0 +1,14 @@
+{
+  "type": "string",
+  "default": "control",
+  "enum": [
+    "control"
+  ],
+  "x-unit": "enum",
+  "description": "Where a Tower runner takes its jobs (ADR-41, D-290): the control plane at service.control_url, its only job channel and wake source. `control` is the only value: the git transport was deleted, and a runner reading anything else stops with an error naming this key, never falling back.",
+  "x-readers": [
+    "scripts/lib/service_runner.py",
+    "scripts/lib/service_status.py"
+  ],
+  "x-source": "D-086; D-290; docs/units/CONTROL-ROUTE/plan.md"
+}

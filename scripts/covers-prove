@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/covers-prove [--help]
+# Runs one script test in a throwaway worktree without the files a covers pattern would stop covering: PASS means the pattern can go (D-178).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/covers_prove.py" "$@"

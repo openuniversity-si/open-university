@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-17"
+slug: "todays-goal"
+statement: "Today's goal: at least 1,000/day sustained, the skeleton complete and the migration under way; the rewrite ends by events (overnight), not all of it today."
+kind: "product"
+scope: "global"
+source:
+  who: "model"
+  where: "plan v3 §9, from \"solve it today\""
+  quote: null
+  at: null
+status: "inferred"
+radius: "medium"
+blast:
+  reasons: ["plan:wave-3"]
+  if_wrong: "If it is \"everything today\", wave 3 gets more lanes (the quota is no limit); the order does not change."
+validate:
+  kind: "veto"
+  how: "Plan v3 §9.3."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

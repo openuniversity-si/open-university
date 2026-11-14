@@ -1,0 +1,18 @@
+{
+  "script": "scripts/tests/gate-batch.test.sh",
+  "covers": [
+    "scripts/tests/gate-batch.test.sh",
+    "scripts/tests/test_gate_batch.py",
+    "scripts/gate-batch",
+    "scripts/gate-dev",
+    "scripts/gate-local",
+    "scripts/lib/gate_batch.py",
+    "scripts/lib/merge_composition.py",
+    "scripts/lib/gate_select.py",
+    "scripts/lib/gate_failures.py",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/units.py",
+    "config/registry/gate.json",
+    "scripts/tests/fixture_copy.py"
+  ]
+}

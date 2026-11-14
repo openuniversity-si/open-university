@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "contracts/premises/premise.v1.json",
+  "x-unit": "path",
+  "description": "JSON Schema 2020-12 of a premise record.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ]
+}

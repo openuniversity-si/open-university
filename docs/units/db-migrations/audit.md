@@ -1,0 +1,11 @@
+# db-migrations audit (U4)
+
+Read-only findings, base `mod/roadmap-integration` 30e51c3c.
+
+- Unit: `apps/web/drizzle/**`: 35 forward migrations (`0001_init.sql` … `0035_lesson_video_provider.sql`), their 35 snapshots and the global journal `meta/_journal.json`; 71 files, 1,295 measured lines against `units.size_ceiling` 1,500 (`scripts/units measure`: no `unit.oversize`).
+- Physical form: S1 keeps units logical (P-03 `validated`, `measurement:S1`). The files keep their paths; `@ou/db-migrations/*` is already generated into `apps/web/tsconfig.json` as `./drizzle/*`. Nothing moves, so there is nothing to delete (D-029). The folder also stays where drizzle-kit (`apps/web/drizzle.config.ts`, `out: "./drizzle"`) and the migration journal checks (`scripts/lib/structure.py`, `scripts/lib/assets.py`) expect it; moving it would change files other units own.
+- Importers: no TypeScript import (U3b-platform audit). Readers of the journal and the SQL, all owned by other units and not edited: drizzle-kit through `drizzle.config.ts`, `apps/web/test/fixtures/migrations.ts` (`MIGRATION_COUNT`), the migration integration tests under `apps/web/test/int/`, `structure.py` (D-054 journal contiguity), `assets.py` (retirement markers), `gate-areas.json` and `gate_noite.py` (area globs).
+- Published surface (the contract): the journal `meta/_journal.json` (entries `idx`, `tag`, `when`, `breakpoints`), one `<tag>.sql` and one `meta/<idx>_snapshot.json` per entry. Nothing else is read.
+- Literals: `config_check.literal_findings` reports none for these files, no `x-literal-sites` entry names them, and the D-063 census (`census-files.ts`) does not scan SQL. The allowlist for the unit is already zero. The SQL is schema: its identifiers and constraints are the database contract, not tunables.
+- Battery: `scripts/unit-battery db-migrations` green in 0.00 s with no step, because the manifest has no `contract` and the unit has no TypeScript or test file. The journal's integrity is already proven by structure-check (D-054 tests in `scripts/tests/test_structure.py`); a second check here would be a parallel mechanism (D-069 item 1).
+- P-06: the journal stays global and its next number is allocated by the train; no migration is added, run or renumbered here, and no Neon branch is touched.

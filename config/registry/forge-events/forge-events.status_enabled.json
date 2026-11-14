@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "Whether the gate writes its own commit status (GX-17); false turns it off without touching the verdict.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ]
+}

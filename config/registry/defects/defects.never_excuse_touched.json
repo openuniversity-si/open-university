@@ -1,0 +1,9 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "switch",
+  "description": "GX-13: a failing test whose own file, covers manifest or declared covers the PR changed is never excused as a base defect (the #662 case); it is not re-run on the base. Off: such a test is adjudicated like any other (KD1 behaviour).",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ]
+}

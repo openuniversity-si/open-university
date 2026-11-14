@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "brief-template=brief,template",
+    "helper=helper",
+    "check=check,hook,a gate-local test,stage",
+    "config=config,registry"
+  ],
+  "x-unit": "text",
+  "description": "Kind of change of a retro item, same form as lessons.class_keywords; lessons.default_kind when none matches.",
+  "x-readers": [
+    "scripts/lib/lesson_ingest.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

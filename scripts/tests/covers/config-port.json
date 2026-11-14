@@ -1,0 +1,24 @@
+{
+  "script": "scripts/tests/config-port.test.sh",
+  "covers": [
+    "scripts/tests/config-port.test.sh",
+    "scripts/tests/test_config_port.py",
+    "scripts/config",
+    "scripts/config-latency",
+    "scripts/lib/config_cli.py",
+    "scripts/lib/config_latency.py",
+    "infra/service/tower_infra/webhook_consumer.py",
+    "infra/service/tower_infra/forge_webhooks.py",
+    "infra/service/tower_infra/port.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/service/tower_infra/config_data.py",
+    "config/registry/service/service.webhook_tolerance_s.json",
+    "config/registry/service/service.webhook_drop_stale.json",
+    "config/registry/service/service.webhook_drop_bad_signature.json",
+    "infra/service/tower_infra/autodeploy.py",
+    "infra/service/tower_infra/wake.py",
+    "scripts/tests/test_infra_autodeploy.py",
+    "scripts/tests/test_infra_aws.py",
+    "scripts/tests/test_infra_config_data.py"
+  ]
+}

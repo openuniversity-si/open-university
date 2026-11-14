@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 60,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Expected seconds of a stage with no sample in the ledger or the local reports (a fresh container), so the ETA is never 'no history'.",
+  "x-readers": [
+    "scripts/lib/gate_status.py",
+    "scripts/lib/slo.py"
+  ],
+  "x-source": "D-070; plan-v2 GX-25, D-B8"
+}

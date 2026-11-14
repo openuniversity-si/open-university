@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "switch",
+  "description": "One-key rollback: true publishes gate.started at gate begin and, on each tier-1 verdict, calls forge_events.gate_slow and slo evaluate; false does neither and the verdict path is unchanged.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "x-source": "D-070; plan-v2 GX-25, D-B8"
+}

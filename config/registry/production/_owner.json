@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/production.json",
+  "x-owner": "production",
+  "x-schema-version": 1,
+  "description": "Who may reach production (D-054, enforcement audit 2026-10-26 rule 7, PS1).",
+  "type": "object",
+  "additionalProperties": false
+}

@@ -1,0 +1,33 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-00"
+slug: "scale-without-rewrite"
+statement: "\"Scale without rework\" means \"without rewriting the architecture\": each piece scales to 10x and 100x without a rewrite."
+kind: "architecture"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "docs/audits/mil-prs-2026-10-26/input/adendo3-full.md, line 3 (a paraphrase); adopted by report v2 (§0, §4.2, §4.3, §8) and by #491 (D-065)"
+  quote: null
+  at: "2026-10-26T15:50-03:00"
+status: "refuted"
+radius: "high"
+blast:
+  reasons: ["decision:D-065", "veto:V3", "veto:V4", "plan:report-v2", "pr:491"]
+  if_wrong: "Report v2 was framed by it: it fixed the granularity of PR3-PR6 and PR9, vetoes V3 and V4 and the \"only at 100x\" partition; merged in #491 it would have governed the next 11 PRs and turned a rewrite proposal into a contract question."
+validate:
+  kind: "question"
+  how: "Can the architecture be rewritten to scale? (yes/no)"
+answer:
+  by: "Daniel"
+  at: "2026-10-26T16:18-03:00"
+  value: "refuted"
+  quote: "Eu não disse que a arquitetura não pode ser reescrita."
+  where: "Daniel, chat 16:18"
+  evidence: null
+  translation: "I did not say the architecture cannot be rewritten."
+dependents:
+  plans: ["docs/audits/mil-prs-2026-10-26/input/report-v2.md"]
+  prs: [491]
+  digest: "473dd3d5b07c15b01e934cb7aa949e11180244cd9b20e89850f223beec021778"
+supersedes: []
+notes: "Caught before #491 merged; it cost the #491 amendment (M1) and plan v3. New rule: a paraphrase never becomes confirmed (plan v3 §8.8)."

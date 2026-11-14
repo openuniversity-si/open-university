@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# The live proof that two tenants cannot see or touch each other through the port (AWS-TENANT-ISOLATION-PROOF).
+# scripts/lib/aws_tenant_isolation_proof.py says how; needs TOWER_PORT_URL, TOWER_PORT_TOKEN and TOWER_PORT_TOKEN_B; never prints a token.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+exec "${OU_PYTHON:-python3}" "$root/scripts/lib/aws_tenant_isolation_proof.py" "$@"

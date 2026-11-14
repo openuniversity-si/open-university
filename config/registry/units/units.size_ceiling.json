@@ -1,0 +1,14 @@
+{
+  "type": "integer",
+  "default": 1500,
+  "minimum": 1,
+  "x-unit": "lines",
+  "description": "Production lines a unit may not exceed; above it unit.oversize is emitted.",
+  "x-readers": [
+    "docs/process/EVENTS.md",
+    "scripts/lib/units.py",
+    "scripts/lib/unit_map.py",
+    "scripts/lib/unit_check.py"
+  ],
+  "x-source": "P-04 (plan v3 §2.1)"
+}

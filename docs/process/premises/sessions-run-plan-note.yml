@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-51"
+slug: "sessions-run-plan-note"
+statement: "Running sessions will run scripts/plan note when the Padrao tells them to."
+kind: "process"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "docs/programs/live-planning/design.md#8"
+  quote: null
+  at: "2026-10-27T18:30:00Z"
+status: "inferred"
+radius: "medium"
+blast:
+  reasons: ["plan:live-planning"]
+  if_wrong: "RETRO section 5 ingest still catches the lesson, later."
+validate:
+  kind: "none"
+  how: null
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

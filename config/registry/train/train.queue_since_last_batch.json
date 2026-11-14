@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "The queue index (train_queue.py, GX-30, G-09): while true, the first queue build of a train run replays every open PR's log and head, and every later build reads only the events since the previous build (an adapter offering events_since) and the logs and heads of the PRs they name, so a rebuild costs O(PRs with new events), not O(open PRs). Off, or with an adapter without events_since: the full replay on every build (the rollback).",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/gate-graph.test.sh",
+  "covers": [
+    "scripts/tests/gate-graph.test.sh",
+    "scripts/tests/test_gate_graph.py",
+    "scripts/lib/gate_graph.py",
+    "scripts/lib/gate-stages.json",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/gate-areas.json",
+    "scripts/gate-local",
+    "config/registry/gate.json"
+  ]
+}

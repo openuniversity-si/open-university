@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "GitHub writes no longer limit the flow",
+  "x-unit": "text",
+  "description": "The condition that ends the regime.",
+  "x-readers": [
+    "scripts/lib/regime.py"
+  ],
+  "x-source": "D-260"
+}

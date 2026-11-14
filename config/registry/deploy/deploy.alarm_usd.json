@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 20.0,
+  "exclusiveMinimum": 0,
+  "x-unit": "usd",
+  "description": "Cost alarm (DEP7): when the month's estimated deploy spend (settled cycles x deploy.usd_per_min) reaches this, the autodeploy publishes platform.deploy.cost_alarm once a month and GET /v1/deploy/status carries the line `cost_alarm`; deploys go on until deploy.monthly_usd, the hard stop.",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py"
+  ],
+  "x-source": "DEP7"
+}

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-eta.json",
+  "x-owner": "gate-eta",
+  "x-schema-version": 1,
+  "description": "The gate's ETA and lifecycle events (GX-25, D-070): which quantile of the ledger it reads, how much history, the fallback, and the one-key switch for gate.started and the verdict-time gate.slow / slo evaluate.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate-eta.eta_history_events": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Newest engine.step.measured events per stage that the ETA reads from the ledger.",
+      "x-readers": [
+        "scripts/lib/gate_status.py",
+        "scripts/lib/slo.py"
+      ],
+      "x-source": "D-070; plan-v2 GX-25, D-B8"
+    },
+    "gate-eta.eta_quantile": {
+      "type": "number",
+      "default": 0.5,
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "x-unit": "fraction",
+      "description": "Quantile of the stage durations (engine.step.measured, slo.step_stats) that the gate's ETA uses per stage (0.5 is p50). gate.started.expected_wall_s is the critical path over these.",
+      "x-readers": [
+        "scripts/lib/gate_status.py",
+        "scripts/lib/gate_timing_report.py",
+        "scripts/lib/slo.py"
+      ],
+      "x-source": "D-070; plan-v2 GX-25, D-B8"
+    },
+    "gate-eta.fallback_stage_s": {
+      "type": "number",
+      "default": 60,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Expected seconds of a stage with no sample in the ledger or the local reports (a fresh container), so the ETA is never 'no history'.",
+      "x-readers": [
+        "scripts/lib/gate_status.py",
+        "scripts/lib/slo.py"
+      ],
+      "x-source": "D-070; plan-v2 GX-25, D-B8"
+    },
+    "gate-eta.report_last_gates": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Newest gates the timing report compares expected_wall_s with the real wall time over (the ETA error).",
+      "x-readers": [
+        "scripts/lib/gate_timing_report.py"
+      ],
+      "x-source": "D-070; plan-v2 GX-25, D-B8"
+    },
+    "gate-eta.report_quantiles": {
+      "type": "array",
+      "default": [
+        0.5,
+        0.9
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 1
+      },
+      "x-unit": "fraction",
+      "description": "Nearest-rank quantiles the gate timing report prints per stage, as fractions (0.9 is p90).",
+      "x-readers": [
+        "scripts/lib/gate_timing_report.py"
+      ],
+      "x-source": "D-070; plan-v2 GX-25, D-B8"
+    },
+    "gate-eta.started_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "switch",
+      "description": "One-key rollback: true publishes gate.started at gate begin and, on each tier-1 verdict, calls forge_events.gate_slow and slo evaluate; false does neither and the verdict path is unchanged.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "x-source": "D-070; plan-v2 GX-25, D-B8"
+    }
+  }
+}

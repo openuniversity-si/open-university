@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "className|\\bstyle\\s*=|\\bclass\\s*=|\\bsx\\s*=|</?[A-Za-z][\\w.]*[\\s/>]|<>|</>|\\bsrc\\s*=|\\balt\\s*=",
+  "description": "Regular expression of an added or removed line of a .tsx file that is markup or styling. A .tsx change with no such line is logic only and needs no Figma node.",
+  "x-readers": [
+    "scripts/lib/visual_guard.py"
+  ],
+  "x-unit": "regex",
+  "x-source": "D-006, D-069 (SG1)"
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/gate.failed.v1.json",
+  "title": "gate.failed payload v1",
+  "description": "Tier-1 (or other plan) gate verdict on a PR head; THE gate evidence (D-065), emitted by gate_report.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/pr",
+    "/payload/sha",
+    "/payload/plan",
+    "/payload/input_hash"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "tier",
+    "plan",
+    "stages",
+    "missing_stages",
+    "input_hash"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "tier": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "Gate tier (1 = per-PR gate-dev); null for other plans."
+    },
+    "plan": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The gate mode that ran (dev, db, noite, ...)."
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "$ref": "defs.v1.json#/$defs/stage"
+      },
+      "description": "Every stage that ran, with its time and class."
+    },
+    "missing_stages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Stages the plan expected that did not pass."
+    },
+    "input_hash": {
+      "$ref": "defs.v1.json#/$defs/sha256",
+      "description": "sha256 of the judged commit, the plan and its expected stages."
+    }
+  }
+}

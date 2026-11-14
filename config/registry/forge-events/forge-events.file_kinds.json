@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string",
+    "pattern": "^[a-z][a-z0-9_.]*$"
+  },
+  "default": [
+    "engine.step.measured",
+    "gate.started"
+  ],
+  "x-unit": "names",
+  "description": "GX-FIX-forge-rate (D-070): event kinds stored in the local file log (forge-events.local_log_dir) whatever forge-events.adapter is. High-volume measurement kinds (one per test or step) never become issue comments; a reader of the port sees both logs of a channel. GX-25: gate.started is file-routed too, because a gate run is already at its bound of GitHub writes (gate.forge_writes_per_run_max); one key moves it back to the forge.",
+  "x-readers": [
+    "scripts/lib/forge_events.py"
+  ]
+}

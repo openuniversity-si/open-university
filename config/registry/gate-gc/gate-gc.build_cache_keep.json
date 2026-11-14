@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 4,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Build-cache entries kept per build target (production, test); the most recently used win and older ones are removed when a gate exits.",
+  "x-readers": [
+    "scripts/lib/gate_gc.py"
+  ],
+  "x-source": "D-070; plan GX-19"
+}

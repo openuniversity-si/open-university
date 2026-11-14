@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 3,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "GATE-SPEED F10 (D-130): how many times a run tries to append its PASSes to gate.shared_results_ref when another run moved it first; after that the run's verdicts stand and the next run publishes again.",
+  "x-readers": [
+    "scripts/lib/shared_results.py"
+  ]
+}

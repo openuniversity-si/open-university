@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/gate.slow.v1.json",
+  "title": "gate.slow payload v1",
+  "description": "The tier-1 median over the registry window exceeded gate.slow_median_s; sha is the newest judged head.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/sha",
+    "/payload/median_ms"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "median_ms",
+    "window",
+    "slowest_stages"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "median_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "window": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "slowest_stages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

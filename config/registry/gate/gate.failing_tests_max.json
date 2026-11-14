@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 50,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Failing tests listed in a gate.failed verdict (id and signature); the total is kept beside the list.",
+  "x-readers": [
+    "scripts/lib/gate_failures.py"
+  ]
+}

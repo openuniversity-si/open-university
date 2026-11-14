@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "census.jsonl",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "File name, inside units/<id>/, of the unit's census record: one sealed event per line, written only by scripts/census.",
+  "x-readers": [
+    "scripts/lib/census.py"
+  ],
+  "x-source": "CENSO-NO-MANIFESTO; D-067"
+}

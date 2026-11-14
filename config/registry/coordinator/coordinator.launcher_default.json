@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "claude",
+  "x-unit": "adapter",
+  "description": "Launcher adapter used when none is named.",
+  "x-readers": [
+    "scripts/lib/adapters/launcher.py"
+  ]
+}

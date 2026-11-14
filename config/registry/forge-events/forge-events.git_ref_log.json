@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "train/events",
+  "pattern": "^[a-z0-9][a-z0-9/_.-]*$",
+  "x-unit": "ref",
+  "description": "EVENTS-REF (E1, D-273): the branch name under refs/heads/ that holds the event log's state kinds, one commit per append, written by create and fast-forward over git (forge_git_ref.GitRefAdapter). Shared by every channel; never deleted or rewound.",
+  "x-readers": [
+    "scripts/lib/forge_git_ref.py"
+  ],
+  "x-source": "D-273; docs/units/EVENTS-REF/plan.md"
+}

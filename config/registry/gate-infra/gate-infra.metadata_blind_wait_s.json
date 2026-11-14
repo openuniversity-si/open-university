@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 300,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "METADATA-FORGE-RETRY (docs/operations/aws-revisao-arquitetura.md, finding 22): seconds of pauses the gate may spend trying `pr metadata` again while its only refusals are the forge not answering the read of the PR (gate-infra.call_retries bounds the count, gate-infra.call_backoff_s the pauses). On 11/11 03:04 UTC the forge answered 503 for about three minutes and a delivery was red at `pr metadata` with nothing wrong in its PR; a delivery judged again costs six minutes or more, so waiting five for the forge is the cheaper side. Past it the stage is red, by name: the forge did not answer.",
+  "x-readers": [
+    "scripts/lib/deliver.py",
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "METADATA-FORGE-RETRY"
+}

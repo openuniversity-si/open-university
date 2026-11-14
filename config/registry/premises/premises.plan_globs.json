@@ -1,0 +1,14 @@
+{
+  "type": "array",
+  "default": [
+    "docs/**/*.md"
+  ],
+  "x-unit": "path",
+  "description": "Tracked files scanned for Premises: lines when the blast of a premise is computed.",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

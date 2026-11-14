@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 500,
+  "minimum": 1,
+  "x-unit": "characters",
+  "description": "Characters of what a tool said (a plan that failed, a refusal of the port, pr metadata) that a verdict keeps, from its end.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+}

@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    "main"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "x-unit": "name",
+  "description": "Branches the hook never pushes, besides the integration branch train.base_branch (always protected): a release or production branch only changes by its own pipeline (D-054).",
+  "x-readers": [
+    "scripts/lib/push_guard.py"
+  ]
+}

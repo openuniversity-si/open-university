@@ -1,0 +1,41 @@
+{
+  "id": "engine-gate-run",
+  "purpose": "The gate runners: gate-dev, gate-db, gate-local and their stages.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "docs/units/GATE-API/**",
+    "docs/units/GX05/**",
+    "scripts/gate-dev",
+    "scripts/gate-local",
+    "scripts/gate-noite",
+    "scripts/gate-quiet",
+    "scripts/lib/gate-budget.sh",
+    "scripts/lib/gate-hooks/**",
+    "scripts/lib/gate-isolation.sh",
+    "scripts/lib/gate-runner.sh",
+    "scripts/lib/gate_explain.py",
+    "scripts/tests/gate-heavy-db.test.sh",
+    "scripts/tests/gate-local.test.sh",
+    "scripts/tests/gate-local/**",
+    "scripts/tests/gate-regime-lock.test.sh",
+    "scripts/tests/gate-runner-grace.test.sh",
+    "scripts/tests/test_gate_regime_lock.py",
+    "scripts/tests/test_gate_runner_grace.py"
+  ],
+  "requires": {
+    "engine-cloud": "^1",
+    "engine-config": "^1",
+    "engine-env": "^1",
+    "engine-events": "^1",
+    "engine-gate-cache": "^1",
+    "engine-gate-ops": "^1",
+    "engine-gate-plan": "^1",
+    "engine-gate-report": "^1",
+    "engine-gate-speed": "^1",
+    "engine-gate-status": "^1",
+    "engine-gate-tests": "^1",
+    "engine-gate-verdict": "^1",
+    "engine-structure": "^1"
+  }
+}

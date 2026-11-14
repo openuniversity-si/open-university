@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Newest gates the timing report compares expected_wall_s with the real wall time over (the ETA error).",
+  "x-readers": [
+    "scripts/lib/gate_timing_report.py"
+  ],
+  "x-source": "D-070; plan-v2 GX-25, D-B8"
+}

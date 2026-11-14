@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-50"
+slug: "planner-session-woken-by-events"
+statement: "A long planner-role cloud session can be woken by events (send_message from the triage step or by A Torre)."
+kind: "process"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "docs/programs/live-planning/design.md#8"
+  quote: null
+  at: "2026-10-27T18:30:00Z"
+status: "inferred"
+radius: "medium"
+blast:
+  reasons: ["plan:live-planning"]
+  if_wrong: "A Torre runs the judgment in its own session."
+validate:
+  kind: "none"
+  how: null
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

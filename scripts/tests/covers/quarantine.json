@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/quarantine.test.sh",
+  "covers": [
+    "scripts/tests/quarantine.test.sh",
+    "scripts/tests/test_quarantine.py",
+    "scripts/quarantine",
+    "scripts/lib/quarantine.py",
+    "scripts/lib/train_ownership.py",
+    "scripts/lib/train_git.py",
+    "scripts/lib/gate_areas.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/config.py",
+    "config/registry/quarantine.json",
+    "contracts/events/*.json"
+  ]
+}

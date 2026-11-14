@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/work.assigned.v1.json",
+  "title": "work.assigned payload v1",
+  "description": "The maestro assigns a lane its next item; sha is the base it starts from.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/lane_id",
+    "/payload/item"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "lane_id",
+    "units",
+    "item"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "lane_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "units": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      }
+    },
+    "item": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

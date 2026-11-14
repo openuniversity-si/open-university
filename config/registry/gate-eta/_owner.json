@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-eta.json",
+  "x-owner": "gate-eta",
+  "x-schema-version": 1,
+  "description": "The gate's ETA and lifecycle events (GX-25, D-070): which quantile of the ledger it reads, how much history, the fallback, and the one-key switch for gate.started and the verdict-time gate.slow / slo evaluate.",
+  "type": "object",
+  "additionalProperties": false
+}

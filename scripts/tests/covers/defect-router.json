@@ -1,0 +1,20 @@
+{
+  "script": "scripts/tests/defect-router.test.sh",
+  "covers": [
+    "scripts/tests/defect-router.test.sh",
+    "scripts/tests/test_defect_router.py",
+    "scripts/lib/defect_router.py",
+    "scripts/lib/defects.py",
+    "scripts/lib/units.py",
+    "scripts/lib/gate_script_tests.py",
+    "scripts/lib/gate-script-tests.json",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/config.py",
+    "config/registry/defects.json",
+    "contracts/events/*.json",
+    "units/*/unit.json",
+    "scripts/lib/registry_readers.py",
+    "scripts/tests/forge_doubles.py",
+    "scripts/tests/test_defects.py"
+  ]
+}

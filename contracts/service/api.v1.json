@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/service/api.v1.json",
+  "title": "Control plane API v1",
+  "description": "The HTTP API of the control plane (services/control-plane, ADR-41), vendor-neutral: any implementation that answers these paths with these bodies is a control plane. Bodies are $defs; x-endpoints lists method, path, auth and bodies. Auth: none (read), runner (Bearer RUNNER_TOKEN), admin (Bearer ADMIN_TOKEN), github (X-Hub-Signature-256). A runner request refused for its token (401) names that runner in GET /status (refused, and a fail health check) until it authenticates again. Every request first expires the store: ended leases become died results, queued jobs past JOB_TTL_S leave, runners silent for RUNNER_FORGET_S are forgotten (D-291).",
+  "x-owner": "service",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "claim"
+  ],
+  "properties": {
+    "claim": {
+      "$ref": "#/$defs/claim"
+    }
+  },
+  "$defs": {
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runner",
+        "kinds"
+      ],
+      "properties": {
+        "runner": {
+          "type": "object",
+          "required": [
+            "name",
+            "kind"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The runner's key in the control plane: a non-empty string of at most 100 characters; anything else is refused with 400 (D-291)."
+            },
+            "kind": {
+              "enum": [
+                "box",
+                "vm",
+                "actions",
+                "session",
+                "other"
+              ]
+            }
+          }
+        },
+        "kinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "gate",
+              "train",
+              "sweep",
+              "deploy"
+            ]
+          }
+        }
+      }
+    },
+    "heartbeat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runner",
+        "job"
+      ],
+      "properties": {
+        "runner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The runner's name, the same string its claim sent (at most 100 characters; anything else is refused with 400). A heartbeat records the runner's beat and answers cancel; it never renews a lease (D-291)."
+        },
+        "job": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "admin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "reason"
+      ],
+      "properties": {
+        "action": {
+          "enum": [
+            "pause",
+            "resume",
+            "requeue",
+            "cancel",
+            "transport"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pr": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "job": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transport": {
+          "enum": [
+            "git",
+            "control",
+            null
+          ]
+        }
+      }
+    }
+  },
+  "x-endpoints": [
+    {
+      "method": "POST",
+      "path": "/webhook",
+      "auth": "github",
+      "request": "a GitHub webhook delivery",
+      "response": "202 {queued: [job ids]} | 200 {duplicate: true}"
+    },
+    {
+      "method": "GET",
+      "path": "/healthz",
+      "auth": "none",
+      "response": "200 ok (liveness)"
+    },
+    {
+      "method": "GET",
+      "path": "/readyz",
+      "auth": "none",
+      "response": "200 | 503 {missing: [secret names]}"
+    },
+    {
+      "method": "GET",
+      "path": "/status",
+      "auth": "none",
+      "response": "contracts/service/status.v1.json"
+    },
+    {
+      "method": "GET",
+      "path": "/metrics",
+      "auth": "none",
+      "response": "Prometheus text exposition 0.0.4"
+    },
+    {
+      "method": "GET",
+      "path": "/events",
+      "auth": "none",
+      "response": "{events: [the newest deliveries, dispatches and admin actions]}"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/runner/claim",
+      "auth": "runner",
+      "request": "#/$defs/claim",
+      "response": "200 contracts/service/job.v2.json (leased for the same BUDGET_S including reporting, never renewed; an ended lease is a died result, D-291) | 204 | 400 a runner.name that is not a non-empty string of at most 100 characters"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/runner/heartbeat",
+      "auth": "runner",
+      "request": "#/$defs/heartbeat",
+      "response": "200 {cancel: bool} | 400 a runner that is not a non-empty string of at most 100 characters"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/runner/result",
+      "auth": "runner",
+      "request": "contracts/service/result.v1.json",
+      "response": "200 {done: job id} | 404 unknown job | 409 the job is no longer running (its lease ended: died, or it was cancelled); the definite result stands"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin",
+      "auth": "admin",
+      "request": "#/$defs/admin",
+      "response": "200 {done: string}"
+    }
+  ]
+}

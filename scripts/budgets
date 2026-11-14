@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/budgets baseline|show|check (scripts/lib/budgets.py --help)
+# Performance budgets and their measured baseline (D-069 item 14).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/budgets.py" "$@"

@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/rest-fake-ready.test.sh",
+  "covers": [
+    "scripts/tests/rest-fake-ready.test.sh",
+    "scripts/tests/rest-fake-start.sh",
+    "scripts/tests/rest_fake.py",
+    "scripts/tests/rest_fake/*.py",
+    "config/registry/delivery.json"
+  ]
+}

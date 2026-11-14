@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/flow.json",
+  "x-owner": "flow",
+  "x-schema-version": 1,
+  "description": "The flow check (FLUXO-AMPLO, D-197, D-230): the report's own thresholds.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "flow.bash_trim_bytes": {
+      "type": "integer",
+      "default": 7000,
+      "x-unit": "bytes",
+      "description": "Bash output size (stdout plus stderr, in bytes) above which the lane's PostToolUse hook shows the model only the head, the tail and a hint to read by range with rg -n or sed -n; about 2k tokens.",
+      "x-readers": [
+        "scripts/lib/bash_trim.py"
+      ],
+      "x-source": "F80; 03/11 lane census: median 4 calls over 2k tokens (154k weighted), one whole-file cat 82k"
+    },
+    "flow.frictions_log": {
+      "type": "string",
+      "default": "~/.cache/the-tower/frictions.jsonl",
+      "x-unit": "path",
+      "description": "The friction log (lane rule 9): one JSON line {ts, lane, what, seconds} per lost minute, written by each lane. scripts/fronts status sums its seconds per lane (the worktree dir) next to the lane's tokens and lock wait (VAZÃO F69).",
+      "x-readers": [
+        "scripts/lib/fronts.py"
+      ],
+      "x-source": "VAZÃO F69; lane rule 9 (03/11)"
+    },
+    "flow.lanes_ledger": {
+      "type": "string",
+      "default": "~/.cache/the-tower/lanes.jsonl",
+      "x-unit": "path",
+      "description": "The quota and time ledger (VAZÃO F59): one JSON line per session transcript (each lane and its coordinator), with the unit and the PR read from the brief and the run, the tokens by kind and weighted, the start, the end and the tool calls. Written by scripts/usage --lanes DIR --write from the transcripts the harness keeps; never typed by hand. Outside every checkout, so every worktree of the box shares it.",
+      "x-readers": [
+        "scripts/lib/usage.py",
+        "scripts/lib/flow_metrics.py",
+        "scripts/lib/fronts.py"
+      ],
+      "x-source": "VAZÃO F59 (docs/programs/vazao/fila.md)"
+    },
+    "flow.red_after_s": {
+      "type": "integer",
+      "default": 900,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "flow-check's train part is red when a woken PR waits, or the silence after a merge lasts, longer than this (D-209).",
+      "x-readers": [
+        "scripts/lib/flow_check.py"
+      ],
+      "x-source": "D-209; lane 1 incident (01/11)"
+    },
+    "flow.token_weight_cache_read": {
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0,
+      "x-unit": "ratio",
+      "description": "The weight of a token read from the prompt cache in the quota ledger's weighted tokens (VAZÃO F59): its price over the price of an uncached input token, so one weighted token costs what one input token costs.",
+      "x-readers": [
+        "scripts/lib/usage.py",
+        "scripts/lib/fronts.py"
+      ],
+      "x-source": "VAZÃO F59; the Claude API price ratios (cache write 1.25x, cache read 0.1x, output 5x input)"
+    },
+    "flow.token_weight_cache_write": {
+      "type": "number",
+      "default": 1.25,
+      "minimum": 0,
+      "x-unit": "ratio",
+      "description": "The weight of a token written to the prompt cache in the quota ledger's weighted tokens (VAZÃO F59): its price over the price of an uncached input token, so one weighted token costs what one input token costs.",
+      "x-readers": [
+        "scripts/lib/usage.py",
+        "scripts/lib/fronts.py"
+      ],
+      "x-source": "VAZÃO F59; the Claude API price ratios (cache write 1.25x, cache read 0.1x, output 5x input)"
+    },
+    "flow.token_weight_input": {
+      "type": "number",
+      "default": 1,
+      "minimum": 0,
+      "x-unit": "ratio",
+      "description": "The weight of an uncached input token in the quota ledger's weighted tokens (VAZÃO F59): its price over the price of an uncached input token, so one weighted token costs what one input token costs.",
+      "x-readers": [
+        "scripts/lib/usage.py",
+        "scripts/lib/fronts.py"
+      ],
+      "x-source": "VAZÃO F59; the Claude API price ratios (cache write 1.25x, cache read 0.1x, output 5x input)"
+    },
+    "flow.token_weight_output": {
+      "type": "number",
+      "default": 5,
+      "minimum": 0,
+      "x-unit": "ratio",
+      "description": "The weight of an output token in the quota ledger's weighted tokens (VAZÃO F59): its price over the price of an uncached input token, so one weighted token costs what one input token costs.",
+      "x-readers": [
+        "scripts/lib/usage.py",
+        "scripts/lib/fronts.py"
+      ],
+      "x-source": "VAZÃO F59; the Claude API price ratios (cache write 1.25x, cache read 0.1x, output 5x input)"
+    },
+    "flow.transcripts_glob": {
+      "type": "string",
+      "default": "~/.claude/projects/*/*/subagents",
+      "x-unit": "path",
+      "description": "Where the harness keeps the lane transcripts (VAZÃO F69): the newest directory this pattern matches is the current coordinator's subagents directory, read by scripts/fronts status, lane collect and scripts/usage --lanes with no DIR (the ledger refresh deliver runs after a merge) to refresh the quota ledger (flow.lanes_ledger) when no directory is named.",
+      "x-readers": [
+        "scripts/lib/fronts.py",
+        "scripts/lib/usage.py"
+      ],
+      "x-source": "VAZÃO F69 (docs/programs/vazao/fila.md)"
+    }
+  }
+}

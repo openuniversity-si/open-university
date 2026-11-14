@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/**"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "path",
+  "description": "Globs of the files that are production code or build data; each must belong to exactly one unit (minus units.test_globs).",
+  "x-readers": [
+    "scripts/lib/unit_map.py",
+    "scripts/lib/unit_check.py"
+  ],
+  "x-source": "D-067 (6); plan v3 §4.1 (747 production files)"
+}

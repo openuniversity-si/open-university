@@ -1,0 +1,9 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "Whether applied lessons with no area (they apply to every unit) are returned after the area matches.",
+  "x-readers": [
+    "scripts/lib/lessons_brief.py"
+  ]
+}

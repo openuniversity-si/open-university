@@ -1,0 +1,25 @@
+{
+  "script": "scripts/tests/generate-tree.test.sh",
+  "covers": [
+    "scripts/tests/generate-tree.test.sh",
+    "scripts/tests/test_gentree_*.py",
+    "scripts/generate",
+    "scripts/lib/generate.py",
+    "scripts/lib/generate_*.py",
+    "scripts/lib/generated/**",
+    "scripts/lib/config.py",
+    "scripts/lib/json_schema.py",
+    "config/registry/**",
+    "contracts/**",
+    "docs/domain/DECISIONS.md",
+    "CODEOWNERS",
+    "scripts/lib/units.py",
+    "units/**",
+    "scripts/lib/generate_registry.py",
+    "config/registry/*/*.json",
+    "config/registry/*.json",
+    "docs/programs/fluxo-amplo/plan.md",
+    "docs/process/briefs/fluxo-amplo/*.md",
+    "config/registry/generate.json"
+  ]
+}

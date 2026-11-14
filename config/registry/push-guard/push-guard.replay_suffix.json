@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "-r{n}",
+  "pattern": "\\{n\\}",
+  "x-unit": "text",
+  "description": "Suffix of a replacement branch: <old branch><suffix>, {n} the first free replay number (scripts/replay-branch).",
+  "x-readers": [
+    "scripts/lib/replay_branch.py"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "type": "string",
+  "default": "~/.cache/the-tower/gate-lock.jsonl",
+  "x-unit": "path",
+  "description": "The box's lock log (VAZÃO F38): one JSON line per hold, with pr, waited_s (seconds it waited for the lock), held_s (seconds it held it) and at (when it released it). A delivery's line (scripts/deliver) has the PR number and no kind, plus cpu_s, the CPU-seconds (user + system) the hold's children used (the gate, the base merge and the merge), and vcpus, the CPUs the box gives the process (F71), so the log shows CPU-s per PR against the box's ceiling and the idle share of the hold. Two kind values mark the lines that are not deliveries, both with pr null and without cpu_s or vcpus: kind suite is a whole suite (scripts/test-suite, F58) that held delivery.gate_lock_path, a hold of the box like a delivery; kind suite_slot is a --changed suite that held one of its slots beside it (F65, gate.changed_suite_slots), not the box's lock, so it is reported apart and stays out of the box's busy share and waits. scripts/flow-metrics --constraint reads it to say how busy the box was, so the current constraint is a measure published every cycle, not a guess. Outside every checkout, so every worktree of the box writes one log.",
+  "x-readers": [
+    "scripts/lib/deliver.py",
+    "scripts/lib/flow_metrics.py",
+    "scripts/lib/fronts.py",
+    "scripts/lib/lane_collect.py",
+    "scripts/lib/medir.py",
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "VAZÃO F38 (docs/programs/vazao/sistema.md)"
+}

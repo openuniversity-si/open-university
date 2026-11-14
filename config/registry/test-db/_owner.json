@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/test-db.json",
+  "x-owner": "test-db",
+  "x-schema-version": 1,
+  "description": "The shared throwaway test-database helper (TI1, D-064 (b), D-069 items 3 and 5): naming, maintenance database and psql limit of every database a test creates and destroys.",
+  "type": "object",
+  "additionalProperties": false
+}

@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "pr.merged",
+  "x-unit": "text",
+  "description": "The event type that means the PR merged; the status view folds it.",
+  "x-readers": [
+    "scripts/lib/plan_triage.py",
+    "scripts/lib/program.py",
+    "scripts/lib/program_gate.py"
+  ]
+}

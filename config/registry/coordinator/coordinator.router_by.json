@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "coordinator",
+  "x-unit": "text",
+  "description": "The actor recorded when the coordinator asks the defect router for fix units.",
+  "x-readers": [
+    "scripts/lib/coordinator.py"
+  ]
+}

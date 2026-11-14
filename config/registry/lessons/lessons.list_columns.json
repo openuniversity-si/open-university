@@ -1,0 +1,20 @@
+{
+  "type": "array",
+  "default": [
+    "id",
+    "status",
+    "class",
+    "kind",
+    "owner",
+    "title"
+  ],
+  "x-unit": "enum",
+  "description": "Columns of scripts/lessons list, in order.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string"
+  }
+}

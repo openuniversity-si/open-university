@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/local-checks.json",
+  "x-owner": "local-checks",
+  "x-schema-version": 1,
+  "description": "The registry-driven fast local check (LR1, D-069): checks as data with owner and cost budget, run before a push by scripts/commit-check --local.",
+  "type": "object",
+  "additionalProperties": false
+}

@@ -1,0 +1,14 @@
+{
+  "script": "scripts/tests/event-contracts.test.sh",
+  "covers": [
+    "scripts/tests/event-contracts.test.sh",
+    "scripts/tests/test_event_contracts.py",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/config.py",
+    "config/registry/forge-events.json",
+    "contracts/events/*.json",
+    "docs/process/EVENTS.md",
+    "AGENTS.md"
+  ]
+}

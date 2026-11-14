@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 0.8,
+  "minimum": 0,
+  "maximum": 1,
+  "x-unit": "ratio",
+  "description": "Similarity (0-1) from which scripts/premises propose refuses a statement as a duplicate of an existing premise.",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ]
+}

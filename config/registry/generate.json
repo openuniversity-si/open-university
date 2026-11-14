@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/generate.json",
+  "x-owner": "generate",
+  "x-schema-version": 1,
+  "description": "The one generator of derived files (D-069 items 1 and 2, G1): its targets and how scripts/generate reports them.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "generate.targets": {
+      "type": "array",
+      "default": [
+        {
+          "name": "registry",
+          "description": "Every split registry owner's aggregate, config/registry/<owner>.json from config/registry/<owner>/ (_owner.json and one <key>.json per parameter; D-095, D-099). It shares config/registry/ with the owners that stay whole (generate and config, which the generator itself reads), so it owns none of the directory's other files. A new owner needs a folder, not a target.",
+          "sources": [
+            "config/registry/*/*.json"
+          ],
+          "output": "config/registry",
+          "committed": true,
+          "enabled": true,
+          "owns_output": false
+        },
+        {
+          "name": "python-types",
+          "description": "Python TypedDicts of every contract and every registry file; imported by the engine as generated.<module>.",
+          "sources": [
+            "contracts/**/*.json",
+            "config/registry/*.json"
+          ],
+          "output": "scripts/lib/generated",
+          "committed": true,
+          "enabled": true
+        },
+        {
+          "name": "docs",
+          "description": "The configuration registry and event catalog reference, rendered on demand (printed, or written under --out); never committed.",
+          "sources": [
+            "config/registry/*.json",
+            "contracts/events/*.json"
+          ],
+          "output": "reference",
+          "committed": false,
+          "enabled": true
+        },
+        {
+          "name": "status",
+          "description": "The unit status report (owner, contract, battery, intents per unit), derived from the manifests on demand; never committed. The hand-written roadmap step log STATUS.md stays as history (U1, V4).",
+          "sources": [
+            "units/*/unit.json"
+          ],
+          "output": "docs/process/roadmap",
+          "committed": false,
+          "enabled": true,
+          "requires": "units/*/unit.json"
+        },
+        {
+          "name": "census",
+          "description": "The per-area view of the literal census (D-063, D-064 a): scripts/lib/literal-catalogs/<area>.json and scripts/lib/absolute-literals-baseline/<area>.json, joined from each unit's record units/<id>/census.jsonl (scripts/lib/census.py) on demand; never committed, so no pull request carries a file two units write (CENSO-NO-MANIFESTO).",
+          "sources": [
+            "units/*/census.jsonl",
+            "units/*/unit.json"
+          ],
+          "output": "scripts/lib",
+          "committed": false,
+          "enabled": true
+        },
+        {
+          "name": "lane-briefs",
+          "description": "The start brief of every unit of the fluxo-amplo program (D-236, lane 12): docs/process/briefs/fluxo-amplo/<id>.md, one per unit of the plan's program.v1 block (title, owner, wave, dependencies, done criteria as a checklist). Committed, so a missing or stale brief fails --check; a lane starts from its brief.",
+          "sources": [
+            "docs/programs/fluxo-amplo/plan.md"
+          ],
+          "output": "docs/process/briefs/fluxo-amplo",
+          "committed": true,
+          "enabled": true
+        },
+        {
+          "name": "lane-digest",
+          "description": "The lane rules digest (VAZÃO F78): docs/process/lane-digest.md, the ```digest block of the Rules digest section of docs/process/lane.md, at most 1.5 KB. scripts/lane brief carries it in place of the delivery contract; committed, so a stale digest fails --check.",
+          "sources": [
+            "docs/process/lane.md"
+          ],
+          "output": "docs/process",
+          "committed": true,
+          "enabled": true,
+          "owns_output": false
+        }
+      ],
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "description",
+          "sources",
+          "output",
+          "committed",
+          "enabled"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "output": {
+            "type": "string",
+            "minLength": 1
+          },
+          "committed": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "requires": {
+            "type": "string",
+            "minLength": 1
+          },
+          "slot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owns_output": {
+            "type": "boolean"
+          }
+        }
+      },
+      "x-unit": "targets",
+      "description": "Every target of scripts/generate, one entry per unique name; the renderer is scripts/lib/generate_<name>.py. sources are globs from the repository root; output is the directory (or file) the target owns; committed targets are checked by the generated drift stage; a target that is not enabled is skipped and listed, and requires names a glob that must match before the target can be enabled.",
+      "x-readers": [
+        "scripts/lib/generate.py",
+        "scripts/lib/merge_regenerate.py",
+        "scripts/lib/train_shard.py"
+      ],
+      "x-source": "D-069 items 1 and 2; plan v3.1 delta §2 G1"
+    },
+    "generate.lane_digest_max_bytes": {
+      "type": "integer",
+      "default": 1536,
+      "minimum": 1,
+      "x-unit": "bytes",
+      "description": "The most bytes docs/process/lane-digest.md may hold (VAZÃO F78: 1.5 KB); scripts/generate lane-digest refuses a longer Rules digest, and the lane brief stays under twice it.",
+      "x-readers": ["scripts/lib/generate_lane_digest.py", "scripts/tests/test_generate_lane_digest.py", "scripts/tests/test_lane.py"]
+    },
+    "generate.merge_driver_name": {
+      "type": "string",
+      "default": "regenerate",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "x-unit": "name",
+      "description": "The git merge driver that settles a conflict in a committed generated file by regenerating it from the merged sources (scripts/merge-regenerate). .gitattributes names it for each such file (`<path> merge=<name>`); scripts/cloud/setup.sh registers it in the checkout's git config.",
+      "x-readers": [
+        "scripts/lib/merge_regenerate.py"
+      ],
+      "x-source": "CENSO-NO-MANIFESTO 3bis; D-069 items 1 and 2"
+    },
+    "generate.merge_inner_env": {
+      "type": "string",
+      "default": "OU_MERGE_REGENERATE_INNER",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "x-unit": "name",
+      "description": "The variable the merge driver sets on the nested `git merge-tree` it runs to rebuild the merged sources, so the nested call of the driver does a plain 3-way merge instead of recursing.",
+      "x-readers": [
+        "scripts/lib/merge_regenerate.py"
+      ],
+      "x-source": "CENSO-NO-MANIFESTO 3bis"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "type": "array",
+  "default": [],
+  "items": {
+    "type": "string",
+    "pattern": "^[^:]+:[A-Za-z_$][A-Za-z0-9_$]*$"
+  },
+  "uniqueItems": true,
+  "x-unit": "sites",
+  "description": "path:identifier of each exported constant of a shared D-063 catalog that has migrated: its initializer must read the text catalog, never spell a string literal. A name that no longer exists in the file is refused, so the list cannot rot.",
+  "x-readers": [
+    "scripts/lib/text_check.py"
+  ],
+  "x-source": "plan v3.1 delta §2 L1; P-05"
+}

@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "GX-23 (B-15, GA-P10, D-070): the lint, typecheck, unit tests and integration tests caches key on the inputs declared in scripts/lib/gate-stage-inputs.json (plus its traced read set) instead of the whole tree. Off is the rollback: lint and typecheck key on every tracked file and the stages on their gate-stages.json inputs, byte for byte as before GX-23.",
+  "x-readers": [
+    "scripts/lib/gate_result_cache.py"
+  ],
+  "x-flag": true,
+  "x-source": "D-070"
+}

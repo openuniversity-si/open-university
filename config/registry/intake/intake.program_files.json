@@ -1,0 +1,63 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "file": "avaliacao.md",
+      "sections": [
+        "Pedido",
+        "Sintoma",
+        "Sistema que falhou",
+        "Sistema ideal",
+        "Distância"
+      ]
+    },
+    {
+      "file": "pesquisa.md",
+      "sections": [
+        "Quem faz melhor",
+        "Encaixe em nós"
+      ]
+    },
+    {
+      "file": "diagnostico.md",
+      "sections": [
+        "Métrica principal",
+        "Métricas de guarda",
+        "Linha de base"
+      ]
+    },
+    {
+      "file": "solucao.md",
+      "sections": [
+        "Fases",
+        "Critério de parada"
+      ]
+    }
+  ],
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "file",
+      "sections"
+    ],
+    "properties": {
+      "file": {
+        "type": "string",
+        "minLength": 1
+      },
+      "sections": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "x-unit": "text",
+  "description": "A v8 program's files in stage order (D-115), each with the `## ` sections it carries non-empty; a later file needs every earlier one.",
+  "x-readers": [
+    "scripts/lib/program.py"
+  ]
+}

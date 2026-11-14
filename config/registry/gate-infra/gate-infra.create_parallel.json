@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 4,
+  "minimum": 1,
+  "x-unit": "calls",
+  "description": "Jobs of a head created through the port at once: one POST each, which were made one after the other (18 round trips before the first check could start on a cold Lambda). Kept low enough that bursts stay under the port's throttle (infra/aws/stacks/40-port.json: 10 requests/s, burst 20; 8 at once drew 429 in backfill).",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "AWS2"
+}

@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "TEMPLATE.md",
+  "x-unit": "path",
+  "description": "The postmortem template inside process.postmortem_dir; it is not itself checked as an incident.",
+  "x-readers": [
+    "scripts/lib/postmortem_check.py"
+  ]
+}

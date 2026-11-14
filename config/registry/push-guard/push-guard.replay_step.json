@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "push-guard:replay",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "engine.step.measured step name of one scripts/replay-branch run.",
+  "x-readers": [
+    "scripts/lib/replay_branch.py"
+  ]
+}

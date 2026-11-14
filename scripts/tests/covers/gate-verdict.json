@@ -1,0 +1,19 @@
+{
+  "script": "scripts/tests/gate-verdict.test.sh",
+  "covers": [
+    "scripts/tests/gate-verdict.test.sh",
+    "scripts/tests/test_gate_verdict.py",
+    "scripts/gate-verdict",
+    "scripts/lib/gate_verdict.py",
+    "scripts/lib/gate_pin.py",
+    "scripts/lib/gate_tier.py",
+    "scripts/lib/gate_classify.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/adapters/storage.py",
+    "scripts/lib/config.py",
+    "config/registry/gate.json",
+    "config/registry/gate-tier.json",
+    "docs/padrao/v5/gate-verdict.md",
+    "docs/padrao/v5/padrao.json"
+  ]
+}

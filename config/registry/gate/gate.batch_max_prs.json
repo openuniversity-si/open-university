@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "PRs one batch gate run may hold; a larger batch is refused before anything runs.",
+  "x-readers": [
+    "scripts/lib/gate_batch.py",
+    "scripts/gate-batch"
+  ]
+}

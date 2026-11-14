@@ -1,0 +1,24 @@
+{
+  "id": "engine-slo",
+  "purpose": "SLO values folded from the event log, slo.breached and the derived dashboard (D-069 item 6, O1).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/dashboard",
+    "scripts/lib/slo.py",
+    "scripts/slo",
+    "scripts/tests/slo.test.sh",
+    "scripts/tests/test_slo.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1"
+  },
+  "battery": {
+    "command": "scripts/unit-battery engine-slo"
+  },
+  "decisions": [
+    "D-067",
+    "D-069"
+  ]
+}

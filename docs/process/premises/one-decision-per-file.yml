@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-11"
+slug: "one-decision-per-file"
+statement: "One decision per file (docs/domain/decisions/D-NNN.md) with a generated index; ids (D, P, CAP, migration) allocated at merge by the train."
+kind: "process"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "report v2 §10"
+  quote: null
+  at: null
+status: "inferred"
+radius: "medium"
+blast:
+  reasons: ["plan:wave-4"]
+  if_wrong: "Wave 4: DECISIONS.md is touched by 34% of PRs and read whole by every agent (61 KB)."
+validate:
+  kind: "veto"
+  how: "Veto V4 of plan v3 §9.3."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

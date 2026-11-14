@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/commit-rate [--help]
+# Counted integrated commits of the last 60 minutes, as a rate per second, minute, hour and day (D-201).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/commit_rate.py" "$@"

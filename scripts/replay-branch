@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/replay-branch <pr> [--dir CHECKOUT]
+# The remedy of a D-022 batched push (X1): replay the PR's own commits one push per commit on <branch>-r<N>,
+# open the replacement PR and close the old one. Idempotent: a rerun resumes. Never a rebase or a force-push.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/replay_branch.py" "$@"

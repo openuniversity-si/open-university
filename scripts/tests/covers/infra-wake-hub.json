@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/infra-wake-hub.test.sh",
+  "covers": [
+    "scripts/tests/infra-wake-hub.test.sh",
+    "scripts/tests/test_infra_wake_hub.py",
+    "scripts/tests/infra_db/psql.py",
+    "scripts/lib/test_db.py",
+    "infra/service/tower_infra/wake.py",
+    "infra/service/tower_infra/__main__.py",
+    "infra/service/tower_infra/http_port.py"
+  ]
+}

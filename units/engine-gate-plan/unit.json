@@ -1,0 +1,33 @@
+{
+  "id": "engine-gate-plan",
+  "purpose": "The gate plan: areas, policy, suites and script-test selection.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/gate-carry.json",
+    "config/registry/gate-inputs.json",
+    "scripts/lib/gate-areas.json",
+    "scripts/lib/gate-stage-inputs.json",
+    "scripts/lib/gate-stages.json",
+    "scripts/lib/gate_areas.py",
+    "scripts/lib/gate_carry.py",
+    "scripts/lib/gate_graph.py",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/gate_select.py",
+    "scripts/tests/gate-areas.test.sh",
+    "scripts/tests/gate-carry.test.sh",
+    "scripts/tests/gate-graph.test.sh",
+    "scripts/tests/gate-select.test.sh",
+    "scripts/tests/test_gate_areas.py",
+    "scripts/tests/test_gate_carry.py",
+    "scripts/tests/test_gate_graph.py",
+    "scripts/tests/test_gate_select.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-delivery": "^1",
+    "engine-events": "^1",
+    "engine-gate-tests": "^1",
+    "engine-units": "^1"
+  }
+}

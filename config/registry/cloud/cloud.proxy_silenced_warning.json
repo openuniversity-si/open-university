@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "UNDICI-EHPA",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Node warning code silenced when NODE_USE_ENV_PROXY is enabled for the egress proxy.",
+  "x-readers": [
+    "scripts/cloud/env.sh"
+  ]
+}

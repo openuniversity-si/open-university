@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/gate-isolation.test.sh",
+  "covers": [
+    "scripts/tests/gate-isolation.test.sh",
+    "scripts/lib/gate-isolation.sh",
+    "scripts/cloud/env.sh",
+    "scripts/gate-local"
+  ]
+}

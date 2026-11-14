@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    "en"
+  ],
+  "items": {
+    "type": "string",
+    "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
+  },
+  "minItems": 1,
+  "uniqueItems": true,
+  "x-unit": "locales",
+  "description": "Locales a text entry (x-text) may be keyed by; English only for now (D-069 item 15). Adding a locale is a reviewed registry change.",
+  "x-readers": [
+    "scripts/lib/scaffold.py",
+    "scripts/lib/text_check.py"
+  ],
+  "x-source": "D-069 item 15"
+}

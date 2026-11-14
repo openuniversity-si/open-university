@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "session.ended",
+  "x-unit": "text",
+  "description": "The event type that means the unit session ended; the status view folds it.",
+  "x-readers": [
+    "scripts/lib/program.py"
+  ]
+}

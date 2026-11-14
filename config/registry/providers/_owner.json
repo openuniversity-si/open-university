@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/providers.json",
+  "x-owner": "providers",
+  "x-schema-version": 1,
+  "description": "The engine's vendor ports (D-069 item 7, plan v3.1 R1): which adapter serves each port, and the model ladder.",
+  "type": "object",
+  "additionalProperties": false
+}

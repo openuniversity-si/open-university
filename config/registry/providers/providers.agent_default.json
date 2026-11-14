@@ -1,0 +1,13 @@
+{
+  "type": "string",
+  "default": "claude",
+  "enum": [
+    "claude"
+  ],
+  "x-unit": "adapter",
+  "description": "Agent provider adapter a caller gets when it names none; codex and cursor are documented slots without an adapter yet.",
+  "x-readers": [
+    "scripts/lib/adapters/agent.py"
+  ],
+  "x-source": "plan v3.1 delta §2 R1"
+}

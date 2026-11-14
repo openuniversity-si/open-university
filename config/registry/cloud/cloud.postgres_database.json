@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "tower_test_f02",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Database the toolchain PostgreSQL guarantees at startup (each checkout then gets its own tower_test_<hash> database).",
+  "x-readers": [
+    "scripts/cloud/postgres.py",
+    "scripts/lib/test_db.py"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/infra-psql.test.sh",
+  "covers": [
+    "scripts/tests/infra-psql.test.sh",
+    "scripts/tests/test_infra_psql.py",
+    "scripts/tests/infra_db/psql.py",
+    "scripts/lib/test_db.py",
+    "config/registry/test-db.json",
+    "infra/db/migrations/*.sql",
+    "infra/service/tower_infra/migrations.py"
+  ]
+}

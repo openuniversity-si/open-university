@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/premise.blast.v1.json",
+  "title": "premise.blast v1 payload",
+  "description": "The computed blast of a premise: what it reaches and whether it blocks (D-066).",
+  "x-owner": "premises",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "radius",
+    "reasons",
+    "dependents",
+    "blocking"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^P-[0-9]{2,}$",
+      "description": "Premise id."
+    },
+    "radius": {
+      "type": "string"
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]+:\\S"
+      },
+      "uniqueItems": true,
+      "description": "Blast reasons as <kind>:<target>, e.g. decision:D-065."
+    },
+    "dependents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plans",
+        "prs"
+      ],
+      "properties": {
+        "plans": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "description": "Plan files whose Premises: line cites the premise."
+        },
+        "prs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "uniqueItems": true,
+          "description": "PR numbers whose Premises: line cites the premise."
+        }
+      }
+    },
+    "blocking": {
+      "type": "boolean",
+      "description": "True when the radius blocks and the premise is not settled."
+    }
+  }
+}

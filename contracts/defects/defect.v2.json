@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/defects/defect.v2.json",
+  "title": "Known base defect v2",
+  "description": "One known defect of the integration base: a test that fails on the base. Changed only through scripts/defects; the audit trail is the append-only, hash-chained <slug>.audit.jsonl next to it (contracts/defects/audit.v1.json) (D-069 item 15). v2 stores no unit, owner or area: scripts/lib/defects.py derives them from the unit manifests when a record is loaded, so a merge that moves a unit leaves no record stale.",
+  "x-owner": "defects",
+  "x-schema-version": 2,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "slug",
+    "test",
+    "stage",
+    "signature",
+    "summary",
+    "status",
+    "evidence",
+    "fix"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^KD-[0-9a-f]{6,}$",
+      "description": "defects.id_prefix plus the dedup hash of (test, signature)."
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "The file name, derived from the test id and the id."
+    },
+    "test": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The test id as the gate verdict names it (failing_tests[].id)."
+    },
+    "stage": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The gate stage the test runs in."
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The normalized signature (scripts/lib/gate_failures.normalize); with the test, the dedup key."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One line a person can read; never used to match."
+    },
+    "status": {
+      "type": "string",
+      "description": "One of config defects.statuses."
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "base_sha",
+          "run",
+          "result",
+          "signature",
+          "at"
+        ],
+        "properties": {
+          "base_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "run": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The gate run (reports directory name or PR/sha) that saw the failure or the pass."
+          },
+          "result": {
+            "enum": [
+              "fail",
+              "pass"
+            ]
+          },
+          "signature": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "fix": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "item",
+        "work_event",
+        "pr",
+        "merge_sha"
+      ],
+      "properties": {
+        "lane": {
+          "type": "string",
+          "minLength": 1
+        },
+        "item": {
+          "type": "string",
+          "minLength": 1
+        },
+        "work_event": {
+          "type": "string",
+          "minLength": 1,
+          "description": "event_id of the work.assigned that opened the fix unit."
+        },
+        "pr": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "merge_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    }
+  }
+}

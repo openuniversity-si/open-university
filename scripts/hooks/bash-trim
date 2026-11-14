@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Claude Code PostToolUse hook for Bash (.claude/settings.json, F80): above flow.bash_trim_bytes (about 2k tokens) it
+# replaces the output the model sees with its head, its tail and a hint to read by range (rg -n / sed -n). Never fails.
+set -uo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/../lib/bash_trim.py"

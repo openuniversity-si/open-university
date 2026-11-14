@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/covers-cost [--help]
+# A new script (scaffold).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/covers_cost.py" "$@"

@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/literals.json",
+  "x-owner": "literals",
+  "x-schema-version": 1,
+  "title": "Unregistered engine literals (LT1)",
+  "description": "The rules of the census of unregistered literals in the engine paths (scripts/lib/literal_census.py, a module of scripts/structure-check): what counts as a value, what is not one, and which base tree bounds each count (D-068 (6), D-069 item 3).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "literals.allowed_numbers": {
+      "type": "array",
+      "default": [
+        0,
+        1,
+        -1
+      ],
+      "items": {
+        "type": "number"
+      },
+      "uniqueItems": true,
+      "x-unit": "values",
+      "description": "The numbers an engine file may spell outside the registry (the identity, the unit and the sign); every other number in a scanned file is an unregistered literal (LT1, D-069 item 3).",
+      "x-readers": [
+        "scripts/lib/literal_census.py"
+      ],
+      "x-source": "LT1; D-068 (6), D-069 item 3"
+    },
+    "literals.allowed_values": {
+      "type": "array",
+      "default": [
+        "/dev/null",
+        "/dev/stdin",
+        "/dev/stdout",
+        "/dev/stderr",
+        "/usr/bin/env",
+        "/proc/",
+        "/proc/self/fd"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "values",
+      "description": "The strings a pattern of literals.patterns finds that are not settings: the operating system's standard streams and its process file system (/proc, GATE-SPEED F4) and the portable interpreter lookup of a #! line. Every other match is an unregistered literal (LT1).",
+      "x-readers": [
+        "scripts/lib/literal_census.py"
+      ],
+      "x-source": "LT1; D-068 (6)"
+    },
+    "literals.base_ref": {
+      "type": "string",
+      "default": "origin/mod/roadmap-integration",
+      "minLength": 1,
+      "x-unit": "ref",
+      "description": "The ref whose merge-base with HEAD is the base tree when the census is given no --base: the allowed count of each unit, kind and value is the census of that tree, computed at check time and never stored (TX22, T2). A checkout without the ref fails closed.",
+      "x-readers": [
+        "scripts/lib/literal_census.py"
+      ],
+      "x-source": "LT1; TX22; D-070"
+    },
+    "literals.baseline": {
+      "type": "string",
+      "default": "scripts/lib/absolute-literals-baseline/engine",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Deprecated (TX22): the list is no longer read; the allowed counts are the census of the base tree (literals.base_ref). Removed in a later revision (D-068 (3), expand then contract). Was: Directory of the engine's shrink-only list of unregistered literals (D-063 style, D-064 a): one <unit>.json per unit with the literals each file still spells, per kind and value. The census must equal it, and against the base no unit allows a value more times.",
+      "x-readers": [
+        "docs/units/TX22/plan.md"
+      ],
+      "x-source": "LT1; D-063, D-064 (a)",
+      "deprecated": true
+    },
+    "literals.patterns": {
+      "type": "array",
+      "default": [
+        {
+          "kind": "url",
+          "pattern": "(?<![\\w\\\\])[a-z][a-z0-9+.-]*://[^\\s'\"`<>)\\\\]+"
+        },
+        {
+          "kind": "port",
+          "pattern": "\\b(?:localhost|\\d{1,3}(?:\\.\\d{1,3}){3}|(?:[a-z0-9-]+\\.)+[a-z]{2,}):\\d{2,5}\\b"
+        },
+        {
+          "kind": "host",
+          "pattern": "(?<![\\w.@/-])(?:localhost|\\d{1,3}(?:\\.\\d{1,3}){3}|(?:[a-z0-9-]+\\.)+(?:com|net|org|io|dev|tech|cloud|ai|app|co))(?![\\w.-])"
+        },
+        {
+          "kind": "duration",
+          "pattern": "(?<![\\w.$\\[-])\\d+(?:\\.\\d+)?(?:ms|s|m|h|d|min)\\b"
+        },
+        {
+          "kind": "absolute_path",
+          "pattern": "(?<![\\w.~$})\\]/-])(?:/(?:tmp|home|root|usr|etc|var|opt|dev|proc|bin|run|srv|mnt|workspace|Users)(?:/[\\w.@+-]*)*|~/[\\w.@+/-]*)"
+        }
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "pattern"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "pattern": "^[a-z_]+$"
+          },
+          "pattern": {
+            "type": "string",
+            "format": "regex"
+          }
+        }
+      },
+      "minItems": 1,
+      "x-unit": "regex",
+      "description": "Each kind of unregistered string literal, in order, and the regular expression that finds it inside a Python string or a shell or JavaScript line; a span one kind matched is not matched by the next. A host lists real top-level domains only, so the reserved test names of RFC 2606 (example.invalid, *.test) are not hosts. Numbers are judged by literals.allowed_numbers.",
+      "x-readers": [
+        "scripts/lib/literal_census.py"
+      ],
+      "x-source": "LT1; D-068 (6), D-069 item 3"
+    },
+    "literals.unowned_area": {
+      "type": "string",
+      "default": "unowned",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "x-unit": "name",
+      "description": "The list area of a scanned file that no unit manifest owns (a fixture, or a checkout without manifests).",
+      "x-readers": [
+        "scripts/lib/literal_census.py"
+      ],
+      "x-source": "LT1; D-067"
+    }
+  }
+}

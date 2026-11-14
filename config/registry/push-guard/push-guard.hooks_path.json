@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": ".githooks",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Versioned hook directory, relative to the checkout, that scripts/cloud/env.sh sets as core.hooksPath when the checkout has none.",
+  "x-readers": [
+    "scripts/lib/push_guard.py",
+    "scripts/cloud/env.sh"
+  ]
+}

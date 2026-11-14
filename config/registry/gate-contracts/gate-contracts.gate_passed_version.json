@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 3,
+  "minimum": 1,
+  "x-unit": "version",
+  "description": "Version of gate.passed emitted when the caller names none (the registry default). A newly locked version is not emitted until its producer moves and this entry changes (GX-09 sets 4); readers accept every locked version.",
+  "x-readers": [
+    "scripts/lib/forge_events.py",
+    "docs/process/EVENTS.md"
+  ],
+  "x-source": "D-070"
+}

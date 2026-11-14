@@ -1,0 +1,20 @@
+{
+  "id": "engine-intake",
+  "purpose": "The intake and research check: the intake.md and research.md a unit or program folder created after D-077 carries before its audit (INTAKE-RESEARCH).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/intake.json",
+    "docs/process/templates/audit.md",
+    "docs/process/templates/intake.md",
+    "docs/process/templates/plan.md",
+    "docs/process/templates/research.md",
+    "scripts/intake-templates",
+    "scripts/lib/intake_templates.py",
+    "scripts/tests/intake-templates.test.sh",
+    "scripts/tests/test_intake_templates.py"
+  ],
+  "requires": {
+    "engine-config": "^1"
+  }
+}

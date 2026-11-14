@@ -1,0 +1,28 @@
+{
+  "script": "scripts/tests/gate-forge-budget.test.sh",
+  "covers": [
+    "scripts/tests/gate-forge-budget.test.sh",
+    "scripts/tests/test_gate_forge_budget.py",
+    "scripts/tests/fixtures/gate-forge-budget.json",
+    "scripts/tests/rest_fake.py",
+    "scripts/tests/rest_fake/*.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/gate_status.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/config.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/branch_age.py",
+    "contracts/events/*.json",
+    "config/registry/forge-events.json",
+    "config/registry/gate.json",
+    "config/registry/process.json",
+    "scripts/tests/test_gate_status.py",
+    "scripts/lib/forge_origin.py",
+    "scripts/lib/forge_origin_client.py",
+    "scripts/lib/forge_git_ref.py",
+    "scripts/lib/release_policy.py",
+    "config/registry/origin-client.json"
+  ]
+}

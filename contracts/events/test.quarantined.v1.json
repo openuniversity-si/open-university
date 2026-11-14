@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/test.quarantined.v1.json",
+  "title": "test.quarantined payload v1",
+  "description": "A test that flaked (test.flaked) enters quarantine owned by its unit's owner, who owes a stabilizing PR. The test stays blocking in every tier (D-025, D-065 V7). Repository channel: pr is null and sha is the commit it flaked on.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/test",
+    "/payload/sha"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "test",
+    "owner",
+    "flaked_event"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "test": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Test id as the gate reports it: the failing test file, else the failed stage."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Owner of the test's unit (units/<id>/unit.json), or quarantine.unknown_owner when no manifest covers it."
+    },
+    "flaked_event": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "event_id of the test.flaked that is the evidence."
+    }
+  }
+}

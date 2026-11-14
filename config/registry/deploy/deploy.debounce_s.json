@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Seconds the newest push to the base must have settled before the ring when the look does not know its landing (a push that was no delivery, or whose platform.deploy.landed has not arrived yet). RING-AT-LANDING: a head whose landing the look read is rung at once; the coalescing is the build in flight, not a wait.",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py"
+  ],
+  "x-source": "AUTO1"
+}

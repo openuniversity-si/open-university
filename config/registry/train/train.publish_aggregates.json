@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": false,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "While true, the train keeps a commit of the aggregates in train.published_aggregates on train.aggregates_ref after every integration.advanced (plan v3 U1, V4). Off: nothing is written; every aggregate is read on demand from scripts/generate.",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

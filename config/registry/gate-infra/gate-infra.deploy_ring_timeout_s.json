@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 15,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Seconds scripts/deploy ring waits for the doorbell's answer. The ring is never repeated: a second ring while a build runs answers 409.",
+  "x-readers": [
+    "scripts/lib/deploy.py"
+  ],
+  "x-source": "DEP1"
+}

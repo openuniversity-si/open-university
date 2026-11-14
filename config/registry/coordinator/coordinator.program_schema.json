@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "contracts/programs/program.v1.json",
+  "x-unit": "path",
+  "description": "The schema of a plan.md data block.",
+  "x-readers": [
+    "scripts/lib/program.py"
+  ]
+}

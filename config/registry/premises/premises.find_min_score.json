@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 0.4,
+  "minimum": 0,
+  "maximum": 1,
+  "x-unit": "ratio",
+  "description": "Similarity (0-1) from which scripts/premises find lists an existing premise.",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ]
+}

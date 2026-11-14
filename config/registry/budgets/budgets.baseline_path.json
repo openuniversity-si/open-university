@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "config/baselines/budgets.json",
+  "x-unit": "path",
+  "description": "The committed baseline computed from the event log by `scripts/budgets baseline --write` (contracts/budgets/baseline.v1.json). Never hand-written.",
+  "x-readers": [
+    "scripts/lib/budget_check.py",
+    "scripts/lib/budgets.py"
+  ],
+  "x-source": "D-069 item 14; B1"
+}

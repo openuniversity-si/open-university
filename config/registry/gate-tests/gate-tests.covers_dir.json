@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "scripts/tests/covers",
+  "x-unit": "path",
+  "description": "Directory of the per-test covers manifests, one <test>.json per scripts/tests/*.test.sh with script and covers (a leftover modules field has no effect, VAZÃO F57). A new test writes its own (scripts/scaffold does); no PR edits an aggregate map (D-065 V4).",
+  "x-readers": [
+    "scripts/lib/gate_script_tests.py",
+    "scripts/lib/unit_battery.py"
+  ]
+}

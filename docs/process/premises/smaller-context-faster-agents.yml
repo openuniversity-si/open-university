@@ -1,0 +1,26 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-09"
+slug: "smaller-context-faster-agents"
+statement: "Less context per agent cuts the agent time per PR (estimated -30%) and the gate reruns (r from 1.7 to 1.3)."
+kind: "process"
+scope: "global"
+source:
+  who: "model"
+  where: "direction: Daniel 16:18; magnitude: plan v3 §6.1"
+  quote: null
+  at: null
+status: "to-validate"
+radius: "medium"
+blast:
+  reasons: ["plan:rewrite-priority"]
+  if_wrong: "If the gain is about 0, the rewrite stays justified by conflicts and verification cost at 10x and above, but loses priority today against the engine."
+validate:
+  kind: "measurement"
+  how: "Events: time from work.assigned to pr.ready and gate.failed per PR, the first 10 unit PRs against the previous 10 front PRs."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []
+notes: "The direction is confirmed by Daniel; the magnitude is not."

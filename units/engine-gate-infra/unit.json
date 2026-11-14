@@ -1,0 +1,47 @@
+{
+  "id": "engine-gate-infra",
+  "purpose": "The gate and the train over the infrastructure (P5): today's rules as the default configuration of our management, and the adapter that turns them into jobs.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/management/**",
+    "scripts/tests/gate-train-config.test.sh",
+    "scripts/tests/test_gate_train_config.py",
+    "scripts/tests/covers/gate-train-config.json",
+    "scripts/gate-check",
+    "scripts/tests/gate-infra.test.sh",
+    "scripts/tests/gate-infra-check.test.sh",
+    "scripts/tests/test_gate_infra_check.py",
+    "scripts/tests/covers/gate-infra-check.json",
+    "scripts/tests/test_gate_infra.py",
+    "scripts/tests/covers/gate-infra.json",
+    "scripts/gate-infra",
+    "scripts/lib/gate_infra.py",
+    "config/registry/gate-infra.json",
+    "config/registry/gate-infra/**",
+    "scripts/deploy",
+    "scripts/lib/deploy.py",
+    "scripts/tests/deploy-slow-a.test.sh",
+    "scripts/tests/deploy-slow-b.test.sh",
+    "scripts/tests/deploy.test.sh",
+    "scripts/tests/test_deploy.py",
+    "scripts/tests/covers/deploy.json"
+  ],
+  "battery": {
+    "command": "scripts/unit-battery engine-gate-infra"
+  },
+  "decisions": [
+    "D-306"
+  ],
+  "premises": [],
+  "requires": {
+    "engine-cloud": "^1",
+    "engine-config": "^1",
+    "engine-infra-aws": "^1",
+    "engine-gate-cache": "^1",
+    "engine-gate-plan": "^1",
+    "engine-gate-run": "^1",
+    "engine-gate-status": "^1",
+    "engine-gate-tests": "^1"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    "psql",
+    "pg_ctl",
+    "initdb",
+    "createdb"
+  ],
+  "x-unit": "name",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "minItems": 1,
+  "description": "PostgreSQL programs the toolchain exposes as shims in .toolchain/bin.",
+  "x-readers": [
+    "scripts/cloud/toolchain.py"
+  ]
+}

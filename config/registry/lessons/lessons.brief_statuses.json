@@ -1,0 +1,14 @@
+{
+  "type": "array",
+  "default": [
+    "applied"
+  ],
+  "x-unit": "list",
+  "description": "Lesson statuses a launch brief is given; a proposed lesson is not yet a rule.",
+  "x-readers": [
+    "scripts/lib/lessons_brief.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

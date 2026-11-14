@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "pr",
+  "x-unit": "enum",
+  "description": "Level of a lesson added without one; one of lessons.levels.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ]
+}

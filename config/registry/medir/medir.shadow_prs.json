@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 50,
+  "minimum": 1,
+  "x-unit": "prs",
+  "description": "P5 F3's criterion: the PRs whose every head the box and the shadow judged the same, before delivery.judge turns to infra (PLANO-DE-IMPLEMENTACAO §6).",
+  "x-readers": [
+    "scripts/lib/medir.py"
+  ],
+  "x-source": "GATE-INFRA 4 (P5 F3)"
+}

@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "origin/mod/roadmap-integration",
+  "x-unit": "ref",
+  "description": "Base ref of the range base..HEAD whose commits derive the plan tick of a PR (D-065 V4: the tick comes from commits, never from a checkbox the PR writes).",
+  "x-readers": [
+    "scripts/lib/plan_tick.py",
+    "scripts/lib/pr_ready.py",
+    "scripts/plan-tick"
+  ]
+}

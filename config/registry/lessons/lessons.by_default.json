@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "lessons",
+  "x-unit": "text",
+  "description": "Who a trail entry names when the caller gives no --by.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ]
+}

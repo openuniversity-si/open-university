@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/pr.ejected.v1.json",
+  "title": "pr.ejected payload v1",
+  "description": "Bisection removed the PR from a red batch.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/pr",
+    "/payload/sha",
+    "/payload/batch_id"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "batch_id",
+    "stage",
+    "test",
+    "log",
+    "cause"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "batch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stage": {
+      "type": "string"
+    },
+    "test": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "log": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cause": {
+      "enum": [
+        "culprit",
+        "flake"
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Number of most recent tier-1 gate verdicts whose median decides gate.slow.",
+  "x-readers": [
+    "scripts/lib/forge_events.py",
+    "docs/process/EVENTS.md"
+  ]
+}

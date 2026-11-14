@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 1200,
+  "x-unit": "s",
+  "description": "Timeout of one base re-run. A re-run that times out proves nothing: the failure is the PR's.",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ],
+  "minimum": 60
+}

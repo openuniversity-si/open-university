@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "session_[A-Za-z0-9]+",
+  "x-unit": "regex",
+  "description": "What the CLI prints for the new session id.",
+  "x-readers": [
+    "scripts/lib/adapters/launcher_claude.py"
+  ],
+  "format": "regex"
+}

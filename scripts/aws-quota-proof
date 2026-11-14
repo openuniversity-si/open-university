@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# The live proof of the quota that resets (AWS12): a wait limit holds a job waiting until the reset, then it resumes.
+# scripts/lib/aws_quota_proof.py says how; needs TOWER_PORT_URL and TOWER_PORT_TOKEN; never prints the token.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+exec "${OU_PYTHON:-python3}" "$root/scripts/lib/aws_quota_proof.py" "$@"

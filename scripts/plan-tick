@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/plan-tick --body FILE [--base REF] [--root DIR] [--check]
+# The plan tick of a PR derived from its commits (D-065 V4): a commit's Plan: trailer ticks its item. Exit 1 with --check
+# while an item is unticked.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/plan_tick.py" "$@"

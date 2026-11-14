@@ -1,0 +1,20 @@
+{
+  "type": "array",
+  "default": [
+    "ordering=gate.failed|structure check|",
+    "process=gate.failed|structure check|",
+    "boundary=gate.failed|structure check|",
+    "check-gap=gate.failed|structure check|",
+    "drift=gate.failed|generated drift|",
+    "test-fragility=gate.failed|script tests|",
+    "api-misuse=gate.failed|script tests|"
+  ],
+  "x-unit": "text",
+  "description": "Signals a lesson of a class gets when ingested, 'class=event|stage|pattern' (empty stage or pattern is any). A class not listed has no signal and its effect stays insufficient data.",
+  "x-readers": [
+    "scripts/lib/lesson_ingest.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

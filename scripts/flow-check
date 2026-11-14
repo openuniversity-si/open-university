@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/flow-check [--help]
+# One report for the flow check: the clock in BRT, the lanes' pace, the train, the base's real gate, the program's units and the next decision number (D-197).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/flow_check.py" "$@"

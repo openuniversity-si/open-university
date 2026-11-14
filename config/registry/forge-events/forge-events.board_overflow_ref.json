@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "train/board",
+  "pattern": "^[a-z0-9][a-z0-9/_.-]*$",
+  "x-unit": "ref",
+  "description": "BOARD (CANALE2): the branch under refs/heads/ that keeps the full text of a board section cut at the comment limit (create and fast-forward, D-070).",
+  "x-readers": [
+    "scripts/lib/forge_events.py"
+  ],
+  "x-source": "CANALE2; docs/units/BOARD/plan.md"
+}

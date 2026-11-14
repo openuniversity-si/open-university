@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 196,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "The first decision number whose row must carry a time that is not later than the clock and a number written once (D-196, S2). Earlier rows are kept as they are: four numbers were written twice and five times were stamped ahead of the clock before the check existed.",
+  "x-readers": [
+    "scripts/lib/structure.py"
+  ],
+  "x-source": "D-196"
+}

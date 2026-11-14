@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "units.measure",
+  "x-unit": "text",
+  "description": "Step name of the unit measurement in engine.step.measured.",
+  "x-readers": [
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "D-069 item 6"
+}

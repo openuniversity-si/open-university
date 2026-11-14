@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "slo_reader",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Producer name of slo.breached and of the reader's own engine.step.measured; part of every event id.",
+  "x-readers": [
+    "scripts/lib/slo.py"
+  ]
+}

@@ -1,0 +1,179 @@
+RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE: audit every rule of the group "Commit, push and PR body discipline" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-commit-and-pr-discipline. One draft PR from mod/rule-audit-commit-and-pr-discipline into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE: Commit, push and PR body discipline", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They decide what a commit, a push and a PR body must carry before the gate accepts it: the commit plan, the Plan trailers, one commit per push, no fix-up or force push, the effort block, the pre-push and push-guard checks.
+
+== YOUR ROWS (exactly these 59; census at PR #775, docs/audits/rules/census.json) ==
+- param:effort.heading | config/registry/effort.json:10#effort.heading | Heading of the effort block a plan and a PR body carry (EFFORT-STEP, docs/padrao/v4/effort.md). | owner: nobody named
+- param:effort.fields | config/registry/effort.json:19#effort.fields | The fields of the effort block, one `<field>:` line each; a missing, empty or placeholder field is refused. | owner: nobody named
+- param:effort.requirement_field | config/registry/effort.json:38#effort.requirement_field | The field that must name an owner (effort.owners or a lane of effort.owner_registry), never only a machine. | owner: nobody named
+- param:effort.placeholders | config/registry/effort.json:47#effort.placeholders | Values that count as an empty field (compared case-insensitively, without surrounding backticks, stars and dots). | owner: nobody named
+- param:effort.owners | config/registry/effort.json:69#effort.owners | People and roles a requirement may name as the one who needs the result; the lanes come from effort.owner_registry. | owner: nobody named
+- param:effort.owner_registry | config/registry/effort.json:99#effort.owner_registry | Registry list whose entries (the unit lanes, D-067 (2), D-069 item 8) also count as owners. | owner: nobody named
+- param:effort.machine_words | config/registry/effort.json:108#effort.machine_words | Words that name a machine; a requirement that names one of them and no owner is refused with the word. | owner: nobody named
+- param:effort.rule_doc | config/registry/effort.json:134#effort.rule_doc | The rule a refusal cites: what the block is and why. | owner: nobody named
+- param:effort.plan_glob | config/registry/effort.json:143#effort.plan_glob | Glob, from the repository root, of the plans the structure check judges. | owner: nobody named
+- param:effort.plan_baseline | config/registry/effort.json:152#effort.plan_baseline | Plans that predate the rule (EFFORT-STEP, 2026-10-28) and carry no block. Against the base this list only shrinks: a new entry is refused, a | owner: nobody named
+- param:local-checks.checks | config/registry/local-checks.json:10#local-checks.checks | The local check registry (LR1, D-069): one entry per check, as data. id names the check; owner is the unit or lane answerable for it; budget | owner: nobody named
+- param:local-checks.total_budget_ms | config/registry/local-checks.json:148#local-checks.total_budget_ms | Budget of all local checks together. Over it the run reports it; a single check over its own budget moves to the gate. | owner: nobody named
+- param:local-checks.state_file | config/registry/local-checks.json:158#local-checks.state_file | File name, resolved with git rev-parse --git-path, where the checks moved to the gate are recorded. A check stays in the registry; the state | owner: nobody named
+- param:local-checks.body_env | config/registry/local-checks.json:168#local-checks.body_env | Environment variable naming a file with the PR body, for the checks that need it when --body-file is not given. | owner: nobody named
+- param:local-checks.gitleaks_config | config/registry/local-checks.json:178#local-checks.gitleaks_config | Gitleaks config (relative to the checkout) used by secret_scan_diff. | owner: nobody named
+- param:local-checks.gitleaks_timeout_s | config/registry/local-checks.json:188#local-checks.gitleaks_timeout_s | Time secret_scan_diff waits for gitleaks before the check is skipped. | owner: nobody named
+- param:plan-tick.base_ref | config/registry/plan-tick.json:9#plan-tick.base_ref | Base ref of the range base..HEAD whose commits derive the plan tick of a PR (D-065 V4: the tick comes from commits, never from a checkbox th | owner: nobody named
+- param:plan-tick.required_gate_kind | config/registry/plan-tick.json:19#plan-tick.required_gate_kind | Gate plan whose passed gate.passed must exist for the head before pr.ready is emitted (gate-dev, tier 1). | owner: nobody named
+- param:plan-tick.event_producer | config/registry/plan-tick.json:31#plan-tick.event_producer | Producer name of the pr.ready envelope (the forge_events port derives the idempotency key from it). | owner: nobody named
+- param:plan-tick.short_sha_chars | config/registry/plan-tick.json:40#plan-tick.short_sha_chars | Characters of a commit sha that pr.ready and the gate's pr.ready hook print (the event keeps the full sha). | owner: nobody named
+- param:prepush.tests_budget_s | config/registry/prepush.json:10#prepush.tests_budget_s | Wall time the selected script tests may take together. A test not started by then is deferred to the gate; one still running when it ends is | owner: nobody named
+- param:prepush.test_workers | config/registry/prepush.json:20#prepush.test_workers | Selected script tests that run at once (they share no fixture; the gate runs them concurrently too). | owner: nobody named
+- param:prepush.stop_grace_s | config/registry/prepush.json:30#prepush.stop_grace_s | Time a test stopped at the end of prepush.tests_budget_s gets between SIGTERM to its process group (its EXIT traps clean up) and SIGKILL. | owner: nobody named
+- param:prepush.state_file | config/registry/prepush.json:40#prepush.state_file | File name, resolved with git rev-parse --git-path, where prepush records each script test's last local run. A test stopped at the end of pre | owner: nobody named
+- param:prepush.scrub_prefixes | config/registry/prepush.json:50#prepush.scrub_prefixes | Prefixes of the environment variables dropped from every script test prepush runs. A push the post-commit hook starts leaks GIT_INDEX_FILE=. | owner: nobody named
+- param:prepush.rest_timeout_s | config/registry/prepush.json:68#prepush.rest_timeout_s | Timeout of the one REST list of the open PRs (scripts/lib/github_api.py, max_wait_s 0, so a recorded rate-limit block never makes it wait),  | owner: nobody named
+- param:prepush.open_prs_page_size | config/registry/prepush.json:78#prepush.open_prs_page_size | Open PRs the one REST list reads (GitHub's largest page is 100); with more open PRs the overlap check judges the first page. | owner: nobody named
+- param:prepush.fetch_timeout_s | config/registry/prepush.json:89#prepush.fetch_timeout_s | Time limit of the one quiet git fetch of the open PR heads this checkout lacks. Past it, or on any fetch error, the overlap check compares t | owner: nobody named
+- param:prepush.event_names_test | config/registry/prepush.json:99#prepush.event_names_test | <test file>::<TestCase>.<method> of the event names check (docs/process/EVENTS.md and contracts/events name the same events), which lives on | owner: nobody named
+- param:push-guard.enabled | config/registry/push-guard.json:10#push-guard.enabled | Whether the versioned post-commit and post-merge hooks (.githooks) push each new commit of a work branch on their own. Off: the hooks do not | owner: nobody named
+- param:push-guard.remote | config/registry/push-guard.json:20#push-guard.remote | Git remote a session publishes its work branch to: the hook pushes there and sets the branch's upstream to <remote>/<branch>. | owner: nobody named
+- param:push-guard.protected_branches | config/registry/push-guard.json:31#push-guard.protected_branches | Branches the hook never pushes, besides the integration branch train.base_branch (always protected): a release or production branch only cha | owner: nobody named
+- param:push-guard.work_branch_patterns | config/registry/push-guard.json:47#push-guard.work_branch_patterns | fnmatch patterns of the session work branches. A branch without its own upstream (none, or one that tracks another branch such as the base i | owner: nobody named
+- param:push-guard.push_timeout_s | config/registry/push-guard.json:67#push-guard.push_timeout_s | Time limit of one `git push` the hook runs; a push that exceeds it counts as failed and is retried by the next commit (never a force-push). | owner: nobody named
+- param:push-guard.hooks_path | config/registry/push-guard.json:77#push-guard.hooks_path | Versioned hook directory, relative to the checkout, that scripts/cloud/env.sh sets as core.hooksPath when the checkout has none. | owner: nobody named
+- param:push-guard.git_timeout_s | config/registry/push-guard.json:88#push-guard.git_timeout_s | Time limit of one local git step of scripts/replay-branch (fetch, worktree, cherry-pick, merge); a step that exceeds it stops the replay, an | owner: nobody named
+- param:push-guard.replay_suffix | config/registry/push-guard.json:98#push-guard.replay_suffix | Suffix of a replacement branch: <old branch><suffix>, {n} the first free replay number (scripts/replay-branch). | owner: nobody named
+- param:push-guard.replay_max | config/registry/push-guard.json:108#push-guard.replay_max | Highest replay number scripts/replay-branch tries for one branch before it stops and names the taken branches. | owner: nobody named
+- param:push-guard.event_producer | config/registry/push-guard.json:118#push-guard.event_producer | Producer name of the events the push guard emits (engine.step.measured of replay-branch, the session heartbeat and stall events). | owner: nobody named
+- param:push-guard.replay_step | config/registry/push-guard.json:130#push-guard.replay_step | engine.step.measured step name of one scripts/replay-branch run. | owner: nobody named
+- param:push-guard.supersedes_line | config/registry/push-guard.json:140#push-guard.supersedes_line | Line appended to the replacement PR body; {old} is the replaced PR. | owner: nobody named
+- param:push-guard.replaced_comment | config/registry/push-guard.json:150#push-guard.replaced_comment | Comment scripts/replay-branch posts on the replaced PR before closing it; {new} is the replacement PR and {branch} its branch. | owner: nobody named
+- param:push-guard.owner_wait_phrases | config/registry/push-guard.json:160#push-guard.owner_wait_phrases | Phrases that mark a PR comment as waiting on an owner decision (DECIDE, THEN REPORT, Daniel 2026-10-26 21:29). Matched case-insensitively ou | owner: nobody named
+- param:push-guard.decision_marker | config/registry/push-guard.json:183#push-guard.decision_marker | Start of the line that records a decision the session took; it clears every earlier owner wait of the PR. | owner: nobody named
+- param:push-guard.heartbeat_adapter | config/registry/push-guard.json:193#push-guard.heartbeat_adapter | forge_events adapter the hook writes engine.session.heartbeat to (repository channel). file: a log inside the checkout's git directory (push | owner: nobody named
+- param:push-guard.stall_no_push_s | config/registry/push-guard.json:206#push-guard.stall_no_push_s | An open PR whose branch had no push for this long is stalled (no_push), unless the gate passed on its head (it then waits on the merger, not | owner: nobody named
+- param:push-guard.stall_red_gate_s | config/registry/push-guard.json:216#push-guard.stall_red_gate_s | An open PR whose latest gate verdict is gate.failed with no push after it for this long is stalled (red_gate). | owner: nobody named
+- param:push-guard.heartbeat_log_dir | config/registry/push-guard.json:226#push-guard.heartbeat_log_dir | Directory of the file adapter's heartbeat log, relative to the git common directory of the checkout that made the commit (never versioned, o | owner: nobody named
+- decision:D-008 | docs/domain/DECISIONS.md:20 | Small PRs | owner: standing (AGENTS.md, CICLO-DIARIO)
+- decision:D-022 | docs/domain/DECISIONS.md:34 | Commit cadence | owner: 2026-10-22 13:04 (Daniel, chat)
+- decision:D-025 | docs/domain/DECISIONS.md:37 | Commit discipline is enforced by the gate | owner: 2026-10-22 15:35 and 15:44 (Daniel, chat; root cause inciden
+- refusal:commit_check.plan_errors | scripts/lib/commit_check.py:43 | Refuses a PR body without a D-022 commit plan checklist of 3-8 numbered items. | owner: D-022 | can stop: PRs stopped 2
+- refusal:commit_check.fixup_errors | scripts/lib/commit_check.py:52 | Refuses a fix-up commit: a non-merge commit with a fixup prefix, or a 'fix test/ids' subject that only touches the previous commit's files. | owner: D-022, D-025, FP1, GX-14, LR1, Daniel | can stop: PRs stopped 0
+- refusal:commit_check.push_errors | scripts/lib/commit_check.py:69 | Refuses a push that brought several commits of the PR at the same instant (D-022 one push per commit); names scripts/replay-branch as the re | owner: X1, D-022 | can stop: PRs stopped 4
+- refusal:commit_check.force_push_errors | scripts/lib/commit_check.py:87 | Refuses a PR whose head ref shows force-push activity: pushed history was rewritten (merge commits only, FP1). | owner: X1 | can stop: PRs stopped 0
+- refusal:commit_check.gate_errors | scripts/lib/commit_check.py:125 | Refuses a PR that changes gate files (scripts/gate-*, scripts/lib/gate*, structure-check, commit-check) without citing an approved D-NNN of  | owner: D-022, D-025, FP1, GX-14, LR1, Daniel | can stop: PRs stopped 1
+- refusal:effort.errors | scripts/lib/effort.py:93 | Core of the effort check: refuses a plan or PR body without a complete '## Effort' block (Action, Cost, Requirement, Cheaper rejected), or w | owner: EFFORT-STEP, D-069 items 4, 8 and 9, D-065 (5) | can stop: PRs stopped 1
+- refusal:effort.body_errors | scripts/lib/effort.py:122 | Applies the effort-block check to a PR body (the checkout registry when present, else the tool registry). | owner: EFFORT-STEP, D-069 items 4, 8 and 9, D-065 (5) | can stop: PRs stopped 2
+- refusal:effort.plan_errors | scripts/lib/effort.py:178 | Applies the effort-block check to every unit plan written after the rule (grandfathered by first-add date) and keeps effort.plan_baseline sh | owner: EFFORT-STEP, D-069 items 4, 8 and 9, D-065 (5) | can stop: PRs stopped 0
+
+Kinds: decision 3, parameter 48, refusal 8. Estimated work: 75 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/commit-and-pr-discipline.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 59), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/commit-and-pr-discipline.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/commit-and-pr-discipline.md has exactly 59 rows, one per census row of this group, and the verdict
+  counts sum to 59 (quote the command that counts them).
+* docs/audits/rules/commit-and-pr-discipline.json parses and has the same 59 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json and
+  docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-structure-check-and-premises: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json, docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**
+  - mod/rule-audit-registry-literals-and-text: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json, docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**
+  - mod/rule-audit-environment-toolchain-and-supply-chain: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json, docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**
+  - mod/rule-audit-production-release-and-migrations: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json, docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-merge-train-and-delivery: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json, docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**
+  - mod/rule-audit-defects-lessons-and-postmortems: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json, docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-code-architecture-and-units: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json, docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**
+  - mod/rule-audit-gate-selection-proof-and-status: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json, docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**
+  - mod/rule-audit-gate-execution-and-tests: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json, docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**
+  - mod/rule-audit-paid-vendors-and-ai-sessions: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json, docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+75 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

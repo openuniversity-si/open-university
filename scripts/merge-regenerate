@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/merge-regenerate %O %A %B %P | install [--root DIR]
+# The git merge driver of committed generated files (CENSO-NO-MANIFESTO 3bis): a conflict in a registry aggregate or a
+# generated module is settled by regenerating the file from the merged sources (scripts/lib/merge_regenerate.py).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/merge_regenerate.py" "$@"

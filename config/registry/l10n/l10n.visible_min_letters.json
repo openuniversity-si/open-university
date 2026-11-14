@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Letters a JSX string needs before it counts as user-visible text (a lone punctuation or symbol is markup).",
+  "x-readers": [
+    "scripts/lib/text_check.py"
+  ],
+  "x-source": "plan v3.1 delta §2 L1"
+}

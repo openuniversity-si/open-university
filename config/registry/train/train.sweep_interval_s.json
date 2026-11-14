@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 900,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Seconds between two full `scripts/train run` (the replay of every open PR, the safety net) that `scripts/train serve` starts besides the wakes; one more runs when serve starts (GATE-ON-PUSH R2).",
+  "x-readers": [
+    "scripts/lib/train_serve.py"
+  ],
+  "x-source": "docs/units/GATE-ON-PUSH/plan.md R2 A2"
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/envelope.v1.json",
+  "title": "Event envelope v1",
+  "description": "Every event the forge_events port emits or reads. event_id is the idempotency key: sha256 of producer, type and the natural key the payload schema names (x-natural-key).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "type",
+    "version",
+    "occurred_at",
+    "producer",
+    "correlation_id",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 of producer, type and natural key; re-emitting the same fact yields the same id."
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z-]*(\\.[a-z][a-z-]*)+$",
+      "description": "Dotted lower-case name, <subject>.<verb> (EVENTS.md)."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Payload schema version: contracts/events/<type>.v<version>.json."
+    },
+    "occurred_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$",
+      "description": "RFC 3339 UTC from the injected clock."
+    },
+    "producer": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]*$",
+      "description": "The tool or role that emitted the event."
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Groups the events of one run (a gate run, a train batch)."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Validated against contracts/events/<type>.v<version>.json."
+    }
+  }
+}

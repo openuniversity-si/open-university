@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "A failing test whose own file, covers manifest or declared covers the PR changed (defect_detect.touched) is not re-run and stays the PR's: a flaky test the PR wrote or changed is the PR's fault.",
+  "x-readers": [
+    "scripts/lib/gate_flake.py"
+  ],
+  "x-source": "D-070"
+}

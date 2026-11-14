@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "improved",
+    "unchanged",
+    "worse",
+    "insufficient-data"
+  ],
+  "x-unit": "enum",
+  "description": "Verdicts of a measured effect, in the order: fewer, the same, more occurrences after than before, and not enough data.",
+  "x-readers": [
+    "scripts/lib/lessons_effect.py"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "minItems": 4
+}

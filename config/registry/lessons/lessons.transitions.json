@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "proposed>applied",
+    "proposed>retired",
+    "applied>retired"
+  ],
+  "x-unit": "enum",
+  "description": "Allowed status changes, 'from>to'. Every other change is refused.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "items": {
+    "type": "string",
+    "pattern": "^[a-z]+>[a-z]+$"
+  }
+}

@@ -1,0 +1,216 @@
+RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS: audit every rule of the group "Gate selection, proof reuse and status" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-gate-selection-proof-and-status. One draft PR from mod/rule-audit-gate-selection-proof-and-status into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS: Gate selection, proof reuse and status", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They decide which stages and tests the gate runs, which proofs it reuses or pins, and what it reports back (status, ETA, trace): what makes a gate fast or makes it run everything again.
+
+== YOUR ROWS (exactly these 96; census at PR #775, docs/audits/rules/census.json) ==
+- param:gate-areas.db_import_scope | config/registry/gate-areas.json:9#gate-areas.db_import_scope | Source files whose static imports decide the `database` gate area (AR1): such a file is `database` iff an import resolves into the db layer. | owner: nobody named
+- param:gate-areas.db_import_roots | config/registry/gate-areas.json:28#gate-areas.db_import_roots | The db layer (client, pool, schema, unit of work, migrations): an import that resolves to one of these repository paths makes the importing  | owner: nobody named
+- param:gate-areas.db_adapter_modules | config/registry/gate-areas.json:44#gate-areas.db_adapter_modules | Modules outside the db roots that wrap the db client; importing one counts as importing the db layer. Empty while every adapter lives under  | owner: nobody named
+- param:gate-areas.db_import_packages | config/registry/gate-areas.json:54#gate-areas.db_import_packages | Packages of the db client: an import of one of them, or of a subpath of it, makes the importing file `database`. | owner: nobody named
+- param:gate-areas.db_tsconfig | config/registry/gate-areas.json:72#gate-areas.db_tsconfig | The tsconfig whose compilerOptions.paths aliases (`@/*`, `@ou/*`) resolve an import specifier to a repository path. | owner: nobody named
+- param:gate-areas.db_unreadable_fallback | config/registry/gate-areas.json:83#gate-areas.db_unreadable_fallback | The former directory globs of the `database` area, applied only to an in-scope file whose content cannot be read at either side of the diff  | owner: nobody named
+- param:gate-carry.carry_over_enabled | config/registry/gate-carry.json:9#gate-carry.carry_over_enabled | GX-20 (B-14, GA-P01, D-070): a PR gate whose delta from an earlier passed v4 proof on the same base, toolchain and gate version stays inside | owner: D-070
+- param:gate-carry.carry_over_areas | config/registry/gate-carry.json:20#gate-carry.carry_over_areas | Area ids of scripts/lib/gate-areas.json a delta may touch and still carry the earlier proof. A delta file in any other area, or in none, run | owner: D-070
+- param:gate-contracts.gate_passed_version | config/registry/gate-contracts.json:10#gate-contracts.gate_passed_version | Version of gate.passed emitted when the caller names none (the registry default). A newly locked version is not emitted until its producer m | owner: D-070
+- param:gate-contracts.gate_failed_version | config/registry/gate-contracts.json:22#gate-contracts.gate_failed_version | Version of gate.failed emitted when the caller names none (the registry default). A newly locked version is not emitted until its producer m | owner: D-070
+- param:gate-gc.stage_timeout_s | config/registry/gate-gc.json:10#gate-gc.stage_timeout_s | Wall-clock limit of one gate stage, by stage name; the entry named * applies to every stage not listed. A stage that overruns is killed and  | owner: D-070; plan GX-19 (GA-PG5)
+- param:gate-gc.reports_keep | config/registry/gate-gc.json:90#gate-gc.reports_keep | Report directories kept per (sha, mode) under the gate record directory; the newest win and older ones are removed when a gate exits. | owner: D-070; plan GX-19
+- param:gate-gc.build_cache_keep | config/registry/gate-gc.json:101#gate-gc.build_cache_keep | Build-cache entries kept per build target (production, test); the most recently used win and older ones are removed when a gate exits. | owner: D-070; plan GX-19
+- param:gate-gc.kill_grace_s | config/registry/gate-gc.json:112#gate-gc.kill_grace_s | Seconds between the TERM and the KILL sent to a stage that ran past its limit. | owner: D-070; plan GX-19
+- param:gate-gc.timeout_exit_code | config/registry/gate-gc.json:124#gate-gc.timeout_exit_code | Exit status the gate records for a stage that ran past its limit (the status timeout(1) uses). | owner: D-070; plan GX-19
+- param:gate-gc.log_tail_lines | config/registry/gate-gc.json:137#gate-gc.log_tail_lines | Lines of a timed-out stage's log printed with its failure. | owner: D-070; plan GX-19
+- param:gate-inputs.enabled | config/registry/gate-inputs.json:9#gate-inputs.enabled | GX-23 (B-15, GA-P10, D-070): the lint, typecheck, unit tests and integration tests caches key on the inputs declared in scripts/lib/gate-sta | owner: D-070
+- param:gate-inputs.schema_version | config/registry/gate-inputs.json:20#gate-inputs.schema_version | Version of the declared-inputs schema (scripts/lib/gate-stage-inputs.json). It is part of every narrowed key, so a change in how inputs are  | owner: D-070
+- param:gate-pin.enabled | config/registry/gate-pin.json:9#gate-pin.enabled | GX-05 (B-09, GA-PG1, D-070): a --pr/--sha gate runs the tooling of the base tip (a tool worktree of the base sha) and the invoking checkout  | owner: D-070
+- param:gate-pin.dir | config/registry/gate-pin.json:20#gate-pin.dir | Directory, under gate.slot_dir, of the pinned tool worktrees: <gate.slot_dir>/<gate-pin.dir>/<clone id>/<base sha> (one per base sha and clo | owner: D-070
+- param:gate-pin.report_only_on_gate_change | config/registry/gate-pin.json:32#gate-pin.report_only_on_gate_change | When the diff base...head touches the gate (commit_check.GATE_FILE), the head's own tooling also runs with --report-only (no events, record, | owner: D-070
+- param:gate-pin.keep_worktrees | config/registry/gate-pin.json:43#gate-pin.keep_worktrees | Base-sha tool worktrees kept per clone on this machine; older ones (least recently used) are removed, never one a running gate holds. | owner: D-070
+- param:gate-proof.event_version | config/registry/gate-proof.json:10#gate-proof.event_version | Version of the gate verdict the gate produces (GX-10, GA-P01). 4 adds the proof binding (head/base trees, gate_version, toolchain_id, select | owner: D-070
+- param:gate-proof.cpu_stat_path | config/registry/gate-proof.json:24#gate-proof.cpu_stat_path | Per-process CPU counters (proc(5)) of the gate driver: cost.cpu_s of the v4 verdict is the utime+stime+cutime+cstime delta of the gate-local | owner: D-070
+- param:gate-tests.covers_dir | config/registry/gate-tests.json:10#gate-tests.covers_dir | Directory of the per-test covers manifests, one <test>.json per scripts/tests/*.test.sh with script, covers and modules. Written by `gate_sc | owner: nobody named
+- param:gate-tests.map_check | config/registry/gate-tests.json:19#gate-tests.map_check | The script test that validates the whole covers map (one valid manifest per script test). A covers manifest change selects it with the manif | owner: nobody named
+- param:gate-tests.fallback | config/registry/gate-tests.json:28#gate-tests.fallback | Selector files: a change to one runs every script test, because the choice of tests itself changed. A covers manifest is not one: it selects | owner: nobody named
+- param:gate-tier.battery | config/registry/gate-tier.json:10#gate-tier.battery | Tier of a gate-local invocation (D-B5; gate_tier.derive, first match in the order battery, per_pr, batch, working_tree), exported by gate-ho | owner: D-070; plan-v2 GX-11, D-B5
+- param:gate-tier.per_pr | config/registry/gate-tier.json:22#gate-tier.per_pr | Tier of a gate-local invocation (D-B5; gate_tier.derive, first match in the order battery, per_pr, batch, working_tree), exported by gate-ho | owner: D-070; plan-v2 GX-11, D-B5
+- param:gate-tier.batch | config/registry/gate-tier.json:34#gate-tier.batch | Tier of a gate-local invocation (D-B5; gate_tier.derive, first match in the order battery, per_pr, batch, working_tree), exported by gate-ho | owner: D-070; plan-v2 GX-11, D-B5
+- param:gate-tier.working_tree | config/registry/gate-tier.json:46#gate-tier.working_tree | Tier of a gate-local invocation (D-B5; gate_tier.derive, first match in the order battery, per_pr, batch, working_tree), exported by gate-ho | owner: D-070; plan-v2 GX-11, D-B5
+- param:gate-tier.cacheable_tiers | config/registry/gate-tier.json:58#gate-tier.cacheable_tiers | Gate tiers that may read and write box-local markers (the stage/step result cache and the per-test script cache). Tier 2 (the train's batch) | owner: D-070; D-065 (5); plan-v2 GX-11, D-B8
+- param:gate-web-readers.enabled | config/registry/gate-web-readers.json:9#gate-web-readers.enabled | TX20: the dev plan adds the stage of every web test that reads a changed repository file outside the web root (and the stage's needs). Off i | owner: D-070 (TX20)
+- param:gate-web-readers.web_root | config/registry/gate-web-readers.json:20#gate-web-readers.web_root | The web package. Its tests are scanned; a changed path under it plans its own stages, so it adds nothing here. | owner: D-070 (TX20)
+- param:gate-web-readers.test_globs | config/registry/gate-web-readers.json:31#gate-web-readers.test_globs | The tracked web test files the map scans. | owner: D-070 (TX20)
+- param:gate-web-readers.unknown_globs | config/registry/gate-web-readers.json:50#gate-web-readers.unknown_globs | Changed paths that select a test whose read path is not static (fail closed): the test is anchored at the repository root and a read call ta | owner: D-070 (TX20)
+- param:gate-web-readers.read_calls | config/registry/gate-web-readers.json:67#gate-web-readers.read_calls | Functions whose first argument is a path a test reads; a computed argument in an anchored test makes it unknown. | owner: D-070 (TX20)
+- param:gate-web-readers.static_words | config/registry/gate-web-readers.json:93#gate-web-readers.static_words | Identifiers allowed in a static path expression or in a root anchor (const ROOT = git rev-parse --show-toplevel). | owner: D-070 (TX20)
+- param:gate-web-readers.stage_unit | config/registry/gate-web-readers.json:131#gate-web-readers.stage_unit | The gate stage that runs a web unit test (every test that is neither int nor alone). | owner: D-070 (TX20)
+- param:gate-web-readers.stage_int | config/registry/gate-web-readers.json:142#gate-web-readers.stage_int | The gate stage that runs a web integration test (gate.scoped_int_test_globs). | owner: D-070 (TX20)
+- param:gate-web-readers.stage_alone | config/registry/gate-web-readers.json:153#gate-web-readers.stage_alone | The gate stage that runs a web test of battery.alone_globs or battery.alone_int_globs (the perf projects). | owner: D-070 (TX20)
+- param:gate.select_enabled | config/registry/gate.json:132#gate.select_enabled | Per-unit selection of the unit, integration and lint work from the PR's changed paths (GS1, D-064 (f)). Off runs the full web battery for ev | owner: nobody named
+- param:gate.full_battery_globs | config/registry/gate.json:142#gate.full_battery_globs | Path classes that always run the full web battery: the config registry, contracts, the engine, shared code, lockfiles and toolchain, the own | owner: GS1 brief, lever 1
+- param:gate.scoped_globs | config/registry/gate.json:187#gate.scoped_globs | The only paths whose change may narrow the web battery to the units that own them; a changed path outside these (and outside the documentati | owner: nobody named
+- param:gate.scoped_unit_test_globs | config/registry/gate.json:201#gate.scoped_unit_test_globs | Test file shapes of the unit project that a scoped run selects from the affected units (integration shapes are gate.scoped_int_test_globs). | owner: nobody named
+- param:gate.scoped_int_test_globs | config/registry/gate.json:216#gate.scoped_int_test_globs | Test file shapes of the int project that a scoped run selects from the affected units. | owner: nobody named
+- param:gate.scoped_lint_suffixes | config/registry/gate.json:230#gate.scoped_lint_suffixes | File suffixes the scoped lint passes to eslint; other changed files are stylelint or schema:check input and always run in full. | owner: nobody named
+- param:gate.stage_cache_enabled | config/registry/gate.json:249#gate.stage_cache_enabled | Lets the PR gate (tier 1) skip a stage declared deterministic in scripts/lib/gate-stages.json when a passing result with the same input hash | owner: nobody named
+- param:gate.stage_cache_ttl_s | config/registry/gate.json:260#gate.stage_cache_ttl_s | Age after which a cached stage pass is a miss and the stage runs again; a marker stored in the future is also a miss. | owner: nobody named
+- param:gate.stage_cache_version | config/registry/gate.json:271#gate.stage_cache_version | Version of the stage cache key material. Raising it invalidates every cached stage pass at once. | owner: nobody named
+- param:gate.test_cache_enabled | config/registry/gate.json:407#gate.test_cache_enabled | Lets the PR gate report a script test as a cached PASS when its key (the test, its covers files, the toolchain pins) matches a recorded PASS | owner: nobody named
+- param:gate.test_cache_ttl_s | config/registry/gate.json:417#gate.test_cache_ttl_s | Age after which a recorded script test PASS is a miss and the test runs again; a marker stored in the future is also a miss. | owner: nobody named
+- param:gate.test_cache_version | config/registry/gate.json:427#gate.test_cache_version | Version of the script test key material. Raising it invalidates every recorded script test PASS at once. | owner: nobody named
+- param:gate.test_cache_dir | config/registry/gate.json:437#gate.test_cache_dir | Where recorded script test PASSes are kept, through the storage port (providers.storage_adapter); a leading ~ is the home directory. GATE_TE | owner: nobody named
+- param:gate.test_cache_common_inputs | config/registry/gate.json:446#gate.test_cache_common_inputs | Files every script test runs through (the hermetic wrapper, the cache and the runner); a change to one is a change to the key of every test. | owner: nobody named
+- param:session-cache.tier1_enabled | config/registry/session-cache.json:9#session-cache.tier1_enabled | Lets the PR gate (--dev, tier 1) skip lint and typecheck when a passing result with the same content key is already cached. Tiers 2 and 3 ne | owner: nobody named
+- param:session-cache.key_version | config/registry/session-cache.json:19#session-cache.key_version | Version of the tier-1 cache key material. Raising it invalidates every cached tier-1 result at once. 2: the key material gained the toolchai | owner: nobody named
+- param:train-reuse.reuse_attested_proofs | config/registry/train-reuse.json:10#train-reuse.reuse_attested_proofs | GX-31 (D-070, GA-P02 strict, P-43): before a tier-2 run (the batch head or a bisection probe) the train looks for a gate.passed at the v4 pr | owner: D-070; plan-v2 GX-31, D-B8
+- param:train-reuse.tier2_plan | config/registry/train-reuse.json:21#train-reuse.tier2_plan | GX-31 (D-070): the plan a tier-2 run binds into its proof (scripts/gate-batch runs gate-local --dev, so the binding's plan is dev). The trai | owner: D-070; plan-v2 GX-31, D-B8
+- decision:D-070 | docs/domain/DECISIONS.md:72 | Gate excellence program. | owner: 2026-10-27 11:29 (Daniel, CEO: the gate-excellence program, 
+- premise:P-20 | docs/process/premises/graph-selection-tier1.yml:2 | Graph selection plus the always-run set gives a tier 1 of 10-15 s (report v2 PR9). | owner: orchestrator (report v2 §2.3)
+- premise:P-42 | docs/process/premises/gate-proof-content-addressed.yml:2 | GA-P01: gate proof is content-addressed (tree + base + toolchain); a docs-only commit carries test/build results, but the structure/metadata | owner: A Torre (A Torre 27/10 13:03 under Daniel's delegation (plan
+- premise:P-43 | docs/process/premises/gate-tier2-exact-attested-reuse.yml:2 | GA-P02: tier 2 reuses a proof only when its key matches the exact merged tree and toolchain being tested (attested); never tier-1 box-local  | owner: A Torre (A Torre 27/10 13:03 under Daniel's delegation (plan
+- premise:P-46 | docs/process/premises/gate-pinned-on-base-tip.yml:2 | GA-PG1: the verdict comes from the pinned gate on the base tip; the PR's own gate code runs as code under test plus report-only. | owner: A Torre (A Torre 27/10 13:03 under Daniel's delegation (plan
+- param:gate-eta.eta_quantile | config/registry/gate-eta.json:10#gate-eta.eta_quantile | Quantile of the stage durations (engine.step.measured, slo.step_stats) that the gate's ETA uses per stage (0.5 is p50). gate.started.expecte | owner: D-070; plan-v2 GX-25, D-B8
+- param:gate-eta.eta_history_events | config/registry/gate-eta.json:23#gate-eta.eta_history_events | Newest engine.step.measured events per stage that the ETA reads from the ledger. | owner: D-070; plan-v2 GX-25, D-B8
+- param:gate-eta.started_enabled | config/registry/gate-eta.json:35#gate-eta.started_enabled | One-key rollback: true publishes gate.started at gate begin and, on each tier-1 verdict, calls forge_events.gate_slow and slo evaluate; fals | owner: D-070; plan-v2 GX-25, D-B8
+- param:gate-eta.fallback_stage_s | config/registry/gate-eta.json:45#gate-eta.fallback_stage_s | Expected seconds of a stage with no sample in the ledger or the local reports (a fresh container), so the ETA is never 'no history'. | owner: D-070; plan-v2 GX-25, D-B8
+- param:gate-eta.report_quantiles | config/registry/gate-eta.json:57#gate-eta.report_quantiles | Nearest-rank quantiles the gate timing report prints per stage, as fractions (0.9 is p90). | owner: D-070; plan-v2 GX-25, D-B8
+- param:gate-eta.report_last_gates | config/registry/gate-eta.json:76#gate-eta.report_last_gates | Newest gates the timing report compares expected_wall_s with the real wall time over (the ETA error). | owner: D-070; plan-v2 GX-25, D-B8 | can stop: PRs stopped not measured
+- param:gate-trace.covers_trace_mode | config/registry/gate-trace.json:10#gate-trace.covers_trace_mode | report: a Python script test lists, on stderr at exit, the files it read outside its declared covers (never a failure). off: nothing is reco | owner: D-070
+- param:gate-trace.covers_trace_ignore | config/registry/gate-trace.json:24#gate-trace.covers_trace_ignore | Paths (relative to the checkout) the trace never reports: the registry every config.get reads, generated modules, the harness itself, VCS, t | owner: D-070
+- param:gate-trace.covers_trace_max_listed | config/registry/gate-trace.json:47#gate-trace.covers_trace_max_listed | Most undeclared paths one test lists in its trace report; the count of the rest is printed. | owner: D-070
+- param:gate.tier1_target_s | config/registry/gate.json:9#gate.tier1_target_s | Tier-1 gate time target (D-065 (5)); gate.slow and the SLOs (O1) compare against it. | owner: nobody named
+- param:gate.slow_window_events | config/registry/gate.json:19#gate.slow_window_events | Number of most recent tier-1 gate verdicts whose median decides gate.slow. | owner: nobody named
+- param:gate.slow_median_s | config/registry/gate.json:30#gate.slow_median_s | Median tier-1 gate time above which gate.slow is emitted to the engine lane. | owner: nobody named
+- param:gate.ceiling_s | config/registry/gate.json:41#gate.ceiling_s | Wall-clock ceiling of one gate run (D-064 (f)); an overrun prints each stage's time and never fails the gate. The shell reads it in seconds  | owner: D-064 (f); Daniel 2026-10-26 14:22
+- param:gate.failing_tests_max | config/registry/gate.json:462#gate.failing_tests_max | Failing tests listed in a gate.failed verdict (id and signature); the total is kept beside the list. | owner: nobody named
+- param:gate.failing_signature_chars | config/registry/gate.json:472#gate.failing_signature_chars | Length cap of the normalized signature of a failing test in the verdict. | owner: nobody named
+- param:gate.status_enabled | config/registry/gate.json:503#gate.status_enabled | GV1: the gate keeps one live status comment per PR head. false turns the comment off (the verdict and the forge events are unchanged). | owner: nobody named
+- param:gate.status_marker | config/registry/gate.json:512#gate.status_marker | GV1: first line of the gate status comment; the head sha and gate mode follow it so one comment exists per head and mode. | owner: nobody named
+- param:gate.status_min_interval_s | config/registry/gate.json:521#gate.status_min_interval_s | GV1, GX-16: least time between two live edits of the status comment (an edit happens at a stage end only); the start and the final edit alwa | owner: nobody named
+- param:gate.status_one_per_pr | config/registry/gate.json:531#gate.status_one_per_pr | GX-16: the gate keeps ONE status comment per PR, edited across heads and modes, with the superseded heads collapsed. false restores one comm | owner: nobody named
+- param:gate.status_sha_chars | config/registry/gate.json:540#gate.status_sha_chars | GX-16: characters of a head or cache-key sha shown in the status comment and by gate-dev --explain / --why (GX-26). | owner: nobody named
+- param:gate.explain_list_max | config/registry/gate.json:551#gate.explain_list_max | GX-26 (D-070): failing tests that gate-dev --why lists. | owner: nobody named
+- param:gate.explain_clip_chars | config/registry/gate.json:561#gate.explain_clip_chars | GX-26 (D-070): longest error or gap text gate-dev --explain prints for a cause it cannot decide. | owner: nobody named
+- param:gate.status_earlier_heads | config/registry/gate.json:571#gate.status_earlier_heads | GX-16: superseded heads kept (one line each, collapsed) in the PR's single status comment. | owner: nobody named
+- param:gate.status_history_runs | config/registry/gate.json:581#gate.status_history_runs | GV1: most recent earlier local runs whose stage times give the expected duration of each stage (median). | owner: nobody named
+- param:gate.status_timeout_s | config/registry/gate.json:591#gate.status_timeout_s | GV1: timeout of each REST call that finds, creates or edits the status comment; a failure never changes the gate result. | owner: nobody named
+- param:gate.status_find_pages | config/registry/gate.json:601#gate.status_find_pages | GV1: newest pages of PR comments searched for the status comment of the head when the run has not stored its id. | owner: nobody named
+- param:gate.status_max_chars | config/registry/gate.json:611#gate.status_max_chars | GV1: size cap of the status comment (GitHub allows 65536); the collapsed machine events are cut first, the table never. | owner: nobody named
+- param:gate.class_line_prefix | config/registry/gate.json:665#gate.class_line_prefix | Prefix of the one machine line every red stage and every driver abort prints: `<prefix> <stage>\t<class>` (D-027 classes code, env or contra | owner: D-070 (GX-01)
+- decision:D-012 | docs/domain/DECISIONS.md:24 | primary metric is idea-to-production time | owner: 2026-10-22
+- premise:P-36 | docs/process/premises/speed-sustainable.yml:2 | Speed over stability, but sustainable: no shortcuts, at the root cause, each advance improves the engine. | owner: daniel (addendum 3, chat 16:18)
+- premise:P-44 | docs/process/premises/gate-own-github-commit-status.yml:2 | GA-P03: the gate publishes its own GitHub commit status/check through the API (no GitHub Actions); Vercel untouched. Branch protection requi | owner: A Torre (A Torre 27/10 13:03 under Daniel's delegation (plan
+- refusal:gate_timing_report.eta_errors | scripts/lib/gate_timing_report.py:79 | Not a refusal: computes the ETA error (real wall time minus expected_wall_s) of the newest gates from gate.started and verdict events. | owner: GX-25, GS2 | can stop: PRs stopped not measured
+
+Kinds: decision 2, parameter 87, premise 6, refusal 1. Estimated work: 81 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/gate-selection-proof-and-status.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 96), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/gate-selection-proof-and-status.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/gate-selection-proof-and-status.md has exactly 96 rows, one per census row of this group, and the verdict
+  counts sum to 96 (quote the command that counts them).
+* docs/audits/rules/gate-selection-proof-and-status.json parses and has the same 96 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json and
+  docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-structure-check-and-premises: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json, docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**
+  - mod/rule-audit-commit-and-pr-discipline: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json, docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**
+  - mod/rule-audit-registry-literals-and-text: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json, docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**
+  - mod/rule-audit-environment-toolchain-and-supply-chain: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json, docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**
+  - mod/rule-audit-production-release-and-migrations: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json, docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-merge-train-and-delivery: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json, docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**
+  - mod/rule-audit-defects-lessons-and-postmortems: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json, docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-code-architecture-and-units: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json, docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**
+  - mod/rule-audit-gate-execution-and-tests: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json, docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**
+  - mod/rule-audit-paid-vendors-and-ai-sessions: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json, docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+81 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

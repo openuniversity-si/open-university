@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "fix-defect:{id}",
+  "x-unit": "text",
+  "description": "Work item of the fix unit assigned to the owner; {id} is the defect id.",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "minLength": 1
+}

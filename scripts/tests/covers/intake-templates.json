@@ -1,0 +1,14 @@
+{
+  "script": "scripts/tests/intake-templates.test.sh",
+  "covers": [
+    "config/registry/intake.json",
+    "docs/process/templates/audit.md",
+    "docs/process/templates/intake.md",
+    "docs/process/templates/plan.md",
+    "docs/process/templates/research.md",
+    "scripts/intake-templates",
+    "scripts/lib/intake_templates.py",
+    "scripts/tests/intake-templates.test.sh",
+    "scripts/tests/test_intake_templates.py"
+  ]
+}

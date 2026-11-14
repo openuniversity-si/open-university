@@ -1,0 +1,7 @@
+{
+  "script": "scripts/tests/run-subdir.test.sh",
+  "covers": [
+    "scripts/tests/run-subdir.test.sh",
+    "scripts/run"
+  ]
+}

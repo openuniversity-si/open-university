@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2000,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "EVENTS-REF (E1, D-273): records (commits) of the git-ref log a windowed read covers (ForgeEvents.read_recent, D-085): the newest git_ref_window appends of every channel; a read of the whole log reads every commit.",
+  "x-readers": [
+    "scripts/lib/forge_git_ref.py"
+  ],
+  "x-source": "D-273; docs/units/EVENTS-REF/plan.md"
+}

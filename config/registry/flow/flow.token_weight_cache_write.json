@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 1.25,
+  "minimum": 0,
+  "x-unit": "ratio",
+  "description": "The weight of a token written to the prompt cache in the quota ledger's weighted tokens (VAZÃO F59): its price over the price of an uncached input token, so one weighted token costs what one input token costs.",
+  "x-readers": [
+    "scripts/lib/usage.py",
+    "scripts/lib/fronts.py"
+  ],
+  "x-source": "VAZÃO F59; the Claude API price ratios (cache write 1.25x, cache read 0.1x, output 5x input)"
+}

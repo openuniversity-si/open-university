@@ -1,0 +1,24 @@
+{
+  "id": "engine-env",
+  "purpose": "The environment manifest, preflight and session identity.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/env-check",
+    "scripts/lib/env_manifest.py",
+    "scripts/lib/preflight.py",
+    "scripts/lib/session_identity.py",
+    "scripts/lib/toolchain_manifest.py",
+    "scripts/tests/env.test.sh",
+    "scripts/tests/preflight.test.sh",
+    "scripts/tests/test_env.py",
+    "scripts/tests/test_preflight.py",
+    "scripts/tests/test_toolchain_pins.py",
+    "scripts/tests/toolchain-pins.test.sh",
+    "scripts/lib/credentials.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1"
+  }
+}

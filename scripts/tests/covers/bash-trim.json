@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/bash-trim.test.sh",
+  "covers": [
+    "scripts/tests/bash-trim.test.sh",
+    "scripts/tests/test_bash_trim.py",
+    "scripts/hooks/bash-trim",
+    "scripts/lib/bash_trim.py",
+    "config/registry/flow/flow.bash_trim_bytes.json",
+    ".claude/settings.json"
+  ]
+}

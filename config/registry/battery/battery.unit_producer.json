@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "unit-battery",
+  "x-unit": "text",
+  "description": "Producer name of the events a unit battery (scripts/unit-battery, tier 1) emits; the tier-3 battery role has its own, battery.producer.",
+  "x-readers": [
+    "scripts/lib/unit_battery.py"
+  ],
+  "x-source": "contracts/events/envelope.v1.json"
+}

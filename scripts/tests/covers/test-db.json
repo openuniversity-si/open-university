@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/test-db.test.sh",
+  "covers": [
+    "scripts/tests/test-db.test.sh",
+    "scripts/tests/test_test_db.py",
+    "scripts/lib/test_db.py",
+    "config/registry/test-db.json"
+  ]
+}

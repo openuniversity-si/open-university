@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "127.0.0.1",
+    "localhost"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "host",
+  "description": "Hosts of a loopback http origin (the hermetic tests' fakes) that the release policy treats as not production (D-054); any other origin is the real host. Moved from github-client.loopback_hosts when the GitHub client left (D-293).",
+  "x-readers": [
+    "scripts/lib/release_policy.py"
+  ],
+  "x-source": "D-054; D-293"
+}

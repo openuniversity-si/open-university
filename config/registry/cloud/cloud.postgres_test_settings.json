@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "fsync=off",
+    "synchronous_commit=off",
+    "full_page_writes=off"
+  ],
+  "x-unit": "setting",
+  "items": {
+    "type": "string",
+    "pattern": "^[a-z_]+=[a-z0-9]+$"
+  },
+  "minItems": 1,
+  "description": "name=value settings setup.sh applies to the project-local test cluster (ALTER SYSTEM, reload). CREATE/DROP DATABASE each force a checkpoint; with durability off the checkpoint no longer waits on the disk behind a loaded gate (GX-29, C1 cold gate: claude-session teardown over 30 s). The cluster holds throwaway data only.",
+  "x-readers": [
+    "scripts/cloud/setup.sh"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "default": 10,
+  "x-unit": "percent",
+  "description": "Quota remaining below which nothing launches; an unknown quota does not block.",
+  "x-readers": [
+    "scripts/lib/coordinator.py"
+  ],
+  "minimum": 0
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/premise.refuted.v1.json",
+  "title": "premise.refuted v1 payload",
+  "description": "A premise was refuted; its dependents go to review (D-066).",
+  "x-owner": "premises",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "by",
+    "at",
+    "dependents"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^P-[0-9]{2,}$",
+      "description": "Premise id."
+    },
+    "by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "RFC 3339 time of the answer, or null when the source gives none."
+    },
+    "quote": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "where": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dependents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plans",
+        "prs"
+      ],
+      "properties": {
+        "plans": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "description": "Plan files whose Premises: line cites the premise."
+        },
+        "prs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "uniqueItems": true,
+          "description": "PR numbers whose Premises: line cites the premise."
+        }
+      }
+    }
+  }
+}

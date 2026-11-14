@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "[::1]"
+  ],
+  "x-unit": "host",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "minItems": 1,
+  "description": "Loopback names appended to NO_PROXY when an egress proxy is set, so local services stay direct.",
+  "x-readers": [
+    "scripts/cloud/env.sh"
+  ]
+}

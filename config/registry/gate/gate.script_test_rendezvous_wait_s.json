@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 60,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Longest a script test waits for its own concurrent jobs to reach a rendezvous before it counts the overlap it got (scripts/tests/gate-heavy-db.test.sh). The wait ends the moment the jobs have started, so a loaded machine only delays the test, never changes its expected value; the limit exists so a test whose jobs never start fails with the real count instead of hanging.",
+  "x-readers": [
+    "scripts/tests/gate-heavy-db.test.sh"
+  ]
+}

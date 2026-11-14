@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": ".gate/service/runner.jsonl",
+  "x-unit": "path",
+  "description": "The runner's JSONL log, beside its state file: one line per queued, finished, cancelled or paused job and per failed poll, rotated to .1 past service.log_max_bytes.",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-086; docs/operations/services.md"
+}

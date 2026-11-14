@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/defs.v1.json",
+  "title": "Shared payload definitions v1",
+  "description": "Subject fields every payload carries (repo, pr, sha, unit, premises) and shared shapes.",
+  "$defs": {
+    "repo": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "description": "owner/name in the forge."
+    },
+    "pr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "Pull request (change) number; null for an event about the integration branch."
+    },
+    "sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "The commit the event judges: the PR head, or the integration tip when pr is null."
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "unit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Unit id (units/<id>/unit.json); null until U0 creates unit manifests."
+    },
+    "premises": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^P-[0-9]{2,}$"
+      },
+      "description": "The Premises: ids the PR (or plan) depends on."
+    },
+    "premise_id": {
+      "type": "string",
+      "pattern": "^P-[0-9]{2,}$"
+    },
+    "prs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "class": {
+      "enum": [
+        "code",
+        "env",
+        "contract",
+        null
+      ],
+      "description": "D-027 failure class of a red stage; null when it passed."
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "result",
+        "duration_ms",
+        "class"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "class": {
+          "$ref": "#/$defs/class"
+        }
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

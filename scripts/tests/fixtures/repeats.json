@@ -1,0 +1,9 @@
+{
+  "table": "| Action | Count | Status | Where |\n|---|---|---|---|\n| Alpha | 3 | open | x |\n| Beta | 9 | systematised | y |\n| Gamma | 5 | open | z |\n",
+  "open_order": [
+    "Gamma",
+    "Alpha"
+  ],
+  "total": 3,
+  "open": 2
+}

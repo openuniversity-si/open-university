@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\\.)*thetower\\.si\\b",
+  "x-unit": "text",
+  "description": "Regular expression (case-insensitive) of an address on the legacy domain; no tracked text file may hold one. Ported from Open University's no-legacy-email test (Daniel, 14/10/2026: the only public mailbox is contact@example.org).",
+  "x-readers": [
+    "scripts/lib/repo_hygiene.py"
+  ],
+  "x-source": "D-105 (OU-DECOUPLE F2)"
+}

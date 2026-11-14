@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "docs/domain/DECISIONS.md",
+  "x-unit": "path",
+  "description": "The decision register: a D-NNN that owns a rule or retires one must be a table row `| D-NNN |` there.",
+  "x-readers": [
+    "scripts/lib/rule_registry.py"
+  ],
+  "x-source": "D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 16:55 BRT, RULE-AUDIT)"
+}

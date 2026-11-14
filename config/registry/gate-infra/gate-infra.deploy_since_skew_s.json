@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 120,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "Seconds before follow's start that a recorded build still counts as the one being followed (a build started by a ring just before follow, on a clock that differs a little from the build's).",
+  "x-readers": [
+    "scripts/lib/deploy.py"
+  ],
+  "x-source": "DEP1"
+}

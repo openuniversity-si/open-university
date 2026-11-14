@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "~/.cache/the-tower/frictions.jsonl",
+  "x-unit": "path",
+  "description": "The friction log (lane rule 9): one JSON line {ts, lane, what, seconds} per lost minute, written by each lane. scripts/fronts status sums its seconds per lane (the worktree dir) next to the lane's tokens and lock wait (VAZÃO F69).",
+  "x-readers": [
+    "scripts/lib/fronts.py"
+  ],
+  "x-source": "VAZÃO F69; lane rule 9 (03/11)"
+}

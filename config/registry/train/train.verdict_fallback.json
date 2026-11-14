@@ -1,0 +1,14 @@
+{
+  "type": "string",
+  "default": "requeue",
+  "enum": [
+    "tier2",
+    "requeue"
+  ],
+  "x-unit": "enum",
+  "description": "With train.admit_mode verdict, what happens to a PR whose verdict is not admissible: requeue (default, D-075 as amended 29/10 15:02 and by D-078) is the train's own resync: a head that already contains the tip is re-verdicted as it is (same sha, nothing pushed) unless only its warmth was refused; any other head gets the tip merged into it (a merge commit pushed to the PR branch, never a rebase); it asks train.reverdict_command for a cold verdict of that head and admits it on PASSED in the same pass; only a textual conflict (pr.conflicted with its files) or a red re-verdict (pr.ejected) go back to the owner session, and a branch it cannot push takes the tier-2 batch of one. tier2 runs it as a batch of one (the batch path, tier 2 on the tip).",
+  "x-readers": [
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-075; docs/units/TRAIN-VERDICT/plan.md"
+}

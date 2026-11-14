@@ -1,0 +1,26 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/cloud/**",
+    "scripts/check-architecture*",
+    "scripts/lib/architecture/**",
+    "scripts/tests/fixtures/architecture/**",
+    "config/registry/battery.json",
+    "config/registry/budgets.json",
+    "config/registry/generate.json",
+    "config/registry/tests.json",
+    "config/registry/text.json",
+    "config/registry/units.json"
+  ],
+  "x-unit": "glob",
+  "description": "D-076: tooling paths under gate.reader_scoped_globs that keep the full web battery: the toolchain and fonts the web stages install (scripts/cloud), the architecture checker that lint and typecheck read (gate-stage-inputs.json), and the registry files the web package's own configuration and helpers read (vitest.config.ts, test/hermetic.ts, the perf and address helpers, the copy catalogs, scripts/config get architecture.*).",
+  "x-readers": [
+    "scripts/lib/gate_select.py"
+  ],
+  "x-source": "D-076",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true
+}

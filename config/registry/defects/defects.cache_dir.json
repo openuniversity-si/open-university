@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "~/.cache/open-university/defect-base",
+  "x-unit": "path",
+  "description": "Where base re-run outcomes are kept through the storage port, one marker per (base sha, test id). DEFECTS_CACHE_DIR overrides it for one run.",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ]
+}

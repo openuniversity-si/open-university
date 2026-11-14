@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 60,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Timeout of one Origin API call; a call past it fails as a timeout instead of hanging the lane.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "FORGE-PORT (CANALE8)"
+}

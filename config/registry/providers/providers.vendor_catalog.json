@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "scripts/lib/adapters/engine-vendors.json",
+  "pattern": "^scripts/.+\\.json$",
+  "x-unit": "path",
+  "description": "The engine vendor catalog: each vendor's endpoints, CLIs and client modules, its adapters and selectors, and the shrink-only baseline of call sites outside them.",
+  "x-readers": [
+    "scripts/lib/structure.py",
+    "scripts/lib/vendor_check.py"
+  ],
+  "x-source": "D-069 item 7"
+}

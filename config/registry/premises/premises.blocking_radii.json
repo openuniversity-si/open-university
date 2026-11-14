@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    "high"
+  ],
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Radii whose unsettled premise refuses a Premises: line that cites it (veto V0).",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

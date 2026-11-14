@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 4,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Tries of one toolchain download before setup fails with 'download failed' (a runner's cold task meets a network that is not ready).",
+  "x-readers": [
+    "scripts/cloud/toolchain.py"
+  ]
+}

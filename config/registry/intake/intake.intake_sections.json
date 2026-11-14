@@ -1,0 +1,21 @@
+{
+  "type": "array",
+  "default": [
+    "Pedido",
+    "Intenção",
+    "Contexto",
+    "Regras",
+    "Problema real",
+    "Lacunas"
+  ],
+  "x-unit": "text",
+  "description": "The `## ` sections the intake file carries, each non-empty (compared without case or accents).",
+  "minItems": 1,
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-readers": [
+    "scripts/lib/intake_templates.py"
+  ]
+}

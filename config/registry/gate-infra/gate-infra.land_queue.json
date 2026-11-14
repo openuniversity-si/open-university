@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "land",
+  "minLength": 1,
+  "x-unit": "queue",
+  "description": "The tenant's queue of the landing jobs, registered through the port.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+}

@@ -1,0 +1,9 @@
+{
+  "type": "boolean",
+  "default": false,
+  "x-unit": "flag",
+  "description": "When false, unit and script tests cannot open a connection to any host outside tests.loopback_hosts: connect, UDP send and name resolution raise. True is an explicit, audited exception.",
+  "x-readers": [
+    "scripts/lib/hermetic.py"
+  ]
+}

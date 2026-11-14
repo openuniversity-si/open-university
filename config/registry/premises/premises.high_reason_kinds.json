@@ -1,0 +1,22 @@
+{
+  "type": "array",
+  "default": [
+    "decision",
+    "veto",
+    "gate",
+    "migration",
+    "production",
+    "security",
+    "move"
+  ],
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Blast reason kinds (<kind>:<target>) that make the computed radius the largest one: a decision or veto, or something costly to undo.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

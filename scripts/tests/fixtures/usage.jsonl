@@ -1,0 +1,4 @@
+{"message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": "scripts/structure-check && git fetch -q origin mod/roadmap-integration"}}]}}
+{"message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "/x"}}, {"type": "text", "text": "hi"}]}}
+{"message": {"content": "plain text, no tool"}}
+not json at all

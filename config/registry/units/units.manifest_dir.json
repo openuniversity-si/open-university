@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "units",
+  "x-unit": "path",
+  "description": "Directory that holds one folder per unit, units/<id>/.",
+  "x-readers": [
+    "scripts/lib/unit_check.py",
+    "scripts/lib/units.py"
+  ],
+  "x-source": "D-067 (plan v3 §4.2)"
+}

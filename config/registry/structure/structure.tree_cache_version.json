@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 1,
+  "minimum": 1,
+  "x-unit": "version",
+  "description": "Version mixed into the tree analysis key; raising it drops every recorded tree analysis.",
+  "x-readers": [
+    "scripts/lib/structure.py"
+  ],
+  "x-source": "D-070 (GX-15)"
+}

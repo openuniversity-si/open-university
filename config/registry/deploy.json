@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/deploy.json",
+  "x-owner": "deploy",
+  "x-schema-version": 1,
+  "description": "The deploy that rings itself (AUTO1): when the infrastructure service invokes the deploy doorbell after a merge into the base branch, and the guards that bound what it can spend.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "deploy.alarm_usd": {
+      "type": "number",
+      "default": 20.0,
+      "exclusiveMinimum": 0,
+      "x-unit": "usd",
+      "description": "Cost alarm (DEP7): when the month's estimated deploy spend (settled cycles x deploy.usd_per_min) reaches this, the autodeploy publishes platform.deploy.cost_alarm once a month and GET /v1/deploy/status carries the line `cost_alarm`; deploys go on until deploy.monthly_usd, the hard stop.",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py"
+      ],
+      "x-source": "DEP7"
+    },
+    "deploy.auto": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "Kill switch of the automatic deploy: false and the service never rings the doorbell (the Torre or a session can still deploy with the token). `scripts/config set deploy.auto false --actor A --reason R` reaches the service within one look (30 s), as a config.changed event in the push to train/events.",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py"
+      ],
+      "x-source": "AUTO1"
+    },
+    "deploy.base_branch": {
+      "type": "string",
+      "default": "mod/roadmap-integration",
+      "minLength": 1,
+      "x-unit": "branch",
+      "description": "The branch whose pushes the service watches (the deployer builds BaseBranch of the bootstrap, which must be the same).",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py"
+      ],
+      "x-source": "AUTO1"
+    },
+    "deploy.canary_limit_s": {
+      "type": "number",
+      "default": 120.0,
+      "exclusiveMinimum": 0,
+      "x-unit": "seconds",
+      "description": "DEPLOY-CANARY (docs/operations/aws.md 22.3a): how long, in seconds, a deploy canary may take from its creation to its end before it is red. The canary is one job of the configuration tenant on the gate's own path (POST /v1/deploy/canary: created by the port, dispatched by the service, taken and run by the runner: a checkout of the base's head, the setup and the command `true`), ahead of every check in its queue. Measured live on 10/11 (scripts/medir, 443 runs since 00:00 UTC): a run takes 3.9 s at p50, the first check after a runner task change ends 4.3 s after its creation at p50 (first_check_s, n=17), the four slots were all busy 1.6% of the time and the longest wait for one to free was 17.5 s, and a runner task the rollout replaced warms for 63 s at p50 (prewarm_s, max 80 s) before its slots open. 120 s covers the warm-up and the wait for a slot with room to spare. Past it the verdict names the stage that never happened: not dispatched (the service), dispatched and not taken (the runner), taken and failed or not ended (the run). Read at each judgement, so a change takes effect on the canaries in flight.",
+      "x-readers": [
+        "infra/service/tower_infra/canary.py"
+      ],
+      "x-source": "DEPLOY-CANARY"
+    },
+    "deploy.canary_slot": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 1,
+      "x-unit": "slots",
+      "description": "CANARY-OWN-SLOT (docs/operations/aws.md 22.9): whether a deploy canary (tower_infra.canary) has a slot of its own in the runner's capacity. 0 (the default) is off: the canary waits for a slot of the checks, so a swap that lands while the runner's slots are all in checks has its code proven only when one ends. 1: the canary names the reserved account `canary` of the capacity (one slot of each container executor, made by the first canary that asks; the dispatch gives it to no other job) and is dispatched at once; the runner task keeps one loop and one checkout more than TOWER_RUNNER_SLOTS to take it. No cost: the canary runs `true`.",
+      "x-readers": [
+        "infra/service/tower_infra/canary.py"
+      ],
+      "x-source": "CANARY-OWN-SLOT"
+    },
+    "deploy.debounce_s": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Seconds the newest push to the base must have settled before the ring when the look does not know its landing (a push that was no delivery, or whose platform.deploy.landed has not arrived yet). RING-AT-LANDING: a head whose landing the look read is rung at once; the coalescing is the build in flight, not a wait.",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py"
+      ],
+      "x-source": "AUTO1"
+    },
+    "deploy.fast_activate_s": {
+      "type": "number",
+      "default": 120,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Safety timeout of the fast deploy's code activation: after UpdateFunctionCode the function must reach LastUpdateStatus Successful and the published version State Active (VPC Lambdas take seconds), all within this long. Not activating in time is recorded as smoke_pre 'not active in N s' and the alias is never swapped.",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py",
+        "infra/service/tower_infra/fastdeploy.py"
+      ],
+      "x-source": "FAST-WAIT-ACTIVE"
+    },
+    "deploy.fast_propagation_s": {
+      "type": "number",
+      "default": 10,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Safety window of the fast deploy after the alias swap: the alias is invoked until it answers the new version, at most this long (Lambda alias updates are eventually consistent). Not converging is recorded (propagated false), never a rollback by itself.",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py",
+        "infra/service/tower_infra/fastdeploy.py"
+      ],
+      "x-source": "FAST-SMOKE-ORDER"
+    },
+    "deploy.intask_standbys": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 1,
+      "x-unit": "processes",
+      "description": "IN-TASK-STANDBY (docs/operations/aws.md 22.9): how many successor processes the ECS task of each role holds at once, one per code bundle of an authoring head: the standby the landing swaps onto, inside the task (tower_infra.supervisor), at no cost of its own. 0 (the default) is off: the standbys are the Fargate Spot tasks of deploy.prewarm_max_tasks and a swap is followed by a reload in place. 1: each task holds one successor; the landing promotes it by the pointer and it keeps the role (the previous process finishes what it has in flight and exits). The maximum is 1 while the service task has 512 MiB: a second successor is ~120 MiB and ~8 database connections more in each service task, which does not fit beside a process that is still finishing.",
+      "x-readers": [
+        "infra/service/tower_infra/live_image.py",
+        "infra/service/tower_infra/prewarm.py"
+      ],
+      "x-source": "IN-TASK-STANDBY"
+    },
+    "deploy.live_code": {
+      "type": "string",
+      "default": "",
+      "x-unit": "digest",
+      "description": "SLOW-PATH-NO-ROLLOUT-WAIT (docs/operations/aws.md 22.10): the code the service and the runner run, as a durable datum: '<sha256 of the code bundle>@<merge sha>' of the newest image-only swap, or '' for none. The live service writes it right after a landing swapped the pointers (autodeploy.live_code, off the swap's clock), and a task ECS starts later reads it before anything else (code_bundle.boot): when it is not the value the deployer saw as it deployed that task definition (TOWER_CODE_SEEN, the stacks' LiveSeen), the task boots that bundle instead of the code of its definition, so a code-only landing needs no ECS rollout to last. An unreadable value, a bundle that cannot be loaded or one a reload failed on: the task definition's code. infra/aws/deploy.sh reads it from GET /v1/deploy/status (live_code) to leave the service and runner stacks alone when the head's code is this bundle.",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py",
+        "infra/service/tower_infra/code_bundle.py"
+      ],
+      "x-source": "SLOW-PATH-NO-ROLLOUT-WAIT"
+    },
+    "deploy.live_image_runner": {
+      "type": "string",
+      "default": "",
+      "x-unit": "digest",
+      "description": "IMAGE-PREWARM-A (docs/operations/aws.md 22.9): the image digest (or content tag) of the live runner. A runner process whose TOWER_IMAGE_DIGEST is set and differs from a non-empty pointer stands by: healthy, but it takes no work (no run is claimed; a runner that was live finishes its runs in flight and exits). Empty (the default) is no pointer: every process works, as before. A write notifies tower_config (migration 0010), so the swap is seen at once; the standby that turns live records platform.deploy.image_live {role, digest, swap_s}.",
+      "x-readers": [
+        "infra/service/tower_infra/live_image.py"
+      ],
+      "x-source": "IMAGE-PREWARM-A"
+    },
+    "deploy.live_image_service": {
+      "type": "string",
+      "default": "",
+      "x-unit": "digest",
+      "description": "IMAGE-PREWARM-A (docs/operations/aws.md 22.9): the image digest (or content tag) of the live service. A service process whose TOWER_IMAGE_DIGEST is set and differs from a non-empty pointer stands by: healthy, but it takes no work (no dispatcher tick, session follow, subscription delivery, forge-key refresh, autodeploy look or migration). Empty (the default) is no pointer: every process works, as before. A write notifies tower_config (migration 0010), so the swap is seen at once; the standby that turns live records platform.deploy.image_live {role, digest, swap_s}.",
+      "x-readers": [
+        "infra/service/tower_infra/live_image.py"
+      ],
+      "x-source": "IMAGE-PREWARM-A"
+    },
+    "deploy.live_stale_s": {
+      "type": "number",
+      "default": 10.0,
+      "exclusiveMinimum": 0,
+      "x-unit": "seconds",
+      "description": "IMAGE-SWAP-FAILOVER (docs/operations/aws.md 22.9): how long, in seconds, the image a pointer names (deploy.live_image_<role>) may go without a live beat before an ECS task standing by takes the role back. A process that is live because the pointer names its digest stamps work.standby_beat.live_at (migration 0016) every 2 s at most while it works: the service after each good dispatch tick, the runner at each TAKE and from the keeper of each run in flight. Each ECS task standing by reads, in the statement of its own standby beat (about once a second), the seconds since the newest live beat of the pointed digest or since the pointer's write, whichever is later, on the database clock; past this value it empties the pointer by compare-and-swap (platform.deploy.image_retired, by: failover) and, not strict, works at once. 10 s is five missed beats and several times the worst dispatch tick measured live at a swap on the db.t4g.micro (1.5 s); a clean stop (SIGTERM) does not wait for it: the standby hands the pointer back first (by: handback).",
+      "x-readers": [
+        "infra/service/tower_infra/live_image.py"
+      ],
+      "x-source": "IMAGE-SWAP-FAILOVER"
+    },
+    "deploy.lost_after_s": {
+      "type": "integer",
+      "default": 3000,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Safety timeout for failure (DEP-WATCHDOG): seconds after a ring without an ended build before the ring is declared lost (platform.deploy.lost) and the current head is rung again at once. The deployer budget is 2400 s plus a margin; an in_progress build silent for more than the budget (or this, if smaller) is lost too.",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py"
+      ],
+      "x-source": "DEP-WATCHDOG"
+    },
+    "deploy.monthly_usd": {
+      "type": "number",
+      "default": 30.0,
+      "exclusiveMinimum": 0,
+      "x-unit": "usd",
+      "description": "Hard stop: no ring while the estimated CodeBuild spend of the calendar month (settled cycle seconds x deploy.usd_per_min; an unsettled ring at the shorter of the 45 min timeout and the time to the next ring) is at or above this. Below deploy.alarm_usd the alarm speaks first. The account cap is US$60.",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py"
+      ],
+      "x-source": "AUTO1"
+    },
+    "deploy.prewarm_max_tasks": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "x-unit": "tasks",
+      "description": "IMAGE-PREWARM-B2 (docs/operations/aws.md 22.9): how many code bundles of authoring heads have a standby at once, one Fargate Spot task per role each (runner + service, about US$ 29/month at saturation for 1). Over it the newest push wins: the oldest bundle's standbys stop and its branches fall back to the slow path (a log line). 0 starts no standby. Raising it is new spend, Daniel's decision (budget US$ 60/month).",
+      "x-readers": [
+        "infra/service/tower_infra/prewarm.py"
+      ],
+      "x-source": "IMAGE-PREWARM-B2"
+    },
+    "deploy.promote": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "IMAGE-PREWARM-C (docs/operations/aws.md 22.9 and 22.9a): whether a landing (platform.deploy.landed) promotes: when the merge is code-only, runs the PR head's code bundle and both roles have a healthy standby of it, the autodeploy writes deploy.live_image_runner and deploy.live_image_service to that bundle in one statement (platform.deploy.image_swap). True (the default) is today's rule, every landing promotes; false lets the landings accumulate for the slow path (a later unit chooses what to promote and when).",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py"
+      ],
+      "x-source": "IMAGE-PREWARM-C"
+    },
+    "deploy.standby_fresh_s": {
+      "type": "number",
+      "default": 3.0,
+      "exclusiveMinimum": 0,
+      "x-unit": "seconds",
+      "description": "IMAGE-SWAP-TIGHTEN (docs/operations/aws.md 22.9): how recent, in seconds, the last beat of a standby must be for the landing to count it healthy (work.standby_beat, migration 0014: each process standing by upserts it on every standby pass, about once a second). The landing (POST /v1/deploy/landed) writes deploy.live_image_runner and deploy.live_image_service in the statement that records it only when both roles have a beat of the bundle this recent, on the database clock: no AWS call on the clock. Otherwise the landing records why and the autodeploy's path (the standby events, then ECS DescribeTasks) decides as before.",
+      "x-readers": [
+        "infra/service/tower_infra/port.py"
+      ],
+      "x-source": "IMAGE-SWAP-TIGHTEN"
+    },
+    "deploy.usd_per_min": {
+      "type": "number",
+      "default": 0.005,
+      "exclusiveMinimum": 0,
+      "x-unit": "usd/min",
+      "description": "CodeBuild price of the deployer's compute used by the guard: BUILD_GENERAL1_SMALL Linux x86 is US$0.005 a minute; the project runs ARM (US$0.0034), so the guard overestimates by a third on purpose.",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py"
+      ],
+      "x-source": "AUTO1"
+    }
+  }
+}

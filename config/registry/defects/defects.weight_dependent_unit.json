@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 5,
+  "x-unit": "points",
+  "description": "Priority points for each unit that requires the defect's unit, directly or through others.",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "minimum": 0
+}

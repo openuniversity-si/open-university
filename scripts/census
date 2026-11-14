@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/census add|remove|sync|migrate|list|show|check ... (scripts/lib/census.py)
+# The one writer of each unit's literal census, units/<id>/census.jsonl (CENSO-NO-MANIFESTO; D-063, D-064 a, D-067).
+# A record is append-only and sealed; a hand edit fails scripts/census check, which structure-check runs.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/census.py" "$@"

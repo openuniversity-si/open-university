@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "padrao_candidate",
+  "x-unit": "text",
+  "description": "The marker the program retro puts on lessons that propose a Padrão change.",
+  "x-readers": [
+    "scripts/lib/program_gate.py"
+  ]
+}

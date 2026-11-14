@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "train",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Producer name of every train event; part of each event id.",
+  "x-readers": [
+    "scripts/lib/service_lock.py",
+    "scripts/lib/train.py"
+  ]
+}

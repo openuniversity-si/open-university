@@ -1,0 +1,10 @@
+# web-build audit (U4)
+
+Read-only findings, base `mod/roadmap-integration` fbca2e52.
+
+- Unit: the web app's build, lint, test and deploy configuration: `apps/web/{drizzle,eslint,next,playwright,playwright.production,stylelint,vitest}.config.*`, `package.json`, `tsconfig.json`, `vercel.json`, `design/figma-tokens.snapshot.json` and `tooling/migrations/*.sql`. 13 files, 527 measured lines against `units.size_ceiling` 1,500 (`scripts/units measure`: no `unit.oversize`).
+- Physical form: S1 keeps units logical (P-03 `validated`). Moving these files into `units/web-build/` is not possible: Next, tsc, vitest, Playwright, eslint, stylelint, drizzle-kit and pnpm resolve them at `apps/web/` by name, and `package.json` and `tsconfig.json` are the project itself. Nothing moves, so nothing is deleted (D-029).
+- Address and contract: `scripts/lib/unit_addresses.py` gives no `@ou/web-build` because the unit's home is the TypeScript project root `apps/web` ("it gets an address when it has its own directory"). A contract in the manifest without an address fails the battery's contract step (tried: `contract {entry: next.config.ts, version: 1.0.0}` made `scripts/unit-battery web-build` red: "the contract entry next.config.ts is not a file of web-build"). The importers that name its files by path today: `next.config.ts` from `src/media/domain/direct-delivery.test.ts`, `src/site/domain/hosts.test.ts`, `test/site/noindex.test.ts`; `design/figma-tokens.snapshot.json` from `e2e/specimen.spec.ts` and `src/app/(test)/_specimen/TowerSpecimen.tsx`. The decision and the safe path are in the retro; the manifest keeps no contract slot.
+- Literals: `config_check.literal_findings` reports none for these files and no `x-literal-sites` entry names them. The allowlist for the unit is already zero. The configuration files' values (ports, timeouts, budgets) are read from the registry by the gate and the e2e harness, not typed here.
+- Battery: `scripts/unit-battery web-build` green in about 5 s (types step), far under `battery.unit_time_limit`.
+- Tests: the unit has no test file of its own; no flaky test, nothing to quarantine.

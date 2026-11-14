@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 4,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Tries scripts/gate-verdict makes to read the PR (head and base) before it answers UNOBSERVABLE; a read of the input is retried, a verdict never is.",
+  "x-readers": [
+    "scripts/lib/gate_verdict.py",
+    "scripts/tests/test_gate_verdict.py"
+  ],
+  "x-source": "D-070 (GATE-API)"
+}

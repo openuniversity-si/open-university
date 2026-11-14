@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "docs/domain/DECISIONS.md",
+  "x-unit": "path",
+  "description": "Register a manifest's budget override and decisions must cite (D-NNN rows).",
+  "x-readers": [
+    "scripts/lib/structure.py",
+    "scripts/lib/units.py"
+  ],
+  "x-source": "D-067 (plan v3 §4.2)"
+}

@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "",
+  "x-unit": "text",
+  "description": "Unit R1: the sha of a red base tip that the train runs anyway, set by an operator with scripts/config set train.base_hold_release <sha> --actor <who> --reason <why> (recorded in the config history). Empty by default. A release is for that one tip: the next tip is judged by its own result.",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

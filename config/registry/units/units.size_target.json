@@ -1,0 +1,13 @@
+{
+  "type": "integer",
+  "default": 1000,
+  "minimum": 1,
+  "x-unit": "lines",
+  "description": "Production lines a unit aims at; above it the unit is a candidate to split.",
+  "x-readers": [
+    "docs/process/EVENTS.md",
+    "scripts/lib/units.py",
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "P-04 (plan v3 §2.1)"
+}

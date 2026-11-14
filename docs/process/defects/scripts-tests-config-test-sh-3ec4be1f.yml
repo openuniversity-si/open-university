@@ -1,0 +1,10 @@
+# Known defect record (D-069 items 4, 8 and 9, contracts/defects/defect.v2.json). Change it with scripts/defects; the trail is append-only.
+id: "KD-3ec4be1f"
+slug: "scripts-tests-config-test-sh-3ec4be1f"
+test: "scripts/tests/config.test.sh"
+stage: "script tests"
+signature: "config.StoreError: config: the change store holds an invalid event"
+summary: "Quarantine.test_an_invalid_envelope_on_the_log_is_quarantined_not_fatal: the premise.blast of #548 (producer 'scripts/premises') makes every config.get on the github store raise StoreError"
+status: "resolved"
+evidence: [{"base_sha": "069145b95c13ee2bf883d80ff6d7966bb87af220", "run": "env-fix-premise-blast: test_config.Quarantine on the 069145b9 reader (2026-10-29)", "result": "fail", "signature": "config.StoreError: config: the change store holds an invalid event", "at": "2026-10-29T16:03:18.906Z"}]
+fix: null

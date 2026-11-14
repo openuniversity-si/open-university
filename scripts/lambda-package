@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/lambda-package digest | gate --base SHA --head SHA | publish --record | code   (scripts/lib/lambda_package.py --help)
+# The deterministic zip packages of the port's Lambdas, their digests and the artifact bucket (DEP8).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/lambda_package.py" "$@"

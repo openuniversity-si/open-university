@@ -1,0 +1,15 @@
+{
+  "script": "scripts/tests/gate-report-incident.test.sh",
+  "covers": [
+    "scripts/tests/gate-report-incident.test.sh",
+    "scripts/tests/test_gate_report_incident.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/gate_incident.py",
+    "scripts/lib/gate_skips.py",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/gate_proof.py",
+    "scripts/lib/gate_adjudicate.py",
+    "scripts/lib/gate_publish.py",
+    "scripts/lib/config.py"
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/structure.py": {
+      "number -2": 1,
+      "number 12": 3,
+      "number 2": 4,
+      "number 3": 1,
+      "number 4": 2,
+      "number 6": 1,
+      "number 7": 2
+    },
+    "scripts/lib/threshold_check.py": {
+      "number 2": 1
+    },
+    "scripts/lib/visual_guard.py": {
+      "number 5": 2
+    },
+    "scripts/tests/test_postmortem_check.py": {
+      "number 2": 1
+    },
+    "scripts/tests/test_structure.py": {
+      "duration \"12h\"": 2,
+      "duration \"1h\"": 3,
+      "duration \"24h\"": 2,
+      "duration \"71h\"": 1,
+      "number 1792964543874": 1,
+      "number 1793000000009": 1,
+      "number 1793000000010": 1,
+      "number 2": 9,
+      "number 3": 2,
+      "number 301": 1,
+      "number 302": 1,
+      "number 303": 1,
+      "number 304": 1,
+      "number 4": 2,
+      "number 6": 1,
+      "number 600": 3,
+      "number 601": 1,
+      "number 7": 2,
+      "number 8": 7,
+      "number 900": 2,
+      "url \"https://claude.ai/code/x\"": 1,
+      "url \"https://example.test/x\"": 1
+    },
+    "scripts/tests/test_threshold_check.py": {
+      "number 1000": 2,
+      "number 16": 2,
+      "number 2": 3,
+      "number 2000": 8,
+      "number 3": 1,
+      "number 4": 1,
+      "number 5": 1,
+      "number 500": 3,
+      "number 598": 2,
+      "number 70": 2,
+      "number 8": 2,
+      "number 80": 2,
+      "number 90": 1,
+      "number 9999": 1,
+      "url \"https://json-schema.org/draft/2020-12/schema\"": 1
+    },
+    "scripts/tests/test_visual_guard.py": {
+      "number 2": 2
+    }
+  }
+}

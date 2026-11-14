@@ -1,0 +1,42 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/cloud/env.sh": {
+      "absolute_path \"/tmp/\"": 1,
+      "absolute_path \"/usr/bin/python3\"": 2,
+      "number 2": 1,
+      "url \"postgresql://postgres@${_ou_cloud_postgres_host[0]}:${OU_POSTGRES_PORT:-${_ou_cloud_postgres_port[0]}}/$(ou_test_db_name\"": 1
+    },
+    "scripts/cloud/postgres.py": {
+      "number 2": 1,
+      "number 420": 2,
+      "number 448": 1,
+      "number 493": 1,
+      "number 65535": 1
+    },
+    "scripts/cloud/root-session.sh": {
+      "absolute_path \"/usr/bin/python3\"": 2
+    },
+    "scripts/cloud/setup.sh": {
+      "absolute_path \"/usr/bin/python3\"": 3,
+      "number 2": 4,
+      "number 666": 1,
+      "number 755": 1,
+      "number 8": 2
+    },
+    "scripts/cloud/toolchain.py": {
+      "absolute_path \"/bin/sh\"": 2,
+      "number 2": 1,
+      "number 493": 5
+    },
+    "scripts/tests/test_cloud.py": {
+      "number 2": 2,
+      "number 50": 1,
+      "number 60": 1,
+      "number 6543": 1,
+      "url \"http://proxy.invalid:1\"": 2,
+      "url \"https://example.invalid/x\"": 1,
+      "url \"postgresql://postgres@\"": 2
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "contracts/lessons/lesson.v1.json",
+  "x-unit": "path",
+  "description": "JSON Schema 2020-12 of a lesson record.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ]
+}

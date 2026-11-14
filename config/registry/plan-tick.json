@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/plan-tick.json",
+  "x-owner": "plan-tick",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "plan-tick.base_ref": {
+      "type": "string",
+      "default": "origin/mod/roadmap-integration",
+      "x-unit": "ref",
+      "description": "Base ref of the range base..HEAD whose commits derive the plan tick of a PR (D-065 V4: the tick comes from commits, never from a checkbox the PR writes).",
+      "x-readers": [
+        "scripts/lib/plan_tick.py",
+        "scripts/lib/pr_ready.py",
+        "scripts/plan-tick"
+      ]
+    },
+    "plan-tick.event_producer": {
+      "type": "string",
+      "default": "plan-tick",
+      "x-unit": "name",
+      "description": "Producer name of the pr.ready envelope (the forge_events port derives the idempotency key from it).",
+      "x-readers": [
+        "scripts/lib/gate_report.py",
+        "scripts/lib/pr_ready.py"
+      ]
+    },
+    "plan-tick.required_gate_kind": {
+      "type": "string",
+      "default": "dev",
+      "x-unit": "enum",
+      "enum": [
+        "dev"
+      ],
+      "description": "Gate plan whose passed gate.passed must exist for the head before pr.ready is emitted (gate-dev, tier 1).",
+      "x-readers": [
+        "scripts/lib/pr_ready.py"
+      ]
+    },
+    "plan-tick.short_sha_chars": {
+      "type": "integer",
+      "default": 8,
+      "minimum": 7,
+      "maximum": 40,
+      "x-unit": "chars",
+      "description": "Characters of a commit sha that pr.ready and the gate's pr.ready hook print (the event keeps the full sha).",
+      "x-readers": [
+        "scripts/lib/pr_ready.py",
+        "scripts/lib/gate_report.py"
+      ]
+    }
+  }
+}

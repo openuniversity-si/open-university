@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 15,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Seconds between the first two reads of GET /v1/deploy/status while scripts/deploy follow waits for a build; the pause grows by half each read up to gate-infra.deploy_poll_max_s.",
+  "x-readers": [
+    "scripts/lib/deploy.py"
+  ],
+  "x-source": "DEP1"
+}

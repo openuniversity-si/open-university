@@ -1,0 +1,14 @@
+{
+  "script": "scripts/tests/operation-config.test.sh",
+  "covers": [
+    "scripts/tests/operation-config.test.sh",
+    "scripts/tests/test_operation_config.py",
+    "scripts/lib/operation_config.py",
+    "scripts/lib/operation_config_relations.json",
+    "scripts/lib/operation_relations.json",
+    "scripts/lib/operation_relations.py",
+    "config/registry/forge-events/**",
+    "scripts/lib/forge*.py",
+    "scripts/lib/*.py"
+  ]
+}

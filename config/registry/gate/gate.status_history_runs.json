@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 5,
+  "x-unit": "count",
+  "description": "GV1: most recent earlier local runs whose stage times give the expected duration of each stage (median).",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "minimum": 1
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/release.json",
+  "x-owner": "release",
+  "x-schema-version": 1,
+  "description": "The release controller (D-065, roadmap step 8).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "release.loopback_hosts": {
+      "type": "array",
+      "default": [
+        "127.0.0.1",
+        "localhost"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "host",
+      "description": "Hosts of a loopback http origin (the hermetic tests' fakes) that the release policy treats as not production (D-054); any other origin is the real host. Moved from github-client.loopback_hosts when the GitHub client left (D-293).",
+      "x-readers": [
+        "scripts/lib/release_policy.py"
+      ],
+      "x-source": "D-054; D-293"
+    },
+    "release.merged_prs_per_release": {
+      "type": "integer",
+      "default": 1000,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Merged PRs since the last release after which release.ready is emitted (or a milestone).",
+      "x-readers": [
+        "docs/process/EVENTS.md",
+        "scripts/lib/battery.py"
+      ],
+      "x-source": "D-065; P-35"
+    }
+  }
+}

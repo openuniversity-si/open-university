@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "gate_report",
+  "x-unit": "name",
+  "description": "Producer name of the gate's events; part of every gate event id.",
+  "x-readers": [
+    "scripts/lib/gate_bypass.py",
+    "scripts/lib/gate_carry.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/gate_status.py"
+  ]
+}

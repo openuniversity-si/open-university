@@ -1,0 +1,20 @@
+{
+  "type": "array",
+  "default": [
+    "a torre=a-torre",
+    "engine lane=engine-lane",
+    "engine=engine-lane",
+    "gate owner=gate-lane",
+    "gate area=gate-lane",
+    "structure owner=structure-owner",
+    "engine-commit-plan=engine-commit-plan"
+  ],
+  "x-unit": "text",
+  "description": "Retro wording for an owner, 'phrase=owner' (lowercase phrase found in the owner text).",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

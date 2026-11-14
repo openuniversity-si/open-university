@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/toolchain-download.test.sh",
+  "covers": [
+    "scripts/tests/toolchain-download.test.sh",
+    "scripts/tests/test_toolchain_download.py",
+    "scripts/cloud/toolchain.py",
+    "config/registry/cloud.json",
+    "scripts/lib/config.py"
+  ]
+}

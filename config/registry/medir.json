@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/medir.json",
+  "x-owner": "medir",
+  "x-schema-version": 1,
+  "description": "The measures of the phase-1 path (MEDIR 1, P6 F1): what scripts/medir reads and how it summarizes it.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "medir.landing_slack_s": {
+      "type": "number",
+      "default": 0.2,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "P5 F3's second criterion: the shadow's ready to landed p50 at most the box's merge through Origin (p50) plus this, the forge's number plus our ~0.2 s (ARQUITETURA-ALVO §7).",
+      "x-readers": [
+        "scripts/lib/medir.py"
+      ],
+      "x-source": "MEDIR 4 (P5 F3)"
+    },
+    "medir.log_page": {
+      "type": "integer",
+      "default": 1000,
+      "minimum": 1,
+      "x-unit": "events",
+      "description": "Events one read of the tenant's log answers while scripts/medir pages through it.",
+      "x-readers": [
+        "scripts/lib/medir.py"
+      ],
+      "x-source": "MEDIR 1 (P6 F1)"
+    },
+    "medir.prewarm_runner_usd_h": {
+      "type": "number",
+      "default": 0.029,
+      "minimum": 0,
+      "x-unit": "usd/h",
+      "description": "IMAGE-PREWARM-C: the hourly price of a runner standby (Fargate Spot ARM, 2 vCPU and 8 GB: about US$ 0.0101 per vCPU-hour and US$ 0.0011 per GB-hour, roughly 30% of the on-demand US$ 0.093/h, docs/operations/aws.md 22.9 item 6). scripts/medir prices each standby's started_at to stopped seconds with it as prewarm_task_usd. Data, not a bill: Spot prices move; correct it here.",
+      "x-readers": [
+        "scripts/lib/medir.py"
+      ],
+      "x-source": "IMAGE-PREWARM-C"
+    },
+    "medir.prewarm_service_usd_h": {
+      "type": "number",
+      "default": 0.0031,
+      "minimum": 0,
+      "x-unit": "usd/h",
+      "description": "IMAGE-PREWARM-C: the hourly price of a service standby (Fargate Spot ARM, 0.25 vCPU and 0.5 GB: about US$ 0.0101 per vCPU-hour and US$ 0.0011 per GB-hour; on demand it is about US$ 0.01/h, docs/operations/aws.md 22.9 item 6). scripts/medir prices each standby's started_at to stopped seconds with it as prewarm_task_usd. Data, not a bill: Spot prices move; correct it here.",
+      "x-readers": [
+        "scripts/lib/medir.py"
+      ],
+      "x-source": "IMAGE-PREWARM-C"
+    },
+    "medir.quantiles": {
+      "type": "array",
+      "default": [
+        0.5,
+        0.99
+      ],
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 1
+      },
+      "minItems": 1,
+      "x-unit": "fraction",
+      "description": "The quantiles scripts/medir answers for each measure (nearest rank): the p50 and p99 the plan asks for.",
+      "x-readers": [
+        "scripts/lib/medir.py"
+      ],
+      "x-source": "MEDIR 1 (P6 F1)"
+    },
+    "medir.shadow_prs": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "x-unit": "prs",
+      "description": "P5 F3's criterion: the PRs whose every head the box and the shadow judged the same, before delivery.judge turns to infra (PLANO-DE-IMPLEMENTACAO §6).",
+      "x-readers": [
+        "scripts/lib/medir.py"
+      ],
+      "x-source": "GATE-INFRA 4 (P5 F3)"
+    },
+    "medir.webhook_ack_limit_s": {
+      "type": "number",
+      "default": 1,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "The failure limit of a webhook ACK (PORT4, Daniel 08/11): the seconds the ingress may take to answer Origin's webhook, a cold start included. It is an acceptance criterion, not a timeout setting: it cuts nothing, and the 10 s Origin gives is not changed. Any single delivery over it is a failure (over_limit in the ingress log line, listed by scripts/medir), never a percentile. The stack hands it to the ingress as TOWER_INGRESS_ACK_LIMIT_S.",
+      "x-readers": [
+        "infra/service/tower_infra/ingress.py",
+        "scripts/lib/config_latency.py",
+        "scripts/lib/medir.py"
+      ],
+      "x-source": "PORT4 (Daniel 08/11 14:19 and 14:39 BRT)"
+    }
+  }
+}

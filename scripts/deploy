@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/deploy ring | status | follow [--target SHA] [--build ID] [--since EPOCH]
+# The session's deploy (DEP1): ring the doorbell, read the deploy status through the port, follow the build to its end.
+# scripts/lib/deploy.py says how; no AWS credential is needed or used.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/deploy.py" "$@"

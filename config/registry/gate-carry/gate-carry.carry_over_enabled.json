@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "GX-20 (B-14, GA-P01, D-070): a PR gate whose delta from an earlier passed v4 proof on the same base, toolchain and gate version stays inside gate-carry.carry_over_areas runs the delta plan (always-stages, structure check included, plus the covers-matching script tests) and carries every other stage of that proof (carried_from). Off is the rollback: every run is a normal gate.",
+  "x-readers": [
+    "scripts/lib/gate_carry.py"
+  ],
+  "x-flag": true,
+  "x-source": "D-070"
+}

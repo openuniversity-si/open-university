@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "^F[0-9]{2}[a-z]?$",
+  "x-unit": "pattern",
+  "description": "The shape of the legacy --closes argument (a retired phase id such as F01 or F04c); merge-phase accepts it for compatibility and ignores it.",
+  "x-readers": [
+    "scripts/lib/release_policy.py"
+  ],
+  "x-source": "D-054; D-068; D-069 item 3"
+}

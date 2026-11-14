@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "^#{1,6}\\s+(?:\\d+\\.\\s*)?Lessons\\b",
+  "x-unit": "regex",
+  "description": "The heading whose section of a unit retro the program retro carries.",
+  "x-readers": [
+    "scripts/lib/program_gate.py"
+  ],
+  "format": "regex"
+}

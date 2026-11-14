@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "inferred",
+    "to-validate"
+  ],
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Statuses of a premise without an answer.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

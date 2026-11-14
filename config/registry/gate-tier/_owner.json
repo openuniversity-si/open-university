@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-tier.json",
+  "x-owner": "gate-tier",
+  "x-schema-version": 1,
+  "description": "The gate tier (GX-11, D-070): derived from the invocation (D-B5: --tier3 3, --pr 1, --sha without --pr 2) and which tiers may use box-local caches (D-065 (5), GA-P02 strict).",
+  "type": "object",
+  "additionalProperties": false
+}

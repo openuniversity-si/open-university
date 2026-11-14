@@ -1,0 +1,14 @@
+{
+  "type": "integer",
+  "default": 1,
+  "minimum": 1,
+  "x-literal-names": [
+    "PLAN_MIN"
+  ],
+  "x-unit": "commits",
+  "description": "Fewest items of a PR's commit plan.",
+  "x-readers": [
+    "scripts/lib/commit_check.py"
+  ],
+  "x-source": "D-022, D-025, D-219"
+}

@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/infra-code-bundle.test.sh",
+  "covers": [
+    "scripts/tests/infra-code-bundle.test.sh",
+    "scripts/tests/test_infra_code_bundle.py",
+    "infra/service/tower_infra/code_bundle.py",
+    "infra/service/tower_infra/__main__.py",
+    "infra/service/tower_infra/live_image.py",
+    "infra/service/requirements.txt",
+    "infra/service/Dockerfile",
+    "infra/db/migrations/**",
+    "scripts/lib/lambda_package.py",
+    "scripts/lambda-package",
+    "infra/aws/stacks/30-service.json",
+    "infra/aws/stacks/50-runner.json"
+  ]
+}

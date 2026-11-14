@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 10,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Tier-1 gate wall time (sum of its stages) that the 95th percentile of the last slo.sample_window_events tier-1 verdicts may not exceed. First value: the existing target gate.tier1_target_s (D-065 (5)); the reader enforces the smaller of the two, and a test refuses an SLO looser than that target.",
+  "x-readers": [
+    "scripts/lib/slo.py",
+    "docs/process/EVENTS.md"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 100,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "pageSize of a paged Origin read: the spec's maximum for pull request comments and namespaces.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "the official Origin OpenAPI 3.1 spec (pageSize maximum)"
+}

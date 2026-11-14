@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "Daniel",
+  "x-unit": "text",
+  "description": "Who declared the regime.",
+  "x-readers": [
+    "scripts/lib/regime.py"
+  ],
+  "x-source": "D-260"
+}

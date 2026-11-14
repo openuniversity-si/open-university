@@ -1,0 +1,38 @@
+{
+  "id": "engine-gate-cache",
+  "purpose": "Gate result caches: input keys, the test and result caches, shared results and proofs.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/gate-proof.json",
+    "scripts/lib/gate_keys.py",
+    "scripts/lib/gate_proof.py",
+    "scripts/lib/gate_publish.py",
+    "scripts/lib/gate_result_cache.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/shared_results.py",
+    "scripts/tests/covers/shared-results.json",
+    "scripts/tests/gate-publish.test.sh",
+    "scripts/tests/gate-result-cache.test.sh",
+    "scripts/tests/gate-test-cache-env.test.sh",
+    "scripts/tests/gate-test-cache.test.sh",
+    "scripts/tests/shared-results.test.sh",
+    "scripts/tests/test_gate_publish.py",
+    "scripts/tests/test_gate_result_cache.py",
+    "scripts/tests/test_gate_test_cache.py",
+    "scripts/tests/test_gate_test_cache_env.py",
+    "scripts/tests/test_shared_results.py"
+  ],
+  "requires": {
+    "engine-commit-plan": "^1",
+    "engine-config": "^1",
+    "engine-env": "^1",
+    "engine-events": "^1",
+    "engine-gate-plan": "^1",
+    "engine-gate-report": "^1",
+    "engine-gate-speed": "^1",
+    "engine-gate-tests": "^1",
+    "engine-git-ref": "^1",
+    "engine-hermetic-tests": "^1"
+  }
+}

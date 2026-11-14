@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 40,
+  "minimum": 1,
+  "x-unit": "lines",
+  "description": "Lines of a failing script test output the gate prints.",
+  "x-readers": [
+    "scripts/lib/defect_detect.py",
+    "scripts/lib/gate_graph.py",
+    "scripts/lib/prepush.py"
+  ]
+}

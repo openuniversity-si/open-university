@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "How many merges, wakes and runner results `scripts/service status` lists, newest first.",
+  "x-readers": [
+    "scripts/lib/service_status.py"
+  ],
+  "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md"
+}

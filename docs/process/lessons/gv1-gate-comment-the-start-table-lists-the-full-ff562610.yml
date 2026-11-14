@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-ff562610"
+slug: "gv1-gate-comment-the-start-table-lists-the-full-ff562610"
+title: "Gate comment: the start table lists the full dev stage list until classification finishes"
+source:
+  unit: "GV1"
+  retro: "docs/units/GV1/retro.md"
+  section: 5
+  ref: "L5"
+class: "process"
+kind: "check"
+change: "Gate comment: the start table lists the full dev stage list until classification finishes; the replan then narrows it. Known, harmless."
+owner: "engine-lane"
+status: "proposed"
+area: []
+signals: [{"event": "gate.failed", "stage": "structure check", "pattern": null}]
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

@@ -1,0 +1,413 @@
+#!/usr/bin/env bash
+# scripts/gate-local — compatible local gate runner (ADR-24/33); no GitHub Actions.
+#
+# Usage:
+#   scripts/gate-local                 run against the current working tree (no record written; what gate-quiet does)
+#   scripts/gate-local --sha <sha>     check out <sha> in a throwaway worktree, run, and on success record a pass
+#   scripts/gate-local --pr <n>        same, for the head commit of PR <n> (legacy: the full battery)
+#   --nightly: the full battery; scripts/gate-dev --pr <n>: the prerequisites and the script tests its areas select
+#   scripts/gate-noite: end-of-day full battery on origin/main, with reports
+#   scripts/gate-local --tier3 --sha <sha>: tier 3, the full battery on an integration tip (D-065 (5)); the battery
+#     role (M6) runs it, never cached
+#   scripts/gate-local --dev --sha <sha> --plan-file <batch plan>: the combined head of a batch (scripts/gate-batch, GS1)
+#     with the union area plan and selection of scripts/lib/gate_batch.py instead of a PR classification
+#   add --verbose to stream full logs
+#   GX-05 (D-070): --pr/--sha runs are judged by the base tip's tooling (scripts/lib/gate_pin.py; gate-pin.enabled);
+#     --report-only runs this checkout's tooling with no events, record, status or pr.ready (the advisory view)
+#
+# Records: <sha>.dev.pass, .pr.pass (legacy), .pass (full), .noite.pass (end of day), .tier3.pass.
+# OU-DECOUPLE F5 (D-113): the engine gate runs engine stages only (scripts/lib/gate_policy.py). Open University's web
+# stages (install, suites, builds, browsers), its DB gate (--db), the Neon PR stages and the factory bench left with it;
+# so did the offline seed of their caches and its registry key (vazão F16).
+# Exit: 0 pass, 1 fail, 2 usage/setup error. Secrets are never printed.
+# Tooling is this script's checkout. --pr/--sha checks the head out only as the code under test.
+# GX-05 (B-09, GA-PG1): unless already pinned, that checkout is a tool worktree of the base sha (gate_pin.py).
+set -uo pipefail
+gate_args=("$@")
+_gate_dir="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_gate_dir/cloud/env.sh" ]]; then
+  # shellcheck source=scripts/cloud/env.sh
+  source "$_gate_dir/cloud/env.sh"
+fi
+py="${OU_PYTHON:-python3}"
+# shellcheck source=scripts/lib/gate-budget.sh
+source "$_gate_dir/lib/gate-budget.sh"
+# GX-38 (D-070): the six driver hooks. Each is a no-op function in its own file, so a later unit changes one file and
+# never this driver. gate_hook NAME calls gate_hook_NAME once at its fixed point; OU_GATE_HOOK_TRACE (a file) lists
+# the calls in order for the regression test.
+# shellcheck source=scripts/lib/gate-hooks/pin.sh
+source "$_gate_dir/lib/gate-hooks/pin.sh"
+# shellcheck source=scripts/lib/gate-hooks/tier.sh
+source "$_gate_dir/lib/gate-hooks/tier.sh"
+# shellcheck source=scripts/lib/gate-hooks/proof.sh
+source "$_gate_dir/lib/gate-hooks/proof.sh"
+# shellcheck source=scripts/lib/gate-hooks/prereq.sh
+source "$_gate_dir/lib/gate-hooks/prereq.sh"
+# shellcheck source=scripts/lib/gate-hooks/plan.sh
+source "$_gate_dir/lib/gate-hooks/plan.sh"
+# shellcheck source=scripts/lib/gate-hooks/exit.sh
+source "$_gate_dir/lib/gate-hooks/exit.sh"
+gate_hook() {
+  local name="$1"
+  shift
+  [[ -z "${OU_GATE_HOOK_TRACE:-}" ]] || printf '%s\n' "$name" >>"$OU_GATE_HOOK_TRACE"
+  "gate_hook_$name" "$@"
+}
+
+gate_started=$(gate_now_ms)
+gate_started_epoch=$(gate_epoch_ms) # the proof's cost (gate-hooks/proof.sh) is on the wall clock
+sha="" pr="" nightly=0 verbose=0 dev=0 noite=0 tier3=0 plan_file="" report_only=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dev) dev=1; shift ;;
+    --noite) noite=1; nightly=1; shift ;;
+    --tier3) tier3=1; shift ;;
+    --list)
+      plan=full; [[ $dev -eq 0 ]] || plan=dev; [[ $tier3 -eq 0 ]] || plan=tier3
+      exec "$py" "$(dirname "$0")/lib/gate_policy.py" plan "$plan" ;;
+    --sha) sha="${2:?}"; shift 2 ;;
+    --pr) pr="${2:?}"; shift 2 ;;
+    --plan-file) plan_file="${2:?}"; shift 2 ;;
+    --nightly) nightly=1; shift ;;
+    --verbose) verbose=1; shift ;;
+    --report-only) report_only=1; shift ;;
+    -h | --help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+gate_hook tier
+gate_prepare_epoch="$EPOCHREALTIME"
+
+[[ $dev -eq 0 || $nightly -eq 0 ]] || { echo "--dev cannot be combined with --nightly" >&2; exit 2; }
+if [[ $tier3 -eq 1 ]]; then
+  [[ $dev -eq 0 && $nightly -eq 0 && -z "$pr" && -n "$sha" ]] ||
+    { echo "--tier3 needs --sha <sha> and cannot be combined with --dev, --nightly, --noite or --pr" >&2; exit 2; }
+fi
+# Events, pr.ready and the status comment are published for this PR; none for a report-only run (GX-05).
+event_pr="$pr"
+[[ $report_only -eq 0 ]] || event_pr=""
+mode="pr"; suffix=pr.pass
+if [[ $nightly -eq 1 ]]; then mode=nightly; suffix=pass; fi
+if [[ $dev -eq 1 ]]; then mode=dev; suffix=dev.pass; fi
+if [[ $noite -eq 1 ]]; then mode=noite; suffix=noite.pass; fi
+if [[ $tier3 -eq 1 ]]; then mode=tier3; suffix=tier3.pass; fi
+# D-151 (SUPER REGIME DE EXCEPTION, Daniel 31/10 16:24 BRT): while gate.bypass is on (GATE_BYPASS=1 or the shared store),
+# a PR's gate (dev or pr) is green at once and marked `bypass`, before the pin, the preflight, the lock and the worktree.
+# The end-of-day battery, tier 3, a run on the working tree (no --pr or --sha: there is no verdict to give), an advisory
+# --report-only run and a train batch run (GATE_BATCH_BASE: the train's tier 2
+# is bypassed by engine_role itself, with the batch's own binding) never bypass here. `scripts/config set gate.bypass false`
+# (or GATE_BYPASS=0 for one run) is the whole rollback.
+if [[ $report_only -eq 0 && -z "${GATE_BATCH_BASE:-}" && ( -n "$pr" || -n "$sha" ) && ( "$mode" == dev || "$mode" == pr ) ]] && "$py" "$_gate_dir/lib/gate_bypass.py" check 2>/dev/null; then
+  exec "$py" "$_gate_dir/lib/gate_bypass.py" run --root "$(git -C "$_gate_dir" rev-parse --show-toplevel)" --mode "$mode" \
+    --pr "$pr" --sha "$sha" --record-dir "${GATE_RECORD_DIR:-$(git -C "$_gate_dir" rev-parse --show-toplevel)/.gate/records}"
+fi
+env_file="${DELIVERY_ENV_FILE:-$HOME/.config/open-university/environment.sh}"
+# shellcheck source=/dev/null
+[[ ! -f "$env_file" ]] || source "$env_file"
+# Tooling is the checkout that contains this script, even when cwd is somewhere else.
+tool_root="$(git -C "$_gate_dir" rev-parse --show-toplevel)" || exit 2
+# GX-05: a pinned (or report-only) run gets the invoking checkout as record root: its env.sh, records, lock and git.
+gate_pin_handoff
+cloud_env="$src_root/scripts/cloud/env.sh"
+if [[ -f "$cloud_env" ]]; then
+  # shellcheck source=scripts/cloud/env.sh
+  source "$cloud_env"
+fi
+record_dir="${GATE_RECORD_DIR:-$src_root/.gate/records}"
+# A report-only run must never touch the records: a failure would delete the pinned run's pass record.
+[[ $report_only -eq 0 || -n "${GATE_RECORD_DIR:-}" ]] || record_dir="$src_root/.gate/report-only"
+forge_identity="$tool_root/scripts/lib/gate_policy.py"
+# GX-01 (D-027, D-070): a driver abort prints its FAIL line and one machine line `<gate.class_line_prefix> <stage>\t<class>`
+# (gate_classify.py abort), records the abort stage, and with --pr publishes one gate.failed with every expected stage
+# of the mode missing (gate_report.py). driver_abort STAGE MESSAGE [RC]: it ends the run with RC (a setup error, 2, by
+# default); the exit trap, when set, then cleans up and reports only what is still unreported.
+driver_abort() {
+  local stage="$1" message="$2" rc="${3:-2}" report_dir
+  env OU_CONFIG_STORE=file "$py" "$tool_root/scripts/lib/gate_classify.py" abort "$stage" "$message"
+  if [[ -n "$event_pr" && -z "$sha" && "$stage" != "PR identity" ]]; then
+    sha=$("$py" "$forge_identity" identity --pr "$pr" --head-only 2>/dev/null) || sha=""
+  fi
+  if [[ -n "${logs:-}" && -d "$logs" && "$logs" != "${tmp:-}/logs" ]]; then
+    report_dir="$logs"
+  elif [[ -n "$pr" && "$sha" =~ ^[a-f0-9]{40}$ ]]; then
+    report_dir="${GATE_REPORT_DIR:-$record_dir/reports/$sha/$mode-$(date +%Y%m%dT%H%M%S)}"
+  else
+    report_dir="${logs:-}"
+  fi
+  if [[ -n "$report_dir" ]] && env OU_CONFIG_STORE=file "$py" "$tool_root/scripts/lib/gate_report.py" abort "$report_dir" "$stage" "$rc" "$message"; then
+    logs="$report_dir"
+    if [[ -n "$event_pr" && "$sha" =~ ^[a-f0-9]{40}$ ]]; then
+      env OU_CONFIG_STORE=file "$py" "$tool_root/scripts/lib/gate_report.py" "$logs" "$sha" "$rc" "$mode" "$event_pr" || true
+    fi
+  fi
+  exit "$rc"
+}
+# GX-05: the advisory run is the dev view of a PR or a sha, never the legacy PR plan.
+[[ $report_only -eq 0 || -z "$pr" || $dev -eq 1 ]] ||
+  driver_abort "gate driver" "--report-only needs --dev with --pr, or --sha"
+gate_hook pin
+printf 'phase: prepare @%s\n' "$gate_prepare_epoch"
+# GX-01 (B-01): the gate preflight runs before the lock, the slot and the worktree, so a machine gap ends the run in
+# seconds as env instead of after a queue. gate.preflight_enabled=false is the rollback.
+if [[ "$(env OU_CONFIG_STORE=file "$py" "$tool_root/scripts/lib/config.py" get gate.preflight_enabled 2>/dev/null)" != false ]]; then
+  preflight_args=(gate)
+  preflight_out=$(env OU_CONFIG_STORE=file "$py" "$tool_root/scripts/lib/preflight.py" "${preflight_args[@]}" 2>&1) ||
+    driver_abort "gate preflight" "$preflight_out"
+  echo "gate-local: $preflight_out" >&2
+fi
+# One gate at a time per checkout: its runs share this checkout's test database and records. The lock is released when
+# this process exits.
+lock="${GATE_LOCK_FILE:-$src_root/.gate/gate.lock}"
+mkdir -p "$(dirname "$lock")"
+exec 9>"$lock"
+# A root umask leaves this lock unusable by the next uid.
+if [[ "${EUID}" -eq 0 ]]; then
+  chmod 666 "$lock"
+fi
+if ! flock -n 9; then echo "gate-local: another gate run holds $lock; waiting for it" >&2; flock 9; fi
+# D-064 (b): at most GATE_SLOTS (default 3) gates run at once on this machine, across all worktrees.
+# The slot is held for the whole run and released when this process exits.
+# shellcheck source=scripts/lib/gate-isolation.sh
+source "$_gate_dir/lib/gate-isolation.sh"
+ou_gate_slot_acquire || driver_abort "gate slot" "could not take a gate slot"
+echo "gate-local: slot $OU_GATE_SLOT of $OU_GATE_SLOTS" >&2
+
+base=""
+if [[ -n "$plan_file" ]]; then
+  base=$("$py" -c 'import json,sys; print(json.load(open(sys.argv[1]))["base"])' "$plan_file") || driver_abort "gate driver" "cannot read the batch plan $plan_file"
+fi
+if [[ -n "$pr" ]]; then
+  if [[ $noite -eq 1 && -n "$sha" ]]; then :
+  elif [[ -n "$pin_identity" ]]; then
+    pr_identity="$pin_identity" # GX-05: the pin read it in the same REST call; no second one
+  else
+    pr_identity=$("$py" "$forge_identity" identity --pr "$pr") || driver_abort "PR identity" "cannot read PR #$pr"
+  fi
+  if [[ -n "${pr_identity:-}" ]]; then
+    IFS=$'\t' read -r sha base <<<"$pr_identity"
+    [[ "$sha" =~ ^[a-f0-9]{40}$ && "$base" =~ ^[a-f0-9]{40}$ ]] || { sha=""; driver_abort "PR identity" "gh: exit 0 (invalid-fields); missing PR head/base"; }
+  elif [[ $noite -ne 1 || -z "$sha" ]]; then
+    driver_abort "PR identity" "gh: exit 0 (invalid-fields); missing PR head/base"
+  fi
+fi
+# GX-38: the base the proof is bound to (the PR's baseRefOid or the batch base; empty for a plain sha or working tree).
+export OU_GATE_BASE_SHA="$base"
+OU_GATE_PASS_EXTRA=""
+gate_hook proof
+tmp=$(mktemp -d); logs="$tmp/logs"; mkdir -p "$logs"
+cleanup() {
+  [[ -n "${wt:-}" ]] && git -C "$src_root" worktree remove --force "$wt" >/dev/null 2>&1
+  rm -rf "$tmp"
+}
+finish() {
+  local rc=$? elapsed
+  gate_hook exit
+  # The verdict call below wrote stages.json (with the known defects); the exit trap only reports an aborted gate.
+  if [[ -n "${logs:-}" && -d "$logs" && ! -f "$logs/stages.json" && -n "${root:-}" && -f "$tool_root/scripts/lib/gate_report.py" ]]; then
+    "$py" "$tool_root/scripts/lib/gate_report.py" "$logs" "${sha:-working-tree}" "$rc" "$mode" "$event_pr" || rc=1
+  fi
+  if [[ $rc -ne 0 && -n "$sha" ]]; then rm -f "$record_dir/$sha.$suffix"; fi
+  cleanup
+  elapsed=$(( $(gate_now_ms) - gate_started ))
+  gate_budget_report "$elapsed" "$nightly"
+  exit "$rc"
+}
+if [[ -n "$sha" ]]; then
+  git -C "$src_root" cat-file -e "$sha^{commit}" 2>/dev/null ||
+    git -C "$src_root" fetch -q origin "$sha" 2>/dev/null || git -C "$src_root" fetch -q origin
+  sha=$(git -C "$src_root" rev-parse --verify "$sha^{commit}") || driver_abort "gate checkout" "unknown commit $sha"
+  # D-064 (f): the detached checkout path is fixed per gate slot, so any worktree's gate reuses path-keyed caches;
+  # see gate-isolation.sh.
+  mkdir -p "$record_dir"
+  wt="$(ou_gate_checkout_dir)" || wt="$record_dir/checkout"
+  if [[ "$wt" != "$record_dir/checkout" && -e "$wt" ]] &&
+    [[ "$(git -C "$wt" rev-parse --git-common-dir 2>/dev/null)" != "$(git -C "$src_root" rev-parse --path-format=absolute --git-common-dir)" ]]; then
+    # Another clone's checkout sits in this slot path; keep that clone's tree and use our own record dir.
+    wt="$record_dir/checkout"
+  fi
+  mkdir -p "$(dirname "$wt")"
+  if [[ -e "$wt" ]]; then
+    # Only reclaim our own stale DETACHED checkout, never a developer's branch/worktree.
+    if [[ "$(git -C "$wt" rev-parse --git-common-dir 2>/dev/null)" == "$(git -C "$src_root" rev-parse --path-format=absolute --git-common-dir)" ]] &&
+      ! git -C "$wt" symbolic-ref -q HEAD >/dev/null; then
+      git -C "$src_root" worktree remove --force "$wt" || driver_abort "gate checkout" "could not remove the stale gate checkout $wt"
+    else
+      driver_abort "gate checkout" "gate checkout path is occupied by a different worktree"
+    fi
+  fi
+  # A slot path left registered by a killed run would make `worktree add` refuse it.
+  git -C "$src_root" worktree prune
+  git -C "$src_root" worktree add -q --detach "$wt" "$sha" || { wt=""; driver_abort "gate checkout" "could not add the gate checkout of $sha"; }
+  # The subject's setup/tests must see the same installed toolchain as their judge, without reinstalling it.
+  if [[ -d "$tool_root/.toolchain" && ! -e "$wt/.toolchain" ]]; then
+    ln -s "$(cd "$tool_root/.toolchain" && pwd -P)" "$wt/.toolchain" || driver_abort "gate checkout" "could not bind the subject toolchain"
+  fi
+  root="$wt"; trap finish EXIT
+  echo "gate-local: $sha$([[ $nightly -eq 1 ]] && echo ' [nightly]')"
+else
+  root="$src_root"; trap finish EXIT
+  echo "gate-local: working tree $(git -C "$root" rev-parse --short HEAD)$(git -C "$root" diff --quiet || echo '+dirty')"
+fi
+# Children (classify, script tests) treat this directory as the code under test.
+export OU_SUBJECT_ROOT="$root"
+# D-068, D-069 item 5: the verdict depends on the head alone; every child reads the registry and this checkout's local
+# change log, never the shared store on the forge (scripts/lib/config.py store_kind).
+export OU_CONFIG_STORE=file
+# D-082 (GX-23): every result-cache key of this run carries one set of parts (attested toolchain, judging runner),
+# computed once by this run's proof hook (here when unbound), never a parent's. Each nested run observes its own.
+if [[ -n "${gate_run_key_parts:-}" ]]; then
+  GATE_KEY_PARTS="$gate_run_key_parts"
+  export GATE_KEY_PARTS
+elif GATE_KEY_PARTS="$("$py" "$tool_root/scripts/lib/gate_keys.py" export 2>/dev/null)"; then
+  export GATE_KEY_PARTS
+else
+  unset GATE_KEY_PARTS
+fi
+if [[ -n "$sha" ]]; then
+  rm -f "$record_dir/$sha.$suffix"
+fi
+
+# Local PostgreSQL 18 replaces the CI service container: the engine's script tests use this checkout's test database
+# (test_db.py, D-064 (b)).
+if declare -F pgtools_start >/dev/null && ! psql "${TEST_DATABASE_URL:-}" -qtAc 'select 1' >/dev/null 2>&1; then
+  pgtools_start >/dev/null || driver_abort "local database" "local postgres did not start" 1
+fi
+if declare -F ou_test_db_ensure >/dev/null; then
+  ou_test_db_ensure "${TEST_DATABASE_URL:-}" || driver_abort "local database" "could not create the local test database" 1
+fi
+# Every run starts from an empty public schema, so what one run's tests left in it never changes the next run's result.
+# The database is this checkout's own (D-064 (b)), and the per-checkout flock above serializes runs that share it.
+# OU-DECOUPLE F5 (D-113): Open University's migration history schema (drizzle) left with it.
+[[ -n "${TEST_DATABASE_URL:-}" ]] || driver_abort "local database" "missing TEST_DATABASE_URL"
+[[ "$TEST_DATABASE_URL" =~ @(127\.0\.0\.1|localhost)[:/] ]] || driver_abort "local database" "TEST_DATABASE_URL is not the local PostgreSQL; refusing to reset it"
+psql "$TEST_DATABASE_URL" -qtAc 'drop schema if exists public cascade; create schema public;' >/dev/null 2>&1 \
+  || driver_abort "local database" "could not reset the local test database" 1
+
+failed=0
+cache="${GATE_BUILD_CACHE_DIR:-$HOME/.cache/open-university/gate-builds}"
+mkdir -p "$cache"
+# Persist stage logs and reports after the detached worktree is removed.
+logs="${GATE_REPORT_DIR:-$record_dir/reports/${sha:-working-tree}/$mode-$(date +%Y%m%dT%H%M%S)}"
+mkdir -p "$logs"
+logs=$(cd "$logs" && pwd)
+echo "Gate reports: $logs"
+printf 'phase: stages @%s\n' "$EPOCHREALTIME"
+# shellcheck source=scripts/lib/gate-runner.sh
+source "$tool_root/scripts/lib/gate-runner.sh"
+# GV1: one live status comment per PR head and mode (scripts/lib/gate_status.py); only a PR run has one.
+[[ -z "$event_pr" ]] || gate_status begin --sha "$sha" --pr "$pr" --mode "$mode" --record-dir "$record_dir"
+
+classify_failed=0
+# The three secret checks do not share state. A history hit scans only commits
+# after the last recorded base; a miss, or a gitleaks/config change, scans HEAD.
+# Script tests share no fixture. Each selected test runs at once; the stage waits
+# for every one. No plan, an uncovered scripts path, or a change to this runner
+# runs the whole scripts/tests suite.
+run_script_tests() {
+  local list rc=0 dir n=0 line
+  dir="$(mktemp -d)"
+  list="$("$py" "$tool_root/scripts/lib/gate_script_tests.py" select ${GATE_PLAN_FILE:+"$GATE_PLAN_FILE"} 2>"$dir/err")" || {
+    cat "$dir/err" >&2
+    rm -rf "$dir"
+    return 1
+  }
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    if [[ "$line" == \#* ]]; then
+      printf 'script tests: %s\n' "${line#\# }"
+      continue
+    fi
+    printf '%s\n' "$line" >>"$dir/list"
+    n=$((n + 1))
+  done <<<"$list"
+  if [[ "$n" -eq 0 ]]; then
+    echo "script tests: selector returned nothing"
+    rm -rf "$dir"
+    return 1
+  fi
+  # D-069 item 5 (H1): network denied, seeded random, per-test timeout, in every Python process of the test.
+  # GS1: a test whose key matches a recorded PASS is reported as cached; the rest run at most
+  # gate.script_tests_concurrency at a time, and the report is in test order (gate_test_cache.py).
+  "$py" "$tool_root/scripts/lib/gate_test_cache.py" run "$dir/list" --root "$root" --tool-root "$tool_root" --logs "$logs" --source "${sha:-working-tree}" || rc=1
+  rm -rf "$dir"
+  return "$rc"
+}
+# GX-29 (GA2 Q9): drops the fixture databases a test left behind (test_db.py sweep). Never a failure: it only keeps the
+# cluster from growing, and it skips this checkout's database and any database with a live backend.
+gate_db_sweep() {
+  "$py" "$tool_root/scripts/lib/test_db.py" sweep >"$logs/db-sweep.txt" 2>&1 || true
+}
+# GATE-SPEED (D-092): a PR gate scans its change (gate.leak_scan_scope); the night scans everything.
+secret_scope="$(ou_config_value gate.leak_scan_scope)"
+[[ $noite -eq 0 ]] || secret_scope=full
+secret_history() {
+  local plan
+  plan="$("$py" "$tool_root/scripts/lib/gate_speed.py" secret-plan "$PWD" "$1" "${base:-}" "$secret_scope")" || return 1
+  echo "secret scan (history): $plan"
+  if [[ "$plan" != skip ]]; then
+    gitleaks git --log-opts="$plan" --redact --no-banner . || return 1
+  fi
+  "$py" "$tool_root/scripts/lib/gate_speed.py" secret-record "$PWD" "$1"
+}
+launch step "secret scan (history)" "$root" secret_history "$cache"
+launch step "secret scan (tree)" "$root" secret_tree "${base:-}" "$secret_scope"
+# ADR-24 as amended by ADR-41 (D-086): only the workflows gate.allowed_workflows names, never a dependency of the gate.
+launch step "no GitHub Actions workflows" "$root" "$py" "$tool_root/scripts/lib/gate_workflows.py" "$root"
+launch step "structure check" "$root" "$tool_root/scripts/structure-check" ${base:+--base "$base"} ${pr:+--pr "$pr"}
+gate_hook prereq
+# D-069 items 1 and 2: every committed derived file equals its regeneration (scripts/generate, G1).
+launch step_cached_by_inputs "generated drift" "$root" "" "$tool_root/scripts/generate" --check
+# D-069 item 2, P-07: a contract changes only additively within its version; a breaking change is a new version.
+launch step_cached_by_inputs "schema compat" "$root" "${base:-}" "$tool_root/scripts/schema-compat" ${base:+--base "$base"}
+if [[ $dev -eq 0 ]]; then
+  # Every shell entrypoint and library of the engine (OU-DECOUPLE F5, D-113: the files that exist).
+  step "shellcheck" "$root" bash -c 'shellcheck scripts/gate-dev scripts/gate-noite scripts/gate-local scripts/gate-quiet scripts/structure-check scripts/commit-check scripts/idea-to-prod scripts/run scripts/cloud/setup.sh scripts/cloud/env.sh scripts/cloud/preflight scripts/cloud/root-session.sh scripts/lib/*.sh scripts/lib/gate-hooks/*.sh scripts/tests/*.sh scripts/tests/*/*.sh' || failed=1
+  launch step "script tests" "$root" run_script_tests
+fi
+gate_hook plan
+# A classify failure leaves no plan file: gate_want then runs every stage, and the run still fails.
+if [[ $dev -eq 1 && -n "$pr" ]]; then
+  plan_kind=$("$py" "$tool_root/scripts/lib/gate_policy.py" classify --pr "$pr" --sha "$sha" --base "$base" --output "$logs/classification.json") || classify_failed=1
+  echo "area plan: ${plan_kind:-unknown}"
+  if [[ -f "$logs/classification.json" ]]; then
+    "$py" -c 'import json,sys; data=json.load(open(sys.argv[1])); json.dump(data["devPlan"], open(sys.argv[2],"w")); json.dump(data.get("selection", {"kind": "full"}), open(sys.argv[3],"w"))' "$logs/classification.json" "$logs/plan.json" "$logs/selection.json" && export GATE_PLAN_FILE="$logs/plan.json" GATE_SELECTION_FILE="$logs/selection.json"
+  fi
+  # GV1: the scoped plan is known now; replan the status so it lists only the stages this run owes.
+  [[ -z "$event_pr" ]] || gate_status begin --sha "$sha" --pr "$pr" --mode "$mode" --record-dir "$record_dir"
+fi
+# GS1: a batch brings its union plan; the base it merged onto is the diff base of the structure and schema checks.
+if [[ $dev -eq 1 && -z "$pr" && -n "$plan_file" ]]; then
+  "$py" -c 'import json,sys; data=json.load(open(sys.argv[1])); json.dump(data["devPlan"], open(sys.argv[2],"w")); json.dump(data["selection"], open(sys.argv[3],"w"))' "$plan_file" "$logs/plan.json" "$logs/selection.json" \
+    && export GATE_PLAN_FILE="$logs/plan.json" GATE_SELECTION_FILE="$logs/selection.json" \
+    || classify_failed=1
+  echo "Batch plan: $plan_file"
+fi
+# GK1 (D-069 item 12): `failed` is the verdict, never a reason to skip a stage. A known base defect is told apart from
+# a new failure only by the report at the end, so a red stage must not hide the stages after it.
+if [[ $dev -eq 1 ]] && gate_want "script tests"; then
+  launch step "script tests" "$root" run_script_tests
+fi
+# Nothing launched may outlive the schedule.
+join_steps || failed=1
+gate_db_sweep
+failed=$((failed || classify_failed))
+# Every expected stage with no result after a hard dependency failed is recorded as skipped, with that dependency.
+[[ -z "$gate_blocked" ]] || "$py" "$tool_root/scripts/lib/gate_skips.py" remaining --logs "$logs" --mode "$mode" --blocked-by "$gate_blocked"
+
+# The report is the verdict (KD1): it exits 0 only when every failing test is a known base defect (defect_detect.py).
+printf 'phase: publish @%s\n' "$EPOCHREALTIME"
+if "$py" "$tool_root/scripts/lib/gate_report.py" "$logs" "${sha:-working-tree}" "$failed" "$mode" "$event_pr"; then failed=0; else failed=1; fi
+printf 'phase: answer @%s\n' "$EPOCHREALTIME"
+if [[ $failed -ne 0 ]]; then echo "GATE: FAILED"; exit 1; fi
+if [[ $report_only -eq 1 ]]; then
+  echo "GATE: PASSED (report-only; no record, no events, no status, no pr.ready)"
+elif [[ -n "$sha" ]]; then
+  mkdir -p "$record_dir"
+  printf 'sha=%s\ndate=%s\nnightly=%s\nhost=%s\n' "$sha" "$(date -Iseconds)" "$nightly" "$(hostname)" >"$record_dir/$sha.$suffix"
+  printf 'kind=%s\n' "$mode" >>"$record_dir/$sha.$suffix"
+  [[ -z "$OU_GATE_PASS_EXTRA" ]] || printf '%s\n' "$OU_GATE_PASS_EXTRA" >>"$record_dir/$sha.$suffix"
+  [[ $dev -eq 1 || -z "$pr" ]] || printf 'pr=%s\n' "$pr" >>"$record_dir/$sha.$suffix"
+  echo "GATE: PASSED (recorded $record_dir/$sha.$suffix)"
+else
+  echo "GATE: PASSED (working tree; no record — use --sha/--pr to authorize a merge)"
+fi

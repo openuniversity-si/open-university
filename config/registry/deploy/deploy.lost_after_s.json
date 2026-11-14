@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 3000,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Safety timeout for failure (DEP-WATCHDOG): seconds after a ring without an ended build before the ring is declared lost (platform.deploy.lost) and the current head is rung again at once. The deployer budget is 2400 s plus a margin; an in_progress build silent for more than the budget (or this, if smaller) is lost too.",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py"
+  ],
+  "x-source": "DEP-WATCHDOG"
+}

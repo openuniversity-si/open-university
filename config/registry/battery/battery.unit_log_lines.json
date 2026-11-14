@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 40,
+  "minimum": 1,
+  "x-unit": "lines",
+  "description": "Lines of a failing battery step's output the report keeps.",
+  "x-readers": [
+    "scripts/lib/unit_battery.py"
+  ],
+  "x-source": "D-069 item 6"
+}

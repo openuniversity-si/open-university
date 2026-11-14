@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": ".gate/service/state.json",
+  "x-unit": "path",
+  "description": "The Tower runner's state file, relative to its checkout: heartbeat, current job and recent results, written by an atomic rename and read by `scripts/service status|health|metrics`.",
+  "x-readers": [
+    "scripts/lib/service_runner.py",
+    "scripts/lib/service_status.py"
+  ],
+  "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md"
+}

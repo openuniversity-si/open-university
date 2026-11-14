@@ -1,0 +1,460 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/defects.json",
+  "x-owner": "defects",
+  "x-schema-version": 1,
+  "description": "Known base defects as a structural process (D-069 items 4, 8 and 9): registry, detection in the gate, routing by queue impact, lifecycle.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "defects.audit_schema": {
+      "type": "string",
+      "default": "contracts/defects/audit.v1.json",
+      "x-unit": "path",
+      "description": "JSON Schema 2020-12 of one audit entry.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.audit_suffix": {
+      "type": "string",
+      "default": ".audit.jsonl",
+      "x-unit": "path",
+      "description": "File suffix of a defect's audit trail, next to its record.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.base_env": {
+      "type": "string",
+      "default": "OU_GATE_BASE_SHA",
+      "x-unit": "name",
+      "description": "GX-13: environment variable holding the recorded base the proof is bound to (gate-local exports it, GX-38: tier 1 the PR's baseRefOid, tier 2 the batch base). Set but empty: no recorded base, nothing is excused. Unset (a call outside gate-local): the local gate.batch_base_ref is resolved.",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ],
+      "minLength": 1
+    },
+    "defects.base_signal_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "switch",
+      "description": "GX-32: a failing test of any stage in defects.stages is excused without a base re-run when the base.red that tier 3 published for exactly the proof's base sha lists it with the same signature (and the GX-13 touched rule does not keep it). Off: only script tests are adjudicated, by a base re-run (GX-13 behaviour), and tier 3 (battery) emits no base.red/base.green; the rollback switch.",
+      "x-readers": [
+        "scripts/lib/battery.py",
+        "scripts/lib/defect_detect.py"
+      ]
+    },
+    "defects.cache_dir": {
+      "type": "string",
+      "default": "~/.cache/open-university/defect-base",
+      "x-unit": "path",
+      "description": "Where base re-run outcomes are kept through the storage port, one marker per (base sha, test id). DEFECTS_CACHE_DIR overrides it for one run.",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ]
+    },
+    "defects.cache_ttl_s": {
+      "type": "integer",
+      "default": 604800,
+      "x-unit": "s",
+      "description": "Age after which a cached base outcome is a miss. The key already names the base sha, so this only bounds a stale store.",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ],
+      "minimum": 60
+    },
+    "defects.cache_version": {
+      "type": "integer",
+      "default": 1,
+      "x-unit": "version",
+      "description": "Part of the base-outcome cache key; bump it to discard every cached outcome.",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ],
+      "minimum": 1
+    },
+    "defects.critical_priority": {
+      "type": "integer",
+      "default": 30,
+      "x-unit": "points",
+      "description": "Priority at or above which a defect is of the last class in defects.priority_classes.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "minimum": 0
+    },
+    "defects.depends_min_priority": {
+      "type": "integer",
+      "default": 10,
+      "x-unit": "points",
+      "description": "Least priority at which the PRs touching the defect's unit are listed as depending on the fix unit.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "minimum": 0
+    },
+    "defects.digest_algorithm": {
+      "type": "string",
+      "default": "sha256",
+      "x-unit": "name",
+      "description": "Hash of an audit entry; each entry carries the digest of the one before, so a hand edit or a removed entry breaks the chain.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.fetch_remote": {
+      "type": "string",
+      "default": "origin",
+      "x-unit": "name",
+      "description": "GX-13: remote the recorded base sha is fetched from when its objects are not local; a fetch that fails leaves no base (nothing is excused).",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ],
+      "minLength": 1
+    },
+    "defects.fix_item": {
+      "type": "string",
+      "default": "fix-defect:{id}",
+      "x-unit": "text",
+      "description": "Work item of the fix unit assigned to the owner; {id} is the defect id.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "minLength": 1
+    },
+    "defects.fix_unit_min_priority": {
+      "type": "integer",
+      "default": 1,
+      "x-unit": "points",
+      "description": "Least priority for which the router opens a fix unit; a defect no PR and no unit feels waits.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "minimum": 0
+    },
+    "defects.genesis_digest": {
+      "type": "string",
+      "default": "0",
+      "x-unit": "text",
+      "description": "The 'previous digest' of the first audit entry.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.high_priority": {
+      "type": "integer",
+      "default": 10,
+      "x-unit": "points",
+      "description": "Priority at or above which a defect is of the middle class in defects.priority_classes.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "minimum": 0
+    },
+    "defects.id_hash_chars": {
+      "type": "integer",
+      "default": 8,
+      "x-unit": "chars",
+      "description": "Hex digits of the dedup hash that follow the id prefix.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ],
+      "minimum": 6
+    },
+    "defects.id_prefix": {
+      "type": "string",
+      "default": "KD-",
+      "x-unit": "text",
+      "description": "Prefix of a defect id; the id is the prefix plus the first defects.id_hash_chars hex digits of the hash of (test id, normalized signature), so one defect has one id on every branch.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.list_columns": {
+      "type": "array",
+      "default": [
+        "id",
+        "status",
+        "owner",
+        "unit",
+        "test"
+      ],
+      "x-unit": "enum",
+      "description": "Columns of `scripts/defects list`, in order.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "defects.never_excuse_touched": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "switch",
+      "description": "GX-13: a failing test whose own file, covers manifest or declared covers the PR changed is never excused as a base defect (the #662 case); it is not re-run on the base. Off: such a test is adjudicated like any other (KD1 behaviour).",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ]
+    },
+    "defects.priority_classes": {
+      "type": "array",
+      "default": [
+        "low",
+        "high",
+        "critical"
+      ],
+      "x-unit": "enum",
+      "description": "Class names by rising priority: below high_priority, from high_priority, from critical_priority.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "defects.producer": {
+      "type": "string",
+      "default": "defects",
+      "x-unit": "name",
+      "description": "Producer name of the defect events.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.queue_events": {
+      "type": "array",
+      "default": [
+        "pr.opened"
+      ],
+      "x-unit": "enum",
+      "description": "Event types whose latest payload names the units an open PR touches.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "defects.record_actions": {
+      "type": "array",
+      "default": [
+        "registered",
+        "observed",
+        "routed",
+        "resolved",
+        "verified",
+        "reopened"
+      ],
+      "x-unit": "enum",
+      "description": "Actions an audit entry may name.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.record_schema": {
+      "type": "string",
+      "default": "contracts/defects/defect.v2.json",
+      "x-unit": "path",
+      "description": "JSON Schema 2020-12 of a defect record.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.record_suffix": {
+      "type": "string",
+      "default": ".yml",
+      "x-unit": "path",
+      "description": "File suffix of a defect record.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.register_dir": {
+      "type": "string",
+      "default": "docs/process/defects",
+      "x-unit": "path",
+      "description": "Directory of the known-defect registry: one record per defect, named <slug> plus defects.record_suffix (D-069 items 4, 8 and 9).",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.rerun_command": {
+      "type": "string",
+      "default": "bash {script}",
+      "x-unit": "text",
+      "description": "Command that re-runs one script test on the base checkout; {script} is the test id.",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ]
+    },
+    "defects.rerun_timeout_s": {
+      "type": "integer",
+      "default": 1200,
+      "x-unit": "s",
+      "description": "Timeout of one base re-run. A re-run that times out proves nothing: the failure is the PR's.",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ],
+      "minimum": 60
+    },
+    "defects.rerun_worktree_prefix": {
+      "type": "string",
+      "default": "defect-base-",
+      "x-unit": "text",
+      "description": "Prefix of the throwaway worktree a base re-run runs in; it is deleted afterwards.",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ]
+    },
+    "defects.route_note": {
+      "type": "string",
+      "default": "routed by queue impact: priority {priority}, class {class}",
+      "x-unit": "text",
+      "description": "Trail note of a routed defect; {priority} and {class} are filled in.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "minLength": 1
+    },
+    "defects.router_by": {
+      "type": "string",
+      "default": "defect-router",
+      "x-unit": "name",
+      "description": "Name written in the trail when the router moves a defect to fixing.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "minLength": 1
+    },
+    "defects.stages": {
+      "type": "array",
+      "default": [
+        "script tests"
+      ],
+      "x-unit": "enum",
+      "description": "Gate stages whose failing tests can be excused as known base defects (GX-32): every stage the gate reads per-test failures from, which is `script tests` alone since Open University's suites and browser stages left (F46). A script test is excused by a base re-run (KD1) or the base.red signal. A failure in a stage outside this list is the PR's own.",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "defects.statuses": {
+      "type": "array",
+      "default": [
+        "open",
+        "fixing",
+        "resolved",
+        "verified"
+      ],
+      "x-unit": "enum",
+      "description": "The lifecycle, in order: open (detected and registered), fixing (the router opened a fix unit), resolved (the fix merged), verified (the gate saw the test pass on the base).",
+      "x-readers": [
+        "scripts/lib/coordinator.py",
+        "scripts/lib/coordinator_launch.py",
+        "scripts/lib/defects.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "minItems": 4
+    },
+    "defects.transitions": {
+      "type": "array",
+      "default": [
+        "open>fixing",
+        "open>resolved",
+        "fixing>resolved",
+        "fixing>open",
+        "resolved>verified",
+        "resolved>open",
+        "verified>open"
+      ],
+      "x-unit": "enum",
+      "description": "Allowed status changes, 'from>to'. Every other change is refused. open>resolved (GX-13): an open defect whose test passes on the recorded base (defects.verify_open).",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ],
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]+>[a-z]+$"
+      }
+    },
+    "defects.unknown_owner": {
+      "type": "string",
+      "default": "maestro",
+      "x-unit": "name",
+      "description": "Owner of a defect whose test no unit manifest covers.",
+      "x-readers": [
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.verify_open": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "switch",
+      "description": "GX-13: re-run the test of every open defect on the recorded base at each adjudication; one that passes there moves open -> resolved through scripts/defects sync (resolved -> verified on a later pass). Off: only resolved defects are verified (KD1 behaviour).",
+      "x-readers": [
+        "scripts/lib/defect_detect.py",
+        "scripts/lib/defects.py"
+      ]
+    },
+    "defects.verify_stages": {
+      "type": "array",
+      "default": [
+        "script tests"
+      ],
+      "x-unit": "enum",
+      "description": "Stages the gate re-runs on the base for a resolved defect to verify it.",
+      "x-readers": [
+        "scripts/lib/defect_detect.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "defects.weight_dependent_unit": {
+      "type": "integer",
+      "default": 5,
+      "x-unit": "points",
+      "description": "Priority points for each unit that requires the defect's unit, directly or through others.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "minimum": 0
+    },
+    "defects.weight_masked_test": {
+      "type": "integer",
+      "default": 1,
+      "x-unit": "points",
+      "description": "Priority points for each script test that covers the defect's area or its own test and so cannot be trusted while it fails.",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "minimum": 0
+    },
+    "defects.weight_touching_unit": {
+      "type": "integer",
+      "default": 10,
+      "x-unit": "points",
+      "description": "Priority points for each open PR whose units include the defect's unit (impact on the queue, never time).",
+      "x-readers": [
+        "scripts/lib/defect_router.py"
+      ],
+      "minimum": 0
+    }
+  }
+}

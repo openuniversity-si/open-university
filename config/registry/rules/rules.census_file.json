@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "docs/audits/rules/census.json",
+  "x-unit": "path",
+  "description": "The RULE-AUDIT census (one row per rule, requirement or resource use, each with its standing question): scripts/rule question <group> reads it, never writes it; the group audits answer its rows.",
+  "x-readers": [
+    "scripts/lib/rule_registry.py"
+  ],
+  "x-source": "D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 16:55 BRT, RULE-AUDIT)"
+}

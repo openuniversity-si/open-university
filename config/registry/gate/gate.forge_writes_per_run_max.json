@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 6,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "GX-FIX-forge-rate-2 (D-070): GitHub writes one gate run may make besides the throttled live panel edits (panel create, pending status, final panel edit, final status, one events append, pr.ready); independent of the number of script tests. Only the GitHub budget test reads it since the gate stopped counting GitHub calls (D-293); it leaves with that test.",
+  "x-readers": [
+    "scripts/tests/test_gate_forge_budget.py"
+  ]
+}

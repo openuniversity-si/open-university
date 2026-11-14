@@ -1,0 +1,19 @@
+{
+  "id": "engine-vendors",
+  "purpose": "The engine vendor ports and adapters, and the vendor check (D-069 item 7).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/lib/adapters/**",
+    "scripts/lib/vendor_check.py",
+    "scripts/tests/test_ports_*.py",
+    "scripts/tests/test_vendor_check.py",
+    "scripts/tests/vendor-ports.test.sh",
+    "scripts/tests/test_vendor_classification.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-config-check": "^1",
+    "engine-events": "^1"
+  }
+}

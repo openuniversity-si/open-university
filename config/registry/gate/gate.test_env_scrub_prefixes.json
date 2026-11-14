@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "OU_GATE_",
+    "GATE_",
+    "TOWER_JOB_"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "name",
+  "description": "TX10 (T6): a gate variable with one of these prefixes never reaches a script test; the test runs as it would outside the gate (scripts/run test). TOWER_JOB_ is the Tower runner's own (TOWER_JOB_OWNER, TOWER_JOB_DEADLINE: service_budget), which names the job and not the test: a check is the same on the box and on the infrastructure's runner (AWS3).",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "TX10; D-070"
+}

@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# One check of the gate, the command of a check job on the infrastructure's container executor (GATE-INFRA 2, P5 F2;
+# D-306: the gate is our management, the infrastructure only runs its jobs). It runs in this checkout the way
+# scripts/gate-local runs the same check, with the gate's own functions:
+#   scripts/gate-check stage "<name>" [--base <sha>]   one of the always stages a container judges alone
+#   scripts/gate-check test scripts/tests/<name>.test.sh   one script test, through the gate's hermetic runner
+#   scripts/gate-check tests <test>,<test>,...           several, in one run of it (the base's full run, FULL-RUN-BATCH)
+# `pr metadata` reads the forge with management's credential, so it runs beside the adapter (scripts/lib/gate_infra.py)
+# and never here: a check job's command gets no credential. Exit 0 green; 1 red, or a check it does not know, named.
+# GATE_CHECK_ROOT names the tree to judge when this copy lives outside it: a head that predates this script is judged by
+# a later commit's copy, with the head's own gate functions (GATE-INFRA 7, scripts/lib/gate_infra.py TOOL_OF).
+set -euo pipefail
+# BUNDLE-ENV-LEAK: a runner booted from a code bundle (IMAGE-PREWARM-B1) ran with PYTHONSAFEPATH=1 and the bundle first on
+# PYTHONPATH, and passed them to the checks: `python scripts/lib/x.py` lost its own directory (ModuleNotFoundError) and the
+# tests imported the bundle's tower_infra. The head's checks run the head's code: drop both here.
+if [[ -n "${TOWER_CODE_LOADED:-}" ]]; then
+  unset PYTHONSAFEPATH
+  PYTHONPATH="$(printf '%s' "${PYTHONPATH:-}" | tr ':' '\n' | grep -vxF "$TOWER_CODE_LOADED" | paste -sd: -)" || PYTHONPATH=""
+  if [[ -n "$PYTHONPATH" ]]; then export PYTHONPATH; else unset PYTHONPATH; fi
+fi
+root="${GATE_CHECK_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+cd "$root"
+usage() {
+  echo 'usage: scripts/gate-check stage "<name>" [--base <sha>] | scripts/gate-check test scripts/tests/<name>.test.sh | scripts/gate-check plan checks --base <sha>' >&2
+  exit 1
+}
+kind="${1:-}" name="${2:-}"
+[[ -n "$kind" && -n "$name" ]] || usage
+shift
+shift
+base=""
+salt=""  # SWAP-MEASURE: a measured round's mark, for `artifact code` only
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --base) base="${2:?}"; shift; shift ;;
+    --salt) salt="${2:?}"; shift; shift ;;
+    *) usage ;;
+  esac
+done
+if [[ -z "${TEST_DATABASE_URL:-}" ]]; then
+  # shellcheck disable=SC1091  # scripts/cloud/env.sh: the toolchain and this checkout's test database
+  source "$root/scripts/cloud/env.sh"
+fi
+py="${OU_PYTHON:-python3}"
+logs="$(mktemp -d)"
+trap 'rm -rf "$logs"' EXIT
+# CHECK-ENVELOPE: the gate's step functions only for a stage: a test needs neither, and gate-runner.sh's gate-budget.sh
+# reads gate.ceiling_s through Python each time it is sourced (87 ms here, about twice that on the runner, per job)
+gate_functions() {
+  # shellcheck disable=SC1091  # scripts/lib/gate-runner.sh: the gate's step functions (secret_tree)
+  source "$root/scripts/lib/gate-runner.sh"
+  # shellcheck disable=SC1091  # scripts/lib/gate-isolation.sh: ou_config_value
+  source "$root/scripts/lib/gate-isolation.sh"
+}
+# the secret scans' scope, read only by them: a python call per check otherwise (GATE-INFRA 14: ~0.1 s of each of 70)
+leak_scope() { ou_config_value gate.leak_scan_scope; }
+
+case "$kind" in
+  stage)
+    gate_functions
+    case "$name" in
+      "no GitHub Actions workflows") "$py" "$root/scripts/lib/gate_workflows.py" "$root" ;;
+      "secret scan (tree)") scope="$(leak_scope)"; secret_tree "$base" "$scope" ;;  # an assignment: set -e stops on a failed read
+      "structure check") OU_STRUCTURE_TREE_ONLY="$root" "$root/scripts/structure-check" ${base:+--base "$base"} ;;
+      "generated drift") "$root/scripts/generate" --check ;;
+      "schema compat") "$root/scripts/schema-compat" ${base:+--base "$base"} ;;
+      "secret scan (history)")
+        scope="$(leak_scope)"
+        plan="$("$py" "$root/scripts/lib/gate_speed.py" secret-plan "$root" "$logs/secret-state.json" "$base" "$scope")"
+        echo "secret scan (history): $plan"
+        [[ "$plan" == skip ]] || gitleaks git --log-opts="$plan" --redact --no-banner .
+        ;;
+      *)
+        echo "gate-check: no stage \"$name\" here (pr metadata runs beside the adapter)" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  artifact)
+    # DEP8: the zip packages of the port's Lambdas for this head, uploaded by digest (a red only when the package cannot be built).
+    # IMAGE-PREWARM-B2: `artifact code` is the prewarm's job, made by the live service on a unit branch's push: a code-only
+    # head (deploy_classify.code_only of base...head) gets its service/runner code bundle; any other head answers why not.
+    [[ "$name" == lambda || "$name" == code ]] || usage
+    # The upload goes through the S3 adapter: boto3, else the aws CLI. The runner image has boto3 in its own Python and no aws
+    # CLI, while the pinned toolchain Python has neither (live 09/11: FileNotFoundError 'aws'), so take the first Python that
+    # can import boto3, falling back to the toolchain one (a local box with the aws CLI still works).
+    apy="$py"
+    for candidate in "$py" /usr/local/bin/python3 /usr/bin/python3; do
+      if [[ -x "$candidate" ]] && "$candidate" -c 'import boto3' >/dev/null 2>&1; then apy="$candidate"; break; fi
+    done
+    step=gate
+    [[ "$name" == code ]] && step=code-gate
+    if [[ -n "$salt" ]]; then
+      [[ "$name" == code ]] || usage
+      "$apy" "$root/scripts/lib/lambda_package.py" "$step" --root "$root" --base "${base:?artifact needs --base}" --head "$(git -C "$root" rev-parse HEAD)" --salt "$salt"
+    else
+      "$apy" "$root/scripts/lib/lambda_package.py" "$step" --root "$root" --base "${base:?artifact needs --base}" --head "$(git -C "$root" rev-parse HEAD)"
+    fi
+    ;;
+  plan)
+    # PLAN-ON-RUNNER: the gate's plan of base...HEAD by this head's own adapter, answered to the runner (TOWER_ANSWER_FILE)
+    # PRE-GATE: `plan jobs` answers the check jobs' bodies too, for the live service to make them at the push
+    [[ "$name" == checks || "$name" == jobs ]] || usage
+    jobs=()
+    [[ "$name" == jobs ]] && jobs=(--jobs)
+    "$py" "$root/scripts/lib/gate_infra.py" plan --base "${base:?plan needs --base}" --head "$(git -C "$root" rev-parse HEAD)" \
+      --answer "${TOWER_ANSWER_FILE:?the runner names no answer file}" "${jobs[@]}"
+    ;;
+  test)
+    [[ "$name" == scripts/tests/*.test.sh && -f "$root/$name" ]] || { echo "gate-check: no script test $name" >&2; exit 1; }
+    printf '%s\n' "$name" >"$logs/list"
+    "$py" "$root/scripts/lib/gate_test_cache.py" run "$logs/list" --root "$root" --tool-root "$root" --logs "$logs" \
+      --source "$(git -C "$root" rev-parse HEAD)"
+    ;;
+  tests)
+    # FULL-RUN-BATCH: several script tests (comma-separated) in one run of the gate's hermetic runner, their start shared
+    # (the fork server, the jobserver); each one's PASS or FAIL answered to the runner (TOWER_ANSWER_FILE) when it names one
+    IFS=',' read -r -a picked <<<"$name"
+    for each in "${picked[@]}"; do
+      [[ "$each" == scripts/tests/*.test.sh && -f "$root/$each" ]] || { echo "gate-check: no script test $each" >&2; exit 1; }
+    done
+    printf '%s\n' "${picked[@]}" >"$logs/list"
+    status=0
+    # FULL-RUN-KEEP: the answer file says each ended test's verdict as it ends, so a batch taken back for a gate keeps it
+    progress=()
+    [[ -n "${TOWER_ANSWER_FILE:-}" ]] && progress=(--progress "$TOWER_ANSWER_FILE")
+    "$py" "$root/scripts/lib/gate_test_cache.py" run "$logs/list" --root "$root" --tool-root "$root" --logs "$logs" \
+      --source "$(git -C "$root" rev-parse HEAD)" "${progress[@]}" || status=$?
+    if [[ -n "${TOWER_ANSWER_FILE:-}" && -f "$logs/script-tests.json" ]]; then
+      "$py" -c 'import json, sys; found = json.load(open(sys.argv[1]))
+json.dump({"tests": {each["test"]: each["result"] for each in found}}, open(sys.argv[2], "w"))' \
+        "$logs/script-tests.json" "$TOWER_ANSWER_FILE"
+    fi
+    exit "$status"
+    ;;
+  *) usage ;;
+esac

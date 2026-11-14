@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/units owner <path>... | who <unit>... | list | check (scripts/lib/units.py --help)
+# The unit manifests (D-067): which unit and lane own a path, who owns a unit, and manifest validation.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/units.py" "$@"

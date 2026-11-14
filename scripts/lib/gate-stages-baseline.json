@@ -1,0 +1,7 @@
+[
+  "no GitHub Actions workflows",
+  "script tests",
+  "secret scan (history)",
+  "secret scan (tree)",
+  "shellcheck"
+]

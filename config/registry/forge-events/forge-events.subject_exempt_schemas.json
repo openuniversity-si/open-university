@@ -1,0 +1,14 @@
+{
+  "type": "array",
+  "default": [
+    "premise.blast.v1.json",
+    "premise.confirmed.v1.json",
+    "premise.proposed.v1.json",
+    "premise.refuted.v1.json"
+  ],
+  "x-unit": "count",
+  "description": "Payload schemas merged before the port that carry no subject or natural key (scripts/premises prints them, P1). The list only shrinks: each leaves when its v2 with the subject replaces it (expand->contract); the port refuses to emit them.",
+  "x-readers": [
+    "scripts/lib/event_contracts.py"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "script": "scripts/tests/merge-train.test.sh",
+  "covers": [
+    "scripts/tests/merge-train.test.sh",
+    "scripts/tests/test_merge_train.py",
+    "scripts/lib/merge_train.py",
+    "scripts/lib/deliver.py",
+    "scripts/lib/gate_infra.py",
+    "scripts/lib/config.py",
+    "config/registry/delivery.json",
+    "config/registry/delivery/**",
+    "config/registry/gate-infra/**",
+    "scripts/lib/deploy_classify.py",
+    "scripts/lib/lambda_package.py"
+  ]
+}

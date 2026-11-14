@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    "**/*.json",
+    "scripts/lib/literal-catalogs/**",
+    "scripts/lib/generated/**"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "path",
+  "description": "Production files that count toward no unit size: data files (JSON catalogs, baselines, snapshots, configs; D-064 amendment) and generated files.",
+  "x-readers": [
+    "scripts/lib/unit_map.py",
+    "scripts/lib/unit_check.py"
+  ],
+  "x-source": "D-064 amendment; D-069 item 1 (generated files)"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "OU_RUNNER_TOKEN",
+  "x-unit": "text",
+  "description": "The variable that holds the runner token of the control plane (its RUNNER_TOKEN secret). Without it a runner refuses to start with an error naming the variable (D-290): there is no other route.",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-086; D-290; docs/operations/services.md"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "0777",
+  "pattern": "^0[0-7]{3}$",
+  "x-unit": "mode",
+  "description": "Unix socket mode of the cluster when uid 0 hands the server to the service user, so the session uid can reach it.",
+  "x-readers": [
+    "scripts/cloud/postgres.py"
+  ]
+}

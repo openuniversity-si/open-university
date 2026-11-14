@@ -1,0 +1,26 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-19"
+slug: "split-common-files-by-context"
+statement: "Splitting the common files by context would suffice (s = 0.003, c(20) = 6%)."
+kind: "architecture"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "report v2 §5.1 and §11 (a model calibrated at one point)"
+  quote: null
+  at: null
+status: "inferred"
+radius: "low"
+blast:
+  reasons: []
+  if_wrong: "Nothing today. At 10x the split by context gives c(67) = 18% (plan v3 §6.2)."
+validate:
+  kind: "measurement"
+  how: "Event pr.conflicted <= 10%."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []
+notes: "Superseded by plan v3; it holds as today's ceiling."

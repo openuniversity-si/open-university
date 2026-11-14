@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "^contracts/(?:[a-z0-9-]+/)+[a-z0-9][a-z0-9.-]*\\.v[1-9][0-9]*\\.json$",
+  "format": "regex",
+  "x-unit": "regex",
+  "description": "The path every contract file matches: contracts/<area>/<name>.v<N>.json, the version in the file name.",
+  "x-readers": [
+    "scripts/lib/schema_compat.py"
+  ],
+  "x-source": "SHARED CONTRACT v3 §1"
+}

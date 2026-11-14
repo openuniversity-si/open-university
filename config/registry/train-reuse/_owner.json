@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/train-reuse.json",
+  "x-owner": "train-reuse",
+  "x-schema-version": 1,
+  "description": "Tier-2 reuse of exactly-matching attested proofs (GX-31, B-20 (b), D-070 under GA-P02 strict, P-43): the train reuses a verified v4 gate.passed only when its input_digest is the one the train recomputes for the judged commit. Reader: scripts/lib/train_reuse.py (the train's judge path, GX-30).",
+  "type": "object",
+  "additionalProperties": false
+}

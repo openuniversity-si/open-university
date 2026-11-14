@@ -1,0 +1,14 @@
+{
+  "type": "string",
+  "default": "infra",
+  "enum": [
+    "box",
+    "infra"
+  ],
+  "x-unit": "enum",
+  "description": "GATE-INFRA 3 (P5 F4): who judges and lands a delivery. infra (the default since 08/11, Daniel 17:28 BRT) has scripts/deliver merge the base into the branch and then the infrastructure judge the head and land it with the expected head (scripts/lib/gate_infra.py land, through the port, with TOWER_PORT_URL and TOWER_PORT_TOKEN); box is today's gate on the box and its merge. The default is the switch: a checkout's own change store overrides it, and `scripts/config set delivery.judge box --actor <who> --reason <why>` is the one-key rollback. It was turned on without waiting for the performance criteria (ready_to_landed, the gate time of a fresh head, the 1 s ACK), which stay obligations: docs/operations/aws.md section 17.",
+  "x-readers": [
+    "scripts/lib/deliver.py"
+  ],
+  "x-source": "GATE-INFRA 3 (P5 F4), D-306"
+}

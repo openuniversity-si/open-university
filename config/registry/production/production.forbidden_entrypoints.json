@@ -1,0 +1,14 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string"
+  },
+  "default": [],
+  "x-unit": "count",
+  "description": "The scripts under scripts/ that change or probe production; a cloud session never runs them and a PR diff never adds an invocation of them. Empty: OU-DECOUPLE F4 (D-111) took Open University's production entrypoints (ship-tail, neon-migrate, ship-verify, merge-phase, preview-deploy, production-check, neon-pr) out of the repository and the engine has no production deploy; an entrypoint that comes back is named here.",
+  "x-readers": [
+    "scripts/lib/production_guard.py",
+    "scripts/lib/literal_census.py"
+  ],
+  "x-source": "D-054; D-069 item 13"
+}

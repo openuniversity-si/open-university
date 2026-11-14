@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/lane-status [--help]
+# One line per fact of the lane: counted commits per hour, the train queue, the train process, the newest shadow gate.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/lane_status.py" "$@"

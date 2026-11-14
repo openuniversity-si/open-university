@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "bash {script}",
+  "x-unit": "text",
+  "description": "Command that re-runs one script test on the base checkout; {script} is the test id.",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ]
+}

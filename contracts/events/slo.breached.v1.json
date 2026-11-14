@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/slo.breached.v1.json",
+  "title": "slo.breached payload v1",
+  "description": "A service level objective of config/registry/slo.json is outside its entry; evidence is the newest event the value was computed from, so replaying a log never emits it twice.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/slo",
+    "/payload/evidence"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "slo",
+    "value",
+    "limit",
+    "bound",
+    "samples",
+    "evidence"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "slo": {
+      "type": "string",
+      "pattern": "^slo\\.[a-z0-9_]+$",
+      "description": "Registry name of the SLO entry that was breached."
+    },
+    "value": {
+      "type": "number",
+      "description": "The measured value, in the unit of the registry entry."
+    },
+    "limit": {
+      "type": "number",
+      "description": "The entry's value that the measurement is compared with."
+    },
+    "bound": {
+      "enum": [
+        "max",
+        "min"
+      ],
+      "description": "max: the value may not exceed the limit; min: it may not fall below it."
+    },
+    "samples": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of samples the value was computed over."
+    },
+    "evidence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "event_id of the newest event the value was computed from."
+    }
+  }
+}

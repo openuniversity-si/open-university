@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "lessons",
+  "x-unit": "text",
+  "description": "Producer name on the events the lessons tool emits.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ]
+}

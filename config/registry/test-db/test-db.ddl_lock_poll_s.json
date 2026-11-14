@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "default": 0.05,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Pause between two tries for test-db.ddl_lock_path while another caller holds it.",
+  "x-readers": [
+    "scripts/lib/test_db.py"
+  ]
+}

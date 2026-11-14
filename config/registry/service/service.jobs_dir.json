@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": ".gate/service/jobs",
+  "x-unit": "path",
+  "description": "Directory, relative to the runner's checkout, of each job's whole output (<job id>.log).",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-086; docs/operations/services.md"
+}

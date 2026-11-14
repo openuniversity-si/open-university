@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/pr-creation-path.test.sh",
+  "covers": [
+    "scripts/tests/pr-creation-path.test.sh",
+    "scripts/tests/test_pr_creation_path.py",
+    "scripts/lib/deliver.py",
+    "scripts/lib/forge_origin_client.py",
+    "scripts/**/*.sh",
+    "scripts/lib/*.py"
+  ]
+}

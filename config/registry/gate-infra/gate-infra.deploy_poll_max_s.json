@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 60,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "The longest pause between two reads of GET /v1/deploy/status while scripts/deploy follow waits (the backoff from gate-infra.deploy_poll_s stops here).",
+  "x-readers": [
+    "scripts/lib/deploy.py"
+  ],
+  "x-source": "DEP1"
+}

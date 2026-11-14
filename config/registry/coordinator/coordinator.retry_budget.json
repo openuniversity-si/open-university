@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 2,
+  "x-unit": "count",
+  "description": "Failed sessions of one unit after which the coordinator escalates instead of relaunching.",
+  "x-readers": [
+    "scripts/lib/coordinator.py"
+  ],
+  "minimum": 0
+}

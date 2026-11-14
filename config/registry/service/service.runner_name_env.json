@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "OU_RUNNER_NAME",
+    "HOSTNAME"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "minItems": 1,
+  "x-unit": "count",
+  "description": "Variables naming a runner in its state and results, the first set one; else the host name.",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-086; docs/operations/services.md"
+}

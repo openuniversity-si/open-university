@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "Replaced by #{new}: scripts/replay-branch replayed this PR's own commits one push per commit on {branch} (D-022 batched push). This PR is closed; continue on #{new}.",
+  "pattern": "\\{new\\}",
+  "x-unit": "text",
+  "description": "Comment scripts/replay-branch posts on the replaced PR before closing it; {new} is the replacement PR and {branch} its branch.",
+  "x-readers": [
+    "scripts/lib/replay_branch.py"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/text-check.test.sh",
+  "covers": [
+    "scripts/tests/text-check.test.sh",
+    "scripts/tests/test_text_check*.py",
+    "scripts/lib/text_check.py",
+    "scripts/lib/json_schema.py",
+    "config/registry/l10n.json"
+  ]
+}

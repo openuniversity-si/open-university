@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 3,
+  "minimum": 1,
+  "x-unit": "attempts",
+  "description": "Attempts of a landing job; head_moved is never retried (land-with-expected-head).",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+}

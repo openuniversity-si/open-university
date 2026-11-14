@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 120.0,
+  "exclusiveMinimum": 0,
+  "x-unit": "seconds",
+  "description": "DEPLOY-CANARY (docs/operations/aws.md 22.3a): how long, in seconds, a deploy canary may take from its creation to its end before it is red. The canary is one job of the configuration tenant on the gate's own path (POST /v1/deploy/canary: created by the port, dispatched by the service, taken and run by the runner: a checkout of the base's head, the setup and the command `true`), ahead of every check in its queue. Measured live on 10/11 (scripts/medir, 443 runs since 00:00 UTC): a run takes 3.9 s at p50, the first check after a runner task change ends 4.3 s after its creation at p50 (first_check_s, n=17), the four slots were all busy 1.6% of the time and the longest wait for one to free was 17.5 s, and a runner task the rollout replaced warms for 63 s at p50 (prewarm_s, max 80 s) before its slots open. 120 s covers the warm-up and the wait for a slot with room to spare. Past it the verdict names the stage that never happened: not dispatched (the service), dispatched and not taken (the runner), taken and failed or not ended (the run). Read at each judgement, so a change takes effect on the canaries in flight.",
+  "x-readers": [
+    "infra/service/tower_infra/canary.py"
+  ],
+  "x-source": "DEPLOY-CANARY"
+}

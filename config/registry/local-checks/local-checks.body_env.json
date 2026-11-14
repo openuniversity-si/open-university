@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "OU_PR_BODY_FILE",
+  "x-unit": "name",
+  "description": "Environment variable naming a file with the PR body, for the checks that need it when --body-file is not given.",
+  "x-readers": [
+    "scripts/lib/local_checks.py"
+  ],
+  "minLength": 1
+}

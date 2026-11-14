@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/lessons.json",
+  "x-owner": "lessons",
+  "x-schema-version": 1,
+  "description": "The lessons registry (D-069 items 4 and 9): lessons from every unit retro, their root-cause class, the change they ask for, their status and measured effect.",
+  "type": "object",
+  "additionalProperties": false
+}

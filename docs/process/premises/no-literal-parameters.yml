@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-41"
+slug: "no-literal-parameters"
+statement: "No parameter or tunable value stays literal in code: every setting is registered and documented (name, type, default, valid range, owner, readers) and is read and changed through an API, without touching code."
+kind: "architecture"
+scope: "global"
+source:
+  who: "daniel"
+  where: "Daniel, chat, 2026-10-26 17:51 (motor wave brief, PR C0)"
+  quote: "Tudo que for parâmetro, tudo que for configuração, cara, não pode ser literal. Isso é uma configuração bom que seja uma API, de forma que a gente não precisa alterar o código."
+  at: "2026-10-26T17:51-03:00"
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["decision:D-068", "decision:D-069", "plan:C0"]
+  if_wrong: "Every engine, skeleton and unit PR reads its settings from config/registry/<owner>.json through scripts/lib/config.py and the structure check refuses registered parameters spelled as literals; if wrong, those reads and the check go and the values return to code."
+validate:
+  kind: "none"
+  how: null
+answer:
+  by: "Daniel"
+  at: "2026-10-26T17:51-03:00"
+  value: "confirmed"
+  quote: "Tudo que for parâmetro, tudo que for configuração, cara, não pode ser literal. Isso é uma configuração bom que seja uma API, de forma que a gente não precisa alterar o código."
+  where: "Daniel, chat, 2026-10-26 17:51"
+  evidence: null
+  translation: "Everything that is a parameter, everything that is configuration, can't be a literal. It's configuration, ideally an API, so we don't need to change the code."
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

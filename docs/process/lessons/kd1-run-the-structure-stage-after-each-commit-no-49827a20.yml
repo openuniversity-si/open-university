@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-49827a20"
+slug: "kd1-run-the-structure-stage-after-each-commit-no-49827a20"
+title: "Run the structure stage after each commit, not at the end"
+source:
+  unit: "KD1"
+  retro: "docs/units/KD1/retro.md"
+  section: 5
+  ref: "L2"
+class: "check-gap"
+kind: "brief-template"
+change: "Run the structure stage after each commit, not at the end (F5). Owner: engine lane (hook) / plan template (structure owner)."
+owner: "engine-lane"
+status: "proposed"
+area: []
+signals: [{"event": "gate.failed", "stage": "structure check", "pattern": null}]
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

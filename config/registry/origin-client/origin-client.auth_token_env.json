@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "pattern": "^[A-Z][A-Z0-9_]*$",
+  "default": "CURSOR_AUTH_TOKEN",
+  "x-unit": "name",
+  "description": "Environment variable the origin CLI prefers for its credential (a token exchanged from the key). A name only: the preflight checks that it (or origin-client.credential_env) is set and never reads or prints the value (ORIGIN-FINISH R3).",
+  "x-readers": [
+    "scripts/lib/forge_origin.py"
+  ],
+  "x-source": "ORIGIN-FINISH"
+}

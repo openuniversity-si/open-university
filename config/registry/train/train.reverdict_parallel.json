@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 0,
+  "minimum": 0,
+  "x-unit": "count",
+  "description": "D-076 (GATE-FAST): verdicts the train's resync runs at once: the oldest PR's and those of the next queued PRs whose verdicts do not admit on the tip either (verdicts ahead, train_verdict.refresh_ahead). 0 means the gate slots of the box (gate_test_cache.gate_slots: gate.slots, else vCPUs x gate.slots_per_vcpu); each verdict still holds its own slot and worktree. Admission stays one PR at a time from the queue. 1 is the rollback: one verdict at a time (D-075 as merged).",
+  "x-readers": [
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-076"
+}

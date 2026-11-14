@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "Supersedes #{old} (D-022 batched push, replayed by scripts/replay-branch)",
+  "pattern": "\\{old\\}",
+  "x-unit": "text",
+  "description": "Line appended to the replacement PR body; {old} is the replaced PR.",
+  "x-readers": [
+    "scripts/lib/replay_branch.py"
+  ]
+}

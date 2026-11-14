@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/checks [--help]
+# one line per N7 check, pass/warn/fail, exit code; no session needed
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/checks.py" "$@"

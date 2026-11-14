@@ -1,0 +1,8 @@
+# The image of the infrastructure's service (P3 F1) and of its port's Lambda (P3 F2). Pinned; the image tag follows
+# this file's tree.
+dbos==3.4.0
+psycopg[binary]==3.3.8
+boto3==1.43.123
+awslambdaric==4.2.3
+# Claude through the official SDK, on the Anthropic API and on Claude in Amazon Bedrock (D-310, D-311).
+anthropic[bedrock]==2.3.0

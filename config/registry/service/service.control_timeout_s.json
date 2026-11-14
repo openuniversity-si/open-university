@@ -1,0 +1,14 @@
+{
+  "type": "integer",
+  "default": 10,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Timeout of one control-plane HTTP request. The job deadline further bounds runner calls; a failed request is reported without selecting another transport.",
+  "x-readers": [
+    "scripts/lib/forge_control.py",
+    "scripts/lib/service_deploy.py",
+    "scripts/lib/service_runner.py",
+    "scripts/lib/service_status.py"
+  ],
+  "x-source": "D-086; docs/operations/services.md"
+}

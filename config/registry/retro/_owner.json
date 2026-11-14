@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/retro.json",
+  "x-owner": "retro",
+  "x-schema-version": 1,
+  "description": "RETRO-API (Daniel 2026-10-28; D-054): the store that receives each session's log and keeps it.",
+  "type": "object",
+  "additionalProperties": false
+}

@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/gate-batch",
+    "--tier",
+    "2"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "count",
+  "description": "Tier-2 command, relative to the repository root, run on the combined head and on every bisection prefix (its sha is appended; the members and base arrive in GATE_BATCH_MEMBERS and GATE_BATCH_BASE): scripts/gate-batch --tier 2 gates that commit with the union plan of its members (GX-30, B-20 (a)), so a batch runs only the stages its members can affect, with the caches train.tier2_test_cache names (fresh by default). Rollback: [\"scripts/gate-dev\", \"--sha\"], the full dev plan, which ignores the batch variables.",
+  "x-readers": [
+    "scripts/lib/train_git.py"
+  ]
+}

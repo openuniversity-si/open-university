@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "plan.md",
+  "x-unit": "path",
+  "description": "The program file whose fenced data block is the PR graph.",
+  "x-readers": [
+    "scripts/lib/program.py"
+  ]
+}

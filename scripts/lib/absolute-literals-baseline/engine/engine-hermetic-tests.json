@@ -1,0 +1,31 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/hermetic.py": {
+      "number 1000": 2
+    },
+    "scripts/lib/hermetic_check.py": {
+      "host \"localhost\"": 1
+    },
+    "scripts/tests/test_hermetic.py": {
+      "host \"127.0.0.1\"": 1,
+      "host \"198.51.100.9\"": 1,
+      "host \"203.0.113.7\"": 1,
+      "host \"example.com\"": 1,
+      "number 0.05": 1,
+      "number 2": 3,
+      "number 3": 1,
+      "number 80": 2,
+      "number 9": 1,
+      "number 90": 1
+    },
+    "scripts/tests/test_hermetic_check.py": {
+      "host \"example.com\"": 1,
+      "number 2": 1,
+      "url \"http://127.0.0.1:${port}/x\"": 1,
+      "url \"http://127.0.0.1:1/x\"": 1,
+      "url \"https://example.com\"": 1,
+      "url \"https://example.com/x\"": 1
+    }
+  }
+}

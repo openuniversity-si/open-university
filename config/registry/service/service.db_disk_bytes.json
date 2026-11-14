@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 21474836480,
+  "minimum": 1,
+  "x-unit": "bytes",
+  "description": "DB-VITALS (docs/operations/aws-revisao-arquitetura.md, finding 10): the allocated disk of the engine's database, in bytes (the RDS instance has 20 GiB; Postgres cannot read it). The live service divides the database's size by it (platform.db.vitals disk_ratio) to say how full the disk is; a change of the instance's storage is followed by PUT /v1/config/service.db_disk_bytes.",
+  "x-readers": [
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/vitals.py"
+  ],
+  "x-source": "DB-VITALS"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 8,
+  "x-unit": "chars",
+  "description": "Hex digits of the dedup hash that follow the id prefix.",
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ],
+  "minimum": 6
+}

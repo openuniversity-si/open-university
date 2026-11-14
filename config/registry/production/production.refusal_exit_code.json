@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 3,
+  "minimum": 1,
+  "maximum": 125,
+  "x-unit": "count",
+  "description": "Exit status of a production entrypoint that refuses to run in a cloud session.",
+  "x-readers": [
+    "scripts/lib/production_guard.py"
+  ],
+  "x-source": "D-054; D-069 item 13"
+}

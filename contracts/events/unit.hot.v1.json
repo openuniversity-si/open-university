@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/unit.hot.v1.json",
+  "title": "unit.hot payload v1",
+  "description": "The unit's queue exceeds its lane's capacity; a split PR follows.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/unit",
+    "/payload/sha"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "queue_size",
+    "capacity"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "queue_size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "capacity": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

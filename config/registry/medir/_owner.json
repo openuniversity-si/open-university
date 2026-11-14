@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/medir.json",
+  "x-owner": "medir",
+  "x-schema-version": 1,
+  "description": "The measures of the phase-1 path (MEDIR 1, P6 F1): what scripts/medir reads and how it summarizes it.",
+  "type": "object",
+  "additionalProperties": false
+}

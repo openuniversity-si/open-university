@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 10,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Timeout of the node and gitleaks version probes that key the gate's speed record (gate_speed.py); a probe that times out records 'unknown'.",
+  "x-readers": [
+    "scripts/lib/gate_speed.py"
+  ],
+  "x-source": "D-064 (f); D-069 item 14"
+}

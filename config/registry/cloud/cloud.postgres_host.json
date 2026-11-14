@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "127.0.0.1",
+  "minLength": 1,
+  "x-unit": "host",
+  "description": "Address the project-local PostgreSQL listens on and every client of it connects to.",
+  "x-readers": [
+    "scripts/cloud/postgres.py",
+    "scripts/cloud/env.sh"
+  ]
+}

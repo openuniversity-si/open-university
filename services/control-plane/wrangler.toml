@@ -1,0 +1,39 @@
+# The control plane of the gate and the train (GATE-TRAIN-SERVICES, ADR-41, D-086). Free plan: SQLite-backed Durable
+# Object, workers.dev route, one cron trigger. Deploy (Daniel, D-088): `npx wrangler deploy` from this directory, then
+# `npx wrangler secret put GITHUB_WEBHOOK_SECRET` (and ADMIN_TOKEN, RUNNER_TOKEN). No secret is ever in this file.
+# D-291: a runner job has one budget (BUDGET_S), its lease is the same budget, including reporting, and an ended lease
+# is a died result. BUDGET_S is not set here: scripts/lib/service_deploy.py sends it from service.job_budget_s. A runner deploy job (D-291 (6)) uploads the Worker with DEPLOYED_TREE, the git tree of this
+# directory, which GET /status reports so a runner can compare it with its own checkout; it is not set here.
+# F37 (D-299): POST /v1/check-run answers 503 until ORIGIN_APP_PRIVATE_KEY, ORIGIN_APP_ID and ORIGIN_APP_INSTALLATION_ID
+# are put as secrets (`npx wrangler secret put <name>`); the app's key lives only there.
+name = "forge-webhook"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+account_id = "24f3bba6ed24fb6ae6cf207026f891f8"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[[durable_objects.bindings]]
+name = "CONTROL"
+class_name = "Control"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Control"]
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+REPO = "openuniversity-si/open-university"
+BASE_BRANCH = "mod/roadmap-integration"
+WAKE_REF = "train/wake"
+GATE_DRAFTS = "true"
+DEPLOY_RETRY_S = "15"
+JOB_TTL_S = "3600"
+SWEEP_S = "900"
+# A runner silent this long warns in the health; silent this long is forgotten.
+RUNNER_STALE_S = "180"
+RUNNER_FORGET_S = "86400"

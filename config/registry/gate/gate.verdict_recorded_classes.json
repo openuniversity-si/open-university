@@ -1,0 +1,24 @@
+{
+  "type": "array",
+  "default": [
+    "code",
+    "contract"
+  ],
+  "items": {
+    "type": "string",
+    "enum": [
+      "code",
+      "env",
+      "contract",
+      "flake"
+    ]
+  },
+  "uniqueItems": true,
+  "x-unit": "names",
+  "description": "D-027 classes of a red stage that make a failure a function of the input, so scripts/gate-verdict records it; a failure whose red stages are only env or flake (a machine, a network, a re-run) is answered and run again next time.",
+  "x-readers": [
+    "scripts/lib/gate_verdict.py",
+    "scripts/tests/test_gate_verdict.py"
+  ],
+  "x-source": "D-070 (GATE-API)"
+}

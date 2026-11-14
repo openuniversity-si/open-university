@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "confirmed",
+    "validated"
+  ],
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Statuses that settle a premise, so citing it never blocks.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

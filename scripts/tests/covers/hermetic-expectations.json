@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/hermetic-expectations.test.sh",
+  "covers": [
+    "scripts/tests/hermetic-expectations.test.sh",
+    "scripts/tests/*.sh",
+    "scripts/tests/*/*.sh",
+    "scripts/tests/*.py"
+  ]
+}

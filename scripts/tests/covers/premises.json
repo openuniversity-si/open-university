@@ -1,0 +1,16 @@
+{
+  "script": "scripts/tests/premises.test.sh",
+  "covers": [
+    "scripts/tests/premises.test.sh",
+    "scripts/tests/test_premises.py",
+    "scripts/premises",
+    "scripts/lib/premises.py",
+    "scripts/lib/config.py",
+    "scripts/lib/json_schema.py",
+    "config/registry/premises.json",
+    "contracts/premises/premise.v1.json",
+    "contracts/events/premise.*.v1.json",
+    "docs/process/premises/*.yml",
+    "scripts/tests/forge_doubles.py"
+  ]
+}

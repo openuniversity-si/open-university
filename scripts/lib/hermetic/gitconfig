@@ -1,0 +1,16 @@
+# The git configuration of every script test (GATE-SPEED F1, D-118): gate_test_cache points GIT_CONFIG_GLOBAL here and
+# sets GIT_CONFIG_NOSYSTEM, so the box's own global and system configuration (commit signing, hooks, filters, its
+# identity) never reach a test. A test that needs another value passes it with `git -c` or its own environment.
+[user]
+	name = Tower Test
+	email = test@example.invalid
+[commit]
+	gpgsign = false
+[tag]
+	gpgsign = false
+[maintenance]
+	auto = false
+[gc]
+	auto = 0
+[receive]
+	autogc = false

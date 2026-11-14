@@ -1,0 +1,16 @@
+{
+  "type": "string",
+  "default": "emit_only",
+  "enum": [
+    "emit_only",
+    "detached",
+    "wake"
+  ],
+  "x-unit": "enum",
+  "description": "What the producer of pr.ready does after emitting it: emit_only (default) starts nothing, and the designated train-role session runs the train (docs/operations/train.md); detached starts `scripts/train run` in the producer's container (Transport v0 as it was: the one-key rollback) (GX-06); wake fast-forwards train.wake_ref with a record naming the PR, its head and the pr.ready event, over git (no REST), and starts nothing: the train-role session's `scripts/train serve` consumes it (GATE-ON-PUSH R2).",
+  "x-readers": [
+    "scripts/lib/service_status.py",
+    "scripts/lib/train_trigger.py"
+  ],
+  "x-source": "D-070; docs/programs/gate-excellence/plan.md §3.3 GX-06"
+}

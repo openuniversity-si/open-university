@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/hooks-path.test.sh",
+  "covers": [
+    "scripts/tests/hooks-path.test.sh",
+    "scripts/tests/test_hooks_path.py",
+    ".githooks/*",
+    "scripts/lib/push_guard.py",
+    "scripts/cloud/env.sh"
+  ]
+}

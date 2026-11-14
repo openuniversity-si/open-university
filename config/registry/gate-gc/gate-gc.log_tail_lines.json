@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 8,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Lines of a timed-out stage's log printed with its failure.",
+  "x-readers": [
+    "scripts/lib/gate-runner.sh",
+    "scripts/lib/gate_gc.py"
+  ],
+  "x-source": "D-070; plan GX-19"
+}

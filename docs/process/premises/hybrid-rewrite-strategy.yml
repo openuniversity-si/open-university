@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-01"
+slug: "hybrid-rewrite-strategy"
+statement: "The rewrite follows the hybrid strategy: a generated skeleton of the units first (manifest, contract, stable address, own battery), then a strangler migration by lanes in parallel, never a big-bang; each change deletes the old path (D-029)."
+kind: "architecture"
+scope: "global"
+source:
+  who: "model"
+  where: "plan v3 §5.1"
+  quote: null
+  at: null
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["plan:waves-2-3", "plan:U0-U4", "veto:V8", "decision:D-067"]
+  if_wrong: "A big-bang on a long branch, which stops throughput; or no rewrite, back to report v2, which saturates between 1x and 10x (plan v3 §6.2)."
+validate:
+  kind: "question"
+  how: "Question 1 of plan v3 §2.1 (yes/no)."
+answer:
+  by: "A Torre"
+  at: "2026-10-26T17:22-03:00"
+  value: "confirmed"
+  quote: "eu não quero ficar sendo o gargalo validando isso tudo"
+  where: "Daniel, chat 17:22: delegation to A Torre to confirm the plan v3 §2.1 questions"
+  evidence: null
+  translation: "I don't want to be the bottleneck validating all of this"
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

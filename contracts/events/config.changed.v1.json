@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/config.changed.v1.json",
+  "title": "config.changed payload v1",
+  "description": "Audit event of the configuration registry (D-068, owner C0): one change of a parameter's effective value, recorded by scripts/config set, set --default or revert. The change store replays these events to rebuild every override; a revert is a new change, never an edit of history. Repository-level: pr is null.",
+  "x-natural-key": [
+    "/payload/name",
+    "/payload/old",
+    "/payload/new",
+    "/payload/actor",
+    "/payload/reason",
+    "/payload/at"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "name",
+    "old",
+    "new",
+    "actor",
+    "reason",
+    "at"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9_]*$",
+      "description": "The registered parameter."
+    },
+    "old": {
+      "description": "The stored value before the change; null when the parameter read its registry default."
+    },
+    "new": {
+      "description": "The stored value after the change; null returns the parameter to its registry default."
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who changed it: a person or a session."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Why it changed."
+    },
+    "at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$",
+      "description": "When, RFC 3339 UTC from the injected clock (the envelope's occurred_at)."
+    },
+    "reverts": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "The event_id of the change this one reverts; null otherwise."
+    }
+  }
+}

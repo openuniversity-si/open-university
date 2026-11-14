@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    3,
+    9
+  ],
+  "x-unit": "version",
+  "items": {
+    "type": "integer",
+    "minimum": 0
+  },
+  "minItems": 2,
+  "maxItems": 2,
+  "description": "Oldest Python (major, minor) the setup accepts to run the toolchain installer before the pinned Python exists.",
+  "x-readers": [
+    "scripts/cloud/setup.sh"
+  ]
+}

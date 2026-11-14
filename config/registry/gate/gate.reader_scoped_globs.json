@@ -1,0 +1,20 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/**",
+    ".githooks/**",
+    "config/registry/**",
+    "units/**"
+  ],
+  "x-unit": "glob",
+  "description": "D-076 (GATE-FAST): repository tooling, registry and unit-manifest paths outside the web root that the web package never builds, imports or configures from: a change to one runs only the tests of the unit that owns it and its dependents (OU-DECOUPLE F4, D-111: the web reader map left with Open University) instead of the full web battery, even when it is a gate.full_battery_globs class. Under the pin (P-46) the gate that runs the web stages is the base tip's, so the PR's tooling is only code under test there. gate.reader_scoped_exclude keeps the full battery for the tooling the web checks themselves read. An empty list is the rollback.",
+  "x-readers": [
+    "scripts/lib/gate_select.py"
+  ],
+  "x-source": "D-076",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true
+}

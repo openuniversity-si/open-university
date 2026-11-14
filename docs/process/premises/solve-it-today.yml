@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-40"
+slug: "solve-it-today"
+statement: "Solve it today: today's execution plan, in waves."
+kind: "product"
+scope: "global"
+source:
+  who: "daniel"
+  where: "addendum 2"
+  quote: null
+  at: null
+status: "confirmed"
+radius: "medium"
+blast:
+  reasons: ["plan:today"]
+  if_wrong: "Plan v3 §9."
+validate:
+  kind: "none"
+  how: null
+answer:
+  by: "Daniel"
+  at: null
+  value: "confirmed"
+  quote: null
+  where: "Daniel, addendum 2"
+  evidence: null
+  translation: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

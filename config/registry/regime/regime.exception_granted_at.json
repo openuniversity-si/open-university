@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "01/11 04:11 BRT",
+  "x-unit": "text",
+  "description": "The clock of the declaration (BRT).",
+  "x-readers": [
+    "scripts/lib/regime.py"
+  ],
+  "x-source": "D-260"
+}

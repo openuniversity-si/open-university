@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/tests.json",
+  "x-owner": "tests",
+  "x-schema-version": 1,
+  "description": "Hermetic tests (plan v3 H1, D-069 item 5): network denied, seeded randomness, injected clock, timeouts.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "tests.check_roots": {
+      "type": "array",
+      "default": [
+        "scripts/tests/"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "path",
+      "description": "Prefixes of the repository whose test files (test_*.py, *_test.py, *.test.ts/mjs, not *.int.test.ts) the hermetic check judges.",
+      "x-readers": [
+        "scripts/lib/hermetic_check.py"
+      ]
+    },
+    "tests.clock_start": {
+      "type": "string",
+      "default": "2026-01-01T00:00:00Z",
+      "minLength": 1,
+      "x-unit": "timestamp",
+      "description": "RFC 3339 instant at which the injected test clock starts; tests advance it explicitly and never read the wall clock.",
+      "x-readers": [
+        "scripts/lib/hermetic.py"
+      ]
+    },
+    "tests.config_store": {
+      "type": "string",
+      "default": "file",
+      "enum": [
+        "file"
+      ],
+      "x-unit": "enum",
+      "description": "The configuration change store a hermetic test process reads: this checkout's local log, never the shared store on the forge (D-069 item 5). hermetic.install() pins it for the process and hermetic.store_env() gives it to a child process whose environment a test builds. Read from this file, never from the store itself.",
+      "x-readers": [
+        "scripts/lib/hermetic.py",
+        "scripts/lib/config.py"
+      ],
+      "x-source": "TR1; D-068 (3); D-069 item 5"
+    },
+    "tests.harness_files": {
+      "type": "array",
+      "default": [
+        "scripts/tests/test_hermetic.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "path",
+      "description": "Test files that prove the harness itself and so must call the forbidden forms (a socket to a refused host). The hermetic check does not judge them; any other file is judged.",
+      "x-readers": [
+        "scripts/lib/hermetic_check.py"
+      ]
+    },
+    "tests.loopback_hosts": {
+      "type": "array",
+      "default": [
+        "127.0.0.1",
+        "::1",
+        "localhost"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "host",
+      "description": "Hosts a hermetic test may still reach: its own fixture servers on the loopback interface.",
+      "x-readers": [
+        "scripts/lib/hermetic.py"
+      ]
+    },
+    "tests.network_allowed": {
+      "type": "boolean",
+      "default": false,
+      "x-unit": "flag",
+      "description": "When false, unit and script tests cannot open a connection to any host outside tests.loopback_hosts: connect, UDP send and name resolution raise. True is an explicit, audited exception.",
+      "x-readers": [
+        "scripts/lib/hermetic.py"
+      ]
+    },
+    "tests.random_seed": {
+      "type": "integer",
+      "default": 20261026,
+      "minimum": 0,
+      "maximum": 4294967295,
+      "x-unit": "seed",
+      "description": "Seed of every random source in script tests: Python's random module (scripts/lib/hermetic.py). The same seed gives the same run (D-069 item 5).",
+      "x-readers": [
+        "scripts/lib/hermetic.py"
+      ]
+    },
+    "tests.script_timeout_ms": {
+      "type": "integer",
+      "default": 600000,
+      "minimum": 1,
+      "x-unit": "ms",
+      "description": "Per-test timeout of Python script tests. They had no bound before H1; this one equals the longest explicit subprocess timeout those tests already use (600 s, the toolchain bootstrap of a fresh gate checkout), so a hung test fails instead of stalling the gate and no test that passed before fails. Tightened only by measurement (D-069 items 5, 14).",
+      "x-readers": [
+        "scripts/lib/hermetic.py"
+      ]
+    },
+    "tests.unhermetic_sites": {
+      "type": "array",
+      "default": [
+        "scripts/tests/test_aws_tenant_isolation_proof.py:random",
+        "scripts/tests/test_claude_session.py:harness",
+        "scripts/tests/test_deploy_sh.py:wall_clock",
+        "scripts/tests/test_infra_canary.py:wall_clock",
+        "scripts/tests/test_infra_cold_start.py:wall_clock",
+        "scripts/tests/test_infra_intask_standby.py:wall_clock",
+        "scripts/tests/test_infra_live_image.py:wall_clock",
+        "scripts/tests/test_infra_pooler.py:socket",
+        "scripts/tests/test_infra_pooler.py:wall_clock",
+        "scripts/tests/test_infra_reload_nostandby.py:wall_clock",
+        "scripts/tests/test_infra_sessions.py:wall_clock",
+        "scripts/tests/test_infra_swap_db_load.py:wall_clock",
+        "scripts/tests/test_infra_swap_failover.py:wall_clock",
+        "scripts/tests/test_infra_swap_measure.py:wall_clock",
+        "scripts/tests/test_infra_swap_ready.py:wall_clock",
+        "scripts/tests/test_infra_swap_reload.py:wall_clock",
+        "scripts/tests/test_infra_swap_tick.py:wall_clock",
+        "scripts/tests/test_infra_wake_hub.py:wall_clock",
+        "scripts/tests/test_uid0_probe.py:harness"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "site",
+      "description": "Test files that predate the hermetic rules, as path:RULE (wall_clock, random, socket). Against the base this list only shrinks; a new site is refused. Each entry is a debt for the file's unit owner (U0 manifests), fixed by injecting the clock, seeding the source or using a loopback fixture. The harness sites are the tests that run scripts/cloud/setup.sh, the toolchain bootstrap that downloads by design (hermetic.without_harness); they stay listed while those tests exist.",
+      "x-readers": [
+        "scripts/lib/hermetic_check.py"
+      ]
+    }
+  }
+}

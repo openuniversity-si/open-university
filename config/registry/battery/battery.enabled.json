@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": false,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "The battery role's on/off switch (D-065 (5), D-069 item 11). Off: `scripts/battery run` exits without reading a log or taking the lock, and no tier 3 runs. Switched on only by a config.changed event (scripts/config set).",
+  "x-readers": [
+    "scripts/lib/battery.py"
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/production.json",
+  "x-owner": "production",
+  "x-schema-version": 1,
+  "description": "Who may reach production (D-054, enforcement audit 2026-10-26 rule 7, PS1).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "production.cloud_session_markers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "CLAUDE_CODE_REMOTE",
+        "CLAUDE_CODE_REMOTE_SESSION_ID"
+      ],
+      "x-unit": "count",
+      "description": "Environment variable names whose presence (non-empty) marks a cloud session; a host-side shell has none of them.",
+      "x-readers": [
+        "scripts/lib/production_guard.py"
+      ],
+      "x-source": "D-054; D-069 item 13"
+    },
+    "production.forbidden_entrypoints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "x-unit": "count",
+      "description": "The scripts under scripts/ that change or probe production; a cloud session never runs them and a PR diff never adds an invocation of them. Empty: OU-DECOUPLE F4 (D-111) took Open University's production entrypoints (ship-tail, neon-migrate, ship-verify, merge-phase, preview-deploy, production-check, neon-pr) out of the repository and the engine has no production deploy; an entrypoint that comes back is named here.",
+      "x-readers": [
+        "scripts/lib/production_guard.py",
+        "scripts/lib/literal_census.py"
+      ],
+      "x-source": "D-054; D-069 item 13"
+    },
+    "production.invocation_allowed_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "scripts/lib/production_guard.py",
+        "scripts/tests/covers/**",
+        "scripts/lib/release_policy.py",
+        "scripts/lib/delivery.py",
+        "scripts/lib/idea_to_prod.py",
+        "scripts/gate-local",
+        "scripts/tests/*"
+      ],
+      "x-unit": "count",
+      "description": "Path globs where a diff may add a mention of a forbidden entrypoint: the entrypoints and delivery code themselves, the gate test map, the db-tier gate that predates the guard, and hermetic tests (fixtures and fake PATH only). Every other path is refused.",
+      "x-readers": [
+        "scripts/lib/production_guard.py"
+      ],
+      "x-source": "D-054; D-069 item 13"
+    },
+    "production.refusal_exit_code": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 125,
+      "x-unit": "count",
+      "description": "Exit status of a production entrypoint that refuses to run in a cloud session.",
+      "x-readers": [
+        "scripts/lib/production_guard.py"
+      ],
+      "x-source": "D-054; D-069 item 13"
+    },
+    "production.scanned_roots": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "scripts/",
+        "units/"
+      ],
+      "x-unit": "count",
+      "description": "Path prefixes whose added lines the invocation scan reads.",
+      "x-readers": [
+        "scripts/lib/production_guard.py"
+      ],
+      "x-source": "D-054; D-069 item 13"
+    },
+    "production.scanned_suffixes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        ".sh",
+        ".py",
+        ".mjs",
+        ".js",
+        ".ts",
+        ".json",
+        ""
+      ],
+      "x-unit": "count",
+      "description": "File suffixes the invocation scan reads under production.scanned_roots (the empty string is an extensionless script).",
+      "x-readers": [
+        "scripts/lib/production_guard.py"
+      ],
+      "x-source": "D-054; D-069 item 13"
+    }
+  }
+}

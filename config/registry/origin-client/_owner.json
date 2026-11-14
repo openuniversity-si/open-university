@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/origin-client.json",
+  "x-owner": "origin-client",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "description": "The Cursor Origin public API client behind forge_origin.OriginAdapter (FORGE-PORT, CANALE8)."
+}

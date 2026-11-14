@@ -1,0 +1,23 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/premises.py": {
+      "number 100": 1,
+      "number 2": 4
+    },
+    "scripts/tests/test_decision_premises.py": {
+      "number 2": 1
+    },
+    "scripts/tests/test_premises.py": {
+      "number 100": 1,
+      "number 12": 3,
+      "number 13": 1,
+      "number 2": 7,
+      "number 3": 1,
+      "number 4": 1,
+      "number 491": 2,
+      "number 7": 3,
+      "number 8": 1
+    }
+  }
+}

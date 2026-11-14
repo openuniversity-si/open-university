@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/gate-heavy-db.test.sh",
+  "covers": [
+    "scripts/tests/gate-heavy-db.test.sh",
+    "scripts/lib/gate-isolation.sh",
+    "scripts/lib/gate_graph.py",
+    "scripts/lib/gate-stages.json",
+    "config/registry/gate.json"
+  ]
+}

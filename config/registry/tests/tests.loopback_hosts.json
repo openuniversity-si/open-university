@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "127.0.0.1",
+    "::1",
+    "localhost"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "host",
+  "description": "Hosts a hermetic test may still reach: its own fixture servers on the loopback interface.",
+  "x-readers": [
+    "scripts/lib/hermetic.py"
+  ]
+}

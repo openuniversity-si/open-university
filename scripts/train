@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/train run [--owner NAME] [--pr N] | scripts/train queue | scripts/train serve
+# The merge train v0 (plan v3 M3, D-065 V3): driven by pr.ready through the forge_events port. Off until the registry
+# flag train.enabled is switched on by a config.changed event (docs/process/EVENTS.md).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/train.py" "$@"

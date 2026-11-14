@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/judgment-rule.test.sh",
+  "covers": [
+    "scripts/tests/judgment-rule.test.sh",
+    "scripts/tests/test_judgment_rule.py",
+    "AGENTS.md",
+    "docs/SEMENTE.md",
+    "docs/RETOMAR.md"
+  ]
+}

@@ -1,0 +1,9 @@
+#!/bin/sh
+# X1 (D-022): push the commit just made alone, right away (scripts/lib/push_guard.py). Never fails the post-commit.
+# D-069 item 5 (03/11, control plane down): a hook judges this tree, so it reads the registry and this checkout's local
+# change log, never the shared store on the control plane (scripts/lib/config.py store_kind).
+export OU_CONFIG_STORE=file
+guard="$(cd "$(dirname "$0")/.." && pwd)/scripts/lib/push_guard.py"
+[ -f "$guard" ] || exit 0
+"${OU_PYTHON:-python3}" "$guard" hook post-commit || true
+exit 0

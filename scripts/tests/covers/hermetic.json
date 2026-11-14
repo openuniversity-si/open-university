@@ -1,0 +1,19 @@
+{
+  "script": "scripts/tests/hermetic.test.sh",
+  "covers": [
+    "scripts/tests/hermetic.test.sh",
+    "scripts/tests/test_hermetic*.py",
+    "scripts/lib/hermetic.py",
+    "scripts/lib/hermetic/**",
+    "scripts/lib/hermetic_check.py",
+    "scripts/lib/structure.py",
+    "config/registry/tests.json",
+    "scripts/gate-local",
+    "contracts/config/registry.v1.json",
+    "scripts/tests/test_*.py",
+    "scripts/tests/**/test_*.py",
+    "scripts/tests/**/*_test.py",
+    "scripts/tests/**/*.test.ts",
+    "scripts/tests/**/*.test.mjs"
+  ]
+}

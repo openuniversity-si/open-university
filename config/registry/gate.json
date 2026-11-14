@@ -1,0 +1,1182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate.json",
+  "x-owner": "gate",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate.allowed_workflows": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "pattern": "^\\.github/(workflows|actions)/"
+      },
+      "uniqueItems": true,
+      "x-unit": "path",
+      "description": "The only GitHub Actions files the gate's `no GitHub Actions workflows` stage allows (ADR-24 as amended by ADR-41, D-086): none since F4 (vazao) deleted the staged Tower runner workflow, which no repository installs (the GitHub repository is archived and forge-events.adapter selects origin). A hosted runner stays one optional, budgeted runner kind (D-087): a workflow for it is named here first, and installed by Daniel, never by a session. The pinned gate reads its own list, so a PR cannot allow its own workflow.",
+      "x-readers": [
+        "scripts/lib/gate_workflows.py"
+      ],
+      "x-source": "D-086, D-087; docs/adr/ADR-41-gate-and-train-services.md"
+    },
+    "gate.batch_base_ref": {
+      "type": "string",
+      "default": "origin/mod/roadmap-integration",
+      "x-unit": "ref",
+      "description": "The ref a batch is merged onto and diffed against when scripts/gate-batch is given no --base.",
+      "x-readers": [
+        "scripts/gate-batch",
+        "scripts/lib/defect_detect.py",
+        "scripts/lib/defect_router.py",
+        "scripts/lib/gate_batch.py",
+        "scripts/lib/gate_pin.py"
+      ]
+    },
+    "gate.batch_max_prs": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "PRs one batch gate run may hold; a larger batch is refused before anything runs.",
+      "x-readers": [
+        "scripts/lib/gate_batch.py",
+        "scripts/gate-batch"
+      ]
+    },
+    "gate.bypass": {
+      "type": "boolean",
+      "default": false,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "The explicit, reversible bypass of the gate (SUPER REGIME DE EXCEPTION, Daniel 31/10 16:24 BRT, D-151). While it is true in the shared store, `gate-dev`/`gate-local`, `pr-ready` and the train's tier-2 gate give green at once without running a stage: the gate writes a PASS for every expected stage marked `bypass`, publishes the usual `gate.passed` evidence and the pass record (`bypass=D-151`), and the train's tier 2 passes without running. It is turned on with `scripts/config set gate.bypass true --reason ...` and off the same way; `GATE_BYPASS=1` or `GATE_BYPASS=0` in the environment overrides the store for one run (`GATE_BYPASS=0` is how `scripts/gate-shadow` runs the real gate for measurement).",
+      "x-readers": [
+        "scripts/gate-local",
+        "scripts/lib/engine_role.py",
+        "scripts/lib/gate_bypass.py",
+        "scripts/lib/lane_status.py"
+      ],
+      "x-source": "D-151"
+    },
+    "gate.ceiling_s": {
+      "type": "integer",
+      "default": 180,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Wall-clock ceiling of one gate run (D-064 (f)); an overrun prints each stage's time and never fails the gate. The shell reads it in seconds and converts to milliseconds; GATE_CEILING_MS, when set, is an explicit override for one run.",
+      "x-readers": [
+        "scripts/lib/gate-budget.sh",
+        "scripts/lib/gate_explain.py"
+      ],
+      "x-source": "D-064 (f); Daniel 2026-10-26 14:22"
+    },
+    "gate.changed_base_ref": {
+      "type": "string",
+      "default": "origin/mod/roadmap-integration",
+      "x-unit": "ref",
+      "description": "The ref `scripts/test-suite --changed` diffs the checkout against (base...HEAD plus the uncommitted files) to pick the script tests the PR gate would select (VAZÃO F50), and `scripts/generate --changed` diffs it against to pick the derived files to regenerate.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/generate.py"
+      ]
+    },
+    "gate.changed_suite_nice": {
+      "type": "integer",
+      "default": 10,
+      "minimum": 0,
+      "maximum": 19,
+      "x-unit": "count",
+      "description": "The nice(1) increment a `scripts/test-suite --changed` run takes before it judges (VAZÃO F65): off the box lock, a lane's suite yields the CPU to a delivery's gate running beside it.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "VAZÃO F65 (docs/programs/vazao/fila.md); D-297; D-092"
+    },
+    "gate.changed_suite_slots": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "How many `scripts/test-suite --changed` runs judge at once on the box (VAZÃO F65). A lane's --changed suite no longer queues on the box lock (delivery.gate_lock_path), which stays the deliveries'; it takes one of this many slot locks next to it (suite-slot-<i>.lock) and runs under nice (gate.changed_suite_nice). Each slot hold is a line of kind suite_slot in delivery.gate_lock_log.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "VAZÃO F65 (docs/programs/vazao/fila.md); D-297; D-092"
+    },
+    "gate.check_in_landing": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "CHECK-IN-LANDING (F4 criterion 3, the delivery's gate at p99 10 s): whether the infra delivery's tower/gate success rides its landing job, posted by the live service right before the merge (forge.OriginForge.check, the Origin app's key of CHECK-RUN-AWS), instead of the client's own publish through the port and its wait for the service's word (1.0 to 2.4 s of each delivery on 13/11). Only on the port's route (forge-events.check_run_publisher port, the origin adapter) and the gate's own publisher; a red verdict is published as before. False: the client publishes it, as before.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "x-source": "F4 criterion 3 (13/11)"
+    },
+    "gate.check_run_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "Whether the gate publishes its verdict as the tower/gate check run on the exact head it judged, apart from the comment panel (gate.status_enabled): pending at begin, success or failure from the verdict, no comment, no gate.started and no verdict hooks. forge-events.status_enabled still turns every write off; forge-events.check_run_publisher chooses who posts it (D-299). On since D-313: the infra judge (delivery.judge=infra) publishes it too, through gate_status.check_hooks, before the landing.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "x-source": "D-299"
+    },
+    "gate.check_run_required": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "Whether a failed publish of tower/gate stops the infra delivery (nothing merges) instead of being logged while the delivery lands (fail-open). True since the ruleset rs_<tower-gate-required> requires tower/gate (revert: origin ruleset delete it, then set this false). It was false while the forge did not require tower/gate; true once the ruleset requires it, because then a head without a green tower/gate cannot merge anyway (D-313).",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "x-source": "D-313"
+    },
+    "gate.class_line_prefix": {
+      "type": "string",
+      "default": "GATE-CLASS:",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "x-unit": "text",
+      "description": "Prefix of the one machine line every red stage and every driver abort prints: `<prefix> <stage>\\t<class>` (D-027 classes code, env or contract; GX-01, D-070). A consumer (the train, GX-02) reads this line instead of the human class line.",
+      "x-readers": [
+        "scripts/lib/engine_role.py",
+        "scripts/lib/gate_classify.py",
+        "scripts/lib/gate_status.py",
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-070 (GX-01)"
+    },
+    "gate.content_cache_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "D-076 (GATE-FAST, P-56): a script test's or deterministic stage's recorded PASS is reused by content, at the tiers gate-tier.content_cacheable_tiers lists and by a --cold verdict, because its key covers every file it reads, the attested toolchain_id and the judging runner (gate.content_runner_inputs); the train then admits a verdict of the tip's tooling with such hits (train_admit.warmth). Off is the one-key rollback to D-065 (5): tier 2 and --cold reuse nothing again.",
+      "x-readers": [
+        "scripts/lib/gate_tier.py",
+        "scripts/lib/gate_verdict.py",
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-076"
+    },
+    "gate.content_runner_inputs": {
+      "type": "array",
+      "default": [
+        "scripts/gate-local",
+        "scripts/lib/gate-*.sh",
+        "scripts/lib/gate-hooks/**",
+        "scripts/lib/gate-build.py",
+        "scripts/lib/gate-stages.json",
+        "scripts/lib/gate-stage-inputs.json",
+        "scripts/lib/gate_graph.py",
+        "scripts/lib/gate_keys.py",
+        "scripts/lib/gate_result_cache.py",
+        "scripts/lib/gate_select.py",
+        "scripts/lib/gate_speed.py",
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/hermetic/**"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "glob",
+      "description": "D-076: the files of the judging tooling (the tool root, the base tip's under the pin) that run a script test or a stage and decide its result: the part of gate_version a cached result depends on. Their content is in every script-test and stage key (gate_keys.key_parts), so a change to how the gate runs a test misses every cache while a change to the code under test misses only the tests that read it.",
+      "x-readers": [
+        "scripts/lib/gate_keys.py"
+      ],
+      "x-source": "D-076"
+    },
+    "gate.content_stage_cache_dir": {
+      "type": "string",
+      "default": "~/.cache/open-university/gate-stages",
+      "x-unit": "path",
+      "description": "D-076: where a --cold verdict keeps the stage results it records and reuses by content, apart from its fresh build cache (GATE_BUILD_CACHE_DIR); a leading ~ is the home directory. gate-verdict --cold exports it as GATE_STAGE_CACHE_DIR, which gate_result_cache reads before the build cache.",
+      "x-readers": [
+        "scripts/lib/gate_verdict.py"
+      ],
+      "x-source": "D-076"
+    },
+    "gate.cost_hint_jump_floor_s": {
+      "type": "number",
+      "default": 1,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "A cost hint at or below this many seconds is never refused as a jump (gate.cost_hint_jump_ratio): a test of 0.2 s measured at 0.7 s moves no order and no budget (VAZÃO F52).",
+      "x-readers": [
+        "scripts/lib/test_metrics.py"
+      ]
+    },
+    "gate.cost_hint_jump_ratio": {
+      "type": "number",
+      "default": 3,
+      "exclusiveMinimum": 1,
+      "x-unit": "ratio",
+      "description": "A cost hint measured by one cold pass only (gate.cost_hint_passes 1) is refused above this many times the committed hint, when it is also above gate.cost_hint_jump_floor_s: such a jump needs a second measure (VAZÃO F52).",
+      "x-readers": [
+        "scripts/lib/test_metrics.py"
+      ]
+    },
+    "gate.cost_hint_passes": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Cold passes `scripts/test-suite --metrics --write-costs` runs, each on its own empty result store; a test's cost hint is the least of its walls (VAZÃO F52). A wait never makes a test faster: one pass under a stall or a busy box wrote 32-34 s for four tests that take 2-4 s, and the least of two passes drops it.",
+      "x-readers": [
+        "scripts/lib/test_metrics.py"
+      ]
+    },
+    "gate.explain_clip_chars": {
+      "type": "integer",
+      "default": 160,
+      "x-unit": "count",
+      "description": "GX-26 (D-070): longest error or gap text gate-dev --explain prints for a cause it cannot decide.",
+      "x-readers": [
+        "scripts/lib/gate_explain.py"
+      ],
+      "minimum": 1
+    },
+    "gate.explain_list_max": {
+      "type": "integer",
+      "default": 3,
+      "x-unit": "count",
+      "description": "GX-26 (D-070): failing tests that gate-dev --why lists.",
+      "x-readers": [
+        "scripts/lib/gate_explain.py"
+      ],
+      "minimum": 1
+    },
+    "gate.failing_signature_chars": {
+      "type": "integer",
+      "default": 160,
+      "minimum": 1,
+      "x-unit": "chars",
+      "description": "Length cap of the normalized signature of a failing test in the verdict.",
+      "x-readers": [
+        "scripts/lib/gate_failures.py"
+      ]
+    },
+    "gate.failing_tests_max": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Failing tests listed in a gate.failed verdict (id and signature); the total is kept beside the list.",
+      "x-readers": [
+        "scripts/lib/gate_failures.py"
+      ]
+    },
+    "gate.forge_reads_per_run_max": {
+      "type": "integer",
+      "default": 60,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "GX-FIX-forge-rate-2 (D-070): GitHub reads one gate run may make (PR identity, panel find, the verdict and pr.ready channel windows); independent of the number of script tests, the script-tests stage itself reads nothing from GitHub. Only the GitHub budget test reads it since the gate stopped counting GitHub calls (D-293); it leaves with that test.",
+      "x-readers": [
+        "scripts/tests/test_gate_forge_budget.py"
+      ]
+    },
+    "gate.forge_writes_per_run_max": {
+      "type": "integer",
+      "default": 6,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "GX-FIX-forge-rate-2 (D-070): GitHub writes one gate run may make besides the throttled live panel edits (panel create, pending status, final panel edit, final status, one events append, pr.ready); independent of the number of script tests. Only the GitHub budget test reads it since the gate stopped counting GitHub calls (D-293); it leaves with that test.",
+      "x-readers": [
+        "scripts/tests/test_gate_forge_budget.py"
+      ]
+    },
+    "gate.fork_server": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "GATE-SPEED F4 (D-122): a suite run starts one fork server (scripts/lib/fork_server.py) and puts its native client first on every script test's PATH as python3, so each Python process a test starts is a fork of a warm interpreter instead of a fresh one. Off, or with no C compiler on the box, every process is a fresh interpreter as before.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.fork_server_compiler": {
+      "type": "string",
+      "default": "cc",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "GATE-SPEED F4 (D-122): the C compiler that builds the fork server's client (scripts/lib/fork-shim.c) once per suite run; a box without it runs every test with fresh interpreters.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.fork_server_min_tests": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 1,
+      "x-unit": "tests",
+      "description": "VAZÃO F102: the fewest tests a run must start for it to start a fork server (gate.fork_server). The server costs about a second to build its client and warm up, which a run of one or two tests (a --changed suite on a small diff) does not earn back; below this count every test starts fresh interpreters.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.fork_server_preload": {
+      "type": "array",
+      "default": [
+        "argparse",
+        "ast",
+        "base64",
+        "collections",
+        "concurrent.futures",
+        "contextlib",
+        "copy",
+        "dataclasses",
+        "datetime",
+        "email.utils",
+        "enum",
+        "fcntl",
+        "fnmatch",
+        "functools",
+        "getpass",
+        "glob",
+        "hashlib",
+        "http.client",
+        "importlib.util",
+        "io",
+        "itertools",
+        "json",
+        "logging",
+        "math",
+        "platform",
+        "random",
+        "re",
+        "selectors",
+        "shlex",
+        "shutil",
+        "signal",
+        "socket",
+        "stat",
+        "string",
+        "struct",
+        "subprocess",
+        "tempfile",
+        "textwrap",
+        "threading",
+        "time",
+        "tomllib",
+        "traceback",
+        "types",
+        "typing",
+        "urllib.error",
+        "urllib.parse",
+        "urllib.request",
+        "uuid",
+        "warnings",
+        "zlib"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "name",
+      "description": "GATE-SPEED F4 (D-122): the standard-library modules the fork server imports once before it forks; never the engine's own modules (a test's fixture copy must import its own) and never unittest (the harness patches it as it is imported, as in a fresh interpreter). The list is the standard library the engine and its tests import in three files or more.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.fork_server_start_s": {
+      "type": "number",
+      "default": 10,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "GATE-SPEED F4 (D-122): how long a suite run waits for its fork server to listen before it runs every test with fresh interpreters instead.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.full_battery_globs": {
+      "type": "array",
+      "default": [
+        "config/**",
+        "contracts/**",
+        "scripts/lib/**",
+        "scripts/gate*",
+        "scripts/cloud/**",
+        "scripts/structure-check",
+        "scripts/commit-check",
+        "scripts/generate",
+        ".githooks/**",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
+        "package.json",
+        ".node-version",
+        ".npmrc",
+        "units/**",
+        ".gitleaks.toml"
+      ],
+      "x-unit": "glob",
+      "description": "Path classes that always run the full battery: the config registry, contracts, the engine, shared code, lockfiles and toolchain, the ownership map itself and tool configuration (GS1, fail closed). OU-DECOUPLE F5 (D-113): Open University's web package classes left with it.",
+      "items": {
+        "type": "string"
+      },
+      "x-readers": [
+        "scripts/lib/gate_select.py"
+      ],
+      "x-source": "GS1 brief, lever 1"
+    },
+    "gate.git_timeout_s": {
+      "type": "number",
+      "default": 30,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Timeout of each git call the gate's speed record makes (gate_speed.py), such as the tree and file hashes that key the caches.",
+      "x-readers": [
+        "scripts/lib/gate_speed.py"
+      ],
+      "x-source": "D-064 (f); D-069 item 14"
+    },
+    "gate.heavy_db_slots": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Heavy database stages (the stages that declare the heavy_db resource in scripts/lib/gate-stages.json: integration tests, smoke database, db schema/migrations) that may run at once on this machine, across every parallel gate run; each holds one lock file in gate.slot_dir for the length of its command. GATE_HEAVY_DB_SLOTS, when set, is an explicit override for one run.",
+      "x-readers": [
+        "scripts/lib/gate-isolation.sh",
+        "scripts/lib/gate_graph.py"
+      ]
+    },
+    "gate.jobserver_poll_s": {
+      "type": "number",
+      "default": 0.05,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "How often a script test running at its CPU share looks in the suite's jobserver for a CPU another test freed (GATE-SPEED F1, D-118; scripts/lib/parallel_tests.py). Read by the suite and handed to each test as OU_TEST_JOBSERVER_POLL_S.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.leak_scan_scope": {
+      "type": "string",
+      "enum": [
+        "change",
+        "full"
+      ],
+      "default": "change",
+      "x-unit": "name",
+      "description": "What a PR gate's secret scans read (GATE-SPEED R1, D-092): `change` scans the PR's own commits (merge-base..head) and the files it changes or leaves untracked; `full` scans all of HEAD's history and the whole tree. gate-noite always scans full, and a change to .gitleaks.toml scans full, so the base's history is judged every night. `full` is the rollback.",
+      "x-readers": [
+        "scripts/gate-local",
+        "scripts/lib/gate_speed.py"
+      ],
+      "x-source": "D-092; docs/units/GATE-SPEED/plan.md"
+    },
+    "gate.preflight_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "Whether scripts/gate-local runs the gate preflight (scripts/lib/preflight.py gate, probes env.gate_preflight_probes) before it takes the gate lock, a slot or a worktree; a gap prints `FAIL env: <gap>` and the class line and exits 2 (GX-01, D-070). Off is the one-key rollback when a false positive blocks the gates of a machine.",
+      "x-readers": [
+        "scripts/gate-local"
+      ],
+      "x-source": "D-070 (GX-01)"
+    },
+    "gate.reader_scoped_exclude": {
+      "type": "array",
+      "default": [
+        "scripts/cloud/**",
+        "scripts/check-architecture*",
+        "scripts/lib/architecture/**",
+        "scripts/tests/fixtures/architecture/**",
+        "config/registry/battery.json",
+        "config/registry/budgets.json",
+        "config/registry/generate.json",
+        "config/registry/tests.json",
+        "config/registry/text.json",
+        "config/registry/units.json"
+      ],
+      "x-unit": "glob",
+      "description": "D-076: tooling paths under gate.reader_scoped_globs that keep the full web battery: the toolchain and fonts the web stages install (scripts/cloud), the architecture checker that lint and typecheck read (gate-stage-inputs.json), and the registry files the web package's own configuration and helpers read (vitest.config.ts, test/hermetic.ts, the perf and address helpers, the copy catalogs, scripts/config get architecture.*).",
+      "x-readers": [
+        "scripts/lib/gate_select.py"
+      ],
+      "x-source": "D-076",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "gate.reader_scoped_globs": {
+      "type": "array",
+      "default": [
+        "scripts/**",
+        ".githooks/**",
+        "config/registry/**",
+        "units/**"
+      ],
+      "x-unit": "glob",
+      "description": "D-076 (GATE-FAST): repository tooling, registry and unit-manifest paths outside the web root that the web package never builds, imports or configures from: a change to one runs only the tests of the unit that owns it and its dependents (OU-DECOUPLE F4, D-111: the web reader map left with Open University) instead of the full web battery, even when it is a gate.full_battery_globs class. Under the pin (P-46) the gate that runs the web stages is the base tip's, so the PR's tooling is only code under test there. gate.reader_scoped_exclude keeps the full battery for the tooling the web checks themselves read. An empty list is the rollback.",
+      "x-readers": [
+        "scripts/lib/gate_select.py"
+      ],
+      "x-source": "D-076",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "gate.scoped_globs": {
+      "type": "array",
+      "default": [],
+      "x-unit": "glob",
+      "description": "The only paths whose change may narrow the selection to the units that own them; a changed path outside these (and outside the documentation class and the tooling paths) runs the full battery. OU-DECOUPLE F5 (D-113): empty since Open University's web sources left; a product that comes back lists its source tree here.",
+      "items": {
+        "type": "string"
+      },
+      "x-readers": [
+        "scripts/lib/gate_select.py"
+      ]
+    },
+    "gate.script_test_hold_s": {
+      "type": "number",
+      "default": 0.3,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "How long each job of scripts/tests/gate-heavy-db.test.sh keeps its place after the rendezvous, so a cap that lets one job too many in still shows in the peak.",
+      "x-readers": [
+        "scripts/tests/gate-heavy-db.test.sh"
+      ]
+    },
+    "gate.script_test_rendezvous_wait_s": {
+      "type": "integer",
+      "default": 60,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Longest a script test waits for its own concurrent jobs to reach a rendezvous before it counts the overlap it got (scripts/tests/gate-heavy-db.test.sh). The wait ends the moment the jobs have started, so a loaded machine only delays the test, never changes its expected value; the limit exists so a test whose jobs never start fails with the real count instead of hanging.",
+      "x-readers": [
+        "scripts/tests/gate-heavy-db.test.sh"
+      ]
+    },
+    "gate.script_tests_concurrency": {
+      "type": "integer",
+      "default": 8,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Cap on the script tests that run at the same time in the gate; the rest wait for a free place. The effective concurrency is min(this, floor(vCPUs x gate.script_tests_per_vcpu)) (GX-03). Output stays in test order.",
+      "x-readers": [
+        "scripts/lib/gate_graph.py",
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.script_tests_log_lines": {
+      "type": "integer",
+      "default": 40,
+      "minimum": 1,
+      "x-unit": "lines",
+      "description": "Lines of a failing script test output the gate prints.",
+      "x-readers": [
+        "scripts/lib/defect_detect.py",
+        "scripts/lib/gate_graph.py",
+        "scripts/lib/prepush.py"
+      ]
+    },
+    "gate.script_tests_per_vcpu": {
+      "type": "number",
+      "default": 1.0,
+      "minimum": 0,
+      "x-unit": "ratio",
+      "description": "Script tests per vCPU: the concurrency of the script tests is min(gate.script_tests_concurrency, floor(vCPUs x this)), at least 1 (GX-03, GA-PG4).",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "D-070 (GX-03)"
+    },
+    "gate.select_by_readers": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "GATE-SPEED R5 A2 (D-102): a diff of split registry keys selects the script tests by the changed keys' readers (x-readers, complete by D-100) instead of by the generated aggregate every test of the registry covers; fail closed for a key without readers, a deleted key, a changed _owner.json or an owner that is not split. Off is the rollback: the aggregate selects as before.",
+      "x-readers": [
+        "scripts/lib/gate_script_tests.py"
+      ],
+      "x-source": "D-102; docs/units/GATE-SPEED/plan.md"
+    },
+    "gate.select_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "Per-unit selection of the unit, integration and lint work from the PR's changed paths (GS1, D-064 (f)). Off runs the full web battery for every PR.",
+      "x-readers": [
+        "scripts/lib/gate_select.py"
+      ],
+      "x-flag": true
+    },
+    "gate.shared_results_attempts": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "GATE-SPEED F10 (D-130): how many times a run tries to append its PASSes to gate.shared_results_ref when another run moved it first; after that the run's verdicts stand and the next run publishes again.",
+      "x-readers": [
+        "scripts/lib/shared_results.py"
+      ]
+    },
+    "gate.shared_results_ref": {
+      "type": "string",
+      "default": "tower/test-results",
+      "minLength": 1,
+      "x-unit": "ref",
+      "description": "GATE-SPEED F10 (D-130): the branch (refs/heads/<name>) on the forge whose tip holds every script test PASS of the last gate.test_cache_ttl_s by its input key (scripts/lib/shared_results.py), moved forward only over git like train.wake_ref. A run with OU_SHARED_RESULTS=1 reads it once and publishes the PASSes it adds in one push, so a box that starts empty runs only the tests whose inputs no box has judged.",
+      "x-readers": [
+        "scripts/lib/shared_results.py"
+      ]
+    },
+    "gate.slot_dir": {
+      "type": "string",
+      "default": "/tmp",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Directory of the gate slot lock files tower-gate.slot<N> (D-064 (b)). GATE_SLOT_DIR, when set, is an explicit override for one run.",
+      "x-readers": [
+        "scripts/lib/gate-isolation.sh",
+        "scripts/lib/gate_pin.py"
+      ],
+      "x-source": "D-064 (b)"
+    },
+    "gate.slot_poll_s": {
+      "type": "number",
+      "default": 1,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Seconds between checks for a free gate slot while every slot is busy; contention, not a wait for the gate itself. GATE_SLOT_POLL, when set, is an explicit override for one run.",
+      "x-readers": [
+        "scripts/lib/gate-isolation.sh"
+      ],
+      "x-source": "D-064 (b)"
+    },
+    "gate.slots": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "x-unit": "count",
+      "description": "Optional override of the gates that may run at once on this machine, across all worktrees (D-064 (b)); each holds one slot lock file for its whole run. 0 means derived: max(1, floor(vCPUs x gate.slots_per_vcpu)) (GX-03, D-070). GATE_SLOTS, when set, is an explicit override for one run. Rollback of the sizing: set 3.",
+      "x-readers": [
+        "scripts/lib/gate-isolation.sh",
+        "scripts/lib/gate_test_cache.py",
+        "scripts/gate-local"
+      ],
+      "x-source": "D-064 (b); D-070 (GX-03)"
+    },
+    "gate.slots_per_vcpu": {
+      "type": "number",
+      "default": 0.5,
+      "minimum": 0,
+      "x-unit": "ratio",
+      "description": "Gate slots per vCPU when gate.slots is 0: slots = max(1, floor(vCPUs x this)), so a 4-vCPU container runs two gates at a time (D-076 (d), GATE-FAST: an incremental verdict with content reuse runs a few tests, so two verdicts of distinct PRs share the box; measured in docs/units/GATE-FAST/retro.md; GX-03, GA-PG4 set 0.25). Rollback: 0.25.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/gate-isolation.sh"
+      ],
+      "x-source": "D-070 (GX-03)"
+    },
+    "gate.slow_median_s": {
+      "type": "number",
+      "default": 15,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "Median tier-1 gate time above which gate.slow is emitted to the engine lane.",
+      "x-readers": [
+        "scripts/lib/forge_events.py",
+        "docs/process/EVENTS.md"
+      ]
+    },
+    "gate.slow_window_events": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Number of most recent tier-1 gate verdicts whose median decides gate.slow.",
+      "x-readers": [
+        "scripts/lib/forge_events.py",
+        "docs/process/EVENTS.md"
+      ]
+    },
+    "gate.stage_cache_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "Lets the PR gate (tier 1) skip a stage declared deterministic in scripts/lib/gate-stages.json when a passing result with the same input hash is cached. Off runs every stage.",
+      "x-readers": [
+        "scripts/lib/gate_result_cache.py",
+        "scripts/lib/gate-runner.sh"
+      ],
+      "x-flag": true
+    },
+    "gate.stage_cache_ttl_s": {
+      "type": "integer",
+      "default": 604800,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Age after which a cached stage pass is a miss and the stage runs again; a marker stored in the future is also a miss.",
+      "x-readers": [
+        "scripts/lib/gate_result_cache.py",
+        "scripts/lib/gate-runner.sh"
+      ]
+    },
+    "gate.stage_cache_version": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Version of the stage cache key material. Raising it invalidates every cached stage pass at once.",
+      "x-readers": [
+        "scripts/lib/gate_result_cache.py",
+        "scripts/lib/gate-runner.sh"
+      ]
+    },
+    "gate.status_earlier_heads": {
+      "type": "integer",
+      "default": 10,
+      "x-unit": "count",
+      "description": "GX-16: superseded heads kept (one line each, collapsed) in the PR's single status comment.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "minimum": 0
+    },
+    "gate.status_enabled": {
+      "type": "boolean",
+      "default": false,
+      "x-unit": "flag",
+      "description": "Optional PR comment panel. The bounded gate publishes its authoritative verdict and measurements to the engine journal; PR comment rendering is off by default and never required to answer. Enabling the panel explicitly includes its forge cost in the gate budget.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ]
+    },
+    "gate.status_find_pages": {
+      "type": "integer",
+      "default": 5,
+      "x-unit": "count",
+      "description": "GV1: newest pages of PR comments searched for the status comment of the head when the run has not stored its id.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "minimum": 1
+    },
+    "gate.status_history_runs": {
+      "type": "integer",
+      "default": 5,
+      "x-unit": "count",
+      "description": "GV1: most recent earlier local runs whose stage times give the expected duration of each stage (median).",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "minimum": 1
+    },
+    "gate.status_marker": {
+      "type": "string",
+      "default": "<!-- gate-status v1 -->",
+      "x-unit": "text",
+      "description": "GV1: first line of the gate status comment; the head sha and gate mode follow it so one comment exists per head and mode.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ]
+    },
+    "gate.status_max_chars": {
+      "type": "integer",
+      "default": 60000,
+      "x-unit": "chars",
+      "description": "GV1: size cap of the status comment (GitHub allows 65536); the collapsed machine events are cut first, the table never.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "minimum": 1
+    },
+    "gate.status_min_interval_s": {
+      "type": "number",
+      "default": 60,
+      "x-unit": "s",
+      "description": "GV1, GX-16: least time between two live edits of the status comment (an edit happens at a stage end only); the start and the final edit always go out.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "minimum": 0
+    },
+    "gate.status_one_per_pr": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "GX-16: the gate keeps ONE status comment per PR, edited across heads and modes, with the superseded heads collapsed. false restores one comment per head and mode.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ]
+    },
+    "gate.status_redact_min_chars": {
+      "type": "integer",
+      "default": 4,
+      "x-unit": "chars",
+      "description": "GX-16: the shortest value of a credential-named environment variable (token, password, secret, api key, database url) that the gate status redacts from a failing-test row before any forge sees it; a shorter value is too common to replace. Moved from github_cli's redact when the GitHub adapter left (D-293).",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "minimum": 1
+    },
+    "gate.status_sha_chars": {
+      "type": "integer",
+      "default": 12,
+      "x-unit": "count",
+      "description": "GX-16: characters of a head or cache-key sha shown in the status comment and by gate-dev --explain / --why (GX-26).",
+      "x-readers": [
+        "scripts/lib/gate_explain.py",
+        "scripts/lib/gate_status.py",
+        "scripts/lib/gate_timing_report.py"
+      ],
+      "minimum": 1
+    },
+    "gate.status_timeout_s": {
+      "type": "number",
+      "default": 10,
+      "x-unit": "s",
+      "description": "GV1: timeout of each REST call that finds, creates or edits the status comment; a failure never changes the gate result.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "minimum": 0
+    },
+    "gate.suite_wall_goal_s": {
+      "type": "integer",
+      "default": 10,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Daniel's goal for the whole script suite judged on A Torre's runner (GATE-SPEED, D-092): `scripts/test-suite` reports a wall above it as a miss. Report-only: the wall never fails a run, a failing test does.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "D-090; D-092; docs/units/GATE-SPEED/intake.md"
+    },
+    "gate.suite_wall_warn_s": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Above this wall the whole-suite judgement prints a warning (Daniel: ideal at most 1 s, above it a warning kept visible).",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "D-090; D-092"
+    },
+    "gate.test_cache_common_inputs": {
+      "type": "array",
+      "default": [
+        "scripts/lib/hermetic/**",
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/gate_graph.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "glob",
+      "description": "Files every script test runs through (the hermetic wrapper, the cache and the runner); a change to one is a change to the key of every test.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.test_cache_dir": {
+      "type": "string",
+      "default": "~/.cache/open-university/gate-tests",
+      "x-unit": "path",
+      "description": "Where recorded script test PASSes are kept, through the storage port (providers.storage_adapter); a leading ~ is the home directory. GATE_TEST_CACHE_DIR overrides it for one run.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.test_cache_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "Lets the PR gate report a script test as a cached PASS when its key (the test, its covers files, the toolchain pins) matches a recorded PASS. Off runs every selected script test.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-flag": true
+    },
+    "gate.test_cache_ttl_s": {
+      "type": "integer",
+      "default": 604800,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Age after which a recorded script test PASS is a miss and the test runs again; a marker stored in the future is also a miss.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/shared_results.py"
+      ]
+    },
+    "gate.test_cache_version": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Version of the script test key material. Raising it invalidates every recorded script test PASS at once.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.test_costs_file": {
+      "type": "string",
+      "default": "scripts/tests/costs.json",
+      "x-unit": "path",
+      "description": "The committed cost hints of the script tests, {script: seconds of a cold run}, written by `scripts/test-suite --metrics --write-costs` (GATE-SPEED F2, D-120); a new test writes its own entry with `--write-costs scripts/tests/costs.json --test <path>`, which runs that test alone (VAZÃO F67): a box that has recorded no durations runs the longest tests first by them. Only an order; a stale or absent hint never changes a verdict.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.test_env_keep": {
+      "type": "array",
+      "default": [
+        "OU_GATE_SLOT",
+        "OU_GATE_SLOT_OWNER",
+        "OU_GATE_SLOTS"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "name",
+      "description": "TX10 (T6): the slot contract a nested gate in a script test shares with its parent (gate-isolation.sh ou_gate_slot_acquire); removing it would make a nested gate wait for the slot its parent holds.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "TX10; D-070"
+    },
+    "gate.test_env_scrub_names": {
+      "type": "array",
+      "default": [
+        "OU_SUBJECT_ROOT",
+        "CURSOR_API_KEY",
+        "CURSOR_AUTH_TOKEN",
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "TOWER_EVENTS_TOKEN"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "name",
+      "description": "TX10 (T6): further gate variables removed from a script test's environment. The forge credentials (Origin, GitHub) and the control plane token are among them: a script test never reaches a real forge.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "TX10; D-070"
+    },
+    "gate.test_env_scrub_prefixes": {
+      "type": "array",
+      "default": [
+        "OU_GATE_",
+        "GATE_",
+        "TOWER_JOB_"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "name",
+      "description": "TX10 (T6): a gate variable with one of these prefixes never reaches a script test; the test runs as it would outside the gate (scripts/run test). TOWER_JOB_ is the Tower runner's own (TOWER_JOB_OWNER, TOWER_JOB_DEADLINE: service_budget), which names the job and not the test: a check is the same on the box and on the infrastructure's runner (AWS3).",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "TX10; D-070"
+    },
+    "gate.test_git_config": {
+      "type": "string",
+      "default": "scripts/lib/hermetic/gitconfig",
+      "x-unit": "path",
+      "description": "The git configuration every script test sees (GATE-SPEED F1, D-118): GIT_CONFIG_GLOBAL names this file of the judge's checkout and GIT_CONFIG_NOSYSTEM is set, so the box's global and system git configuration (signing, hooks, filters, identity) never reach a test.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.test_git_overrides": {
+      "type": "array",
+      "default": [
+        "commit.gpgsign=false",
+        "tag.gpgsign=false",
+        "maintenance.auto=false",
+        "gc.auto=0",
+        "receive.autogc=false"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "values",
+      "description": "GATE-SPEED F5: the git settings every script test process gets through the environment (GIT_CONFIG_COUNT, GIT_CONFIG_KEY_<n>, GIT_CONFIG_VALUE_<n>) as well as through gate.test_git_config: a fixture that points GIT_CONFIG_GLOBAL at /dev/null (seven did) dropped the hermetic file, and every commit and push it made ran git's automatic maintenance again. No identity here: a test may set its own.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ]
+    },
+    "gate.test_tmp_mode": {
+      "type": "string",
+      "default": "0o755",
+      "pattern": "^0o[0-7]{3}$",
+      "x-unit": "text",
+      "description": "TX10 (T6): octal mode of a script test's private TMPDIR; world-traversable so a test that drops root can enter it.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "TX10; D-070"
+    },
+    "gate.test_tmp_root": {
+      "type": "string",
+      "default": "/tmp",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "TX10 (T6): directory under which each script test gets its own TMPDIR for one run, removed afterwards. Not the gate's own TMPDIR, which may be a private 0700 path a test that drops root cannot enter.",
+      "x-readers": [
+        "scripts/lib/gate_test_cache.py"
+      ],
+      "x-source": "TX10; D-070"
+    },
+    "gate.tier1_target_s": {
+      "type": "number",
+      "default": 10,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "Tier-1 gate time target (D-065 (5)); gate.slow and the SLOs (O1) compare against it.",
+      "x-readers": [
+        "docs/process/EVENTS.md",
+        "scripts/lib/slo.py"
+      ]
+    },
+    "gate.tool_probe_timeout_s": {
+      "type": "number",
+      "default": 10,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Timeout of the node and gitleaks version probes that key the gate's speed record (gate_speed.py); a probe that times out records 'unknown'.",
+      "x-readers": [
+        "scripts/lib/gate_speed.py"
+      ],
+      "x-source": "D-064 (f); D-069 item 14"
+    },
+    "gate.verdict_hooks_detached": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "GATE-SPEED R4 (D-092): the tier-1 verdict hooks (gate.slow and the SLO evaluation over every PR channel the repository window names) run in a detached process after the verdict is published and recorded, so the gate answers without waiting for them; their output is verdict_hooks.log in the run's logs. Off is the rollback: they run inline before the gate returns.",
+      "x-readers": [
+        "scripts/lib/gate_status.py"
+      ],
+      "x-source": "D-092; docs/units/GATE-SPEED/plan.md"
+    },
+    "gate.verdict_live_stages": {
+      "type": "array",
+      "default": [
+        "pr metadata"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "names",
+      "description": "Stages scripts/gate-verdict runs live and never records, because their input is not the head, base and toolchain (P-42: the structure/metadata check always reruns). The PR metadata check runs before every PR answer.",
+      "x-readers": [
+        "scripts/lib/gate_verdict.py",
+        "scripts/tests/test_gate_verdict.py"
+      ],
+      "x-source": "D-070 (GATE-API); P-42"
+    },
+    "gate.verdict_read_attempts": {
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Tries scripts/gate-verdict makes to read the PR (head and base) before it answers UNOBSERVABLE; a read of the input is retried, a verdict never is.",
+      "x-readers": [
+        "scripts/lib/gate_verdict.py",
+        "scripts/tests/test_gate_verdict.py"
+      ],
+      "x-source": "D-070 (GATE-API)"
+    },
+    "gate.verdict_read_backoff_s": {
+      "type": "number",
+      "default": 2,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "Wait before the second read of the PR by scripts/gate-verdict; it doubles before each later try (4 tries wait 2 + 4 + 8 = 14 s in all against the 18 s GitHub needed on 28/10, each try's own time on top).",
+      "x-readers": [
+        "scripts/lib/gate_verdict.py",
+        "scripts/tests/test_gate_verdict.py"
+      ],
+      "x-source": "D-070 (GATE-API)"
+    },
+    "gate.verdict_recorded_classes": {
+      "type": "array",
+      "default": [
+        "code",
+        "contract"
+      ],
+      "items": {
+        "type": "string",
+        "enum": [
+          "code",
+          "env",
+          "contract",
+          "flake"
+        ]
+      },
+      "uniqueItems": true,
+      "x-unit": "names",
+      "description": "D-027 classes of a red stage that make a failure a function of the input, so scripts/gate-verdict records it; a failure whose red stages are only env or flake (a machine, a network, a re-run) is answered and run again next time.",
+      "x-readers": [
+        "scripts/lib/gate_verdict.py",
+        "scripts/tests/test_gate_verdict.py"
+      ],
+      "x-source": "D-070 (GATE-API)"
+    },
+    "gate.verdict_store_dir": {
+      "type": "string",
+      "default": ".gate/verdicts",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Directory, relative to the checkout (gitignored), of the recorded answers of scripts/gate-verdict, kept through the storage port, one per head and input_digest. Only a tier-1 call reads or writes it (gate-tier.cacheable_tiers; D-065 (5), D-070 (b), P-43).",
+      "x-readers": [
+        "scripts/lib/gate_verdict.py",
+        "scripts/tests/test_gate_verdict.py"
+      ],
+      "x-source": "D-070 (GATE-API)"
+    },
+    "gate.verdict_ttl_s": {
+      "type": "integer",
+      "default": 604800,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Age after which a recorded answer of scripts/gate-verdict is a miss and the gate runs again; a record stored in the future is also a miss.",
+      "x-readers": [
+        "scripts/lib/gate_verdict.py",
+        "scripts/tests/test_gate_verdict.py"
+      ],
+      "x-source": "D-070 (GATE-API)"
+    },
+    "gate.verdict_unobservable_exit_code": {
+      "type": "integer",
+      "default": 4,
+      "minimum": 2,
+      "maximum": 125,
+      "x-unit": "code",
+      "description": "Exit status of scripts/gate-verdict when the gate could not run or its input could not be read (UNOBSERVABLE): never a result about the code. 0 is PASSED, 1 FAILED and EX_USAGE (64) a usage error; the table lives in scripts/lib/gate_verdict.py and docs/padrao/v5/gate-verdict.md.",
+      "x-readers": [
+        "scripts/lib/gate_verdict.py",
+        "scripts/tests/test_gate_verdict.py"
+      ],
+      "x-source": "D-070 (GATE-API)"
+    }
+  }
+}

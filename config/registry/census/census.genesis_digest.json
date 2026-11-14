@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "0",
+  "x-unit": "text",
+  "description": "The 'previous digest' of the first event of every census record.",
+  "x-readers": [
+    "scripts/lib/census.py"
+  ],
+  "x-source": "CENSO-NO-MANIFESTO"
+}

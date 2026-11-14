@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/deploy.json",
+  "x-owner": "deploy",
+  "x-schema-version": 1,
+  "description": "The deploy that rings itself (AUTO1): when the infrastructure service invokes the deploy doorbell after a merge into the base branch, and the guards that bound what it can spend.",
+  "type": "object",
+  "additionalProperties": false
+}

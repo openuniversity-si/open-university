@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "local-checks-state.json",
+  "x-unit": "path",
+  "description": "File name, resolved with git rev-parse --git-path, where the checks moved to the gate are recorded. A check stays in the registry; the state only makes the next local runs skip it.",
+  "x-readers": [
+    "scripts/lib/local_checks.py"
+  ],
+  "minLength": 1
+}

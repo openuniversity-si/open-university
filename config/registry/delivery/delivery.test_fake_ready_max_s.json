@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 60,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Longest a script suite waits for its loopback REST fake to be ready (port file written and a TCP connect accepted) before it reports that the fake did not start. The wait ends the moment the fake is ready, so a loaded machine only delays the suite; it fails at once when the fake process exited. Replaces a fixed count of looks (HD1).",
+  "x-readers": [
+    "scripts/tests/rest_fake.py"
+  ],
+  "x-source": "HD1; mirrors gate.script_test_rendezvous_wait_s"
+}

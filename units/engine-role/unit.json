@@ -1,0 +1,20 @@
+{
+  "id": "engine-role",
+  "purpose": "The engine's locked roles (D-065 (1)): the lock-holder loop the train shares with the battery, the shared job budget (D-291), the train's wake trigger and the train-role session's serve loop.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/lib/engine_role.py",
+    "scripts/lib/service_budget.py",
+    "scripts/lib/train_serve.py",
+    "scripts/lib/train_trigger.py",
+    "scripts/tests/test_train_role.py",
+    "scripts/tests/train-role.test.sh"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1",
+    "engine-gate-report": "^1",
+    "engine-git-ref": "^1"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/gate.started.v1.json",
+  "title": "gate.started payload v1",
+  "description": "A gate run began (GX-37; produced by GX-25). The verdict event is the wake; there is no gate.finished.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/pr",
+    "/payload/sha",
+    "/payload/plan"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "tier",
+    "plan",
+    "expected_wall_s",
+    "critical_path"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "The PR; null on the repository channel."
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "tier": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "plan": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expected_wall_s": {
+      "type": "number",
+      "minimum": 0,
+      "description": "ETA: critical path over the stage graph, from the ledger."
+    },
+    "critical_path": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Stage names on the critical path, in order."
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "battery",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Producer name of every battery role event (battery.green, battery.red, battery.culprit, release.ready, engine.step.measured); part of each event id.",
+  "x-readers": [
+    "scripts/lib/battery.py"
+  ]
+}

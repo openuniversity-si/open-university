@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/branch-start [--help]
+# A branch starts from the base in one command: fetch, refuse a dirty tree or a name already on the remote, create from the base (F2, D-210).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/branch_start.py" "$@"

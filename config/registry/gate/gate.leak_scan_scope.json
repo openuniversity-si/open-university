@@ -1,0 +1,15 @@
+{
+  "type": "string",
+  "enum": [
+    "change",
+    "full"
+  ],
+  "default": "change",
+  "x-unit": "name",
+  "description": "What a PR gate's secret scans read (GATE-SPEED R1, D-092): `change` scans the PR's own commits (merge-base..head) and the files it changes or leaves untracked; `full` scans all of HEAD's history and the whole tree. gate-noite always scans full, and a change to .gitleaks.toml scans full, so the base's history is judged every night. `full` is the rollback.",
+  "x-readers": [
+    "scripts/gate-local",
+    "scripts/lib/gate_speed.py"
+  ],
+  "x-source": "D-092; docs/units/GATE-SPEED/plan.md"
+}

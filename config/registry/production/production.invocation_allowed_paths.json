@@ -1,0 +1,21 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string"
+  },
+  "default": [
+    "scripts/lib/production_guard.py",
+    "scripts/tests/covers/**",
+    "scripts/lib/release_policy.py",
+    "scripts/lib/delivery.py",
+    "scripts/lib/idea_to_prod.py",
+    "scripts/gate-local",
+    "scripts/tests/*"
+  ],
+  "x-unit": "count",
+  "description": "Path globs where a diff may add a mention of a forbidden entrypoint: the entrypoints and delivery code themselves, the gate test map, the db-tier gate that predates the guard, and hermetic tests (fixtures and fake PATH only). Every other path is refused.",
+  "x-readers": [
+    "scripts/lib/production_guard.py"
+  ],
+  "x-source": "D-054; D-069 item 13"
+}

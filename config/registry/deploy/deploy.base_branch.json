@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "mod/roadmap-integration",
+  "minLength": 1,
+  "x-unit": "branch",
+  "description": "The branch whose pushes the service watches (the deployer builds BaseBranch of the bootstrap, which must be the same).",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py"
+  ],
+  "x-source": "AUTO1"
+}

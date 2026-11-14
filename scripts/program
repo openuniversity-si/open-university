@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/program list|check [PROGRAM]|graph PROGRAM|status PROGRAM [--events FILE]|new PROGRAM|migrate-queue FILE PROGRAM
+#        |plan PROGRAM [--at N] [--ref REF|--worktree]|log PROGRAM [--ref REF|--worktree] (the live plan, D-071)
+# Programs as first-class objects (D-069 CO1): the registry under docs/programs and the status folded from events.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/program.py" "$@"

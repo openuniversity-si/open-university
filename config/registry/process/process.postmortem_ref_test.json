@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "test",
+  "x-unit": "text",
+  "description": "Label of a `- test: <file>::<name>` line under the preventing-check heading: a test that must exist in that file.",
+  "x-readers": [
+    "scripts/lib/postmortem_check.py"
+  ]
+}

@@ -1,0 +1,592 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/service.json",
+  "x-owner": "service",
+  "x-schema-version": 1,
+  "description": "The gate and the train as services (GATE-TRAIN-SERVICES, D-086, ADR-41): the Tower runner, its transports and the status, health and metrics surface.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "service.control_timeout_s": {
+      "type": "integer",
+      "default": 10,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Timeout of one control-plane HTTP request. The job deadline further bounds runner calls; a failed request is reported without selecting another transport.",
+      "x-readers": [
+        "scripts/lib/forge_control.py",
+        "scripts/lib/service_deploy.py",
+        "scripts/lib/service_runner.py",
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-086; docs/operations/services.md"
+    },
+    "service.control_url": {
+      "type": "string",
+      "default": "https://forge-webhook.example.workers.dev",
+      "x-unit": "url",
+      "description": "Base URL of the control plane (the Cloudflare Worker forge-webhook, services/control-plane): /status, /healthz, /readyz, /metrics, /events, the runner and admin calls.",
+      "x-readers": [
+        "scripts/lib/forge_control.py",
+        "scripts/lib/service.py",
+        "scripts/lib/service_deploy.py",
+        "scripts/lib/service_runner.py",
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md"
+    },
+    "service.db_alert_connections_ratio": {
+      "type": "number",
+      "default": 0.8,
+      "exclusiveMinimum": 0,
+      "x-unit": "ratio",
+      "description": "DB-VITALS (docs/operations/aws-revisao-arquitetura.md, finding 13): the share of the database's max_connections the peak of open connections may reach before the live service alerts (platform.db.vitals alerts: connections). The peak is the largest count of pg_stat_activity seen on the service's heartbeats in the event's window; past max_connections every new login fails and the engine stops at once.",
+      "x-readers": [
+        "infra/service/tower_infra/config_data.py",
+        "infra/service/tower_infra/vitals.py"
+      ],
+      "x-source": "DB-VITALS"
+    },
+    "service.db_alert_disk_ratio": {
+      "type": "number",
+      "default": 0.7,
+      "exclusiveMinimum": 0,
+      "x-unit": "ratio",
+      "description": "DB-VITALS (docs/operations/aws-revisao-arquitetura.md, finding 10): the share of service.db_disk_bytes the database may take before the live service alerts (platform.db.vitals alerts: disk, published to the platform's topic once when it starts and once when it ends). The database's size leaves out the write-ahead log and the temporary files, so the alert comes with room left: 0.7 of 20 GiB leaves 6 GiB.",
+      "x-readers": [
+        "infra/service/tower_infra/config_data.py",
+        "infra/service/tower_infra/vitals.py"
+      ],
+      "x-source": "DB-VITALS"
+    },
+    "service.db_disk_bytes": {
+      "type": "integer",
+      "default": 21474836480,
+      "minimum": 1,
+      "x-unit": "bytes",
+      "description": "DB-VITALS (docs/operations/aws-revisao-arquitetura.md, finding 10): the allocated disk of the engine's database, in bytes (the RDS instance has 20 GiB; Postgres cannot read it). The live service divides the database's size by it (platform.db.vitals disk_ratio) to say how full the disk is; a change of the instance's storage is followed by PUT /v1/config/service.db_disk_bytes.",
+      "x-readers": [
+        "infra/service/tower_infra/config_data.py",
+        "infra/service/tower_infra/vitals.py"
+      ],
+      "x-source": "DB-VITALS"
+    },
+    "service.deploy_api_url": {
+      "type": "string",
+      "default": "https://api.cloudflare.com/client/v4",
+      "x-unit": "url",
+      "description": "Base URL of the Cloudflare REST API the control-plane deploy uploads the Worker to (PUT <url>/accounts/<account_id>/workers/scripts/<name>, the account and the name of services/control-plane/wrangler.toml); no npx, no wrangler (D-291 (6)).",
+      "x-readers": [
+        "scripts/lib/service_deploy.py"
+      ],
+      "x-source": "D-291; docs/units/TRAIN-DEFINITIVE/audit.md (F16, R5); docs/operations/services.md"
+    },
+    "service.deploy_path": {
+      "type": "string",
+      "default": "services/control-plane",
+      "x-unit": "path",
+      "description": "The control plane's directory in the checkout (wrangler.toml and src/*.js): its git tree is what a deploy uploads and records as the Worker's DEPLOYED_TREE, and what drift compares with GET /status deployed_tree.",
+      "x-readers": [
+        "scripts/lib/service_deploy.py"
+      ],
+      "x-source": "D-291"
+    },
+    "service.deploy_timeout_s": {
+      "type": "integer",
+      "default": 8,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Timeout of the control-plane deploy's one upload call: inside the job budget of D-291 (service.job_budget_s), leaving the report its time.",
+      "x-readers": [
+        "scripts/lib/service_deploy.py"
+      ],
+      "x-source": "D-291; docs/operations/services.md"
+    },
+    "service.deploy_token_env": {
+      "type": "string",
+      "default": "CLOUDFLARE_API_TOKEN",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "x-unit": "name",
+      "description": "The variable that holds the Cloudflare API token of the control-plane deploy (Workers Scripts:Edit on the account of services/control-plane/wrangler.toml; an entry of service.token_holders). Without it the deploy refuses with a sentence naming the variable and its holder; the value is never printed.",
+      "x-readers": [
+        "scripts/lib/service_deploy.py",
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-291; docs/operations/services.md"
+    },
+    "service.deploy_tree_chars": {
+      "type": "integer",
+      "default": 12,
+      "minimum": 1,
+      "x-unit": "chars",
+      "description": "How many hex characters of the services/control-plane tree a deploy's sentence prints (the Worker's DEPLOYED_TREE holds the full tree).",
+      "x-readers": [
+        "scripts/lib/service_deploy.py"
+      ],
+      "x-source": "D-291"
+    },
+    "service.dispatch_s": {
+      "type": "number",
+      "default": 1,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "The dispatcher's safety tick (DEP9): the longest the infrastructure service waits between two passes when no notification wakes it (work freed, a run started). It is a failure timeout, not a trigger: the passes are woken by LISTEN/NOTIFY (migration 0006). Read at runtime from work.config_value, the compiled default when no row exists; PUT /v1/config/service.dispatch_s changes it within about a second, without a deploy.",
+      "x-readers": [
+        "infra/service/tower_infra/__main__.py",
+        "infra/service/tower_infra/config_data.py"
+      ],
+      "x-source": "DEP9; docs/operations/aws.md 22.5"
+    },
+    "service.dispatch_stall_alert_s": {
+      "type": "number",
+      "default": 120.0,
+      "exclusiveMinimum": 0,
+      "x-unit": "seconds",
+      "description": "DISPATCH-STALL-ALERT (docs/operations/aws-revisao-arquitetura.md, finding 32): how long, in seconds, a job that a dispatcher would start now (a first candidate of its queue whose route has a free slot it may take) may stay queued before a service process that stands by alerts (platform.dispatch.stalled, published to the platform's topic once when it starts and once when it ends). A live dispatcher starts such a job on its next tick (service.dispatch_s, 1 s), and a service that takes the role over does it within seconds of the swap or of a failover (deploy.live_stale_s, 10 s); 120 s is past every one of those and well under the 7.7 minutes of 11/11 with no dispatch and no alert.",
+      "x-readers": [
+        "infra/service/tower_infra/config_data.py",
+        "infra/service/tower_infra/stall.py"
+      ],
+      "x-source": "DISPATCH-STALL-ALERT"
+    },
+    "service.forge_keys_every_s": {
+      "type": "number",
+      "default": 600,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "How often the infrastructure service re-reads the forge's webhook public keys between ticks (a safety refresh of a key rotation, P4 F2b). Read at runtime from work.config_value (DEP9), the compiled default when no row exists.",
+      "x-readers": [
+        "infra/service/tower_infra/__main__.py",
+        "infra/service/tower_infra/config_data.py"
+      ],
+      "x-source": "DEP9; docs/operations/aws.md 22.5"
+    },
+    "service.free_rows_read_day": {
+      "type": "integer",
+      "default": 5000000,
+      "minimum": 1,
+      "x-unit": "rows",
+      "description": "The Cloudflare Free plan's Durable Object rows read a day (the control plane, services/control-plane). On 03/11 the control plane passed it and answered 1101 on every route (I-5102f4e9). scripts/flow-metrics --guards reads the Worker's rows_read meter (GET /status) and warns at half of it, the margin SEMENTE section 4 asks of every free-plan limit.",
+      "x-readers": [
+        "scripts/lib/flow_metrics.py"
+      ],
+      "x-source": "VAZÃO F34 (docs/programs/vazao/fila.md), SEMENTE section 4"
+    },
+    "service.gate_command": {
+      "type": "array",
+      "default": [
+        "scripts/gate-dev",
+        "--pr"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "x-unit": "count",
+      "description": "The real per-PR gate, with the PR number appended. It runs the actual stages and content-keyed test proofs under the enforced service.job_budget_s; absence of a whole-gate attestation never substitutes for running it (D-291).",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-086, D-291; docs/operations/services.md"
+    },
+    "service.heartbeat_stale_s": {
+      "type": "integer",
+      "default": 180,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "A runner whose heartbeat is older than this fails the runner health check.",
+      "x-readers": [
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md"
+    },
+    "service.job_budget_s": {
+      "type": "integer",
+      "default": 300,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "The budget of one runner job from its claim to its result (D-291; Daniel 02/11 23:06 BRT: 180 s; 23:35 BRT: 300 s, the measured tier 2 of 162 s plus margin, I-ddaca17c). The one source of the budget: the runner reads it from its checkout's registry and service_deploy.py sends it to the control plane as the Worker var BUDGET_S, which leases a claimed job for exactly this long. The runner hands the job its deadline (TOWER_JOB_DEADLINE), sends TERM one second before it and KILL at it, and answers over_budget with the phase that was running; the train's lock expires at the same deadline, so a dead holder never blocks the next job past it.",
+      "x-readers": [
+        "scripts/lib/service_budget.py",
+        "scripts/lib/service_deploy.py"
+      ],
+      "x-source": "D-291; docs/units/TRAIN-DEFINITIVE/plan.md"
+    },
+    "service.jobs_dir": {
+      "type": "string",
+      "default": ".gate/service/jobs",
+      "x-unit": "path",
+      "description": "Directory, relative to the runner's checkout, of each job's whole output (<job id>.log).",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-086; docs/operations/services.md"
+    },
+    "service.latency_quantiles": {
+      "type": "array",
+      "default": [
+        0.5,
+        0.95
+      ],
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 1
+      },
+      "minItems": 1,
+      "x-unit": "ratio",
+      "description": "The quantiles `scripts/service metrics` reports for each latency (green to merged), by nearest rank: p50 and p95, the shape of the targets (intake T2, T3).",
+      "x-readers": [
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/intake.md"
+    },
+    "service.lock_stale_s": {
+      "type": "integer",
+      "default": 600,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "A train lock whose lease ended longer ago than this, and was never released, warns the lock health check (the lease frees it; the warning names a train that died).",
+      "x-readers": [
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md"
+    },
+    "service.log_max_bytes": {
+      "type": "integer",
+      "default": 1048576,
+      "minimum": 1,
+      "x-unit": "bytes",
+      "description": "Size past which the runner's JSONL log is rotated.",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-086; docs/operations/services.md"
+    },
+    "service.log_path": {
+      "type": "string",
+      "default": ".gate/service/runner.jsonl",
+      "x-unit": "path",
+      "description": "The runner's JSONL log, beside its state file: one line per queued, finished, cancelled or paused job and per failed poll, rotated to .1 past service.log_max_bytes.",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-086; docs/operations/services.md"
+    },
+    "service.log_tail_chars": {
+      "type": "integer",
+      "default": 2000,
+      "minimum": 1,
+      "maximum": 4000,
+      "x-unit": "chars",
+      "description": "The tail of a job's output carried in its result (contracts/service/result.v1.json log_tail, at most 4000).",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-086; docs/operations/services.md"
+    },
+    "service.paused": {
+      "type": "boolean",
+      "default": false,
+      "x-unit": "flag",
+      "description": "The pause switch of the gate and train services (D-086): while true a Tower runner claims no new job and the control plane dispatches none; a running job finishes. Flipped with `scripts/service pause|resume --reason` through the shared store (D-069 item 5), never a local override.",
+      "x-readers": [
+        "scripts/lib/lane_status.py",
+        "scripts/lib/service.py",
+        "scripts/lib/service_runner.py",
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md",
+      "x-flag": true
+    },
+    "service.poll_s": {
+      "type": "integer",
+      "default": 15,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Seconds between two polls of a Tower runner: one round of claims from the control plane (service.claims_per_poll), and the heartbeat of its state file and of the running job's lease.",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-086; docs/operations/services.md"
+    },
+    "service.queue_stale_s": {
+      "type": "integer",
+      "default": 1800,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "A woken PR not merged after this long warns the queue health check.",
+      "x-readers": [
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md"
+    },
+    "service.recent": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "How many merges, wakes and runner results `scripts/service status` lists, newest first.",
+      "x-readers": [
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md"
+    },
+    "service.results_kept": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "How many results and done job ids the runner's state file keeps (bounded state).",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-086; docs/operations/services.md"
+    },
+    "service.runner_kind_env": {
+      "type": "string",
+      "default": "OU_RUNNER_KIND",
+      "x-unit": "text",
+      "description": "The variable naming what a runner runs on (box, vm, actions, session, other; contracts/service/result.v1.json).",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-086; docs/operations/services.md"
+    },
+    "service.runner_name_env": {
+      "type": "array",
+      "default": [
+        "OU_RUNNER_NAME",
+        "HOSTNAME"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "x-unit": "count",
+      "description": "Variables naming a runner in its state and results, the first set one; else the host name.",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-086; docs/operations/services.md"
+    },
+    "service.runner_stall_alert_s": {
+      "type": "number",
+      "default": 180.0,
+      "exclusiveMinimum": 0,
+      "x-unit": "seconds",
+      "description": "RUNNER-STALL-ALERT (docs/operations/aws-revisao-arquitetura.md, findings 2 and 3): how long, in seconds, a run the service handed over to the runner (work.run `starting`) may wait to be taken before the live service alerts (platform.runner.stalled, published to the platform's topic once when it starts and once when it ends). A run handed over is taken within a second by a free slot (the service dispatches only up to the runner's registered capacity), and a runner task the rollout replaced warms for 63 s at p50 (80 s at most, scripts/medir prewarm_s); a run not taken is reaped at its lease (5 minutes) and handed over again, so the limit stays under the lease: 180 s covers the warm-up twice and still alerts before the first reap.",
+      "x-readers": [
+        "infra/service/tower_infra/config_data.py",
+        "infra/service/tower_infra/stall.py"
+      ],
+      "x-source": "RUNNER-STALL-ALERT"
+    },
+    "service.runner_token_env": {
+      "type": "string",
+      "default": "OU_RUNNER_TOKEN",
+      "x-unit": "text",
+      "description": "The variable that holds the runner token of the control plane (its RUNNER_TOKEN secret). Without it a runner refuses to start with an error naming the variable (D-290): there is no other route.",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-086; D-290; docs/operations/services.md"
+    },
+    "service.self_update": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "GATE-SPEED R6 (D-092): a Tower runner whose checkout's scripts/ changed with the base (a refresh before a train job) re-executes itself between jobs, so a fix merged to the base reaches it without a manual restart. Off is the rollback: it keeps the code it started with until it exits.",
+      "x-readers": [
+        "scripts/lib/service_runner.py"
+      ],
+      "x-source": "D-092; docs/operations/services.md"
+    },
+    "service.state_path": {
+      "type": "string",
+      "default": ".gate/service/state.json",
+      "x-unit": "path",
+      "description": "The Tower runner's state file, relative to its checkout: heartbeat, current job and recent results, written by an atomic rename and read by `scripts/service status|health|metrics`.",
+      "x-readers": [
+        "scripts/lib/service_runner.py",
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md"
+    },
+    "service.token_holders": {
+      "type": "array",
+      "default": [
+        {
+          "variable": "OU_RUNNER_TOKEN",
+          "equals": "the control plane's Worker secret RUNNER_TOKEN",
+          "kinds": [
+            "vm",
+            "box",
+            "actions",
+            "session",
+            "other"
+          ],
+          "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
+          "used_for": "claims, heartbeats and results on the control plane"
+        },
+        {
+          "variable": "TOWER_EVENTS_TOKEN",
+          "equals": "the control plane's Worker secret EVENTS_TOKEN",
+          "kinds": [
+            "vm",
+            "box",
+            "actions",
+            "session",
+            "other"
+          ],
+          "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
+          "used_for": "the engine journal (POST and GET /v1/events): the train reads its queue there"
+        },
+        {
+          "variable": "GH_TOKEN",
+          "aliases": [
+            "GITHUB_TOKEN"
+          ],
+          "equals": "a fine-grained GitHub token on openuniversity-si/open-university (Contents and Pull requests read/write, Metadata read)",
+          "kinds": [
+            "vm",
+            "box",
+            "actions",
+            "session",
+            "other"
+          ],
+          "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
+          "used_for": "git and the GitHub REST client of the gate and the train"
+        },
+        {
+          "variable": "CLOUDFLARE_API_TOKEN",
+          "equals": "a Cloudflare API token with Workers Scripts:Edit on the account of services/control-plane/wrangler.toml",
+          "kinds": [
+            "vm"
+          ],
+          "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
+          "used_for": "the control-plane deploy (scripts/lib/service_deploy.py uploads the Worker through the Cloudflare API)"
+        }
+      ],
+      "items": {
+        "type": "object",
+        "required": [
+          "variable",
+          "equals",
+          "kinds",
+          "holder",
+          "used_for"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "variable": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            }
+          },
+          "equals": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kinds": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "enum": [
+                "box",
+                "vm",
+                "actions",
+                "session",
+                "other"
+              ]
+            }
+          },
+          "holder": {
+            "type": "string",
+            "minLength": 1
+          },
+          "used_for": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "x-unit": "list",
+      "description": "The inventory of every secret a runner needs (D-291 (5), TRAIN-DEFINITIVE R6): per environment variable, what it must equal (the control-plane secret or the account it is a token of), the runner kinds that need it, the file that holds it on the runner and what it is used for. Only names are registered, never a value. A rotation updates every holder listed here, then restarts the runner; a missing variable and a refused token are reported as this entry (scripts/lib/service_credentials.py).",
+      "x-readers": [
+        "scripts/lib/service_credentials.py"
+      ],
+      "x-source": "D-291; docs/units/TRAIN-DEFINITIVE/audit.md (F17, F18, R6); docs/operations/services.md"
+    },
+    "service.transport": {
+      "type": "string",
+      "default": "control",
+      "enum": [
+        "control"
+      ],
+      "x-unit": "enum",
+      "description": "Where a Tower runner takes its jobs (ADR-41, D-290): the control plane at service.control_url, its only job channel and wake source. `control` is the only value: the git transport was deleted, and a runner reading anything else stops with an error naming this key, never falling back.",
+      "x-readers": [
+        "scripts/lib/service_runner.py",
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-086; D-290; docs/units/CONTROL-ROUTE/plan.md"
+    },
+    "service.user_agent": {
+      "type": "string",
+      "default": "the-tower-runner/1",
+      "x-unit": "text",
+      "description": "The User-Agent every request of a runner to the control plane carries (claim, heartbeat, result), set in one place (ControlTransport.call). The edge in front of today's control plane answers 403 to urllib's default `Python-urllib/<version>`, so a runner without it fell back to git on every poll (GATE-SPEED, D-091). Generic: it names the client, never a vendor.",
+      "x-readers": [
+        "scripts/lib/forge_control.py",
+        "scripts/lib/service_deploy.py",
+        "scripts/lib/service_runner.py",
+        "scripts/lib/service_status.py"
+      ],
+      "x-source": "D-091; docs/operations/services.md"
+    },
+    "service.webhook_drop_bad_signature": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "bool",
+      "description": "When true a delivery whose signature no key verifies, or that is malformed, is dropped (logged as webhook_dropped); when false it stays in the queue and is retried, e.g. while the forge's rotated key has not arrived. Read per SQS batch from work.config_value (DEP9).",
+      "x-readers": [
+        "infra/service/tower_infra/webhook_consumer.py",
+        "infra/service/tower_infra/config_data.py"
+      ],
+      "x-source": "DEP9 step 2; docs/operations/aws.md 22.5b"
+    },
+    "service.webhook_drop_stale": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "bool",
+      "description": "When true a delivery outside the freshness window is dropped (deleted from the queue, logged as webhook_dropped); when false it stays in the queue and is retried (then the dead-letter queue). Read per SQS batch from work.config_value (DEP9).",
+      "x-readers": [
+        "infra/service/tower_infra/webhook_consumer.py",
+        "infra/service/tower_infra/config_data.py"
+      ],
+      "x-source": "DEP9 step 2; docs/operations/aws.md 22.5b"
+    },
+    "service.webhook_tolerance_s": {
+      "type": "integer",
+      "default": 300,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Freshness window of a webhook delivery in the queue consumer: the signed webhook-timestamp may be at most this far from the queue's SentTimestamp. Read per SQS batch from work.config_value (DEP9), the compiled default when no row exists; PUT /v1/config/service.webhook_tolerance_s changes it with no deploy. The port's own accept keeps the compiled 300.",
+      "x-readers": [
+        "infra/service/tower_infra/webhook_consumer.py",
+        "infra/service/tower_infra/config_data.py"
+      ],
+      "x-source": "DEP9 step 2; docs/operations/aws.md 22.5b"
+    }
+  }
+}

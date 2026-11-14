@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "/tmp/open-university-postgres.lock",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Lock that serialises concurrent startups of the project PostgreSQL (shared by the session uid and uid 0).",
+  "x-readers": [
+    "scripts/cloud/postgres.py"
+  ]
+}

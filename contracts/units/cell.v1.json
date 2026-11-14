@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/units/cell.v1.json",
+  "title": "Cell facts v1",
+  "description": "units/cells/<cell>.json (D-067, D-060, plan v3 U1): what a bounded context declares about itself. The context map, CONTEXTS.md and the architecture checks are generated from these files joined with the unit manifests (scripts/generate context-map); no pull request writes the joined map. A cell file is a fact of one cell, so two lanes never edit the same file. The cell must be the `cell` of at least one unit manifest.",
+  "x-owner": "units",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["cell", "order", "half", "concepts", "dependsOn", "tables"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "cell": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "description": "The cell; equals the file name and the `cell` of its unit manifests."},
+    "order": {"type": "integer", "minimum": 1, "description": "Position in the generated map and documents; unique across cells."},
+    "half": {"enum": ["site", "factory"], "description": "The architecture half (docs/architecture/FACTORY.md)."},
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "lines"],
+      "properties": {"files": {"type": "integer", "minimum": 1}, "lines": {"type": "integer", "minimum": 1}},
+      "description": "Shrink-only override of aggregates.context_files_ceiling and aggregates.context_lines_ceiling (D-060, L3.context-size)."
+    },
+    "concepts": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}, "description": "The CONTRACT.md concepts the context owns (D-061)."},
+    "dependsOn": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}, "description": "The contexts it may import, through their application or domain ring; the graph is acyclic."},
+    "tables": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}, "description": "The tables its translator platform/db/<context>/ owns."}
+  }
+}

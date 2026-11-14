@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    0.5,
+    0.99
+  ],
+  "items": {
+    "type": "number",
+    "exclusiveMinimum": 0,
+    "maximum": 1
+  },
+  "minItems": 1,
+  "x-unit": "fraction",
+  "description": "The quantiles scripts/medir answers for each measure (nearest rank): the p50 and p99 the plan asks for.",
+  "x-readers": [
+    "scripts/lib/medir.py"
+  ],
+  "x-source": "MEDIR 1 (P6 F1)"
+}

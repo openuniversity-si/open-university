@@ -1,0 +1,5 @@
+{
+  "name": "Open University",
+  "install": "bash scripts/cloud/setup.sh",
+  "start": "bash scripts/cloud/setup.sh"
+}

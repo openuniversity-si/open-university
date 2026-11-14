@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/budgets.json",
+  "x-owner": "budgets",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "description": "Budgets of a change and of the gate (D-008, D-022, D-069 item 14)."
+}

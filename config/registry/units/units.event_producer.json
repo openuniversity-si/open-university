@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "units",
+  "x-unit": "text",
+  "description": "Producer name of the events the unit tools emit (unit.oversize, engine.step.measured).",
+  "x-readers": [
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "D-067 (7); contracts/events/envelope.v1.json"
+}

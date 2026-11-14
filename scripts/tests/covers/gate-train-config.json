@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/gate-train-config.test.sh",
+  "covers": [
+    "scripts/tests/gate-train-config.test.sh",
+    "scripts/tests/test_gate_train_config.py",
+    "config/management/**",
+    "docs/arquitetura-referencia/ARQUITETURA-ALVO.md",
+    "infra/db/migrations/*.sql",
+    "scripts/lib/gate-areas.json",
+    "units/engine-gate-infra/unit.json"
+  ]
+}

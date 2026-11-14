@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "minItems": 1,
+  "uniqueItems": true,
+  "default": [
+    "merge",
+    "squash"
+  ],
+  "x-unit": "enum",
+  "description": "The mergeMethod values the spec's MergePullRequestRequest accepts.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "the official Origin OpenAPI 3.1 spec"
+}

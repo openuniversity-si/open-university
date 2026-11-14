@@ -1,0 +1,15 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/tests/"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "path",
+  "description": "Prefixes of the repository whose test files (test_*.py, *_test.py, *.test.ts/mjs, not *.int.test.ts) the hermetic check judges.",
+  "x-readers": [
+    "scripts/lib/hermetic_check.py"
+  ]
+}

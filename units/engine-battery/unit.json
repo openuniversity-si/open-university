@@ -1,0 +1,18 @@
+{
+  "id": "engine-battery",
+  "purpose": "The battery role: tier 3 on integration.advanced, its batch bisection and release.ready (D-065 (5), M6).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/battery",
+    "scripts/lib/battery.py",
+    "scripts/tests/battery.test.sh",
+    "scripts/tests/test_battery.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-defects": "^1",
+    "engine-events": "^1",
+    "engine-role": "^1"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "engine-delivery",
+  "purpose": "The delivery tail: ship-tail, ship-verify, merge and release policy (D-054).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/delivery.json",
+    "config/registry/merge.json",
+    "scripts/lib/box_queue.py",
+    "scripts/lib/delivery.py",
+    "scripts/lib/merge_behind.py",
+    "scripts/lib/release_policy.py",
+    "scripts/release-policy.json",
+    "scripts/tests/merge-behind.test.sh",
+    "scripts/tests/release-policy.test.sh",
+    "scripts/tests/test_merge_behind.py",
+    "scripts/tests/test_release_policy.py"
+  ],
+  "battery": {
+    "command": "scripts/unit-battery engine-delivery"
+  },
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1"
+  }
+}

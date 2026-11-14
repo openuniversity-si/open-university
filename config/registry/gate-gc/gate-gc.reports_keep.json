@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 3,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Report directories kept per (sha, mode) under the gate record directory; the newest win and older ones are removed when a gate exits.",
+  "x-readers": [
+    "scripts/lib/gate_gc.py"
+  ],
+  "x-source": "D-070; plan GX-19"
+}

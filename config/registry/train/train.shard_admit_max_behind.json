@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 5,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Most first-parent merges the tip may be past a verdict's base for shard admission (P-54); further behind refuses (fail closed).",
+  "x-readers": [
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-075; P-54; docs/units/TRAIN-SHARD-ADMIT/audit.md section 5"
+}

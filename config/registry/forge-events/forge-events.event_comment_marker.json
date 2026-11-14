@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "<!-- forge-events v1 -->",
+  "x-unit": "text",
+  "description": "The event comment marker ignored by decision-wait scans.",
+  "x-readers": [
+    "scripts/lib/decision_wait.py"
+  ]
+}

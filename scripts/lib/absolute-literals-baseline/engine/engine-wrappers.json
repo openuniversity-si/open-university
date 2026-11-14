@@ -1,0 +1,46 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/factory-bench": {
+      "number 2": 1
+    },
+    "scripts/run": {
+      "number 2": 2
+    },
+    "scripts/tests/run.test.sh": {
+      "number 7": 4
+    },
+    "scripts/tests/tower-media.test.sh": {
+      "number 200": 1,
+      "url \"http://openuniversity.si\"": 1,
+      "url \"https://evil-openuniversity.si\"": 1,
+      "url \"https://evil.com\"": 2,
+      "url \"https://evil.openuniversity.si\"": 1,
+      "url \"https://fixture-preview-the-tower-si.vercel.app\"": 1,
+      "url \"https://fixture-prod-the-tower-si.vercel.app\"": 1,
+      "url \"https://media.thetower.si\"": 1,
+      "url \"https://openuniversity.si\"": 4,
+      "url \"https://openuniversity.si.evil.com\"": 1,
+      "url \"https://openuniversity.si/\"": 1,
+      "url \"https://openuniversity.si/api\"": 1,
+      "url \"https://the-tower-git-preview-the-tower-si.vercel.app\"": 1,
+      "url \"https://the-tower-pr-test-the-tower-si.vercel.app\"": 1,
+      "url \"https://thetower.si\"": 1,
+      "url \"https://torre-git-rewrite-v1-a-torre.vercel.app\"": 1,
+      "url \"https://user:pw@example.org\"": 1,
+      "url \"https://www.openuniversity.si\"": 1,
+      "url \"https://www.thetower.si\"": 1
+    },
+    "scripts/tower-catalog": {
+      "absolute_path \"~/.local/bin/tower-catalog\"": 1,
+      "number 2": 2,
+      "number 22": 2,
+      "number 3": 1,
+      "number 755": 1
+    },
+    "scripts/tower-factory": {
+      "number 2": 1,
+      "number 22": 2
+    }
+  }
+}

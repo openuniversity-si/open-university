@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "default": 1,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "A cost hint at or below this many seconds is never refused as a jump (gate.cost_hint_jump_ratio): a test of 0.2 s measured at 0.7 s moves no order and no budget (VAZÃO F52).",
+  "x-readers": [
+    "scripts/lib/test_metrics.py"
+  ]
+}

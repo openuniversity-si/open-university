@@ -1,0 +1,23 @@
+{
+  "script": "scripts/tests/infra-checks.test.sh",
+  "covers": [
+    "scripts/tests/infra-checks.test.sh",
+    "scripts/tests/test_infra_checks.py",
+    "scripts/tests/runner_world.py",
+    "infra/service/tower_infra/checks.py",
+    "infra/service/tower_infra/ed25519.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/service/tower_infra/canary.py",
+    "infra/service/tower_infra/port.py",
+    "infra/db/migrations/*.sql",
+    "scripts/lib/forge_control.py",
+    "scripts/lib/forge_origin.py",
+    "scripts/lib/gate_infra.py",
+    "config/registry/forge-events.json",
+    "config/registry/forge-events/**",
+    "infra/service/tower_infra/container.py",
+    "infra/service/tower_infra/forge.py",
+    "infra/service/tower_infra/mechanisms.py",
+    "infra/service/tower_infra/runner.py"
+  ]
+}

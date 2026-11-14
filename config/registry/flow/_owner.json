@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/flow.json",
+  "x-owner": "flow",
+  "x-schema-version": 1,
+  "description": "The flow check (FLUXO-AMPLO, D-197, D-230): the report's own thresholds.",
+  "type": "object",
+  "additionalProperties": false
+}

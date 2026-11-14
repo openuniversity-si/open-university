@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "20261020",
+  "x-unit": "version",
+  "description": "python-build-standalone release tag that carries the pinned CPython build.",
+  "x-readers": [
+    "scripts/lib/toolchain_manifest.py"
+  ]
+}

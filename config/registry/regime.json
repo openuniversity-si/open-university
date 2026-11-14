@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/regime.json",
+  "x-owner": "regime",
+  "x-schema-version": 1,
+  "description": "The exception regime (D-260): the recorded state in which every lock of the engine lifts except the kept ones (money, other people).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "regime.exception_active": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "True while the exception regime holds: every lock lifts except regime.exception_kept. The default is true for the grant of 01/11 10:52 BRT (D-260, commit 9c41dc836, granted by Daniel); the shared store holds the same grant. Only the person who holds the order writes it (scripts/config set).",
+      "x-readers": [
+        "scripts/lib/regime.py"
+      ],
+      "x-source": "D-260"
+    },
+    "regime.exception_exit": {
+      "type": "string",
+      "default": "GitHub writes no longer limit the flow",
+      "x-unit": "text",
+      "description": "The condition that ends the regime.",
+      "x-readers": [
+        "scripts/lib/regime.py"
+      ],
+      "x-source": "D-260"
+    },
+    "regime.exception_granted_at": {
+      "type": "string",
+      "default": "01/11 04:11 BRT",
+      "x-unit": "text",
+      "description": "The clock of the declaration (BRT).",
+      "x-readers": [
+        "scripts/lib/regime.py"
+      ],
+      "x-source": "D-260"
+    },
+    "regime.exception_granted_by": {
+      "type": "string",
+      "default": "Daniel",
+      "x-unit": "text",
+      "description": "Who declared the regime.",
+      "x-readers": [
+        "scripts/lib/regime.py"
+      ],
+      "x-source": "D-260"
+    },
+    "regime.exception_kept": {
+      "type": "array",
+      "default": [
+        "money",
+        "people"
+      ],
+      "x-unit": "count",
+      "description": "The locks that never lift, whatever the regime: money and other people (D-260).",
+      "x-readers": [
+        "scripts/lib/regime.py"
+      ],
+      "x-source": "D-260",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "regime.exception_reason": {
+      "type": "string",
+      "default": "GitHub secondary rate limit refuses writes and the flow stops; Daniel: in exception every lock lifts except money and other people",
+      "x-unit": "text",
+      "description": "The break that caused the regime.",
+      "x-readers": [
+        "scripts/lib/regime.py"
+      ],
+      "x-source": "D-260"
+    }
+  }
+}

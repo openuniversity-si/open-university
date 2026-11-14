@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/providers.json",
+  "x-owner": "providers",
+  "x-schema-version": 1,
+  "description": "The engine's vendor ports (D-069 item 7, plan v3.1 R1): which adapter serves each port, and the model ladder.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "providers.adapter_dir": {
+      "type": "string",
+      "default": "scripts/lib/adapters",
+      "pattern": "^scripts/[a-z0-9/_-]+$",
+      "x-unit": "path",
+      "description": "Directory every new adapter module lives in; the vendor check refuses a new adapter elsewhere.",
+      "x-readers": [
+        "scripts/lib/vendor_check.py"
+      ],
+      "x-source": "plan v3.1 delta §2 R1"
+    },
+    "providers.agent_claude_cli": {
+      "type": "string",
+      "default": "claude",
+      "minLength": 1,
+      "x-unit": "command",
+      "description": "The Claude Code CLI the Claude adapter runs (a name on PATH or a path).",
+      "x-readers": [
+        "scripts/lib/adapters/agent_claude.py"
+      ],
+      "x-source": "plan v3.1 delta §2 R1"
+    },
+    "providers.agent_claude_model_pattern": {
+      "type": "string",
+      "default": "^(haiku|sonnet|opus|claude-[a-z0-9.-]+)$",
+      "format": "regex",
+      "x-unit": "regex",
+      "description": "Model ids and aliases the Claude adapter serves; a ladder rung of provider claude must match it.",
+      "x-readers": [
+        "scripts/lib/adapters/agent_claude.py"
+      ],
+      "x-source": "plan v3.1 delta §2 R1"
+    },
+    "providers.agent_default": {
+      "type": "string",
+      "default": "claude",
+      "enum": [
+        "claude"
+      ],
+      "x-unit": "adapter",
+      "description": "Agent provider adapter a caller gets when it names none; codex and cursor are documented slots without an adapter yet.",
+      "x-readers": [
+        "scripts/lib/adapters/agent.py"
+      ],
+      "x-source": "plan v3.1 delta §2 R1"
+    },
+    "providers.ci_local_command": {
+      "type": "string",
+      "default": "scripts/gate-dev",
+      "pattern": "^scripts/[a-z][a-z0-9-]*$",
+      "x-unit": "path",
+      "description": "Gate command the local runner executes with --pr N, relative to the repository root.",
+      "x-readers": [
+        "scripts/lib/adapters/ci_local.py"
+      ],
+      "x-source": "AGENTS.md (scripts/gate-dev --pr <n>)"
+    },
+    "providers.ci_runner": {
+      "type": "string",
+      "default": "local",
+      "enum": [
+        "local"
+      ],
+      "x-unit": "adapter",
+      "description": "CI runner adapter that runs a PR's gate: local runs the gate command in this checkout, on a laptop or a provider cloud session alike. GitHub Actions is never one.",
+      "x-readers": [
+        "scripts/lib/adapters/ci_runner.py"
+      ],
+      "x-source": "AGENTS.md (no GitHub Actions or third-party CI); plan v3.1 delta §2 R1"
+    },
+    "providers.model_escalate_after_failures": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Real (code-class) failures on one model after which the step moves up the ladder; flakes and env failures do not count.",
+      "x-readers": [
+        "scripts/lib/adapters/model_ladder.py"
+      ],
+      "x-source": "plan v3.1 delta §4 (escalate one model after two real failures)"
+    },
+    "providers.model_escalation_step": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "x-unit": "rungs",
+      "description": "How many rungs one escalation climbs; the top rung stays the top.",
+      "x-readers": [
+        "scripts/lib/adapters/model_ladder.py"
+      ],
+      "x-source": "plan v3.1 delta §4 (escalate one model)"
+    },
+    "providers.model_ladder": {
+      "type": "array",
+      "default": [
+        {
+          "tier": "leaf",
+          "provider": "claude",
+          "model": "haiku",
+          "effort": "medium",
+          "use": "leaf, docs and mechanical PRs"
+        },
+        {
+          "tier": "medium",
+          "provider": "claude",
+          "model": "sonnet",
+          "effort": "medium",
+          "use": "mid-sized PRs"
+        },
+        {
+          "tier": "structural",
+          "provider": "claude",
+          "model": "opus",
+          "effort": "medium",
+          "use": "PRs that fix a format or design others build on, and decisive work"
+        }
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tier",
+          "provider",
+          "model",
+          "effort",
+          "use"
+        ],
+        "properties": {
+          "tier": {
+            "type": "string",
+            "pattern": "^[a-z][a-z-]*$"
+          },
+          "provider": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "effort": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ]
+          },
+          "use": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "minItems": 1,
+      "x-unit": "tiers",
+      "description": "Model rungs from the least to the most capable. A step's tier picks its rung; escalation moves up this order and never down. model is the provider's model id or alias, stored as data.",
+      "x-readers": [
+        "scripts/lib/adapters/model_ladder.py"
+      ],
+      "x-source": "plan v3.1 delta §4 (model per PR)"
+    },
+    "providers.storage_adapter": {
+      "type": "string",
+      "default": "local",
+      "enum": [
+        "local"
+      ],
+      "x-unit": "adapter",
+      "description": "Storage adapter behind the storage port: local keeps each key as a file under the caller's directory (the tier-1 result cache today).",
+      "x-readers": [
+        "scripts/lib/adapters/storage.py"
+      ],
+      "x-source": "plan v3.1 delta §2 R1"
+    },
+    "providers.vendor_catalog": {
+      "type": "string",
+      "default": "scripts/lib/adapters/engine-vendors.json",
+      "pattern": "^scripts/.+\\.json$",
+      "x-unit": "path",
+      "description": "The engine vendor catalog: each vendor's endpoints, CLIs and client modules, its adapters and selectors, and the shrink-only baseline of call sites outside them.",
+      "x-readers": [
+        "scripts/lib/structure.py",
+        "scripts/lib/vendor_check.py"
+      ],
+      "x-source": "D-069 item 7"
+    },
+    "providers.vendor_catalog_schema": {
+      "type": "string",
+      "default": "contracts/adapters/engine-vendors.v1.json",
+      "pattern": "^contracts/.+\\.v[1-9][0-9]*\\.json$",
+      "x-unit": "path",
+      "description": "JSON Schema the vendor catalog is validated against.",
+      "x-readers": [
+        "scripts/lib/structure.py",
+        "scripts/lib/vendor_check.py"
+      ],
+      "x-source": "D-069 item 2"
+    },
+    "providers.vendor_check_excludes": {
+      "type": "array",
+      "default": [
+        "scripts/tests/",
+        "scripts/lib/generated/"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "paths",
+      "description": "Path prefixes of the engine paths (config.literal_check_roots) the vendor check does not scan: test doubles name vendors on purpose, and generated types are the drift stage's. Its own scope since LT1 put the tests into the literal scan (config.literal_check_excludes).",
+      "x-readers": [
+        "scripts/lib/vendor_check.py"
+      ],
+      "x-source": "D-069 item 7; LT1"
+    }
+  }
+}

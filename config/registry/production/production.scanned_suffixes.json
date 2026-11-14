@@ -1,0 +1,21 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string"
+  },
+  "default": [
+    ".sh",
+    ".py",
+    ".mjs",
+    ".js",
+    ".ts",
+    ".json",
+    ""
+  ],
+  "x-unit": "count",
+  "description": "File suffixes the invocation scan reads under production.scanned_roots (the empty string is an extensionless script).",
+  "x-readers": [
+    "scripts/lib/production_guard.py"
+  ],
+  "x-source": "D-054; D-069 item 13"
+}

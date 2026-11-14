@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-cf52f3a5"
+slug: "kd1-known-base-defects-with-this-pr-merged-scrip-cf52f3a5"
+title: "Known base defects: with this PR merged, `scripts/defects sync` and `route` turn the next"
+source:
+  unit: "KD1"
+  retro: "docs/units/KD1/retro.md"
+  section: 5
+  ref: "L7"
+class: "process"
+kind: "rule"
+change: "Known base defects: with this PR merged, `scripts/defects sync` and `route` turn the next detections into fix units for `engine-lane`. The seeds are registered with `--no-emit` (no events): the first `sync` after merge will re-record them as `observed`."
+owner: "engine-lane"
+status: "proposed"
+area: []
+signals: [{"event": "gate.failed", "stage": "structure check", "pattern": null}]
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

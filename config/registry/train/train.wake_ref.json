@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "train/wake",
+  "minLength": 1,
+  "x-unit": "ref",
+  "description": "Branch name of the train's wake channel in the forge (refs/heads/<name>), moved forward only over git like train.lock_ref. With train.trigger_mode wake the producer of pr.ready fast-forwards it with a record {pr, sha, event_id}; its commit history is the wake log the train-role session serves (GATE-ON-PUSH R2). Inert while nobody serves it: the periodic run still merges.",
+  "x-readers": [
+    "scripts/lib/train_serve.py",
+    "scripts/lib/train_trigger.py"
+  ],
+  "x-source": "docs/units/GATE-ON-PUSH/plan.md R2 A2"
+}

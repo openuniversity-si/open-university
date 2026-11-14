@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-pin.json",
+  "x-owner": "gate-pin",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate-pin.dir": {
+      "type": "string",
+      "default": "tower-gate-pin",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "x-unit": "name",
+      "description": "Directory, under gate.slot_dir, of the pinned tool worktrees: <gate.slot_dir>/<gate-pin.dir>/<clone id>/<base sha> (one per base sha and clone, shared under a lock; D-A5 as amended by plan §3.3).",
+      "x-readers": [
+        "scripts/lib/gate_pin.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-pin.enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "GX-05 (B-09, GA-PG1, D-070): a --pr/--sha gate runs the tooling of the base tip (a tool worktree of the base sha) and the invoking checkout is only the record root. Off is the rollback: the invoking checkout's own tooling judges, as before GX-05.",
+      "x-readers": [
+        "scripts/lib/gate_pin.py",
+        "scripts/lib/gate_verdict.py"
+      ],
+      "x-flag": true,
+      "x-source": "D-070"
+    },
+    "gate-pin.keep_worktrees": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Base-sha tool worktrees kept per clone on this machine; older ones (least recently used) are removed, never one a running gate holds.",
+      "x-readers": [
+        "scripts/lib/gate_pin.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-pin.report_only_on_gate_change": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "When the diff base...head touches the gate (commit_check.GATE_FILE), the head's own tooling also runs with --report-only (no events, record, status or pr.ready) and its verdict is printed and posted as advisory. Off skips that second run.",
+      "x-readers": [
+        "scripts/lib/gate_pin.py"
+      ],
+      "x-flag": true,
+      "x-source": "D-070"
+    }
+  }
+}

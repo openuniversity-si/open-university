@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/incident [--help]
+# Opens, lists (id, state, root cause), shows and closes incidents: each refusal and each stop is one record with its case, class and design fix (D-231).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/incident.py" "$@"

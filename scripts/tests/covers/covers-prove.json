@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/covers-prove.test.sh",
+  "covers": [
+    "scripts/tests/covers-prove.test.sh",
+    "scripts/tests/test_covers_prove.py",
+    "scripts/covers-prove",
+    "scripts/lib/covers_prove.py"
+  ]
+}

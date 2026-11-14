@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/pr-body [--help]
+# The PR body from the branch's commits and four effort fields, so no session types the plan or the footer again (D-208).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/pr_body.py" "$@"

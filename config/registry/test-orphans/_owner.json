@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/test-orphans.json",
+  "x-owner": "test-orphans",
+  "x-schema-version": 1,
+  "description": "Where the orphan-test check (TX25, D-070) looks for Python tests: every test it finds must be run by exactly one scripts/tests/*.test.sh wrapper.",
+  "type": "object",
+  "additionalProperties": false
+}

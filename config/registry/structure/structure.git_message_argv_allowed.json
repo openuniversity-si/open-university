@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/lib/train_git.py"
+  ],
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "count",
+  "description": "Tracked paths that still pass a variable as the message of a git write on the command line (`-m <variable>`). A command line holds about 128 KB per argument; text of unbounded size goes through stdin (forge_git_ref._commit). The list only shrinks: the owner of each path moves it to stdin and deletes its entry (C1, D-206).",
+  "x-readers": [
+    "scripts/lib/repo_hygiene.py"
+  ],
+  "x-source": "D-206"
+}

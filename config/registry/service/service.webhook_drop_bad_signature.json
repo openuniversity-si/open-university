@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "bool",
+  "description": "When true a delivery whose signature no key verifies, or that is malformed, is dropped (logged as webhook_dropped); when false it stays in the queue and is retried, e.g. while the forge's rotated key has not arrived. Read per SQS batch from work.config_value (DEP9).",
+  "x-readers": [
+    "infra/service/tower_infra/webhook_consumer.py",
+    "infra/service/tower_infra/config_data.py"
+  ],
+  "x-source": "DEP9 step 2; docs/operations/aws.md 22.5b"
+}

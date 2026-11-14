@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/merge.json",
+  "x-owner": "merge",
+  "x-schema-version": 1,
+  "description": "One merge rule (GX-22, B-18, D-070): how far behind its base a gated head may be, whether merge-phase pins the exact head and needs a mergeable PR, and the P-G3 switch. Readers: commit_check, merge-phase (merge_behind.py) and the train (GX-30).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "merge.max_behind_base": {
+      "type": "integer",
+      "default": 20,
+      "x-unit": "commits",
+      "description": "GX-22 (B-18, D-070): most commits a gated head may be behind the current base tip. merge-phase re-gates a head beyond it (or behind with overlapping changes, merge.regate_on_overlap); with merge.tier1_requires_base_merge off it is also the commit-check limit for a head that carries no merge of the base. Shown as \"N behind, limit M\".",
+      "x-readers": [
+        "scripts/lib/commit_check.py",
+        "scripts/lib/merge_behind.py",
+        "scripts/lib/train.py"
+      ],
+      "minimum": 0,
+      "x-source": "D-070"
+    },
+    "merge.paths_shown": {
+      "type": "integer",
+      "default": 5,
+      "x-unit": "paths",
+      "description": "Overlapping paths named in the re-gate reason.",
+      "x-readers": [
+        "scripts/lib/merge_behind.py"
+      ],
+      "minimum": 1,
+      "x-source": "D-070"
+    },
+    "merge.regate_on_overlap": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "Re-gate a head that is behind at all when the base's commits since the merge-base touched a path the PR also changed: the gate proved the PR against a base without those changes.",
+      "x-readers": [
+        "scripts/lib/merge_behind.py"
+      ],
+      "x-source": "D-070"
+    },
+    "merge.require_exact_head": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "GX-22 (D-070): merge-phase merges only the exact gated head (--match-head-commit), so a push after the proof makes the merge fail instead of merging an unproven head. Off drops the pin; the proof is still read for the head merge-phase saw.",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ],
+      "x-flag": true,
+      "x-source": "D-070"
+    },
+    "merge.tier1_requires_base_merge": {
+      "type": "boolean",
+      "default": false,
+      "x-unit": "flag",
+      "description": "P-G3 switch (GA-PG3 = P-47, D-070). Off (default since GX-27, after the train merged a real batch): a head behind by at most merge.max_behind_base passes without a merge of the base, because the train re-proves the batch on the tip. On (the earlier rule, one-key rollback): a tier-1 head behind its base must carry a merge commit of the base (commit_check.rebase_errors). Merge commits only, never a rebase, either way (FP1).",
+      "x-readers": [
+        "scripts/lib/commit_check.py"
+      ],
+      "x-flag": true,
+      "x-source": "D-070"
+    }
+  }
+}

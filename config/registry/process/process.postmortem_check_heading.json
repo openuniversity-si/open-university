@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "Preventing check",
+  "x-unit": "text",
+  "description": "Heading of the section that names the check and the test that prevent the incident's class (D-069 item 9).",
+  "x-readers": [
+    "scripts/lib/postmortem_check.py"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "lessons-ingest",
+  "x-unit": "text",
+  "description": "Who the trail names for a lesson the ingestion registered.",
+  "x-readers": [
+    "scripts/lib/lesson_ingest.py"
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/config.py": {
+      "number 12": 2,
+      "number 2": 2
+    },
+    "scripts/lib/config_check.py": {
+      "number 2": 1
+    },
+    "scripts/lib/config_cli.py": {
+      "number 12": 3
+    },
+    "scripts/lib/json_schema.py": {
+      "url \"https://json-schema.org/draft/2020-12/schema\"": 1
+    },
+    "scripts/lib/text_check.py": {
+      "number 2": 2,
+      "number 3": 2
+    },
+    "scripts/tests/test_config.py": {
+      "number 12": 1,
+      "number 16": 1,
+      "number 2": 1,
+      "number 30": 3,
+      "number 4": 1,
+      "number 8": 4,
+      "number 9": 1,
+      "url \"postgres://user:pw@db.example.invalid/x\"": 1
+    },
+    "scripts/tests/test_config_check.py": {
+      "number 2": 2,
+      "number 3": 1,
+      "number 4": 1,
+      "number 5": 1,
+      "number 8": 2
+    },
+    "scripts/tests/test_json_schema.py": {
+      "number 1.5": 1,
+      "number 10": 1,
+      "number 2": 4,
+      "number 20": 1,
+      "number 3": 1,
+      "number 5": 1,
+      "number 64": 1,
+      "number 65": 1,
+      "number 8": 4,
+      "number 9": 1,
+      "url \"https://example.invalid/s.json\"": 1
+    },
+    "scripts/tests/test_text_check.py": {
+      "number 2": 1
+    }
+  }
+}

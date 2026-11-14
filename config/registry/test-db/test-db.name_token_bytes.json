@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 8,
+  "minimum": 4,
+  "maximum": 16,
+  "x-unit": "bytes",
+  "description": "Random bytes, written as hex after the prefix, that make one throwaway database name unique.",
+  "x-readers": [
+    "scripts/lib/test_db.py"
+  ]
+}

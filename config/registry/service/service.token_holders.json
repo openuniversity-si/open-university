@@ -1,0 +1,53 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "variable": "OU_RUNNER_TOKEN",
+      "equals": "the control plane's Worker secret RUNNER_TOKEN",
+      "kinds": ["vm", "box", "actions", "session", "other"],
+      "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
+      "used_for": "claims, heartbeats and results on the control plane"
+    },
+    {
+      "variable": "TOWER_EVENTS_TOKEN",
+      "equals": "the control plane's Worker secret EVENTS_TOKEN",
+      "kinds": ["vm", "box", "actions", "session", "other"],
+      "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
+      "used_for": "the engine journal (POST and GET /v1/events): the train reads its queue there"
+    },
+    {
+      "variable": "GH_TOKEN",
+      "aliases": ["GITHUB_TOKEN"],
+      "equals": "a fine-grained GitHub token on openuniversity-si/open-university (Contents and Pull requests read/write, Metadata read)",
+      "kinds": ["vm", "box", "actions", "session", "other"],
+      "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
+      "used_for": "git and the GitHub REST client of the gate and the train"
+    },
+    {
+      "variable": "CLOUDFLARE_API_TOKEN",
+      "equals": "a Cloudflare API token with Workers Scripts:Edit on the account of services/control-plane/wrangler.toml",
+      "kinds": ["vm"],
+      "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
+      "used_for": "the control-plane deploy (scripts/lib/service_deploy.py uploads the Worker through the Cloudflare API)"
+    }
+  ],
+  "items": {
+    "type": "object",
+    "required": ["variable", "equals", "kinds", "holder", "used_for"],
+    "additionalProperties": false,
+    "properties": {
+      "variable": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+      "aliases": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"}},
+      "equals": {"type": "string", "minLength": 1},
+      "kinds": {"type": "array", "minItems": 1, "items": {"enum": ["box", "vm", "actions", "session", "other"]}},
+      "holder": {"type": "string", "minLength": 1},
+      "used_for": {"type": "string", "minLength": 1}
+    }
+  },
+  "x-unit": "list",
+  "description": "The inventory of every secret a runner needs (D-291 (5), TRAIN-DEFINITIVE R6): per environment variable, what it must equal (the control-plane secret or the account it is a token of), the runner kinds that need it, the file that holds it on the runner and what it is used for. Only names are registered, never a value. A rotation updates every holder listed here, then restarts the runner; a missing variable and a refused token are reported as this entry (scripts/lib/service_credentials.py).",
+  "x-readers": [
+    "scripts/lib/service_credentials.py"
+  ],
+  "x-source": "D-291; docs/units/TRAIN-DEFINITIVE/audit.md (F17, F18, R6); docs/operations/services.md"
+}

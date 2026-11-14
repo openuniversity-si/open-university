@@ -1,0 +1,44 @@
+#!/bin/sh
+# LR1 (D-069): the fast local check before a push (scripts/lib/commit_check.py --local, checks in config/registry/local-checks.json).
+# Passes git's stdin through; exits with the check's code (1 only for a real finding); never blocks when python or the check is missing.
+# TX01 (T9): then scripts/lib/prepush.py --hook (config/registry/prepush.json): the inventory checks with their fixes, the owning
+# script tests and the open-PR overlap. An inventory finding refuses the push (1); a failed test or an overlap only warns. It judges
+# HEAD and reads no stdin, so git's lines reach commit_check alone; once commit_check has refused the push it runs no test.
+# GATE-SPEED (D-091): a push of record commits to the machine-internal refs alone (train/lock, train/wake, service/control:
+# prepush.machine_ref_keys) carries no code and skips both (scripts/lib/machine_refs.py); every other push is checked.
+# D-069 item 5 (03/11, control plane down): a hook judges this tree, so it reads the registry and this checkout's local
+# change log, never the shared store on the control plane (scripts/lib/config.py store_kind).
+export OU_CONFIG_STORE=file
+root="$(cd "$(dirname "$0")/.." && pwd)"
+check="$root/scripts/lib/commit_check.py"
+prepush="$root/scripts/lib/prepush.py"
+command -v "${OU_PYTHON:-python3}" >/dev/null 2>&1 || exit 0
+refs="$(cat)"
+if [ -f "$root/scripts/lib/machine_refs.py" ] &&
+  printf '%s\n' "$refs" | "${OU_PYTHON:-python3}" "$root/scripts/lib/machine_refs.py" --stdin-refs; then
+  exit 0
+fi
+code=0
+local_out=""
+if [ -f "$check" ]; then
+  local_out="$(printf '%s\n' "$refs" | "${OU_PYTHON:-python3}" "$check" --local --stdin-refs 2>&1)"
+  code=$?
+  printf '%s\n' "$local_out"
+fi
+if [ -f "$prepush" ]; then
+  tests=""
+  [ "$code" -eq 1 ] && tests="--no-tests"
+  # D-194: an inventory check the local stage ran and passed is not run again (units = unit_check, literals =
+  # literal_census: the same functions, about 1.9 s of a push). A check over its budget or not run is still run here.
+  verified=""
+  case "$local_out" in *"local-check unit_check: ok "*) verified="units" ;; esac
+  case "$local_out" in *"local-check literal_census: ok "*) verified="${verified:+$verified,}literals" ;; esac
+  if [ -n "$verified" ]; then
+    "${OU_PYTHON:-python3}" "$prepush" --hook $tests --verified "$verified" </dev/null
+  else
+    "${OU_PYTHON:-python3}" "$prepush" --hook $tests </dev/null
+  fi
+  [ "$?" -eq 1 ] && code=1
+fi
+[ "$code" -eq 1 ] && exit 1
+exit 0

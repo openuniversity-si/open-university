@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/config.json",
+  "x-owner": "config",
+  "x-schema-version": 1,
+  "description": "The configuration registry itself (D-068): where its change store lives, how it refuses secrets and what its literal check scans.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "config.guard_key_words": {
+      "type": "array",
+      "default": [
+        "secret",
+        "password",
+        "passwd",
+        "api_key",
+        "apikey",
+        "private_key",
+        "credential",
+        "credentials",
+        "bearer",
+        "access_token",
+        "auth_token",
+        "api_token",
+        "refresh_token",
+        "bot_token",
+        "session_token"
+      ],
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-unit": "words",
+      "description": "snake_case words (or word sequences) that make a parameter key name a secret; such a key must hold only the secret's name. A bare 'token' is not one (a lexer token, a token budget); a token-shaped value is refused by config.guard_value_patterns and the entropy test whatever its key.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "D-068 (4)"
+    },
+    "config.guard_name_suffixes": {
+      "type": "array",
+      "default": [
+        "_env",
+        "_name"
+      ],
+      "items": {
+        "type": "string",
+        "pattern": "^_[a-z]+$"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-unit": "suffixes",
+      "description": "Key endings that mark a parameter holding a secret's environment variable name, never its value.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "D-068 (4)"
+    },
+    "config.guard_name_pattern": {
+      "type": "string",
+      "default": "^[A-Z][A-Z0-9_]*$",
+      "format": "regex",
+      "x-unit": "regex",
+      "description": "The shape of a secret's name (an environment variable name) that a secret-name key may hold.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "D-068 (4)"
+    },
+    "config.guard_value_patterns": {
+      "type": "array",
+      "default": [
+        "^gh[pousr]_[A-Za-z0-9]{20,}$",
+        "^github_pat_[A-Za-z0-9_]{20,}$",
+        "^sk-[A-Za-z0-9_-]{20,}$",
+        "^xox[abprs]-[A-Za-z0-9-]{10,}$",
+        "^AKIA[0-9A-Z]{16}$",
+        "-----BEGIN [A-Z ]*PRIVATE KEY-----",
+        "^eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.",
+        "://[^/\\s:@]+:[^/\\s@]+@"
+      ],
+      "items": {
+        "type": "string",
+        "format": "regex"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-unit": "regex",
+      "description": "Shapes of a secret value (vendor token prefixes, private keys, signed tokens, credentials in a URL); a registry value or a set value that matches is refused.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "D-068 (4), D-069 item 13"
+    },
+    "config.guard_entropy_min_length": {
+      "type": "integer",
+      "default": 32,
+      "minimum": 8,
+      "x-unit": "characters",
+      "description": "Shortest unbroken token-alphabet string the entropy test judges as a possible random secret.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "D-068 (4)"
+    },
+    "config.guard_entropy_min_bits": {
+      "type": "number",
+      "default": 4.5,
+      "minimum": 4,
+      "x-unit": "bits",
+      "description": "Shannon entropy per character from which such a string is refused as a random secret; a hex digest (at most 4 bits) is not.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "D-068 (4)"
+    },
+    "config.guard_entropy_alphabet": {
+      "type": "string",
+      "default": "^[A-Za-z0-9+/=_-]+$",
+      "format": "regex",
+      "x-unit": "regex",
+      "description": "The alphabet of a random secret (base64 and URL-safe base64) the entropy test applies to.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "D-068 (4)"
+    },
+    "config.store_adapter": {
+      "type": "string",
+      "default": "file",
+      "enum": [
+        "file"
+      ],
+      "x-unit": "enum",
+      "description": "Which forge_events adapter holds the config.changed log: file keeps it in the checkout (config.store_dir), the only store since D-300: the shared value of a key is its registry file in git, changed by a PR, and a change through the store is a machine-local override. The control store (the control plane's event log and its versioned key, VAZÃO F35) left the enum (D-300, SEMENTE §6: no double path). Read from this file, never from the store itself.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "TR1; D-068 (3); D-065 (2); ORIGIN-FINISH (CONFIG-STORE-CONTROL); D-300 (VAZÃO F61): internal questions leave Cloudflare, the file store by default"
+    },
+    "config.store_dir": {
+      "type": "string",
+      "default": ".tower/config",
+      "pattern": "^[^/]",
+      "x-unit": "path",
+      "description": "Directory of the file adapter's log, relative to the checkout (gitignored). Read from this file, never from the store itself.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "D-068 (3)"
+    },
+    "config.store_cache_ttl_s": {
+      "type": "integer",
+      "default": 300,
+      "minimum": 1,
+      "maximum": 3600,
+      "x-unit": "s",
+      "description": "How long one read of a remote change store (an adapter whose log lives off this machine, e.g. github) serves config.get in this checkout before the log is read again: the most a value set by another session can lag here. A change through this checkout's store refreshes it at once. Read from this file, never from the store itself. Five minutes since 03/11 (VAZÃO F28, I-5102f4e9): with one cache per checkout and many worktrees, a minute made the control plane's 5,000,000 rows read a day run out.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "TR1; D-068 (3); D-069 item 3"
+    },
+    "config.store_cache_dir": {
+      "type": "string",
+      "default": ".tower/config-cache",
+      "x-unit": "path",
+      "description": "Directory, relative to the checkout (gitignored), of the snapshot file that lets every process of this checkout share one read of a remote change store per config.store_cache_ttl_s. Read from this file, never from the store itself.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "TR1; D-068 (3)"
+    },
+    "config.store_quarantine_log": {
+      "type": "string",
+      "default": ".tower/config-quarantine.jsonl",
+      "x-unit": "path",
+      "description": "File, relative to the checkout (gitignored, append-only JSON Lines), where the change store's reader records each envelope of the log the port refuses (event_id, type, reason). The log is append-only, so such an event is skipped, never fatal; it is said on stderr the first time this checkout sees it. Read from this file, never from the store itself.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "ENV-FIX-PREMISE-BLAST; D-027"
+    },
+    "config.store_stale_max_s": {
+      "type": "integer",
+      "default": 3600,
+      "minimum": 0,
+      "maximum": 86400,
+      "x-unit": "s",
+      "description": "How long after a remote read of the change store expires (config.store_cache_ttl_s) it may still serve config.get in this checkout while the store cannot be read (the forge refuses, rate-limits or does not answer); each serve is said once per process on stderr. Past it the read error stands. One hour covers GitHub's longest limit window. 0 turns the fallback off. Read from this file, never from the store itself.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "NANO-UNBLOCK; D-070; TR1"
+    },
+    "config.bootstrap_owners": {
+      "type": "array",
+      "default": [
+        "cloud",
+        "toolchain",
+        "env-premises"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "name",
+      "description": "Registry owners whose parameters configure the machine bootstrap (scripts/cloud/setup.sh, env.sh, toolchain.py, postgres.py; env-premises: session_identity.py) before any session state exists: config.get returns their registry value and never reads the shared change store, so a session starts while the forge refuses or rate-limits reads; scripts/config refuses to change them (edit the registry file). Read from this file, never from the store itself.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "NANO-UNBLOCK; D-070"
+    },
+    "config.literal_check_roots": {
+      "type": "array",
+      "default": [
+        "scripts"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-unit": "paths",
+      "description": "The engine and tooling paths the structure check scans for literals of registered parameters.",
+      "x-readers": [
+        "scripts/lib/config_check.py",
+        "scripts/lib/literal_census.py"
+      ],
+      "x-source": "D-068 (6)"
+    },
+    "config.literal_check_excludes": {
+      "type": "array",
+      "default": [
+        "scripts/lib/generated/"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "paths",
+      "description": "Path prefixes inside those roots that are not scanned for literals: generated types only (the generated drift stage checks them). Tests are scanned like any engine file (LT1).",
+      "x-readers": [
+        "scripts/lib/config_check.py",
+        "scripts/lib/literal_census.py"
+      ],
+      "x-source": "D-068 (6)"
+    },
+    "config.literal_check_suffixes": {
+      "type": "array",
+      "default": [
+        ".py",
+        ".sh",
+        ".mjs",
+        ".js",
+        ".cjs"
+      ],
+      "items": {
+        "type": "string",
+        "pattern": "^\\.[a-z]+$"
+      },
+      "uniqueItems": true,
+      "x-unit": "suffixes",
+      "description": "File suffixes the literal scan reads (Python, shell, JavaScript modules).",
+      "x-readers": [
+        "scripts/lib/config_check.py",
+        "scripts/lib/literal_census.py"
+      ],
+      "x-source": "D-068 (6)"
+    },
+    "config.literal_check_shebangs": {
+      "type": "array",
+      "default": [
+        "python",
+        "bash",
+        "sh",
+        "node"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "interpreters",
+      "description": "Interpreters whose extensionless scripts (by their #! line) the literal scan reads.",
+      "x-readers": [
+        "scripts/lib/config_check.py",
+        "scripts/lib/literal_census.py"
+      ],
+      "x-source": "D-068 (6)"
+    },
+    "config.literal_cache_dir": {
+      "type": "string",
+      "default": "~/.cache/the-tower/literal-candidates",
+      "x-unit": "path",
+      "description": "Where the tree checks keep what they extract from one file's text alone (source_facts: the literal scan's Python candidates, unit_map's dynamic selections, literal_census's raw values, vendor_check's strings, argv heads and imports) through the storage port (providers.storage_adapter), keyed by the file's content, the interpreter and the extractor's own source, so every checkout of this user shares them and a registry change never reuses a verdict. A leading ~ is the home directory; CONFIG_LITERAL_CACHE_DIR overrides it for one run; empty turns the cache off.",
+      "x-readers": [
+        "scripts/lib/source_facts.py"
+      ],
+      "x-source": "D-068 (6); VAZÃO F21, F31"
+    },
+    "config.store_window_max": {
+      "type": "integer",
+      "default": 32000,
+      "minimum": 1,
+      "maximum": 1000000,
+      "x-unit": "count",
+      "description": "The deepest window, in records of the repository channel, a reader of a remote config store reads back to find the newest config.snapshot when the default window (forge-events.git_ref_window) holds none: the window counts records of every kind, so other events (plan notes) can push the snapshot out. It grows by four each step; the channel is never read whole (D-085). Read from this file, never from the store itself.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "VAZÃO incident 03/11 (PR #82); D-085"
+    },
+    "config.store_snapshot_after_events": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "maximum": 10000,
+      "x-unit": "count",
+      "description": "How many config.changed events may follow the newest config.snapshot before a change through this checkout appends a new one. A reader of a remote store reads back only to its newest snapshot, so the log can outgrow forge-events.github_max_pages. Read from this file, never from the store itself.",
+      "x-readers": [
+        "scripts/lib/config.py"
+      ],
+      "x-source": "TR1; D-068 (3); D-069 items 3, 4"
+    },
+    "config.monotonic_patterns": {
+      "type": "array",
+      "default": [
+        "*_timeout*",
+        "*_limit*",
+        "*_max*",
+        "*_budget*",
+        "*_ceiling*",
+        "*_tolerance*"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "glob",
+      "description": "Globs of registry parameter names that are thresholds (timeouts, limits, maxima, budgets, ceilings, tolerances). The threshold check of structure-check refuses a numeric default of a matching parameter that loosens against the base without a cited decision; a match is a ceiling unless the entry declares x-monotonic. The list only grows (D-069 item 14).",
+      "x-readers": [
+        "scripts/lib/threshold_check.py"
+      ],
+      "x-source": "TH1; D-069 item 14; enforcement audit 2026-10-26 rule 5"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "gate-flake-",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Prefix of the throwaway cache directory the re-run uses, so it neither reads nor writes a gate_test_cache marker; deleted afterwards.",
+  "x-readers": [
+    "scripts/lib/gate_flake.py"
+  ],
+  "x-source": "D-070"
+}

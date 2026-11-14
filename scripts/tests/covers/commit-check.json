@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/commit-check.test.sh",
+  "covers": [
+    "scripts/tests/commit-check.test.sh",
+    "scripts/tests/test_commit_check.py",
+    "scripts/commit-check",
+    "scripts/lib/commit_check.py",
+    "scripts/lib/decision_wait.py",
+    "config/registry/push-guard.json",
+    "config/registry/merge.json",
+    "scripts/tests/forge_doubles.py"
+  ]
+}

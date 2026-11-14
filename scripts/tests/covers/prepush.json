@@ -1,0 +1,23 @@
+{
+  "script": "scripts/tests/prepush.test.sh",
+  "covers": [
+    "scripts/tests/prepush.test.sh",
+    "scripts/tests/test_prepush.py",
+    "scripts/prepush",
+    "scripts/lib/prepush.py",
+    "config/registry/prepush.json",
+    ".githooks/pre-push",
+    "scripts/lib/generate_stage.sh",
+    ".githooks/pre-commit",
+    "scripts/lib/unit_check.py",
+    "scripts/lib/literal_census.py",
+    "scripts/lib/gate_script_tests.py",
+    "scripts/lib/generate.py",
+    "scripts/tests/test_machine_refs.py",
+    "scripts/lib/machine_refs.py",
+    "scripts/lib/registry_readers.py",
+    "scripts/lib/commit_check.py",
+    "scripts/lib/local_checks.py",
+    "scripts/tests/fixture_copy.py"
+  ]
+}

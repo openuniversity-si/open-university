@@ -1,0 +1,686 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/units/unit.v1.json",
+  "title": "Unit manifest v1",
+  "description": "units/<id>/unit.json (D-067, plan v3 §4.2): the one place that says what a unit is, who owns it and which files are its own. The size budget is not here: it is the registry entries units.size_target, units.size_ceiling and units.context_budget; a manifest holds only an override, and an override cites a decision. Since U2 a manifest also holds the architecture rules of the unit and the ring it sits in. scripts/lib/units.py validates every manifest against this schema and the rules it cannot state (the id equals the directory, the owner is registered, the cited decision exists).",
+  "x-owner": "units",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "purpose",
+    "cell",
+    "owner",
+    "paths"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "The unit id; equals the directory name units/<id>/ and the stable address @ou/<id> (P-03)."
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the unit does, in one sentence."
+    },
+    "cell": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "The group of units of one of today's contexts (plan v3 §4); at 100x each cell gets its own train."
+    },
+    "owner": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "The lane that exclusively owns the unit (D-065 (4), D-069 item 8); one of units.owners. A change outside the lane's units needs this owner's approval. Forge-agnostic: a forge identity is derived from it, never written here."
+    },
+    "paths": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/path"
+      },
+      "description": "The unit's files as of today, repository-relative globs (* inside one segment, ** any segments, every other character literal). Every production file matches exactly one unit (scripts/lib/unit_check.py)."
+    },
+    "shared": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/path"
+      },
+      "description": "Paths of `paths` that other lanes also write (generated data, a shared config): a shared path stays owned (its owner still approves a change that touches no other unit of its lane, train_ownership.refusals) but never decides the lane of a change on its own (train_ownership.lanes, LANE-OWN). Each entry is also listed in `paths` (scripts/lib/units.py)."
+    },
+    "requires": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/range"
+      },
+      "description": "Allowed dependencies: unit id to the contract version range it may import (plan v3 §4.2 item 5). U0 seeds it from the measured import graph; U2 enforces it."
+    },
+    "ring": {
+      "$ref": "#/$defs/ring",
+      "description": "The ring every production file of the unit sits in, when it holds one ring (ADR-36, D-058): kernel, or a context ring (domain, ports, application, server, client, testing). The checker refuses a production file outside it (L8.unit-ring). Absent: the unit spans rings, or holds no context code."
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry",
+        "version"
+      ],
+      "properties": {
+        "entry": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The file that exports the unit's published surface, relative to the unit's home."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "The contract's semantic version; a breaking change goes expand->contract (P-07, D-029)."
+        }
+      },
+      "description": "Contract slot (plan v3 §4.2 item 3); filled when the unit migrates (U3a, U4)."
+    },
+    "battery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The unit battery's command; filled by U3a (scripts/unit-battery <id>)."
+        }
+      },
+      "description": "Battery slot (plan v3 §4.2 item 6). Its time budget is the registry entry battery.unit_time_limit, never a literal here."
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "units.size_target": {
+          "$ref": "#/$defs/override"
+        },
+        "units.size_ceiling": {
+          "$ref": "#/$defs/override"
+        },
+        "units.context_budget": {
+          "$ref": "#/$defs/override"
+        }
+      },
+      "description": "Overrides of the registry size budget only, keyed by the registry name they replace for this unit; each cites the decision that allows it. Absent, the registry value applies."
+    },
+    "intents": {
+      "$ref": "#/$defs/names",
+      "description": "Intent ids the unit serves (plan v3 §4.2 item 2)."
+    },
+    "decisions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/decision"
+      },
+      "description": "Decisions the unit carries out (D-NNN of docs/domain/DECISIONS.md)."
+    },
+    "invariants": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^INV-[A-Z0-9]+$"
+      },
+      "description": "Invariants of docs/domain/CONTRACT.md the unit guards."
+    },
+    "premises": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^P-[0-9]{2,}$"
+      },
+      "description": "Premises the unit depends on (D-066)."
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rule"
+      },
+      "description": "The architecture rules this unit guards, as data (plan v3.1 U2, D-067): scripts/check-architecture.mjs compiles every manifest's entries with scripts/lib/architecture/engine.mjs. Entries sharing an id form one rule, in manifest order."
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "pattern": "^[^/!][^!]*[^/]$",
+      "description": "A repository-relative glob; no leading slash, no trailing slash, no negation."
+    },
+    "range": {
+      "type": "string",
+      "pattern": "^\\^[0-9]+(\\.[0-9]+){0,2}$",
+      "description": "A caret range of a contract version."
+    },
+    "decision": {
+      "type": "string",
+      "pattern": "^D-[0-9]{3}$"
+    },
+    "names": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9.-]*$"
+      }
+    },
+    "override": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "decision"
+      ],
+      "properties": {
+        "value": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "decision": {
+          "$ref": "#/$defs/decision",
+          "description": "The decision that allows this unit its own budget; an override without one is refused."
+        }
+      }
+    },
+    "ring": {
+      "enum": [
+        "kernel",
+        "domain",
+        "ports",
+        "application",
+        "server",
+        "client",
+        "testing"
+      ]
+    },
+    "regex": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A JavaScript regular expression; {src}, {web} and {contexts} expand to the source root, the web root and the context names; in a condition, {from:N} is group N of the file filter's match."
+    },
+    "regexes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/regex"
+      }
+    },
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "match": {
+          "$ref": "#/$defs/regexes",
+          "description": "The file matches one of these; the first that matches gives the groups {from:N}."
+        },
+        "not": {
+          "$ref": "#/$defs/regexes",
+          "description": "The file matches none of these."
+        },
+        "prod": {
+          "type": "boolean",
+          "description": "Only production files (not a test, a testing ring or a test route; architecture.test_file, architecture.non_production)."
+        },
+        "tests": {
+          "type": "boolean",
+          "description": "false: no test file (architecture.test_file)."
+        },
+        "exemptWithoutSql": {
+          "$ref": "#/$defs/regexes",
+          "description": "A file matching one of these is exempt while it holds no SQL literal (an intents registry naming its tables as data, D-060)."
+        },
+        "imports": {
+          "$ref": "#/$defs/regexes",
+          "description": "text: the file imports a specifier matching one of these (an edge of the source tree)."
+        }
+      },
+      "description": "Which files an entry judges."
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resolved": {
+          "type": "boolean",
+          "description": "true: the specifier resolves to a repository path; false: a package or Node import."
+        },
+        "specifier": {
+          "$ref": "#/$defs/regex"
+        },
+        "specifierSuffix": {
+          "type": "string",
+          "description": "Appended to the specifier before `specifier` is tested (a closing quote)."
+        },
+        "target": {
+          "$ref": "#/$defs/regex",
+          "description": "The resolved path matches; an unresolved edge never does."
+        },
+        "names": {
+          "$ref": "#/$defs/regex",
+          "description": "Tested on the resolved path and the specifier, joined by a space."
+        },
+        "targetProd": {
+          "type": "boolean",
+          "const": true,
+          "description": "The resolved path is production."
+        },
+        "targetFile": {
+          "type": "boolean",
+          "const": true,
+          "description": "The resolved path is a file of the source tree."
+        },
+        "targetCatalog": {
+          "type": "boolean",
+          "const": true,
+          "description": "The resolved path is a literal catalog (D-063)."
+        },
+        "line": {
+          "$ref": "#/$defs/regex",
+          "description": "The importing line matches (a type-only import)."
+        },
+        "notLine": {
+          "$ref": "#/$defs/regex",
+          "description": "The importing line does not match."
+        }
+      },
+      "description": "A condition on one import edge: every key it names holds."
+    },
+    "conditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/condition"
+      }
+    },
+    "rule_imports": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "from",
+        "detail"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^L[0-9]+\\.[a-z0-9-]+$",
+          "description": "The rule id; entries sharing it form one rule."
+        },
+        "since": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "description": "The architecture state the rule applies from (architecture.layer_order); absent, architecture.default_layer."
+        },
+        "why": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The decision or invariant the entry carries out, in one sentence."
+        },
+        "kind": {
+          "const": "imports"
+        },
+        "edges": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "src",
+              "tooling"
+            ]
+          },
+          "description": "The edge sets judged, in order: the source tree's imports, the tooling's (architecture.tooling_root); absent, src."
+        },
+        "from": {
+          "$ref": "#/$defs/filter"
+        },
+        "fileText": {
+          "$ref": "#/$defs/regexes",
+          "description": "The importing file's text matches one of these."
+        },
+        "forbid": {
+          "$ref": "#/$defs/conditions",
+          "description": "The edge breaks the rule when one of these holds; absent, every edge of the filter does."
+        },
+        "allow": {
+          "$ref": "#/$defs/conditions",
+          "description": "An edge for which one of these holds never breaks the rule."
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The violation's detail; {specifier} and {target} expand to the edge's."
+        }
+      }
+    },
+    "rule_text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "detail"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^L[0-9]+\\.[a-z0-9-]+$",
+          "description": "The rule id; entries sharing it form one rule."
+        },
+        "since": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "description": "The architecture state the rule applies from (architecture.layer_order); absent, architecture.default_layer."
+        },
+        "why": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The decision or invariant the entry carries out, in one sentence."
+        },
+        "kind": {
+          "const": "text"
+        },
+        "scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "files",
+              "tooling",
+              "paths"
+            ]
+          },
+          "description": "The files read: the source tree, the tooling tree, the named `paths`; absent, files."
+        },
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Repository paths read when scope names paths; {src} and {web} expand."
+        },
+        "files": {
+          "$ref": "#/$defs/filter"
+        },
+        "comments": {
+          "enum": [
+            "keep",
+            "blank",
+            "strip"
+          ],
+          "description": "keep the text, blank the comments in place (lines kept), or strip them (report at line 1)."
+        },
+        "when": {
+          "$ref": "#/$defs/regexes",
+          "description": "The text matches every one of these."
+        },
+        "unless": {
+          "$ref": "#/$defs/regexes",
+          "description": "The text matches none of these."
+        },
+        "patterns": {
+          "$ref": "#/$defs/regexes",
+          "description": "What breaks the rule; absent, a file that passes when and unless does."
+        },
+        "flags": {
+          "type": "string",
+          "pattern": "^[imsu]*$",
+          "description": "Extra flags of every expression of the entry."
+        },
+        "report": {
+          "enum": [
+            "each",
+            "first",
+            "once"
+          ],
+          "description": "each: every match at its line; first: the first pattern that matches, at its first match; once: line 1 when any matches. Absent, each."
+        },
+        "exempt": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file",
+              "capture"
+            ],
+            "properties": {
+              "file": {
+                "$ref": "#/$defs/regex"
+              },
+              "capture": {
+                "$ref": "#/$defs/regex"
+              }
+            }
+          },
+          "description": "A match in a matching file whose group 1 matches capture is not a violation."
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The violation's detail; {specifier} and {target} expand to the edge's."
+        }
+      }
+    },
+    "rule_files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "files",
+        "detail"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^L[0-9]+\\.[a-z0-9-]+$",
+          "description": "The rule id; entries sharing it form one rule."
+        },
+        "since": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "description": "The architecture state the rule applies from (architecture.layer_order); absent, architecture.default_layer."
+        },
+        "why": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The decision or invariant the entry carries out, in one sentence."
+        },
+        "kind": {
+          "const": "files"
+        },
+        "scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "files",
+              "tooling",
+              "paths"
+            ]
+          },
+          "description": "The files read: the source tree, the tooling tree, the named `paths`; absent, files."
+        },
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Repository paths read when scope names paths; {src} and {web} expand."
+        },
+        "files": {
+          "$ref": "#/$defs/filter"
+        },
+        "at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Report once, at this path, when any file matches; absent, each matching file."
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The violation's detail; {specifier} and {target} expand to the edge's."
+        }
+      }
+    },
+    "rule_closure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "edges",
+        "roots",
+        "forbid",
+        "detail"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^L[0-9]+\\.[a-z0-9-]+$",
+          "description": "The rule id; entries sharing it form one rule."
+        },
+        "since": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "description": "The architecture state the rule applies from (architecture.layer_order); absent, architecture.default_layer."
+        },
+        "why": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The decision or invariant the entry carries out, in one sentence."
+        },
+        "kind": {
+          "const": "closure"
+        },
+        "edges": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "src",
+              "tooling"
+            ]
+          },
+          "description": "The edge sets judged, in order: the source tree's imports, the tooling's (architecture.tooling_root); absent, src."
+        },
+        "roots": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "match"
+          ],
+          "properties": {
+            "from": {
+              "enum": [
+                "files",
+                "importers"
+              ],
+              "description": "files: the source tree; importers: every file the edge sets import from."
+            },
+            "match": {
+              "$ref": "#/$defs/regexes"
+            }
+          }
+        },
+        "stop": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Paths neither judged nor followed."
+        },
+        "forbid": {
+          "$ref": "#/$defs/conditions"
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The violation's detail; {specifier} and {target} expand to the edge's."
+        }
+      }
+    },
+    "rule_code": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "handler"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^L[0-9]+\\.[a-z0-9-]+$",
+          "description": "The rule id; entries sharing it form one rule."
+        },
+        "since": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "description": "The architecture state the rule applies from (architecture.layer_order); absent, architecture.default_layer."
+        },
+        "why": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The decision or invariant the entry carries out, in one sentence."
+        },
+        "kind": {
+          "const": "code"
+        },
+        "handler": {
+          "type": "string",
+          "pattern": "^[a-z][A-Za-z]*$",
+          "description": "A handler of scripts/lib/architecture/handlers.mjs, for what data alone cannot state."
+        },
+        "params": {
+          "type": "object",
+          "description": "The handler's paths, expressions and messages; it holds no other literal."
+        }
+      }
+    },
+    "rule": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/rule_imports"
+        },
+        {
+          "$ref": "#/$defs/rule_text"
+        },
+        {
+          "$ref": "#/$defs/rule_files"
+        },
+        {
+          "$ref": "#/$defs/rule_closure"
+        },
+        {
+          "$ref": "#/$defs/rule_code"
+        }
+      ],
+      "description": "One architecture rule entry (plan v3.1 U2)."
+    }
+  }
+}

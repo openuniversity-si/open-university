@@ -1,0 +1,4 @@
+# DEP8: the library the port and the webhook consumer import beyond the standard library and boto3 (in the Lambda runtime).
+# One layer, built by the deployer for arm64 and CPython 3.12, named by the sha256 of this file (and of whether it carries
+# its bytecode). PORT-COLD-LAYER: psycopg alone: SQLAlchemy is the service's (its pool, in the image), no Lambda imports it.
+psycopg[binary]==3.3.8

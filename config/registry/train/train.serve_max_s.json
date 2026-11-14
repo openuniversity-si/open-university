@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 6600,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Seconds after which `scripts/train serve` exits, below the cloud session's 2 h background-process limit, so its exit event wakes the train-role session to start serve again (GATE-ON-PUSH R2).",
+  "x-readers": [
+    "scripts/lib/train_serve.py"
+  ],
+  "x-source": "docs/units/GATE-ON-PUSH/plan.md R2 A2"
+}

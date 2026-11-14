@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/lock.lifted.v1.json",
+  "title": "lock.lifted payload v1",
+  "description": "A lock did not refuse because the exception regime was active (D-260): which lock, on which commit, in which lane, when.",
+  "x-natural-key": [
+    "/payload/lock",
+    "/payload/sha",
+    "/payload/lane"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "lock",
+    "lane",
+    "time"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "The PR; null on the repository channel."
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "lock": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The lock that lifted (gate, merger, commit-plan, ...)."
+    },
+    "lane": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The lane (or tool) that passed the lock."
+    },
+    "time": {
+      "type": "string",
+      "minLength": 1,
+      "description": "RFC 3339 time the lock lifted."
+    }
+  }
+}

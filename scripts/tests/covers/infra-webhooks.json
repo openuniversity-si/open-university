@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/infra-webhooks.test.sh",
+  "covers": [
+    "scripts/tests/infra-webhooks.test.sh",
+    "scripts/tests/test_infra_webhooks.py",
+    "scripts/tests/infra_db/psql.py",
+    "infra/service/tower_infra/ed25519.py",
+    "infra/service/tower_infra/forge_webhooks.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/service/tower_infra/port.py",
+    "infra/service/tower_infra/migrations.py",
+    "infra/db/migrations/**",
+    "units/engine-infra-service/unit.json",
+    "scripts/lib/test_db.py",
+    "config/registry/test-db.json"
+  ]
+}

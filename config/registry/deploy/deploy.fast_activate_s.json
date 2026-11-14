@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 120,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Safety timeout of the fast deploy's code activation: after UpdateFunctionCode the function must reach LastUpdateStatus Successful and the published version State Active (VPC Lambdas take seconds), all within this long. Not activating in time is recorded as smoke_pre 'not active in N s' and the alias is never swapped.",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py",
+    "infra/service/tower_infra/fastdeploy.py"
+  ],
+  "x-source": "FAST-WAIT-ACTIVE"
+}

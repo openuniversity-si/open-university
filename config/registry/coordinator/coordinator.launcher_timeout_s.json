@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 120,
+  "x-unit": "s",
+  "description": "Seconds a launch command may run.",
+  "x-readers": [
+    "scripts/lib/adapters/launcher_claude.py"
+  ],
+  "minimum": 1
+}

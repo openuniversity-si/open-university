@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 0.5,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Seconds between two reads of the tenant's log while the adapter waits for a head's verdict: one port call per read, never one per job. Each read is a wait of up to this much on the verdict. GATE-POLL (13/11, criterion 3): 0.5, not 2: in the gates #688 to #705 the checks, all from the cache, ended by 0.5 to 1.0 s and the verdict was read at ~3.0 s (checks_s p50 3.09 s), the rest the 2 s between two reads; a read is one port call of ~50 ms.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+}

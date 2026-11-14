@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/lane-status.test.sh",
+  "covers": [
+    "scripts/tests/lane-status.test.sh",
+    "scripts/tests/test_lane_status.py",
+    "scripts/lane-status",
+    "scripts/lib/lane_status.py"
+  ]
+}

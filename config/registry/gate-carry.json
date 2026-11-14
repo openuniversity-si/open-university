@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-carry.json",
+  "x-owner": "gate-carry",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate-carry.carry_over_areas": {
+      "type": "array",
+      "default": [
+        "docs"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "name",
+      "description": "Area ids of scripts/lib/gate-areas.json a delta may touch and still carry the earlier proof. A delta file in any other area, or in none, runs a normal gate.",
+      "x-readers": [
+        "scripts/lib/gate_carry.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-carry.carry_over_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "GX-20 (B-14, GA-P01, D-070): a PR gate whose delta from an earlier passed v4 proof on the same base, toolchain and gate version stays inside gate-carry.carry_over_areas runs the delta plan (always-stages, structure check included, plus the covers-matching script tests) and carries every other stage of that proof (carried_from). Off is the rollback: every run is a normal gate.",
+      "x-readers": [
+        "scripts/lib/gate_carry.py"
+      ],
+      "x-flag": true,
+      "x-source": "D-070"
+    }
+  }
+}

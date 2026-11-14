@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 300,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Longest the helper waits for test-db.ddl_lock_path before it raises. It covers queueing behind other callers only; the psql limit (test-db.psql_timeout_s) starts after the lock is held, so waiting in line never counts against it and the 30 s limit is unchanged.",
+  "x-readers": [
+    "scripts/lib/test_db.py"
+  ]
+}

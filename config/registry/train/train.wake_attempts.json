@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Pushes a producer tries to fast-forward train.wake_ref, each from a fresh read: a refused fast-forward (another producer moved it) is retried until this count, then the wake is lost and the periodic run catches the PR (GATE-ON-PUSH R2).",
+  "x-readers": [
+    "scripts/lib/train_trigger.py"
+  ],
+  "x-source": "docs/units/GATE-ON-PUSH/plan.md R2 A2"
+}

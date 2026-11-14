@@ -1,0 +1,28 @@
+{
+  "table": "| Action | Count | Status | Where it is systematised |\n|---|---|---|---|\n| Messages to other sessions to nudge them | 40 | open | the plan |\n| Opening a pull request through the GitHub tool | 2 | systematised, not adopted | `scripts/lane-ship` |\n| Syncing a branch with the base (fetch, checkout, merge) by hand | 100 | open | `scripts/branch-start` |\n| Writing a lane's start message by hand | 12 | open | the briefs |\n",
+  "messages_below": 6,
+  "messages_above": 45,
+  "messages_old": 40,
+  "messages_row": "| Messages to other sessions to nudge them | 40 |",
+  "pr_old": 2,
+  "pr_row": "| Opening a pull request through the GitHub tool | 2 |",
+  "sync_old": 100,
+  "sync_row": "| Syncing a branch with the base (fetch, checkout, merge) by hand | 100 |",
+  "unmeasured_row": "| Writing a lane's start message by hand | 12 | open | the briefs |",
+  "few_messages": 3,
+  "status_before": 2,
+  "status_measured": 5,
+  "status_one_run": 1,
+  "sync_measured": 3,
+  "pr_measured": 1,
+  "measured_rows": 3,
+  "measures": 2,
+  "sync_action": "Syncing a branch with the base (fetch, checkout, merge) by hand",
+  "pr_action": "Opening a pull request through the GitHub tool",
+  "messages_action": "Messages to other sessions to nudge them",
+  "messages_split": [
+    20,
+    25
+  ],
+  "structure_checks": 2
+}

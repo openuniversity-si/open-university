@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "D-297 (a), VAZÃO F36 (docs/programs/vazao/design-trem.md §3): when a batch is red and the prefix bisection names a culprit at index f > 0, the members before it merge in the same run on the bisection's green probe of that prefix (pr.merged with the batch id, the tree proof against the probe, no train.batch.green). false leaves the prefix queued for the next batch, as before (the one-key rollback).",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "battery/lock",
+  "minLength": 1,
+  "x-unit": "ref",
+  "description": "Branch name of the battery lock in the forge (refs/heads/<name>), naming the lock owner; one holder runs the role until no newer integration tip is pending (D-065 (1)). A lock of its own, apart from train.lock_ref, so tier 3 never blocks a merge.",
+  "x-readers": [
+    "scripts/lib/battery.py"
+  ]
+}

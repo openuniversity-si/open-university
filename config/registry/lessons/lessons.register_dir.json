@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "docs/process/lessons",
+  "x-unit": "path",
+  "description": "Directory of the lessons registry: one record per lesson, named <slug> plus lessons.record_suffix (D-069 items 4 and 9). No common file (D-064 a).",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ]
+}

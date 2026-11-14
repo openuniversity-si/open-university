@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/plan.candidate.v1.json",
+  "title": "plan.candidate payload v1",
+  "description": "Triage's output for one input signature: what the planner's judgment step receives besides the partition context (live-planning design 1.2). Produced by scripts/lib/plan_triage.py, read by the planner role.",
+  "x-owner": "live-planning",
+  "x-schema-version": 1,
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/program",
+    "/payload/signature"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "program",
+    "signature",
+    "disposition",
+    "reason",
+    "source",
+    "inputs",
+    "sightings",
+    "affected",
+    "partition"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "program": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Program id (docs/programs/<program>/plan.md program.v1)."
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Dedupe key: failure signature, lesson class, premise id or defect id."
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "candidate",
+        "seen"
+      ],
+      "description": "seen = recorded, not judged; reason says why."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Why it was promoted, or why it was only seen."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "gate",
+        "base",
+        "lesson",
+        "note",
+        "premise",
+        "defect",
+        "session",
+        "overrun",
+        "train",
+        "owner",
+        "flake"
+      ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Refs of the events that carry this signature."
+    },
+    "sightings": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How many times the signature was seen: the rediscovery count."
+    },
+    "affected": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Unit ids (or all) triage found; may be empty only for seen."
+    },
+    "partition": {
+      "type": "string",
+      "minLength": 1,
+      "description": "(program, area) key the decision is scoped to."
+    }
+  }
+}

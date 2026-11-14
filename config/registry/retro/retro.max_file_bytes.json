@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 52428800,
+  "x-unit": "bytes",
+  "description": "Largest log the store keeps as bytes; a larger one is kept as its header alone (stored: pointer, the source path and the digest), never truncated. 50 MiB, GitHub's per-file warning size, so a later move of the store into a git ref stays possible (docs/units/RETRO-API/audit.md).",
+  "minimum": 1,
+  "x-readers": [
+    "scripts/lib/retro.py"
+  ]
+}

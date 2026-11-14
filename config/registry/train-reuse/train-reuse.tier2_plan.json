@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "dev",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "GX-31 (D-070): the plan a tier-2 run binds into its proof (scripts/gate-batch runs gate-local --dev, so the binding's plan is dev). The train puts it in the input_digest it recomputes; a value that is not the gate's makes every lookup miss (the run happens), never a false reuse.",
+  "x-readers": [
+    "scripts/lib/train_reuse.py"
+  ],
+  "x-source": "D-070; plan-v2 GX-31, D-B8"
+}

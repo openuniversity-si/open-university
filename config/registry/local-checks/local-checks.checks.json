@@ -1,0 +1,138 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "id": "one_push_per_commit",
+      "owner": "push-guard",
+      "budget_ms": 1500,
+      "handler": "one_push_per_commit",
+      "stage": "local",
+      "enabled": true
+    },
+    {
+      "id": "no_history_rewrite",
+      "owner": "push-guard",
+      "budget_ms": 1500,
+      "handler": "no_history_rewrite",
+      "stage": "local",
+      "enabled": true
+    },
+    {
+      "id": "gate_change_cites_decision",
+      "owner": "engine-commit-plan",
+      "budget_ms": 1500,
+      "handler": "gate_change_cites_decision",
+      "stage": "local",
+      "enabled": true
+    },
+    {
+      "id": "secret_scan_diff",
+      "owner": "gate",
+      "budget_ms": 8000,
+      "handler": "secret_scan_diff",
+      "stage": "local",
+      "enabled": true
+    },
+    {
+      "id": "no_registered_literals",
+      "owner": "config",
+      "budget_ms": 6000,
+      "handler": "no_registered_literals",
+      "stage": "local",
+      "enabled": true
+    },
+    {
+      "id": "structure_fast",
+      "owner": "structure",
+      "budget_ms": 12000,
+      "handler": "structure_fast",
+      "stage": "local",
+      "enabled": true
+    },
+    {
+      "id": "config_check",
+      "owner": "structure",
+      "budget_ms": 6000,
+      "handler": "structure_config_check",
+      "stage": "local",
+      "enabled": true
+    },
+    {
+      "id": "literal_census",
+      "owner": "structure",
+      "budget_ms": 4000,
+      "handler": "structure_literal_census",
+      "stage": "local",
+      "enabled": true
+    },
+    {
+      "id": "vendor",
+      "owner": "structure",
+      "budget_ms": 4000,
+      "handler": "structure_vendor",
+      "stage": "local",
+      "enabled": true
+    },
+    {
+      "id": "unit_check",
+      "owner": "structure",
+      "budget_ms": 2500,
+      "handler": "structure_unit_check",
+      "stage": "local",
+      "enabled": true
+    },
+    {
+      "id": "decision_table",
+      "owner": "engine-records",
+      "budget_ms": 500,
+      "handler": "decision_table",
+      "stage": "local",
+      "enabled": true
+    }
+  ],
+  "x-unit": "targets",
+  "description": "The local check registry (LR1, D-069): one entry per check, as data. id names the check; owner is the unit or lane answerable for it; budget_ms is its cost budget; handler is a name of local_checks.HANDLERS or module:function; stage is local (runs before a push) or gate (skipped locally); enabled switches it off. A check over its budget moves to the gate (the state file records it). Other tooling, such as a lessons kind=check, adds a check by appending an entry.",
+  "x-readers": [
+    "scripts/lib/local_checks.py"
+  ],
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "owner",
+      "budget_ms",
+      "handler",
+      "stage",
+      "enabled"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "owner": {
+        "type": "string",
+        "minLength": 1
+      },
+      "budget_ms": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "handler": {
+        "type": "string",
+        "minLength": 1
+      },
+      "stage": {
+        "enum": [
+          "local",
+          "gate"
+        ]
+      },
+      "enabled": {
+        "type": "boolean"
+      }
+    }
+  },
+  "uniqueItems": true
+}

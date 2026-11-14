@@ -1,0 +1,16 @@
+{
+  "type": "string",
+  "enum": [
+    "client",
+    "control",
+    "port"
+  ],
+  "default": "port",
+  "x-unit": "enum",
+  "description": "Who posts the gate's Origin check run (tower/gate). client: the Origin client with the session's credential, which Origin refuses unless it is an oit_ installation token. control: the control plane's POST /v1/check-run, which mints the installation token from the Origin app's key it alone holds (ORIGIN_APP_PRIVATE_KEY) and answers 503 while that secret is absent (D-299). port: the engine's port (POST /v1/check-run), posted by the live service on AWS with the app's key from Parameter Store (/tower/origin/factory-app-signing-key; CHECK-RUN-AWS), the Worker off the path.",
+  "x-readers": [
+    "scripts/lib/forge_origin.py",
+    "scripts/lib/gate_status.py"
+  ],
+  "x-source": "D-299; CHECK-RUN-AWS"
+}

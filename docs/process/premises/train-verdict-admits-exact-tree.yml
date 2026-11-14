@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-53"
+slug: "train-verdict-admits-exact-tree"
+statement: "A cold (no tier-1 cache hit, no carried stage) verified v4 tier-1 gate.passed of plan dev whose base is the integration tip T, whose head H contains T, with the train's attested toolchain_id and the tip's gate_version and a recomputed input_digest equal to its own, proves the exact tree the train merges (a no-fast-forward merge of H into T has tree(H)); the train may merge that PR alone without a tier-2 run."
+kind: "process"
+scope: "global"
+source:
+  who: "daniel"
+  where: "A Torre, 29/10 14:35 BRT: Daniel's approval of the TRAIN-VERDICT decision"
+  quote: "Aprovo a decisão, lança a TRAIN-VERDICT e já planeja a admissão por shards."
+  at: "2026-10-29T14:35:00-03:00"
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["decision:D-075", "decision:D-065", "premise:P-43"]
+  if_wrong: "An admitted PR could merge a tree no gate judged on the tip; turn train.admit_mode back to batch (one key) and every PR pays tier 2 again."
+validate:
+  kind: "measurement"
+  how: "After train.admit_mode verdict: every pr.merged with batch_id v-... has tree(merge_sha) == tree(head) (the train's tree proof) and gate-noite on the integration tip stays green"
+answer:
+  by: "Daniel"
+  at: "2026-10-29T14:35:00-03:00"
+  value: "confirmed"
+  quote: "Aprovo a decisão, lança a TRAIN-VERDICT e já planeja a admissão por shards."
+  where: "Daniel (CEO), 29/10/2026 14:35 BRT, recorded through A Torre"
+  evidence: null
+  translation: "I approve the decision, launch TRAIN-VERDICT and already plan the admission by shards."
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

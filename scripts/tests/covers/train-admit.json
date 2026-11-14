@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/train-admit.test.sh",
+  "covers": [
+    "scripts/tests/train-admit.test.sh",
+    "scripts/tests/test_train_admit.py",
+    "scripts/lib/train_admit.py",
+    "scripts/lib/gate_digest.py",
+    "scripts/lib/gate_proof.py"
+  ]
+}

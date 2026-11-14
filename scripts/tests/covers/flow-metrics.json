@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/flow-metrics.test.sh",
+  "covers": [
+    "scripts/tests/flow-metrics.test.sh",
+    "scripts/tests/test_flow_metrics.py",
+    "scripts/flow-metrics",
+    "scripts/lib/flow_metrics.py"
+  ]
+}

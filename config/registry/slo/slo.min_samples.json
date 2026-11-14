@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Fewest samples an SLO needs before it can breach; below it the SLO reports no data (the same size as gate.slow_window_events).",
+  "x-readers": [
+    "scripts/lib/slo.py"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "script": "scripts/tests/infra-api.test.sh",
+  "covers": [
+    "scripts/tests/infra-api.test.sh",
+    "scripts/tests/test_infra_api.py",
+    "infra/service/tower_infra/api_sessions.py",
+    "infra/service/tower_infra/openai_chat.py",
+    "infra/service/tower_infra/claude_api.py",
+    "infra/service/tower_infra/bedrock_converse.py",
+    "infra/service/tower_infra/gemini_api.py",
+    "infra/service/tower_infra/api_providers.py",
+    "units/engine-infra-service/unit.json"
+  ]
+}

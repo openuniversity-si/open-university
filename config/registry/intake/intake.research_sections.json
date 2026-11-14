@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    "Quem já resolveu",
+    "Estado da arte",
+    "Encaixe em nós",
+    "Escada de ambição"
+  ],
+  "x-unit": "text",
+  "description": "The `## ` sections the research file carries, each non-empty (compared without case or accents).",
+  "minItems": 1,
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-readers": [
+    "scripts/lib/intake_templates.py"
+  ]
+}

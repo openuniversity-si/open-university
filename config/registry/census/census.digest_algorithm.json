@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "sha256",
+  "x-unit": "name",
+  "description": "Hash of a census event. Each event carries the digest of the one before it, so an edited, reordered or removed event breaks the chain (scripts/lib/audit_chain.py).",
+  "x-readers": [
+    "scripts/lib/census.py"
+  ],
+  "x-source": "CENSO-NO-MANIFESTO; D-069 items 3 and 4"
+}

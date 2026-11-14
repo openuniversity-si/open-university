@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 3.0,
+  "exclusiveMinimum": 0,
+  "x-unit": "seconds",
+  "description": "IMAGE-SWAP-TIGHTEN (docs/operations/aws.md 22.9): how recent, in seconds, the last beat of a standby must be for the landing to count it healthy (work.standby_beat, migration 0014: each process standing by upserts it on every standby pass, about once a second). The landing (POST /v1/deploy/landed) writes deploy.live_image_runner and deploy.live_image_service in the statement that records it only when both roles have a beat of the bundle this recent, on the database clock: no AWS call on the clock. Otherwise the landing records why and the autodeploy's path (the standby events, then ECS DescribeTasks) decides as before.",
+  "x-readers": [
+    "infra/service/tower_infra/port.py"
+  ],
+  "x-source": "IMAGE-SWAP-TIGHTEN"
+}

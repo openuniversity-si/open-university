@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/visual-guard.test.sh",
+  "covers": [
+    "scripts/tests/visual-guard.test.sh",
+    "scripts/tests/test_visual_guard.py",
+    "scripts/lib/visual_guard.py",
+    "scripts/lib/config.py",
+    "config/registry/structure.json",
+    "scripts/lib/structure.py",
+    "scripts/structure-check",
+    "scripts/tests/fixture_copy.py"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "type": "array",
+  "default": [],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "x-unit": "paths",
+  "description": "Component files whose every user-visible string must come from the text catalog: JSX text, string children and the l10n.visible_attributes with a literal are refused. Enforced only where text has migrated; a unit adds its files here when it migrates in U4 (P-05), so no file is edited twice.",
+  "x-readers": [
+    "scripts/lib/text_check.py"
+  ],
+  "x-source": "plan v3.1 delta §2 L1; P-05"
+}

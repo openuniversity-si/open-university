@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 100,
+  "minimum": 1,
+  "x-unit": "percent",
+  "description": "Percent that makes the whole: a tolerance of budgets.regression_tolerance_percent grows a baseline by tolerance / this.",
+  "x-readers": [
+    "scripts/lib/budgets.py",
+    "scripts/lib/budget_check.py"
+  ],
+  "x-source": "D-069 item 14; B1"
+}

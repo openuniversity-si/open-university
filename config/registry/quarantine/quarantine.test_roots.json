@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    ""
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "path",
+  "description": "Prefixes tried, in order, to turn a test id (a test file as the runner prints it, relative to its package) into a repository path for the unit manifests' globs. The defect register derives a test's owner with the same prefixes.",
+  "x-readers": [
+    "scripts/lib/defects.py",
+    "scripts/lib/quarantine.py"
+  ]
+}

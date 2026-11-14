@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "CHECK-IN-LANDING (F4 criterion 3, the delivery's gate at p99 10 s): whether the infra delivery's tower/gate success rides its landing job, posted by the live service right before the merge (forge.OriginForge.check, the Origin app's key of CHECK-RUN-AWS), instead of the client's own publish through the port and its wait for the service's word (1.0 to 2.4 s of each delivery on 13/11). Only on the port's route (forge-events.check_run_publisher port, the origin adapter) and the gate's own publisher; a red verdict is published as before. False: the client publishes it, as before.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "x-source": "F4 criterion 3 (13/11)"
+}

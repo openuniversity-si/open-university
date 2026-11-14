@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 30,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "How long a test's machine-premise probe may take (the dropped uid running the interpreter, sudo -n true, env.sh placing a shim guard) before the premise counts as not holding.",
+  "x-readers": [
+    "scripts/tests/test_root_identity.py",
+    "scripts/tests/test_claude_session.py"
+  ],
+  "x-source": "TX12; D-070"
+}

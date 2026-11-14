@@ -1,0 +1,6 @@
+{
+  "kind": "refusal",
+  "text": "lane-ship refused a PR body: Requirement names no owner",
+  "time": "2026-11-01T05:10:00Z",
+  "fix": "the body names its owner"
+}

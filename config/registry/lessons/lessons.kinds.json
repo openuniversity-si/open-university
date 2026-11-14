@@ -1,0 +1,20 @@
+{
+  "type": "array",
+  "default": [
+    "rule",
+    "brief-template",
+    "config",
+    "tool",
+    "helper",
+    "check"
+  ],
+  "x-unit": "enum",
+  "description": "Kinds of concrete change a lesson asks for. A lesson of kind check grows the per-commit check registry.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string"
+  }
+}

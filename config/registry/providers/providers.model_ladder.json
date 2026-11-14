@@ -1,0 +1,71 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "tier": "leaf",
+      "provider": "claude",
+      "model": "haiku",
+      "effort": "medium",
+      "use": "leaf, docs and mechanical PRs"
+    },
+    {
+      "tier": "medium",
+      "provider": "claude",
+      "model": "sonnet",
+      "effort": "medium",
+      "use": "mid-sized PRs"
+    },
+    {
+      "tier": "structural",
+      "provider": "claude",
+      "model": "opus",
+      "effort": "medium",
+      "use": "PRs that fix a format or design others build on, and decisive work"
+    }
+  ],
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "tier",
+      "provider",
+      "model",
+      "effort",
+      "use"
+    ],
+    "properties": {
+      "tier": {
+        "type": "string",
+        "pattern": "^[a-z][a-z-]*$"
+      },
+      "provider": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "model": {
+        "type": "string",
+        "minLength": 1
+      },
+      "effort": {
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      "use": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "minItems": 1,
+  "x-unit": "tiers",
+  "description": "Model rungs from the least to the most capable. A step's tier picks its rung; escalation moves up this order and never down. model is the provider's model id or alias, stored as data.",
+  "x-readers": [
+    "scripts/lib/adapters/model_ladder.py"
+  ],
+  "x-source": "plan v3.1 delta §4 (model per PR)"
+}

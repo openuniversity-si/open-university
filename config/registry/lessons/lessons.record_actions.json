@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "registered",
+    "applied",
+    "retired",
+    "measured"
+  ],
+  "x-unit": "enum",
+  "description": "Actions an audit entry may name.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string"
+  }
+}

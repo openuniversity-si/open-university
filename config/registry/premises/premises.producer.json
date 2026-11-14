@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "premises",
+  "x-unit": "name",
+  "description": "Producer name in the event envelope; it must match the envelope's producer pattern (contracts/events/envelope.v1.json), or every reader of the repository channel would quarantine the event (ENV-FIX-PREMISE-BLAST).",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "0",
+  "x-unit": "text",
+  "description": "The 'previous digest' of the first audit entry.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ]
+}

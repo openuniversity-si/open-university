@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-06"
+slug: "database-package-per-context"
+statement: "The database stays an isolated package (D-056), split into one translator unit per context that owns its tables; one global migration journal whose numbers the train allocates."
+kind: "architecture"
+scope: "global"
+source:
+  who: "model"
+  where: "OU rule + D-056 + D-060"
+  quote: null
+  at: null
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["decision:D-056", "cell:platform-db", "migration:journal"]
+  if_wrong: "The database becomes one unit of about 5,000 lines (4,993), above the ceiling, in a hot serial lane: catalog and platform are the pair that changes together most (26 of 120 PRs)."
+validate:
+  kind: "question"
+  how: "Question 6 of plan v3 §2.1 (yes/no)."
+answer:
+  by: "A Torre"
+  at: "2026-10-26T17:22-03:00"
+  value: "confirmed"
+  quote: "eu não quero ficar sendo o gargalo validando isso tudo"
+  where: "Daniel, chat 17:22: delegation to A Torre to confirm the plan v3 §2.1 questions"
+  evidence: null
+  translation: "I don't want to be the bottleneck validating all of this"
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

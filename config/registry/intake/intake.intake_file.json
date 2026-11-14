@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "intake.md",
+  "x-unit": "path",
+  "description": "The INTAKE file of a folder: the adapter from an external request to our understanding.",
+  "x-readers": [
+    "scripts/lib/program.py"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "network": [],
+  "data": ["network"],
+  "service": ["data", "network"],
+  "port": ["data", "network"],
+  "runner": ["data", "network", "service"]
+}

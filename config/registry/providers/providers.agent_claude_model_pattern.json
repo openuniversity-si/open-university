@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "^(haiku|sonnet|opus|claude-[a-z0-9.-]+)$",
+  "format": "regex",
+  "x-unit": "regex",
+  "description": "Model ids and aliases the Claude adapter serves; a ladder rung of provider claude must match it.",
+  "x-readers": [
+    "scripts/lib/adapters/agent_claude.py"
+  ],
+  "x-source": "plan v3.1 delta §2 R1"
+}

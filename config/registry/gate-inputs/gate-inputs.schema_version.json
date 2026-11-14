@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 1,
+  "minimum": 1,
+  "x-unit": "version",
+  "description": "Version of the declared-inputs schema (scripts/lib/gate-stage-inputs.json). It is part of every narrowed key, so a change in how inputs are read misses every narrowed cache entry without bumping gate.stage_cache_version.",
+  "x-readers": [
+    "scripts/lib/gate_result_cache.py"
+  ],
+  "x-source": "D-070"
+}

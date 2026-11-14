@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/battery.json",
+  "x-owner": "battery",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "description": "The unit battery (D-065 (4), D-069 item 14) and the battery role, tier 3 on integration.advanced (D-065 (5), plan v3 M6)."
+}

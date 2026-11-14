@@ -1,0 +1,23 @@
+{
+  "type": "array",
+  "default": [
+    "GIT_",
+    "OU_GATE_",
+    "CURSOR_API_KEY",
+    "CURSOR_AUTH_TOKEN",
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "TOWER_EVENTS_TOKEN"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "x-unit": "name",
+  "description": "Prefixes of the environment variables dropped from every script test prepush runs. A push the post-commit hook starts leaks GIT_INDEX_FILE=.git/index (and the commit's GIT_AUTHOR_*) into the hooks, which would point a test's git at the checkout's own index; OU_GATE_* are the gate's own variables, which a test never inherits there either. The forge credentials (Origin, GitHub) and the control plane token are among them: a script test never reaches a real forge.",
+  "x-readers": [
+    "scripts/lib/prepush.py"
+  ]
+}

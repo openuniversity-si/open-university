@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "~/.cache/the-tower/gate.lock",
+  "x-unit": "path",
+  "description": "The box's gate lock (VAZÃO F23): scripts/deliver holds an exclusive flock on this file while its gate runs, and scripts/test-suite while a whole suite runs, so the deliveries of several lanes on one box queue for the CPU instead of sharing it (three concurrent suites took 346 s each against 113 s alone, with failures under load). Outside every checkout, so every worktree and clone of the box shares it.",
+  "x-readers": [
+    "scripts/lib/box_queue.py",
+    "scripts/lib/deliver.py",
+    "scripts/test-suite"
+  ],
+  "x-source": "VAZÃO F23 (docs/programs/vazao/sistema.md)"
+}

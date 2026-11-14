@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "^(mod/roadmap-integration|main)$",
+  "description": "Regular expression of the head branches that belong to the integration flow and may change the protected files.",
+  "x-readers": [
+    "scripts/lib/visual_guard.py"
+  ],
+  "x-unit": "regex",
+  "x-source": "D-006, D-069 (SG1)"
+}

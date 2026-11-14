@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "origin/mod/roadmap-integration",
+  "minLength": 1,
+  "x-unit": "ref",
+  "description": "The ref whose merge-base with HEAD is the base tree when the census is given no --base: the allowed count of each unit, kind and value is the census of that tree, computed at check time and never stored (TX22, T2). A checkout without the ref fails closed.",
+  "x-readers": [
+    "scripts/lib/literal_census.py"
+  ],
+  "x-source": "LT1; TX22; D-070"
+}

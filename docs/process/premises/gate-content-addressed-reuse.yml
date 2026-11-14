@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-56"
+slug: "gate-content-addressed-reuse"
+statement: "A script test's or deterministic stage's PASS recorded under a key that covers the content of every file it reads, the attested toolchain_id and the judging tooling's gate_version is the same result whichever run or tier recorded it; tiers 1 and 2 (and a cold verdict) may reuse it, tier 3 never."
+kind: "process"
+scope: "global"
+source:
+  who: "daniel"
+  where: "Daniel (CEO), 29/10/2026 15:51 BRT, via A Torre: approval of GATE-FAST"
+  quote: "Então implementa isso, né, chefia."
+  at: "2026-10-29T15:51:00-03:00"
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["decision:D-076", "decision:D-065", "premise:P-43"]
+  if_wrong: "A reused PASS could hide a failure of a test whose declared inputs miss a file it reads; set gate.content_cache_enabled false (one key) and every tier-2 and cold run executes every selected test again."
+validate:
+  kind: "measurement"
+  how: "gate-noite (tier 3, never reuses) stays green on every integration tip the train built from content-reusing verdicts; a red tier 3 whose failing test was a content hit refutes it"
+answer:
+  by: "Daniel"
+  at: "2026-10-29T15:51:00-03:00"
+  value: "confirmed"
+  quote: "Então implementa isso, né, chefia."
+  where: "Daniel (CEO), 29/10/2026 15:51 BRT, recorded through A Torre"
+  evidence: null
+  translation: "So implement it, right, boss."
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

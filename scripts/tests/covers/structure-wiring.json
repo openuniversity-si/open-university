@@ -1,0 +1,8 @@
+{
+  "script": "scripts/tests/structure-wiring.test.sh",
+  "covers": [
+    "scripts/tests/structure-wiring.test.sh",
+    "scripts/tests/test_structure_wiring.py",
+    "config/registry/local-checks.json"
+  ]
+}

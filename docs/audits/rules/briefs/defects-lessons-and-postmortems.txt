@@ -1,0 +1,221 @@
+RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS: audit every rule of the group "Known defects, lessons and postmortems" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-defects-lessons-and-postmortems. One draft PR from mod/rule-audit-defects-lessons-and-postmortems into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS: Known defects, lessons and postmortems", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They decide how a failure becomes knowledge: the known-defect register, the lessons vocabulary and audit chain, the postmortem check and the blocker evaluation step (D-072).
+
+== YOUR ROWS (exactly these 101; census at PR #775, docs/audits/rules/census.json) ==
+- param:defects.stages | config/registry/defects.json:10#defects.stages | Gate stages whose failing tests can be excused as known base defects (GX-32: every per-test stage kind). A script test is excused by a base  | owner: nobody named
+- param:defects.base_signal_enabled | config/registry/defects.json:29#defects.base_signal_enabled | GX-32: a failing test of any stage in defects.stages is excused without a base re-run when the base.red that tier 3 published for exactly th | owner: nobody named
+- param:defects.cache_dir | config/registry/defects.json:39#defects.cache_dir | Where base re-run outcomes are kept through the storage port, one marker per (base sha, test id). DEFECTS_CACHE_DIR overrides it for one run | owner: nobody named
+- param:defects.cache_version | config/registry/defects.json:48#defects.cache_version | Part of the base-outcome cache key; bump it to discard every cached outcome. | owner: nobody named
+- param:defects.cache_ttl_s | config/registry/defects.json:58#defects.cache_ttl_s | Age after which a cached base outcome is a miss. The key already names the base sha, so this only bounds a stale store. | owner: nobody named
+- param:defects.rerun_command | config/registry/defects.json:68#defects.rerun_command | Command that re-runs one script test on the base checkout; {script} is the test id. | owner: nobody named
+- param:defects.rerun_worktree_prefix | config/registry/defects.json:77#defects.rerun_worktree_prefix | Prefix of the throwaway worktree a base re-run runs in; it is deleted afterwards. | owner: nobody named
+- param:defects.rerun_timeout_s | config/registry/defects.json:86#defects.rerun_timeout_s | Timeout of one base re-run. A re-run that times out proves nothing: the failure is the PR's. | owner: nobody named
+- param:defects.verify_stages | config/registry/defects.json:96#defects.verify_stages | Stages the gate re-runs on the base for a resolved defect to verify it. | owner: nobody named
+- param:defects.verify_open | config/registry/defects.json:111#defects.verify_open | GX-13: re-run the test of every open defect on the recorded base at each adjudication; one that passes there moves open -> resolved through  | owner: nobody named | can stop: PRs stopped not measured
+- param:defects.never_excuse_touched | config/registry/defects.json:121#defects.never_excuse_touched | GX-13: a failing test whose own file, covers manifest or declared covers the PR changed is never excused as a base defect (the #662 case); i | owner: nobody named
+- param:defects.base_env | config/registry/defects.json:130#defects.base_env | GX-13: environment variable holding the recorded base the proof is bound to (gate-local exports it, GX-38: tier 1 the PR's baseRefOid, tier  | owner: nobody named
+- param:defects.fetch_remote | config/registry/defects.json:140#defects.fetch_remote | GX-13: remote the recorded base sha is fetched from when its objects are not local; a fetch that fails leaves no base (nothing is excused). | owner: nobody named
+- param:defects.rerun_install_command | config/registry/defects.json:150#defects.rerun_install_command | GX-13: the base's own install, run in apps/web of the base worktree before a re-run of a test whose covers manifest (on the base) says modul | owner: nobody named
+- param:defects.register_dir | config/registry/defects.json:160#defects.register_dir | Directory of the known-defect registry: one record per defect, named <slug> plus defects.record_suffix (D-069 items 4, 8 and 9). | owner: nobody named
+- param:defects.record_suffix | config/registry/defects.json:169#defects.record_suffix | File suffix of a defect record. | owner: nobody named
+- param:defects.record_schema | config/registry/defects.json:178#defects.record_schema | JSON Schema 2020-12 of a defect record. | owner: nobody named
+- param:defects.id_prefix | config/registry/defects.json:187#defects.id_prefix | Prefix of a defect id; the id is the prefix plus the first defects.id_hash_chars hex digits of the hash of (test id, normalized signature),  | owner: nobody named
+- param:defects.id_hash_chars | config/registry/defects.json:196#defects.id_hash_chars | Hex digits of the dedup hash that follow the id prefix. | owner: nobody named | can stop: PRs stopped not measured
+- param:defects.statuses | config/registry/defects.json:206#defects.statuses | The lifecycle, in order: open (detected and registered), fixing (the router opened a fix unit), resolved (the fix merged), verified (the gat | owner: nobody named | can stop: PRs stopped not measured
+- param:defects.transitions | config/registry/defects.json:224#defects.transitions | Allowed status changes, 'from>to'. Every other change is refused. open>resolved (GX-13): an open defect whose test passes on the recorded ba | owner: nobody named | can stop: PRs stopped not measured
+- param:defects.digest_algorithm | config/registry/defects.json:245#defects.digest_algorithm | Hash of an audit entry; each entry carries the digest of the one before, so a hand edit or a removed entry breaks the chain. | owner: nobody named
+- param:defects.genesis_digest | config/registry/defects.json:254#defects.genesis_digest | The 'previous digest' of the first audit entry. | owner: nobody named
+- param:defects.unknown_owner | config/registry/defects.json:263#defects.unknown_owner | Owner of a defect whose test no unit manifest covers. | owner: nobody named
+- param:defects.producer | config/registry/defects.json:272#defects.producer | Producer name of the defect events. | owner: nobody named
+- param:defects.list_columns | config/registry/defects.json:281#defects.list_columns | Columns of `scripts/defects list`, in order. | owner: nobody named | can stop: PRs stopped not measured
+- param:defects.audit_suffix | config/registry/defects.json:300#defects.audit_suffix | File suffix of a defect's audit trail, next to its record. | owner: nobody named
+- param:defects.audit_schema | config/registry/defects.json:309#defects.audit_schema | JSON Schema 2020-12 of one audit entry. | owner: nobody named
+- param:defects.record_actions | config/registry/defects.json:318#defects.record_actions | Actions an audit entry may name. | owner: nobody named | can stop: PRs stopped not measured
+- param:defects.weight_touching_unit | config/registry/defects.json:338#defects.weight_touching_unit | Priority points for each open PR whose units include the defect's unit (impact on the queue, never time). | owner: nobody named
+- param:defects.weight_dependent_unit | config/registry/defects.json:348#defects.weight_dependent_unit | Priority points for each unit that requires the defect's unit, directly or through others. | owner: nobody named
+- param:defects.weight_masked_test | config/registry/defects.json:358#defects.weight_masked_test | Priority points for each script test that covers the defect's area or its own test and so cannot be trusted while it fails. | owner: nobody named
+- param:defects.critical_priority | config/registry/defects.json:368#defects.critical_priority | Priority at or above which a defect is of the last class in defects.priority_classes. | owner: nobody named
+- param:defects.high_priority | config/registry/defects.json:378#defects.high_priority | Priority at or above which a defect is of the middle class in defects.priority_classes. | owner: nobody named
+- param:defects.fix_unit_min_priority | config/registry/defects.json:388#defects.fix_unit_min_priority | Least priority for which the router opens a fix unit; a defect no PR and no unit feels waits. | owner: nobody named
+- param:defects.depends_min_priority | config/registry/defects.json:398#defects.depends_min_priority | Least priority at which the PRs touching the defect's unit are listed as depending on the fix unit. | owner: nobody named
+- param:defects.priority_classes | config/registry/defects.json:408#defects.priority_classes | Class names by rising priority: below high_priority, from high_priority, from critical_priority. | owner: nobody named
+- param:defects.fix_item | config/registry/defects.json:426#defects.fix_item | Work item of the fix unit assigned to the owner; {id} is the defect id. | owner: nobody named
+- param:defects.queue_events | config/registry/defects.json:436#defects.queue_events | Event types whose latest payload names the units an open PR touches. | owner: nobody named
+- param:defects.router_by | config/registry/defects.json:451#defects.router_by | Name written in the trail when the router moves a defect to fixing. | owner: nobody named
+- param:defects.route_note | config/registry/defects.json:461#defects.route_note | Trail note of a routed defect; {priority} and {class} are filled in. | owner: nobody named
+- param:lessons.register_dir | config/registry/lessons.json:10#lessons.register_dir | Directory of the lessons registry: one record per lesson, named <slug> plus lessons.record_suffix (D-069 items 4 and 9). No common file (D-0 | owner: nobody named
+- param:lessons.record_suffix | config/registry/lessons.json:19#lessons.record_suffix | File suffix of a lesson record. | owner: nobody named
+- param:lessons.audit_suffix | config/registry/lessons.json:28#lessons.audit_suffix | File suffix of a lesson's audit trail, next to its record. | owner: nobody named
+- param:lessons.record_schema | config/registry/lessons.json:37#lessons.record_schema | JSON Schema 2020-12 of a lesson record. | owner: nobody named
+- param:lessons.audit_schema | config/registry/lessons.json:46#lessons.audit_schema | JSON Schema 2020-12 of one audit entry. | owner: nobody named
+- param:lessons.id_prefix | config/registry/lessons.json:55#lessons.id_prefix | Prefix of a lesson id; the rest is the dedup hash of (source unit, reference, title). | owner: nobody named
+- param:lessons.id_hash_chars | config/registry/lessons.json:64#lessons.id_hash_chars | Characters of the dedup hash kept in the id. | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.slug_max_chars | config/registry/lessons.json:74#lessons.slug_max_chars | Characters of the title kept in the file name. | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.digest_algorithm | config/registry/lessons.json:84#lessons.digest_algorithm | Hash of an audit entry; each entry carries the digest of the one before, so an edit or a removed entry breaks the chain. | owner: nobody named
+- param:lessons.genesis_digest | config/registry/lessons.json:93#lessons.genesis_digest | The 'previous digest' of the first audit entry. | owner: nobody named
+- param:lessons.statuses | config/registry/lessons.json:102#lessons.statuses | The lifecycle, in order: proposed (a retro found it), applied (the change is in the engine), retired (no longer needed). | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.transitions | config/registry/lessons.json:119#lessons.transitions | Allowed status changes, 'from>to'. Every other change is refused. | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.classes | config/registry/lessons.json:136#lessons.classes | Root-cause classes (one vocabulary for retros, the aggregator and the gate). ordering: steps done in the wrong order; process: push, gate or | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.kinds | config/registry/lessons.json:160#lessons.kinds | Kinds of concrete change a lesson asks for. A lesson of kind check grows the per-commit check registry. | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.owners | config/registry/lessons.json:180#lessons.owners | Owners a lesson may name; the ingestion normalizes the retro wording (lessons.owner_aliases) to one of these. | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.owner_aliases | config/registry/lessons.json:199#lessons.owner_aliases | Retro wording for an owner, 'phrase=owner' (lowercase phrase found in the owner text). | owner: nobody named
+- param:lessons.unknown_owner | config/registry/lessons.json:219#lessons.unknown_owner | Owner of a lesson whose retro text names none of lessons.owners. | owner: nobody named
+- param:lessons.producer | config/registry/lessons.json:228#lessons.producer | Producer name on the events the lessons tool emits. | owner: nobody named
+- param:lessons.list_columns | config/registry/lessons.json:237#lessons.list_columns | Columns of scripts/lessons list, in order. | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.record_actions | config/registry/lessons.json:257#lessons.record_actions | Actions an audit entry may name. | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.by_default | config/registry/lessons.json:275#lessons.by_default | Who a trail entry names when the caller gives no --by. | owner: nobody named
+- param:lessons.effect_window_days | config/registry/lessons.json:284#lessons.effect_window_days | Days before and after a lesson was applied that the effect counts. An after-window not yet over, or no occurrence in either window, is insuf | owner: nobody named
+- param:lessons.effect_verdicts | config/registry/lessons.json:294#lessons.effect_verdicts | Verdicts of a measured effect, in the order: fewer, the same, more occurrences after than before, and not enough data. | owner: nobody named
+- param:lessons.effect_stage_fail | config/registry/lessons.json:312#lessons.effect_stage_fail | Stage result that counts as an occurrence when a signal names a gate stage. | owner: nobody named
+- param:lessons.levels | config/registry/lessons.json:321#lessons.levels | Levels a lesson applies at, narrow to wide: commit, pr, program or venture. A lesson that applies to every venture is marked padrao_candidat | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.default_level | config/registry/lessons.json:339#lessons.default_level | Level of a lesson added without one; one of lessons.levels. | owner: nobody named | can stop: PRs stopped not measured
+- param:lessons.ingest_glob | config/registry/lessons.json:348#lessons.ingest_glob | Retro files the ingestion reads: one per unit, docs/units/<unit>/retro.md. | owner: nobody named
+- param:lessons.ingest_section | config/registry/lessons.json:357#lessons.ingest_section | Number of the retro section that holds the lessons (the RETRO template: 1 brief, 2 audit and plan, 3 execution, 4 gate, 5 lessons). | owner: nobody named
+- param:lessons.retro_comment_title | config/registry/lessons.json:367#lessons.retro_comment_title | First line of the PR comment that carries a unit retro. | owner: nobody named
+- param:lessons.title_max_chars | config/registry/lessons.json:376#lessons.title_max_chars | Characters of a lesson title taken from the first sentence of its retro item. | owner: nobody named
+- param:lessons.default_class | config/registry/lessons.json:386#lessons.default_class | Class of a retro item no class keyword matches. | owner: nobody named
+- param:lessons.default_kind | config/registry/lessons.json:395#lessons.default_kind | Kind of a retro item no kind keyword matches. | owner: nobody named
+- param:lessons.class_keywords | config/registry/lessons.json:404#lessons.class_keywords | Class of a retro item: the first entry whose keyword (a lowercase word or phrase, matched at a word start) occurs in the item, as class=keyw | owner: nobody named
+- param:lessons.kind_keywords | config/registry/lessons.json:426#lessons.kind_keywords | Kind of change of a retro item, same form as lessons.class_keywords; lessons.default_kind when none matches. | owner: nobody named
+- param:lessons.signal_map | config/registry/lessons.json:443#lessons.signal_map | Signals a lesson of a class gets when ingested, 'class=event|stage|pattern' (empty stage or pattern is any). A class not listed has no signa | owner: nobody named
+- param:lessons.ingest_by | config/registry/lessons.json:463#lessons.ingest_by | Who the trail names for a lesson the ingestion registered. | owner: nobody named
+- param:lessons.area_path_pattern | config/registry/lessons.json:472#lessons.area_path_pattern | A backticked path in a retro item; it becomes the lesson area (the files it is about). | owner: nobody named
+- param:lessons.report_path | config/registry/lessons.json:481#lessons.report_path | Where the aggregator writes the generated lessons report. | owner: nobody named
+- param:lessons.report_title | config/registry/lessons.json:490#lessons.report_title | Heading of the generated lessons report. | owner: nobody named
+- param:lessons.report_top | config/registry/lessons.json:499#lessons.report_top | Classes the report ranks in its summary table before the full list. | owner: nobody named
+- param:lessons.report_unknown_cost | config/registry/lessons.json:509#lessons.report_unknown_cost | Cell shown when a class has no signal, so its cost cannot be measured from the event log. | owner: nobody named
+- param:lessons.report_digest_chars | config/registry/lessons.json:518#lessons.report_digest_chars | Characters of the report digest carried in the lessons.reported event. | owner: nobody named
+- param:lessons.brief_limit | config/registry/lessons.json:528#lessons.brief_limit | Most lessons the brief query returns for one area. | owner: nobody named
+- param:lessons.brief_general | config/registry/lessons.json:538#lessons.brief_general | Whether applied lessons with no area (they apply to every unit) are returned after the area matches. | owner: nobody named
+- param:lessons.brief_statuses | config/registry/lessons.json:547#lessons.brief_statuses | Lesson statuses a launch brief is given; a proposed lesson is not yet a rule. | owner: nobody named
+- param:process.branch_max_age_h | config/registry/process.json:9#process.branch_max_age_h | A branch whose first event is older than this many hours is stale: branch.stale is emitted when a trigger event (process.branch_trigger_type | owner: nobody named
+- param:process.branch_trigger_types | config/registry/process.json:19#process.branch_trigger_types | Event types whose append evaluates branch age on the PR's channel (P-32). integration.advanced names no PR, so it cannot trigger a per-branc | owner: nobody named
+- param:process.decisions_register | config/registry/process.json:31#process.decisions_register | The decision register (ADRs); a row a PR adds or changes must cite its premises (D-066, D-069 item 10). | owner: nobody named
+- param:process.postmortem_check_heading | config/registry/process.json:40#process.postmortem_check_heading | Heading of the section that names the check and the test that prevent the incident's class (D-069 item 9). | owner: nobody named
+- param:process.postmortem_dir | config/registry/process.json:49#process.postmortem_dir | Directory of the blameless postmortems (D-069 item 9); one file per incident, named by process.postmortem_name_pattern. | owner: nobody named
+- param:process.postmortem_name_pattern | config/registry/process.json:58#process.postmortem_name_pattern | File name of a postmortem: its incident date and a slug (YYYY-MM-DD-slug.md). | owner: nobody named
+- param:process.postmortem_ref_check | config/registry/process.json:67#process.postmortem_ref_check | Label of a `- check: <file>` line under the preventing-check heading: a gate check file that must exist. | owner: nobody named
+- param:process.postmortem_ref_test | config/registry/process.json:76#process.postmortem_ref_test | Label of a `- test: <file>::<name>` line under the preventing-check heading: a test that must exist in that file. | owner: nobody named
+- param:process.postmortem_template | config/registry/process.json:85#process.postmortem_template | The postmortem template inside process.postmortem_dir; it is not itself checked as an incident. | owner: nobody named
+- decision:D-072 | docs/domain/DECISIONS.md:74 | Every blocking event enters an evaluation before any action (the blocking evaluation step). | owner: 2026-10-28 02:11 and 02:14 (Daniel, CEO, chat; pt-BR, litera
+- premise:P-52 | docs/process/premises/env-failures-fixable-by-classify-rules.yml:2 | Mis-classed env failures (audit L5) are fixable by gate_classify rules (gate-excellence GX-01/GX-03 territory). | owner: orchestrator (docs/programs/live-planning/design.md#8)
+- refusal:audit_chain.chain_errors | scripts/lib/audit_chain.py:25 | Verifies a hash-chained append-only audit trail: entries numbered in order, each continuing the previous digest and matching its own (detect | owner: D-069 items 3 and 4, KD1 | can stop: PRs stopped 0
+- refusal:defects.chain_errors | scripts/lib/defects.py:103 | Verifies the hash chain of every known-defect audit trail; a second copy of audit_chain.chain_errors kept in defects.py (KD1), as the audit_ | owner: KD1, D-069 items 4, 8 and 9, D-068 | can stop: PRs stopped 0
+- refusal:lessons.vocabulary_errors | scripts/lib/lessons.py:86 | Refuses a lesson record whose class, kind, owner, status or level is not one of the lessons.* registry vocabularies. | owner: LR1, D-069 items 4 and 9 | can stop: PRs stopped 0
+- refusal:postmortem_check.errors_for | scripts/lib/postmortem_check.py:44 | Refuses a postmortem with no preventing-check section, or whose named check file or test (file::name) does not exist (D-069 item 9). | owner: D-069 item 9 | can stop: PRs stopped 0
+
+Kinds: decision 1, parameter 95, premise 1, refusal 4. Estimated work: 81 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/defects-lessons-and-postmortems.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 101), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/defects-lessons-and-postmortems.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/defects-lessons-and-postmortems.md has exactly 101 rows, one per census row of this group, and the verdict
+  counts sum to 101 (quote the command that counts them).
+* docs/audits/rules/defects-lessons-and-postmortems.json parses and has the same 101 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json and
+  docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-structure-check-and-premises: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json, docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**
+  - mod/rule-audit-commit-and-pr-discipline: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json, docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**
+  - mod/rule-audit-registry-literals-and-text: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json, docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**
+  - mod/rule-audit-environment-toolchain-and-supply-chain: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json, docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**
+  - mod/rule-audit-production-release-and-migrations: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json, docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-merge-train-and-delivery: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json, docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-code-architecture-and-units: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json, docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**
+  - mod/rule-audit-gate-selection-proof-and-status: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json, docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**
+  - mod/rule-audit-gate-execution-and-tests: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json, docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**
+  - mod/rule-audit-paid-vendors-and-ai-sessions: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json, docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+81 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

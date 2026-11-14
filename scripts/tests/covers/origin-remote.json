@@ -1,0 +1,15 @@
+{
+  "script": "scripts/tests/origin-remote.test.sh",
+  "covers": [
+    "scripts/tests/origin-remote.test.sh",
+    "scripts/tests/test_origin_remote.py",
+    "scripts/lib/origin_remote.py",
+    "scripts/cloud/setup.sh",
+    "scripts/lib/forge_origin.py",
+    "scripts/lib/forge_origin_client.py",
+    "config/registry/origin-client.json",
+    "config/registry/origin-client/**",
+    "config/registry/forge-events.json",
+    "units/engine-cloud/unit.json"
+  ]
+}

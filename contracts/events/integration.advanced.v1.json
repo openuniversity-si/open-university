@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/integration.advanced.v1.json",
+  "title": "integration.advanced payload v1",
+  "description": "The integration branch moved to a new tip (sha); pr is null.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/sha",
+    "/payload/batch_id"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "batch_id",
+    "prs",
+    "prs_since_release"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "batch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prs": {
+      "$ref": "defs.v1.json#/$defs/prs"
+    },
+    "prs_since_release": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

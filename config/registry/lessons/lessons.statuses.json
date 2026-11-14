@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "proposed",
+    "applied",
+    "retired"
+  ],
+  "x-unit": "enum",
+  "description": "The lifecycle, in order: proposed (a retro found it), applied (the change is in the engine), retired (no longer needed).",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "minItems": 3,
+  "items": {
+    "type": "string"
+  }
+}

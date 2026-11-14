@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    1
+  ],
+  "items": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 3
+  },
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Gate tiers that may read and write box-local markers (the stage/step result cache and the per-test script cache). Tier 2 (the train's batch) and tier 3 (the battery) never do: D-065 (5) under GA-P02 strict (P-43). Rollback [1, 2] only with a D-NNN, since it breaks D-065 (5).",
+  "x-readers": [
+    "scripts/lib/gate_tier.py",
+    "scripts/lib/gate_verdict.py"
+  ],
+  "x-source": "D-070; D-065 (5); plan-v2 GX-11, D-B8"
+}

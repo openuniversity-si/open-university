@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "docs/padrao",
+  "x-unit": "path",
+  "description": "Where the versioned Padrão folders live.",
+  "x-readers": [
+    "scripts/lib/coordinator_launch.py"
+  ]
+}

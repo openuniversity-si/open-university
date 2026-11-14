@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 1,
+  "maximum": 100,
+  "x-unit": "percent",
+  "description": "Share of the active units a premise must reach for its computed radius to be the largest one (plan v3 §8.5); applied when the active unit count is known (scripts/premises propose --active-units, until the U0 manifests exist).",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ]
+}

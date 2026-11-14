@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "_template",
+  "x-unit": "path",
+  "description": "The folder under coordinator.programs_dir that is the program template, not a program.",
+  "x-readers": [
+    "scripts/lib/program.py"
+  ]
+}

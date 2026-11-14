@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    "validated"
+  ],
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Statuses whose answer needs the measurement's evidence (answer.evidence).",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

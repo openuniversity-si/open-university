@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    0.5,
+    0.9
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "number",
+    "exclusiveMinimum": 0,
+    "maximum": 1
+  },
+  "x-unit": "fraction",
+  "description": "Nearest-rank quantiles the gate timing report prints per stage, as fractions (0.9 is p90).",
+  "x-readers": [
+    "scripts/lib/gate_timing_report.py"
+  ],
+  "x-source": "D-070; plan-v2 GX-25, D-B8"
+}

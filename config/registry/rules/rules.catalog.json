@@ -1,0 +1,240 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "id": "R-rule-record-complete",
+      "statement": "Every rule that can stop a flow (refuse, fail a gate, block a merge) has an active record in rules.catalog with every field, and scripts/rule check counts as numbers the records with gaps, past their review date or end condition, with an unanswered question, never measured or without a root cause, or resting on an unsettled or missing premise, and the stopping functions rules.stop_patterns finds that no record lists; while rules.check_mode is report it refuses nothing.",
+      "where": [
+        "scripts/lib/rule_registry.py:record_gaps",
+        "scripts/lib/rule_registry.py:unregistered",
+        "scripts/lib/rule_registry.py:refusals",
+        "config/registry/rules.json#rules.check_mode"
+      ],
+      "owner": "Daniel 2026-10-28",
+      "created": {
+        "on": "2026-10-28",
+        "by": "A Torre, RULE-AUDIT rule system (Daniel's order of 16:52 and 16:55 BRT; D-069 item 9, D-072)"
+      },
+      "review_by": "2027-01-26",
+      "ends_when": {
+        "kind": "registry_equals",
+        "key": "rules.check_mode",
+        "equals": "refuse",
+        "text": "Report mode ends when an approved decision flips rules.check_mode to refuse: this non-stopping record is then retired (retired.by names that decision) and replaced by a stopping record (stops true) that carries damage_if_passed and impact_of_removal."
+      },
+      "stops": false,
+      "damage_if_passed": "A rule that can stop a flow runs with no justification, owner, review date or end condition, or outlives its reason or its premise, and nothing counts it.",
+      "impact_of_removal": {
+        "positive": "Whoever writes a stopping rule writes no record and keeps no review date; the registry carries one file fewer.",
+        "negative": "Rules exist again without a justification, owner, review date, end condition or premise; a rule past its review date, past its end condition or resting on a refuted premise stops being a number anyone sees.",
+        "measured": "Not measured: the system starts in report mode on 2026-10-28 with no history. What would measure it: the counts of scripts/rule check --json over successive runs (unregistered stops, records with gaps, due, ending, rules on stale premises) and the time the check adds to a gate run."
+      },
+      "premises": [
+        "P-30",
+        "P-41"
+      ],
+      "question": {
+        "text": "Why does the rule register exist, who asked for it, what breaks without it, and when does its report mode end?",
+        "answers": [
+          {
+            "on": "2026-10-28",
+            "by": "A Torre (RULE-AUDIT rule system build)",
+            "text": "Daniel ordered it on 2026-10-28 (16:52 and 16:55 BRT, with 17:08 and 17:09): every rule that can stop a flow needs a justification, an owner, a review date, an end condition, its premises, a standing question and, when it stops, a root cause. Without it a stopping rule runs unexamined and outlives its reason with nothing counting it. Report mode ends when an approved decision flips rules.check_mode to refuse (ends_when)."
+          }
+        ]
+      },
+      "status": "active"
+    }
+  ],
+  "x-unit": "records",
+  "description": "One record per rule that can stop a flow (RULE-AUDIT rule system, Daniel 2026-10-28 16:52, 16:55, 17:08 and 17:09 BRT): id R-<kebab>; statement (one sentence); where (path:function or path#key refs to the code or config that implements it); owner (D-NNN, or a named person and a date); created {on, by}; review_by and the optional last_reviewed (YYYY-MM-DD); ends_when {kind manual|date|path_exists|path_absent|registry_equals, text, plus on, path, or key and equals}; stops; damage_if_passed; impact_of_removal {positive, negative, measured}; premises (P-NN of docs/process/premises); question {text, answers [{on, by, text}]}, the standing question every rule answers at any time; stop_record {count (null: never measured), source, measured_on, root_cause, cheapest_fix} for a rule that stops; status active|retired, and a retired record keeps retired {on, by D-NNN, reason}. This schema checks the shape; scripts/rule check counts the missing fields, dates, end conditions, answers, stop records and premises and refuses nothing while rules.check_mode is report.",
+  "x-readers": [
+    "scripts/lib/rule_registry.py"
+  ],
+  "x-source": "D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 16:55 BRT, RULE-AUDIT)",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^R-[a-z0-9][a-z0-9-]*$"
+      },
+      "statement": {
+        "type": "string"
+      },
+      "where": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "owner": {
+        "type": "string"
+      },
+      "created": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "on": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "by": {
+            "type": "string"
+          }
+        }
+      },
+      "review_by": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "last_reviewed": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "ends_when": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "manual",
+              "date",
+              "path_exists",
+              "path_absent",
+              "registry_equals"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "on": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "path": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "equals": {}
+        }
+      },
+      "stops": {
+        "type": "boolean"
+      },
+      "damage_if_passed": {
+        "type": "string"
+      },
+      "impact_of_removal": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "positive": {
+            "type": "string"
+          },
+          "negative": {
+            "type": "string"
+          },
+          "measured": {
+            "type": "string"
+          }
+        }
+      },
+      "premises": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^P-[0-9]{2,}$"
+        }
+      },
+      "question": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "on": {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                },
+                "by": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "stop_record": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "source": {
+            "type": "string"
+          },
+          "measured_on": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "root_cause": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cheapest_fix": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "status": {
+        "enum": [
+          "active",
+          "retired"
+        ]
+      },
+      "retired": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "on": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "by": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

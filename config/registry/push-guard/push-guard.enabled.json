@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "Whether the versioned post-commit and post-merge hooks (.githooks) push each new commit of a work branch on their own. Off: the hooks do nothing and the session pushes by hand (D-022 still refuses a batched push).",
+  "x-readers": [
+    "scripts/lib/push_guard.py"
+  ]
+}

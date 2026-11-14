@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/plan note --program P --from UNIT --affects UNITS --kind KIND --evidence REF "text" | input --program P --by WHO "text" | triage --program P [--events FILE] [--plan FILE] [--publish]  (see --help)
+# Live planning (D-071): pass information on to the planner and keep going; triage of plan inputs.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/plan_triage.py" "$@"

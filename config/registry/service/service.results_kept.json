@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 50,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "How many results and done job ids the runner's state file keeps (bounded state).",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-086; docs/operations/services.md"
+}

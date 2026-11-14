@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "order": [
+    "pr metadata",
+    "no GitHub Actions workflows",
+    "secret scan (tree)",
+    "structure check",
+    "generated drift",
+    "schema compat",
+    "secret scan (history)",
+    "script tests"
+  ],
+  "always": [
+    "pr metadata",
+    "no GitHub Actions workflows",
+    "secret scan (tree)",
+    "structure check",
+    "generated drift",
+    "schema compat",
+    "secret scan (history)"
+  ],
+  "documentation": {
+    "prefixes": ["docs/", "LICENSE", "NOTICE"],
+    "suffixes": [
+      ".md",
+      ".txt",
+      ".rst"
+    ]
+  },
+  "groups": {
+    "script-tests": [
+      "script tests"
+    ]
+  },
+  "areas": [
+    {
+      "id": "docs",
+      "title": "docs-only",
+      "paths": [
+        "docs/**",
+        "**/*.md",
+        "**/*.txt",
+        "**/*.rst"
+      ],
+      "groups": [],
+      "coveredGroups": [
+        "script-tests"
+      ]
+    },
+    {
+      "id": "delivery",
+      "title": "delivery tooling under scripts/",
+      "paths": [
+        "scripts/**"
+      ],
+      "groups": [
+        "script-tests"
+      ]
+    },
+    {
+      "id": "engine-config",
+      "title": "engine config registry and contracts (D-066, D-068)",
+      "paths": [
+        "config/**",
+        "contracts/**"
+      ],
+      "groups": [
+        "script-tests"
+      ]
+    },
+    {
+      "id": "engine-units",
+      "title": "unit manifests (D-067)",
+      "paths": [
+        "units/**"
+      ],
+      "groups": [
+        "script-tests"
+      ]
+    },
+    {
+      "id": "engine-services",
+      "title": "engine services: the runner and the control plane (D-086)",
+      "paths": [
+        "services/**"
+      ],
+      "groups": [
+        "script-tests"
+      ]
+    },
+    {
+      "id": "engine-infra",
+      "title": "the factory's AWS infrastructure as code: the declared budget, the bootstrap and the stacks (D-303)",
+      "paths": [
+        "infra/**"
+      ],
+      "groups": [
+        "script-tests"
+      ]
+    },
+    {
+      "id": "repo-config",
+      "title": "repository and agent configuration (hooks, git, gitleaks, Claude, Cursor)",
+      "paths": [
+        ".githooks/**",
+        ".gitattributes",
+        ".gitignore",
+        ".gitleaks.toml",
+        ".gitleaksignore",
+        ".claude/**",
+        ".cursor/**"
+      ],
+      "groups": [
+        "script-tests"
+      ]
+    }
+  ]
+}

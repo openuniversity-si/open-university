@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 1,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "Seconds before the second try of a toolchain download; each next pause is twice the one before (1, 2, 4 s).",
+  "x-readers": [
+    "scripts/cloud/toolchain.py"
+  ]
+}

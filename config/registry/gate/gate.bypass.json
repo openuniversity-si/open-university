@@ -1,0 +1,14 @@
+{
+  "type": "boolean",
+  "default": false,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "The explicit, reversible bypass of the gate (SUPER REGIME DE EXCEPTION, Daniel 31/10 16:24 BRT, D-151). While it is true in the shared store, `gate-dev`/`gate-local`, `pr-ready` and the train's tier-2 gate give green at once without running a stage: the gate writes a PASS for every expected stage marked `bypass`, publishes the usual `gate.passed` evidence and the pass record (`bypass=D-151`), and the train's tier 2 passes without running. It is turned on with `scripts/config set gate.bypass true --reason ...` and off the same way; `GATE_BYPASS=1` or `GATE_BYPASS=0` in the environment overrides the store for one run (`GATE_BYPASS=0` is how `scripts/gate-shadow` runs the real gate for measurement).",
+  "x-readers": [
+    "scripts/gate-local",
+    "scripts/lib/engine_role.py",
+    "scripts/lib/gate_bypass.py",
+    "scripts/lib/lane_status.py"
+  ],
+  "x-source": "D-151"
+}

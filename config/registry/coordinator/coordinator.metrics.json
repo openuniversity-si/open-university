@@ -1,0 +1,15 @@
+{
+  "type": "array",
+  "default": [
+    "prs_merged_per_day",
+    "prs_merged_per_hour"
+  ],
+  "x-unit": "enum",
+  "description": "The goal metrics the program gate can measure from pr.merged events.",
+  "x-readers": [
+    "scripts/lib/program_gate.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

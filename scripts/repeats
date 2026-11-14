@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/repeats [--help]
+# The repeated actions of the program, from docs/process/repeats.md: the open ones first, by count (D-208).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/repeats.py" "$@"

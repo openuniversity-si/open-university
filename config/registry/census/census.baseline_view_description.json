@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "Derived on demand by `scripts/generate census` from the units' census records (units/<id>/census.jsonl); never committed and never edited. One census area's remaining offenders (D-063, D-064 a), per file and value. `scripts/census sync --why <why>` brings the records up to date with the scan; scripts/structure-check fails when an area allows a value more times than the base branch.",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "The description at the top of each rendered per-area baseline file.",
+  "x-readers": [
+    "scripts/lib/generate_census.py"
+  ],
+  "x-source": "CENSO-NO-MANIFESTO"
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/units.json",
+  "x-owner": "units",
+  "x-schema-version": 1,
+  "description": "The unit of parallelism (D-065 (4), plan v3 §4.3, P-04).",
+  "type": "object",
+  "additionalProperties": false
+}

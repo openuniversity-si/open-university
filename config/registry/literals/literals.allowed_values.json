@@ -1,0 +1,23 @@
+{
+  "type": "array",
+  "default": [
+    "/dev/null",
+    "/dev/stdin",
+    "/dev/stdout",
+    "/dev/stderr",
+    "/usr/bin/env",
+    "/proc/",
+    "/proc/self/fd"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "x-unit": "values",
+  "description": "The strings a pattern of literals.patterns finds that are not settings: the operating system's standard streams and its process file system (/proc, GATE-SPEED F4) and the portable interpreter lookup of a #! line. Every other match is an unregistered literal (LT1).",
+  "x-readers": [
+    "scripts/lib/literal_census.py"
+  ],
+  "x-source": "LT1; D-068 (6)"
+}

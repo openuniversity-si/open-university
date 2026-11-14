@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "TX11 (D-070, docs/units/TX11/plan.md): after the known-base-defect step, a failing test of gate-flake.stages that the PR did not touch is re-run once at the same head; one that passes is attributed flake (recorded, shown, quarantined on its second sighting) and does not turn the PR red. Off is the rollback: no re-run, every failure stays the PR's.",
+  "x-readers": [
+    "scripts/lib/gate_flake.py"
+  ],
+  "x-flag": true,
+  "x-source": "D-070"
+}

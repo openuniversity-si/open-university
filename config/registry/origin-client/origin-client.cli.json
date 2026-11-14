@@ -1,0 +1,15 @@
+{
+  "type": "string",
+  "default": "origin",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "The Origin CLI that carries this client's calls. It is the transport because the API refuses a crsr_ key as a Bearer token (HTTP 401) and the spec documents no key-exchange operation, so the exchange exists only inside the CLI.",
+  "x-readers": [
+    "scripts/cloud/env.sh",
+    "scripts/lib/deliver.py",
+    "scripts/lib/forge_origin_client.py",
+    "scripts/lib/lane_collect.py",
+    "scripts/lib/origin_remote.py"
+  ],
+  "x-source": "FORGE-PORT (CANALE8); measured 401 on a Bearer call, no exchange operation in the spec"
+}

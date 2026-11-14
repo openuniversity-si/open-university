@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 100,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Lowest uid/gid the session identity creates for a missing user (inclusive); below it are system accounts.",
+  "x-readers": [
+    "scripts/lib/session_identity.py"
+  ],
+  "x-source": "TX12; D-070"
+}

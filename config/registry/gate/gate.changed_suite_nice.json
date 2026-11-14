@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 10,
+  "minimum": 0,
+  "maximum": 19,
+  "x-unit": "count",
+  "description": "The nice(1) increment a `scripts/test-suite --changed` run takes before it judges (VAZÃO F65): off the box lock, a lane's suite yields the CPU to a delivery's gate running beside it.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "VAZÃO F65 (docs/programs/vazao/fila.md); D-297; D-092"
+}

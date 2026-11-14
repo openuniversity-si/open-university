@@ -1,0 +1,19 @@
+{
+  "script": "scripts/tests/gate-test-cache-env.test.sh",
+  "covers": [
+    "scripts/tests/gate-test-cache-env.test.sh",
+    "scripts/tests/test_gate_test_cache_env.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/gate_graph.py",
+    "scripts/lib/gate_script_tests.py",
+    "scripts/lib/gate_tier.py",
+    "scripts/lib/gate_keys.py",
+    "scripts/lib/gate_speed.py",
+    "scripts/lib/adapters/storage*.py",
+    "config/registry/gate.json",
+    "scripts/lib/gate-runner.sh",
+    "scripts/lib/gate_classify.py",
+    "config/registry/gate-gc.json",
+    "scripts/run"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Parallel read-only structure checks sharing one pre-parsed Python source snapshot (D-291).",
+  "x-readers": [
+    "scripts/lib/structure.py"
+  ],
+  "x-source": "D-291"
+}

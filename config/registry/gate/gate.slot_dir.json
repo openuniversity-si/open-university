@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "/tmp",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Directory of the gate slot lock files tower-gate.slot<N> (D-064 (b)). GATE_SLOT_DIR, when set, is an explicit override for one run.",
+  "x-readers": [
+    "scripts/lib/gate-isolation.sh",
+    "scripts/lib/gate_pin.py"
+  ],
+  "x-source": "D-064 (b)"
+}

@@ -1,0 +1,13 @@
+{
+  "type": "integer",
+  "default": 50000,
+  "minimum": 1,
+  "x-unit": "tokens",
+  "description": "Context an agent needs to change a unit, at most.",
+  "x-readers": [
+    "docs/process/EVENTS.md",
+    "scripts/lib/units.py",
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "P-04 (plan v3 §2.1)"
+}

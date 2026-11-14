@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "",
+  "x-unit": "digest",
+  "description": "SLOW-PATH-NO-ROLLOUT-WAIT (docs/operations/aws.md 22.10): the code the service and the runner run, as a durable datum: '<sha256 of the code bundle>@<merge sha>' of the newest image-only swap, or '' for none. The live service writes it right after a landing swapped the pointers (autodeploy.live_code, off the swap's clock), and a task ECS starts later reads it before anything else (code_bundle.boot): when it is not the value the deployer saw as it deployed that task definition (TOWER_CODE_SEEN, the stacks' LiveSeen), the task boots that bundle instead of the code of its definition, so a code-only landing needs no ECS rollout to last. An unreadable value, a bundle that cannot be loaded or one a reload failed on: the task definition's code. infra/aws/deploy.sh reads it from GET /v1/deploy/status (live_code) to leave the service and runner stacks alone when the head's code is this bundle.",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py",
+    "infra/service/tower_infra/code_bundle.py"
+  ],
+  "x-source": "SLOW-PATH-NO-ROLLOUT-WAIT"
+}

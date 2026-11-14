@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "scripts/tests/gate-script-tests.test.sh",
+  "x-unit": "path",
+  "description": "The script test that validates the whole covers map (one valid manifest per script test). A covers manifest change selects it with the manifest's own test.",
+  "x-readers": [
+    "scripts/lib/gate_script_tests.py"
+  ]
+}

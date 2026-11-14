@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 3600,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Length of the window in which slo.merged_prs_per_hour_min merges must land (plan v3 §9.2: 60 minutes).",
+  "x-readers": [
+    "scripts/lib/slo.py"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "type": "string",
+  "default": "auto",
+  "enum": [
+    "off",
+    "auto"
+  ],
+  "x-unit": "enum",
+  "description": "VAZÃO F36, D-297 (docs/programs/vazao/design-trem.md §5): off keeps scripts/deliver one PR at a time (the one-key rollback); auto (default since F70, D-297) makes a branch delivery wait in the box queue (delivery.box_queue_dir) and lead one batch (scripts/train run --box) when it wins the box's lock with two or more live deliveries waiting, with k from train.batch_size_by_red. Turn on with scripts/config set delivery.batch auto --reason '<the meter's line>' only when scripts/flow-metrics --constraint names the box and p <= 0.25 over the last 50; back to off when p passes 0.25, when the batches' tier-2 runs per resolved PR reach 1.0 over the last 10 batches, when a shadow tip turns red after a green batch, or when the tree proof fails. F64: under auto a delivery leads a batch only while scripts/flow-metrics --constraint reads 'batch: ready' (box busy >= 0.70 over the last hour and p <= 0.25 over train.batch_red_window); otherwise it takes the single path.",
+  "x-readers": [
+    "scripts/lib/deliver.py"
+  ],
+  "x-source": "VAZÃO F36 (docs/programs/vazao/design-trem.md §5)"
+}

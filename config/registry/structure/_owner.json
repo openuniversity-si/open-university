@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/structure.json",
+  "x-owner": "structure",
+  "x-schema-version": 1,
+  "description": "The structure-check rules about which files a PR may touch (D-006, D-069 items 3 and 8; SG1).",
+  "type": "object",
+  "additionalProperties": false
+}

@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string"
+  },
+  "default": [
+    "train.lock_ref",
+    "train.wake_ref",
+    "gate.shared_results_ref"
+  ],
+  "x-unit": "name",
+  "description": "Registry keys that name the machine-internal refs (refs/heads/<value>): the lock and log refs the train and the runner write through forge_git_ref, one record commit each. A push whose every ref is one of them and whose every new commit is a record (a tree of record.json alone) skips the pre-push checks: it carries no code, and on the e2-micro the checks outlast train.git_timeout_s (D-091). Any other ref, or a record ref carrying anything but a record, is checked in full.",
+  "x-readers": [
+    "scripts/lib/machine_refs.py"
+  ],
+  "x-source": "D-091; docs/operations/services.md"
+}

@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "Whether the gate publishes its verdict as the tower/gate check run on the exact head it judged, apart from the comment panel (gate.status_enabled): pending at begin, success or failure from the verdict, no comment, no gate.started and no verdict hooks. forge-events.status_enabled still turns every write off; forge-events.check_run_publisher chooses who posts it (D-299). On since D-313: the infra judge (delivery.judge=infra) publishes it too, through gate_status.check_hooks, before the landing.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "x-source": "D-299"
+}

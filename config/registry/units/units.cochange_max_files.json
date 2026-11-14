@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 40,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "A commit touching more production files than this is a bulk change and is left out of co-change.",
+  "x-readers": [
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "plan v3 §4.1 (p90 of 40 files per PR)"
+}

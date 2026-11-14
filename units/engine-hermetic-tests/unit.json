@@ -1,0 +1,26 @@
+{
+  "id": "engine-hermetic-tests",
+  "purpose": "Hermetic unit and script tests: network denied, seeded random, injected clock, timeouts (D-069 item 5).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/tests.json",
+    "scripts/lib/fork-shim.c",
+    "scripts/lib/fork_server.py",
+    "scripts/lib/hermetic.py",
+    "scripts/lib/hermetic/gitconfig",
+    "scripts/lib/hermetic/sitecustomize.py",
+    "scripts/lib/hermetic_check.py",
+    "scripts/tests/covers/fork-server.json",
+    "scripts/tests/fork-server.test.sh",
+    "scripts/tests/hermetic.test.sh",
+    "scripts/tests/test_fork_server.py",
+    "scripts/tests/test_hermetic.py",
+    "scripts/tests/test_hermetic_check.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-config-check": "^1",
+    "engine-gate-tests": "^1"
+  }
+}

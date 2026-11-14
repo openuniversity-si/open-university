@@ -1,0 +1,29 @@
+{
+  "script": "scripts/tests/lessons.test.sh",
+  "covers": [
+    "scripts/tests/lessons.test.sh",
+    "scripts/tests/test_lessons.py",
+    "scripts/tests/test_lessons_effect.py",
+    "scripts/tests/test_lesson_ingest.py",
+    "scripts/lib/lesson_ingest.py",
+    "docs/units/*/retro.md",
+    "docs/process/lessons/*",
+    "scripts/lessons",
+    "scripts/lib/lessons.py",
+    "scripts/lib/lessons_effect.py",
+    "scripts/tests/test_lessons_report.py",
+    "scripts/lib/lessons_report.py",
+    "scripts/lib/lessons_brief.py",
+    "docs/process/lessons.md",
+    "scripts/lib/event_contracts.py",
+    "contracts/events/*.json",
+    "scripts/lib/audit_chain.py",
+    "scripts/lib/premises.py",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/config.py",
+    "config/registry/lessons.json",
+    "contracts/lessons/*.json",
+    "scripts/tests/forge_doubles.py"
+  ]
+}

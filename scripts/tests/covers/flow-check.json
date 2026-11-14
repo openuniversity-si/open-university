@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/flow-check.test.sh",
+  "covers": [
+    "scripts/tests/flow-check.test.sh",
+    "scripts/tests/test_flow_check.py",
+    "scripts/flow-check",
+    "scripts/lib/flow_check.py",
+    "scripts/tests/fixtures/flow-check.json",
+    "docs/process/lane.md",
+    "docs/process/repeats.md"
+  ]
+}

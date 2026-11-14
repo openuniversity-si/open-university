@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 1800,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Seconds the adapter waits for a head's verdict before it answers late (the checks and the landing go on in the infrastructure).",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+}

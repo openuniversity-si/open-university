@@ -1,0 +1,21 @@
+{
+  "id": "engine-infra-db",
+  "purpose": "The infrastructure's schemas, work and log (D-306, D-308): the migrations under infra/db and the phase-1 acceptance test that proves them.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "infra/db/**",
+    "scripts/tests/infra-db.test.sh",
+    "scripts/tests/test_infra_db.py",
+    "scripts/tests/infra_db/**",
+    "scripts/tests/covers/infra-db.json"
+  ],
+  "battery": {
+    "command": "scripts/unit-battery engine-infra-db"
+  },
+  "decisions": [
+    "D-306",
+    "D-308"
+  ],
+  "premises": []
+}

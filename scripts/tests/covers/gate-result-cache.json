@@ -1,0 +1,20 @@
+{
+  "script": "scripts/tests/gate-result-cache.test.sh",
+  "covers": [
+    "scripts/tests/gate-result-cache.test.sh",
+    "scripts/tests/test_gate_result_cache.py",
+    "scripts/lib/gate_result_cache.py",
+    "scripts/lib/gate-stages.json",
+    "scripts/lib/gate-stage-inputs.json",
+    "scripts/lib/gate-runner.sh",
+    "scripts/lib/gate_speed.py",
+    "scripts/lib/config.py",
+    "config/registry/toolchain.json",
+    "scripts/lib/adapters/storage*.py",
+    "scripts/lib/gate_areas.py",
+    "scripts/lib/gate_keys.py",
+    "scripts/lib/toolchain_manifest.py",
+    "scripts/tests/test_toolchain_pins.py",
+    "scripts/cloud/toolchain.json"
+  ]
+}

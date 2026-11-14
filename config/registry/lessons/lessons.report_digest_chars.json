@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 16,
+  "x-unit": "count",
+  "description": "Characters of the report digest carried in the lessons.reported event.",
+  "x-readers": [
+    "scripts/lib/lessons_report.py"
+  ],
+  "minimum": 8
+}

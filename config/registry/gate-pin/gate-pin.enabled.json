@@ -1,0 +1,12 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "GX-05 (B-09, GA-PG1, D-070): a --pr/--sha gate runs the tooling of the base tip (a tool worktree of the base sha) and the invoking checkout is only the record root. Off is the rollback: the invoking checkout's own tooling judges, as before GX-05.",
+  "x-readers": [
+    "scripts/lib/gate_pin.py",
+    "scripts/lib/gate_verdict.py"
+  ],
+  "x-flag": true,
+  "x-source": "D-070"
+}

@@ -1,0 +1,15 @@
+{
+  "type": "array",
+  "default": [
+    "script tests"
+  ],
+  "x-unit": "enum",
+  "description": "Gate stages whose failing tests can be excused as known base defects (GX-32): every stage the gate reads per-test failures from, which is `script tests` alone since Open University's suites and browser stages left (F46). A script test is excused by a base re-run (KD1) or the base.red signal. A failure in a stage outside this list is the PR's own.",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "minItems": 1
+}

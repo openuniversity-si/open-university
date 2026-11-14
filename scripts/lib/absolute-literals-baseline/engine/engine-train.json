@@ -1,0 +1,68 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/engine_role.py": {
+      "number 1000": 1,
+      "number 2": 2
+    },
+    "scripts/lib/train_aggregates.py": {
+      "number 8": 1
+    },
+    "scripts/lib/train_git.py": {
+      "number -300": 2,
+      "number 2": 1
+    },
+    "scripts/tests/test_train.py": {
+      "number 10": 1,
+      "number 2": 1,
+      "number 20": 1,
+      "number 2026": 1,
+      "number 26": 1,
+      "number 64": 1
+    },
+    "scripts/tests/test_train_role.py": {
+      "number 2": 7,
+      "number 3": 3,
+      "number 4": 1,
+      "number 40": 5,
+      "number 7": 7,
+      "number 8": 1
+    },
+    "scripts/tests/train/test_batch.py": {
+      "number 2": 22,
+      "number 3": 10,
+      "number 4": 8,
+      "number 40": 2,
+      "number 5": 3,
+      "number 6": 2,
+      "number 64": 1,
+      "number 8": 1,
+      "number 9": 1
+    },
+    "scripts/tests/train/test_flakes.py": {
+      "number 2": 6,
+      "number 3": 5,
+      "number 4": 2,
+      "number 5": 3,
+      "number 6": 6
+    },
+    "scripts/tests/train/test_plan.py": {
+      "number 40": 1
+    },
+    "scripts/tests/train/test_queue.py": {
+      "number 2": 2,
+      "number 3": 2,
+      "number 4": 1,
+      "number 5": 2,
+      "number 6": 2,
+      "number 64": 1,
+      "number 7": 1
+    },
+    "scripts/tests/train/test_tier2.py": {
+      "absolute_path \"/tmp/gate-local-unit_tests.log\"": 1,
+      "duration \"3.1s\"": 1,
+      "number 493": 1,
+      "port \"home.spec.ts:12\"": 1
+    }
+  }
+}

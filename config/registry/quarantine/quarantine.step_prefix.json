@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "quarantine:",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "Prefix of the engine.step.measured step names the quarantine emits (quarantine:flaked, quarantine:release).",
+  "x-readers": [
+    "scripts/lib/quarantine.py"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/planner.json",
+  "x-owner": "planner",
+  "x-schema-version": 1,
+  "description": "The live-planning coordinator (D-071): triage thresholds, decision context size, the plan log branch, the launch hold and the on/off switch.",
+  "type": "object",
+  "additionalProperties": false
+}

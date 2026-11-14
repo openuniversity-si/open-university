@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "default": 10,
+  "x-unit": "s",
+  "description": "GV1: timeout of each REST call that finds, creates or edits the status comment; a failure never changes the gate result.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "minimum": 0
+}

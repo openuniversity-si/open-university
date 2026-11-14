@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/session.ended.v1.json",
+  "title": "session.ended payload v1",
+  "description": "A lane session ended; sha is its last commit (null if none).",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/session_id"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "session_id",
+    "lane_id"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lane_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

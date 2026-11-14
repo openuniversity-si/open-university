@@ -1,0 +1,14 @@
+{
+  "type": "string",
+  "default": "on",
+  "enum": [
+    "off",
+    "on"
+  ],
+  "x-unit": "enum",
+  "description": "With train.admit_mode verdict, self-hosting admission of a PR that changes the toolchain set (D-079, TRAIN-ADMIT-GATE-CHANGE): on (default) admits a verdict whose only difference from the strict rule is the head's own toolchain_id on a dual verdict, the pinned gate's cold gate.passed of the head on the tip and the head's own tooling run cold on the same head (train.self_host_command) both green; off refuses every foreign toolchain_id as before (the rollback). Changed only through scripts/config set --reason.",
+  "x-readers": [
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-079; docs/units/TRAIN-ADMIT-GATE-CHANGE/plan.md"
+}

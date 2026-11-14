@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "Lets the PR gate report a script test as a cached PASS when its key (the test, its covers files, the toolchain pins) matches a recorded PASS. Off runs every selected script test.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-flag": true
+}

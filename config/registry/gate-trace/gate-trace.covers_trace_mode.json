@@ -1,0 +1,14 @@
+{
+  "type": "string",
+  "default": "report",
+  "enum": [
+    "off",
+    "report"
+  ],
+  "x-unit": "mode",
+  "x-source": "D-070",
+  "description": "report: a Python script test lists, on stderr at exit, the files it read outside its declared covers (never a failure). off: nothing is recorded. A blocking mode is a later decision.",
+  "x-readers": [
+    "scripts/lib/hermetic.py"
+  ]
+}

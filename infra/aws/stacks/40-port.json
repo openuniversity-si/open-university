@@ -1,0 +1,879 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The port of the infrastructure (P3 F2, D-309): the HTTP API of API Gateway and three zip Lambdas behind the alias live (DEP8: the fast deploy swaps that pointer in ~1 s): the port and its webhook consumer in the private subnets, answering from the database by IAM authentication, and the no-VPC webhook ingress (AckPath=sqs in production since PORT7-PROD; lambda is the fallback). AckPath is passed by infra/aws/deploy.sh from infra/aws/parameters.json (or SSM /tower/deploy/ack-path). Version marker DEP8-ZIP-ALIAS.",
+  "Parameters": {
+    "InstallationTokenSha256": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/tower/port/installation-token-sha256",
+      "Description": "The sha256 of the installation's token, a String the Torre creates; the token itself never reaches AWS"
+    },
+    "Concurrency": {
+      "Type": "Number",
+      "Default": 0,
+      "MinValue": 0,
+      "Description": "Reserved concurrency of the port, the most database connections it opens at once; 0 reserves none and leaves the port in the account's unreserved pool, which a new account caps at 10 in all (a reservation must leave 10 unreserved, so it waits for a larger quota)"
+    },
+    "IngressMemory": {
+      "Type": "Number",
+      "Default": 1024,
+      "MinValue": 128,
+      "MaxValue": 3008,
+      "Description": "MemorySize of the webhook ingress; Lambda CPU scales with memory and the ingress verifies an Ed25519 signature in Python, so the default buys CPU; it costs nothing at this volume (inside the free tier)"
+    },
+    "IngressAckLimitS": {
+      "Type": "Number",
+      "Default": 1,
+      "MinValue": 0.001,
+      "Description": "The failure limit of a webhook ACK in seconds (medir.webhook_ack_limit_s, PORT4): the ingress flags over_limit in its log line when its answer took longer; it is not a timeout and cuts nothing"
+    },
+    "ForgeKeys": {
+      "Type": "AWS::SSM::Parameter::Value<String>",
+      "Default": "/tower/port/forge-keys",
+      "Description": "PORT5: the forge's PUBLIC webhook verification keys (the value the service publishes to /tower/port/forge-keys; not a secret), copied into the ingress's environment at deploy time so a cold start makes no SSM call. A rotation makes the ingress read the parameter once on a miss; the next deploy refreshes the copy. The parameter must exist and the value stay under ~3 KB (Lambda's 4 KB environment limit)"
+    },
+    "AckPath": {
+      "Type": "String",
+      "Default": "lambda",
+      "AllowedValues": [
+        "lambda",
+        "sqs"
+      ],
+      "Description": "PORT7: how the webhook route answers. sqs (production since PORT7-PROD, 09/11, infra/aws/parameters.json port.AckPath=sqs): API Gateway sends the raw delivery straight to the webhook queue with webhook-id, webhook-timestamp and webhook-signature as MessageAttributes (the proven kbare shape of 45-ack-canary, ${request.header.x} in lowercase) and answers the queue's 200 itself, no Lambda in the ACK; the consumer verifies the signature. The role's trust has no Condition (a Condition makes API Gateway fail to assume it). lambda (the fallback): the route goes to the tower-port-ingress Lambda, which verifies, queues and answers; a red post-deploy production ACK smoke rolls the port stack back to it and last-build.ack_failed keeps the next deploys on it until an ACK file changes. AckRole and AckIntegration exist only with sqs. AckPath is passed by infra/aws/deploy.sh. Switch: --parameter-overrides AckPath=lambda|sqs"
+    },
+    "PortCode": {
+      "Type": "String",
+      "Default": "artifacts/lambda/tower-port-api/unset.zip",
+      "Description": "DEP8: the S3 key (in the outputs bucket) of the zip package tower-port-api starts from, passed by infra/aws/deploy.sh (--parameter-overrides, from `lambda_package.py publish`; not SSM); the fast deploy swaps the alias live without touching this"
+    },
+    "IngressCode": {
+      "Type": "String",
+      "Default": "artifacts/lambda/tower-port-ack-ingress/unset.zip",
+      "Description": "DEP8: the S3 key (in the outputs bucket) of the zip package tower-port-ack-ingress starts from, passed by infra/aws/deploy.sh (--parameter-overrides, from `lambda_package.py publish`; not SSM); the fast deploy swaps the alias live without touching this"
+    },
+    "WebhookCode": {
+      "Type": "String",
+      "Default": "artifacts/lambda/tower-port-webhook-consumer/unset.zip",
+      "Description": "DEP8: the S3 key (in the outputs bucket) of the zip package tower-port-webhook-consumer starts from, passed by infra/aws/deploy.sh (--parameter-overrides, from `lambda_package.py publish`; not SSM); the fast deploy swaps the alias live without touching this"
+    },
+    "DepsKey": {
+      "Type": "String",
+      "Default": "artifacts/lambda/deps/unset.zip",
+      "Description": "DEP8: the S3 key of the layer with psycopg (infra/service/requirements-lambda.txt), passed by infra/aws/deploy.sh (--parameter-overrides, from `lambda_package.py publish`; not SSM)"
+    }
+  },
+  "Conditions": {
+    "ReservesConcurrency": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "Concurrency"
+            },
+            0
+          ]
+        }
+      ]
+    },
+    "AckBySqs": {
+      "Fn::Equals": [
+        {
+          "Ref": "AckPath"
+        },
+        "sqs"
+      ]
+    }
+  },
+  "Resources": {
+    "Logs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/tower-port",
+        "RetentionInDays": 14
+      }
+    },
+    "PortRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "tower-app-port",
+        "Description": "The port writes its logs, attaches to the VPC and connects to tower-data as tower_service",
+        "PermissionsBoundary": {
+          "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/tower-boundary"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "port",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "WriteTheLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "Logs",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "WebhookLogs",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "AttachToTheVpc",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "ConnectAsTheServiceLogin",
+                  "Effect": "Allow",
+                  "Action": "rds-db:connect",
+                  "Resource": {
+                    "Fn::Sub": [
+                      "arn:${AWS::Partition}:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${Instance}/tower_service",
+                      {
+                        "Instance": {
+                          "Fn::ImportValue": "tower-data-resource-id"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "Sid": "ConsumeTheWebhookQueue",
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:ReceiveMessage",
+                    "sqs:DeleteMessage",
+                    "sqs:GetQueueAttributes",
+                    "sqs:ChangeMessageVisibility"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "WebhookQueue",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "PortFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "tower-port-api",
+        "Description": "The port of the infrastructure: commands and queries answered from the database (D-309)",
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "tower-outputs-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": {
+            "Ref": "PortCode"
+          }
+        },
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 256,
+        "Timeout": 30,
+        "ReservedConcurrentExecutions": {
+          "Fn::If": [
+            "ReservesConcurrency",
+            {
+              "Ref": "Concurrency"
+            },
+            {
+              "Ref": "AWS::NoValue"
+            }
+          ]
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "PortRole",
+            "Arn"
+          ]
+        },
+        "VpcConfig": {
+          "SubnetIds": {
+            "Fn::Split": [
+              ",",
+              {
+                "Fn::ImportValue": "tower-network-private-subnets"
+              }
+            ]
+          },
+          "SecurityGroupIds": [
+            {
+              "Fn::ImportValue": "tower-network-tasks-sg"
+            }
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "TOWER_DB_HOST": {
+              "Fn::ImportValue": "tower-data-endpoint"
+            },
+            "TOWER_DB_PORT": {
+              "Fn::ImportValue": "tower-data-port"
+            },
+            "TOWER_DB_NAME": {
+              "Fn::ImportValue": "tower-data-name"
+            },
+            "TOWER_DB_USER": "tower_service",
+            "TOWER_INSTALLATION_TOKEN_SHA256": {
+              "Ref": "InstallationTokenSha256"
+            }
+          }
+        },
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "Logs"
+          }
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ],
+        "Runtime": "python3.12",
+        "Handler": "tower_infra.http_port.handler",
+        "Layers": [
+          {
+            "Ref": "DepsLayer"
+          }
+        ]
+      },
+      "DeletionPolicy": "Delete"
+    },
+    "HttpApi": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": {
+        "Name": "tower-port",
+        "Description": "The port of the infrastructure (P3 F2)",
+        "ProtocolType": "HTTP",
+        "Tags": {
+          "project": "tower"
+        }
+      }
+    },
+    "PortIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Ref": "PortAlias"
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      }
+    },
+    "DefaultRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "$default",
+        "Target": {
+          "Fn::Sub": "integrations/${PortIntegration}"
+        }
+      }
+    },
+    "DefaultStage": {
+      "Type": "AWS::ApiGatewayV2::Stage",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "StageName": "$default",
+        "AutoDeploy": true,
+        "DefaultRouteSettings": {
+          "ThrottlingBurstLimit": 20,
+          "ThrottlingRateLimit": 10
+        }
+      }
+    },
+    "InvokeFromTheApi": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "PortAlias"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*"
+        }
+      }
+    },
+    "WebhookDlq": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "tower-port-webhooks-dlq",
+        "MessageRetentionPeriod": 1209600,
+        "SqsManagedSseEnabled": true,
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "WebhookQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "tower-port-webhooks",
+        "VisibilityTimeout": 180,
+        "MessageRetentionPeriod": 1209600,
+        "MaximumMessageSize": 1048576,
+        "SqsManagedSseEnabled": true,
+        "RedrivePolicy": {
+          "deadLetterTargetArn": {
+            "Fn::GetAtt": [
+              "WebhookDlq",
+              "Arn"
+            ]
+          },
+          "maxReceiveCount": 5
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "IngressLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/tower-port-ingress",
+        "RetentionInDays": 14
+      }
+    },
+    "IngressRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "tower-app-port-ingress",
+        "Description": "The webhook ingress writes its logs, reads the forge keys parameter and sends to the webhook queue; no VPC, no database",
+        "PermissionsBoundary": {
+          "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/tower-boundary"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ingress",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "WriteTheLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "IngressLogs",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "ReadTheForgeKeys",
+                  "Effect": "Allow",
+                  "Action": "ssm:GetParameter",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/port/forge-keys"
+                  }
+                },
+                {
+                  "Sid": "QueueTheDelivery",
+                  "Effect": "Allow",
+                  "Action": "sqs:SendMessage",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "WebhookQueue",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "IngressFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "tower-port-ack-ingress",
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "tower-outputs-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": {
+            "Ref": "IngressCode"
+          }
+        },
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": {
+          "Ref": "IngressMemory"
+        },
+        "Timeout": 10,
+        "Role": {
+          "Fn::GetAtt": [
+            "IngressRole",
+            "Arn"
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "TOWER_INGRESS_QUEUE_URL": {
+              "Ref": "WebhookQueue"
+            },
+            "TOWER_FORGE_KEYS_PARAMETER": "/tower/port/forge-keys",
+            "TOWER_INGRESS_ACK_LIMIT_S": {
+              "Ref": "IngressAckLimitS"
+            },
+            "TOWER_FORGE_KEYS": {
+              "Ref": "ForgeKeys"
+            }
+          }
+        },
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "IngressLogs"
+          }
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ],
+        "Runtime": "python3.12",
+        "Handler": "tower_infra.ingress.handler"
+      },
+      "DeletionPolicy": "Delete"
+    },
+    "WebhookFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "tower-port-webhook-consumer",
+        "Description": "The port of the infrastructure: commands and queries answered from the database (D-309)",
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "tower-outputs-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": {
+            "Ref": "WebhookCode"
+          }
+        },
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 256,
+        "Timeout": 60,
+        "Role": {
+          "Fn::GetAtt": [
+            "PortRole",
+            "Arn"
+          ]
+        },
+        "VpcConfig": {
+          "SubnetIds": {
+            "Fn::Split": [
+              ",",
+              {
+                "Fn::ImportValue": "tower-network-private-subnets"
+              }
+            ]
+          },
+          "SecurityGroupIds": [
+            {
+              "Fn::ImportValue": "tower-network-tasks-sg"
+            }
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "TOWER_DB_HOST": {
+              "Fn::ImportValue": "tower-data-endpoint"
+            },
+            "TOWER_DB_PORT": {
+              "Fn::ImportValue": "tower-data-port"
+            },
+            "TOWER_DB_NAME": {
+              "Fn::ImportValue": "tower-data-name"
+            },
+            "TOWER_DB_USER": "tower_service"
+          }
+        },
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "WebhookLogs"
+          }
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ],
+        "Runtime": "python3.12",
+        "Handler": "tower_infra.webhook_consumer.handler",
+        "Layers": [
+          {
+            "Ref": "DepsLayer"
+          }
+        ]
+      },
+      "DeletionPolicy": "Delete"
+    },
+    "WebhookLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/tower-port-webhooks",
+        "RetentionInDays": 14
+      }
+    },
+    "WebhookSource": {
+      "Type": "AWS::Lambda::EventSourceMapping",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "WebhookAlias"
+        },
+        "EventSourceArn": {
+          "Fn::GetAtt": [
+            "WebhookQueue",
+            "Arn"
+          ]
+        },
+        "BatchSize": 10,
+        "MaximumBatchingWindowInSeconds": 0,
+        "FunctionResponseTypes": [
+          "ReportBatchItemFailures"
+        ],
+        "ScalingConfig": {
+          "MaximumConcurrency": 2
+        },
+        "Enabled": true
+      }
+    },
+    "IngressIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Ref": "IngressAlias"
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 5000
+      }
+    },
+    "WebhookRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "POST /v1/forge/origin/webhooks",
+        "Target": {
+          "Fn::If": [
+            "AckBySqs",
+            {
+              "Fn::Sub": "integrations/${AckIntegration}"
+            },
+            {
+              "Fn::Sub": "integrations/${IngressIntegration}"
+            }
+          ]
+        }
+      }
+    },
+    "InvokeIngressFromTheApi": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "IngressAlias"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*"
+        }
+      }
+    },
+    "AckRole": {
+      "Type": "AWS::IAM::Role",
+      "Condition": "AckBySqs",
+      "Properties": {
+        "RoleName": "tower-app-port-ack",
+        "Description": "API Gateway sends Origin's webhook deliveries to the webhook queue and to nothing else (PORT7). The trust has NO Condition (proved live 09/11: any Condition on aws:SourceArn/SourceAccount makes API Gateway answer 500 'doesn't have permissions to assume the IAM role'). Confused deputy: the role can only sqs:SendMessage to tower-port-webhooks and the consumer verifies Origin's signature and drops anything unsigned, so a foreign API Gateway using this ARN could only enqueue junk that is dropped.",
+        "PermissionsBoundary": {
+          "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/tower-boundary"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ack",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "QueueTheDelivery",
+                  "Effect": "Allow",
+                  "Action": "sqs:SendMessage",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "WebhookQueue",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "AckIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Condition": "AckBySqs",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationSubtype": "SQS-SendMessage",
+        "PayloadFormatVersion": "1.0",
+        "CredentialsArn": {
+          "Fn::GetAtt": [
+            "AckRole",
+            "Arn"
+          ]
+        },
+        "TimeoutInMillis": 5000,
+        "RequestParameters": {
+          "QueueUrl": {
+            "Ref": "WebhookQueue"
+          },
+          "MessageBody": "$request.body",
+          "MessageAttributes": "{\"webhook-id\":{\"DataType\":\"String\",\"StringValue\":\"${request.header.webhook-id}\"},\"webhook-timestamp\":{\"DataType\":\"String\",\"StringValue\":\"${request.header.webhook-timestamp}\"},\"webhook-signature\":{\"DataType\":\"String\",\"StringValue\":\"${request.header.webhook-signature}\"}}"
+        }
+      }
+    },
+    "DepsLayer": {
+      "Type": "AWS::Lambda::LayerVersion",
+      "Properties": {
+        "LayerName": "tower-port-deps",
+        "Description": "psycopg for arm64, CPython 3.12, with its bytecode when the deployer has that Python",
+        "CompatibleRuntimes": [
+          "python3.12"
+        ],
+        "CompatibleArchitectures": [
+          "arm64"
+        ],
+        "Content": {
+          "S3Bucket": {
+            "Fn::Sub": "tower-outputs-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": {
+            "Ref": "DepsKey"
+          }
+        }
+      }
+    },
+    "PortVersion": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "PortFunction"
+        },
+        "Description": {
+          "Fn::Sub": "slow deploy of ${PortCode} on ${DepsKey} with 256 MB"
+        }
+      }
+    },
+    "PortAlias": {
+      "Type": "AWS::Lambda::Alias",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "PortFunction"
+        },
+        "Name": "live",
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "PortVersion",
+            "Version"
+          ]
+        },
+        "Description": "DEP8: the pointer the fast deploy swaps (UpdateAlias); API Gateway, the queue and the service call this alias"
+      }
+    },
+    "IngressVersion": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "IngressFunction"
+        },
+        "Description": {
+          "Fn::Sub": "slow deploy of ${IngressCode}"
+        }
+      }
+    },
+    "IngressAlias": {
+      "Type": "AWS::Lambda::Alias",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "IngressFunction"
+        },
+        "Name": "live",
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "IngressVersion",
+            "Version"
+          ]
+        },
+        "Description": "DEP8: the pointer the fast deploy swaps (UpdateAlias); API Gateway, the queue and the service call this alias"
+      }
+    },
+    "WebhookVersion": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "WebhookFunction"
+        },
+        "Description": {
+          "Fn::Sub": "slow deploy of ${WebhookCode} on ${DepsKey}"
+        }
+      }
+    },
+    "WebhookAlias": {
+      "Type": "AWS::Lambda::Alias",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "WebhookFunction"
+        },
+        "Name": "live",
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "WebhookVersion",
+            "Version"
+          ]
+        },
+        "Description": "DEP8: the pointer the fast deploy swaps (UpdateAlias); API Gateway, the queue and the service call this alias"
+      }
+    }
+  },
+  "Outputs": {
+    "PortUrl": {
+      "Value": {
+        "Fn::GetAtt": [
+          "HttpApi",
+          "ApiEndpoint"
+        ]
+      },
+      "Export": {
+        "Name": "tower-port-url"
+      }
+    },
+    "WebhookQueueUrl": {
+      "Value": {
+        "Ref": "WebhookQueue"
+      }
+    },
+    "WebhookDlqUrl": {
+      "Value": {
+        "Ref": "WebhookDlq"
+      }
+    },
+    "AckPath": {
+      "Value": {
+        "Ref": "AckPath"
+      }
+    }
+  }
+}

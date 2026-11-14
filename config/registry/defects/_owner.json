@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/defects.json",
+  "x-owner": "defects",
+  "x-schema-version": 1,
+  "description": "Known base defects as a structural process (D-069 items 4, 8 and 9): registry, detection in the gate, routing by queue impact, lifecycle.",
+  "type": "object",
+  "additionalProperties": false
+}

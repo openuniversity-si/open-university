@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "Kill switch of the automatic deploy: false and the service never rings the doorbell (the Torre or a session can still deploy with the token). `scripts/config set deploy.auto false --actor A --reason R` reaches the service within one look (30 s), as a config.changed event in the push to train/events.",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py"
+  ],
+  "x-source": "AUTO1"
+}

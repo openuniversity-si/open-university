@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 604800,
+  "minimum": 60,
+  "x-unit": "s",
+  "description": "Window, ending at the gate's clock, in which earlier test.flaked events of the same test count toward gate-flake.quarantine_after.",
+  "x-readers": [
+    "scripts/lib/gate_flake.py"
+  ],
+  "x-source": "D-070"
+}

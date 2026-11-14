@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 1800,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "A woken PR not merged after this long warns the queue health check.",
+  "x-readers": [
+    "scripts/lib/service_status.py"
+  ],
+  "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md"
+}

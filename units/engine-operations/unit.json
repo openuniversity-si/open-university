@@ -1,0 +1,29 @@
+{
+  "id": "engine-operations",
+  "purpose": "The observed relation of the engine's forge operations: the declaration, its reading, and its confrontation with the calls the engine makes (D-285; ARQ-OPERATIONS).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "docs/architecture/ENGINE-OPERATIONS.md",
+    "scripts/lib/operation_relations.json",
+    "scripts/lib/operation_relations.py",
+    "scripts/operation-relations",
+    "scripts/tests/covers/operation-relations.json",
+    "scripts/tests/operation-relations.test.sh",
+    "scripts/tests/test_operation_relations.py",
+    "scripts/lib/operation_config.py",
+    "scripts/lib/operation_config_relations.json",
+    "scripts/tests/test_operation_config.py",
+    "scripts/tests/operation-config.test.sh",
+    "scripts/tests/covers/operation-config.json",
+    "scripts/tests/test_operation_integration.py",
+    "scripts/lib/operation_demands.json"
+  ],
+  "requires": {
+    "engine-config-check": "^1",
+    "engine-units": "^1"
+  },
+  "decisions": [
+    "D-285"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/pr-observation-judge.test.sh",
+  "covers": [
+    "scripts/tests/pr-observation-judge.test.sh",
+    "scripts/tests/test_pr_observation_judge.py",
+    "scripts/lib/forge_origin.py",
+    "scripts/lib/forge_origin_client.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/operation_demands.py",
+    "scripts/lib/commit_check.py",
+    "scripts/lib/structure.py",
+    "scripts/lib/gate_infra.py",
+    "scripts/lib/config.py",
+    "config/registry/forge-events.json",
+    "config/registry/forge-events/**"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "contracts/units/census.v1.json",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "The contract every event of a census record validates against.",
+  "x-readers": [
+    "scripts/lib/census.py"
+  ],
+  "x-source": "CENSO-NO-MANIFESTO; D-068 (5)"
+}

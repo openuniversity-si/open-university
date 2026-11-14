@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-flake.json",
+  "x-owner": "gate-flake",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate-flake.enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "TX11 (D-070, docs/units/TX11/plan.md): after the known-base-defect step, a failing test of gate-flake.stages that the PR did not touch is re-run once at the same head; one that passes is attributed flake (recorded, shown, quarantined on its second sighting) and does not turn the PR red. Off is the rollback: no re-run, every failure stays the PR's.",
+      "x-readers": [
+        "scripts/lib/gate_flake.py"
+      ],
+      "x-flag": true,
+      "x-source": "D-070"
+    },
+    "gate-flake.never_excuse_touched": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "A failing test whose own file, covers manifest or declared covers the PR changed (defect_detect.touched) is not re-run and stays the PR's: a flaky test the PR wrote or changed is the PR's fault.",
+      "x-readers": [
+        "scripts/lib/gate_flake.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-flake.quarantine_after": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "test.flaked events for one test inside gate-flake.quarantine_window_s (this sighting included) after which the gate emits test.quarantined (quarantine.py). The quarantine changes no policy: the test is still listed and still blocks when it fails twice.",
+      "x-readers": [
+        "scripts/lib/gate_flake.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-flake.quarantine_window_s": {
+      "type": "integer",
+      "default": 604800,
+      "minimum": 60,
+      "x-unit": "s",
+      "description": "Window, ending at the gate's clock, in which earlier test.flaked events of the same test count toward gate-flake.quarantine_after.",
+      "x-readers": [
+        "scripts/lib/gate_flake.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-flake.rerun_source": {
+      "type": "string",
+      "default": "flake-rerun",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "The source name the re-run passes to gate_test_cache.run.",
+      "x-readers": [
+        "scripts/lib/gate_flake.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-flake.rerun_store_prefix": {
+      "type": "string",
+      "default": "gate-flake-",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Prefix of the throwaway cache directory the re-run uses, so it neither reads nor writes a gate_test_cache marker; deleted afterwards.",
+      "x-readers": [
+        "scripts/lib/gate_flake.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-flake.reruns": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 1,
+      "x-unit": "count",
+      "description": "Re-runs of each failing test at the same head. Exactly one (T4/T8): a test that fails on it stays the PR's own; a second re-run would hide a real intermittent failure.",
+      "x-readers": [
+        "scripts/lib/gate_flake.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-flake.stages": {
+      "type": "array",
+      "default": [
+        "script tests"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "name",
+      "description": "Gate stages whose failing tests are re-run alone through gate_test_cache.run. A stage outside this list is never attributed flake.",
+      "x-readers": [
+        "scripts/lib/gate_flake.py"
+      ],
+      "x-source": "D-070"
+    },
+    "gate-flake.subject_env": {
+      "type": "string",
+      "default": "OU_SUBJECT_ROOT",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Environment variable gate-local exports with the checkout under test; the re-run runs there. Unset (a direct call outside gate-local): the tool checkout.",
+      "x-readers": [
+        "scripts/lib/gate_flake.py"
+      ],
+      "x-source": "D-070"
+    }
+  }
+}

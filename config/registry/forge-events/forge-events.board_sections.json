@@ -1,0 +1,60 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "section": "train",
+      "kinds": [
+        "train.batch.started",
+        "train.batch.shards",
+        "train.batch.green",
+        "train.queue.empty"
+      ]
+    },
+    {
+      "section": "base",
+      "kinds": [
+        "integration.advanced"
+      ]
+    },
+    {
+      "section": "slo",
+      "kinds": [
+        "slo.breached"
+      ]
+    },
+    {
+      "section": "defects",
+      "kinds": [
+        "defect.verified"
+      ]
+    }
+  ],
+  "x-unit": "sections",
+  "description": "BOARD (CANALE2): each board section (section) and the event kinds it shows (kinds); these kinds go to the git-ref log and the board instead of a comment once forge-events.board_issue is set. The seven are the repeated state of the channel on 01/11 (79 % of #865).",
+  "x-readers": [
+    "scripts/lib/forge_events.py"
+  ],
+  "x-source": "CANALE2; docs/units/BOARD/intake.md",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "section",
+      "kinds"
+    ],
+    "properties": {
+      "section": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "kinds": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.]*$"
+        }
+      }
+    }
+  }
+}

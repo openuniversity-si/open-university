@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Selected script tests that run at once (they share no fixture; the gate runs them concurrently too).",
+  "x-readers": [
+    "scripts/lib/prepush.py"
+  ]
+}

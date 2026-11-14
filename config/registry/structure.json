@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/structure.json",
+  "x-owner": "structure",
+  "x-schema-version": 1,
+  "description": "The structure-check rules about which files a PR may touch (D-006, D-069 items 3 and 8; SG1).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "structure.always_visual_extensions": {
+      "type": "array",
+      "default": [
+        ".css"
+      ],
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "count",
+      "description": "Extensions under structure.visual_paths whose every change is visual, whatever the lines say.",
+      "x-readers": [
+        "scripts/lib/visual_guard.py"
+      ],
+      "x-source": "D-006, D-069 (SG1)"
+    },
+    "structure.conflict_marker_pattern": {
+      "type": "string",
+      "default": "^(?:<{7}|>{7})(?: |$)",
+      "x-unit": "text",
+      "description": "Regular expression of a merge conflict marker line (the opening and closing marks; the middle mark of seven equals signs is also a heading underline, so a file is refused for the other two). No tracked text file under structure.conflict_marker_roots may hold one.",
+      "x-readers": [
+        "scripts/lib/repo_hygiene.py"
+      ],
+      "x-source": "D-189"
+    },
+    "structure.conflict_marker_roots": {
+      "type": "array",
+      "default": [
+        "docs/",
+        "scripts/"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "count",
+      "description": "Path prefixes of the tracked files scanned for a merge conflict marker (structure.conflict_marker_pattern).",
+      "x-readers": [
+        "scripts/lib/repo_hygiene.py"
+      ],
+      "x-source": "D-189"
+    },
+    "structure.decision_clock_from": {
+      "type": "integer",
+      "default": 196,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "The first decision number whose row must carry a time that is not later than the clock and a number written once (D-196, S2). Earlier rows are kept as they are: four numbers were written twice and five times were stamped ahead of the clock before the check existed.",
+      "x-readers": [
+        "scripts/lib/structure.py"
+      ],
+      "x-source": "D-196"
+    },
+    "structure.decision_clock_zone": {
+      "type": "string",
+      "default": "America/Sao_Paulo",
+      "x-unit": "text",
+      "description": "The time zone of the times a decision row carries (`YYYY-MM-DD HH:MM BRT`, stamped by scripts/decision-next --claim).",
+      "x-readers": [
+        "scripts/lib/structure.py"
+      ],
+      "x-source": "D-196"
+    },
+    "structure.event_producer": {
+      "type": "string",
+      "default": "structure-check",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "GX-15 (D-070): the producer name of the pr.checked events that `structure-check --metadata` publishes through the forge_events port.",
+      "x-readers": [
+        "scripts/lib/structure.py"
+      ],
+      "x-source": "D-070 (GX-15)"
+    },
+    "structure.git_message_argv_allowed": {
+      "type": "array",
+      "default": [
+        "scripts/lib/train_git.py"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "count",
+      "description": "Tracked paths that still pass a variable as the message of a git write on the command line (`-m <variable>`). A command line holds about 128 KB per argument; text of unbounded size goes through stdin (forge_git_ref._commit). The list only shrinks: the owner of each path moves it to stdin and deletes its entry (C1, D-206).",
+      "x-readers": [
+        "scripts/lib/repo_hygiene.py"
+      ],
+      "x-source": "D-206"
+    },
+    "structure.git_write_verbs": {
+      "type": "array",
+      "default": [
+        "commit",
+        "commit-tree",
+        "merge",
+        "notes",
+        "tag",
+        "update-ref"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "count",
+      "description": "The git commands that store a text the caller passes: a call naming one of them with `-m` (or `--message`) followed by anything but a literal is refused (structure.git_message_argv_allowed).",
+      "x-readers": [
+        "scripts/lib/repo_hygiene.py"
+      ],
+      "x-source": "D-206"
+    },
+    "structure.integration_branch_pattern": {
+      "type": "string",
+      "default": "^(mod/roadmap-integration|main)$",
+      "description": "Regular expression of the head branches that belong to the integration flow and may change the protected files.",
+      "x-readers": [
+        "scripts/lib/visual_guard.py"
+      ],
+      "x-unit": "regex",
+      "x-source": "D-006, D-069 (SG1)"
+    },
+    "structure.legacy_email_exempt": {
+      "type": "array",
+      "default": [],
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "count",
+      "description": "Tracked paths the legacy-address rule does not scan. Empty since Open University's own copy of the rule left with it (OU-DECOUPLE F4).",
+      "x-readers": [
+        "scripts/lib/repo_hygiene.py"
+      ],
+      "x-source": "D-105 (OU-DECOUPLE F2)"
+    },
+    "structure.legacy_email_pattern": {
+      "type": "string",
+      "default": "[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\\.)*thetower\\.si\\b",
+      "x-unit": "text",
+      "description": "Regular expression (case-insensitive) of an address on the legacy domain; no tracked text file may hold one. Ported from Open University's no-legacy-email test (Daniel, 14/10/2026: the only public mailbox is contact@example.org).",
+      "x-readers": [
+        "scripts/lib/repo_hygiene.py"
+      ],
+      "x-source": "D-105 (OU-DECOUPLE F2)"
+    },
+    "structure.markup_line_pattern": {
+      "type": "string",
+      "default": "className|\\bstyle\\s*=|\\bclass\\s*=|\\bsx\\s*=|</?[A-Za-z][\\w.]*[\\s/>]|<>|</>|\\bsrc\\s*=|\\balt\\s*=",
+      "description": "Regular expression of an added or removed line of a .tsx file that is markup or styling. A .tsx change with no such line is logic only and needs no Figma node.",
+      "x-readers": [
+        "scripts/lib/visual_guard.py"
+      ],
+      "x-unit": "regex",
+      "x-source": "D-006, D-069 (SG1)"
+    },
+    "structure.parallel_min_files": {
+      "type": "integer",
+      "default": 100,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Minimum Python source files before the structure check uses its worker pool; small fixture trees use the same inline checks.",
+      "x-readers": [
+        "scripts/lib/structure.py"
+      ],
+      "x-source": "D-291"
+    },
+    "structure.protected_files": {
+      "type": "array",
+      "default": [
+        "docs/process/roadmap/STATUS.md",
+        "docs/architecture/CONTEXTS.md",
+        "docs/domain/INTENTS.md"
+      ],
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "count",
+      "description": "Paths only the integration flow edits: the roadmap step log and the generated aggregates. Any other PR that changes one fails structure-check.",
+      "x-readers": [
+        "scripts/lib/visual_guard.py"
+      ],
+      "x-source": "D-006, D-069 (SG1)"
+    },
+    "structure.raster_allowed": {
+      "type": "array",
+      "default": [],
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "count",
+      "description": "Regular expressions of the tracked paths a raster image may have. Empty since Open University left (OU-DECOUPLE F4): no image is tracked.",
+      "x-readers": [
+        "scripts/lib/repo_hygiene.py"
+      ],
+      "x-source": "D-105 (OU-DECOUPLE F2)"
+    },
+    "structure.raster_pattern": {
+      "type": "string",
+      "default": "\\.(?:png|jpe?g|gif|webp|avif|bmp|tiff?|ico)$",
+      "x-unit": "text",
+      "description": "Regular expression (case-insensitive) of a raster image path. Images live in object storage, never in git (AGENTS.md); ported from Open University's raster asset guard.",
+      "x-readers": [
+        "scripts/lib/repo_hygiene.py"
+      ],
+      "x-source": "D-105 (OU-DECOUPLE F2)"
+    },
+    "structure.record_globs": {
+      "type": "array",
+      "default": [
+        "docs/units/**",
+        "docs/programs/**",
+        "docs/adr/**",
+        "docs/audits/**",
+        "docs/project/**",
+        "docs/process/roadmap/**",
+        "docs/process/postmortems/**",
+        "docs/process/incidents/**",
+        "docs/process/lessons/**",
+        "docs/process/defects/**",
+        "docs/process/premises/**",
+        "docs/process/spikes/**",
+        "docs/domain/DECISIONS.md",
+        "config/registry/structure.json",
+        "config/registry/structure/structure.retired_product_roots.json",
+        "scripts/lib/generated/**",
+        ".gitleaks.toml"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "count",
+      "description": "Globs of the historical records a retired product root may still be named in: they describe the past and are not rewritten (units, programs, ADRs, audits, the roadmap and process records, the decision register), plus the definition of the roots itself and its generated types; and .gitleaks.toml, whose allowlist must name paths of past commits because the secret scan judges the whole history.",
+      "x-readers": [
+        "scripts/lib/retired_products.py"
+      ],
+      "x-source": "D-113 (OU-DECOUPLE F5)"
+    },
+    "structure.retired_product_roots": {
+      "type": "array",
+      "default": [
+        "apps/web"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "count",
+      "description": "Path roots of retired products (D-112, D-113): no tracked path lies under one, and no acting file names one. Open University left at OU-DECOUPLE F4; its archive is commit 567176bb (D-110).",
+      "x-readers": [
+        "scripts/lib/retired_products.py"
+      ],
+      "x-source": "D-113 (OU-DECOUPLE F5)"
+    },
+    "structure.test_file_pattern": {
+      "type": "string",
+      "default": "(^|/)(tests?|e2e|fixtures|__fixtures__)/|\\.test\\.|\\.stories\\.",
+      "description": "Regular expression of the test and fixture paths that never count as a visual change.",
+      "x-readers": [
+        "scripts/lib/visual_guard.py"
+      ],
+      "x-unit": "regex",
+      "x-source": "D-006, D-069 (SG1)"
+    },
+    "structure.tree_cache_dir": {
+      "type": "string",
+      "default": "~/.cache/open-university/structure-tree",
+      "x-unit": "path",
+      "description": "Where immutable tree diagnostics are kept through the storage port (providers.storage_adapter). Errors remain errors; the current policy is applied on every call. A leading ~ is the home directory; STRUCTURE_TREE_CACHE_DIR overrides it for one run.",
+      "x-readers": [
+        "scripts/lib/structure.py"
+      ],
+      "x-source": "D-070 (GX-15)"
+    },
+    "structure.tree_cache_enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "GX-15 (D-070, B-11), amended by D-291: reuse complete tree diagnostics when their exact content key matches. The current policy verdict and PR metadata are always computed live. Off runs every module every time.",
+      "x-readers": [
+        "scripts/lib/structure.py"
+      ],
+      "x-source": "D-070 (GX-15)"
+    },
+    "structure.tree_cache_version": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "x-unit": "version",
+      "description": "Version mixed into the tree analysis key; raising it drops every recorded tree analysis.",
+      "x-readers": [
+        "scripts/lib/structure.py"
+      ],
+      "x-source": "D-070 (GX-15)"
+    },
+    "structure.tree_workers": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Parallel read-only structure checks sharing one pre-parsed Python source snapshot (D-291).",
+      "x-readers": [
+        "scripts/lib/structure.py"
+      ],
+      "x-source": "D-291"
+    },
+    "structure.visual_paths": {
+      "type": "array",
+      "default": [],
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "count",
+      "description": "Globs (`**` crosses folders, `*` does not) of the files whose change is a visual change unless it is logic only; tests are never visual. Empty: no product with a visual surface is in the engine (OU-DECOUPLE F5, D-113); a product declares its own globs here.",
+      "x-readers": [
+        "scripts/lib/visual_guard.py"
+      ],
+      "x-source": "D-006, D-069 (SG1)"
+    }
+  }
+}

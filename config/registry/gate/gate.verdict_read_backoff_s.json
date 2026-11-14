@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 2,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "Wait before the second read of the PR by scripts/gate-verdict; it doubles before each later try (4 tries wait 2 + 4 + 8 = 14 s in all against the 18 s GitHub needed on 28/10, each try's own time on top).",
+  "x-readers": [
+    "scripts/lib/gate_verdict.py",
+    "scripts/tests/test_gate_verdict.py"
+  ],
+  "x-source": "D-070 (GATE-API)"
+}

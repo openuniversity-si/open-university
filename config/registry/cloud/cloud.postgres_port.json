@@ -1,0 +1,13 @@
+{
+  "type": "integer",
+  "default": 54322,
+  "minimum": 1,
+  "maximum": 65535,
+  "x-unit": "port",
+  "description": "Default port of the project-local PostgreSQL; the OU_POSTGRES_PORT environment variable overrides it for one shell.",
+  "x-readers": [
+    "scripts/cloud/postgres.py",
+    "scripts/cloud/env.sh",
+    "scripts/cloud/setup.sh"
+  ]
+}

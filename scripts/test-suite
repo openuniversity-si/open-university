@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# GATE-SPEED (D-092, ADR-42): judge the whole script suite of this checkout the way the gate runs a test (TX10):
+# every scripts/tests/*.test.sh is answered by its content key when a PASS of the same inputs is recorded on this box,
+# else run; it prints the counts and the wall against gate.suite_wall_goal_s and gate.suite_wall_warn_s.
+# VAZÃO F50: --changed judges only the tests the PR gate selects for this checkout's diff against gate.changed_base_ref
+# (--base REF), committed or not, through the gate's own selection; a diff that selects none runs nothing and waits on no lock.
+# Usage: scripts/test-suite [--changed [--base <ref>]] [--source <sha>] [--workers N] [--json <file>]
+#        scripts/test-suite --metrics --write-costs scripts/tests/costs.json [--test <path>]: the cost hints (one test's with --test, F67)
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/cloud/env.sh
+source "$root/scripts/cloud/env.sh"
+export OU_CONFIG_STORE=file
+# GATE-SPEED F10 (D-130): read and publish the script tests' shared results (scripts/lib/shared_results.py)
+export OU_SHARED_RESULTS="${OU_SHARED_RESULTS:-1}"
+# VAZÃO F23: a whole suite takes every CPU of the box, as a gate does: it queues on the same lock as deliver's gate.
+# F58: gate_test_cache.py takes it and writes each hold to the box's lock log (delivery.gate_lock_log), as a delivery
+# does, so scripts/flow-metrics --constraint counts the suites. F65: a --changed suite leaves the box lock to the
+# deliveries: it takes one of gate.changed_suite_slots slots beside it, under nice, logged as kind suite_slot.
+lock="$("${OU_PYTHON:-python3}" "$root/scripts/lib/config.py" get delivery.gate_lock_path | tr -d '"')"
+lock="${lock/#\~/$HOME}"
+exec "${OU_PYTHON:-python3}" "$root/scripts/lib/gate_test_cache.py" suite --root "$root" --lock "$lock" "$@"

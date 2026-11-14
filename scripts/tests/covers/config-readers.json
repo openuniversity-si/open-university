@@ -1,0 +1,25 @@
+{
+  "script": "scripts/tests/config-readers.test.sh",
+  "covers": [
+    "scripts/tests/config-readers.test.sh",
+    "scripts/tests/test_config_registry_readers.py",
+    "scripts/lib/registry_readers.py",
+    "scripts/lib/*.py",
+    "scripts/lib/config.py",
+    "config/registry/**",
+    "config/registry/*.json",
+    "config/registry/*/*.json",
+    "scripts/lib/generated/**",
+    "scripts/lib/units.py",
+    "units/**",
+    "scripts/tests/test_operation_integration.py",
+    "scripts/lib/unit_check.py",
+    "scripts/lib/operation_relations.py",
+    "scripts/lib/operation_relations.json",
+    "scripts/lib/operation_config.py",
+    "scripts/lib/operation_config_relations.json",
+    "scripts/lib/operation_demands.py",
+    "scripts/lib/operation_demands.json",
+    "services/control-plane/src/**"
+  ]
+}

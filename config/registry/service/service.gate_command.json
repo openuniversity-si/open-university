@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/gate-dev",
+    "--pr"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "minItems": 1,
+  "x-unit": "count",
+  "description": "The real per-PR gate, with the PR number appended. It runs the actual stages and content-keyed test proofs under the enforced service.job_budget_s; absence of a whole-gate attestation never substitutes for running it (D-291).",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-086, D-291; docs/operations/services.md"
+}

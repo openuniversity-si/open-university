@@ -1,0 +1,14 @@
+{
+  "type": "integer",
+  "default": 4,
+  "enum": [
+    3,
+    4
+  ],
+  "x-unit": "version",
+  "description": "Version of the gate verdict the gate produces (GX-10, GA-P01). 4 adds the proof binding (head/base trees, gate_version, toolchain_id, selection, input_digest, cost, lane_id) when the run is fully bound (a sha, a recorded base and a tier); a run that is not keeps v3. 3 is the rollback: today's v3 payload, byte for byte.",
+  "x-readers": [
+    "scripts/lib/gate_proof.py"
+  ],
+  "x-source": "D-070"
+}

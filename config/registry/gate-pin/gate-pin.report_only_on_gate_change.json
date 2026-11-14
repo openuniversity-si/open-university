@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "When the diff base...head touches the gate (commit_check.GATE_FILE), the head's own tooling also runs with --report-only (no events, record, status or pr.ready) and its verdict is printed and posted as advisory. Off skips that second run.",
+  "x-readers": [
+    "scripts/lib/gate_pin.py"
+  ],
+  "x-flag": true,
+  "x-source": "D-070"
+}

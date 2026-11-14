@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/l10n.json",
+  "x-owner": "l10n",
+  "x-schema-version": 1,
+  "description": "User-facing text keyed by locale (D-069 item 15, plan v3.1 L1): which locales exist, which one every text entry must carry, and what the text check reads.",
+  "type": "object",
+  "additionalProperties": false
+}

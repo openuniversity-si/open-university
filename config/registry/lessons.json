@@ -1,0 +1,562 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/lessons.json",
+  "x-owner": "lessons",
+  "x-schema-version": 1,
+  "description": "The lessons registry (D-069 items 4 and 9): lessons from every unit retro, their root-cause class, the change they ask for, their status and measured effect.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lessons.area_path_pattern": {
+      "type": "string",
+      "default": "`([A-Za-z0-9_.*/-]+/[A-Za-z0-9_.*/-]+)`",
+      "x-unit": "regex",
+      "description": "A backticked path in a retro item; it becomes the lesson area (the files it is about).",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ]
+    },
+    "lessons.audit_schema": {
+      "type": "string",
+      "default": "contracts/lessons/audit.v1.json",
+      "x-unit": "path",
+      "description": "JSON Schema 2020-12 of one audit entry.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.audit_suffix": {
+      "type": "string",
+      "default": ".audit.jsonl",
+      "x-unit": "path",
+      "description": "File suffix of a lesson's audit trail, next to its record.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.brief_general": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "Whether applied lessons with no area (they apply to every unit) are returned after the area matches.",
+      "x-readers": [
+        "scripts/lib/lessons_brief.py"
+      ]
+    },
+    "lessons.brief_limit": {
+      "type": "integer",
+      "default": 8,
+      "x-unit": "count",
+      "description": "Most lessons the brief query returns for one area.",
+      "x-readers": [
+        "scripts/lib/lessons_brief.py"
+      ],
+      "minimum": 1
+    },
+    "lessons.brief_statuses": {
+      "type": "array",
+      "default": [
+        "applied"
+      ],
+      "x-unit": "list",
+      "description": "Lesson statuses a launch brief is given; a proposed lesson is not yet a rule.",
+      "x-readers": [
+        "scripts/lib/lessons_brief.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.by_default": {
+      "type": "string",
+      "default": "lessons",
+      "x-unit": "text",
+      "description": "Who a trail entry names when the caller gives no --by.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.class_keywords": {
+      "type": "array",
+      "default": [
+        "ordering=same commit,in order,before its",
+        "brief=brief,process message",
+        "env=wrapper,config store,toolchain,shell",
+        "drift=cross-reference,generated,catalog,heading",
+        "boundary=port,ownership,manifest,vendor",
+        "check-gap=structure stage,after each commit,per commit,a gate-local test,hook",
+        "api-misuse=signature,api",
+        "test-fragility=pinned,fixture",
+        "single-writer=one writer,two writers"
+      ],
+      "x-unit": "text",
+      "description": "Class of a retro item: the first entry whose keyword (a lowercase word or phrase, matched at a word start) occurs in the item, as class=keyword,keyword.",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.classes": {
+      "type": "array",
+      "default": [
+        "ordering",
+        "process",
+        "brief",
+        "env",
+        "drift",
+        "boundary",
+        "check-gap",
+        "api-misuse",
+        "test-fragility",
+        "single-writer"
+      ],
+      "x-unit": "enum",
+      "description": "Root-cause classes (one vocabulary for retros, the aggregator and the gate). ordering: steps done in the wrong order; process: push, gate or commit discipline; brief: missing or ambiguous brief; env: shell, toolchain or machine; drift: generated or catalogued data out of sync; boundary: ports, ownership, manifests; check-gap: a check existed but ran too late or not at all; api-misuse: an assumed API, id or signature; test-fragility: a test pinned a value or fixture; single-writer: two writers of one artifact.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.default_class": {
+      "type": "string",
+      "default": "process",
+      "x-unit": "enum",
+      "description": "Class of a retro item no class keyword matches.",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ]
+    },
+    "lessons.default_kind": {
+      "type": "string",
+      "default": "rule",
+      "x-unit": "enum",
+      "description": "Kind of a retro item no kind keyword matches.",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ]
+    },
+    "lessons.default_level": {
+      "type": "string",
+      "default": "pr",
+      "x-unit": "enum",
+      "description": "Level of a lesson added without one; one of lessons.levels.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.digest_algorithm": {
+      "type": "string",
+      "default": "sha256",
+      "x-unit": "name",
+      "description": "Hash of an audit entry; each entry carries the digest of the one before, so an edit or a removed entry breaks the chain.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.effect_stage_fail": {
+      "type": "string",
+      "default": "FAIL",
+      "x-unit": "enum",
+      "description": "Stage result that counts as an occurrence when a signal names a gate stage.",
+      "x-readers": [
+        "scripts/lib/lessons_effect.py"
+      ]
+    },
+    "lessons.effect_verdicts": {
+      "type": "array",
+      "default": [
+        "improved",
+        "unchanged",
+        "worse",
+        "insufficient-data"
+      ],
+      "x-unit": "enum",
+      "description": "Verdicts of a measured effect, in the order: fewer, the same, more occurrences after than before, and not enough data.",
+      "x-readers": [
+        "scripts/lib/lessons_effect.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "minItems": 4
+    },
+    "lessons.effect_window_days": {
+      "type": "integer",
+      "default": 14,
+      "x-unit": "d",
+      "description": "Days before and after a lesson was applied that the effect counts. An after-window not yet over, or no occurrence in either window, is insufficient data, never a number.",
+      "x-readers": [
+        "scripts/lib/lessons_effect.py"
+      ],
+      "minimum": 1
+    },
+    "lessons.genesis_digest": {
+      "type": "string",
+      "default": "0",
+      "x-unit": "text",
+      "description": "The 'previous digest' of the first audit entry.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.id_hash_chars": {
+      "type": "integer",
+      "default": 8,
+      "x-unit": "count",
+      "description": "Characters of the dedup hash kept in the id.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "minimum": 6
+    },
+    "lessons.id_prefix": {
+      "type": "string",
+      "default": "LR-",
+      "x-unit": "text",
+      "description": "Prefix of a lesson id; the rest is the dedup hash of (source unit, reference, title).",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.ingest_by": {
+      "type": "string",
+      "default": "lessons-ingest",
+      "x-unit": "text",
+      "description": "Who the trail names for a lesson the ingestion registered.",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ]
+    },
+    "lessons.ingest_glob": {
+      "type": "string",
+      "default": "docs/units/*/retro.md",
+      "x-unit": "path",
+      "description": "Retro files the ingestion reads: one per unit, docs/units/<unit>/retro.md.",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ]
+    },
+    "lessons.ingest_section": {
+      "type": "integer",
+      "default": 5,
+      "x-unit": "count",
+      "description": "Number of the retro section that holds the lessons (the RETRO template: 1 brief, 2 audit and plan, 3 execution, 4 gate, 5 lessons).",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ],
+      "minimum": 1
+    },
+    "lessons.kind_keywords": {
+      "type": "array",
+      "default": [
+        "brief-template=brief,template",
+        "helper=helper",
+        "check=check,hook,a gate-local test,stage",
+        "config=config,registry"
+      ],
+      "x-unit": "text",
+      "description": "Kind of change of a retro item, same form as lessons.class_keywords; lessons.default_kind when none matches.",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.kinds": {
+      "type": "array",
+      "default": [
+        "rule",
+        "brief-template",
+        "config",
+        "tool",
+        "helper",
+        "check"
+      ],
+      "x-unit": "enum",
+      "description": "Kinds of concrete change a lesson asks for. A lesson of kind check grows the per-commit check registry.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.levels": {
+      "type": "array",
+      "default": [
+        "commit",
+        "pr",
+        "program",
+        "venture"
+      ],
+      "x-unit": "enum",
+      "description": "Levels a lesson applies at, narrow to wide: commit, pr, program or venture. A lesson that applies to every venture is marked padrao_candidate, to be lifted later into the central Padrão in A Torre (not built here).",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "lessons.list_columns": {
+      "type": "array",
+      "default": [
+        "id",
+        "status",
+        "class",
+        "kind",
+        "owner",
+        "title"
+      ],
+      "x-unit": "enum",
+      "description": "Columns of scripts/lessons list, in order.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.owner_aliases": {
+      "type": "array",
+      "default": [
+        "a torre=a-torre",
+        "engine lane=engine-lane",
+        "engine=engine-lane",
+        "gate owner=gate-lane",
+        "gate area=gate-lane",
+        "structure owner=structure-owner",
+        "engine-commit-plan=engine-commit-plan"
+      ],
+      "x-unit": "text",
+      "description": "Retro wording for an owner, 'phrase=owner' (lowercase phrase found in the owner text).",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.owners": {
+      "type": "array",
+      "default": [
+        "a-torre",
+        "engine-lane",
+        "gate-lane",
+        "structure-owner",
+        "engine-commit-plan"
+      ],
+      "x-unit": "enum",
+      "description": "Owners a lesson may name; the ingestion normalizes the retro wording (lessons.owner_aliases) to one of these.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.producer": {
+      "type": "string",
+      "default": "lessons",
+      "x-unit": "text",
+      "description": "Producer name on the events the lessons tool emits.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.record_actions": {
+      "type": "array",
+      "default": [
+        "registered",
+        "applied",
+        "retired",
+        "measured"
+      ],
+      "x-unit": "enum",
+      "description": "Actions an audit entry may name.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.record_schema": {
+      "type": "string",
+      "default": "contracts/lessons/lesson.v1.json",
+      "x-unit": "path",
+      "description": "JSON Schema 2020-12 of a lesson record.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.record_suffix": {
+      "type": "string",
+      "default": ".yml",
+      "x-unit": "path",
+      "description": "File suffix of a lesson record.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.register_dir": {
+      "type": "string",
+      "default": "docs/process/lessons",
+      "x-unit": "path",
+      "description": "Directory of the lessons registry: one record per lesson, named <slug> plus lessons.record_suffix (D-069 items 4 and 9). No common file (D-064 a).",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    },
+    "lessons.report_digest_chars": {
+      "type": "integer",
+      "default": 16,
+      "x-unit": "count",
+      "description": "Characters of the report digest carried in the lessons.reported event.",
+      "x-readers": [
+        "scripts/lib/lessons_report.py"
+      ],
+      "minimum": 8
+    },
+    "lessons.report_path": {
+      "type": "string",
+      "default": "docs/process/lessons.md",
+      "x-unit": "path",
+      "description": "Where the aggregator writes the generated lessons report.",
+      "x-readers": [
+        "scripts/lib/lessons_report.py"
+      ]
+    },
+    "lessons.report_title": {
+      "type": "string",
+      "default": "Lessons report",
+      "x-unit": "text",
+      "description": "Heading of the generated lessons report.",
+      "x-readers": [
+        "scripts/lib/lessons_report.py"
+      ]
+    },
+    "lessons.report_top": {
+      "type": "integer",
+      "default": 5,
+      "x-unit": "count",
+      "description": "Classes the report ranks in its summary table before the full list.",
+      "x-readers": [
+        "scripts/lib/lessons_report.py"
+      ],
+      "minimum": 1
+    },
+    "lessons.report_unknown_cost": {
+      "type": "string",
+      "default": "n/a",
+      "x-unit": "text",
+      "description": "Cell shown when a class has no signal, so its cost cannot be measured from the event log.",
+      "x-readers": [
+        "scripts/lib/lessons_report.py"
+      ]
+    },
+    "lessons.retro_comment_title": {
+      "type": "string",
+      "default": "RETRO",
+      "x-unit": "text",
+      "description": "First line of the PR comment that carries a unit retro.",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ]
+    },
+    "lessons.signal_map": {
+      "type": "array",
+      "default": [
+        "ordering=gate.failed|structure check|",
+        "process=gate.failed|structure check|",
+        "boundary=gate.failed|structure check|",
+        "check-gap=gate.failed|structure check|",
+        "drift=gate.failed|generated drift|",
+        "test-fragility=gate.failed|script tests|",
+        "api-misuse=gate.failed|script tests|"
+      ],
+      "x-unit": "text",
+      "description": "Signals a lesson of a class gets when ingested, 'class=event|stage|pattern' (empty stage or pattern is any). A class not listed has no signal and its effect stays insufficient data.",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.slug_max_chars": {
+      "type": "integer",
+      "default": 48,
+      "x-unit": "count",
+      "description": "Characters of the title kept in the file name.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "minimum": 8
+    },
+    "lessons.statuses": {
+      "type": "array",
+      "default": [
+        "proposed",
+        "applied",
+        "retired"
+      ],
+      "x-unit": "enum",
+      "description": "The lifecycle, in order: proposed (a retro found it), applied (the change is in the engine), retired (no longer needed).",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "minItems": 3,
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons.title_max_chars": {
+      "type": "integer",
+      "default": 90,
+      "x-unit": "count",
+      "description": "Characters of a lesson title taken from the first sentence of its retro item.",
+      "x-readers": [
+        "scripts/lib/lesson_ingest.py"
+      ],
+      "minimum": 20
+    },
+    "lessons.transitions": {
+      "type": "array",
+      "default": [
+        "proposed>applied",
+        "proposed>retired",
+        "applied>retired"
+      ],
+      "x-unit": "enum",
+      "description": "Allowed status changes, 'from>to'. Every other change is refused.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ],
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]+>[a-z]+$"
+      }
+    },
+    "lessons.unknown_owner": {
+      "type": "string",
+      "default": "engine-lane",
+      "x-unit": "text",
+      "description": "Owner of a lesson whose retro text names none of lessons.owners.",
+      "x-readers": [
+        "scripts/lib/lessons.py"
+      ]
+    }
+  }
+}

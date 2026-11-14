@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/gate-verdict",
+    "--cold"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "count",
+  "description": "The gate API call of the train's resync (D-075, fallback requeue), relative to the repository root; `--pr <n> --head <sha>` are appended. Exit 0 PASSED admits on the next queue read, 1 FAILED hands the PR back (pr.ejected), the UNOBSERVABLE exit halts the train. Bounded by train.tier2_timeout_s.",
+  "x-readers": [
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-075; docs/operations/train.md"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "train:",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "Prefix of the engine.step.measured step names the train emits (train:batch, train:build, train:tier2, train:merge, train:bisect).",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

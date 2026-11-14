@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "plan/live",
+  "minLength": 1,
+  "x-unit": "ref",
+  "description": "Branch holding docs/programs/<program>/plan-log.jsonl, the append-only plan.changed log, with the planner as its single writer (LP-P1, D-071).",
+  "x-readers": [
+    "docs/process/live-planning.md",
+    "scripts/lib/plan_live.py",
+    "scripts/lib/program.py"
+  ]
+}

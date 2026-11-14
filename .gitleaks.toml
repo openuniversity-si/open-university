@@ -1,0 +1,21 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The approved public Figma file identifier is design provenance, not an API credential."
+regexTarget = "secret"
+regexes = ['''^t1sPlxRI6pcEk9LRxotS4w$''']
+
+[[allowlists]]
+description = "SHA-256 digests of saved Figma responses in the token snapshot are integrity evidence, not credentials."
+condition = "AND"
+paths = ['''^apps/web/design/figma-tokens\.snapshot\.json$''']
+regexTarget = "secret"
+regexes = ['''^[0-9a-f]{64}$''']
+
+[[allowlists]]
+description = "SHA-256 digests of locked event schemas (D-065, M2) are integrity evidence, not credentials; a schema named common-key.* sat beside its digest in the first lock format."
+condition = "AND"
+paths = ['''^contracts/events/schemas\.lock\.json$''']
+regexTarget = "secret"
+regexes = ['''^[0-9a-f]{64}$''']

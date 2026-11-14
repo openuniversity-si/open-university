@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "/workspace/torre/motor",
+  "x-unit": "path",
+  "description": "Where the coordinator's motor records (sessions.log, claims*, tmux captures) live on A Torre's box; scripts/retro ingest reads the unit's records there and says so when the directory is not on the box. $TOWER_MOTOR_DIR overrides it for one run.",
+  "minLength": 1,
+  "x-readers": [
+    "scripts/lib/retro.py"
+  ]
+}

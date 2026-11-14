@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "train/lock",
+  "minLength": 1,
+  "x-unit": "ref",
+  "description": "Branch name of the train lock in the forge (refs/heads/<name>), naming the lock owner; one holder runs the role until its queue is empty (D-065 (1)).",
+  "x-readers": [
+    "scripts/lib/service_lock.py",
+    "scripts/lib/service_status.py",
+    "scripts/lib/train.py"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "scripts/lib/literal-catalogs",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "The directory of the old per-area catalog files (one <area>.json each, D-064 a). The readers merge them with the unit records until scripts/census migrate has emptied them, and refuse an area file the base does not have, so once the migration deletes them none comes back. scripts/generate census renders the derived view at the same paths.",
+  "x-readers": [
+    "scripts/lib/census.py",
+    "scripts/lib/generate_census.py"
+  ],
+  "x-source": "CENSO-NO-MANIFESTO; D-063, D-064 (a)"
+}

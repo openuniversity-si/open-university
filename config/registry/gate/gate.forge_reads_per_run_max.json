@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 60,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "GX-FIX-forge-rate-2 (D-070): GitHub reads one gate run may make (PR identity, panel find, the verdict and pr.ready channel windows); independent of the number of script tests, the script-tests stage itself reads nothing from GitHub. Only the GitHub budget test reads it since the gate stopped counting GitHub calls (D-293); it leaves with that test.",
+  "x-readers": [
+    "scripts/tests/test_gate_forge_budget.py"
+  ]
+}

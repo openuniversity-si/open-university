@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "defects",
+  "x-unit": "name",
+  "description": "Producer name of the defect events.",
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ]
+}

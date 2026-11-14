@@ -1,0 +1,24 @@
+{
+  "type": "array",
+  "default": [
+    "ordering",
+    "process",
+    "brief",
+    "env",
+    "drift",
+    "boundary",
+    "check-gap",
+    "api-misuse",
+    "test-fragility",
+    "single-writer"
+  ],
+  "x-unit": "enum",
+  "description": "Root-cause classes (one vocabulary for retros, the aggregator and the gate). ordering: steps done in the wrong order; process: push, gate or commit discipline; brief: missing or ambiguous brief; env: shell, toolchain or machine; drift: generated or catalogued data out of sync; boundary: ports, ownership, manifests; check-gap: a check existed but ran too late or not at all; api-misuse: an assumed API, id or signature; test-fragility: a test pinned a value or fixture; single-writer: two writers of one artifact.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "minItems": 1,
+  "items": {
+    "type": "string"
+  }
+}

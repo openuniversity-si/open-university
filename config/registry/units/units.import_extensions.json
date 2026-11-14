@@ -1,0 +1,22 @@
+{
+  "type": "array",
+  "default": [
+    ".ts",
+    ".tsx",
+    ".mts",
+    ".mjs",
+    ".js",
+    "/index.ts",
+    "/index.tsx"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "path",
+  "description": "Suffixes tried, in order, to resolve an extensionless TypeScript or JavaScript import.",
+  "x-readers": [
+    "scripts/lib/unit_map.py"
+  ],
+  "x-source": "D-067 (4), plan v3 §4.5"
+}

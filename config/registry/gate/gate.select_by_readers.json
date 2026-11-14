@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "GATE-SPEED R5 A2 (D-102): a diff of split registry keys selects the script tests by the changed keys' readers (x-readers, complete by D-100) instead of by the generated aggregate every test of the registry covers; fail closed for a key without readers, a deleted key, a changed _owner.json or an owner that is not split. Off is the rollback: the aggregate selects as before.",
+  "x-readers": [
+    "scripts/lib/gate_script_tests.py"
+  ],
+  "x-source": "D-102; docs/units/GATE-SPEED/plan.md"
+}

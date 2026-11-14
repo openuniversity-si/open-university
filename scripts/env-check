@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/env-check [--root DIR]
+# The installed toolchain against its registered pins (D-027). Exit 1 names setup.sh and the toolchain env PR
+# needed before continuing. idea-to-prod runs it first; the retired product's package checks left with F13.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/env_manifest.py" "$@"

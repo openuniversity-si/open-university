@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 1,
+  "minimum": 0,
+  "maximum": 1,
+  "x-unit": "slots",
+  "description": "CANARY-OWN-SLOT (docs/operations/aws.md 22.9): whether a deploy canary (tower_infra.canary) has a slot of its own in the runner's capacity. 0 (the default) is off: the canary waits for a slot of the checks, so a swap that lands while the runner's slots are all in checks has its code proven only when one ends. 1: the canary names the reserved account `canary` of the capacity (one slot of each container executor, made by the first canary that asks; the dispatch gives it to no other job) and is dispatched at once; the runner task keeps one loop and one checkout more than TOWER_RUNNER_SLOTS to take it. No cost: the canary runs `true`.",
+  "x-readers": [
+    "infra/service/tower_infra/canary.py"
+  ],
+  "x-source": "CANARY-OWN-SLOT"
+}

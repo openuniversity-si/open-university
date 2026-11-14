@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "Re-gate a head that is behind at all when the base's commits since the merge-base touched a path the PR also changed: the gate proved the PR against a base without those changes.",
+  "x-readers": [
+    "scripts/lib/merge_behind.py"
+  ],
+  "x-source": "D-070"
+}

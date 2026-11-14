@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    "commit.gpgsign=false",
+    "tag.gpgsign=false",
+    "maintenance.auto=false",
+    "gc.auto=0",
+    "receive.autogc=false"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "values",
+  "description": "GATE-SPEED F5: the git settings every script test process gets through the environment (GIT_CONFIG_COUNT, GIT_CONFIG_KEY_<n>, GIT_CONFIG_VALUE_<n>) as well as through gate.test_git_config: a fixture that points GIT_CONFIG_GLOBAL at /dev/null (seven did) dropped the hermetic file, and every commit and push it made ran git's automatic maintenance again. No identity here: a test may set its own.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ]
+}

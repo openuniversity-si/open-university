@@ -1,0 +1,7 @@
+{
+  "number": "D-9",
+  "time": "01/11 00:52 BRT",
+  "text": "The rule is one record, written once.",
+  "premises": "none",
+  "proof": "scripts/tests/decision-record.test.sh"
+}

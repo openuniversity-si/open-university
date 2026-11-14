@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "Tower",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "Display name of the gate's check suite. Matching uses the key, not this name.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "D-283"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 30,
+  "x-unit": "points",
+  "description": "Priority at or above which a defect is of the last class in defects.priority_classes.",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "minimum": 0
+}

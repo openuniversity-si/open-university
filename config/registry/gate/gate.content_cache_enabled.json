@@ -1,0 +1,12 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "D-076 (GATE-FAST, P-56): a script test's or deterministic stage's recorded PASS is reused by content, at the tiers gate-tier.content_cacheable_tiers lists and by a --cold verdict, because its key covers every file it reads, the attested toolchain_id and the judging runner (gate.content_runner_inputs); the train then admits a verdict of the tip's tooling with such hits (train_admit.warmth). Off is the one-key rollback to D-065 (5): tier 2 and --cold reuse nothing again.",
+  "x-readers": [
+    "scripts/lib/gate_tier.py",
+    "scripts/lib/gate_verdict.py",
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-076"
+}

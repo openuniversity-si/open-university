@@ -1,0 +1,18 @@
+{
+  "id": "engine-git-ref",
+  "purpose": "The git-ref adapter of the forge_events port, its object reader and the branch-age reader (D-065); split from engine-events at its seam (F90).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/lib/branch_age.py",
+    "scripts/lib/forge_git_ref.py",
+    "scripts/lib/git_objects.py",
+    "scripts/tests/forge-git-ref.test.sh",
+    "scripts/tests/test_branch_age.py",
+    "scripts/tests/test_forge_git_ref.py",
+    "scripts/tests/test_git_objects.py"
+  ],
+  "requires": {
+    "engine-config": "^1"
+  }
+}

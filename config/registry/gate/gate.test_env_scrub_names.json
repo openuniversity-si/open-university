@@ -1,0 +1,21 @@
+{
+  "type": "array",
+  "default": [
+    "OU_SUBJECT_ROOT",
+    "CURSOR_API_KEY",
+    "CURSOR_AUTH_TOKEN",
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "TOWER_EVENTS_TOKEN"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "name",
+  "description": "TX10 (T6): further gate variables removed from a script test's environment. The forge credentials (Origin, GitHub) and the control plane token are among them: a script test never reaches a real forge.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "TX10; D-070"
+}

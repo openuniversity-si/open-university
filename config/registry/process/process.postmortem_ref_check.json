@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "check",
+  "x-unit": "text",
+  "description": "Label of a `- check: <file>` line under the preventing-check heading: a gate check file that must exist.",
+  "x-readers": [
+    "scripts/lib/postmortem_check.py"
+  ]
+}

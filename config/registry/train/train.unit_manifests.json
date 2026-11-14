@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "units/*/unit.json",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Glob of the unit manifests (U0) the ownership check reads; while none exists the check is a no-op.",
+  "x-readers": [
+    "scripts/lib/train_ownership.py"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "cc",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "GATE-SPEED F4 (D-122): the C compiler that builds the fork server's client (scripts/lib/fork-shim.c) once per suite run; a box without it runs every test with fresh interpreters.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ]
+}

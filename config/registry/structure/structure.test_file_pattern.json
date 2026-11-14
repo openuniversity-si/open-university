@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "(^|/)(tests?|e2e|fixtures|__fixtures__)/|\\.test\\.|\\.stories\\.",
+  "description": "Regular expression of the test and fixture paths that never count as a visual change.",
+  "x-readers": [
+    "scripts/lib/visual_guard.py"
+  ],
+  "x-unit": "regex",
+  "x-source": "D-006, D-069 (SG1)"
+}

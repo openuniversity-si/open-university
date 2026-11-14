@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "push-guard",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Producer name of the events the push guard emits (engine.step.measured of replay-branch, the session heartbeat and stall events).",
+  "x-readers": [
+    "scripts/lib/replay_branch.py",
+    "scripts/lib/push_guard.py",
+    "scripts/lib/stall_report.py"
+  ]
+}

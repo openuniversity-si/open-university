@@ -1,0 +1,9 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "GX-16: the gate keeps ONE status comment per PR, edited across heads and modes, with the superseded heads collapsed. false restores one comment per head and mode.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ]
+}

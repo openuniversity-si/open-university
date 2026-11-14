@@ -1,0 +1,209 @@
+RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY: audit every rule of the group "Merge train, merge rule and the delivery tail" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-merge-train-and-delivery. One draft PR from mod/rule-audit-merge-train-and-delivery into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY: Merge train, merge rule and the delivery tail", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They decide when a gated head may merge and how it ships: how far behind its base it may be, the train batch, its lock and bisection, unit ownership refusals, aggregates, and the frozen delivery tail.
+
+== YOUR ROWS (exactly these 89; census at PR #775, docs/audits/rules/census.json) ==
+- param:aggregates.context_files_ceiling | config/registry/aggregates.json:10#aggregates.context_files_ceiling | Most production files a context may hold unless its cell file carries a shrink-only override (D-060, L3.context-size). | owner: nobody named
+- param:aggregates.context_lines_ceiling | config/registry/aggregates.json:20#aggregates.context_lines_ceiling | Most production lines a context may hold unless its cell file carries a shrink-only override (D-060, L3.context-size). | owner: nobody named
+- param:aggregates.package_tables | config/registry/aggregates.json:30#aggregates.package_tables | Translator folders of platform/db that are not contexts, each with the tables it owns. | owner: nobody named
+- param:aggregates.context_map_description | config/registry/aggregates.json:73#aggregates.context_map_description | The prose heading of the generated context map. | owner: nobody named
+- param:aggregates.node_address_hook | config/registry/aggregates.json:82#aggregates.node_address_hook | The Node --import module that resolves the @ou unit addresses from the tsconfig paths; Node-run renderers load it so they survive an address | owner: nobody named
+- param:aggregates.intents_renderer | config/registry/aggregates.json:91#aggregates.intents_renderer | The Node script that prints INTENTS.md from the per-context TypeScript intent registries; scripts/generate intents runs it. | owner: nobody named
+- param:aggregates.render_timeout | config/registry/aggregates.json:100#aggregates.render_timeout | Longest an aggregate renderer may run an external program before generate stops it. | owner: nobody named
+- param:aggregates.renames_file | config/registry/aggregates.json:110#aggregates.renames_file | File name, inside units/<id>/, that holds the baseline tests the unit renamed or moved. | owner: nobody named
+- param:delivery.test_fake_start_attempts | config/registry/delivery.json:10#delivery.test_fake_start_attempts | Deprecated: delivery.test_fake_ready_max_s holds the REST fake's start limit as a readiness deadline (HD1). How many times a merge-phase tes | owner: D-069 item 5
+- param:delivery.test_fake_ready_max_s | config/registry/delivery.json:22#delivery.test_fake_ready_max_s | Longest a script suite waits for its loopback REST fake to be ready (port file written and a TCP connect accepted) before it reports that th | owner: HD1; mirrors gate.script_test_rendezvous_wait_s
+- param:delivery.test_fake_start_wait_s | config/registry/delivery.json:33#delivery.test_fake_start_wait_s | Seconds the loopback REST fake's readiness probe (scripts/tests/rest_fake.py --wait-ready) waits between two looks for its port file and lis | owner: D-069 item 5
+- param:delivery.command_timeout_s | config/registry/delivery.json:44#delivery.command_timeout_s | Seconds a delivery helper waits for one command (gh, git, a script) before it reports it unavailable. | owner: D-054; D-068; D-069 item 3
+- param:delivery.log_tail_lines | config/registry/delivery.json:55#delivery.log_tail_lines | How many trailing lines of a step log the tail prints when the step fails. | owner: D-054; D-068; D-069 item 3
+- param:delivery.install_timeout_s | config/registry/delivery.json:66#delivery.install_timeout_s | Seconds the tail waits for the frozen-lockfile install of the code under test. | owner: D-054; D-068; D-069 item 3
+- param:delivery.production_check_wait_s | config/registry/delivery.json:77#delivery.production_check_wait_s | Seconds scripts/production-check waits for the deployment of a merge commit when the tail resumes an already merged PR. | owner: D-054; D-068; D-069 item 3
+- param:delivery.commit_sha_pattern | config/registry/delivery.json:88#delivery.commit_sha_pattern | The shape of a full commit identity; the tail and ship-verify accept no other string as a commit. | owner: D-054; D-068; D-069 item 3
+- param:delivery.sha_display_length | config/registry/delivery.json:99#delivery.sha_display_length | How many leading characters of a commit identity a PR comment or a progress line shows. | owner: D-054; D-068; D-069 item 3
+- param:delivery.sha_short_length | config/registry/delivery.json:111#delivery.sha_short_length | How many leading characters of a commit identity the rollback guard message shows. | owner: D-054; D-068; D-069 item 3
+- param:delivery.min_rollback_commit | config/registry/delivery.json:123#delivery.min_rollback_commit | Full identity of the first production commit with direct-origin covers (PR #166); a rollback never promotes a deployment older than it. | owner: D-054; D-068; D-069 item 3
+- param:delivery.deployment_list_limit | config/registry/delivery.json:133#delivery.deployment_list_limit | How many recent production deployments ship-verify lists to find the one built from a merge commit. | owner: D-054; D-068; D-069 item 3
+- param:delivery.compare_file_limit | config/registry/delivery.json:144#delivery.compare_file_limit | A compare listing with this many files or more is treated as unreadable, so the delivery waits for a new deployment. | owner: D-054; D-068; D-069 item 3
+- param:delivery.health_url | config/registry/delivery.json:155#delivery.health_url | The production health endpoint ship-verify reads (without credentials) to identify the running commit. | owner: D-054; D-068; D-069 item 3
+- param:delivery.health_timeout_s | config/registry/delivery.json:165#delivery.health_timeout_s | Seconds ship-verify waits for one production health response. | owner: D-054; D-068; D-069 item 3
+- param:delivery.promote_timeout_s | config/registry/delivery.json:176#delivery.promote_timeout_s | Seconds the Vercel CLI promote of a guarded rollback may run. | owner: D-054; D-068; D-069 item 3
+- param:delivery.capture_timeout_s | config/registry/delivery.json:187#delivery.capture_timeout_s | Seconds the production HTML capture may run. | owner: D-054; D-068; D-069 item 3
+- param:delivery.image_capture_timeout_s | config/registry/delivery.json:198#delivery.image_capture_timeout_s | Seconds one direct-image capture (reference or verify) may run. | owner: D-054; D-068; D-069 item 3
+- param:delivery.merge_timeout_s | config/registry/delivery.json:209#delivery.merge_timeout_s | Seconds scripts/merge-phase may run when ship-verify merges. | owner: D-054; D-068; D-069 item 3
+- param:delivery.hard_check_timeout_s | config/registry/delivery.json:220#delivery.hard_check_timeout_s | Seconds the production hard check waits for the merge commit to be live. | owner: D-054; D-068; D-069 item 3
+- param:delivery.scripts_only_hard_check_timeout_s | config/registry/delivery.json:231#delivery.scripts_only_hard_check_timeout_s | Seconds the hard check waits for a Vercel build of a scripts-only merge that already started. | owner: D-054; D-068; D-069 item 3
+- param:delivery.current_deployment_check_timeout_s | config/registry/delivery.json:242#delivery.current_deployment_check_timeout_s | Seconds the health check of the deployment captured before the merge may take. | owner: D-054; D-068; D-069 item 3
+- param:delivery.rollback_candidate_check_timeout_s | config/registry/delivery.json:253#delivery.rollback_candidate_check_timeout_s | Seconds the hard check of the rollback candidate (the previous deployment) may take. | owner: D-054; D-068; D-069 item 3
+- param:delivery.rollback_restored_check_timeout_s | config/registry/delivery.json:264#delivery.rollback_restored_check_timeout_s | Seconds the hard check after a rollback promote may take. | owner: D-054; D-068; D-069 item 3
+- param:delivery.rollback_recheck_timeout_s | config/registry/delivery.json:275#delivery.rollback_recheck_timeout_s | Seconds the production recheck before a rollback waits; zero means one look and no wait. | owner: D-054; D-068; D-069 item 3
+- param:delivery.e2e_lock_path | config/registry/delivery.json:286#delivery.e2e_lock_path | The lock file serialising the browser captures with the e2e stage. | owner: D-054; D-068; D-069 item 3
+- param:delivery.ship_verify_lock_path | config/registry/delivery.json:296#delivery.ship_verify_lock_path | The lock file allowing one ship-verify at a time on a machine. | owner: D-054; D-068; D-069 item 3
+- param:delivery.evidence_suffix_length | config/registry/delivery.json:306#delivery.evidence_suffix_length | Length of the random suffix of an evidence directory name. | owner: D-054; D-068; D-069 item 3
+- param:delivery.merge_allowed_bases | config/registry/delivery.json:318#delivery.merge_allowed_bases | The base branches scripts/merge-phase integrates into; any other base is refused. | owner: D-054; D-068; D-069 item 3
+- param:delivery.closes_pattern | config/registry/delivery.json:335#delivery.closes_pattern | The shape of the legacy --closes argument (a retired phase id such as F01 or F04c); merge-phase accepts it for compatibility and ignores it. | owner: D-054; D-068; D-069 item 3
+- param:gate.batch_base_ref | config/registry/gate.json:482#gate.batch_base_ref | The ref a batch is merged onto and diffed against when scripts/gate-batch is given no --base. | owner: nobody named
+- param:gate.batch_max_prs | config/registry/gate.json:492#gate.batch_max_prs | PRs one batch gate run may hold; a larger batch is refused before anything runs. | owner: nobody named
+- param:merge.max_behind_base | config/registry/merge.json:10#merge.max_behind_base | GX-22 (B-18, D-070): most commits a gated head may be behind the current base tip. merge-phase re-gates a head beyond it (or behind with ove | owner: D-070 | can stop: PRs stopped not measured
+- param:merge.require_exact_head | config/registry/merge.json:22#merge.require_exact_head | GX-22 (D-070): merge-phase merges only the exact gated head (--match-head-commit), so a push after the proof makes the merge fail instead of | owner: D-070
+- param:merge.require_mergeable | config/registry/merge.json:33#merge.require_mergeable | GX-22 (D-070): merge-phase refuses a PR GitHub does not report MERGEABLE (conflicts or an unknown state). Off leaves the conflict to the mer | owner: D-070
+- param:merge.tier1_requires_base_merge | config/registry/merge.json:44#merge.tier1_requires_base_merge | P-G3 switch (GA-PG3 = P-47, D-070). Off (default since GX-27, after the train merged a real batch): a head behind by at most merge.max_behin | owner: D-070 | can stop: PRs stopped not measured
+- param:merge.regate_on_overlap | config/registry/merge.json:55#merge.regate_on_overlap | Re-gate a head that is behind at all when the base's commits since the merge-base touched a path the PR also changed: the gate proved the PR | owner: D-070
+- param:merge.compare_page_size | config/registry/merge.json:65#merge.compare_page_size | Files per page of the GitHub compare call that lists the paths the PR and the base's new commits changed (the API maximum). | owner: D-070
+- param:merge.compare_max_pages | config/registry/merge.json:76#merge.compare_max_pages | Pages of that compare read before the paths are taken as complete. Beyond it the changed-path lists cannot be proven disjoint and the head i | owner: D-070
+- param:merge.paths_shown | config/registry/merge.json:87#merge.paths_shown | Overlapping paths named in the re-gate reason. | owner: D-070
+- param:train.enabled | config/registry/train.json:10#train.enabled | The train's on/off switch (D-065 V3, D-069 item 11). Off: `scripts/train run` exits without taking the lock and the per-session merge rule o | owner: nobody named
+- param:train.batch_size | config/registry/train.json:20#train.batch_size | PRs the train takes into one batch (B). | owner: D-065; docs/process/EVENTS.md, Batch size B
+- param:train.queue_growing_batches | config/registry/train.json:31#train.queue_growing_batches | train.queue.growing is emitted when the queue at batch end exceeds this many batches (2B). | owner: D-065; docs/process/EVENTS.md
+- param:train.queue_since_last_batch | config/registry/train.json:42#train.queue_since_last_batch | The queue index (train_queue.py, GX-30, G-09): while true, the first queue build of a train run replays every open PR's log and head, and ev | owner: nobody named
+- param:train.base_branch | config/registry/train.json:52#train.base_branch | Integration branch the train builds every batch on and merges into (D-054: PRs target it, a release merges it into main). | owner: nobody named
+- param:train.producer | config/registry/train.json:62#train.producer | Producer name of every train event; part of each event id. | owner: nobody named
+- param:train.git_remote | config/registry/train.json:72#train.git_remote | Git remote the train fetches the integration tip and PR heads from (plain git, any forge). | owner: nobody named
+- param:train.combined_ref_prefix | config/registry/train.json:82#train.combined_ref_prefix | Local ref prefix that keeps each batch combined head (<prefix><batch_id>) for the tier-2 run and for audit; never pushed. | owner: nobody named
+- param:train.batch_id_chars | config/registry/train.json:92#train.batch_id_chars | Hex characters of the sha256 that forms a batch id (b-<hex>) from the base tip and the batch heads. | owner: nobody named
+- param:train.git_timeout_s | config/registry/train.json:103#train.git_timeout_s | Timeout of each git command the train runs (fetch, merge-tree, commit-tree, rev-parse). | owner: nobody named
+- param:train.git_author_name | config/registry/train.json:113#train.git_author_name | Author and committer name of the local combined-head merge commits (never pushed; the forge writes the real merge commits). | owner: nobody named
+- param:train.git_author_email | config/registry/train.json:123#train.git_author_email | Author and committer email of the local combined-head merge commits. | owner: nobody named
+- param:train.step_prefix | config/registry/train.json:133#train.step_prefix | Prefix of the engine.step.measured step names the train emits (train:batch, train:build, train:tier2, train:merge, train:bisect). | owner: nobody named
+- param:train.tier2_command | config/registry/train.json:143#train.tier2_command | Tier-2 command, relative to the repository root, run on the combined head and on every bisection prefix (its sha is appended; the members an | owner: nobody named
+- param:train.tier2_timeout_s | config/registry/train.json:161#train.tier2_timeout_s | Longest one tier-2 run may take before it counts as red (class env: the train halts and ejects nobody); P-15 expects about 240 s. The train  | owner: nobody named
+- param:train.tier2_log_chars | config/registry/train.json:172#train.tier2_log_chars | Tail of the tier-2 output carried in pr.ejected.log (the log excerpt only; the failed stage and its class come from the gate's class line ov | owner: nobody named
+- param:train.halt_classes | config/registry/train.json:183#train.halt_classes | Gate classes (D-027, the class line of GX-01) of a red tier-2 run or bisection probe that halt the train for a person instead of ejecting a  | owner: D-070; docs/programs/gate-excellence/plan.md §3.3 GX-02
+- param:train.bisection_max_runs | config/registry/train.json:205#train.bisection_max_runs | Most tier-2 runs one bisection may spend. The train refuses to start when train.batch_size needs more (ceil(log2 B)), so a red batch always  | owner: nobody named
+- param:train.rebuild_max | config/registry/train.json:215#train.rebuild_max | Rebuilds per batch (F-16, GX-30): when the integration tip moved between build and merge, or the forge refused a member after a proven prefi | owner: nobody named
+- param:train.lock_ref | config/registry/train.json:225#train.lock_ref | Branch name of the train lock in the forge (refs/heads/<name>), naming the lock owner; one holder runs the role until its queue is empty (D- | owner: nobody named
+- param:train.lock_lease_s | config/registry/train.json:235#train.lock_lease_s | Deprecated (GX-06): the train lock lease is derived, train.tier2_timeout_s + train.lock_lease_margin_s, and this value is read by nobody. It | owner: D-070; docs/programs/gate-excellence/plan.md §3.3 GX-06
+- param:train.lock_lease_margin_s | config/registry/train.json:247#train.lock_lease_margin_s | Margin of the train lock lease over one tier-2 run: the lease is train.tier2_timeout_s plus this, from each take or renewal (renewed before  | owner: D-070; docs/programs/gate-excellence/plan.md §3.3 GX-06
+- param:train.session_id_env | config/registry/train.json:258#train.session_id_env | Environment variables, in order, whose first set value is the session id that names the train lock owner (train@<session id>, unique per ses | owner: D-070; docs/programs/gate-excellence/plan.md §3.3 GX-06
+- param:train.unit_manifests | config/registry/train.json:276#train.unit_manifests | Glob of the unit manifests (U0) the ownership check reads; while none exists the check is a no-op. | owner: nobody named
+- param:train.shard_key | config/registry/train.json:286#train.shard_key | How the train computes the shard key of a PR or batch (SH-1, design-sharded-tier2.md 4.1): the units its files touch, plus every unit that r | owner: nobody named
+- param:train.shard_shadow | config/registry/train.json:298#train.shard_shadow | While true, start_batch emits train.batch.shards for each batch: the key of every member and of the batch, the shards it would form and the  | owner: nobody named
+- param:train.publish_aggregates | config/registry/train.json:308#train.publish_aggregates | While true, the train keeps a commit of the aggregates in train.published_aggregates on train.aggregates_ref after every integration.advance | owner: nobody named
+- param:train.published_aggregates | config/registry/train.json:318#train.published_aggregates | Names of the scripts/generate targets the train renders into its aggregates commit; empty today, because every aggregate is read on demand. | owner: nobody named
+- param:train.aggregates_ref | config/registry/train.json:332#train.aggregates_ref | Local ref the train keeps the aggregates commit on; publishing it to the forge is the forge port's job. | owner: nobody named
+- param:train.trigger_log_dir | config/registry/train.json:342#train.trigger_log_dir | Directory, relative to the checkout, of the output of the `scripts/train run` that the producer of pr.ready starts in the background (Transp | owner: nobody named
+- param:train.trigger_mode | config/registry/train.json:352#train.trigger_mode | What the producer of pr.ready does after emitting it: emit_only (default) starts nothing, and the designated train-role session runs the tra | owner: D-070; docs/programs/gate-excellence/plan.md §3.3 GX-06
+- decision:D-020 | docs/domain/DECISIONS.md:32 | PRs run strictly serially | owner: 2026-10-22
+- decision:D-065 | docs/domain/DECISIONS.md:67 | Throughput directives for 1,000 PRs/day, sustainable. | owner: 2026-10-26 15:04–16:00, amended 16:18 (Daniel, CEO, chat; A 
+- premise:P-10 | docs/process/premises/aggregates-not-written-by-prs.yml:2 | Aggregates (CONTEXTS.md, INTENTS.md, the context map, baselines, the path map, STATUS.md, indexes) are not written by PRs: they are generate | owner: model (plan v3, extending D-064 (a))
+- premise:P-14 | docs/process/premises/combined-head-failure-rate.yml:2 | Semantic failure on the combined head: f = 3% today, about 0.5% with contracts. | owner: orchestrator (report v2 §11 (estimate) + plan v3)
+- premise:P-15 | docs/process/premises/tier2-cloud-duration.yml:2 | Tier 2 in the cloud takes about 240 s. | owner: orchestrator (report v2 §11 (estimate))
+- premise:P-18 | docs/process/premises/train-sole-merger.yml:2 | The train as the only merger fulfils the AGENTS.md rule "Do not merge your own PR"; at 10x it has its own identity. | owner: orchestrator (report v2 §5.2)
+- premise:P-27 | docs/process/premises/thousand-a-day-is-the-start.yml:2 | 1,000 PRs/day is only the start; the aspiration is 10k, 100k and 1M per day. | owner: daniel (chat 16:18)
+- premise:P-47 | docs/process/premises/gate-no-forced-base-merge-switch.yml:2 | GA-PG3: no forced base merge; behind a registered config switch, default OFF, turned on only after the train has merged a real batch. Merge  | owner: A Torre (A Torre 27/10 13:03 under Daniel's delegation (plan
+- refusal:commit_check.rebase_errors | scripts/lib/commit_check.py:96 | Refuses a head behind its base by more than the registry limit (0 while merge.tier1_requires_base_merge is on) that carries no merge commit  | owner: GX-22, FP1 | can stop: PRs stopped 1
+- refusal:train_ownership.refusals | scripts/lib/train_ownership.py:53 | Lists the units outside the change's lane that it touches without their owner's approval (reads approvals from the forge only when a foreign | owner: D-067 (2) | can stop: PRs stopped not measured
+
+Kinds: decision 2, parameter 79, premise 6, refusal 2. Estimated work: 84 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/merge-train-and-delivery.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 89), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/merge-train-and-delivery.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/merge-train-and-delivery.md has exactly 89 rows, one per census row of this group, and the verdict
+  counts sum to 89 (quote the command that counts them).
+* docs/audits/rules/merge-train-and-delivery.json parses and has the same 89 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json and
+  docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-structure-check-and-premises: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json, docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**
+  - mod/rule-audit-commit-and-pr-discipline: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json, docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**
+  - mod/rule-audit-registry-literals-and-text: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json, docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**
+  - mod/rule-audit-environment-toolchain-and-supply-chain: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json, docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**
+  - mod/rule-audit-production-release-and-migrations: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json, docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-defects-lessons-and-postmortems: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json, docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-code-architecture-and-units: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json, docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**
+  - mod/rule-audit-gate-selection-proof-and-status: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json, docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**
+  - mod/rule-audit-gate-execution-and-tests: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json, docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**
+  - mod/rule-audit-paid-vendors-and-ai-sessions: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json, docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+84 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 15,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "Median tier-1 gate time above which gate.slow is emitted to the engine lane.",
+  "x-readers": [
+    "scripts/lib/forge_events.py",
+    "docs/process/EVENTS.md"
+  ]
+}

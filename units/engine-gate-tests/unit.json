@@ -1,0 +1,23 @@
+{
+  "id": "engine-gate-tests",
+  "purpose": "Script-test selection: which script tests a diff selects, their cost and the covers measure.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/gate-tests.json",
+    "scripts/covers-cost",
+    "scripts/lib/covers_cost.py",
+    "scripts/lib/gate_script_tests.py",
+    "scripts/tests/covers-cost.test.sh",
+    "scripts/tests/gate-script-tests-covers.test.sh",
+    "scripts/tests/gate-script-tests.test.sh",
+    "scripts/tests/test_covers_cost.py",
+    "scripts/tests/test_gate_script_tests.py",
+    "scripts/tests/test_gate_script_tests_covers.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-config-check": "^1",
+    "engine-gate-plan": "^1"
+  }
+}

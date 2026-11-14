@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/toolchain.json",
+  "x-owner": "toolchain",
+  "x-schema-version": 1,
+  "description": "Pinned versions of the build and gate toolchain (D-069 item 12). scripts/cloud/toolchain.json keeps only the checksums keyed by these versions.",
+  "type": "object",
+  "additionalProperties": false
+}

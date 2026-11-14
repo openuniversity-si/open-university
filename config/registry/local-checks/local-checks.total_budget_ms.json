@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 30000,
+  "x-unit": "ms",
+  "description": "Budget of all local checks together. Over it the run reports it; a single check over its own budget moves to the gate.",
+  "x-readers": [
+    "scripts/lib/local_checks.py"
+  ],
+  "minimum": 1
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/train-reuse.json",
+  "x-owner": "train-reuse",
+  "x-schema-version": 1,
+  "description": "Tier-2 reuse of exactly-matching attested proofs (GX-31, B-20 (b), D-070 under GA-P02 strict, P-43): the train reuses a verified v4 gate.passed only when its input_digest is the one the train recomputes for the judged commit. Reader: scripts/lib/train_reuse.py (the train's judge path, GX-30).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "train-reuse.reuse_attested_proofs": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "GX-31 (D-070, GA-P02 strict, P-43): before a tier-2 run (the batch head or a bisection probe) the train looks for a gate.passed at the v4 proof version on the repository channel, read through a forge adapter that keeps only trusted author associations (the port re-validates every event_id), whose input_digest, head tree, base, plan, selection, attested toolchain_id (GX-28) and gate_version equal the ones it recomputes; a match is the verdict and nothing runs, anything else runs. Off is the one-key rollback: tier 2 never reuses (D-065 (5) as before GX-31).",
+      "x-readers": [
+        "scripts/lib/train_reuse.py"
+      ],
+      "x-flag": true,
+      "x-source": "D-070; plan-v2 GX-31, D-B8"
+    },
+    "train-reuse.tier2_plan": {
+      "type": "string",
+      "default": "dev",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "GX-31 (D-070): the plan a tier-2 run binds into its proof (scripts/gate-batch runs gate-local --dev, so the binding's plan is dev). The train puts it in the input_digest it recomputes; a value that is not the gate's makes every lookup miss (the run happens), never a false reuse.",
+      "x-readers": [
+        "scripts/lib/train_reuse.py"
+      ],
+      "x-source": "D-070; plan-v2 GX-31, D-B8"
+    }
+  }
+}

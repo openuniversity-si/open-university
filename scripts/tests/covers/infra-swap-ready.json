@@ -1,0 +1,18 @@
+{
+  "script": "scripts/tests/infra-swap-ready.test.sh",
+  "covers": [
+    "scripts/tests/infra-swap-ready.test.sh",
+    "scripts/tests/test_infra_swap_ready.py",
+    "infra/service/tower_infra/live_image.py",
+    "infra/service/tower_infra/workflows.py",
+    "infra/service/tower_infra/runner.py",
+    "infra/service/tower_infra/__main__.py",
+    "infra/service/requirements.txt",
+    "infra/service/tower_infra/container.py",
+    "infra/service/tower_infra/forge.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/service/tower_infra/mechanisms.py",
+    "infra/service/tower_infra/port.py",
+    "scripts/tests/runner_world.py"
+  ]
+}

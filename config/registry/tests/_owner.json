@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/tests.json",
+  "x-owner": "tests",
+  "x-schema-version": 1,
+  "description": "Hermetic tests (plan v3 H1, D-069 item 5): network denied, seeded randomness, injected clock, timeouts.",
+  "type": "object",
+  "additionalProperties": false
+}

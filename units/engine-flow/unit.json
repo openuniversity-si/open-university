@@ -1,0 +1,32 @@
+{
+  "id": "engine-flow",
+  "purpose": "The flow's measurements (FLUXO-AMPLO; D-137): integrated commits per day and their guards read from git history by scripts/flow-metrics, the commit rate, the lane's status and the one-report flow check (D-197).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/commit-rate",
+    "scripts/flow-check",
+    "scripts/flow-metrics",
+    "scripts/lane-status",
+    "scripts/lib/commit_rate.py",
+    "scripts/lib/flow_check.py",
+    "scripts/lib/flow_metrics.py",
+    "scripts/lib/lane_status.py",
+    "scripts/tests/commit-rate.test.sh",
+    "scripts/tests/flow-check.test.sh",
+    "scripts/tests/flow-metrics.test.sh",
+    "scripts/tests/lane-status.test.sh",
+    "scripts/tests/test_commit_rate.py",
+    "scripts/tests/test_flow_check.py",
+    "scripts/tests/test_flow_metrics.py",
+    "scripts/tests/test_lane_status.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1",
+    "engine-gate-verdict": "^1",
+    "engine-records": "^1",
+    "engine-regime": "^1",
+    "engine-service": "^1"
+  }
+}

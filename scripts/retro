@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/retro ingest --unit <id> [--session <sid>]
+#        scripts/retro receive --unit <id> --session <sid> [--path <file>]   (stdin without --path)
+# RETRO-API: receive and keep each session's log (scripts/lib/retro.py; docs/units/RETRO-API).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/retro.py" "$@"

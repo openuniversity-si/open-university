@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/dashboard [--pr N ...] [--out PATH]
+# Generates the SLO dashboard (Markdown) from the event log at slo.dashboard_path, a gitignored path: it is derived on
+# demand and never committed by a PR (O1, D-069 item 6, P-10).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/slo.py" dashboard "$@"

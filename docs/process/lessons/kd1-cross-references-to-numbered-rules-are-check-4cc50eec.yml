@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-4cc50eec"
+slug: "kd1-cross-references-to-numbered-rules-are-check-4cc50eec"
+title: "Cross-references to numbered rules are checked against their headings"
+source:
+  unit: "KD1"
+  retro: "docs/units/KD1/retro.md"
+  section: 5
+  ref: "L5"
+class: "drift"
+kind: "check"
+change: "Cross-references to numbered rules are checked against their headings (F6). Owner: structure owner."
+owner: "structure-owner"
+status: "proposed"
+area: []
+signals: [{"event": "gate.failed", "stage": "generated drift", "pattern": null}]
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

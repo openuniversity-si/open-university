@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 0,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "Wall time the selected script tests may take together; 0 runs none and defers them all to the gate, which runs them on the exact head before any merge (SEMENTE cycle 03/11: the push ran the same tests the gate reran, 10-20 s per push). A test not started by then is deferred to the gate; one still running when it ends is stopped (SIGTERM, then SIGKILL after prepush.stop_grace_s) and deferred too. Kept well under push-guard.push_timeout_s, the limit of a push the post-commit hook starts.",
+  "x-readers": [
+    "scripts/lib/prepush.py"
+  ]
+}

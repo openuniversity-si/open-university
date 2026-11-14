@@ -1,0 +1,27 @@
+{
+  "id": "engine-medir",
+  "purpose": "The measures of the phase-1 path (MEDIR 1, P6 F1): the p50 and p99 of the forge's calls to Origin, of the runs and of the deliveries' merges, from the infrastructure's log and the deliveries' logs.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/medir",
+    "scripts/lib/medir.py",
+    "config/registry/medir.json",
+    "config/registry/medir/**",
+    "scripts/tests/medir.test.sh",
+    "scripts/tests/test_medir.py",
+    "scripts/tests/covers/medir.json"
+  ],
+  "battery": {
+    "command": "scripts/unit-battery engine-medir"
+  },
+  "decisions": [
+    "D-303",
+    "D-306"
+  ],
+  "premises": [],
+  "requires": {
+    "engine-config": "^1",
+    "engine-gate-infra": "^1"
+  }
+}

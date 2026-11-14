@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/intake-templates [--help]
+# Writes docs/process/templates/ from the intake registry (D-205)
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/intake_templates.py" "$@"

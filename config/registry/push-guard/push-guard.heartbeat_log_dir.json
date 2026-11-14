@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "push-guard/events",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Directory of the file adapter's heartbeat log, relative to the git common directory of the checkout that made the commit (never versioned, one per checkout).",
+  "x-readers": [
+    "scripts/lib/push_guard.py"
+  ]
+}

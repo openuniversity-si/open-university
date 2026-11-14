@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/postmortem-check.test.sh",
+  "covers": [
+    "scripts/tests/postmortem-check.test.sh",
+    "scripts/tests/test_postmortem_check.py",
+    "scripts/lib/postmortem_check.py",
+    "scripts/lib/config.py",
+    "config/registry/process.json",
+    "scripts/lib/generated/config_registry_process.py",
+    "docs/process/postmortems/*.md"
+  ]
+}

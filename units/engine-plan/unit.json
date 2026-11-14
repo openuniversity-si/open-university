@@ -1,0 +1,16 @@
+{
+  "id": "engine-plan",
+  "purpose": "The live-plan triage CLI (scripts/plan): ranks and triages the folded live plan; split from engine-coordinator (F133).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/lib/plan_triage.py",
+    "scripts/plan",
+    "scripts/tests/test_plan_triage.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-coordinator": "^1",
+    "engine-events": "^1"
+  }
+}

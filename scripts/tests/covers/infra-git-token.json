@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/infra-git-token.test.sh",
+  "covers": [
+    "scripts/tests/infra-git-token.test.sh",
+    "scripts/tests/test_infra_git_token.py",
+    "infra/service/tower_infra/container.py",
+    "infra/service/tower_infra/forge.py",
+    "infra/service/tower_infra/__main__.py"
+  ]
+}

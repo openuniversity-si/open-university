@@ -1,0 +1,33 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-02"
+slug: "github-source-of-truth"
+statement: "GitHub is the source of truth of the code today (merges count there); Cursor Origin is the destination."
+kind: "vendor"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "report v2 §4.2 (\"the forge is GitHub\"); the repository description says \"Origin remains source of truth\""
+  quote: null
+  at: null
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["decision:D-065", "veto:V2", "plan:M2", "plan:M3"]
+  if_wrong: "The event adapter (M2) and the train (M3) point at Origin and GitHub becomes a read-only mirror."
+validate:
+  kind: "question"
+  how: "Question 2 of plan v3 §2.1 (yes/no)."
+answer:
+  by: "Daniel"
+  at: "2026-10-26T17:22-03:00"
+  value: "confirmed"
+  quote: "Hoje, se eu não me engano, parece que o GitHub é a nossa fonte da verdade. Eu gostaria que fosse o Origin... eu acho que o Cloud Code não tem acesso ao Origin. Então a gente tem que usar o GitHub"
+  where: "Daniel, chat 17:22"
+  evidence: null
+  translation: "Today, if I am not mistaken, GitHub seems to be our source of truth. I would like it to be Origin... I think Claude Code has no access to Origin. So we have to use GitHub"
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []
+notes: "Directive: GitHub stays the source of truth for now because Claude Code cloud only works with GitHub; everything is forge-agnostic through the forge_events port; Cursor Origin is the destination."

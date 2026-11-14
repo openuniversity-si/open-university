@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/lane.test.sh",
+  "covers": [
+    "scripts/tests/lane.test.sh",
+    "scripts/tests/test_lane.py",
+    "scripts/lane",
+    "scripts/lib/lane.py",
+    "docs/process/lane.md"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/env.json",
+  "x-owner": "env",
+  "x-schema-version": 1,
+  "description": "The environment manifest, preflight and session identity (engine-env, U4, D-069 items 3 and 12): the timeouts and id range of their subprocess and account calls.",
+  "type": "object",
+  "additionalProperties": false
+}

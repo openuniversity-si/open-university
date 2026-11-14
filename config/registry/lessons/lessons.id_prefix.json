@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "LR-",
+  "x-unit": "text",
+  "description": "Prefix of a lesson id; the rest is the dedup hash of (source unit, reference, title).",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ]
+}

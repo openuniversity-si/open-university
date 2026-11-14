@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/service status|health [--json] | metrics
+# The gate and the train as services (GATE-TRAIN-SERVICES, D-086, ADR-41): status, health and metrics read from git
+# refs, the shared window of the repository channel and this machine's runner; no session, no control plane needed.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/service.py" "$@"

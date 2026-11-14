@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 60,
+  "x-unit": "s",
+  "description": "Time secret_scan_diff waits for gitleaks before the check is skipped.",
+  "x-readers": [
+    "scripts/lib/local_checks.py",
+    "scripts/lib/retro.py"
+  ],
+  "minimum": 1
+}

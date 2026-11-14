@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/gate-pin.test.sh",
+  "covers": [
+    "scripts/tests/gate-pin.test.sh",
+    "scripts/tests/test_gate_pin.py",
+    "scripts/lib/gate_pin.py",
+    "config/registry/gate-pin.json",
+    "scripts/gate-local",
+    "scripts/lib/commit_check.py"
+  ]
+}

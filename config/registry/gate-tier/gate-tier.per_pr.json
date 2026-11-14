@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 1,
+  "minimum": 1,
+  "maximum": 3,
+  "x-unit": "count",
+  "description": "Tier of a gate-local invocation (D-B5; gate_tier.derive, first match in the order battery, per_pr, batch, working_tree), exported by gate-hooks/tier.sh as OU_GATE_TIER. --pr: the per-PR gate (gate-dev/gate-db --pr; also gate_noite's --noite --sha --pr). Values are the verdict contract's tiers: 1 per-PR, 2 batch, 3 battery.",
+  "x-readers": [
+    "scripts/lib/gate_tier.py"
+  ],
+  "x-source": "D-070; plan-v2 GX-11, D-B5"
+}

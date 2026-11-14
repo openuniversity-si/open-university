@@ -1,0 +1,13 @@
+{
+  "type": "integer",
+  "default": 4,
+  "minimum": 2,
+  "maximum": 125,
+  "x-unit": "code",
+  "description": "Exit status of scripts/gate-verdict when the gate could not run or its input could not be read (UNOBSERVABLE): never a result about the code. 0 is PASSED, 1 FAILED and EX_USAGE (64) a usage error; the table lives in scripts/lib/gate_verdict.py and docs/padrao/v5/gate-verdict.md.",
+  "x-readers": [
+    "scripts/lib/gate_verdict.py",
+    "scripts/tests/test_gate_verdict.py"
+  ],
+  "x-source": "D-070 (GATE-API)"
+}

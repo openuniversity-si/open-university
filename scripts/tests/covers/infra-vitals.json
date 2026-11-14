@@ -1,0 +1,18 @@
+{
+  "script": "scripts/tests/infra-vitals.test.sh",
+  "covers": [
+    "scripts/tests/infra-vitals.test.sh",
+    "scripts/tests/test_infra_vitals.py",
+    "scripts/tests/infra_db/psql.py",
+    "infra/service/tower_infra/vitals.py",
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/canary.py",
+    "infra/service/tower_infra/port.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/db/migrations/*.sql",
+    "config/registry/service/service.db_disk_bytes.json",
+    "config/registry/service/service.db_alert_disk_ratio.json",
+    "config/registry/service/service.db_alert_connections_ratio.json",
+    "infra/service/tower_infra/__main__.py"
+  ]
+}

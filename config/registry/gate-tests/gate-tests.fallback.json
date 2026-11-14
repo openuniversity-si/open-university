@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string"
+  },
+  "default": [
+    "config/registry/gate-tests.json",
+    "scripts/lib/gate_script_tests.py",
+    "scripts/gate-local",
+    "scripts/lib/gate-runner.sh"
+  ],
+  "x-unit": "glob",
+  "description": "Selector files: a change to one runs every script test, because the choice of tests itself changed. A covers manifest is not one: it selects its own test, the map check (gate-tests.map_check) and every test whose covers glob matches the manifest path.",
+  "x-readers": [
+    "scripts/lib/gate_script_tests.py"
+  ]
+}

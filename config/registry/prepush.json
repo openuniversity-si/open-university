@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/prepush.json",
+  "x-owner": "prepush",
+  "x-schema-version": 1,
+  "description": "The pre-push check (TX01, T9): scripts/prepush and .githooks/pre-push run, in seconds and on the local diff, the inventory checks, the owning script tests and the open-PR overlap that used to reach only the full gate.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "prepush.event_names_test": {
+      "type": "string",
+      "default": "scripts/tests/test_event_contracts.py::Contracts.test_events_md_and_the_schemas_name_the_same_events",
+      "pattern": "^[^:]+\\.py::[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+      "x-unit": "text",
+      "description": "<test file>::<TestCase>.<method> of the event names check (docs/process/EVENTS.md and contracts/events name the same events), which lives only in that test; prepush runs that one method in process (about 20 ms) and names, for each event it finds on one side only, the side to fix. A checkout without the file skips the check.",
+      "x-readers": [
+        "scripts/lib/prepush.py"
+      ]
+    },
+    "prepush.fetch_timeout_s": {
+      "type": "integer",
+      "default": 10,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Time limit of the one quiet git fetch of the open PR heads this checkout lacks. Past it, or on any fetch error, the overlap check compares the heads already present.",
+      "x-readers": [
+        "scripts/lib/prepush.py"
+      ]
+    },
+    "prepush.machine_ref_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "train.lock_ref",
+        "train.wake_ref",
+        "gate.shared_results_ref"
+      ],
+      "x-unit": "name",
+      "description": "Registry keys that name the machine-internal refs (refs/heads/<value>): the lock and log refs the train and the runner write through forge_git_ref, one record commit each. A push whose every ref is one of them and whose every new commit is a record (a tree of record.json alone) skips the pre-push checks: it carries no code, and on the e2-micro the checks outlast train.git_timeout_s (D-091). Any other ref, or a record ref carrying anything but a record, is checked in full.",
+      "x-readers": [
+        "scripts/lib/machine_refs.py"
+      ],
+      "x-source": "D-091; docs/operations/services.md"
+    },
+    "prepush.open_prs_page_size": {
+      "type": "integer",
+      "default": 100,
+      "minimum": 1,
+      "maximum": 100,
+      "x-unit": "count",
+      "description": "Open PRs the one REST list reads (GitHub's largest page is 100); with more open PRs the overlap check judges the first page.",
+      "x-readers": [
+        "scripts/lib/prepush.py"
+      ]
+    },
+    "prepush.rest_timeout_s": {
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Timeout of the one REST list of the open PRs (scripts/lib/github_api.py, max_wait_s 0, so a recorded rate-limit block never makes it wait), and the time prepush waits for that list in all, retries included. Past it the overlap check is skipped, never waited for.",
+      "x-readers": [
+        "scripts/lib/prepush.py"
+      ]
+    },
+    "prepush.scrub_prefixes": {
+      "type": "array",
+      "default": [
+        "GIT_",
+        "OU_GATE_",
+        "CURSOR_API_KEY",
+        "CURSOR_AUTH_TOKEN",
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "TOWER_EVENTS_TOKEN"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "name",
+      "description": "Prefixes of the environment variables dropped from every script test prepush runs. A push the post-commit hook starts leaks GIT_INDEX_FILE=.git/index (and the commit's GIT_AUTHOR_*) into the hooks, which would point a test's git at the checkout's own index; OU_GATE_* are the gate's own variables, which a test never inherits there either. The forge credentials (Origin, GitHub) and the control plane token are among them: a script test never reaches a real forge.",
+      "x-readers": [
+        "scripts/lib/prepush.py"
+      ]
+    },
+    "prepush.state_file": {
+      "type": "string",
+      "default": "prepush-state.json",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "File name, resolved with git rev-parse --git-path, where prepush records each script test's last local run. A test stopped at the end of prepush.tests_budget_s is deferred to the gate at once on the next runs, so a slow test costs the budget once, not on every push; delete the file to try it again.",
+      "x-readers": [
+        "scripts/lib/prepush.py"
+      ]
+    },
+    "prepush.stop_grace_s": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "Time a test stopped at the end of prepush.tests_budget_s gets between SIGTERM to its process group (its EXIT traps clean up) and SIGKILL.",
+      "x-readers": [
+        "scripts/lib/prepush.py"
+      ]
+    },
+    "prepush.test_workers": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Selected script tests that run at once (they share no fixture; the gate runs them concurrently too).",
+      "x-readers": [
+        "scripts/lib/prepush.py"
+      ]
+    },
+    "prepush.tests_budget_s": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "x-unit": "s",
+      "description": "Wall time the selected script tests may take together; 0 runs none and defers them all to the gate, which runs them on the exact head before any merge (SEMENTE cycle 03/11: the push ran the same tests the gate reran, 10-20 s per push). A test not started by then is deferred to the gate; one still running when it ends is stopped (SIGTERM, then SIGKILL after prepush.stop_grace_s) and deferred too. Kept well under push-guard.push_timeout_s, the limit of a push the post-commit hook starts.",
+      "x-readers": [
+        "scripts/lib/prepush.py"
+      ]
+    }
+  }
+}

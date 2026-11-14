@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    "apps/web"
+  ],
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "count",
+  "description": "Path roots of retired products (D-112, D-113): no tracked path lies under one, and no acting file names one. Open University left at OU-DECOUPLE F4; its archive is commit 567176bb (D-110).",
+  "x-readers": [
+    "scripts/lib/retired_products.py"
+  ],
+  "x-source": "D-113 (OU-DECOUPLE F5)"
+}

@@ -1,0 +1,18 @@
+{
+  "type": "string",
+  "default": "origin",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Git remote a session publishes its work branch to: the hook pushes there and sets the branch's upstream to <remote>/<branch>.",
+  "x-readers": [
+    "scripts/lib/commit_check.py",
+    "scripts/lib/deliver.py",
+    "scripts/lib/gate_bypass.py",
+    "scripts/lib/lane_collect.py",
+    "scripts/lib/prepush.py",
+    "scripts/lib/program.py",
+    "scripts/lib/push_guard.py",
+    "scripts/lib/structure.py",
+    "scripts/lib/usage.py"
+  ]
+}

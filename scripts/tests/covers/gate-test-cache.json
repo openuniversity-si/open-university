@@ -1,0 +1,25 @@
+{
+  "script": "scripts/tests/gate-test-cache.test.sh",
+  "covers": [
+    "scripts/tests/gate-test-cache.test.sh",
+    "scripts/tests/test_gate_test_cache.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/gate_graph.py",
+    "scripts/lib/gate_script_tests.py",
+    "scripts/lib/gate-script-tests.json",
+    "scripts/lib/gate_areas.py",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/adapters/storage*.py",
+    "config/registry/gate.json",
+    "scripts/lib/gate_tier.py",
+    "scripts/lib/gate_keys.py",
+    "config/registry/gate-tier.json",
+    "scripts/lib/parallel_tests.py",
+    "scripts/lib/registry_readers.py",
+    "scripts/tests/test_test_metrics.py",
+    "scripts/lib/test_metrics.py",
+    "scripts/lib/hermetic/sitecustomize.py",
+    "scripts/test-suite",
+    "scripts/lib/fork_server.py"
+  ]
+}

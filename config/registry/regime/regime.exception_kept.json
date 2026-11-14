@@ -1,0 +1,17 @@
+{
+  "type": "array",
+  "default": [
+    "money",
+    "people"
+  ],
+  "x-unit": "count",
+  "description": "The locks that never lift, whatever the regime: money and other people (D-260).",
+  "x-readers": [
+    "scripts/lib/regime.py"
+  ],
+  "x-source": "D-260",
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  }
+}

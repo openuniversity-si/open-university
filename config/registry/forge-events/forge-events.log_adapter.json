@@ -1,0 +1,14 @@
+{
+  "type": "string",
+  "default": "git-ref",
+  "enum": [
+    "git-ref",
+    "file"
+  ],
+  "x-unit": "adapter",
+  "description": "CONTROL-CHANNEL (CANALE7, D-282): the adapter that stores every event kind not routed elsewhere, when it differs from forge-events.adapter, which keeps the forge's other operations (change, merge, status). git-ref: the train/events branch on Origin (EVENTS-REF, D-273), the default for good since D-300 (VAZÃO F61, D-296 made permanent): the diary and the gate proof live there, never on Cloudflare. The control plane's /v1/events left the enum (D-300, SEMENTE §6: no double path). The GitHub adapter left the port (D-293).",
+  "x-readers": [
+    "scripts/lib/forge_events.py"
+  ],
+  "x-source": "D-282; docs/units/CONTROL-CHANNEL/plan.md; D-296; D-300"
+}

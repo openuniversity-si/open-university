@@ -1,0 +1,20 @@
+{
+  "script": "scripts/tests/defect-detect.test.sh",
+  "covers": [
+    "scripts/tests/defect-detect.test.sh",
+    "scripts/tests/test_defect_detect.py",
+    "scripts/lib/defect_detect.py",
+    "scripts/lib/defect_adapters.py",
+    "scripts/lib/defects.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/gate_adjudicate.py",
+    "scripts/lib/gate_failures.py",
+    "scripts/lib/gate_script_tests.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/config.py",
+    "config/registry/defects.json",
+    "contracts/events/*.json",
+    "units/*/unit.json",
+    "scripts/lib/registry_readers.py"
+  ]
+}

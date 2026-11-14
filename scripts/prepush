@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/prepush [--base REF] [--hook] [--no-tests] [--no-overlap] (scripts/lib/prepush.py --help)
+# TX01 (T9): before a push, in seconds: the inventory checks with their fixes, the owning script tests, the open-PR overlap.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/prepush.py" "$@"

@@ -1,0 +1,21 @@
+{
+  "type": "array",
+  "default": [
+    "commit",
+    "commit-tree",
+    "merge",
+    "notes",
+    "tag",
+    "update-ref"
+  ],
+  "uniqueItems": true,
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "count",
+  "description": "The git commands that store a text the caller passes: a call naming one of them with `-m` (or `--message`) followed by anything but a literal is refused (structure.git_message_argv_allowed).",
+  "x-readers": [
+    "scripts/lib/repo_hygiene.py"
+  ],
+  "x-source": "D-206"
+}

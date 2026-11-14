@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 120,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Time limit of one local git step of scripts/replay-branch (fetch, worktree, cherry-pick, merge); a step that exceeds it stops the replay, and a rerun resumes it.",
+  "x-readers": [
+    "scripts/lib/replay_branch.py"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "id": "engine-generate",
+  "purpose": "The generator of every derived file and the schema compat stage (D-069 items 1 and 2).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "docs/process/briefs/fluxo-amplo/*.md",
+    "scripts/generate",
+    "scripts/lib/generate.py",
+    "scripts/lib/generate_docs.py",
+    "scripts/lib/generate_lane_briefs.py",
+    "scripts/lib/generate_lane_digest.py",
+    "scripts/lib/generate_python_types.py",
+    "scripts/lib/generate_registry.py",
+    "scripts/lib/generate_stage.sh",
+    "scripts/lib/generate_status.py",
+    "scripts/lib/schema_compat.py",
+    "scripts/schema-compat",
+    "scripts/tests/generate-tree.test.sh",
+    "scripts/tests/generate.test.sh",
+    "scripts/tests/schema-compat.test.sh",
+    "scripts/tests/test_aggregates.py",
+    "scripts/tests/test_generate.py",
+    "scripts/tests/test_generate_changed.py",
+    "scripts/tests/test_generate_lane_briefs.py",
+    "scripts/tests/test_generate_lane_digest.py",
+    "scripts/tests/test_generate_registry.py",
+    "scripts/tests/test_schema_compat.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-config-check": "^1",
+    "engine-events": "^1",
+    "engine-gate-plan": "^1",
+    "engine-units": "^1"
+  }
+}

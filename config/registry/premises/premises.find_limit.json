@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 5,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Most matches scripts/premises find prints.",
+  "x-readers": [
+    "scripts/lib/premises.py"
+  ]
+}

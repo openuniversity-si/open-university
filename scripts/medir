@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# The measures of the phase-1 path (MEDIR 1, P6 F1): p50 and p99 of the forge's calls to Origin, of the runs and of the
+# deliveries' merges. scripts/lib/medir.py says what it reads.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+exec "${OU_PYTHON:-python3}" "$root/scripts/lib/medir.py" "$@"

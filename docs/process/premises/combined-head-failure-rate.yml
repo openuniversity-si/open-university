@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-14"
+slug: "combined-head-failure-rate"
+statement: "Semantic failure on the combined head: f = 3% today, about 0.5% with contracts."
+kind: "capacity"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "report v2 §11 (estimate) + plan v3"
+  quote: null
+  at: null
+status: "to-validate"
+radius: "medium"
+blast:
+  reasons: ["plan:M3"]
+  if_wrong: "Train capacity: 64-145/h with f = 3%; 845-1,268/h with f = 0.5% and a 20-30 s tier 2."
+validate:
+  kind: "measurement"
+  how: "Count train.batch.red per PR in the first 20 batches."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

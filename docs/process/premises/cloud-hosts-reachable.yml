@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-26"
+slug: "cloud-hosts-reachable"
+statement: "cdn.playwright.dev and media.openuniversity.si are reachable from the cloud environment."
+kind: "vendor"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "report v2 A0 (blocked in #488)"
+  quote: null
+  at: null
+status: "validated"
+radius: "low"
+blast:
+  reasons: []
+  if_wrong: "It leaves Daniel's personal steps."
+validate:
+  kind: "measurement"
+  how: "Request both hosts from a cloud session and read who answers."
+answer:
+  by: "measurement:probe"
+  at: "2026-10-26T16:41-03:00"
+  value: "validated"
+  quote: null
+  where: "plan v3 §2.3"
+  evidence: "16:41: the Azure CDN answered 400 and Cloudflare 404, both from the origin, not a 403 from the proxy."
+  translation: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

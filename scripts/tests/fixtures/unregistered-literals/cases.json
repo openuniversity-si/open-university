@@ -1,0 +1,276 @@
+{
+  "description": "LT1: one case per refusal and per allowed case of the unregistered-literal census (scripts/lib/config_check.py). Each case is a source text, its kind (.py, .sh, .mjs) and the literals the census must find, as [kind, value]. The texts live here, in data, so the test file itself spells none of them.",
+  "refused": [
+    {
+      "name": "a python number",
+      "suffix": ".py",
+      "source": "TIMEOUT = 30\n",
+      "found": [
+        [
+          "number",
+          30
+        ]
+      ]
+    },
+    {
+      "name": "a negative python number",
+      "suffix": ".py",
+      "source": "OFFSET = -7\n",
+      "found": [
+        [
+          "number",
+          -7
+        ]
+      ]
+    },
+    {
+      "name": "a python float",
+      "suffix": ".py",
+      "source": "RATIO = 0.25\n",
+      "found": [
+        [
+          "number",
+          0.25
+        ]
+      ]
+    },
+    {
+      "name": "a duration",
+      "suffix": ".py",
+      "source": "WAIT = '30s'\n",
+      "found": [
+        [
+          "duration",
+          "30s"
+        ]
+      ]
+    },
+    {
+      "name": "a url",
+      "suffix": ".py",
+      "source": "API = 'https://api.example.com/v1'\n",
+      "found": [
+        [
+          "url",
+          "https://api.example.com/v1"
+        ]
+      ]
+    },
+    {
+      "name": "a url inside an f-string",
+      "suffix": ".py",
+      "source": "def go(n):\n    return f'https://api.example.com/{n}'\n",
+      "found": [
+        [
+          "url",
+          "https://api.example.com/"
+        ]
+      ]
+    },
+    {
+      "name": "a host",
+      "suffix": ".py",
+      "source": "HOST = 'api.github.com'\n",
+      "found": [
+        [
+          "host",
+          "api.github.com"
+        ]
+      ]
+    },
+    {
+      "name": "a loopback host",
+      "suffix": ".py",
+      "source": "HOST = '127.0.0.1'\n",
+      "found": [
+        [
+          "host",
+          "127.0.0.1"
+        ]
+      ]
+    },
+    {
+      "name": "a host and port",
+      "suffix": ".py",
+      "source": "DB = 'localhost:54322'\n",
+      "found": [
+        [
+          "port",
+          "localhost:54322"
+        ]
+      ]
+    },
+    {
+      "name": "an absolute path",
+      "suffix": ".py",
+      "source": "LOCK = '/tmp/tower.lock'\n",
+      "found": [
+        [
+          "absolute_path",
+          "/tmp/tower.lock"
+        ]
+      ]
+    },
+    {
+      "name": "a home path",
+      "suffix": ".py",
+      "source": "CFG = '~/.config/tower'\n",
+      "found": [
+        [
+          "absolute_path",
+          "~/.config/tower"
+        ]
+      ]
+    },
+    {
+      "name": "a shell number",
+      "suffix": ".sh",
+      "source": "retries=5\n",
+      "found": [
+        [
+          "number",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "a shell default value",
+      "suffix": ".sh",
+      "source": "port=\"${PORT:-54322}\"\n",
+      "found": [
+        [
+          "number",
+          54322
+        ]
+      ]
+    },
+    {
+      "name": "a shell flag value",
+      "suffix": ".sh",
+      "source": "head -20 file\n",
+      "found": [
+        [
+          "number",
+          -20
+        ]
+      ]
+    },
+    {
+      "name": "a shell duration",
+      "suffix": ".sh",
+      "source": "timeout 30s make\n",
+      "found": [
+        [
+          "duration",
+          "30s"
+        ]
+      ]
+    },
+    {
+      "name": "an unquoted shell path",
+      "suffix": ".sh",
+      "source": "cd /var/tmp/tower\n",
+      "found": [
+        [
+          "absolute_path",
+          "/var/tmp/tower"
+        ]
+      ]
+    },
+    {
+      "name": "a shell url",
+      "suffix": ".sh",
+      "source": "curl -s https://console.neon.tech/api\n",
+      "found": [
+        [
+          "url",
+          "https://console.neon.tech/api"
+        ]
+      ]
+    },
+    {
+      "name": "a javascript number",
+      "suffix": ".mjs",
+      "source": "const limit = 250;\n",
+      "found": [
+        [
+          "number",
+          250
+        ]
+      ]
+    },
+    {
+      "name": "a javascript url",
+      "suffix": ".mjs",
+      "source": "const api = 'https://api.vercel.com';\n",
+      "found": [
+        [
+          "url",
+          "https://api.vercel.com"
+        ]
+      ]
+    }
+  ],
+  "allowed": [
+    {
+      "name": "zero, one and minus one",
+      "suffix": ".py",
+      "source": "a = 0\nb = 1\nc = -1\nd = items[-1]\n"
+    },
+    {
+      "name": "booleans and None",
+      "suffix": ".py",
+      "source": "a = True\nb = False\nc = None\n"
+    },
+    {
+      "name": "a docstring",
+      "suffix": ".py",
+      "source": "\"\"\"Reads https://api.example.com within 30s from /tmp/x.\"\"\"\n\n\ndef go():\n    \"\"\"Waits 5m on localhost:8080.\"\"\"\n"
+    },
+    {
+      "name": "an f-string format spec",
+      "suffix": ".py",
+      "source": "def go(n):\n    return f'{n:02d}'\n"
+    },
+    {
+      "name": "a standard stream and the env lookup",
+      "suffix": ".py",
+      "source": "SINK = '/dev/null'\nSHEBANG = '#!/usr/bin/env bash'\n"
+    },
+    {
+      "name": "a reserved test host",
+      "suffix": ".py",
+      "source": "MAIL = 't@example.invalid'\nSITE = 'covers.example.test'\n"
+    },
+    {
+      "name": "a relative path and a file name",
+      "suffix": ".py",
+      "source": "PATH = 'scripts/lib/config.py'\nNAME = 'setup.sh'\n"
+    },
+    {
+      "name": "a registered name",
+      "suffix": ".py",
+      "source": "import config\nsize = config.get('train.batch_size')\n"
+    },
+    {
+      "name": "a shell comment",
+      "suffix": ".sh",
+      "source": "# waits 30s on https://api.example.com\nrun  # then 5 more\n"
+    },
+    {
+      "name": "shell positionals and redirections",
+      "suffix": ".sh",
+      "source": "echo \"$2\" \"${3}\" \"${#items}\" 2>&1 >/dev/null\nexit 0\n"
+    },
+    {
+      "name": "a version string",
+      "suffix": ".sh",
+      "source": "echo v1.2.3\n"
+    },
+    {
+      "name": "a javascript comment",
+      "suffix": ".mjs",
+      "source": "// retries 5 times\nconst once = 1;\n"
+    }
+  ]
+}

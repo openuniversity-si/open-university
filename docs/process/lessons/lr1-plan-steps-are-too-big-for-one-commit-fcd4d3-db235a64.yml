@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-db235a64"
+slug: "lr1-plan-steps-are-too-big-for-one-commit-fcd4d3-db235a64"
+title: "Plan steps are too big for one commit (fcd4d38f had about 1,260 lines)"
+source:
+  unit: "LR1"
+  retro: "owner-message:2026-10-27T01:53"
+  section: 5
+  ref: "M2"
+class: "process"
+kind: "check"
+change: "A plan carries a registered maximum step size (lines changed per commit); a step above it is split in the plan, so steps stay small and more of them run in parallel."
+owner: "engine-commit-plan"
+status: "proposed"
+area: ["scripts/lib/commit_check.py", "scripts/lib/plan_tick.py"]
+signals: []
+applied: null
+effect: null
+level: "program"
+padrao_candidate: false

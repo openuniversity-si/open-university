@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "default": [
+    "origin.cursor.com"
+  ],
+  "x-unit": "host",
+  "description": "The git hosts that serve Origin repositories; the Origin adapter refuses a git remote on any other host, so merges and locks never reach another forge.",
+  "x-readers": [
+    "scripts/lib/forge_origin.py",
+    "scripts/lib/origin_remote.py"
+  ],
+  "x-source": "ORIGIN-FINISH"
+}

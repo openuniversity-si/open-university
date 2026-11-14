@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/engine.session.heartbeat.v1.json",
+  "title": "engine.session.heartbeat payload v1",
+  "description": "A session's sign of life (X1): the push guard's hook pushed (result ok) or failed to push (result failed) the work branch's pending commits, one commit per push. pr is null (the hook does not know the PR); sha is HEAD after the attempt. A gate verdict is its own sign of life (gate.passed, gate.failed).",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/branch",
+    "/payload/sha",
+    "/payload/result"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "branch",
+    "source",
+    "result",
+    "pushed",
+    "detail"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The work branch."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "push"
+      ],
+      "description": "What produced the heartbeat."
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "failed"
+      ],
+      "description": "ok: every pending commit reached the remote; failed: the first push that failed stopped the rest."
+    },
+    "pushed": {
+      "type": "array",
+      "items": {
+        "$ref": "defs.v1.json#/$defs/commit"
+      },
+      "description": "The commits pushed, oldest first, one push each."
+    },
+    "detail": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Why the push failed (the reason and git's last line), null when ok."
+    }
+  }
+}

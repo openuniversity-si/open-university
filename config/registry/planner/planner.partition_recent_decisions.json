@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 10,
+  "minimum": 0,
+  "x-unit": "count",
+  "description": "How many of the latest decisions of a partition (program, area) a decision reads as context.",
+  "x-readers": [
+    "scripts/lib/plan_triage.py",
+    "scripts/lib/plan_live.py"
+  ]
+}

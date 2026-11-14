@@ -1,0 +1,25 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-22"
+slug: "github-write-rate"
+statement: "GitHub allows about 500 writes per hour per identity; about 4 writes per PR after the derived tick."
+kind: "vendor"
+scope: "global"
+source:
+  who: "orchestrator"
+  where: "report v2 §6 (documentation; not verified)"
+  quote: null
+  at: null
+status: "to-validate"
+radius: "low"
+blast:
+  reasons: ["step:M4"]
+  if_wrong: "Low at 1x. At 10x already handled: batched writes, one identity per role, Origin."
+validate:
+  kind: "measurement"
+  how: "Count writes per hour in the events; event forge.throttled."
+answer: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

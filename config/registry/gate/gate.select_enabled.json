@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "Per-unit selection of the unit, integration and lint work from the PR's changed paths (GS1, D-064 (f)). Off runs the full web battery for every PR.",
+  "x-readers": [
+    "scripts/lib/gate_select.py"
+  ],
+  "x-flag": true
+}

@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    "id",
+    "status",
+    "owner",
+    "unit",
+    "test"
+  ],
+  "x-unit": "enum",
+  "description": "Columns of `scripts/defects list`, in order.",
+  "x-readers": [
+    "scripts/lib/defects.py"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "minItems": 1
+}

@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "work.assigned",
+  "x-unit": "text",
+  "description": "The event type that means a unit was launched; the status view folds it.",
+  "x-readers": [
+    "scripts/lib/coordinator.py",
+    "scripts/lib/plan_triage.py",
+    "scripts/lib/program.py"
+  ]
+}

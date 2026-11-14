@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "Lets the PR gate (tier 1) skip a stage declared deterministic in scripts/lib/gate-stages.json when a passing result with the same input hash is cached. Off runs every stage.",
+  "x-readers": [
+    "scripts/lib/gate_result_cache.py",
+    "scripts/lib/gate-runner.sh"
+  ],
+  "x-flag": true
+}

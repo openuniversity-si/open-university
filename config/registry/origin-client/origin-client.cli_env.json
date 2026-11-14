@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "OU_ORIGIN_CLI",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "Environment variable that pins the Origin CLI's path when it is not on PATH (a test, a pinned install). Absent, the CLI is found on PATH by origin-client.cli.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py",
+    "scripts/lib/origin_remote.py"
+  ],
+  "x-source": "FORGE-PORT (CANALE8)"
+}

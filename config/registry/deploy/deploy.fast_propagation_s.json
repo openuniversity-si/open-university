@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 10,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Safety window of the fast deploy after the alias swap: the alias is invoked until it answers the new version, at most this long (Lambda alias updates are eventually consistent). Not converging is recorded (propagated false), never a rollback by itself.",
+  "x-readers": [
+    "infra/service/tower_infra/autodeploy.py",
+    "infra/service/tower_infra/fastdeploy.py"
+  ],
+  "x-source": "FAST-SMOKE-ORDER"
+}

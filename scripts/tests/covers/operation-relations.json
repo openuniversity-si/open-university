@@ -1,0 +1,19 @@
+{
+  "script": "scripts/tests/operation-relations.test.sh",
+  "covers": [
+    "scripts/tests/operation-relations.test.sh",
+    "scripts/tests/test_operation_relations.py",
+    "scripts/lib/operation_relations.py",
+    "scripts/lib/operation_relations.json",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/forge_origin.py",
+    "scripts/lib/forge_control.py",
+    "scripts/lib/forge_git_ref.py",
+    "scripts/lib/units.py",
+    "config/registry/units.json",
+    "config/registry/config.json",
+    "contracts/units/unit.v1.json",
+    "docs/domain/DECISIONS.md",
+    "scripts/lib/*.py"
+  ]
+}

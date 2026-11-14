@@ -1,0 +1,13 @@
+{
+  "tools": {
+    "Bash": 1,
+    "Read": 1
+  },
+  "total": 2,
+  "scripts": {
+    "structure-check": 1
+  },
+  "git": {
+    "fetch": 1
+  }
+}

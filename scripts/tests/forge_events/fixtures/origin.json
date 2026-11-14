@@ -1,0 +1,663 @@
+{
+  "note": "The GetPullRequest and ListNamespaces examples of the official Origin OpenAPI 3.1 spec, as the API sends them, plus the two shapes the client maps. Data, not settings: it lives here so the code and the tests read it instead of spelling numbers and URLs (LT1).",
+  "repo": "openuniversity-si/open-university",
+  "other_repo": "acme/rocket",
+  "number": "17",
+  "abbreviated_sha_chars": 7,
+  "head": "9a41f0c3d2b8e7f6a5c4d3e2f1b0a9c8d7e6f5a4",
+  "base": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8",
+  "merge": "5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d",
+  "moved_head": "cccccccccccccccccccccccccccccccccccccccc",
+  "pull": {
+    "id": "pr_01k2ja2000e0080000000000d4",
+    "number": "17",
+    "state": "open",
+    "draft": false,
+    "merged": false,
+    "title": "Add launch telemetry",
+    "body": "Adds structured launch telemetry to the ignition path.",
+    "head": {
+      "ref": "add-telemetry",
+      "sha": "9a41f0c3d2b8e7f6a5c4d3e2f1b0a9c8d7e6f5a4"
+    },
+    "base": {
+      "ref": "mod/roadmap-integration",
+      "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+    },
+    "author": {
+      "user": {
+        "id": "user_01k2ja2000e0080000000000c3",
+        "email": "jane@acme.dev"
+      }
+    },
+    "createdAt": "2026-08-01T09:30:00Z",
+    "updatedAt": "2026-08-02T14:45:00Z",
+    "additions": 128,
+    "deletions": 46,
+    "changedFiles": 5,
+    "webUrl": "https://cursor.com/codebase/acme/rocket/pull/17"
+  },
+  "namespaces": {
+    "namespaces": [
+      {
+        "namespace": {
+          "slug": "openuniversity-si",
+          "id": "ns_01",
+          "type": "user"
+        },
+        "viewerCanCreateRepositories": true
+      },
+      {
+        "namespace": {
+          "slug": "acme",
+          "id": "ns_02",
+          "type": "team"
+        },
+        "viewerCanCreateRepositories": false
+      }
+    ],
+    "nextPageToken": ""
+  },
+  "teams_only": {
+    "namespaces": [
+      {
+        "namespace": {
+          "slug": "acme",
+          "id": "ns",
+          "type": "team"
+        }
+      }
+    ],
+    "nextPageToken": ""
+  },
+  "none": {
+    "namespaces": [],
+    "nextPageToken": ""
+  },
+  "two_users": {
+    "namespaces": [
+      {
+        "namespace": {
+          "slug": "a",
+          "id": "1",
+          "type": "user"
+        }
+      },
+      {
+        "namespace": {
+          "slug": "b",
+          "id": "2",
+          "type": "user"
+        }
+      }
+    ],
+    "nextPageToken": ""
+  },
+  "comment_pages": [
+    {
+      "comments": [
+        {
+          "id": "one"
+        },
+        {
+          "id": "two"
+        }
+      ],
+      "nextPageToken": "p2"
+    },
+    {
+      "comments": [
+        {
+          "id": "three"
+        },
+        {
+          "id": "four"
+        }
+      ],
+      "nextPageToken": "p3"
+    },
+    {
+      "comments": [
+        {
+          "id": "five"
+        }
+      ],
+      "nextPageToken": ""
+    }
+  ],
+  "always_more": {
+    "comments": [
+      {
+        "id": "x"
+      }
+    ],
+    "nextPageToken": "more"
+  },
+  "one_comment": {
+    "comments": [
+      {
+        "id": "only"
+      }
+    ],
+    "nextPageToken": ""
+  },
+  "comment": {
+    "id": "cmt_1",
+    "body": "hello"
+  },
+  "merged": {
+    "mergeCommitSha": "5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d",
+    "mergedPullNumbers": [
+      "17"
+    ]
+  },
+  "refs_url": "https://origin.cursor.com/openuniversity-si/open-university.git",
+  "git_remotes": {
+    "foreign": {"url": "https://github.com/openuniversity-si/open-university.git", "host": "github.com"},
+    "local": {"url": "/srv/git/openuniversity-si/open-university.git", "host": ""},
+    "file": {"url": "file:///srv/git/openuniversity-si/open-university.git", "host": ""},
+    "relative": {"url": "./relative/openuniversity-si/open-university", "host": ""},
+    "scp": {"url": "git@origin.cursor.com:openuniversity-si/open-university.git", "host": "origin.cursor.com"},
+    "ssh": {"url": "ssh://git@ORIGIN.CURSOR.COM:22/openuniversity-si/open-university.git", "host": "origin.cursor.com"},
+    "credentials": {"url": "https://user:secret@origin.cursor.com:8443/openuniversity-si/open-university.git", "host": "origin.cursor.com"},
+    "other_repo": {"url": "https://origin.cursor.com/other/repo.git", "host": "origin.cursor.com"}
+  },
+  "missing_number": "999999999",
+  "page": {
+    "size": 2,
+    "max": 3
+  },
+  "unregistered_status": 418,
+  "unregistered_body": "{\"code\":5,\"message\":\"no\"}",
+  "pull_other_base": {
+    "id": "pr_01k2ja2000e0080000000000e1",
+    "number": "18",
+    "state": "open",
+    "draft": false,
+    "merged": false,
+    "title": "Pin the gate schema",
+    "body": "Pins the gate schema version.",
+    "head": {
+      "ref": "pin-gate-schema",
+      "sha": "7f6e5d4c3b2a1908f7e6d5c4b3a29180f7e6d5c4"
+    },
+    "base": {
+      "ref": "main",
+      "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+    },
+    "author": {
+      "user": {
+        "id": "user_01k2ja2000e0080000000000c3",
+        "handle": "someone-else"
+      }
+    },
+    "createdAt": "2026-08-02T09:30:00Z",
+    "updatedAt": "2026-08-02T14:45:00Z"
+  },
+  "pull_draft": {
+    "id": "pr_01k2ja2000e0080000000000e2",
+    "number": "19",
+    "state": "open",
+    "draft": true,
+    "merged": false,
+    "title": "WIP: retry budget",
+    "body": "Not ready.",
+    "head": {
+      "ref": "wip-retry-budget",
+      "sha": "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d"
+    },
+    "base": {
+      "ref": "mod/roadmap-integration",
+      "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+    },
+    "author": {
+      "user": {
+        "id": "user_01k2ja2000e0080000000000c3",
+        "handle": "someone-else"
+      }
+    },
+    "createdAt": "2026-08-03T09:30:00Z",
+    "updatedAt": "2026-08-03T09:31:00Z"
+  },
+  "pull_on_base": {
+    "id": "pr_01k2ja2000e0080000000000d4",
+    "number": "17",
+    "state": "open",
+    "draft": false,
+    "merged": false,
+    "title": "Add launch telemetry",
+    "body": "Adds structured launch telemetry to the ignition path.",
+    "head": {
+      "ref": "add-telemetry",
+      "sha": "2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d"
+    },
+    "base": {
+      "ref": "mod/roadmap-integration",
+      "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+    },
+    "author": {
+      "user": {
+        "id": "user_01k2ja2000e0080000000000c3",
+        "email": "jane@acme.dev"
+      }
+    },
+    "createdAt": "2026-08-01T09:30:00Z",
+    "updatedAt": "2026-08-02T14:45:00Z",
+    "additions": 128,
+    "deletions": 46,
+    "changedFiles": 5,
+    "webUrl": "https://cursor.com/codebase/acme/rocket/pull/17"
+  },
+  "open_pulls": {
+    "pullRequests": [
+      {
+        "id": "pr_01k2ja2000e0080000000000d4",
+        "number": "17",
+        "state": "open",
+        "draft": false,
+        "merged": false,
+        "title": "Add launch telemetry",
+        "body": "Adds structured launch telemetry to the ignition path.",
+        "head": {
+          "ref": "add-telemetry",
+          "sha": "9a41f0c3d2b8e7f6a5c4d3e2f1b0a9c8d7e6f5a4"
+        },
+        "base": {
+          "ref": "mod/roadmap-integration",
+          "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+        },
+        "author": {
+          "user": {
+            "id": "user_01k2ja2000e0080000000000c3",
+            "email": "jane@acme.dev"
+          }
+        },
+        "createdAt": "2026-08-01T09:30:00Z",
+        "updatedAt": "2026-08-02T14:45:00Z",
+        "additions": 128,
+        "deletions": 46,
+        "changedFiles": 5,
+        "webUrl": "https://cursor.com/codebase/acme/rocket/pull/17"
+      },
+      {
+        "id": "pr_01k2ja2000e0080000000000e1",
+        "number": "18",
+        "state": "open",
+        "draft": false,
+        "merged": false,
+        "title": "Pin the gate schema",
+        "body": "Pins the gate schema version.",
+        "head": {
+          "ref": "pin-gate-schema",
+          "sha": "7f6e5d4c3b2a1908f7e6d5c4b3a29180f7e6d5c4"
+        },
+        "base": {
+          "ref": "main",
+          "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+        },
+        "author": {
+          "user": {
+            "id": "user_01k2ja2000e0080000000000c3",
+            "handle": "someone-else"
+          }
+        },
+        "createdAt": "2026-08-02T09:30:00Z",
+        "updatedAt": "2026-08-02T14:45:00Z"
+      },
+      {
+        "id": "pr_01k2ja2000e0080000000000e2",
+        "number": "19",
+        "state": "open",
+        "draft": true,
+        "merged": false,
+        "title": "WIP: retry budget",
+        "body": "Not ready.",
+        "head": {
+          "ref": "wip-retry-budget",
+          "sha": "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d"
+        },
+        "base": {
+          "ref": "mod/roadmap-integration",
+          "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+        },
+        "author": {
+          "user": {
+            "id": "user_01k2ja2000e0080000000000c3",
+            "handle": "someone-else"
+          }
+        },
+        "createdAt": "2026-08-03T09:30:00Z",
+        "updatedAt": "2026-08-03T09:31:00Z"
+      }
+    ],
+    "nextPageToken": ""
+  },
+  "open_pulls_other_base": {
+    "pullRequests": [
+      {
+        "id": "pr_01k2ja2000e0080000000000e1",
+        "number": "18",
+        "state": "open",
+        "draft": false,
+        "merged": false,
+        "title": "Pin the gate schema",
+        "body": "Pins the gate schema version.",
+        "head": {
+          "ref": "pin-gate-schema",
+          "sha": "7f6e5d4c3b2a1908f7e6d5c4b3a29180f7e6d5c4"
+        },
+        "base": {
+          "ref": "main",
+          "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+        },
+        "author": {
+          "user": {
+            "id": "user_01k2ja2000e0080000000000c3",
+            "handle": "someone-else"
+          }
+        },
+        "createdAt": "2026-08-02T09:30:00Z",
+        "updatedAt": "2026-08-02T14:45:00Z"
+      }
+    ],
+    "nextPageToken": ""
+  },
+  "review": {
+    "id": "rev_alice",
+    "verdict": "approve",
+    "body": "",
+    "author": {
+      "user": {
+        "id": "user_alice",
+        "handle": "alice",
+        "displayName": "Alice"
+      }
+    }
+  },
+  "reviews_latest_wins": {
+    "reviews": [
+      {
+        "id": "rev_alice",
+        "verdict": "approve",
+        "body": "",
+        "author": {
+          "user": {
+            "id": "user_alice",
+            "handle": "alice",
+            "displayName": "Alice"
+          }
+        }
+      },
+      {
+        "id": "rev_bob",
+        "verdict": "approve",
+        "body": "",
+        "author": {
+          "user": {
+            "id": "user_bob",
+            "handle": "bob",
+            "displayName": "Bob"
+          }
+        }
+      },
+      {
+        "id": "rev_bob",
+        "verdict": "request_changes",
+        "body": "",
+        "author": {
+          "user": {
+            "id": "user_bob",
+            "handle": "bob",
+            "displayName": "Bob"
+          }
+        }
+      },
+      {
+        "id": "rev_carol",
+        "verdict": "comment",
+        "body": "",
+        "author": {
+          "user": {
+            "id": "user_carol",
+            "handle": "carol",
+            "displayName": "Carol"
+          }
+        }
+      }
+    ],
+    "pullRequest": {
+      "id": "pr_01k2ja2000e0080000000000d4",
+      "number": "17",
+      "state": "open",
+      "draft": false,
+      "merged": false,
+      "title": "Add launch telemetry",
+      "body": "Adds structured launch telemetry to the ignition path.",
+      "head": {
+        "ref": "add-telemetry",
+        "sha": "9a41f0c3d2b8e7f6a5c4d3e2f1b0a9c8d7e6f5a4"
+      },
+      "base": {
+        "ref": "mod/roadmap-integration",
+        "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+      },
+      "author": {
+        "user": {
+          "id": "user_01k2ja2000e0080000000000c3",
+          "email": "jane@acme.dev"
+        }
+      },
+      "createdAt": "2026-08-01T09:30:00Z",
+      "updatedAt": "2026-08-02T14:45:00Z",
+      "additions": 128,
+      "deletions": 46,
+      "changedFiles": 5,
+      "webUrl": "https://cursor.com/codebase/acme/rocket/pull/17"
+    },
+    "nextPageToken": ""
+  },
+  "reviews_with_a_dismissal": {
+    "reviews": [
+      {
+        "id": "rev_alice",
+        "verdict": "approve",
+        "body": "",
+        "author": {
+          "user": {
+            "id": "user_alice",
+            "handle": "alice",
+            "displayName": "Alice"
+          }
+        },
+        "dismissal": {
+          "dismissalMessage": "superseded",
+          "dismissedBy": {
+            "user": {
+              "id": "user_maint",
+              "handle": "maint"
+            }
+          }
+        }
+      },
+      {
+        "id": "rev_bob",
+        "verdict": "approve",
+        "body": "",
+        "author": {
+          "user": {
+            "id": "user_bob",
+            "handle": "bob",
+            "displayName": "Bob"
+          }
+        }
+      }
+    ],
+    "pullRequest": {
+      "id": "pr_01k2ja2000e0080000000000d4",
+      "number": "17",
+      "state": "open",
+      "draft": false,
+      "merged": false,
+      "title": "Add launch telemetry",
+      "body": "Adds structured launch telemetry to the ignition path.",
+      "head": {
+        "ref": "add-telemetry",
+        "sha": "9a41f0c3d2b8e7f6a5c4d3e2f1b0a9c8d7e6f5a4"
+      },
+      "base": {
+        "ref": "mod/roadmap-integration",
+        "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+      },
+      "author": {
+        "user": {
+          "id": "user_01k2ja2000e0080000000000c3",
+          "email": "jane@acme.dev"
+        }
+      },
+      "createdAt": "2026-08-01T09:30:00Z",
+      "updatedAt": "2026-08-02T14:45:00Z",
+      "additions": 128,
+      "deletions": 46,
+      "changedFiles": 5,
+      "webUrl": "https://cursor.com/codebase/acme/rocket/pull/17"
+    },
+    "nextPageToken": ""
+  },
+  "reviews_handle_hidden": {
+    "reviews": [
+      {
+        "id": "rev_dave",
+        "verdict": "approve",
+        "body": "",
+        "author": {
+          "user": {
+            "id": "user_01k2ja2000e0080000000000f1"
+          }
+        }
+      },
+      {
+        "id": "rev_app",
+        "verdict": "approve",
+        "body": "",
+        "author": {
+          "app": {
+            "id": "app_01k2ja2000e0080000000000f2",
+            "displayName": "Torre Flow"
+          }
+        }
+      }
+    ],
+    "pullRequest": {
+      "id": "pr_01k2ja2000e0080000000000d4",
+      "number": "17",
+      "state": "open",
+      "draft": false,
+      "merged": false,
+      "title": "Add launch telemetry",
+      "body": "Adds structured launch telemetry to the ignition path.",
+      "head": {
+        "ref": "add-telemetry",
+        "sha": "9a41f0c3d2b8e7f6a5c4d3e2f1b0a9c8d7e6f5a4"
+      },
+      "base": {
+        "ref": "mod/roadmap-integration",
+        "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+      },
+      "author": {
+        "user": {
+          "id": "user_01k2ja2000e0080000000000c3",
+          "email": "jane@acme.dev"
+        }
+      },
+      "createdAt": "2026-08-01T09:30:00Z",
+      "updatedAt": "2026-08-02T14:45:00Z",
+      "additions": 128,
+      "deletions": 46,
+      "changedFiles": 5,
+      "webUrl": "https://cursor.com/codebase/acme/rocket/pull/17"
+    },
+    "nextPageToken": ""
+  },
+  "reviews_empty": {
+    "reviews": [],
+    "pullRequest": {
+      "id": "pr_01k2ja2000e0080000000000d4",
+      "number": "17",
+      "state": "open",
+      "draft": false,
+      "merged": false,
+      "title": "Add launch telemetry",
+      "body": "Adds structured launch telemetry to the ignition path.",
+      "head": {
+        "ref": "add-telemetry",
+        "sha": "9a41f0c3d2b8e7f6a5c4d3e2f1b0a9c8d7e6f5a4"
+      },
+      "base": {
+        "ref": "mod/roadmap-integration",
+        "sha": "3b1f9c2d8a7e6f5049c8b7a6d5e4f3a2b1c0d9e8"
+      },
+      "author": {
+        "user": {
+          "id": "user_01k2ja2000e0080000000000c3",
+          "email": "jane@acme.dev"
+        }
+      },
+      "createdAt": "2026-08-01T09:30:00Z",
+      "updatedAt": "2026-08-02T14:45:00Z",
+      "additions": 128,
+      "deletions": 46,
+      "changedFiles": 5,
+      "webUrl": "https://cursor.com/codebase/acme/rocket/pull/17"
+    },
+    "nextPageToken": ""
+  },
+  "review_pages": [
+    {
+      "reviews": [
+        {
+          "id": "rev_alice",
+          "verdict": "approve",
+          "body": "",
+          "author": {
+            "user": {
+              "id": "user_alice",
+              "handle": "alice",
+              "displayName": "Alice"
+            }
+          }
+        },
+        {
+          "id": "rev_bob",
+          "verdict": "comment",
+          "body": "",
+          "author": {
+            "user": {
+              "id": "user_bob",
+              "handle": "bob",
+              "displayName": "Bob"
+            }
+          }
+        }
+      ],
+      "nextPageToken": "p2"
+    },
+    {
+      "reviews": [
+        {
+          "id": "rev_bob",
+          "verdict": "request_changes",
+          "body": "",
+          "author": {
+            "user": {
+              "id": "user_bob",
+              "handle": "bob",
+              "displayName": "Bob"
+            }
+          }
+        }
+      ],
+      "nextPageToken": ""
+    }
+  ],
+  "pages": 2
+}

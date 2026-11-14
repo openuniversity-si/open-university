@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Usage: scripts/deliver --pr N [--branch B] | --open --branch B [--footer TEXT] | --close-queue | --queue [--queue-drop PR]
+# Deliver a PR in one call: the gate on the exact head, the merge with --expect-head, the base refreshed and PR/s printed.
+# With --branch, the delivery runs the base's own deliver from .gate/deliver/base (a worktree detached at the fetched
+# base, the checkout's toolchain linked in): a feature branch cut before a change to deliver never runs the old tool.
+set -euo pipefail
+here="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ " $* " == *" --branch "* && -z "${DELIVER_FROM_BASE:-}" ]]; then
+  read_key() { "${OU_PYTHON:-python3}" -c "import sys; sys.path.insert(0, '$here/scripts/lib'); import config; print(config.get('$1'))"; }
+  remote="$(read_key push-guard.remote)"; base="$(read_key train.base_branch)"
+  tree="$here/.gate/deliver/base"
+  # the lanes share one .git: a fetch that loses the ref lock race to another lane's is tried again, as deliver.fetch does
+  for try in 1 2 3 4; do
+    if err="$(git -C "$here" fetch --quiet "$remote" "$base" 2>&1)"; then break; fi
+    if [[ $try == 4 ]] || ! grep -qiE "cannot lock ref|\.lock'?: File exists|unable to update local ref" <<<"$err"; then
+      printf '%s\n' "$err" >&2; exit 1
+    fi
+    sleep "$(awk "BEGIN { print 0.5 * $try }")"
+  done
+  if [[ -d "$tree" ]]; then
+    git -C "$tree" checkout --quiet --detach "$remote/$base"
+  else
+    mkdir -p "$here/.gate/deliver"
+    git -C "$here" worktree add --quiet --detach "$tree" "$remote/$base"
+  fi
+  [[ -e "$tree/.toolchain" || ! -e "$here/.toolchain" ]] || ln -s "$here/.toolchain" "$tree/.toolchain"
+  # GATE-INFRA 12: the box's switches (delivery.judge, ...) are this checkout's change store, not the base worktree's
+  DELIVER_FROM_BASE=1 DELIVER_CONFIG_ROOT="$here" exec "$tree/scripts/deliver" "$@"
+fi
+exec "${OU_PYTHON:-python3}" "$here/scripts/lib/deliver.py" "$@"

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/slo.json",
+  "x-owner": "slo",
+  "x-schema-version": 1,
+  "description": "Service level objectives of the engine (D-069 item 6).",
+  "type": "object",
+  "additionalProperties": false
+}

@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 48,
+  "x-unit": "count",
+  "description": "Characters of the title kept in the file name.",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "minimum": 8
+}

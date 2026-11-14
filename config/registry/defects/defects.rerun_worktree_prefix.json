@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "defect-base-",
+  "x-unit": "text",
+  "description": "Prefix of the throwaway worktree a base re-run runs in; it is deleted afterwards.",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ]
+}

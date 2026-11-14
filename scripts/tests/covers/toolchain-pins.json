@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/toolchain-pins.test.sh",
+  "covers": [
+    "scripts/tests/toolchain-pins.test.sh",
+    "scripts/tests/test_toolchain_pins.py",
+    "scripts/lib/toolchain_manifest.py",
+    "scripts/cloud/toolchain.json",
+    "config/registry/toolchain.json",
+    "contracts/events/*.json"
+  ]
+}

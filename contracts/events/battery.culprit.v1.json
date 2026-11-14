@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/battery.culprit.v1.json",
+  "title": "battery.culprit payload v1",
+  "description": "Tier 3 is red on tip sha; the batch bisection over the tips advanced since the last green tip (good_sha) names the first red tip (culprit_sha) and its batch and PRs, or, when battery.bisection_max_runs ran out first, the batches still in doubt (candidates). The lane fixes or reverts; the battery never does.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/sha"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "good_sha",
+    "culprit_sha",
+    "batch_id",
+    "prs",
+    "candidates",
+    "failing",
+    "runs"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "good_sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "The last tip tier 3 found green; null when no green tip precedes the window."
+    },
+    "culprit_sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "The first red tip of the window; null when the bisection ran out of runs first."
+    },
+    "batch_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "description": "The train batch whose advance produced culprit_sha; null when unresolved."
+    },
+    "prs": {
+      "$ref": "defs.v1.json#/$defs/prs"
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Batch ids still in doubt, oldest first; exactly [batch_id] when resolved."
+    },
+    "failing": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "runs": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

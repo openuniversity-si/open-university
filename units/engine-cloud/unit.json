@@ -1,0 +1,37 @@
+{
+  "id": "engine-cloud",
+  "purpose": "Cloud machine setup and the pinned toolchain.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/cloud.json",
+    "scripts/cloud/**",
+    "scripts/tests/cloud.test.sh",
+    "scripts/tests/test_cloud.py",
+    "scripts/tests/origin-remote.test.sh",
+    "scripts/tests/test_origin_remote.py",
+    "scripts/tests/covers/origin-remote.json",
+    "scripts/lib/origin_remote.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-env": "^1",
+    "engine-gate-run": "^1",
+    "engine-push-guard": "^1"
+  },
+  "battery": {
+    "command": "scripts/unit-battery engine-cloud"
+  },
+  "decisions": [
+    "D-029",
+    "D-067",
+    "D-068",
+    "D-069"
+  ],
+  "premises": [
+    "P-03",
+    "P-04",
+    "P-05",
+    "P-07"
+  ]
+}

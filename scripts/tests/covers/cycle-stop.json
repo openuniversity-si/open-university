@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/cycle-stop.test.sh",
+  "covers": [
+    "scripts/tests/cycle-stop.test.sh",
+    "scripts/tests/test_cycle_stop.py",
+    "scripts/cycle",
+    "scripts/hooks/cycle-stop",
+    "scripts/lib/cycle_stop.py",
+    ".claude/settings.json"
+  ]
+}

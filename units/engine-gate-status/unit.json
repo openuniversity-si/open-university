@@ -1,0 +1,33 @@
+{
+  "id": "engine-gate-status",
+  "purpose": "Gate report, timing report and status: the stage results, the ETA timing and the status line (D-065 style seam); split from engine-gate-speed (F112).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "docs/operations/gate-status.md",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/gate_status.py",
+    "scripts/lib/gate_timing_report.py",
+    "scripts/tests/covers/gate-timing-report.json",
+    "scripts/tests/gate-report-incident.test.sh",
+    "scripts/tests/gate-report-skips.test.sh",
+    "scripts/tests/gate-status.test.sh",
+    "scripts/tests/gate-timing-report.test.sh",
+    "scripts/tests/gate_status/**",
+    "scripts/tests/test_gate_report_incident.py",
+    "scripts/tests/test_gate_report_skips.py",
+    "scripts/tests/test_gate_report_v4.py",
+    "scripts/tests/test_gate_status.py",
+    "scripts/tests/test_gate_timing_report.py"
+  ],
+  "requires": {
+    "engine-commit-plan": "^1",
+    "engine-config": "^1",
+    "engine-events": "^1",
+    "engine-gate-cache": "^1",
+    "engine-gate-ops": "^1",
+    "engine-gate-plan": "^1",
+    "engine-gate-report": "^1",
+    "engine-slo": "^1"
+  }
+}

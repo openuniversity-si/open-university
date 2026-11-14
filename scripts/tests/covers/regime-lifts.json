@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/regime-lifts.test.sh",
+  "covers": [
+    "scripts/tests/regime-lifts.test.sh",
+    "scripts/tests/test_regime_lifts.py",
+    "scripts/lib/regime_lifts.py",
+    "scripts/lib/gate_noite.py",
+    "scripts/gate-noite"
+  ]
+}

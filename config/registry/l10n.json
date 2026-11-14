@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/l10n.json",
+  "x-owner": "l10n",
+  "x-schema-version": 1,
+  "description": "User-facing text keyed by locale (D-069 item 15, plan v3.1 L1): which locales exist, which one every text entry must carry, and what the text check reads.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "l10n.default_locale": {
+      "type": "string",
+      "default": "en",
+      "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+      "x-unit": "locale",
+      "description": "The locale every text entry must carry and the one a reader falls back to; it must be one of l10n.locales.",
+      "x-readers": [
+        "scripts/lib/scaffold.py",
+        "scripts/lib/text_check.py"
+      ],
+      "x-source": "D-069 item 15"
+    },
+    "l10n.locales": {
+      "type": "array",
+      "default": [
+        "en"
+      ],
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-unit": "locales",
+      "description": "Locales a text entry (x-text) may be keyed by; English only for now (D-069 item 15). Adding a locale is a reviewed registry change.",
+      "x-readers": [
+        "scripts/lib/scaffold.py",
+        "scripts/lib/text_check.py"
+      ],
+      "x-source": "D-069 item 15"
+    },
+    "l10n.scoped_exports": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "pattern": "^[^:]+:[A-Za-z_$][A-Za-z0-9_$]*$"
+      },
+      "uniqueItems": true,
+      "x-unit": "sites",
+      "description": "path:identifier of each exported constant of a shared D-063 catalog that has migrated: its initializer must read the text catalog, never spell a string literal. A name that no longer exists in the file is refused, so the list cannot rot.",
+      "x-readers": [
+        "scripts/lib/text_check.py"
+      ],
+      "x-source": "plan v3.1 delta §2 L1; P-05"
+    },
+    "l10n.scoped_files": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "x-unit": "paths",
+      "description": "Component files whose every user-visible string must come from the text catalog: JSX text, string children and the l10n.visible_attributes with a literal are refused. Enforced only where text has migrated; a unit adds its files here when it migrates in U4 (P-05), so no file is edited twice.",
+      "x-readers": [
+        "scripts/lib/text_check.py"
+      ],
+      "x-source": "plan v3.1 delta §2 L1; P-05"
+    },
+    "l10n.text_owner": {
+      "type": "string",
+      "default": "text",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "x-unit": "owner",
+      "description": "The registry owner whose parameters are all user-facing text: every entry of config/registry/<owner>.json must be x-text, and an x-text entry may live nowhere else.",
+      "x-readers": [
+        "scripts/lib/scaffold.py",
+        "scripts/lib/text_check.py"
+      ],
+      "x-source": "plan v3.1 delta §1 (text.*)"
+    },
+    "l10n.visible_attributes": {
+      "type": "array",
+      "default": [
+        "title",
+        "alt",
+        "aria-label",
+        "aria-description",
+        "aria-placeholder",
+        "placeholder",
+        "label"
+      ],
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z-]*$"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-unit": "attributes",
+      "description": "JSX attributes whose string value a reader sees or hears; a literal value in a scoped file is refused.",
+      "x-readers": [
+        "scripts/lib/text_check.py"
+      ],
+      "x-source": "plan v3.1 delta §2 L1"
+    },
+    "l10n.visible_min_letters": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Letters a JSX string needs before it counts as user-visible text (a lone punctuation or symbol is markup).",
+      "x-readers": [
+        "scripts/lib/text_check.py"
+      ],
+      "x-source": "plan v3.1 delta §2 L1"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "default": 10,
+  "minimum": 0,
+  "x-unit": "percent",
+  "description": "Percent a measured p95 may exceed its baseline before the gate fails (D-069 item 14). Applies to the battery per unit (limit: battery.unit_time_limit), the web bundle and the page latency. A tolerance only tightens.",
+  "x-readers": [
+    "scripts/lib/budget_check.py",
+    "scripts/lib/budgets.py"
+  ],
+  "x-source": "D-069 item 14; B1"
+}

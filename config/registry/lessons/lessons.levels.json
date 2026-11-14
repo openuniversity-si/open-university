@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "commit",
+    "pr",
+    "program",
+    "venture"
+  ],
+  "x-unit": "enum",
+  "description": "Levels a lesson applies at, narrow to wide: commit, pr, program or venture. A lesson that applies to every venture is marked padrao_candidate, to be lifted later into the central Padrão in A Torre (not built here).",
+  "x-readers": [
+    "scripts/lib/lessons.py"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "minItems": 1
+}

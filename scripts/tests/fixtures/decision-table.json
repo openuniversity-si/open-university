@@ -1,0 +1,12 @@
+{
+  "record": "---\nnumber: D-2\ntime: 01/11 00:52 BRT\npremises: none\nproof: scripts/tests/decision-table.test.sh\n---\nA rule | with a pipe, on one line.\n",
+  "row": "| D-2 | 01/11 00:52 BRT | A rule / with a pipe, on one line. | Premises: none | scripts/tests/decision-table.test.sh | recorded |",
+  "order": [
+    "D-10",
+    "D-2",
+    "D-100"
+  ],
+  "table": "| Id | Date |\n|---|---|\n| D-2 | 01/11 00:52 BRT | A rule / with a pipe, on one line. | Premises: none | scripts/tests/decision-table.test.sh | recorded |\n",
+  "table_missing": "| Id | Date |\n|---|---|\n| D-99 | other |\n",
+  "pipes_per_row": 7
+}

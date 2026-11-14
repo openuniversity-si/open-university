@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "Decision:",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "Start of the line that records a decision the session took; it clears every earlier owner wait of the PR.",
+  "x-readers": [
+    "scripts/lib/decision_wait.py"
+  ]
+}

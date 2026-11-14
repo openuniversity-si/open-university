@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "products/web/node_modules/.cache/unit-battery",
+  "x-unit": "path",
+  "description": "Directory, ignored by git, where the battery writes each unit's tsconfig for its types step.",
+  "x-readers": [
+    "scripts/lib/unit_battery.py"
+  ],
+  "x-source": "plan v3 §7.2 (one TypeScript project per unit)"
+}

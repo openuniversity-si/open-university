@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/merge.json",
+  "x-owner": "merge",
+  "x-schema-version": 1,
+  "description": "One merge rule (GX-22, B-18, D-070): how far behind its base a gated head may be, whether merge-phase pins the exact head and needs a mergeable PR, and the P-G3 switch. Readers: commit_check, merge-phase (merge_behind.py) and the train (GX-30).",
+  "type": "object",
+  "additionalProperties": false
+}

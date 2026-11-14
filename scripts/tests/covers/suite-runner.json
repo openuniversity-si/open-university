@@ -1,0 +1,7 @@
+{
+  "script": "scripts/tests/suite-runner.test.sh",
+  "covers": [
+    "scripts/tests/suite-runner.test.sh",
+    "scripts/tests/lib/**"
+  ]
+}

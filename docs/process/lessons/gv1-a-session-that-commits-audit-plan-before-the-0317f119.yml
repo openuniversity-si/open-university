@@ -1,0 +1,20 @@
+# Lesson record (D-069 items 4 and 9, contracts/lessons/lesson.v1.json). Change it with scripts/lessons; the trail is append-only.
+id: "LR-0317f119"
+slug: "gv1-a-session-that-commits-audit-plan-before-the-0317f119"
+title: "A session that commits audit+plan before the PR exists pushes them together"
+source:
+  unit: "GV1"
+  retro: "docs/units/GV1/retro.md"
+  section: 5
+  ref: "L1"
+class: "brief"
+kind: "brief-template"
+change: "A session that commits audit+plan before the PR exists pushes them together. Brief template (owner: A Torre) should say \"push the audit commit, then the plan commit, as separate pushes\". Cheaper still: `commit-check` is run locally by `scripts/pr-ready` before the first push (owner: engine lane)."
+owner: "engine-lane"
+status: "proposed"
+area: ["scripts/pr-ready"]
+signals: []
+applied: null
+effect: null
+level: "pr"
+padrao_candidate: false

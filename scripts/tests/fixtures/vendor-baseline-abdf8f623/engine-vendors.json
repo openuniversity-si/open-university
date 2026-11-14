@@ -1,0 +1,201 @@
+{
+  "description": "The vendors the engine (scripts/) may call and where (D-069 item 7, plan v3.1 R1). Validated by contracts/adapters/engine-vendors.v1.json and read by scripts/lib/vendor_check.py through providers.vendor_catalog. A baseline site is a call outside the adapters that predates the check: it moves behind its port as its unit migrates (U4), and the list only shrinks. A slot with no caller keeps its detectors, so a new call is refused until its port exists (OU-DECOUPLE F5, D-113).",
+  "vendors": [
+    {
+      "name": "github",
+      "kind": "forge",
+      "status": "active",
+      "endpoints": [
+        "api.github.com",
+        "github.com",
+        "githubusercontent.com"
+      ],
+      "clis": [
+        "gh"
+      ],
+      "modules": [
+        "github_api",
+        "forge_github",
+        "github_cli"
+      ],
+      "adapters": [
+        "scripts/lib/github_api.py",
+        "scripts/lib/forge_github.py",
+        "scripts/lib/github_cli.py"
+      ],
+      "selectors": [
+        "scripts/lib/forge_events.py"
+      ],
+      "baseline": [
+        "scripts/cloud/setup.sh:gh",
+        "scripts/gate-local:github_cli",
+        "scripts/lib/commit_check.py:github_api",
+        "scripts/lib/credentials.py:github_api",
+        "scripts/lib/delivery.py:gh",
+        "scripts/lib/delivery.py:github_cli",
+        "scripts/lib/gate_policy.py:gh",
+        "scripts/lib/gate_policy.py:github_cli",
+        "scripts/lib/idea_to_prod.py:github_api",
+        "scripts/lib/premises.py:github_api",
+        "scripts/lib/release_policy.py:github_api",
+        "scripts/lib/structure.py:github_api",
+        "scripts/lib/toolchain_manifest.py:github.com"
+      ],
+      "note": "The forge today (P-02). The forge port is scripts/lib/forge_events.py (M2); github_api.py is the one REST client and github_cli.py its gh-compatible shim. Cursor Origin is the next forge adapter (P-34)."
+    },
+    {
+      "name": "github-actions",
+      "kind": "ci-runner",
+      "status": "forbidden",
+      "endpoints": [
+        "/actions/runs",
+        "/actions/workflows",
+        "/actions/jobs"
+      ],
+      "clis": [],
+      "modules": [],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "Never a CI runner (AGENTS.md: no GitHub Actions or third-party CI). The CI runner port is scripts/lib/adapters/ci_runner.py; its adapter is the local gate runner."
+    },
+    {
+      "name": "claude",
+      "kind": "agent-provider",
+      "status": "active",
+      "endpoints": [
+        "api.anthropic.com"
+      ],
+      "clis": [
+        "claude"
+      ],
+      "modules": [
+        "adapters.agent_claude",
+        "adapters.launcher_claude",
+        "anthropic",
+        "claude_agent_sdk",
+        "@anthropic-ai/sdk",
+        "@anthropic-ai/claude-agent-sdk"
+      ],
+      "adapters": [
+        "scripts/lib/adapters/agent_claude.py",
+        "scripts/lib/adapters/launcher_claude.py"
+      ],
+      "selectors": [
+        "scripts/lib/adapters/agent.py",
+        "scripts/lib/adapters/launcher.py"
+      ],
+      "baseline": [],
+      "note": "The agent provider today; port scripts/lib/adapters/agent.py."
+    },
+    {
+      "name": "codex",
+      "kind": "agent-provider",
+      "status": "slot",
+      "endpoints": [
+        "api.openai.com"
+      ],
+      "clis": [
+        "codex"
+      ],
+      "modules": [
+        "openai",
+        "@openai/codex-sdk"
+      ],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "Documented slot of the agent port (adapters/agent.py SLOTS); no adapter yet."
+    },
+    {
+      "name": "cursor",
+      "kind": "agent-provider",
+      "status": "slot",
+      "endpoints": [
+        "api.cursor.com"
+      ],
+      "clis": [
+        "cursor-agent"
+      ],
+      "modules": [],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "Documented slot of the agent port (adapters/agent.py SLOTS); no adapter yet."
+    },
+    {
+      "name": "neon",
+      "kind": "database",
+      "status": "slot",
+      "endpoints": [
+        "console.neon.tech"
+      ],
+      "clis": [
+        "neonctl"
+      ],
+      "modules": [
+        "@neondatabase/serverless"
+      ],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "No engine caller: the production tail that called it left the repository (OU-DECOUPLE F4, D-111). A database port would be an adapter of its own."
+    },
+    {
+      "name": "vercel",
+      "kind": "hosting",
+      "status": "slot",
+      "endpoints": [
+        "api.vercel.com",
+        "vercel.com",
+        "vercel.app"
+      ],
+      "clis": [
+        "vercel"
+      ],
+      "modules": [
+        "@vercel/sdk"
+      ],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [
+        "scripts/cloud/setup.sh:vercel"
+      ],
+      "note": "No engine caller: the production tail that called it left the repository (OU-DECOUPLE F4, D-111). The one site is the cloud setup's version line of the pinned CLI."
+    },
+    {
+      "name": "cloudflare-r2",
+      "kind": "storage",
+      "status": "slot",
+      "endpoints": [
+        "r2.cloudflarestorage.com",
+        "r2.dev"
+      ],
+      "clis": [
+        "wrangler"
+      ],
+      "modules": [
+        "boto3",
+        "aws4fetch"
+      ],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "No engine caller: the product media storage that used it left the repository (OU-DECOUPLE F4, D-111). An engine shared store would be an adapter of scripts/lib/adapters/storage.py."
+    },
+    {
+      "name": "figma",
+      "kind": "design",
+      "status": "slot",
+      "endpoints": [
+        "api.figma.com"
+      ],
+      "clis": [],
+      "modules": [],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "Design specs. No engine caller since the product that read them left the repository (OU-DECOUPLE F4, D-111)."
+    }
+  ]
+}

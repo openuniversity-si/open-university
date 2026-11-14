@@ -1,0 +1,8 @@
+{
+  "script": "scripts/tests/gate-shadow.test.sh",
+  "covers": [
+    "scripts/tests/gate-shadow.test.sh",
+    "scripts/tests/test_gate_shadow.py",
+    "scripts/lib/gate_shadow.py"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/tests/",
+    "scripts/lib/generated/"
+  ],
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "uniqueItems": true,
+  "x-unit": "paths",
+  "description": "Path prefixes of the engine paths (config.literal_check_roots) the vendor check does not scan: test doubles name vendors on purpose, and generated types are the drift stage's. Its own scope since LT1 put the tests into the literal scan (config.literal_check_excludes).",
+  "x-readers": [
+    "scripts/lib/vendor_check.py"
+  ],
+  "x-source": "D-069 item 7; LT1"
+}

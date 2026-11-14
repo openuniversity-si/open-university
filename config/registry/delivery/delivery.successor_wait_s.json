@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 240,
+  "minimum": 0,
+  "x-unit": "s",
+  "description": "READY-BEFORE-LANDING: the most seconds a delivery at the front of the merge train waits, before it lands, for the in-task successors of its branch's bundle to be warm and beating in both roles (platform.deploy.successor {state: warm}; GET /v1/deploy/ready). 0 lands at once. FRONT-WAITS-RUNNER-BACK: 240, not 60: the runner is one Fargate Spot task, and when Spot takes it the next task is up, warm and holding its successor about three minutes later (12/11 01:20:37 to 01:23:34 UTC); a delivery that reaches the front in that window waits for it here, where the long time belongs, and swaps in a second, instead of landing with no standby onto the order's path or the slow one. The wait ends at once when the bundle's want was withdrawn or a successor gave up (state failed). Past it the delivery lands as it is: the landing's own order is the net.",
+  "x-readers": [
+    "scripts/lib/deliver.py"
+  ],
+  "x-source": "READY-BEFORE-LANDING"
+}

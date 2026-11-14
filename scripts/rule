@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Usage: scripts/rule list|show <id>|due|retired|stale|question <id|group> [--answer TEXT --by WHO [--on DATE]]|check [--mode report|refuse] [--base REF] [--json]
+# The rule register (RULE-AUDIT): every rule that can stop a flow is a record of config/registry/rules.json with its
+# justification, owner, review date, end condition, premises, standing question and stop record; each subcommand
+# ends with a count line. Reads local files only (no network); report mode refuses nothing.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/rule_registry.py" "$@"

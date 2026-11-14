@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "n/a",
+  "x-unit": "text",
+  "description": "Cell shown when a class has no signal, so its cost cannot be measured from the event log.",
+  "x-readers": [
+    "scripts/lib/lessons_report.py"
+  ]
+}

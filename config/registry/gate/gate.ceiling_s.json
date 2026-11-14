@@ -1,0 +1,12 @@
+{
+  "type": "integer",
+  "default": 180,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Wall-clock ceiling of one gate run (D-064 (f)); an overrun prints each stage's time and never fails the gate. The shell reads it in seconds and converts to milliseconds; GATE_CEILING_MS, when set, is an explicit override for one run.",
+  "x-readers": [
+    "scripts/lib/gate-budget.sh",
+    "scripts/lib/gate_explain.py"
+  ],
+  "x-source": "D-064 (f); Daniel 2026-10-26 14:22"
+}

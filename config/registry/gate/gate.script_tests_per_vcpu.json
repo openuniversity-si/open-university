@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 1.0,
+  "minimum": 0,
+  "x-unit": "ratio",
+  "description": "Script tests per vCPU: the concurrency of the script tests is min(gate.script_tests_concurrency, floor(vCPUs x this)), at least 1 (GX-03, GA-PG4).",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ],
+  "x-source": "D-070 (GX-03)"
+}

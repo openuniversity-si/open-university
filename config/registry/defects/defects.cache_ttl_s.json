@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 604800,
+  "x-unit": "s",
+  "description": "Age after which a cached base outcome is a miss. The key already names the base sha, so this only bounds a stale store.",
+  "x-readers": [
+    "scripts/lib/defect_detect.py"
+  ],
+  "minimum": 60
+}

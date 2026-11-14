@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/pr-ready --pr N --body FILE [--base REF] [--root DIR]
+# The session's pr.ready (D-065, docs/process/EVENTS.md): refuses unless every plan item is ticked by a commit (scripts/plan-tick)
+# and a gate-dev pass exists for HEAD; then appends the event once to the local log. Exit 1 on a refusal.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/pr_ready.py" "$@"

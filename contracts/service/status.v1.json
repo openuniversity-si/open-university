@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/service/status.v1.json",
+  "title": "Service status v1",
+  "description": "What `GET /status` of the control plane and `scripts/service status --json` answer: the switches, the train's lock and wake, the queue, the latest merges, the runner and the health checks. Read only.",
+  "x-owner": "service",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "at",
+    "switches",
+    "train",
+    "queue",
+    "merges",
+    "runner",
+    "window",
+    "health"
+  ],
+  "properties": {
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "switches": {
+      "type": "object",
+      "required": [
+        "paused",
+        "transport"
+      ],
+      "properties": {
+        "paused": {
+          "type": "boolean"
+        },
+        "transport": {
+          "enum": [
+            "git",
+            "control"
+          ]
+        },
+        "train_switch": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "trigger_mode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "train": {
+      "type": "object",
+      "required": [
+        "lock",
+        "wake"
+      ],
+      "properties": {
+        "lock": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "wake": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "queue": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "pr",
+          "sha"
+        ],
+        "properties": {
+          "pr": {
+            "type": "integer"
+          },
+          "sha": {
+            "type": "string"
+          },
+          "woken_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "merges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "pr",
+          "occurred_at"
+        ],
+        "properties": {
+          "pr": {
+            "type": "integer"
+          },
+          "sha": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "batch_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "occurred_at": {
+            "type": "string"
+          },
+          "green_to_merged_s": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "runner": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "window": {
+      "type": "object",
+      "required": [
+        "events",
+        "complete"
+      ],
+      "properties": {
+        "events": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "health": {
+      "type": "object",
+      "required": [
+        "status",
+        "checks"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "pass",
+            "warn",
+            "fail"
+          ]
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "status",
+              "detail"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "pass",
+                  "warn",
+                  "fail"
+                ]
+              },
+              "detail": {
+                "type": "string"
+              },
+              "scope": {
+                "enum": [
+                  "machine",
+                  "repository",
+                  "control_plane"
+                ],
+                "description": "The source this check speaks for; machine means only the machine producing this document."
+              }
+            }
+          }
+        },
+        "scope": {
+          "enum": [
+            "repository_and_machine"
+          ],
+          "description": "CLI checks cover this machine and the repository window, not global execution availability."
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "description": "The numbers `scripts/service metrics` renders: {metric: [[labels, value]]}.",
+      "additionalProperties": {
+        "type": "array"
+      }
+    },
+    "runners": {
+      "type": "array",
+      "description": "The control plane: every runner that claimed or beat, with its last heartbeat; one silent for RUNNER_FORGET_S is forgotten, and one silent for RUNNER_STALE_S warns in health. The CLI does not read this collection: it reports control_plane.runners as unknown instead; absence here does not mean empty.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "refused": {
+      "type": "object",
+      "description": "The control plane: the runners whose token it refused (401), by name, newest ten, each until that name authenticates again; each is also a fail health check `runner <name> token` (D-291).",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "at",
+          "path"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "deployed_tree": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The control plane: the git tree of services/control-plane its deploy uploaded (DEPLOYED_TREE), or null when the deploy did not say; a runner compares it with its own checkout to deploy a drift (D-291)."
+    },
+    "jobs": {
+      "type": "array",
+      "description": "The control plane: the queued, leased and cancelling jobs. The CLI does not read this collection: it reports control_plane.jobs as unknown instead; absence here does not mean empty.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "control_plane": {
+      "type": "object",
+      "description": "CLI observation coverage, not a control-plane probe. Unknown means not read, never an empty collection or failed health check.",
+      "required": [
+        "runners",
+        "jobs",
+        "detail"
+      ],
+      "properties": {
+        "runners": {
+          "enum": [
+            "unknown"
+          ]
+        },
+        "jobs": {
+          "enum": [
+            "unknown"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

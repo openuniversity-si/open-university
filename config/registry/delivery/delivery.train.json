@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "TRAIN-FRONT-FIRST (Daniel 09/11 10:48 BRT): the merge train. With delivery.judge infra, a delivery joins its base branch's queue in the port when it starts; only the front lands, the others check and wait for the front's landed/left event (long poll on the port), and a front that lands moves the base: the next re-merges and re-judges only if its diff conflicts or the changed files reach its checks. false: the delivery lands as before, without the queue.",
+  "x-readers": [
+    "scripts/lib/deliver.py"
+  ],
+  "x-source": "TRAIN-FRONT-FIRST"
+}

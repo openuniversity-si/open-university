@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "RETRO",
+  "x-unit": "text",
+  "description": "First line of the PR comment that carries a unit retro.",
+  "x-readers": [
+    "scripts/lib/lesson_ingest.py"
+  ]
+}

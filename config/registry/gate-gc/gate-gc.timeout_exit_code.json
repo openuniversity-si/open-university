@@ -1,0 +1,13 @@
+{
+  "type": "integer",
+  "default": 124,
+  "minimum": 2,
+  "maximum": 255,
+  "x-unit": "code",
+  "description": "Exit status the gate records for a stage that ran past its limit (the status timeout(1) uses).",
+  "x-readers": [
+    "scripts/lib/gate-runner.sh",
+    "scripts/lib/gate_gc.py"
+  ],
+  "x-source": "D-070; plan GX-19"
+}

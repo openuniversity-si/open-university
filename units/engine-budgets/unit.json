@@ -1,0 +1,27 @@
+{
+  "id": "engine-budgets",
+  "purpose": "Performance budgets: the battery and tolerance entries, the baseline computed from the event log, the regression verdict and the refusal of a looser budget (D-069 item 14).",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/budgets.json",
+    "contracts/budgets/**",
+    "contracts/events/budget.measured.v1.json",
+    "docs/operations/budgets.md",
+    "scripts/budgets",
+    "scripts/checks",
+    "scripts/lib/budget*.py",
+    "scripts/lib/checks.py",
+    "scripts/tests/budgets.test.sh",
+    "scripts/tests/checks.test.sh",
+    "scripts/tests/fixtures/budgets.json",
+    "scripts/tests/test_budget*.py",
+    "scripts/tests/test_checks.py"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-config-check": "^1",
+    "engine-events": "^1",
+    "engine-slo": "^1"
+  }
+}

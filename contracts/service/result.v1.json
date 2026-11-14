@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/service/result.v1.json",
+  "title": "Service job result v1",
+  "description": "What a Tower runner reports when a job ends: the outcome, the runner that ran it, its times and the forge event the job produced (the gate's verdict). The forge events stay the record of the gate and the train; this is the service's own log. Every result says why in one sentence (reason) and carries the time of each phase the job printed (phases), measured from the claim: a job has one budget, service.job_budget_s, and over_budget or died is an answer like any other (D-291).",
+  "x-owner": "service",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "job",
+    "outcome",
+    "runner",
+    "started_at",
+    "finished_at",
+    "duration_s"
+  ],
+  "properties": {
+    "job": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outcome": {
+      "enum": [
+        "passed",
+        "failed",
+        "halted",
+        "cancelled",
+        "error",
+        "skipped",
+        "over_budget",
+        "died"
+      ]
+    },
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "kind"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "box",
+            "vm",
+            "actions",
+            "session",
+            "other"
+          ]
+        }
+      }
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "exit": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "verdict_event": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The event id of the gate.passed/gate.failed a gate job published."
+    },
+    "log_tail": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "One sentence: what the job answered, or why it has no answer (over_budget names the phase that was running, died names the restart or the ended lease)."
+    },
+    "phases": {
+      "type": "array",
+      "description": "The phases the job printed (`phase: <name> @<epoch>`), in order, with their start in seconds from the claim.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "at_s"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "at_s": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

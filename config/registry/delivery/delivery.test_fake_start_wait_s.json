@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 0.05,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Seconds the loopback REST fake's readiness probe (scripts/tests/rest_fake.py --wait-ready) waits between two looks for its port file and listening socket.",
+  "x-readers": [
+    "scripts/tests/rest_fake.py"
+  ],
+  "x-source": "D-069 item 5"
+}

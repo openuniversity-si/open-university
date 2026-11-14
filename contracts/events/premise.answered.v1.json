@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/premise.answered.v1.json",
+  "title": "premise.answered payload v1",
+  "description": "An answer recorded with the literal quote; without a quote it is refused.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/premise_id",
+    "/payload/value"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "premise_id",
+    "value",
+    "by",
+    "quote"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "premise_id": {
+      "$ref": "defs.v1.json#/$defs/premise_id"
+    },
+    "value": {
+      "enum": [
+        "confirmed",
+        "refuted"
+      ]
+    },
+    "by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "quote": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

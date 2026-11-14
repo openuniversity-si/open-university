@@ -1,0 +1,32 @@
+{
+  "type": "array",
+  "default": [
+    "scripts/tests/test_aws_tenant_isolation_proof.py:random",
+    "scripts/tests/test_claude_session.py:harness",
+    "scripts/tests/test_deploy_sh.py:wall_clock",
+    "scripts/tests/test_infra_canary.py:wall_clock",
+    "scripts/tests/test_infra_cold_start.py:wall_clock",
+    "scripts/tests/test_infra_intask_standby.py:wall_clock",
+    "scripts/tests/test_infra_live_image.py:wall_clock",
+    "scripts/tests/test_infra_pooler.py:socket",
+    "scripts/tests/test_infra_pooler.py:wall_clock",
+    "scripts/tests/test_infra_reload_nostandby.py:wall_clock",
+    "scripts/tests/test_infra_sessions.py:wall_clock",
+    "scripts/tests/test_infra_swap_db_load.py:wall_clock",
+    "scripts/tests/test_infra_swap_failover.py:wall_clock",
+    "scripts/tests/test_infra_swap_measure.py:wall_clock",
+    "scripts/tests/test_infra_swap_ready.py:wall_clock",
+    "scripts/tests/test_infra_swap_reload.py:wall_clock",
+    "scripts/tests/test_infra_swap_tick.py:wall_clock",
+    "scripts/tests/test_infra_wake_hub.py:wall_clock",
+    "scripts/tests/test_uid0_probe.py:harness"
+  ],
+  "items": {
+    "type": "string"
+  },
+  "x-unit": "site",
+  "description": "Test files that predate the hermetic rules, as path:RULE (wall_clock, random, socket). Against the base this list only shrinks; a new site is refused. Each entry is a debt for the file's unit owner (U0 manifests), fixed by injecting the clock, seeding the source or using a loopback fixture. The harness sites are the tests that run scripts/cloud/setup.sh, the toolchain bootstrap that downloads by design (hermetic.without_harness); they stay listed while those tests exist.",
+  "x-readers": [
+    "scripts/lib/hermetic_check.py"
+  ]
+}

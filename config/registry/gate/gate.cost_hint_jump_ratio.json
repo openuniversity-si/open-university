@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "default": 3,
+  "exclusiveMinimum": 1,
+  "x-unit": "ratio",
+  "description": "A cost hint measured by one cold pass only (gate.cost_hint_passes 1) is refused above this many times the committed hint, when it is also above gate.cost_hint_jump_floor_s: such a jump needs a second measure (VAZÃO F52).",
+  "x-readers": [
+    "scripts/lib/test_metrics.py"
+  ]
+}

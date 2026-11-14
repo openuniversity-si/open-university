@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "text",
+  "pattern": "^[a-z][a-z0-9-]*$",
+  "x-unit": "owner",
+  "description": "The registry owner whose parameters are all user-facing text: every entry of config/registry/<owner>.json must be x-text, and an x-text entry may live nowhere else.",
+  "x-readers": [
+    "scripts/lib/scaffold.py",
+    "scripts/lib/text_check.py"
+  ],
+  "x-source": "plan v3.1 delta §1 (text.*)"
+}

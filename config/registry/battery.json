@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/battery.json",
+  "x-owner": "battery",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "description": "The unit battery (D-065 (4), D-069 item 14) and the battery role, tier 3 on integration.advanced (D-065 (5), plan v3 M6).",
+  "properties": {
+    "battery.bisection_max_runs": {
+      "type": "integer",
+      "default": 6,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Most tier-3 runs one batch bisection may spend over the tips advanced since the last green tip (enough for 2^6 = 64 tips). When they run out first, battery.culprit names the batches still in doubt instead of one culprit.",
+      "x-readers": [
+        "scripts/lib/battery.py"
+      ]
+    },
+    "battery.contract_test_globs": {
+      "type": "array",
+      "default": [
+        "**/*.contract.test.ts",
+        "**/*.contract.test.tsx"
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "glob",
+      "description": "Test files that prove a unit's contract from the consumer's side; a unit's battery also runs those of the units that require it (P-12: the contract of the direct consumers).",
+      "x-readers": [
+        "scripts/lib/unit_battery.py"
+      ],
+      "x-source": "P-12; plan v3 §4.2 items 3 and 6"
+    },
+    "battery.enabled": {
+      "type": "boolean",
+      "default": false,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "The battery role's on/off switch (D-065 (5), D-069 item 11). Off: `scripts/battery run` exits without reading a log or taking the lock, and no tier 3 runs. Switched on only by a config.changed event (scripts/config set).",
+      "x-readers": [
+        "scripts/lib/battery.py"
+      ]
+    },
+    "battery.lock_lease_s": {
+      "type": "integer",
+      "default": 7200,
+      "minimum": 60,
+      "x-unit": "s",
+      "description": "Lease of the battery lock from each take or renewal; an expired lock may be taken over. Renewed before every tier-3 run, so the role refuses to start unless it exceeds battery.tier3_timeout_s.",
+      "x-readers": [
+        "scripts/lib/battery.py"
+      ]
+    },
+    "battery.lock_ref": {
+      "type": "string",
+      "default": "battery/lock",
+      "minLength": 1,
+      "x-unit": "ref",
+      "description": "Branch name of the battery lock in the forge (refs/heads/<name>), naming the lock owner; one holder runs the role until no newer integration tip is pending (D-065 (1)). A lock of its own, apart from train.lock_ref, so tier 3 never blocks a merge.",
+      "x-readers": [
+        "scripts/lib/battery.py"
+      ]
+    },
+    "battery.producer": {
+      "type": "string",
+      "default": "battery",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Producer name of every battery role event (battery.green, battery.red, battery.culprit, release.ready, engine.step.measured); part of each event id.",
+      "x-readers": [
+        "scripts/lib/battery.py"
+      ]
+    },
+    "battery.project_tsconfig": {
+      "type": "string",
+      "minLength": 1,
+      "default": "products/web/tsconfig.json",
+      "x-unit": "path",
+      "description": "The TypeScript project's own tsconfig (its compiler settings) that each unit's types project extends; the generated `paths` it extends in turn live wherever the addresses target writes them (TX32). OU-DECOUPLE F5 (D-113): the TypeScript product's folder is products/web.",
+      "x-readers": [
+        "scripts/lib/unit_battery.py",
+        "scripts/tests/test_unit_battery.py"
+      ],
+      "x-source": "plan v3 §7.2; TX32 (the address map leaves the project tsconfig)"
+    },
+    "battery.step_prefix": {
+      "type": "string",
+      "default": "battery:",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "Prefix of the engine.step.measured step names the battery role emits (battery:run, battery:tier3, battery:bisect).",
+      "x-readers": [
+        "scripts/lib/battery.py"
+      ]
+    },
+    "battery.tier3_command": {
+      "type": "array",
+      "default": [
+        "scripts/gate-local",
+        "--tier3",
+        "--sha"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "argv",
+      "description": "Tier-3 command, relative to the repository root, run on an integration tip (its sha is appended): the full battery with a fresh build cache, never cached, Chromium only and no Neon (D-065 (5), V7: WebKit and gate-db run only at release).",
+      "x-readers": [
+        "scripts/lib/battery.py"
+      ],
+      "x-source": "D-065 (5); V7"
+    },
+    "battery.tier3_log_chars": {
+      "type": "integer",
+      "default": 2000,
+      "minimum": 0,
+      "maximum": 20000,
+      "x-unit": "chars",
+      "description": "Tail of a red tier-3 run's output the role prints to its session log (the events carry the failing stages, never the log).",
+      "x-readers": [
+        "scripts/lib/battery.py"
+      ]
+    },
+    "battery.tier3_timeout_s": {
+      "type": "integer",
+      "default": 3600,
+      "minimum": 60,
+      "x-unit": "s",
+      "description": "Longest one tier-3 run may take before it counts as red (stage timeout).",
+      "x-readers": [
+        "scripts/lib/battery.py"
+      ]
+    },
+    "battery.unit_log_lines": {
+      "type": "integer",
+      "default": 40,
+      "minimum": 1,
+      "x-unit": "lines",
+      "description": "Lines of a failing battery step's output the report keeps.",
+      "x-readers": [
+        "scripts/lib/unit_battery.py"
+      ],
+      "x-source": "D-069 item 6"
+    },
+    "battery.unit_producer": {
+      "type": "string",
+      "default": "unit-battery",
+      "x-unit": "text",
+      "description": "Producer name of the events a unit battery (scripts/unit-battery, tier 1) emits; the tier-3 battery role has its own, battery.producer.",
+      "x-readers": [
+        "scripts/lib/unit_battery.py"
+      ],
+      "x-source": "contracts/events/envelope.v1.json"
+    },
+    "battery.unit_step": {
+      "type": "string",
+      "default": "unit-battery",
+      "x-unit": "text",
+      "description": "Step name of a unit battery in engine.step.measured; each of its steps is <name>.<step>.",
+      "x-readers": [
+        "scripts/lib/budgets.py",
+        "scripts/lib/unit_battery.py"
+      ],
+      "x-source": "D-069 item 6"
+    },
+    "battery.unit_steps": {
+      "type": "array",
+      "default": [
+        {
+          "name": "script-tests",
+          "mode": "each",
+          "cwd": ".",
+          "include": [
+            "scripts/tests/*.test.sh"
+          ],
+          "commands": [
+            [
+              "bash",
+              "{file}"
+            ]
+          ]
+        }
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "mode",
+          "cwd",
+          "commands"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "mode": {
+            "enum": [
+              "types",
+              "files",
+              "each"
+            ]
+          },
+          "cwd": {
+            "type": "string",
+            "minLength": 1
+          },
+          "include": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "include_entries": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9_]*$"
+            }
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "exclude_entries": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9_]*$"
+            }
+          },
+          "globals": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "commands": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      },
+      "x-unit": "steps",
+      "description": "The steps of a unit's battery (scripts/unit-battery <id>, tier 1): each takes the unit's files under its cwd that match include (globs, plus the values of include_entries) and no exclude; mode types writes a per-unit tsconfig ({project}) with the unit's TypeScript files and the step's globals, files passes them all ({files}), each runs the command once per file ({file}). A step with no file is skipped. Every step runs; the steps run concurrently. The engine's one step is its script tests; the TypeScript steps of products/web left with that product (OU-DECOUPLE F5, D-113; D-298), and a product that brings TypeScript back adds its own types and files steps.",
+      "x-readers": [
+        "scripts/lib/unit_battery.py"
+      ],
+      "x-source": "P-12; veto V5; plan v3 §4.2 item 6"
+    },
+    "battery.unit_time_limit": {
+      "type": "number",
+      "default": 10,
+      "exclusiveMinimum": 0,
+      "x-unit": "s",
+      "description": "Longest wall time of one unit's battery (types, tests and contract).",
+      "x-readers": [
+        "docs/process/EVENTS.md",
+        "scripts/lib/budgets.py",
+        "scripts/lib/unit_battery.py"
+      ],
+      "x-source": "D-065 (4); D-069 item 14"
+    },
+    "battery.unit_types_dir": {
+      "type": "string",
+      "default": "products/web/node_modules/.cache/unit-battery",
+      "x-unit": "path",
+      "description": "Directory, ignored by git, where the battery writes each unit's tsconfig for its types step.",
+      "x-readers": [
+        "scripts/lib/unit_battery.py"
+      ],
+      "x-source": "plan v3 §7.2 (one TypeScript project per unit)"
+    }
+  }
+}

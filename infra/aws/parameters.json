@@ -1,0 +1,12 @@
+{
+  "port": {
+    "AckPath": "sqs"
+  },
+  "data": {
+    "InstanceClass": "db.t4g.medium"
+  },
+  "service": {
+    "Cpu": "512",
+    "Memory": "1024"
+  }
+}

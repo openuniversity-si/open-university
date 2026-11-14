@@ -1,0 +1,40 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "stage": "script tests",
+      "timeout_s": 1200
+    },
+    {
+      "stage": "*",
+      "timeout_s": 300
+    }
+  ],
+  "minItems": 1,
+  "uniqueItems": true,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "stage",
+      "timeout_s"
+    ],
+    "properties": {
+      "stage": {
+        "type": "string",
+        "minLength": 1
+      },
+      "timeout_s": {
+        "type": "integer",
+        "minimum": 1
+      }
+    }
+  },
+  "x-unit": "s",
+  "description": "Wall-clock limit of one gate stage, by stage name; the entry named * applies to every stage not listed, and every other entry names a stage the gate runs (gate_policy.FULL_STAGES). A stage that overruns is killed and ends red with class env and its log tail. Set above the field p99 of the stage, never shorter (GA-PG5): raising an entry is the rollback.",
+  "x-readers": [
+    "scripts/lib/gate-runner.sh",
+    "scripts/lib/gate_gc.py"
+  ],
+  "x-source": "D-070; plan GX-19 (GA-PG5)"
+}

@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 600,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "A train lock whose lease ended longer ago than this, and was never released, warns the lock health check (the lease frees it; the warning names a train that died).",
+  "x-readers": [
+    "scripts/lib/service_status.py"
+  ],
+  "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md"
+}

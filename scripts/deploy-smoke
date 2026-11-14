@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Usage: scripts/deploy-smoke [--url URL]
+# The post-deploy smoke (DEP7): what must answer after the slow path changed a stack. Run by infra/aws/deploy.sh inside the
+# deployer (CodeBuild); red (exit 1) rolls back the stacks that build changed. Three checks, each retried
+# (DEPLOY_SMOKE_TRIES, default 6, DEPLOY_SMOKE_SLEEP seconds apart, default 5) because a stack that just rolled out answers late:
+#   1. GET /v1/health          200 and "ok":true: the port's Lambda is up and the database answers.
+#   2. GET /v1/deploy/status   the route is alive: 200 with a token, 401/403 without one.
+#   3. a registry read         with a token, that status answers source "registry" (read from the log); without, skipped.
+# and, with a token, the canary (DEPLOY-CANARY, docs/operations/aws.md 22.3): the three above are all served by the port's
+# Lambda, so a deploy that broke the service's dispatch or the runner's take passed them.
+#   4. POST /v1/deploy/canary  one job through the path a check takes (tower_infra.canary), idempotent by the build's id;
+#      GET /v1/deploy/canary/<id>?wait_s=20, a long poll the job's end wakes (no sleep here), until the port gives its
+#      verdict: green when the job ended well within deploy.canary_limit_s (registry, 120 s), red with the stage that never
+#      happened: not dispatched (the service), dispatched and not taken (the runner), taken and failed (the run). A red
+#      canary is also published to ALERTS_TOPIC_ARN when the deployer has it. A port with no canary route (a bisection's
+#      midpoint older than the route) skips it, and says so.
+# The URL is DEPLOY_SMOKE_URL or the PortUrl output of tower-app-port. The token is DEPLOY_SMOKE_TOKEN or the SecureString
+# /tower/deploy/smoke-token (an installation token, inside the /tower/deploy/* read the deployer already has); with none
+# the authenticated half is said to be skipped, never silently passed. No secret is printed.
+set -u
+url="${DEPLOY_SMOKE_URL:-}"
+[[ "${1:-}" = --url ]] && url="${2:-}"
+tries="${DEPLOY_SMOKE_TRIES:-6}"; pause="${DEPLOY_SMOKE_SLEEP:-5}"
+if [[ -z "$url" ]]; then
+  url="$(aws cloudformation describe-stacks --stack-name tower-app-port --query 'Stacks[0].Outputs[?OutputKey==`PortUrl`].OutputValue | [0]' --output text 2>/dev/null)"
+fi
+if [[ -z "$url" || "$url" = None ]]; then echo "smoke RED: no port URL (DEPLOY_SMOKE_URL or the PortUrl output of tower-app-port)"; exit 1; fi
+url="${url%/}"
+token="${DEPLOY_SMOKE_TOKEN:-}"
+[[ -z "$token" ]] && token="$(aws ssm get-parameter --name /tower/deploy/smoke-token --with-decryption --query Parameter.Value --output text 2>/dev/null || true)"
+[[ "$token" = None ]] && token=""
+
+# get <path> [auth]: prints "<status> <body>" of one GET, empty status on a transport failure.
+get() {
+  local args=(-sS -m 10 -o "$body" -w '%{http_code}')
+  [[ -n "${2:-}" && -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
+  curl "${args[@]}" "$url$1" 2>/dev/null || true
+}
+body="$(mktemp)"; trap 'rm -f "$body"' EXIT
+
+# check <name> <path> <auth?> <ok-status-regex> <body-regex>: retried until it passes or the tries end.
+check() {
+  local name="$1" path="$2" auth="$3" want="$4" shape="$5" code="" i
+  for ((i = 1; i <= tries; i++)); do
+    code="$(get "$path" "$auth")"
+    if [[ "$code" =~ ^($want)$ ]] && { [[ -z "$shape" ]] || grep -Eq "$shape" "$body"; }; then echo "smoke ok: $name ($code)"; return 0; fi
+    (( i < tries )) && sleep "$pause"
+  done
+  echo "smoke RED: $name answered '${code:-no answer}' (wanted $want${shape:+ with $shape}): $(head -c 200 "$body" | tr -d '\000-\037')"
+  return 1
+}
+
+# canary: DEPLOY-CANARY. One canary job by the port, then its verdict by long poll; 0 green or skipped, 1 red.
+canary() {
+  local key="${DEPLOY_SMOKE_CANARY_KEY:-${CODEBUILD_BUILD_ID:-smoke-$(date +%s)-$$}}" code id limit ok asked began=$SECONDS
+  code="$(curl -sS -m 30 -o "$body" -w '%{http_code}' -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+    -d "$(jq -nc --arg key "$key" '{key: $key}')" "$url/v1/deploy/canary" 2>/dev/null || true)"
+  if [[ "$code" = 404 ]]; then echo "smoke: the port has no canary route (code older than DEPLOY-CANARY): the canary job was skipped"; return 0; fi
+  id="$(jq -r '.id // empty' "$body" 2>/dev/null)"; limit="$(jq -r '.limit_s // 120 | ceil' "$body" 2>/dev/null)"
+  if [[ ! "$code" =~ ^20[01]$ || -z "$id" ]]; then
+    echo "smoke RED: canary job not created: POST /v1/deploy/canary answered '${code:-no answer}': $(head -c 200 "$body" | tr -d '\000-\037')"; return 1
+  fi
+  while :; do
+    asked=$SECONDS
+    code="$(curl -sS -m 30 -o "$body" -w '%{http_code}' -H "Authorization: Bearer $token" "$url/v1/deploy/canary/$id?wait_s=20" 2>/dev/null || true)"
+    ok="$(jq -r 'if .ok == null then "pending" else .ok end' "$body" 2>/dev/null)"
+    if [[ "$code" = 200 && "$ok" = true ]]; then echo "smoke ok: $(jq -r .line "$body")"; return 0; fi
+    if [[ "$code" = 200 && "$ok" = false ]]; then
+      echo "smoke RED: $(jq -r .line "$body")"
+      [[ -z "${ALERTS_TOPIC_ARN:-}" ]] || aws sns publish --topic-arn "$ALERTS_TOPIC_ARN" --subject "tower deploy canary RED" \
+        --message "$(jq -r .line "$body") (build $key, canary $id)" >/dev/null 2>&1 || true
+      return 1
+    fi
+    if (( SECONDS - began > ${limit:-120} + 60 )); then
+      echo "smoke RED: canary job $id has no verdict after $((SECONDS - began)) s: GET /v1/deploy/canary answered '${code:-no answer}'"; return 1
+    fi
+    (( SECONDS - asked >= 2 )) || sleep "$pause"  # only when the port answered at once (it could not wait, or failed): never a hot loop
+  done
+}
+
+red=0
+check "GET /v1/health" /v1/health "" 200 '"ok": *true' || red=1
+if [[ -n "$token" ]]; then
+  if check "registry read: GET /v1/deploy/status" /v1/deploy/status auth 200 '"source": *"registry"'; then :; else red=1; fi
+  canary || red=1
+else
+  check "GET /v1/deploy/status (no token: the route answers a refusal)" /v1/deploy/status "" '401|403' '' || red=1
+  echo "smoke: no smoke token (/tower/deploy/smoke-token): the authenticated registry read was skipped, and the canary job with it"
+fi
+exit "$red"

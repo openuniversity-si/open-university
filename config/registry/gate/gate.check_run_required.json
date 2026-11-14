@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "Whether a failed publish of tower/gate stops the infra delivery (nothing merges) instead of being logged while the delivery lands (fail-open). True since the ruleset rs_<tower-gate-required> requires tower/gate (revert: origin ruleset delete it, then set this false). It was false while the forge did not require tower/gate; true once the ruleset requires it, because then a head without a green tower/gate cannot merge anyway (D-313).",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "x-source": "D-313"
+}

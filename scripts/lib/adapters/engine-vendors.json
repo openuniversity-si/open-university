@@ -1,0 +1,229 @@
+{
+  "description": "The vendors the engine (scripts/) may call and where (D-069 item 7, plan v3.1 R1). Validated by contracts/adapters/engine-vendors.v1.json and read by scripts/lib/vendor_check.py through providers.vendor_catalog. A baseline site is a call outside the adapters that predates the check: its nature and reason for remaining are recorded in baseline_classification; the list only shrinks. Classification does not imply every site must migrate to the forge port. A slot with no caller keeps its detectors, so a new call is refused until its port exists (OU-DECOUPLE F5, D-113).",
+  "vendors": [
+    {
+      "name": "github",
+      "kind": "forge",
+      "status": "slot",
+      "endpoints": [
+        "api.github.com",
+        "github.com",
+        "githubusercontent.com"
+      ],
+      "clis": [
+        "gh"
+      ],
+      "modules": [
+        "github_api",
+        "forge_github",
+        "github_cli"
+      ],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [
+        "scripts/lib/toolchain_manifest.py:github.com"
+      ],
+      "note": "Archived forge (D-293). The active forge is Origin; GitHub remains only as a third-party binary artifact host at the classified toolchain baseline.",
+      "baseline_classification": {
+        "scripts/lib/toolchain_manifest.py:github.com": {
+          "nature": "artifact-hosting",
+          "reason": "Builds third-party binary release download URLs; artifact distribution is not a forge operation."
+        }
+      }
+    },
+    {
+      "name": "github-actions",
+      "kind": "ci-runner",
+      "status": "forbidden",
+      "endpoints": [
+        "/actions/runs",
+        "/actions/workflows",
+        "/actions/jobs"
+      ],
+      "clis": [],
+      "modules": [],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "Never a CI runner (AGENTS.md: no GitHub Actions or third-party CI). The CI runner port is scripts/lib/adapters/ci_runner.py; its adapter is the local gate runner."
+    },
+    {
+      "name": "claude",
+      "kind": "agent-provider",
+      "status": "active",
+      "endpoints": [
+        "api.anthropic.com"
+      ],
+      "clis": [
+        "claude"
+      ],
+      "modules": [
+        "adapters.agent_claude",
+        "adapters.launcher_claude",
+        "anthropic",
+        "claude_agent_sdk",
+        "@anthropic-ai/sdk",
+        "@anthropic-ai/claude-agent-sdk"
+      ],
+      "adapters": [
+        "scripts/lib/adapters/agent_claude.py",
+        "scripts/lib/adapters/launcher_claude.py"
+      ],
+      "selectors": [
+        "scripts/lib/adapters/agent.py",
+        "scripts/lib/adapters/launcher.py"
+      ],
+      "baseline": [],
+      "note": "The agent provider today; port scripts/lib/adapters/agent.py."
+    },
+    {
+      "name": "codex",
+      "kind": "agent-provider",
+      "status": "slot",
+      "endpoints": [
+        "api.openai.com"
+      ],
+      "clis": [
+        "codex"
+      ],
+      "modules": [
+        "openai",
+        "@openai/codex-sdk"
+      ],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "Documented slot of the agent port (adapters/agent.py SLOTS); no adapter yet."
+    },
+    {
+      "name": "cursor",
+      "kind": "agent-provider",
+      "status": "slot",
+      "endpoints": [
+        "api.cursor.com"
+      ],
+      "clis": [
+        "cursor-agent"
+      ],
+      "modules": [],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "Documented slot of the agent port (adapters/agent.py SLOTS); no adapter yet."
+    },
+    {
+      "name": "neon",
+      "kind": "database",
+      "status": "slot",
+      "endpoints": [
+        "console.neon.tech"
+      ],
+      "clis": [
+        "neonctl"
+      ],
+      "modules": [
+        "@neondatabase/serverless"
+      ],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "No engine caller: the production tail that called it left the repository (OU-DECOUPLE F4, D-111). A database port would be an adapter of its own."
+    },
+    {
+      "name": "vercel",
+      "kind": "hosting",
+      "status": "slot",
+      "endpoints": [
+        "api.vercel.com",
+        "vercel.com",
+        "vercel.app"
+      ],
+      "clis": [
+        "vercel"
+      ],
+      "modules": [
+        "@vercel/sdk"
+      ],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "No engine caller: the production tail that called it left the repository (OU-DECOUPLE F4, D-111), and the pinned CLI left the cloud setup (vazão F6)."
+    },
+    {
+      "name": "cloudflare-r2",
+      "kind": "storage",
+      "status": "slot",
+      "endpoints": [
+        "r2.cloudflarestorage.com",
+        "r2.dev"
+      ],
+      "clis": [
+        "wrangler"
+      ],
+      "modules": [
+        "aws4fetch"
+      ],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "No engine caller: the product media storage that used it left the repository (OU-DECOUPLE F4, D-111). The engine's shared store is the aws-s3 vendor (adapter of scripts/lib/adapters/storage.py)."
+    },
+    {
+      "name": "aws-s3",
+      "kind": "storage",
+      "status": "active",
+      "endpoints": [],
+      "clis": [],
+      "modules": [
+        "boto3",
+        "adapters.storage_s3"
+      ],
+      "adapters": [
+        "scripts/lib/adapters/storage_s3.py"
+      ],
+      "selectors": [
+        "scripts/lib/adapters/storage.py"
+      ],
+      "baseline": [],
+      "note": "The engine's shared store (DEP8 lambda artifacts in the outputs bucket): the s3 adapter of the storage port, boto3 where importable (Fargate runner), else the aws CLI (CodeBuild deployer)."
+    },
+    {
+      "name": "figma",
+      "kind": "design",
+      "status": "slot",
+      "endpoints": [
+        "api.figma.com"
+      ],
+      "clis": [],
+      "modules": [],
+      "adapters": [],
+      "selectors": [],
+      "baseline": [],
+      "note": "Design specs. No engine caller since the product that read them left the repository (OU-DECOUPLE F4, D-111)."
+    },
+    {
+      "name": "origin",
+      "kind": "forge",
+      "status": "active",
+      "endpoints": [
+        "api.cursor.com/v1/origin"
+      ],
+      "clis": [
+        "origin"
+      ],
+      "modules": [
+        "forge_origin",
+        "forge_origin_client"
+      ],
+      "adapters": [
+        "scripts/lib/forge_origin.py",
+        "scripts/lib/forge_origin_client.py"
+      ],
+      "selectors": [
+        "scripts/lib/forge_events.py"
+      ],
+      "baseline": [],
+      "note": "The new Cursor Origin forge, distinct from the Cursor agent provider. Its port is scripts/lib/forge_events.py; forge_origin.py implements the adapter and forge_origin_client.py transports requests through the origin CLI."
+    }
+  ]
+}

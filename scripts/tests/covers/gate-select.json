@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/gate-select.test.sh",
+  "covers": [
+    "scripts/tests/gate-select.test.sh",
+    "scripts/tests/test_gate_select.py",
+    "scripts/lib/gate_select.py",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/units.py",
+    "config/registry/gate.json",
+    "units/**",
+    "scripts/tests/fixture_copy.py"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "/proc/{pid}/stat",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Per-process CPU counters (proc(5)) of the gate driver: cost.cpu_s of the v4 verdict is the utime+stime+cutime+cstime delta of the gate-local process between the proof hook and the report; {pid} is that process. Absent off Linux: cpu_s is 0.",
+  "x-readers": [
+    "scripts/lib/gate_proof.py"
+  ],
+  "x-source": "D-070"
+}

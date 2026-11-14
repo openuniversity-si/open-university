@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "Derived on demand by `scripts/generate census` from the units' census records (units/<id>/census.jsonl); never committed and never edited. The literal catalogs of one census area (D-063): every file whose literals are the documented keys of a domain. Write an entry with `scripts/census add <path> --catalog --domain <d> --holds <text> --why <why>`.",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "The description at the top of each rendered per-area catalog file.",
+  "x-readers": [
+    "scripts/lib/generate_census.py"
+  ],
+  "x-source": "CENSO-NO-MANIFESTO"
+}

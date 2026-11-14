@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 7200,
+  "minimum": 60,
+  "x-unit": "s",
+  "description": "Lease of the battery lock from each take or renewal; an expired lock may be taken over. Renewed before every tier-3 run, so the role refuses to start unless it exceeds battery.tier3_timeout_s.",
+  "x-readers": [
+    "scripts/lib/battery.py"
+  ]
+}

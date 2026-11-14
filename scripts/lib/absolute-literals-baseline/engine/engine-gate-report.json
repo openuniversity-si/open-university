@@ -1,0 +1,119 @@
+{
+  "description": "One unit's unregistered engine literals still allowed (LT1, D-063 style, D-064 a), per file, kind and value, written by `python3 scripts/lib/literal_census.py --write`. scripts/structure-check fails when the census of the scanned files differs from this directory or a unit allows a value more times than the base branch. A PR that removes literals deletes their entries; nothing adds one. The total is computed, never stored.",
+  "files": {
+    "scripts/lib/gate_failures.py": {
+      "number 9": 1
+    },
+    "scripts/lib/gate_noite.py": {
+      "number 2": 2
+    },
+    "scripts/lib/gate_proof.py": {
+      "number 1000": 1
+    },
+    "scripts/lib/gate_report.py": {
+      "number 12": 1,
+      "number 2": 1
+    },
+    "scripts/lib/gate_result_cache.py": {
+      "number 2": 1
+    },
+    "scripts/lib/gate_speed.py": {
+      "number 2": 8,
+      "number 20": 1,
+      "number 3": 6,
+      "number 4": 6
+    },
+    "scripts/lib/gate_status.py": {
+      "number 120": 3,
+      "number 2": 1,
+      "number 60": 4
+    },
+    "scripts/lib/gate_test_cache.py": {
+      "number 12": 2,
+      "number 2": 1
+    },
+    "scripts/tests/gate-result-cache.test.sh": {
+      "number 2": 7,
+      "number 3": 5,
+      "number 4": 1,
+      "number 9": 1
+    },
+    "scripts/tests/gate_status/test_final.py": {
+      "number 10": 2,
+      "number 100": 1,
+      "number 1100.0": 1,
+      "number 2.0": 1,
+      "number 3": 1,
+      "number 40": 1,
+      "number 6": 1
+    },
+    "scripts/tests/gate_status/test_live.py": {
+      "duration \"10s\"": 1,
+      "duration \"3s\"": 1,
+      "duration \"40s\"": 2,
+      "number 10": 1,
+      "number 2": 3,
+      "number 3": 1,
+      "number 30": 1,
+      "number 573": 2
+    },
+    "scripts/tests/test_gate_classify.py": {
+      "number 2": 1,
+      "port \"catalog-routing.spec.ts:13\"": 1
+    },
+    "scripts/tests/test_gate_failures.py": {
+      "absolute_path \"/home/user/a/b/c/file.ts\"": 1,
+      "absolute_path \"/home/user/the-tower\"": 1,
+      "absolute_path \"/tmp/a/b/c/t.py\"": 1,
+      "absolute_path \"/tmp/claude-1/checkout\"": 1,
+      "absolute_path \"/tmp/x/y/z/file.ts\"": 1,
+      "duration \"109ms\"": 2,
+      "duration \"68ms\"": 1,
+      "duration \"951ms\"": 1,
+      "number 10": 1,
+      "number 2": 2,
+      "number 2026": 1,
+      "number 27": 1,
+      "number 3": 2,
+      "number 40": 2,
+      "number 50": 1,
+      "number 60": 2,
+      "number 7": 2,
+      "port \"preview-deploy.test.ts:41\"": 1,
+      "port \"x.ts:12\"": 1
+    },
+    "scripts/tests/test_gate_report_skips.py": {
+      "number 2": 1
+    },
+    "scripts/tests/test_gate_result_cache.py": {
+      "number 1000": 6,
+      "number 2": 3,
+      "number 4999": 1,
+      "number 5000": 1
+    },
+    "scripts/tests/test_gate_speed.py": {
+      "number 10": 1,
+      "number 2": 1,
+      "number 30": 1,
+      "number 7": 4,
+      "number 9": 2
+    },
+    "scripts/tests/test_gate_status.py": {
+      "number 10": 1,
+      "number 1000.0": 1,
+      "number 2": 1,
+      "number 2.0": 1,
+      "number 2000.0": 1,
+      "number 40": 1,
+      "number 573": 1,
+      "number 9": 1
+    },
+    "scripts/tests/test_gate_test_cache.py": {
+      "number 1000": 9,
+      "number 1010": 8,
+      "number 12": 1,
+      "number 2": 2,
+      "number 999": 1
+    }
+  }
+}

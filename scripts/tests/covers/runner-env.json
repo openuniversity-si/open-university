@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/runner-env.test.sh",
+  "covers": [
+    "scripts/tests/runner-env.test.sh",
+    "scripts/tests/test_runner_env.py",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/service_budget.py",
+    "config/registry/gate.json",
+    "infra/service/tower_infra/runner.py"
+  ]
+}

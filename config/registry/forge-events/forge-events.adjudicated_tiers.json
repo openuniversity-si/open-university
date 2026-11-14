@@ -1,0 +1,19 @@
+{
+  "type": "array",
+  "default": [
+    1,
+    2
+  ],
+  "items": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 3
+  },
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Gate tiers (explicit, derived by gate-hooks/tier.sh: --tier3 3, --pr 1, --sha without --pr 2) whose run adjudicates known base defects and reports them (the KD1 switch, GX-11, D-070). [1] restores the per-PR-only adjudication.",
+  "x-readers": [
+    "scripts/lib/gate_tier.py"
+  ],
+  "x-source": "D-070; plan-v2 GX-11, D-B5"
+}

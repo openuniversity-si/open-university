@@ -1,0 +1,38 @@
+{
+  "type": "array",
+  "default": [
+    {
+      "name": "battery.unit_time_limit",
+      "bound": "max"
+    },
+    {
+      "name": "budgets.regression_tolerance_percent",
+      "bound": "max"
+    }
+  ],
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "name",
+      "bound"
+    ],
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "bound": {
+        "enum": [
+          "max",
+          "min"
+        ]
+      }
+    }
+  },
+  "x-unit": "entries",
+  "description": "The registry entries that are budgets and only tighten: a max entry may not grow and a min entry may not shrink against the base unless its x-source gains a decision recorded in docs/domain/DECISIONS.md. The measured baseline may not grow beyond budgets.regression_tolerance_percent without the same decision on its metric's entry.",
+  "x-readers": [
+    "scripts/lib/budget_check.py"
+  ],
+  "x-source": "D-069 item 14; B1"
+}

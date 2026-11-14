@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/aws-tenant-isolation-proof.test.sh",
+  "covers": [
+    "scripts/tests/aws-tenant-isolation-proof.test.sh",
+    "scripts/tests/test_aws_tenant_isolation_proof.py",
+    "scripts/aws-tenant-isolation-proof",
+    "scripts/lib/aws_tenant_isolation_proof.py",
+    "units/engine-infra-service/unit.json"
+  ]
+}

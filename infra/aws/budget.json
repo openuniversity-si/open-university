@@ -1,0 +1,56 @@
+{
+  "contract": "the AWS budget of D-303, declared here and kept in the AWS console, outside the deploy pipeline, so no merged change can raise its own ceiling",
+  "name": "torre-motor-teto-60",
+  "created": {
+    "by": "Torre",
+    "at": "2026-11-04T01:44-03:00",
+    "approved": "Daniel 2026-11-04 01:39 BRT"
+  },
+  "budget_type": "COST",
+  "time_unit": "MONTHLY",
+  "limit": {
+    "amount": 60,
+    "unit": "USD"
+  },
+  "start": "2026-11-01",
+  "scope": "all services",
+  "cost_types": {
+    "include_credit": false,
+    "include_refund": false,
+    "use_blended": false,
+    "use_amortized": false
+  },
+  "notifications": [
+    {
+      "type": "ACTUAL",
+      "comparison": "GREATER_THAN",
+      "threshold": 50,
+      "threshold_type": "PERCENTAGE"
+    },
+    {
+      "type": "ACTUAL",
+      "comparison": "GREATER_THAN",
+      "threshold": 80,
+      "threshold_type": "PERCENTAGE"
+    },
+    {
+      "type": "ACTUAL",
+      "comparison": "GREATER_THAN",
+      "threshold": 100,
+      "threshold_type": "PERCENTAGE"
+    },
+    {
+      "type": "FORECASTED",
+      "comparison": "GREATER_THAN",
+      "threshold": 100,
+      "threshold_type": "PERCENTAGE"
+    }
+  ],
+  "subscribers": "the owner's email address, kept in the console and never in the repository",
+  "actions": [],
+  "applied": {
+    "by": "Torre",
+    "at": "2026-11-04T09:00-03:00",
+    "change": "moved from Metrics (UnblendedCost) to CostTypes with credits and refunds excluded; the AWS API does not accept Metrics together with CostTypes, and CostTypes measures unblended cost when use_blended and use_amortized are false"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "docs/process/premises",
+  "x-unit": "path",
+  "description": "Directory of the premise register: one record per premise, named <slug> plus premises.record_suffix (D-066).",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ]
+}

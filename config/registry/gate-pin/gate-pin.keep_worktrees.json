@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 2,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Base-sha tool worktrees kept per clone on this machine; older ones (least recently used) are removed, never one a running gate holds.",
+  "x-readers": [
+    "scripts/lib/gate_pin.py"
+  ],
+  "x-source": "D-070"
+}

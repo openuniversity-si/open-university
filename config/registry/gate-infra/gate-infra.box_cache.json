@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "A script test whose key the box's test cache holds a valid pass for (gate_test_cache.lookup) is not made a job: the box skips it too, and the memoization of the infrastructure does the same for what it ran itself. Verdicts keep them as box_cached. Off: every selected test is a job.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "AWS2"
+}

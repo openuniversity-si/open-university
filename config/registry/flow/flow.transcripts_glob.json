@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "~/.claude/projects/*/*/subagents",
+  "x-unit": "path",
+  "description": "Where the harness keeps the lane transcripts (VAZÃO F69): the newest directory this pattern matches is the current coordinator's subagents directory, read by scripts/fronts status, lane collect and scripts/usage --lanes with no DIR (the ledger refresh deliver runs after a merge) to refresh the quota ledger (flow.lanes_ledger) when no directory is named.",
+  "x-readers": [
+    "scripts/lib/fronts.py",
+    "scripts/lib/usage.py"
+  ],
+  "x-source": "VAZÃO F69 (docs/programs/vazao/fila.md)"
+}

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/defect.verified.v1.json",
+  "title": "defect.verified payload v1",
+  "description": "The gate saw the test pass on the base after the fix merged; the defect is closed.",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/defect",
+    "/payload/base_sha"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "defect",
+    "test",
+    "signature",
+    "owner",
+    "base_sha",
+    "run"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "defect": {
+      "type": "string",
+      "pattern": "^KD-[0-9a-f]{6,}$"
+    },
+    "test": {
+      "type": "string",
+      "minLength": 1
+    },
+    "signature": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_sha": {
+      "$ref": "defs.v1.json#/$defs/commit"
+    },
+    "run": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

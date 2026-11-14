@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "routed by queue impact: priority {priority}, class {class}",
+  "x-unit": "text",
+  "description": "Trail note of a routed defect; {priority} and {class} are filled in.",
+  "x-readers": [
+    "scripts/lib/defect_router.py"
+  ],
+  "minLength": 1
+}

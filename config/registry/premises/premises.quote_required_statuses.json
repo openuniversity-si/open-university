@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "default": [
+    "confirmed"
+  ],
+  "uniqueItems": true,
+  "x-unit": "count",
+  "description": "Settled statuses that need a non-empty literal quote in the answer before a Premises: line may rely on them, and before scripts/premises answer records them (D-069 item 10). Without the quote a cited premise is treated as unsettled: a blocking radius fails, a warning radius warns.",
+  "x-readers": [
+    "scripts/lib/premises.py",
+    "scripts/lib/structure.py"
+  ],
+  "items": {
+    "type": "string"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "engine-test-support",
+  "purpose": "Engine test fixtures and helpers not tied to one unit.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/lib/test_db.py",
+    "scripts/tests/claude-session.test.sh",
+    "scripts/tests/claude-settings.test.sh",
+    "scripts/tests/fixture_copy.py",
+    "scripts/tests/gate-isolation.test.sh",
+    "scripts/tests/gate-split.test.sh",
+    "scripts/tests/lib/**",
+    "scripts/tests/machine_premise.py",
+    "scripts/tests/prune-inherited.test.mjs",
+    "scripts/tests/rest_fake.py",
+    "scripts/tests/rest_fake/**",
+    "scripts/tests/root-identity.test.sh",
+    "scripts/tests/root_probe.py",
+    "scripts/tests/suite-runner.test.sh",
+    "scripts/tests/test-db.test.sh",
+    "scripts/tests/test_claude_session.py",
+    "scripts/tests/test_claude_settings.py",
+    "scripts/tests/test_config_api.py",
+    "scripts/tests/test_gate_plan.py",
+    "scripts/tests/test_gate_split.py",
+    "scripts/tests/test_root_identity.py",
+    "scripts/tests/test_test_db.py",
+    "scripts/tests/test_uid0_probe.py",
+    "scripts/tests/uid0-probe.test.sh"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-env": "^1"
+  }
+}

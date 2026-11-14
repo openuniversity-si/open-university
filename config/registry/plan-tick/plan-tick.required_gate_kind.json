@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "dev",
+  "x-unit": "enum",
+  "enum": [
+    "dev"
+  ],
+  "description": "Gate plan whose passed gate.passed must exist for the head before pr.ready is emitted (gate-dev, tier 1).",
+  "x-readers": [
+    "scripts/lib/pr_ready.py"
+  ]
+}

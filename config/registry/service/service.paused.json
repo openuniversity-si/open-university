@@ -1,0 +1,14 @@
+{
+  "type": "boolean",
+  "default": false,
+  "x-unit": "flag",
+  "description": "The pause switch of the gate and train services (D-086): while true a Tower runner claims no new job and the control plane dispatches none; a running job finishes. Flipped with `scripts/service pause|resume --reason` through the shared store (D-069 item 5), never a local override.",
+  "x-readers": [
+    "scripts/lib/lane_status.py",
+    "scripts/lib/service.py",
+    "scripts/lib/service_runner.py",
+    "scripts/lib/service_status.py"
+  ],
+  "x-source": "D-086; docs/units/GATE-TRAIN-SERVICES/plan.md",
+  "x-flag": true
+}

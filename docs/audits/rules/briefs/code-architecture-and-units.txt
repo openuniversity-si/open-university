@@ -1,0 +1,181 @@
+RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS: audit every rule of the group "Code architecture, contexts and units" (program RULE-AUDIT, phase 1; brief written by
+RULE-AUDIT phase 0, PR #775)
+Repo openuniversity-si/open-university. Base mod/roadmap-integration (gate your own head; never merge or rebase the base into your
+branch). Branch mod/rule-audit-code-architecture-and-units. One draft PR from mod/rule-audit-code-architecture-and-units into mod/roadmap-integration.
+Approved: Daniel 28/10 16:43-16:55 under A Torre's execution. Decisions: D-069 item 9 (fix the class), D-072 (a block
+enters an evaluation before any action).
+
+STEP 0 (before anything else, within about 3 minutes): create the branch from the current base tip, commit and push
+docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/audit.md as a skeleton, open the draft PR through the REST API (title
+"RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS: Code architecture, contexts and units", body with the 3-8 item commit plan and the trailers "Decision: D-069 item 9,
+D-072", "Premises: none", "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)"), post a STATUS comment. Only
+then start the audit.
+
+== WHY ==
+Daniel's order, 16:46 and 16:47 BRT 28/10, in his words: "toda regra, requisito, uso de recursos etc merece uma
+justificativa - e uma muito boa - para continuar, juntamente com uma pequena simulacao do impacto, tanto positivo
+quanto negativo, de retira-la. Ou seja, praticamente uma auditoria completa em cada uma delas" and "peca para que uma
+avaliacao inicial agrupe os requisitos, e lance uma auditoria propria para cada grupo. Vamos investir recursos nisso."
+He decided that every rule, requirement and resource use must earn its place with a strong justification and a small
+simulation of the impact of removing it, and that each group of them gets an audit session of its own. This session is
+the audit of one group. Phase 2 acts on the verdicts; this session changes no behaviour.
+
+What the rows of this group have in common: They fix how the code is cut: contexts and their rings, the database package, translators, unit manifests and size ceilings, and the architecture premises behind the rewrite into units.
+
+== YOUR ROWS (exactly these 61; census at PR #775, docs/audits/rules/census.json) ==
+- param:architecture.source_root | config/registry/architecture.json:10#architecture.source_root | The app's source folder the checker walks; every rule placeholder {src} expands to it. Ends with a slash. | owner: D-058
+- param:architecture.web_root | config/registry/architecture.json:23#architecture.web_root | The web app's folder: its package manifest and every file a package import is read from; the placeholder {web}. | owner: D-062
+- param:architecture.tooling_root | config/registry/architecture.json:36#architecture.tooling_root | The operations scripts the checker reads as tooling edges (D-060). | owner: D-060
+- param:architecture.fidelity_root | config/registry/architecture.json:50#architecture.fidelity_root | The fidelity tooling, a composition root the database package rule also reads (D-056). | owner: D-056
+- param:architecture.source_file | config/registry/architecture.json:63#architecture.source_file | A file of the source or tooling walk: its name matches this expression. | owner: D-058
+- param:architecture.test_file | config/registry/architecture.json:74#architecture.test_file | A test file; it is not production code. | owner: D-058
+- param:architecture.non_production | config/registry/architecture.json:85#architecture.non_production | Expressions of the other non-production paths (testing rings and test routes); {src} expands to architecture.source_root. | owner: D-058
+- param:architecture.package_file | config/registry/architecture.json:104#architecture.package_file | A file whose package imports the vendor rules read (D-062): every script and config of the web app, tests included. | owner: D-062
+- param:architecture.package_skip | config/registry/architecture.json:115#architecture.package_skip | Folder names the package-import walk skips; a dot folder is always skipped. | owner: D-062
+- param:architecture.vendor_map | config/registry/architecture.json:135#architecture.vendor_map | The vendor map (D-062): every package of the web app and the retired vendors. | owner: D-062
+- param:architecture.contract_registry | config/registry/architecture.json:146#architecture.contract_registry | The executable contract registry of the public ports (L3.contract-coverage). | owner: D-060
+- param:architecture.layer_order | config/registry/architecture.json:157#architecture.layer_order | The architecture states in order; a rule applies from its `since` state, and --through <state> runs the rules up to it. | owner: ADR-36
+- param:architecture.default_layer | config/registry/architecture.json:194#architecture.default_layer | The state a rule without `since` applies from. | owner: ADR-36
+- param:architecture.sql_start | config/registry/architecture.json:207#architecture.sql_start | How a string or template literal is recognized as SQL (D-056): it starts with a statement. Upper case on purpose: HTTP route strings ("DELET | owner: D-056
+- param:architecture.wrapper_max_lines | config/registry/architecture.json:218#architecture.wrapper_max_lines | Lines a command wrapper that only delegates may hold (scripts/tower-media, L2.cli-no-media-subprocess); above it the wrapper does more than  | owner: D-005 (the media flow goes through the admin API)
+- param:units.size_target | config/registry/units.json:10#units.size_target | Production lines a unit aims at; above it the unit is a candidate to split. | owner: P-04 (plan v3 §2.1)
+- param:units.size_ceiling | config/registry/units.json:23#units.size_ceiling | Production lines a unit may not exceed; above it unit.oversize is emitted. | owner: P-04 (plan v3 §2.1) | can stop: PRs stopped not measured
+- param:units.context_budget | config/registry/units.json:37#units.context_budget | Context an agent needs to change a unit, at most. | owner: P-04 (plan v3 §2.1)
+- param:units.manifest_dir | config/registry/units.json:50#units.manifest_dir | Directory that holds one folder per unit, units/<id>/. | owner: D-067 (plan v3 §4.2)
+- param:units.manifest_file | config/registry/units.json:61#units.manifest_file | File name of a unit manifest inside units/<id>/. | owner: D-067 (plan v3 §4.2)
+- param:units.manifest_schema | config/registry/units.json:71#units.manifest_schema | JSON Schema every unit manifest satisfies. | owner: D-067 (plan v3 §4.2)
+- param:units.decision_register | config/registry/units.json:81#units.decision_register | Register a manifest's budget override and decisions must cite (D-NNN rows). | owner: D-067 (plan v3 §4.2)
+- param:units.owners | config/registry/units.json:91#units.owners | Lanes a manifest may name as owner (D-065 (4), D-069 item 8); a lane exclusively owns its units. | owner: D-067; plan v3 §4.5 cells and §9.2 A2 lanes | can stop: PRs stopped not measured
+- param:units.production_globs | config/registry/units.json:125#units.production_globs | Globs of the files that are production code or build data; each must belong to exactly one unit (minus units.test_globs). | owner: D-067 (6); plan v3 §4.1 (747 production files)
+- param:units.test_globs | config/registry/units.json:151#units.test_globs | Globs of test and fixture files inside the production globs; they belong to at most one unit and count toward no size. | owner: D-067 (6)
+- param:units.companions | config/registry/units.json:174#units.companions | Companion files that follow their primary file's unit (TX21, T1/T2: derived, never hand-kept): a path matching `companion` belongs to the un | owner: D-067 (6); D-070 (TX21)
+- param:units.size_exempt_globs | config/registry/units.json:208#units.size_exempt_globs | Production files that count toward no unit size: data files (JSON catalogs, baselines, snapshots, configs; D-064 amendment) and generated fi | owner: D-064 amendment; D-069 item 1 (generated files)
+- param:units.tsconfig_files | config/registry/units.json:229#units.tsconfig_files | TypeScript configs whose compilerOptions.paths resolve import aliases for the import graph. | owner: D-067 (4), plan v3 §4.5
+- param:units.import_extensions | config/registry/units.json:245#units.import_extensions | Suffixes tried, in order, to resolve an extensionless TypeScript or JavaScript import. | owner: D-067 (4), plan v3 §4.5
+- param:units.python_import_dirs | config/registry/units.json:268#units.python_import_dirs | Directories a Python sibling import (import config) resolves against, besides the importer's own. | owner: D-067 (4), plan v3 §4.5
+- param:units.cochange_commits | config/registry/units.json:284#units.cochange_commits | Co-change window: the newest non-merge commits of the git log the generator reads. | owner: D-067 (4), plan v3 §4.5
+- param:units.cochange_max_files | config/registry/units.json:295#units.cochange_max_files | A commit touching more production files than this is a bulk change and is left out of co-change. | owner: plan v3 §4.1 (p90 of 40 files per PR)
+- param:units.cochange_weight | config/registry/units.json:306#units.cochange_weight | Weight of co-change (share of commits touching both sets) in the affinity of two candidates. | owner: D-067 (4), plan v3 §4.5
+- param:units.import_weight | config/registry/units.json:318#units.import_weight | Weight of import density (links per file of the smaller set) in the affinity of two candidates. | owner: D-067 (4), plan v3 §4.5
+- param:units.merge_floor_lines | config/registry/units.json:330#units.merge_floor_lines | A candidate below this many production lines joins its closest sibling while the pair stays within units.size_target. | owner: D-067 (4), plan v3 §4.5
+- param:units.merge_min_affinity | config/registry/units.json:341#units.merge_min_affinity | Least affinity at which the clustering of a flat file group merges two clusters. | owner: D-067 (4), plan v3 §4.5
+- param:units.bytes_per_token | config/registry/units.json:353#units.bytes_per_token | Bytes of code per token when a closure is converted to tokens. | owner: plan v3 §4.3 (~4 bytes per token, an estimate)
+- param:units.oversize_fails | config/registry/units.json:364#units.oversize_fails | Whether a unit above its size ceiling fails the ownership check; false reports it as a warning while U4 splits today's large contexts. Flipp | owner: D-067 (7) | can stop: PRs stopped not measured
+- param:units.event_producer | config/registry/units.json:375#units.event_producer | Producer name of the events the unit tools emit (unit.oversize, unit.addressable, engine.step.measured). | owner: D-067 (7); contracts/events/envelope.v1.json
+- param:units.measure_step | config/registry/units.json:386#units.measure_step | Step name of the unit measurement in engine.step.measured. | owner: D-069 item 6
+- param:units.address_scope | config/registry/units.json:396#units.address_scope | Scope of the stable unit addresses: a unit is imported as <scope>/<id>/<path>, never by its path, so moving it changes only the generated ma | owner: D-067 (1); P-03; plan v3 §4.2 item 1
+- param:units.addresses_step | config/registry/units.json:408#units.addresses_step | Step name of the address scan (scripts/units addresses --emit) in engine.step.measured. | owner: D-067 (1); D-069 item 6
+- decision:D-029 | docs/domain/DECISIONS.md:41 | No backward compatibility, ever. | owner: 2026-10-22 18:18 (Daniel, chat)
+- decision:D-056 | docs/domain/DECISIONS.md:58 | Every SQL statement lives in one database package, behind ports, on one driver. | owner: 2026-10-25 (A Torre, modularity roadmap step 2 target; recor
+- decision:D-057 | docs/domain/DECISIONS.md:59 | Who may import a translator entry. | owner: 2026-10-25 (roadmap implementer under A Torre's delegation, 
+- decision:D-058 | docs/domain/DECISIONS.md:60 | Callers reach a context through its use cases, and the domain imports only the domain. | owner: 2026-10-25 (A Torre, modularity roadmap step 3 target; recor
+- decision:D-059 | docs/domain/DECISIONS.md:61 | A context's database store is the translator bound to one connection, named in the context's composition root. | owner: 2026-10-25 (roadmap implementer under A Torre's delegation, 
+- decision:D-060 | docs/domain/DECISIONS.md:62 | Contexts are declared in one map, reach each other only through published rings along declared dependencies, and every business intent is re | owner: 2026-10-25 (A Torre, modularity roadmap step 4 target; recor
+- decision:D-061 | docs/domain/DECISIONS.md:63 | The catalog authors, compiles and publishes the release; the release context serves it. | owner: 2026-10-26 (roadmap implementer under A Torre's delegation, 
+- decision:D-067 | docs/domain/DECISIONS.md:69 | The architecture is rewritten into units: a generated skeleton first, then one strangler lane per set of units (the hybrid strategy of plan  | owner: 2026-10-26 (A Torre under Daniel's delegation of 17:22, veto
+- premise:P-00 | docs/process/premises/scale-without-rewrite.yml:2 | "Scale without rework" means "without rewriting the architecture": each piece scales to 10x and 100x without a rewrite. | owner: orchestrator (docs/audits/mil-prs-2026-10-26/input/adendo3-f
+- premise:P-01 | docs/process/premises/hybrid-rewrite-strategy.yml:2 | The rewrite follows the hybrid strategy: a generated skeleton of the units first (manifest, contract, stable address, own battery), then a s | owner: model (plan v3 §5.1)
+- premise:P-03 | docs/process/premises/unit-directory-and-address.yml:2 | Each unit lives in units/<id>/ and is imported only through its stable address @ou/<id>; it becomes a workspace package once spike S1 passes | owner: model (plan v3 §4.2)
+- premise:P-04 | docs/process/premises/unit-size-ceiling.yml:2 | A unit holds about 1,000 production lines (at most 1,500) and up to 50k tokens of needed context; above that it splits on an event. | owner: model (plan v3 §4.3, from the measured closures)
+- premise:P-06 | docs/process/premises/database-package-per-context.yml:2 | The database stays an isolated package (D-056), split into one translator unit per context that owns its tables; one global migration journa | owner: model (OU rule + D-056 + D-060)
+- premise:P-07 | docs/process/premises/expand-contract-between-units.yml:2 | Between units a contract changes by expand->contract: the new shape lands, each consumer migrates in its own lane, and the PR that retires t | owner: model (plan v3 §6.3)
+- premise:P-16 | docs/process/premises/catalog-splits-into-units.yml:2 | The catalog splits into about 8-9 units of at most 1,500 lines without breaking G-1-G-6; D-061 backed off a "publishing" cut for its cost. | owner: model (plan v3 §4.5)
+- premise:P-19 | docs/process/premises/split-common-files-by-context.yml:2 | Splitting the common files by context would suffice (s = 0.003, c(20) = 6%). | owner: orchestrator (report v2 §5.1 and §11 (a model calibrated at 
+- premise:P-24 | docs/process/premises/native-typescript-compiler.yml:2 | The native TypeScript compiler and a content cache bring a unit's types to about 1 s. | owner: model (external reference, not measured here)
+- premise:P-25 | docs/process/premises/single-next-deploy.yml:2 | The Next app stays a single deploy: the development unit is not the deployment unit. | owner: model (plan v3)
+- premise:P-28 | docs/process/premises/rewrite-allowed.yml:2 | Rewriting the architecture is allowed and welcome; context partitioned and split per agent may be what adds most. | owner: daniel (chat 16:18)
+
+Kinds: decision 8, parameter 42, premise 11. Estimated work: 70 minutes (model in docs/audits/rules/groups.json).
+
+== THE QUESTIONS (Q0 and the five questions; answer all of them for every row, verbatim) ==
+Daniel, 17:08 BRT 28/10: every stop of the flow is an accident. He decided that any question that leads to a stop of
+the flow, however small, must itself be questioned, the way Tesla treats an accident in one of its vehicles: it
+becomes a case with a mandatory root cause, never a statistic to be accepted.
+(Q0) Does this rule/requirement/check ever cause a STOP of the flow? If yes, the audit cannot end in KEEP without a named root cause, the cheapest fix that removes the stop, and the number of times it already stopped the flow.
+(Q1) What is the justification for this to continue existing? Name who asked for it and the day, or say plainly that nobody is named — that is a finding, not a failure.
+(Q2) What is the damage if it is removed?
+(Q3) What is the impact, POSITIVE and NEGATIVE, of removing it — a small simulation, with numbers read from evidence (log lines, gate records, PR history, config reads), never an opinion. Count how often it fired, what it blocked, and what it would have let through: if that cannot be measured from the evidence, say so and say what would be needed to measure it.
+(Q4) Does it need to STOP anyone, or is a printed number enough?
+(Q5) Verdict: KEEP (with the justification), WARN (measure and print, never refuse), or DELETE (nothing measures it and the guarantee exists elsewhere).
+
+== THE IMPACT SIMULATION (Q3) ==
+For each row, read the evidence before you write a number:
+- Gate records: .gate/records/reports/<sha>/<mode>-<ts>/ on the box (gitignored; absent in a fresh cloud container,
+  say so when you cannot read them) and the one-line gate comments on PRs (REST: GET
+  repos/openuniversity-si/open-university/issues/<n>/comments).
+- PR history: PRs whose gate or structure check named this row (REST search; count them, quote two).
+- Git history: `git log --oneline --grep '<id or name>'` and the commits that introduced the row (`git log -S`).
+- Config reads: every reader of a parameter (`x-readers`, then `rg -n '<key>'`), and what the reader does with it.
+- Premises: `scripts/premises list` and the premise record each row rests on (status, `at`, dependents).
+- Stops of the flow (Q0): count every way the row stopped a unit: refusals, "conflicting" and "blocked" verdicts,
+  "busy", "held", gate reds. A report that says a unit cannot proceed is a stop, so it needs a cause, not a status
+  word. The census carries what PR history already shows (`stops_flow` on each row, GitHub issue search over PR
+  text and comments); confirm it and add what the gate records show.
+Write, per row: fired N times (source), blocked N PRs (source), would have let through N (source), or "not measurable
+from the evidence: needs <what>". A row that can stop the flow and has never been measured is a finding by itself.
+Never type a number you did not read or count.
+
+== OUTPUT ==
+1. docs/audits/rules/code-architecture-and-units.md: one table row per census row, columns: id | Q0 stops the flow (times, source;
+   root cause; cheapest fix) | Q1 justification (who, day) | Q2 damage if removed | Q3 impact +/- with numbers and
+   source | Q4 stop or print | Q5 verdict. At the end, the counts of the verdicts (KEEP n, WARN n, DELETE n; total
+   equals 61), the list of findings "nobody is named" and the list "stops the flow, never measured".
+2. docs/audits/rules/code-architecture-and-units.json: the same verdicts as data for phase 2, one object per row: {"id", "verdict",
+   "justification", "owner", "created": {"on", "by"}, "damage_if_removed", "impact_of_removal": {"positive",
+   "negative", "measured"}, "stops" (true only for KEEP rows that must stop), "stop_record": {"count", "source",
+   "measured_on", "root_cause", "cheapest_fix"}, "ends_when", "premises": [P-NN, ...], "evidence": [...]}. Phase 2 turns the KEEP and WARN rows into records of config/registry/rules.json (see
+   docs/audits/rules/SYSTEM.md); an empty premises list is itself a finding.
+3. docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/audit.md, plan.md and retro.md.
+
+== ACCEPTANCE (quote each with evidence in the PR) ==
+* docs/audits/rules/code-architecture-and-units.md has exactly 61 rows, one per census row of this group, and the verdict
+  counts sum to 61 (quote the command that counts them).
+* docs/audits/rules/code-architecture-and-units.json parses and has the same 61 ids.
+* Every Q3 cell carries a number with its source, or says what is not measurable and what would measure it.
+* Every row with nobody named is listed as a finding.
+* No row that stops the flow (Q0 yes) ends in KEEP without a named root cause, the cheapest fix that removes the stop
+  and the number of times it already stopped the flow.
+* Every document is in English; Daniel's own words keep their Portuguese inside quotes with an English sentence.
+* scripts/gate-dev --pr <n> on the exact head, stage count and verdict line quoted.
+* MERGE-READY <full sha> posted, PR out of draft in the same turn; you did not merge.
+
+== HARD RULES ==
+* NEVER MERGE this PR. When gate-green: mark it ready (out of draft), post "MERGE-READY <full sha>" and a STATUS
+  "gated, waiting for the coordinator/train", end the turn.
+* One branch, one PR. Do NOT launch any session.
+* Files you may touch: docs/audits/rules/code-architecture-and-units.md, docs/audits/rules/code-architecture-and-units.json and
+  docs/units/RULE-AUDIT-CODE-ARCHITECTURE-AND-UNITS/**. Change no code, config, contract, registry or premise record: you measure
+  and judge, phase 2 changes behaviour. A wrong or missing census row goes into a "census corrections" section of
+  your report, never into census.json.
+* Production frozen (D-054); no GitHub Actions; no pings, no comments on other PRs; never print secrets.
+* TARGETED TESTS ONLY while working; the full scripts/gate-dev --pr <n> ONCE at the end.
+* Commit and push every 3-4 minutes with a Plan: N trailer and "Decision: D-069".
+
+== COLLISIONS ==
+* PR #775 (RULE-AUDIT phase 0, branch mod/rule-audit) owns docs/audits/rules/README.md, census.json, groups.json,
+  GROUP-BRIEF-TEMPLATE.md, SYSTEM.md, briefs/** and the rule system (scripts/rule, scripts/lib/rule_registry.py,
+  config/registry/rules.json): do not edit them.
+* Every other group's branch owns only its own two output files and its own docs/units directory:
+  - mod/rule-audit-structure-check-and-premises: docs/audits/rules/structure-check-and-premises.md, docs/audits/rules/structure-check-and-premises.json, docs/units/RULE-AUDIT-STRUCTURE-CHECK-AND-PREMISES/**
+  - mod/rule-audit-commit-and-pr-discipline: docs/audits/rules/commit-and-pr-discipline.md, docs/audits/rules/commit-and-pr-discipline.json, docs/units/RULE-AUDIT-COMMIT-AND-PR-DISCIPLINE/**
+  - mod/rule-audit-registry-literals-and-text: docs/audits/rules/registry-literals-and-text.md, docs/audits/rules/registry-literals-and-text.json, docs/units/RULE-AUDIT-REGISTRY-LITERALS-AND-TEXT/**
+  - mod/rule-audit-environment-toolchain-and-supply-chain: docs/audits/rules/environment-toolchain-and-supply-chain.md, docs/audits/rules/environment-toolchain-and-supply-chain.json, docs/units/RULE-AUDIT-ENVIRONMENT-TOOLCHAIN-AND-SUPPLY-CHAIN/**
+  - mod/rule-audit-production-release-and-migrations: docs/audits/rules/production-release-and-migrations.md, docs/audits/rules/production-release-and-migrations.json, docs/units/RULE-AUDIT-PRODUCTION-RELEASE-AND-MIGRATIONS/**
+  - mod/rule-audit-planning-events-and-launch: docs/audits/rules/planning-events-and-launch.md, docs/audits/rules/planning-events-and-launch.json, docs/units/RULE-AUDIT-PLANNING-EVENTS-AND-LAUNCH/**
+  - mod/rule-audit-merge-train-and-delivery: docs/audits/rules/merge-train-and-delivery.md, docs/audits/rules/merge-train-and-delivery.json, docs/units/RULE-AUDIT-MERGE-TRAIN-AND-DELIVERY/**
+  - mod/rule-audit-defects-lessons-and-postmortems: docs/audits/rules/defects-lessons-and-postmortems.md, docs/audits/rules/defects-lessons-and-postmortems.json, docs/units/RULE-AUDIT-DEFECTS-LESSONS-AND-POSTMORTEMS/**
+  - mod/rule-audit-performance-budgets-and-slo: docs/audits/rules/performance-budgets-and-slo.md, docs/audits/rules/performance-budgets-and-slo.json, docs/units/RULE-AUDIT-PERFORMANCE-BUDGETS-AND-SLO/**
+  - mod/rule-audit-github-calls-and-rate-budget: docs/audits/rules/github-calls-and-rate-budget.md, docs/audits/rules/github-calls-and-rate-budget.json, docs/units/RULE-AUDIT-GITHUB-CALLS-AND-RATE-BUDGET/**
+  - mod/rule-audit-gate-selection-proof-and-status: docs/audits/rules/gate-selection-proof-and-status.md, docs/audits/rules/gate-selection-proof-and-status.json, docs/units/RULE-AUDIT-GATE-SELECTION-PROOF-AND-STATUS/**
+  - mod/rule-audit-gate-execution-and-tests: docs/audits/rules/gate-execution-and-tests.md, docs/audits/rules/gate-execution-and-tests.json, docs/units/RULE-AUDIT-GATE-EXECUTION-AND-TESTS/**
+  - mod/rule-audit-paid-vendors-and-ai-sessions: docs/audits/rules/paid-vendors-and-ai-sessions.md, docs/audits/rules/paid-vendors-and-ai-sessions.json, docs/units/RULE-AUDIT-PAID-VENDORS-AND-AI-SESSIONS/**
+  - mod/rule-audit-routines-and-daemons: docs/audits/rules/routines-and-daemons.md, docs/audits/rules/routines-and-daemons.json, docs/units/RULE-AUDIT-ROUTINES-AND-DAEMONS/**
+  - mod/rule-audit-product-domain-rules: docs/audits/rules/product-domain-rules.md, docs/audits/rules/product-domain-rules.json, docs/units/RULE-AUDIT-PRODUCT-DOMAIN-RULES/**
+
+== TARGET TIME ==
+70 minutes of audit work; one session of 60 to 90 minutes including the gate. If the rows cannot be
+finished in time, commit what is done, list the rows left in the PR and in the retro, and say why.
+
+== FINAL OUTPUT ==
+Print: PR number and URL, branch, final head sha, gate verdict with numbers, the verdict counts (KEEP, WARN, DELETE),
+the rows with nobody named, and the three rows whose removal unblocks the most work.

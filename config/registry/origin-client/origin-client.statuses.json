@@ -1,0 +1,66 @@
+{
+  "type": "array",
+  "additionalProperties": {
+    "type": "string",
+    "minLength": 1
+  },
+  "default": [
+    {
+      "status": 400,
+      "kind": "invalid-argument"
+    },
+    {
+      "status": 401,
+      "kind": "auth"
+    },
+    {
+      "status": 403,
+      "kind": "forbidden"
+    },
+    {
+      "status": 404,
+      "kind": "not-found"
+    },
+    {
+      "status": 409,
+      "kind": "conflict"
+    },
+    {
+      "status": 429,
+      "kind": "rate-limited"
+    },
+    {
+      "status": 500,
+      "kind": "server"
+    },
+    {
+      "status": 503,
+      "kind": "unavailable"
+    }
+  ],
+  "x-unit": "entries",
+  "description": "The kind an HTTP status answers with, as data, so no status is spelled in the module (LT1). A status not listed is 'http'.",
+  "x-readers": [
+    "scripts/lib/forge_origin_client.py"
+  ],
+  "x-source": "the official Origin OpenAPI 3.1 spec (its error responses), LT1",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "status",
+      "kind"
+    ],
+    "properties": {
+      "status": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 599
+      },
+      "kind": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

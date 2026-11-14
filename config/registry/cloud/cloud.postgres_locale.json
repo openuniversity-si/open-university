@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "C",
+  "minLength": 1,
+  "x-unit": "name",
+  "description": "Locale of the cluster created by initdb.",
+  "x-readers": [
+    "scripts/cloud/postgres.py"
+  ]
+}

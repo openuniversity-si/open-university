@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 15,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Seconds between two polls of a Tower runner: one round of claims from the control plane (service.claims_per_poll), and the heartbeat of its state file and of the running job's lease.",
+  "x-readers": [
+    "scripts/lib/service_runner.py"
+  ],
+  "x-source": "D-086; docs/operations/services.md"
+}

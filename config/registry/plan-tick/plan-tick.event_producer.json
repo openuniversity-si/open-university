@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "plan-tick",
+  "x-unit": "name",
+  "description": "Producer name of the pr.ready envelope (the forge_events port derives the idempotency key from it).",
+  "x-readers": [
+    "scripts/lib/gate_report.py",
+    "scripts/lib/pr_ready.py"
+  ]
+}

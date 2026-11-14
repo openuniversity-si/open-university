@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/train.json",
+  "x-owner": "train",
+  "x-schema-version": 1,
+  "description": "The merge train (plan v3 M3, D-065 (4) and (5)).",
+  "type": "object",
+  "additionalProperties": false
+}

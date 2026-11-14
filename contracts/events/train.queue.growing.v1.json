@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/train.queue.growing.v1.json",
+  "title": "train.queue.growing payload v1",
+  "description": "The queue exceeded twice the batch size at batch end (tip sha).",
+  "x-natural-key": [
+    "/payload/repo",
+    "/payload/sha",
+    "/payload/queue_size"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "queue_size",
+    "batch_size",
+    "tier2_ms"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "queue_size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "batch_size": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tier2_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

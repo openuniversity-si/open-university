@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/deploy-classify OLD NEW | --files FILE|-   (scripts/lib/deploy_classify.py --help)
+# Which deploy path (fast pointer swap, slow stacks/image, data-only, none) a change needs (DEP6).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/deploy_classify.py" "$@"

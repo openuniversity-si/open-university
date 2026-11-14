@@ -1,0 +1,70 @@
+# Committed generated files merge themselves (CENSO-NO-MANIFESTO 3bis): the regenerate driver (scripts/merge-regenerate,
+# registered by scripts/cloud/setup.sh) writes the regeneration from the merged sources, so a generated file never
+# reaches a person as a conflict. scripts/tests/test_merge_regenerate.py checks every committed one-file target is here.
+# D-095: every split registry owner's aggregate (config/registry/<owner>/ holds its key files) merges by regeneration.
+config/registry/architecture.json merge=regenerate
+config/registry/battery.json merge=regenerate
+config/registry/budgets.json merge=regenerate
+config/registry/census.json merge=regenerate
+config/registry/cloud.json merge=regenerate
+config/registry/contracts.json merge=regenerate
+config/registry/coordinator.json merge=regenerate
+config/registry/defects.json merge=regenerate
+config/registry/delivery.json merge=regenerate
+config/registry/effort.json merge=regenerate
+config/registry/env.json merge=regenerate
+config/registry/env-premises.json merge=regenerate
+config/registry/forge-events.json merge=regenerate
+config/registry/gate.json merge=regenerate
+config/registry/gate-carry.json merge=regenerate
+config/registry/gate-contracts.json merge=regenerate
+config/registry/gate-eta.json merge=regenerate
+config/registry/gate-flake.json merge=regenerate
+config/registry/gate-gc.json merge=regenerate
+config/registry/gate-inputs.json merge=regenerate
+config/registry/gate-pin.json merge=regenerate
+config/registry/gate-proof.json merge=regenerate
+config/registry/gate-tests.json merge=regenerate
+config/registry/gate-tier.json merge=regenerate
+config/registry/gate-trace.json merge=regenerate
+config/registry/intake.json merge=regenerate
+config/registry/l10n.json merge=regenerate
+config/registry/lessons.json merge=regenerate
+config/registry/literals.json merge=regenerate
+config/registry/local-checks.json merge=regenerate
+config/registry/merge.json merge=regenerate
+config/registry/plan-tick.json merge=regenerate
+config/registry/planner.json merge=regenerate
+config/registry/premises.json merge=regenerate
+config/registry/prepush.json merge=regenerate
+config/registry/process.json merge=regenerate
+config/registry/production.json merge=regenerate
+config/registry/providers.json merge=regenerate
+config/registry/push-guard.json merge=regenerate
+config/registry/quarantine.json merge=regenerate
+config/registry/release.json merge=regenerate
+config/registry/retro.json merge=regenerate
+config/registry/rules.json merge=regenerate
+config/registry/service.json merge=regenerate
+config/registry/slo.json merge=regenerate
+config/registry/structure.json merge=regenerate
+config/registry/supply-chain.json merge=regenerate
+config/registry/test-db.json merge=regenerate
+config/registry/test-orphans.json merge=regenerate
+config/registry/tests.json merge=regenerate
+config/registry/toolchain.json merge=regenerate
+config/registry/train.json merge=regenerate
+config/registry/train-reuse.json merge=regenerate
+config/registry/units.json merge=regenerate
+docs/process/lane-digest.md merge=regenerate
+# .gitattributes is an order-free list of lines that every lane appends to at the last line: union keeps both appends.
+.gitattributes merge=union
+# DOCS-UNION: the AWS board (its rows) and notes (their paragraphs) gain an entry at the same place in every PR: union
+# keeps both sides' lines, so a branch whose base moved still merges (the service's base merge said conflict on #648).
+docs/operations/aws-pendencias.md merge=union
+docs/operations/aws.md merge=union
+# A unit's manifest and a registry key file are hand-written JSON whose lists every lane appends to (`requires`,
+# `x-readers`): two appends after the same last line both rewrite it for its comma. The same driver merges a path that
+# is no generate target structurally when the plain 3-way merge conflicts (merge_regenerate.merge_json).
+units/*/unit.json merge=regenerate
+config/registry/*/*.json merge=regenerate

@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "contracts",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Directory of every versioned JSON Schema contract (events, config, premises, later units and intents), relative to the repository root.",
+  "x-readers": [
+    "scripts/lib/schema_compat.py"
+  ],
+  "x-source": "SHARED CONTRACT v3 §1"
+}

@@ -1,0 +1,399 @@
+{
+  "description": "fold(plan, changes) fixture for LP3/LP5 (LP2): expected is fold(plan, changes); expected_at maps a version to the folded plan at that version. Provisional shape: LP3 may extend it additively.",
+  "plan": {
+    "contract": "program.v1",
+    "program": "fixture",
+    "complaint": {
+      "symptom": "s",
+      "evidence": "e",
+      "goal": {
+        "metric": "prs_merged_per_day",
+        "comparator": "gte",
+        "target": 1,
+        "unit": "prs/day"
+      }
+    },
+    "units": [
+      {
+        "id": "A1",
+        "depends_on": [],
+        "owner": "engine-lane",
+        "model": "claude-sonnet-5-5",
+        "wave": 1,
+        "done": [
+          "a"
+        ]
+      },
+      {
+        "id": "A2",
+        "depends_on": [
+          "A1"
+        ],
+        "owner": "engine-lane",
+        "model": "claude-sonnet-5-5",
+        "wave": 2,
+        "done": [
+          "b"
+        ]
+      },
+      {
+        "id": "A3",
+        "depends_on": [
+          "A1"
+        ],
+        "owner": "engine-lane",
+        "model": "claude-opus-5-5",
+        "wave": 2,
+        "done": [
+          "c"
+        ]
+      }
+    ]
+  },
+  "changes": [
+    {
+      "program": "fixture",
+      "version": 1,
+      "parent": {
+        "version": 0,
+        "digest": ""
+      },
+      "ops": [
+        {
+          "op": "brief_line",
+          "unit": "A2",
+          "args": {
+            "line": "use the root from OU_SUBJECT_ROOT"
+          }
+        },
+        {
+          "op": "hold",
+          "unit": "A3",
+          "args": {
+            "reason": "red base",
+            "release_when": "base green"
+          }
+        }
+      ],
+      "inputs": [
+        "ev-1"
+      ],
+      "judgment": [
+        "touches A2"
+      ],
+      "intention": "fixture change 1",
+      "expected_effect": "none",
+      "decided_by": "A Torre",
+      "reversible": true,
+      "escalated": false,
+      "digest": "4b7184030914577e3923d01429891882798a0e51ba01d881642f50c75af0cb0e"
+    },
+    {
+      "program": "fixture",
+      "version": 2,
+      "parent": {
+        "version": 1,
+        "digest": "4b7184030914577e3923d01429891882798a0e51ba01d881642f50c75af0cb0e"
+      },
+      "ops": [
+        {
+          "op": "add_unit",
+          "unit": "A0",
+          "args": {
+            "depends_on": [],
+            "owner": "engine-lane",
+            "model": "claude-sonnet-5-5",
+            "wave": 1,
+            "done": [
+              "prep"
+            ]
+          }
+        },
+        {
+          "op": "set_deps",
+          "unit": "A2",
+          "args": {
+            "depends_on": [
+              "A0",
+              "A1"
+            ]
+          }
+        },
+        {
+          "op": "release",
+          "unit": "A3",
+          "args": {}
+        }
+      ],
+      "inputs": [
+        "ev-2"
+      ],
+      "judgment": [
+        "touches A2"
+      ],
+      "intention": "fixture change 2",
+      "expected_effect": "none",
+      "decided_by": "A Torre",
+      "reversible": true,
+      "escalated": false,
+      "digest": "1d84f77820d519c6155f0e618d0471570859c8d94452929f74c6acfd6f4aa5e0"
+    }
+  ],
+  "expected": {
+    "contract": "program.v1",
+    "program": "fixture",
+    "complaint": {
+      "symptom": "s",
+      "evidence": "e",
+      "goal": {
+        "metric": "prs_merged_per_day",
+        "comparator": "gte",
+        "target": 1,
+        "unit": "prs/day"
+      }
+    },
+    "units": [
+      {
+        "id": "A1",
+        "depends_on": [],
+        "owner": "engine-lane",
+        "model": "claude-sonnet-5-5",
+        "wave": 1,
+        "done": [
+          "a"
+        ]
+      },
+      {
+        "id": "A2",
+        "depends_on": [
+          "A0",
+          "A1"
+        ],
+        "owner": "engine-lane",
+        "model": "claude-sonnet-5-5",
+        "wave": 2,
+        "done": [
+          "b"
+        ]
+      },
+      {
+        "id": "A3",
+        "depends_on": [
+          "A1"
+        ],
+        "owner": "engine-lane",
+        "model": "claude-opus-5-5",
+        "wave": 2,
+        "done": [
+          "c"
+        ]
+      },
+      {
+        "id": "A0",
+        "depends_on": [],
+        "owner": "engine-lane",
+        "model": "claude-sonnet-5-5",
+        "wave": 1,
+        "done": [
+          "prep"
+        ]
+      }
+    ],
+    "version": 2,
+    "holds": {},
+    "brief_lines": {
+      "A2": [
+        "use the root from OU_SUBJECT_ROOT"
+      ]
+    },
+    "priority": {}
+  },
+  "expected_at": {
+    "0": {
+      "contract": "program.v1",
+      "program": "fixture",
+      "complaint": {
+        "symptom": "s",
+        "evidence": "e",
+        "goal": {
+          "metric": "prs_merged_per_day",
+          "comparator": "gte",
+          "target": 1,
+          "unit": "prs/day"
+        }
+      },
+      "units": [
+        {
+          "id": "A1",
+          "depends_on": [],
+          "owner": "engine-lane",
+          "model": "claude-sonnet-5-5",
+          "wave": 1,
+          "done": [
+            "a"
+          ]
+        },
+        {
+          "id": "A2",
+          "depends_on": [
+            "A1"
+          ],
+          "owner": "engine-lane",
+          "model": "claude-sonnet-5-5",
+          "wave": 2,
+          "done": [
+            "b"
+          ]
+        },
+        {
+          "id": "A3",
+          "depends_on": [
+            "A1"
+          ],
+          "owner": "engine-lane",
+          "model": "claude-opus-5-5",
+          "wave": 2,
+          "done": [
+            "c"
+          ]
+        }
+      ],
+      "version": 0,
+      "holds": {},
+      "brief_lines": {},
+      "priority": {}
+    },
+    "1": {
+      "contract": "program.v1",
+      "program": "fixture",
+      "complaint": {
+        "symptom": "s",
+        "evidence": "e",
+        "goal": {
+          "metric": "prs_merged_per_day",
+          "comparator": "gte",
+          "target": 1,
+          "unit": "prs/day"
+        }
+      },
+      "units": [
+        {
+          "id": "A1",
+          "depends_on": [],
+          "owner": "engine-lane",
+          "model": "claude-sonnet-5-5",
+          "wave": 1,
+          "done": [
+            "a"
+          ]
+        },
+        {
+          "id": "A2",
+          "depends_on": [
+            "A1"
+          ],
+          "owner": "engine-lane",
+          "model": "claude-sonnet-5-5",
+          "wave": 2,
+          "done": [
+            "b"
+          ]
+        },
+        {
+          "id": "A3",
+          "depends_on": [
+            "A1"
+          ],
+          "owner": "engine-lane",
+          "model": "claude-opus-5-5",
+          "wave": 2,
+          "done": [
+            "c"
+          ]
+        }
+      ],
+      "version": 1,
+      "holds": {
+        "A3": {
+          "reason": "red base",
+          "release_when": "base green"
+        }
+      },
+      "brief_lines": {
+        "A2": [
+          "use the root from OU_SUBJECT_ROOT"
+        ]
+      },
+      "priority": {}
+    },
+    "2": {
+      "contract": "program.v1",
+      "program": "fixture",
+      "complaint": {
+        "symptom": "s",
+        "evidence": "e",
+        "goal": {
+          "metric": "prs_merged_per_day",
+          "comparator": "gte",
+          "target": 1,
+          "unit": "prs/day"
+        }
+      },
+      "units": [
+        {
+          "id": "A1",
+          "depends_on": [],
+          "owner": "engine-lane",
+          "model": "claude-sonnet-5-5",
+          "wave": 1,
+          "done": [
+            "a"
+          ]
+        },
+        {
+          "id": "A2",
+          "depends_on": [
+            "A0",
+            "A1"
+          ],
+          "owner": "engine-lane",
+          "model": "claude-sonnet-5-5",
+          "wave": 2,
+          "done": [
+            "b"
+          ]
+        },
+        {
+          "id": "A3",
+          "depends_on": [
+            "A1"
+          ],
+          "owner": "engine-lane",
+          "model": "claude-opus-5-5",
+          "wave": 2,
+          "done": [
+            "c"
+          ]
+        },
+        {
+          "id": "A0",
+          "depends_on": [],
+          "owner": "engine-lane",
+          "model": "claude-sonnet-5-5",
+          "wave": 1,
+          "done": [
+            "prep"
+          ]
+        }
+      ],
+      "version": 2,
+      "holds": {},
+      "brief_lines": {
+        "A2": [
+          "use the root from OU_SUBJECT_ROOT"
+        ]
+      },
+      "priority": {}
+    }
+  }
+}

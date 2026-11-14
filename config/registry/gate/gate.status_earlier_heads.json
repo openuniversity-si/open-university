@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 10,
+  "x-unit": "count",
+  "description": "GX-16: superseded heads kept (one line each, collapsed) in the PR's single status comment.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ],
+  "minimum": 0
+}

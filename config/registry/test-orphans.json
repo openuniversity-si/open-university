@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/test-orphans.json",
+  "x-owner": "test-orphans",
+  "x-schema-version": 1,
+  "description": "Where the orphan-test check (TX25, D-070) looks for Python tests: every test it finds must be run by exactly one scripts/tests/*.test.sh wrapper.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "test-orphans.skip_dirs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "covers",
+        "fixtures"
+      ],
+      "x-unit": "names",
+      "description": "Directories under tests_dir that hold data, not tests: a test_*.py in them is a fixture and needs no wrapper.",
+      "x-readers": [
+        "scripts/lib/test_orphans.py"
+      ]
+    },
+    "test-orphans.test_glob": {
+      "type": "string",
+      "default": "test_*.py",
+      "x-unit": "glob",
+      "description": "File name of a Python test, directly in tests_dir or in one module directory below it (the TX24 form <module>/test_*.py).",
+      "x-readers": [
+        "scripts/lib/test_orphans.py"
+      ]
+    },
+    "test-orphans.tests_dir": {
+      "type": "string",
+      "default": "scripts/tests",
+      "x-unit": "path",
+      "description": "Directory of the Python tests and of their *.test.sh wrappers, relative to the repository root.",
+      "x-readers": [
+        "scripts/lib/test_orphans.py"
+      ]
+    }
+  }
+}

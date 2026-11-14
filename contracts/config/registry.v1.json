@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/config/registry.v1.json",
+  "title": "Engine configuration registry file (D-068)",
+  "description": "Every config/registry/<owner>.json satisfies this schema. The file is itself a JSON Schema object: each property is one parameter named <owner>.<snake_case_key> for what it controls, with its type, default, valid range, unit, description and readers.",
+  "type": "object",
+  "required": ["$schema", "$id", "x-owner", "x-schema-version", "type", "additionalProperties", "properties"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"const": "https://json-schema.org/draft/2020-12/schema"},
+    "$id": {"type": "string", "pattern": "^config/registry/[a-z][a-z0-9-]*\\.json$", "description": "The file's path from the repository root."},
+    "x-owner": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "The owner; equals the file name and prefixes every parameter name."},
+    "x-schema-version": {"type": "integer", "minimum": 1, "description": "Raised when a revision removes a deprecated parameter (expand→contract)."},
+    "title": {"type": "string"},
+    "description": {"type": "string"},
+    "type": {"const": "object"},
+    "additionalProperties": {"const": false},
+    "properties": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9_]*$"},
+      "additionalProperties": {"$ref": "#/$defs/parameter"}
+    }
+  },
+  "$defs": {
+    "parameter": {
+      "type": "object",
+      "required": ["type", "default", "x-unit", "description", "x-readers"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["integer", "number", "boolean", "string", "array", "object"]},
+        "default": {"description": "The registry value; the store may override it (scripts/config set)."},
+        "description": {"type": "string", "minLength": 1, "description": "What the value controls."},
+        "x-unit": {"type": "string", "pattern": "^[a-z%][a-z0-9_%/-]*$", "description": "s, ms, count, percent, lines, tokens, bytes, regex, path, enum, text, flag, ..."},
+        "x-readers": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true, "description": "The path of each file that reads the parameter; each must exist."},
+        "x-flag": {"type": "boolean", "description": "A feature flag (D-069 item 11); its type is boolean."},
+        "x-text": {"type": "boolean", "description": "User-facing text (D-069 item 15); its value is keyed by locale."},
+        "x-text-context": {"type": "string", "minLength": 1, "description": "Where the text appears and what it says to the reader, for whoever translates it (L1, additive)."},
+        "x-source": {"type": "string", "minLength": 1, "description": "Where the default comes from: a decision, premise or document."},
+        "x-monotonic": {"enum": ["max", "min"], "description": "The direction a numeric threshold may only tighten in: max is a ceiling (raising it loosens), min a floor (lowering it loosens); judged against the base by scripts/lib/threshold_check.py (D-069 item 14, TH1)."},
+        "x-literal-names": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}, "uniqueItems": true, "description": "Identifiers that spell this parameter in code that predates the registry."},
+        "x-literal-sites": {"type": "array", "items": {"type": "string", "pattern": "^[^:]+:[A-Za-z_][A-Za-z0-9_]*$"}, "uniqueItems": true, "description": "path:identifier of each literal not yet read from the registry; the list only shrinks."},
+        "deprecated": {"type": "boolean", "description": "Marked before the parameter is removed (expand→contract)."},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"},
+        "exclusiveMinimum": {"type": "number"},
+        "exclusiveMaximum": {"type": "number"},
+        "enum": {"type": "array", "minItems": 1},
+        "minLength": {"type": "integer", "minimum": 0},
+        "maxLength": {"type": "integer", "minimum": 0},
+        "pattern": {"type": "string", "format": "regex"},
+        "format": {"enum": ["date-time", "regex"]},
+        "items": {"type": "object"},
+        "minItems": {"type": "integer", "minimum": 0},
+        "maxItems": {"type": "integer", "minimum": 0},
+        "uniqueItems": {"type": "boolean"},
+        "propertyNames": {"type": "object"},
+        "required": {"type": "array", "items": {"type": "string"}},
+        "additionalProperties": {"type": "object"}
+      },
+      "allOf": [
+        {"if": {"required": ["x-flag"], "properties": {"x-flag": {"const": true}}}, "then": {"properties": {"type": {"const": "boolean"}}}},
+        {"if": {"required": ["x-text"], "properties": {"x-text": {"const": true}}}, "then": {"properties": {"type": {"const": "object"}}, "required": ["propertyNames", "additionalProperties", "required"]}},
+        {"if": {"properties": {"type": {"const": "object"}}}, "then": {"required": ["x-text"], "properties": {"x-text": {"const": true}}}}
+      ]
+    }
+  }
+}

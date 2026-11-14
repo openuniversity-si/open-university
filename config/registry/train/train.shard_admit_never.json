@@ -1,0 +1,24 @@
+{
+  "type": "array",
+  "default": [
+    "pnpm-lock.yaml",
+    "**/pnpm-lock.yaml",
+    "package.json",
+    "**/package.json",
+    "config/registry/**",
+    "scripts/gate-*",
+    "scripts/lib/gate*",
+    "units/*/unit.json"
+  ],
+  "uniqueItems": true,
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "glob",
+  "description": "Globs no side of a shard admission may touch (P-54): lockfiles, root manifests, the registry, the gate and the unit manifests. A change to one of them on the PR or on the base since its verdict refuses (fail closed): its effect is not bounded by a unit.",
+  "x-readers": [
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-075; P-54; docs/units/TRAIN-SHARD-ADMIT/audit.md section 5"
+}

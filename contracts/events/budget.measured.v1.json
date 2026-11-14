@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/events/budget.measured.v1.json",
+  "title": "budget.measured payload v1",
+  "description": "Observability (D-069 items 6, 14): one measurement of a budgeted metric that is not a duration (bytes of the web bundle, a page latency p95), from a build or a probe.",
+  "x-natural-key": [
+    "/correlation_id",
+    "/payload/repo",
+    "/payload/pr",
+    "/payload/sha",
+    "/payload/metric"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "pr",
+    "sha",
+    "unit",
+    "premises",
+    "metric",
+    "value"
+  ],
+  "properties": {
+    "repo": {
+      "$ref": "defs.v1.json#/$defs/repo"
+    },
+    "pr": {
+      "$ref": "defs.v1.json#/$defs/pr"
+    },
+    "sha": {
+      "$ref": "defs.v1.json#/$defs/sha"
+    },
+    "unit": {
+      "$ref": "defs.v1.json#/$defs/unit"
+    },
+    "premises": {
+      "$ref": "defs.v1.json#/$defs/premises"
+    },
+    "metric": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9_]*$",
+      "description": "The registry entry the value is measured against."
+    },
+    "value": {
+      "type": "number",
+      "minimum": 0
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/contracts.json",
+  "x-owner": "contracts",
+  "x-schema-version": 1,
+  "description": "Where the versioned contracts live and how their files are named (D-068 (5), D-069 item 2); the schema compat stage reads them.",
+  "type": "object",
+  "additionalProperties": false
+}

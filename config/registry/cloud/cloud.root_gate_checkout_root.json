@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "/var/tmp/open-university/gate-checkouts",
+  "minLength": 1,
+  "x-unit": "path",
+  "description": "Slot checkout root for gates run as uid 0, a place the unprivileged uids of script tests can traverse.",
+  "x-readers": [
+    "scripts/cloud/env.sh"
+  ]
+}

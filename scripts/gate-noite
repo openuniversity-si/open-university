@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Full end-of-day verification, never merges/deploys/rolls back.
+set -euo pipefail
+env_file="${DELIVERY_ENV_FILE:-$HOME/.config/open-university/environment.sh}"
+# shellcheck source=/dev/null
+[[ ! -f "$env_file" ]] || source "$env_file"
+exec python3 "$(dirname "$0")/lib/gate_noite.py" "$@"

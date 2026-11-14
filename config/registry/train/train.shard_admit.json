@@ -1,0 +1,15 @@
+{
+  "type": "string",
+  "default": "shadow",
+  "enum": [
+    "off",
+    "shadow",
+    "on"
+  ],
+  "x-unit": "enum",
+  "description": "With train.admit_mode verdict, admission of a PR whose verdict was made on an older tip B when the units+dependents shard keys (train.shard_key) of B..head and B..tip are disjoint (D-075 as amended, P-54; train_admit.disjoint). off: never computed. shadow (default): computed, every decision measured (engine.step.measured train:shard-admit, ok for a would-admit), nothing merged on it; the PR takes train.verdict_fallback. on: a disjoint PR merges with batch_id s-<input_digest>. Changed only through the shared store (scripts/config set ... --reason); on only after the shadow threshold of docs/units/TRAIN-SHARD-ADMIT/plan.md section 4.",
+  "x-readers": [
+    "scripts/lib/train_verdict.py"
+  ],
+  "x-source": "D-075; P-54; docs/units/TRAIN-SHARD-ADMIT/plan.md"
+}

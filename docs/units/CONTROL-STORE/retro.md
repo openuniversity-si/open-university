@@ -1,0 +1,8 @@
+# CONTROL-STORE retro
+
+1. Brief quality: precise and measured (live counts, the `slice(-0)` root). One gap: it did not say that supersession would contradict an existing test (`events.test.mjs`, two pr.ready of different heads kept as two train jobs); resolved as the brief's rule wins, test updated. It also asks for a diary note first while the engine's write budget can be rate-limited (429, 837 s wait).
+2. Audit/plan: all premises held (no premise needed). The plan collapsed from 6 items to 4: three fixes share `core.js` and its test file (file collision, no parallel gain).
+3. Execution (all 02/11 BRT): branch + draft PR #1084 first; one slip, a stray `cat >` with no heredoc hung the shell for 120 s (class: copy-paste of a command with an unneeded line). `gateJob` helper in the new tests misread `jobsOf` (returns `{jobs, facts}`); fixed at once. One real regression found by the existing suite: events test 27 (see 1).
+4. Gate: see the PR body; `scripts/plan note` and the local checks failed on a GitHub 429 until `OU_CONFIG_STORE=file` was used for local checks.
+5. Lessons: (a) the engine's CLI should degrade on 429 by queuing the note locally instead of raising a traceback (owner: engine, scripts/lib/config.py); (b) a store regression test for every retention clamp (`slice(-n)` with n possibly 0): add a lint/pattern check for `slice(-Math.max(` (owner: control-plane).
+6. Step that should descend: the "start" ritual (branch, skeleton, draft PR, diary note) is identical every unit: a `scripts/unit-start <UNIT>` script (rule in the engine) would replace ~5 turns of an AI session; owner: engine. The supersession-vs-old-test check is also deterministic: a script listing tests that assert queue lengths.

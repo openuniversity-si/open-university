@@ -1,0 +1,16 @@
+{
+  "script": "scripts/tests/merge-regenerate.test.sh",
+  "covers": [
+    "scripts/tests/merge-regenerate.test.sh",
+    "scripts/tests/test_merge_regenerate.py",
+    "scripts/merge-regenerate",
+    "scripts/lib/merge_regenerate.py",
+    "scripts/tests/fixture_copy.py",
+    "scripts/lib/generate.py",
+    "scripts/lib/units.py",
+    "scripts/lib/config.py",
+    "config/registry/generate.json",
+    "config/registry/units.json",
+    ".gitattributes"
+  ]
+}

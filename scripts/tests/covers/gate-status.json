@@ -1,0 +1,14 @@
+{
+  "script": "scripts/tests/gate-status.test.sh",
+  "covers": [
+    "scripts/tests/gate-status.test.sh",
+    "scripts/tests/test_gate_status.py",
+    "scripts/tests/gate_status/*.py",
+    "scripts/lib/gate_status.py",
+    "scripts/lib/gate_report.py",
+    "scripts/lib/gate-runner.sh",
+    "config/registry/gate.json",
+    "config/registry/forge-events.json",
+    "scripts/lib/forge_events.py"
+  ]
+}

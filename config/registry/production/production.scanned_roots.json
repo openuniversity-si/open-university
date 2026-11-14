@@ -1,0 +1,16 @@
+{
+  "type": "array",
+  "items": {
+    "type": "string"
+  },
+  "default": [
+    "scripts/",
+    "units/"
+  ],
+  "x-unit": "count",
+  "description": "Path prefixes whose added lines the invocation scan reads.",
+  "x-readers": [
+    "scripts/lib/production_guard.py"
+  ],
+  "x-source": "D-054; D-069 item 13"
+}

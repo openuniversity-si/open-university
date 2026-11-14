@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/gate-proof.json",
+  "x-owner": "gate-proof",
+  "x-schema-version": 1,
+  "description": "The gate verdict's proof (GX-10, D-070): which gate.passed/gate.failed version the gate produces.",
+  "type": "object",
+  "additionalProperties": false
+}

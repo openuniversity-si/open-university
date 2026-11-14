@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/budgets.json",
+  "x-owner": "budgets",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "description": "Budgets of a change and of the gate (D-008, D-022, D-069 item 14).",
+  "properties": {
+    "budgets.baseline_path": {
+      "type": "string",
+      "default": "config/baselines/budgets.json",
+      "x-unit": "path",
+      "description": "The committed baseline computed from the event log by `scripts/budgets baseline --write` (contracts/budgets/baseline.v1.json). Never hand-written.",
+      "x-readers": [
+        "scripts/lib/budget_check.py",
+        "scripts/lib/budgets.py"
+      ],
+      "x-source": "D-069 item 14; B1"
+    },
+    "budgets.min_samples": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Fewest measurements a metric needs before the baseline is written or a verdict can fail; below it the state is no_data and nothing is invented.",
+      "x-readers": [
+        "scripts/lib/budgets.py"
+      ],
+      "x-source": "D-069 item 14; B1"
+    },
+    "budgets.percent_whole": {
+      "type": "integer",
+      "default": 100,
+      "minimum": 1,
+      "x-unit": "percent",
+      "description": "Percent that makes the whole: a tolerance of budgets.regression_tolerance_percent grows a baseline by tolerance / this.",
+      "x-readers": [
+        "scripts/lib/budgets.py",
+        "scripts/lib/budget_check.py"
+      ],
+      "x-source": "D-069 item 14; B1"
+    },
+    "budgets.pr_changed_lines": {
+      "type": "integer",
+      "default": 600,
+      "minimum": 1,
+      "x-literal-names": [
+        "SIZE_BUDGET"
+      ],
+      "x-unit": "lines",
+      "description": "Changed lines of a PR, tests and generated files excluded, above which structure-check warns.",
+      "x-readers": [
+        "scripts/lib/structure.py"
+      ],
+      "x-source": "D-008"
+    },
+    "budgets.pr_commits_max": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "x-literal-names": [
+        "PLAN_MAX"
+      ],
+      "x-unit": "commits",
+      "description": "Most items of a PR's commit plan; 0, the default, sets no maximum (D-307: a PR is split by its content, never by a counter).",
+      "x-readers": [
+        "scripts/lib/commit_check.py"
+      ],
+      "x-source": "D-022, D-025, D-307"
+    },
+    "budgets.pr_commits_min": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "x-literal-names": [
+        "PLAN_MIN"
+      ],
+      "x-unit": "commits",
+      "description": "Fewest items of a PR's commit plan.",
+      "x-readers": [
+        "scripts/lib/commit_check.py"
+      ],
+      "x-source": "D-022, D-025, D-219"
+    },
+    "budgets.regression_tolerance_percent": {
+      "type": "number",
+      "default": 10,
+      "minimum": 0,
+      "x-unit": "percent",
+      "description": "Percent a measured p95 may exceed its baseline before the gate fails (D-069 item 14). Applies to the battery per unit (limit: battery.unit_time_limit), the web bundle and the page latency. A tolerance only tightens.",
+      "x-readers": [
+        "scripts/lib/budget_check.py",
+        "scripts/lib/budgets.py"
+      ],
+      "x-source": "D-069 item 14; B1"
+    },
+    "budgets.tighten_only": {
+      "type": "array",
+      "default": [
+        {
+          "name": "battery.unit_time_limit",
+          "bound": "max"
+        },
+        {
+          "name": "budgets.regression_tolerance_percent",
+          "bound": "max"
+        }
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "bound"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "bound": {
+            "enum": [
+              "max",
+              "min"
+            ]
+          }
+        }
+      },
+      "x-unit": "entries",
+      "description": "The registry entries that are budgets and only tighten: a max entry may not grow and a min entry may not shrink against the base unless its x-source gains a decision recorded in docs/domain/DECISIONS.md. The measured baseline may not grow beyond budgets.regression_tolerance_percent without the same decision on its metric's entry.",
+      "x-readers": [
+        "scripts/lib/budget_check.py"
+      ],
+      "x-source": "D-069 item 14; B1"
+    },
+    "budgets.window_samples": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Newest measurements per metric and subject the baseline and the check fold into one p95.",
+      "x-readers": [
+        "scripts/lib/budgets.py"
+      ],
+      "x-source": "D-069 item 14; B1"
+    }
+  }
+}

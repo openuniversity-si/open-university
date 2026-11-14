@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 12,
+  "minimum": 4,
+  "maximum": 40,
+  "x-unit": "chars",
+  "description": "Characters of the verdict input_digest shown in the commit status description.",
+  "x-readers": [
+    "scripts/lib/gate_status.py"
+  ]
+}

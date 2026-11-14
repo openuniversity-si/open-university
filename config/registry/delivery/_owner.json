@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/delivery.json",
+  "x-owner": "delivery",
+  "x-schema-version": 1,
+  "description": "The delivery tail: ship-tail, ship-verify, merge-phase and their tests (D-054, unit engine-delivery).",
+  "type": "object",
+  "additionalProperties": false
+}

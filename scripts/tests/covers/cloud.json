@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/cloud.test.sh",
+  "covers": [
+    "scripts/tests/cloud.test.sh",
+    "scripts/tests/test_cloud.py",
+    "scripts/cloud/**",
+    "config/registry/cloud.json",
+    "scripts/lib/config.py",
+    "scripts/lib/config_check.py"
+  ]
+}

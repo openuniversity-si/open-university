@@ -1,0 +1,8 @@
+{
+  "script": "scripts/tests/run.test.sh",
+  "covers": [
+    "scripts/tests/run.test.sh",
+    "scripts/run",
+    "scripts/cloud/env.sh"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/covers-imports.test.sh",
+  "covers": [
+    "scripts/tests/covers-imports.test.sh",
+    "scripts/tests/test_covers_imports.py",
+    "scripts/tests/covers/*.json",
+    "scripts/tests/*.test.sh",
+    "scripts/tests/*.py",
+    "scripts/lib/gate_areas.py",
+    "infra/service/tower_infra/*.py"
+  ]
+}

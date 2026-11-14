@@ -1,0 +1,38 @@
+{
+  "id": "engine-service",
+  "purpose": "The gate and the train as services (GATE-TRAIN-SERVICES, D-086, ADR-41): the Tower runner, its transports, the status, health and metrics surface, the admin controls and the service contracts; the control plane and its deploy are engine-control-plane.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "scripts/service",
+    "scripts/lib/service.py",
+    "scripts/lib/service_credentials.py",
+    "scripts/lib/service_lock.py",
+    "scripts/lib/service_runner.py",
+    "scripts/lib/service_status.py",
+    "scripts/lib/gate_workflows.py",
+    "config/registry/service.json",
+    "contracts/service/**",
+    "services/runner/**",
+    "scripts/tests/service*.test.sh",
+    "scripts/tests/test_service_control.py",
+    "scripts/tests/test_service_credentials.py",
+    "scripts/tests/test_service_lock.py",
+    "scripts/tests/test_service_runner.py",
+    "scripts/tests/test_service_status.py",
+    "scripts/tests/test_service_workflows.py",
+    "docs/operations/services.md"
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1",
+    "engine-git-ref": "^1",
+    "engine-role": "^1"
+  },
+  "decisions": [
+    "D-085",
+    "D-086",
+    "D-087",
+    "D-088"
+  ]
+}

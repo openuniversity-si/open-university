@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 30,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Seconds one call to the port may take.",
+  "x-readers": [
+    "scripts/lib/gate_infra.py"
+  ],
+  "x-source": "GATE-INFRA 2 (P5 F2), D-306"
+}

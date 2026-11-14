@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/rule-challenges.test.sh",
+  "covers": [
+    "scripts/tests/rule-challenges.test.sh",
+    "scripts/tests/test_rule_challenges.py",
+    "scripts/rule-challenge",
+    "scripts/lib/rule_challenges.py",
+    "docs/process/rule-challenges/**"
+  ]
+}

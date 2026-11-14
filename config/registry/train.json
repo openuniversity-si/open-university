@@ -1,0 +1,713 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/train.json",
+  "x-owner": "train",
+  "x-schema-version": 1,
+  "description": "The merge train (plan v3 M3, D-065 (4) and (5)).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "train.admit_mode": {
+      "type": "string",
+      "default": "batch",
+      "enum": [
+        "batch",
+        "verdict"
+      ],
+      "x-unit": "enum",
+      "description": "How the train admits a queued PR (D-075, amends D-065 (5)). batch (default): every PR goes through a batch and its tier-2 run, as before. verdict: the train merges a PR alone, with no tier-2 run, when the gate.passed its pr.ready rests on proves the exact merged tree (train_admit.admissible: a cold verified v4 dev proof based on the tip, whose head contains the tip, with the attested toolchain, the tip's gate_version and a recomputed input_digest equal to its own); any other PR takes train.verdict_fallback. Changed only through the shared store (scripts/config set ... --reason); batch is the one-key rollback.",
+      "x-readers": [
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-075; docs/units/TRAIN-VERDICT/plan.md"
+    },
+    "train.aggregates_ref": {
+      "type": "string",
+      "default": "refs/train/aggregates",
+      "minLength": 1,
+      "x-unit": "ref",
+      "description": "Local ref the train keeps the aggregates commit on; publishing it to the forge is the forge port's job.",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.base_branch": {
+      "type": "string",
+      "default": "mod/roadmap-integration",
+      "minLength": 1,
+      "x-unit": "branch",
+      "description": "Integration branch the train builds every batch on and merges into (D-054: PRs target it, a release merges it into main).",
+      "x-readers": [
+        "scripts/lib/coordinator_launch.py",
+        "scripts/lib/covers_cost.py",
+        "scripts/lib/defect_router.py",
+        "scripts/lib/deliver.py",
+        "scripts/lib/flow_metrics.py",
+        "scripts/lib/gate_bypass.py",
+        "scripts/lib/local_checks.py",
+        "scripts/lib/prepush.py",
+        "scripts/lib/push_guard.py",
+        "scripts/lib/service_runner.py",
+        "scripts/lib/service_status.py",
+        "scripts/lib/stall_report.py",
+        "scripts/lib/train.py",
+        "scripts/lib/train_loop.py",
+        "scripts/lib/train_serve.py",
+        "scripts/lib/usage.py"
+      ]
+    },
+    "train.base_hold": {
+      "type": "boolean",
+      "default": false,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "Unit R1 (docs/units/R1/plan.md, RC-005 proposal (a)): the train holds the queue while the newest real gate result of the base tip, read from the train's checkout (.gate/shadow/<sha>.json), is red. Unknown tips (no result, or a result for another sha) are reported and run; green and released tips run. Default off: the hold changes when the train merges, so an operator switches it on with scripts/config set train.base_hold true --actor <who> --reason <why>, after a red base has been seen to hold and release.",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.base_hold_release": {
+      "type": "string",
+      "default": "",
+      "x-unit": "text",
+      "description": "Unit R1: the sha of a red base tip that the train runs anyway, set by an operator with scripts/config set train.base_hold_release <sha> --actor <who> --reason <why> (recorded in the config history). Empty by default. A release is for that one tip: the next tip is judged by its own result.",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.batch_id_chars": {
+      "type": "integer",
+      "default": 12,
+      "minimum": 8,
+      "maximum": 64,
+      "x-unit": "chars",
+      "description": "Hex characters of the sha256 that forms a batch id (b-<hex>) from the base tip and the batch heads.",
+      "x-readers": [
+        "scripts/lib/train.py",
+        "scripts/lib/train_verdict.py"
+      ]
+    },
+    "train.batch_red_window": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "VAZÃO F36: the merged PRs whose gate runs give the red share p that train.batch_size_by_red maps to the batch size on the box (scripts/flow-metrics gate runs, F24). Read once per leadership, an event, never a clock.",
+      "x-readers": [
+        "scripts/lib/flow_metrics.py",
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.batch_size": {
+      "type": "integer",
+      "default": 8,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "PRs the train takes into one batch (B).",
+      "x-readers": [
+        "scripts/lib/flow_metrics.py",
+        "scripts/lib/train.py"
+      ],
+      "x-source": "D-065; docs/process/EVENTS.md, Batch size B"
+    },
+    "train.batch_size_by_red": {
+      "type": "array",
+      "default": [
+        {
+          "red_max": 0.1,
+          "size": 8
+        },
+        {
+          "red_max": 0.15,
+          "size": 4
+        },
+        {
+          "red_max": 0.25,
+          "size": 2
+        }
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "red_max",
+          "size"
+        ],
+        "properties": {
+          "red_max": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "x-unit": "count",
+      "description": "VAZÃO F36 (docs/programs/vazao/design-trem.md §3): the most PRs a batch on the box takes, k_max, by the observed red share p of the gate (VAZÃO F24, scripts/flow-metrics) over the last train.batch_red_window merged PRs. The first row whose red_max p does not pass gives k_max; past the last row k_max is 1 (no batch). Rows go in ascending red_max; each size must fit train.bisection_max_runs (ceil(log2 size) runs), and k_max never passes train.batch_size. The rows come from a Monte Carlo of the prefix policy with the proven prefix merged (gate runs per resolved PR: 0.30 at p 0.05 and k 8, 0.57 at p 0.133 and k 4, 0.76 at p 0.20 and k 2).",
+      "x-readers": [
+        "scripts/lib/flow_metrics.py",
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.bisection_max_runs": {
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Most tier-2 runs one bisection may spend. The train refuses to start when train.batch_size needs more (ceil(log2 B)), so a red batch always ends with a culprit.",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.combined_ref_prefix": {
+      "type": "string",
+      "default": "refs/train/combined/",
+      "pattern": "^refs/[a-z0-9/-]+/$",
+      "x-unit": "ref",
+      "description": "Local ref prefix that keeps each batch combined head (<prefix><batch_id>) for the tier-2 run and for audit; never pushed.",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.enabled": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "The train's on/off switch (D-065 V3, D-069 item 11). Off: `scripts/train run` exits without taking the lock and the per-session merge rule of AGENTS.md holds. Switched on only by a config.changed event (scripts/config set). Read from the shared store or the registry default: a run whose change store is machine-local (OU_CONFIG_STORE=file) and overrides it refuses to run (GA-PG8, GX-06). Default on since GX-06: with train.trigger_mode emit_only only the designated train-role session runs the train, so nothing runs until the coordinator starts that session; off is the rollback to the per-session merge rule.",
+      "x-readers": [
+        "scripts/lib/service_status.py",
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.git_author_email": {
+      "type": "string",
+      "default": "train@open-university.invalid",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "Author and committer email of the local combined-head merge commits.",
+      "x-readers": [
+        "scripts/lib/forge_git_ref.py",
+        "scripts/lib/train_git.py"
+      ]
+    },
+    "train.git_author_name": {
+      "type": "string",
+      "default": "Open University train",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "Author and committer name of the local combined-head merge commits (never pushed; the forge writes the real merge commits).",
+      "x-readers": [
+        "scripts/lib/forge_git_ref.py",
+        "scripts/lib/train_git.py"
+      ]
+    },
+    "train.git_remote": {
+      "type": "string",
+      "default": "origin",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Git remote the train fetches the integration tip and PR heads from (plain git, any forge).",
+      "x-readers": [
+        "scripts/lib/covers_cost.py",
+        "scripts/lib/forge_git_ref.py",
+        "scripts/lib/gate_bypass.py",
+        "scripts/lib/service_runner.py",
+        "scripts/lib/train_git.py",
+        "scripts/lib/train_loop.py",
+        "scripts/lib/train_serve.py"
+      ]
+    },
+    "train.git_timeout_s": {
+      "type": "integer",
+      "default": 120,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Timeout of each git command the train runs (fetch, merge-tree, commit-tree, rev-parse).",
+      "x-readers": [
+        "scripts/lib/forge_git_ref.py",
+        "scripts/lib/service_runner.py",
+        "scripts/lib/train_git.py",
+        "scripts/lib/train_serve.py"
+      ]
+    },
+    "train.halt_classes": {
+      "type": "array",
+      "default": [
+        "env",
+        "contract"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "code",
+          "env",
+          "contract"
+        ]
+      },
+      "x-unit": "enum",
+      "description": "Gate classes (D-027, the class line of GX-01) of a red tier-2 run or bisection probe that halt the train for a person instead of ejecting a member; env also emits env.drift. Only a class outside this list ejects (cause culprit). [] restores eject-on-anything (GX-02, D-070).",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ],
+      "x-source": "D-070; docs/programs/gate-excellence/plan.md §3.3 GX-02"
+    },
+    "train.lock_ref": {
+      "type": "string",
+      "default": "train/lock",
+      "minLength": 1,
+      "x-unit": "ref",
+      "description": "Branch name of the train lock in the forge (refs/heads/<name>), naming the lock owner; one holder runs the role until its queue is empty (D-065 (1)).",
+      "x-readers": [
+        "scripts/lib/service_lock.py",
+        "scripts/lib/service_status.py",
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.merge_proven_prefix": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "D-297 (a), VAZÃO F36 (docs/programs/vazao/design-trem.md §3): when a batch is red and the prefix bisection names a culprit at index f > 0, the members before it merge in the same run on the bisection's green probe of that prefix (pr.merged with the batch id, the tree proof against the probe, no train.batch.green). false leaves the prefix queued for the next batch, as before (the one-key rollback).",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.producer": {
+      "type": "string",
+      "default": "train",
+      "minLength": 1,
+      "x-unit": "name",
+      "description": "Producer name of every train event; part of each event id.",
+      "x-readers": [
+        "scripts/lib/service_lock.py",
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.publish_aggregates": {
+      "type": "boolean",
+      "default": false,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "While true, the train keeps a commit of the aggregates in train.published_aggregates on train.aggregates_ref after every integration.advanced (plan v3 U1, V4). Off: nothing is written; every aggregate is read on demand from scripts/generate.",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.published_aggregates": {
+      "type": "array",
+      "default": [],
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "x-unit": "enum",
+      "description": "Names of the scripts/generate targets the train renders into its aggregates commit; empty today, because every aggregate is read on demand.",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.queue_growing_batches": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "batches",
+      "description": "train.queue.growing is emitted when the queue at batch end exceeds this many batches (2B).",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ],
+      "x-source": "D-065; docs/process/EVENTS.md"
+    },
+    "train.queue_since_last_batch": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "The queue index (train_queue.py, GX-30, G-09): while true, the first queue build of a train run replays every open PR's log and head, and every later build reads only the events since the previous build (an adapter offering events_since) and the logs and heads of the PRs they name, so a rebuild costs O(PRs with new events), not O(open PRs). Off, or with an adapter without events_since: the full replay on every build (the rollback).",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.rebuild_max": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 0,
+      "x-unit": "count",
+      "description": "Rebuilds per batch (F-16, GX-30): when the integration tip moved between build and merge, or the forge refused a member after a proven prefix merged, the train rebuilds what is left on the new tip and runs tier 2 on it again, at most this many times; past it a base move halts (TrainHalt) and refused leftovers wait for the next batch. 0 is the rollback to halt-on-move and leftovers-wait.",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.rest_calls_per_run_max": {
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "GATE-ON-PUSH R4: the budget of GitHub REST calls one `scripts/train run` makes (research.md: at most 20 per merge). Each run that held the lock publishes its count as budget.measured with this metric; a 304 counts as a call.",
+      "x-readers": [
+        "scripts/lib/service_status.py",
+        "scripts/lib/train.py"
+      ],
+      "x-source": "docs/units/GATE-ON-PUSH/plan.md R4 A2"
+    },
+    "train.reverdict_command": {
+      "type": "array",
+      "default": [
+        "scripts/gate-verdict",
+        "--cold"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "count",
+      "description": "The gate API call of the train's resync (D-075, fallback requeue), relative to the repository root; `--pr <n> --head <sha>` are appended. Exit 0 PASSED admits on the next queue read, 1 FAILED hands the PR back (pr.ejected), the UNOBSERVABLE exit halts the train. Bounded by train.tier2_timeout_s.",
+      "x-readers": [
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-075; docs/operations/train.md"
+    },
+    "train.reverdict_parallel": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "x-unit": "count",
+      "description": "D-076 (GATE-FAST): verdicts the train's resync runs at once: the oldest PR's and those of the next queued PRs whose verdicts do not admit on the tip either (verdicts ahead, train_verdict.refresh_ahead). 0 means the gate slots of the box (gate_test_cache.gate_slots: gate.slots, else vCPUs x gate.slots_per_vcpu); each verdict still holds its own slot and worktree. Admission stays one PR at a time from the queue. 1 is the rollback: one verdict at a time (D-075 as merged).",
+      "x-readers": [
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-076"
+    },
+    "train.self_host": {
+      "type": "string",
+      "default": "on",
+      "enum": [
+        "off",
+        "on"
+      ],
+      "x-unit": "enum",
+      "description": "With train.admit_mode verdict, self-hosting admission of a PR that changes the toolchain set (D-079, TRAIN-ADMIT-GATE-CHANGE): on (default) admits a verdict whose only difference from the strict rule is the head's own toolchain_id on a dual verdict, the pinned gate's cold gate.passed of the head on the tip and the head's own tooling run cold on the same head (train.self_host_command) both green; off refuses every foreign toolchain_id as before (the rollback). Changed only through scripts/config set --reason.",
+      "x-readers": [
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-079; docs/units/TRAIN-ADMIT-GATE-CHANGE/plan.md"
+    },
+    "train.self_host_command": {
+      "type": "array",
+      "default": [
+        "scripts/gate-local",
+        "--dev",
+        "--report-only",
+        "--sha"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "count",
+      "description": "The second leg of the dual verdict (D-079): the head's own tooling, run in a checkout of the head (gate_pin.head_tooling) with fresh build and test caches and no carry-over (cold, P-43), the head sha appended; report-only, so it publishes no event, record or pr.ready. Exit 0 is PASSED; anything else, a timeout (train.tier2_timeout_s) or a run that cannot start refuses (fail closed). Measured as train:self-host.",
+      "x-readers": [
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-079; docs/operations/train.md"
+    },
+    "train.self_host_paths": {
+      "type": "array",
+      "default": [
+        "config/registry/**",
+        "scripts/cloud/toolchain.json",
+        "scripts/gate-*",
+        "scripts/lib/gate*",
+        "scripts/lib/toolchain_*",
+        "scripts/lib/train*",
+        "scripts/train*",
+        "scripts/structure-check",
+        "scripts/lib/structure.py",
+        "scripts/commit-check",
+        "scripts/lib/commit_check.py"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "glob",
+      "description": "The toolchain set (D-079): a PR whose change (tip...head) touches one of these globs brings its own attestation (the registry and the gate are part of toolchain_id), so with train.self_host on its foreign toolchain_id is judged by the dual verdict instead of refused. A PR that touches none is judged by the strict rule.",
+      "x-readers": [
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-079; docs/units/TRAIN-ADMIT-GATE-CHANGE/plan.md"
+    },
+    "train.serve_max_s": {
+      "type": "integer",
+      "default": 6600,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Seconds after which `scripts/train serve` exits, below the cloud session's 2 h background-process limit, so its exit event wakes the train-role session to start serve again (GATE-ON-PUSH R2).",
+      "x-readers": [
+        "scripts/lib/train_serve.py"
+      ],
+      "x-source": "docs/units/GATE-ON-PUSH/plan.md R2 A2"
+    },
+    "train.session_id_env": {
+      "type": "array",
+      "default": [
+        "CLAUDE_CODE_REMOTE_SESSION_ID",
+        "CLAUDE_CODE_SESSION_ID"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]*$"
+      },
+      "x-unit": "enum",
+      "description": "Environment variables, in order, whose first set value is the session id that names the train lock owner (train@<session id>, unique per session); with none set the owner is train@host:pid (GX-06).",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ],
+      "x-source": "D-070; docs/programs/gate-excellence/plan.md §3.3 GX-06"
+    },
+    "train.shard_admit": {
+      "type": "string",
+      "default": "shadow",
+      "enum": [
+        "off",
+        "shadow",
+        "on"
+      ],
+      "x-unit": "enum",
+      "description": "With train.admit_mode verdict, admission of a PR whose verdict was made on an older tip B when the units+dependents shard keys (train.shard_key) of B..head and B..tip are disjoint (D-075 as amended, P-54; train_admit.disjoint). off: never computed. shadow (default): computed, every decision measured (engine.step.measured train:shard-admit, ok for a would-admit), nothing merged on it; the PR takes train.verdict_fallback. on: a disjoint PR merges with batch_id s-<input_digest>. Changed only through the shared store (scripts/config set ... --reason); on only after the shadow threshold of docs/units/TRAIN-SHARD-ADMIT/plan.md section 4.",
+      "x-readers": [
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-075; P-54; docs/units/TRAIN-SHARD-ADMIT/plan.md"
+    },
+    "train.shard_admit_max_behind": {
+      "type": "integer",
+      "default": 5,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Most first-parent merges the tip may be past a verdict's base for shard admission (P-54); further behind refuses (fail closed).",
+      "x-readers": [
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-075; P-54; docs/units/TRAIN-SHARD-ADMIT/audit.md section 5"
+    },
+    "train.shard_admit_never": {
+      "type": "array",
+      "default": [
+        "pnpm-lock.yaml",
+        "**/pnpm-lock.yaml",
+        "package.json",
+        "**/package.json",
+        "config/registry/**",
+        "scripts/gate-*",
+        "scripts/lib/gate*",
+        "units/*/unit.json"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "glob",
+      "description": "Globs no side of a shard admission may touch (P-54): lockfiles, root manifests, the registry, the gate and the unit manifests. A change to one of them on the PR or on the base since its verdict refuses (fail closed): its effect is not bounded by a unit.",
+      "x-readers": [
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-075; P-54; docs/units/TRAIN-SHARD-ADMIT/audit.md section 5"
+    },
+    "train.shard_key": {
+      "type": "string",
+      "default": "units+dependents",
+      "enum": [
+        "units+dependents"
+      ],
+      "x-unit": "enum",
+      "description": "How the train computes the shard key of a PR or batch (SH-1, design-sharded-tier2.md 4.1): the units its files touch, plus every unit that requires one of them (transitively), plus every changed path no unit claims and no generated target outputs. units+dependents is the only value understood; any other is an error, never a fallback.",
+      "x-readers": [
+        "scripts/lib/train_shard.py"
+      ]
+    },
+    "train.shard_shadow": {
+      "type": "boolean",
+      "default": true,
+      "x-flag": true,
+      "x-unit": "flag",
+      "description": "While true, start_batch emits train.batch.shards for each batch: the key of every member and of the batch, the shards it would form and the key collisions. Measurement only: the verdict and the merge path never read it. Off: nothing is computed or emitted.",
+      "x-readers": [
+        "scripts/lib/train_shard.py"
+      ]
+    },
+    "train.step_prefix": {
+      "type": "string",
+      "default": "train:",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "Prefix of the engine.step.measured step names the train emits (train:batch, train:build, train:tier2, train:merge, train:bisect).",
+      "x-readers": [
+        "scripts/lib/train.py"
+      ]
+    },
+    "train.sweep_interval_s": {
+      "type": "integer",
+      "default": 900,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Seconds between two full `scripts/train run` (the replay of every open PR, the safety net) that `scripts/train serve` starts besides the wakes; one more runs when serve starts (GATE-ON-PUSH R2).",
+      "x-readers": [
+        "scripts/lib/train_serve.py"
+      ],
+      "x-source": "docs/units/GATE-ON-PUSH/plan.md R2 A2"
+    },
+    "train.tier2_command": {
+      "type": "array",
+      "default": [
+        "scripts/gate-batch",
+        "--tier",
+        "2"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "count",
+      "description": "Tier-2 command, relative to the repository root, run on the combined head and on every bisection prefix (its sha is appended; the members and base arrive in GATE_BATCH_MEMBERS and GATE_BATCH_BASE): scripts/gate-batch --tier 2 gates that commit with the union plan of its members (GX-30, B-20 (a)), so a batch runs only the stages its members can affect, with the caches train.tier2_test_cache names (fresh by default). Rollback: [\"scripts/gate-dev\", \"--sha\"], the full dev plan, which ignores the batch variables.",
+      "x-readers": [
+        "scripts/lib/train_git.py"
+      ]
+    },
+    "train.tier2_log_chars": {
+      "type": "integer",
+      "default": 2000,
+      "minimum": 0,
+      "maximum": 20000,
+      "x-unit": "chars",
+      "description": "Tail of the tier-2 output carried in pr.ejected.log (the log excerpt only; the failed stage and its class come from the gate's class line over the whole output, GX-02).",
+      "x-readers": [
+        "scripts/lib/train_git.py",
+        "scripts/lib/train_verdict.py"
+      ]
+    },
+    "train.tier2_test_cache": {
+      "type": "string",
+      "default": "box",
+      "enum": [
+        "fresh",
+        "box"
+      ],
+      "x-unit": "enum",
+      "description": "The caches of a tier-2 run (D-297 (c), D-076 (a), VAZÃO F36). fresh (the one-key rollback): every run gets an empty build cache and an empty per-test cache, so no marker of another run is reused (P-02 strict). box (default since F70, D-297 (c)): the run uses the caches the command finds on the machine, the box content cache that gate-dev uses in deliver (F19), so a batch pays only what its content changed. Set it back to fresh, and open an incident (D-081), when a shadow tip (D-157) turns red after a green batch.",
+      "x-readers": [
+        "scripts/lib/train_git.py"
+      ]
+    },
+    "train.tier2_timeout_s": {
+      "type": "integer",
+      "default": 1800,
+      "minimum": 60,
+      "x-unit": "s",
+      "description": "Longest one tier-2 run may take before it counts as red (class env: the train halts and ejects nobody); P-15 expects about 240 s. The train lock lease is this plus train.lock_lease_margin_s.",
+      "x-readers": [
+        "scripts/lib/train.py",
+        "scripts/lib/train_git.py",
+        "scripts/lib/train_verdict.py"
+      ]
+    },
+    "train.trigger_log_dir": {
+      "type": "string",
+      "default": ".gate/train",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Directory, relative to the checkout, of the output of the `scripts/train run` that the producer of pr.ready starts in the background (Transport v0, train_trigger.py).",
+      "x-readers": [
+        "scripts/lib/train_trigger.py",
+        "scripts/lib/train_verdict.py"
+      ]
+    },
+    "train.trigger_mode": {
+      "type": "string",
+      "default": "emit_only",
+      "enum": [
+        "emit_only",
+        "detached",
+        "wake"
+      ],
+      "x-unit": "enum",
+      "description": "What the producer of pr.ready does after emitting it: emit_only (default) starts nothing, and the designated train-role session runs the train (docs/operations/train.md); detached starts `scripts/train run` in the producer's container (Transport v0 as it was: the one-key rollback) (GX-06); wake fast-forwards train.wake_ref with a record naming the PR, its head and the pr.ready event, over git (no REST), and starts nothing: the train-role session's `scripts/train serve` consumes it (GATE-ON-PUSH R2).",
+      "x-readers": [
+        "scripts/lib/service_status.py",
+        "scripts/lib/train_trigger.py"
+      ],
+      "x-source": "D-070; docs/programs/gate-excellence/plan.md §3.3 GX-06"
+    },
+    "train.unit_manifests": {
+      "type": "string",
+      "default": "units/*/unit.json",
+      "minLength": 1,
+      "x-unit": "path",
+      "description": "Glob of the unit manifests (U0) the ownership check reads; while none exists the check is a no-op.",
+      "x-readers": [
+        "scripts/lib/train_ownership.py"
+      ]
+    },
+    "train.verdict_fallback": {
+      "type": "string",
+      "default": "requeue",
+      "enum": [
+        "tier2",
+        "requeue"
+      ],
+      "x-unit": "enum",
+      "description": "With train.admit_mode verdict, what happens to a PR whose verdict is not admissible: requeue (default, D-075 as amended 29/10 15:02 and by D-078) is the train's own resync: a head that already contains the tip is re-verdicted as it is (same sha, nothing pushed) unless only its warmth was refused; any other head gets the tip merged into it (a merge commit pushed to the PR branch, never a rebase); it asks train.reverdict_command for a cold verdict of that head and admits it on PASSED in the same pass; only a textual conflict (pr.conflicted with its files) or a red re-verdict (pr.ejected) go back to the owner session, and a branch it cannot push takes the tier-2 batch of one. tier2 runs it as a batch of one (the batch path, tier 2 on the tip).",
+      "x-readers": [
+        "scripts/lib/train_verdict.py"
+      ],
+      "x-source": "D-075; docs/units/TRAIN-VERDICT/plan.md"
+    },
+    "train.wake_attempts": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Pushes a producer tries to fast-forward train.wake_ref, each from a fresh read: a refused fast-forward (another producer moved it) is retried until this count, then the wake is lost and the periodic run catches the PR (GATE-ON-PUSH R2).",
+      "x-readers": [
+        "scripts/lib/train_trigger.py"
+      ],
+      "x-source": "docs/units/GATE-ON-PUSH/plan.md R2 A2"
+    },
+    "train.wake_poll_s": {
+      "type": "integer",
+      "default": 15,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "Seconds `scripts/train serve` waits between two `git ls-remote` reads of train.wake_ref (GATE-ON-PUSH R2): the delay between a wake and its run. A read of git, never of the REST budget.",
+      "x-readers": [
+        "scripts/lib/train_serve.py"
+      ],
+      "x-source": "docs/units/GATE-ON-PUSH/plan.md R2 A2"
+    },
+    "train.wake_ref": {
+      "type": "string",
+      "default": "train/wake",
+      "minLength": 1,
+      "x-unit": "ref",
+      "description": "Branch name of the train's wake channel in the forge (refs/heads/<name>), moved forward only over git like train.lock_ref. With train.trigger_mode wake the producer of pr.ready fast-forwards it with a record {pr, sha, event_id}; its commit history is the wake log the train-role session serves (GATE-ON-PUSH R2). Inert while nobody serves it: the periodic run still merges.",
+      "x-readers": [
+        "scripts/lib/train_serve.py",
+        "scripts/lib/train_trigger.py"
+      ],
+      "x-source": "docs/units/GATE-ON-PUSH/plan.md R2 A2"
+    }
+  }
+}

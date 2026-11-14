@@ -1,0 +1,13 @@
+{
+  "type": "string",
+  "default": "box",
+  "enum": [
+    "fresh",
+    "box"
+  ],
+  "x-unit": "enum",
+  "description": "The caches of a tier-2 run (D-297 (c), D-076 (a), VAZÃO F36). fresh (the one-key rollback): every run gets an empty build cache and an empty per-test cache, so no marker of another run is reused (P-02 strict). box (default since F70, D-297 (c)): the run uses the caches the command finds on the machine, the box content cache that gate-dev uses in deliver (F19), so a batch pays only what its content changed. Set it back to fresh, and open an incident (D-081), when a shadow tip (D-157) turns red after a green batch.",
+  "x-readers": [
+    "scripts/lib/train_git.py"
+  ]
+}

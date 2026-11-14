@@ -1,0 +1,15 @@
+{
+  "id": "engine-production",
+  "purpose": "The production hard check and the on-demand preview.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/registry/production.json",
+    "scripts/lib/production_guard.py",
+    "scripts/tests/production-guard.test.sh",
+    "scripts/tests/test_production_guard.py"
+  ],
+  "requires": {
+    "engine-config": "^1"
+  }
+}

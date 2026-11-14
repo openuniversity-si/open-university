@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 8,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Cap on the script tests that run at the same time in the gate; the rest wait for a free place. The effective concurrency is min(this, floor(vCPUs x gate.script_tests_per_vcpu)) (GX-03). Output stays in test order.",
+  "x-readers": [
+    "scripts/lib/gate_graph.py",
+    "scripts/lib/gate_test_cache.py"
+  ]
+}

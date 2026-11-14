@@ -1,0 +1,11 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-flag": true,
+  "x-unit": "flag",
+  "description": "Whether scripts/gate-local runs the gate preflight (scripts/lib/preflight.py gate, probes env.gate_preflight_probes) before it takes the gate lock, a slot or a worktree; a gap prints `FAIL env: <gap>` and the class line and exits 2 (GX-01, D-070). Off is the one-key rollback when a false positive blocks the gates of a machine.",
+  "x-readers": [
+    "scripts/gate-local"
+  ],
+  "x-source": "D-070 (GX-01)"
+}

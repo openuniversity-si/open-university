@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-42"
+slug: "gate-proof-content-addressed"
+statement: "GA-P01: gate proof is content-addressed (tree + base + toolchain); a docs-only commit carries test/build results, but the structure/metadata check always reruns, and script tests that read docs rerun when docs change."
+kind: "process"
+scope: "global"
+source:
+  who: "A Torre"
+  where: "A Torre 27/10 13:03 under Daniel's delegation (plan gate-excellence §1.1)"
+  quote: "Faz que reflita, reflita bastante, por favor, faz tudo refletido. Depois faz o que você acha julga melhor aí."
+  at: "2026-10-27T13:03:00-03:00"
+status: "confirmed"
+radius: "high"
+blast:
+  reasons: ["decision:D-070", "plan:gate-excellence"]
+  if_wrong: "Proof keys change; docs-only commits re-prove everything or skip checks wrongly (GX-09/GX-10/GX-16 rework)."
+validate:
+  kind: "none"
+  how: null
+answer:
+  by: "A Torre"
+  at: "2026-10-27T13:03:00-03:00"
+  value: "confirmed"
+  quote: "Faz que reflita, reflita bastante, por favor, faz tudo refletido. Depois faz o que você acha julga melhor aí."
+  where: "Daniel's delegation, chat 27/10 13:03; A Torre 27/10 13:03 under Daniel's delegation (plan gate-excellence §1.1)"
+  evidence: null
+  translation: "Make it reflect, reflect a lot, please, do everything thoughtfully. Then do what you think is best."
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []

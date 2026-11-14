@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/premises [--root DIR] [--at TIME] find|propose|answer|list|blast ...
+# The premise register (D-066): find before propose, record answers with a literal quote, list the index on demand
+# (never committed), and compute a premise's blast. Events are printed until the forge_events port (M2).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/premises.py" "$@"

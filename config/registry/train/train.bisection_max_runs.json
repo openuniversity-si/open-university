@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 4,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Most tier-2 runs one bisection may spend. The train refuses to start when train.batch_size needs more (ceil(log2 B)), so a red batch always ends with a culprit.",
+  "x-readers": [
+    "scripts/lib/train.py"
+  ]
+}

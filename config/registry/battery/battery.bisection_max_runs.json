@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 6,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Most tier-3 runs one batch bisection may spend over the tips advanced since the last green tip (enough for 2^6 = 64 tips). When they run out first, battery.culprit names the batches still in doubt instead of one culprit.",
+  "x-readers": [
+    "scripts/lib/battery.py"
+  ]
+}

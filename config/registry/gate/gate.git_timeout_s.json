@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "default": 30,
+  "exclusiveMinimum": 0,
+  "x-unit": "s",
+  "description": "Timeout of each git call the gate's speed record makes (gate_speed.py), such as the tree and file hashes that key the caches.",
+  "x-readers": [
+    "scripts/lib/gate_speed.py"
+  ],
+  "x-source": "D-064 (f); D-069 item 14"
+}

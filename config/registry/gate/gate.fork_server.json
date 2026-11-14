@@ -1,0 +1,9 @@
+{
+  "type": "boolean",
+  "default": true,
+  "x-unit": "flag",
+  "description": "GATE-SPEED F4 (D-122): a suite run starts one fork server (scripts/lib/fork_server.py) and puts its native client first on every script test's PATH as python3, so each Python process a test starts is a fork of a warm interpreter instead of a fresh one. Off, or with no C compiler on the box, every process is a fresh interpreter as before.",
+  "x-readers": [
+    "scripts/lib/gate_test_cache.py"
+  ]
+}

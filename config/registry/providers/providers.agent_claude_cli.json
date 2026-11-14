@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "claude",
+  "minLength": 1,
+  "x-unit": "command",
+  "description": "The Claude Code CLI the Claude adapter runs (a name on PATH or a path).",
+  "x-readers": [
+    "scripts/lib/adapters/agent_claude.py"
+  ],
+  "x-source": "plan v3.1 delta §2 R1"
+}

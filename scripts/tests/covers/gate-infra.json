@@ -1,0 +1,28 @@
+{
+  "script": "scripts/tests/gate-infra.test.sh",
+  "covers": [
+    "scripts/tests/gate-infra.test.sh",
+    "scripts/tests/test_gate_infra.py",
+    "scripts/gate-check",
+    "scripts/lib/gate-runner.sh",
+    "scripts/lib/gate-isolation.sh",
+    "scripts/lib/gate_policy.py",
+    "scripts/lib/gate_workflows.py",
+    "units/engine-gate-infra/unit.json",
+    "scripts/gate-infra",
+    "scripts/lib/gate_infra.py",
+    "scripts/lib/gate_script_tests.py",
+    "config/management/gate-train.json",
+    "config/registry/gate-infra.json",
+    "config/registry/gate-infra/**",
+    "infra/db/migrations/**",
+    "infra/service/tower_infra/**",
+    "scripts/tests/infra_db/psql.py",
+    "scripts/tests/test_infra_forge.py",
+    "scripts/tests/runner_world.py",
+    "scripts/lib/test_db.py",
+    "config/registry/test-db.json",
+    "scripts/lib/gate_test_cache.py",
+    "scripts/lib/merge_train.py"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/deliver.test.sh",
+  "covers": [
+    "scripts/tests/deliver.test.sh",
+    "scripts/tests/test_deliver.py",
+    "scripts/deliver",
+    "scripts/lib/deliver.py",
+    "scripts/lib/box_queue.py",
+    "config/registry/delivery.json",
+    "scripts/lib/gate_classify.py",
+    "scripts/lib/merge_train.py"
+  ]
+}
