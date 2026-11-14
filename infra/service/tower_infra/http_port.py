@@ -165,13 +165,27 @@ BUILD_ENDED = ("insert into log.event (event_id, tenant_id, type, occurred_at, p
 MIGRATION = "select max(payload->>'migration') from log.event where type = 'platform.migration.applied'"
 
 
+# FAST-PATH-RELOAD: a build's start (IN_PROGRESS) becomes platform.deploy.started {build}, once per build, and wakes the
+# autodeploy look on tower_deploy (no trigger names this type): the look then watches that build's record while it may still
+# name the reload of a code-only merge (autodeploy.build_reload). Nothing else reads it.
+BUILD_STARTED = ("with said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
+                 "select %(id)s, null, 'platform.deploy.started', clock_timestamp(), 'codebuild', 'deploy/build', %(payload)s::jsonb "
+                 "where not exists (select 1 from log.event where event_id = %(id)s and type = 'platform.deploy.started' "
+                 "and occurred_at > now() - interval '2 days') returning type) select pg_notify('tower_deploy', type) from said")
+
+
 def build_state(event, db):
     """A CodeBuild Build State Change of the deployer: a terminal status becomes platform.deploy.ended, once per build
     (EventBridge delivers at least once). Its id is not the autodeploy's own (platform.deploy.ended:<build>, written when it
     settles the build with the sha and the dirty stacks), so both stand; this one only wakes the look sooner. The build is
-    named as last-build names it (<project>:<uuid>, the part of the ARN after build/). Anything else is ignored."""
+    named as last-build names it (<project>:<uuid>, the part of the ARN after build/). FAST-PATH-RELOAD: its start is
+    platform.deploy.started (BUILD_STARTED). Anything else is ignored."""
     detail = event.get('detail') if isinstance(event.get('detail'), dict) else {}
     status, build = str(detail.get('build-status') or ''), str(detail.get('build-id') or '').rpartition('build/')[2]
+    if detail.get('project-name') == BUILD_PROJECT and status == 'IN_PROGRESS' and build:  # FAST-PATH-RELOAD
+        ident = f'platform.deploy.started:{build}'
+        db.rows(BUILD_STARTED, {'id': ident, 'payload': json.dumps({'build': build, 'source': 'codebuild'})})
+        return {'event_id': ident}
     if detail.get('project-name') != BUILD_PROJECT or status not in BUILD_TERMINAL or not build:
         return {'ignored': True}
     ident = f'platform.deploy.ended:{build}:codebuild'

@@ -395,8 +395,19 @@ class BuildStateTests(unittest.TestCase):
         for status in ('FAILED', 'FAULT', 'STOPPED', 'TIMED_OUT'):
             self.assertIn('event_id', http_port.handle(self.change(status), self.Recorder(), StatusEndpointTests.INSTALLATION))
 
+    def test_a_builds_start_is_one_started_event_that_wakes_the_look_and_never_an_end(self):
+        # FAST-PATH-RELOAD: the look then watches that build's record while it may still ask for a reload in place
+        db = self.Recorder()
+        said = http_port.handle(self.change('IN_PROGRESS'), db, StatusEndpointTests.INSTALLATION)
+        self.assertEqual(said, {'event_id': 'platform.deploy.started:tower-infra-deploy:db4150e4-a2ea'})
+        (sql, params), = db.writes
+        self.assertIn("'platform.deploy.started'", sql)
+        self.assertNotIn("'platform.deploy.ended'", sql)
+        self.assertIn("pg_notify('tower_deploy', type)", sql)
+        self.assertEqual(json.loads(params['payload']), {'build': 'tower-infra-deploy:db4150e4-a2ea', 'source': 'codebuild'})
+
     def test_a_running_build_another_project_or_an_http_call_writes_nothing(self):
-        for event in (self.change('IN_PROGRESS'), self.change('SUCCEEDED', project='other')):
+        for event in (self.change('QUEUED'), self.change('IN_PROGRESS', project='other'), self.change('SUCCEEDED', project='other')):
             db = self.Recorder()
             self.assertEqual(http_port.handle(event, db, StatusEndpointTests.INSTALLATION), {'ignored': True})
             self.assertEqual(db.writes, [])

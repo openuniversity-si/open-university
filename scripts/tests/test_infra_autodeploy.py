@@ -60,6 +60,8 @@ class FakeDb:
                     if head in self.artifacts else [])
         if sql == autodeploy.TAKEOVER:  # RING-AT-TAKEOVER: no swap of the head (test_infra_reload_nostandby says one)
             return []
+        if sql == autodeploy.STARTED:  # FAST-PATH-RELOAD: the newest build CodeBuild said started (none unless said)
+            return list(getattr(self, 'started', []))
         if "type = 'platform.deploy.fast'" in sql and sql.startswith('select'):  # FAST-DURABLE: the swaps of the log
             found = [(json.dumps(payload), int(when.timestamp())) for kind, when, payload in self.ledger
                      if kind == 'platform.deploy.fast']

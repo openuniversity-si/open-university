@@ -21,11 +21,14 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
-from tower_infra import canary, live_image  # noqa: E402
+from tower_infra import autodeploy, canary, http_port, live_image  # noqa: E402
+import test_infra_autodeploy as looks  # noqa: E402
 import test_infra_reload_nostandby as nostandby  # noqa: E402
 
 S, ECS, KEY, MERGE = nostandby.S, nostandby.ECS, nostandby.KEY, nostandby.MERGE
 ALONE = {**nostandby.ORDER, 'pr_head': None, 'roles': ['service'], 'by': 'build', 'build': 'tower-infra-deploy:b1'}
+BUILD = {'build_id': 'tower-infra-deploy:b1', 'base_head': MERGE, 'status': 'in_progress', 'step': 'reload',
+         'reload': {'key': KEY, 'sha256': S, 'head': MERGE, 'state': 'asked'}}
 
 
 def claim(task='ecs-service', at=100.0):
@@ -127,6 +130,119 @@ class TheServiceAlone(unittest.TestCase):
         self.assertEqual(canary.Live(Gate(), None).due()[1], 'order')
 
 
+class Db(nostandby.Db):
+    """The look's fake database with the build's start and the declined word."""
+
+    def __init__(self):
+        super().__init__()
+        self.started, self.declined = [], []
+
+    def rows(self, sql, params=None):
+        if sql == autodeploy.STARTED:
+            return list(self.started)
+        if sql == live_image.ORDER_SAY:
+            self.declined.append(json.loads(params['payload']))
+            return []
+        return super().rows(sql, params)
+
+
+class TheLookOrders(nostandby.image_swap.World):
+    def setUp(self):
+        super().setUp()
+        self.db = Db()
+
+    def look(self, build):
+        self.watcher.seen_build = build
+        self.watcher.build_reload(self.db)
+
+    def test_the_builds_ask_is_ordered_for_the_service_alone_once(self):
+        with self.assertLogs('tower_infra.autodeploy', 'INFO') as logs:
+            self.look(BUILD)
+        self.assertEqual(self.db.asked, [ALONE])
+        self.assertIn('ordered: the ECS tasks load aaaaaaaaaaaa in place, the service alone', '\n'.join(logs.output))
+        self.assertEqual(self.watcher.reload, MERGE)
+        self.look(BUILD)  # the same ask on the next look: nothing more
+        self.assertEqual(len(self.db.asked), 1)
+
+    def test_only_the_builds_own_head_and_bundle_in_progress_are_ordered(self):
+        cases = ({**BUILD, 'status': 'succeeded'}, {**BUILD, 'base_head': 'b' * 40},
+                 {**BUILD, 'reload': {**BUILD['reload'], 'key': KEY.replace('a', 'b')}},
+                 {**BUILD, 'reload': {**BUILD['reload'], 'head': 'short'}}, {key: v for key, v in BUILD.items() if key != 'reload'})
+        for build in cases:
+            with self.subTest(build=build):
+                self.setUp()
+                with self.assertNoLogs('tower_infra.autodeploy', 'ERROR'):
+                    self.look(build)
+                self.assertEqual(self.db.asked, [])
+
+    def test_an_order_that_cannot_be_made_is_said_declined_for_the_build(self):
+        for busy, bad, why in (('c' * 40, False, 'the order of cccccccccccc is not settled'),
+                               (None, True, 'a reload onto aaaaaaaaaaaa failed in the last 7 days')):
+            with self.subTest(why):
+                self.setUp()
+                self.db.busy, self.db.bad = busy, bad
+                self.look(BUILD)
+                [said] = self.db.declined
+                self.assertEqual((said['state'], said['digest'], said['order'], said['why']), ('declined', S, MERGE, why))
+                self.assertIsNone(self.watcher.waiting)  # a build's order never waits: the build goes on to the image
+
+    def test_the_build_heard_starting_keeps_the_safety_look_short_until_it_leaves_its_classification(self):
+        self.db.started = [('tower-infra-deploy:b2', 3.0)]  # CodeBuild said b2 started; last-build is still b1's end
+        self.look({**BUILD, 'status': 'succeeded'})
+        self.assertTrue((self.watcher.building, self.watcher.asking) == (True, True))
+        self.assertEqual(self.watcher.safety_s(), autodeploy.ASK_LOOK_S)
+        self.look({**BUILD, 'build_id': 'tower-infra-deploy:b2', 'step': 'code-live', 'reload': None})
+        self.assertTrue(self.watcher.asking)  # its record is written, it has not asked yet
+        self.look({**BUILD, 'build_id': 'tower-infra-deploy:b2', 'step': 'image:service', 'reload': None})
+        self.assertFalse(self.watcher.asking)  # past its classification: it will not ask
+        self.assertEqual(self.watcher.safety_s(), self.watcher.check_every_s)
+        self.db.started = [('tower-infra-deploy:b2', autodeploy.ASK_WINDOW_S + 1)]
+        self.watcher.building = False
+        self.look({**BUILD, 'status': 'succeeded'})
+        self.assertFalse(self.watcher.asking)
+
+    def test_proven_alone_ends_the_order_and_writes_the_live_code_of_the_builds_head(self):
+        self.look(BUILD)
+        self.db.order = [(json.dumps(ALONE), 5.0, json.dumps([claim(), {**claim(), 'state': 'reloaded'}]), False, '{}', None, 1000.0)]
+        self.watcher.reloads(self.db, [])
+        self.assertEqual([each for each in self.db.asked if isinstance(each, dict) and 'newest' in each], [])
+        proven = {'role': 'service', 'digest': S, 'state': 'proven', 'order': MERGE}
+        self.db.order = [(json.dumps(ALONE), 6.0, json.dumps([claim(), proven]), False, '{}', None, 1000.0)]
+        with self.assertLogs('tower_infra.autodeploy', 'INFO') as logs:
+            self.watcher.reloads(self.db, [])  # no landing names heads on GitHub: the build's head is the newest
+        done = self.db.asked[-1]
+        self.assertEqual((done['head'], done['digest'], done['newest'], done['roles']), (MERGE, S, True, 1))
+        self.assertIn('reloaded in place: the ECS task of service runs aaaaaaaaaaaa and proved it; deploy.live_code -> aaaa',
+                      '\n'.join(logs.output))
+        self.assertIsNone(self.watcher.reload)
+
+    def test_the_order_done_counts_the_orders_roles(self):
+        self.assertIn("and e.payload->>'state' = 'proven') = %(roles)s", autodeploy.ORDER_DONE)
+
+
+class ThePortHearsTheStart(unittest.TestCase):
+    def test_a_builds_start_is_recorded_and_wakes_the_look_its_end_as_before(self):
+        sent = []
+
+        class Rec:
+            def rows(self, sql, params=None):
+                sent.append((sql, params))
+                return []
+        arn = 'arn:aws:codebuild:us-east-1:1:build/tower-infra-deploy:b2'
+        said = http_port.build_state({'detail': {'project-name': 'tower-infra-deploy', 'build-status': 'IN_PROGRESS',
+                                                 'build-id': arn}}, Rec())
+        self.assertEqual(said, {'event_id': 'platform.deploy.started:tower-infra-deploy:b2'})
+        self.assertEqual(sent[0][0], http_port.BUILD_STARTED)
+        self.assertIn("pg_notify('tower_deploy', type)", http_port.BUILD_STARTED)
+        self.assertEqual(json.loads(sent[0][1]['payload']), {'build': 'tower-infra-deploy:b2', 'source': 'codebuild'})
+        said = http_port.build_state({'detail': {'project-name': 'tower-infra-deploy', 'build-status': 'SUCCEEDED',
+                                                 'build-id': arn}}, Rec())
+        self.assertEqual((said, sent[1][0]), ({'event_id': 'platform.deploy.ended:tower-infra-deploy:b2:codebuild'},
+                                              http_port.BUILD_ENDED))
+        self.assertEqual(http_port.build_state({'detail': {'project-name': 'other', 'build-status': 'IN_PROGRESS',
+                                                           'build-id': arn}}, Rec()), {'ignored': True})
+
+
 class TheWiring(unittest.TestCase):
     def test_the_services_good_tick_is_counted_after_its_tick(self):
         body = (ROOT / 'infra/service/tower_infra/__main__.py').read_text()
@@ -134,6 +250,10 @@ class TheWiring(unittest.TestCase):
         counted = body.index('order.ticked()')
         self.assertLess(tick, counted)
         self.assertLess(counted, body.index('gate.back()  # IMAGE-SWAP-RELOAD', tick))
+
+    def test_the_look_asks_for_the_builds_reload_after_the_migrations(self):
+        source = (ROOT / 'infra/service/tower_infra/autodeploy.py').read_text()
+        self.assertLess(source.index('self.migrate(db)  # SLOW'), source.index('self.build_reload(db)  # FAST-PATH-RELOAD'))
 
 
 if __name__ == '__main__':
