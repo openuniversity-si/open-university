@@ -79,9 +79,13 @@ class Pointing(unittest.TestCase):
         # GITHUB-SOURCE (14/11/2026): GitHub is the source of truth; the setup no longer repoints origin at Origin
         setup = (ROOT / 'scripts' / 'cloud' / 'setup.sh').read_text(encoding='utf-8')
         self.assertNotIn('scripts/lib/origin_remote.py" "$ROOT"', setup)
-        with contextlib.redirect_stderr(io.StringIO()) as said:
+        # whatever fails inside (here: a checkout that is not there; with no origin CLI on the machine nothing fails at all,
+        # as on a GitHub-hosted runner), the script says so and never fails the setup
+        from unittest import mock
+        with mock.patch.object(origin_remote, 'point', side_effect=OSError('a checkout that is not there')), \
+                contextlib.redirect_stderr(io.StringIO()) as said:
             self.assertEqual(origin_remote.main(['a checkout that is not there']), 0)
-        self.assertIn('origin: not pointed at Origin', said.getvalue())
+        self.assertIn('origin: not pointed at Origin (OSError: a checkout that is not there)', said.getvalue())
 
 
 if __name__ == '__main__':

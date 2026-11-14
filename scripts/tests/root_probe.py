@@ -71,6 +71,12 @@ def _package_uid(tool, node, foreign):
     return {'uid': uid, 'exit': completed.returncode, 'detail': detail, 'home': env['HOME']}
 
 
+def reachable_by_others(path):
+    """Whether an account with no group in common can reach `path`: every directory down to it lets others traverse."""
+    path = Path(path).resolve()
+    return all(os.stat(each).st_mode & stat.S_IXOTH for each in (path, *path.parents))
+
+
 def main():
     if os.geteuid() != 0:
         print('probe requires uid 0', file=sys.stderr)
@@ -90,11 +96,20 @@ def main():
         shutil.rmtree(stale)
     data = None
     try:
-        (work / 'postgres').symlink_to(REAL / 'postgres', target_is_directory=True)
         bindir = work / 'bin'
         bindir.mkdir()
-        for name in ('initdb', 'psql', 'pg_ctl', 'createdb'):
-            (bindir / name).symlink_to(REAL / 'bin' / name)
+        identity.traversable(REAL / 'bin')  # what root may open (the ancestors it owns), as share_toolchain does
+        if reachable_by_others(REAL):
+            (work / 'postgres').symlink_to(REAL / 'postgres', target_is_directory=True)
+            for name in ('initdb', 'psql', 'pg_ctl', 'createdb'):
+                (bindir / name).symlink_to(REAL / 'bin' / name)
+        else:
+            # PROBE-PRIVATE-HOME: the dropped account cannot reach a toolchain under a home that another uid owns and does
+            # not let others traverse (a GitHub runner's /home/runner, owned by runner: initdb was "Permission denied",
+            # full-suite run 43571047528), and root may not change that home: the probe works on a copy of the toolchain
+            shutil.copytree(REAL / 'postgres', work / 'postgres', symlinks=True)
+            for name in ('initdb', 'psql', 'pg_ctl', 'createdb'):
+                shutil.copy2(REAL / 'bin' / name, bindir / name, follow_symlinks=False)
         hidden = work / 'secret-bin'
         hidden.write_text('#!/bin/sh\n')
         hidden.chmod(0o700)

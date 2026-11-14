@@ -17,6 +17,7 @@ import tempfile
 from urllib.parse import urlsplit
 
 import config
+import source_remote  # noqa: E402
 from forge_origin_client import ACTOR_VARIANTS, VERDICT_APPROVE, VERDICT_BLOCK, OriginClientError, _redact
 from forge_control import ControlAdapter, PortAdapter
 import forge_events
@@ -70,9 +71,9 @@ def git_host(url):
 
 
 def on_github(url, repo):
-    """GITHUB-SOURCE: whether `url` is `repo` on github.com (the source of truth since 14/11/2026)."""
-    path = url.removesuffix('.git').rstrip('/')
-    return git_host(url) == 'github.com' and any(path.endswith(mark + repo) for mark in '/:')
+    """GITHUB-SOURCE: whether `url` is `repo` on GitHub (the source of truth since 14/11/2026, D-314): asked of the GitHub
+    adapter source_remote, so this Origin adapter never names another vendor's host."""
+    return source_remote.on_github(url, repo, git_host)
 
 
 def refuse_remote(url, repo):
