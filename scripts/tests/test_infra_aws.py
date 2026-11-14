@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 INFRA = ROOT / 'infra' / 'aws'
 RECORD = ROOT / 'docs/domain/decisions/D-303.md'
+BUDGET_RECORD = ROOT / 'docs/domain/decisions/D-315.md'  # D-315 amends D-303's numbers (US$ 150, ceiling US$ 200)
 
 
 def load(path):
@@ -19,8 +20,8 @@ def load(path):
 
 
 def decided():
-    """Daniel's numbers as D-303 states them: the monthly ceiling, the actual alerts and the forecast alert."""
-    text = RECORD.read_text(encoding='utf-8')
+    """Daniel's numbers as D-315 states them (it amends D-303's): the monthly limit, the actual alerts and the forecast alert."""
+    text = BUDGET_RECORD.read_text(encoding='utf-8')
     ceiling = int(re.search(r'US\$ (\d+) a month, unblended', text).group(1))
     actual = [int(value) for value in re.search(r'actual (\d+)/(\d+)/(\d+) %', text).groups()]
     forecast = int(re.search(r'forecast (\d+) %', text).group(1))
@@ -28,14 +29,19 @@ def decided():
 
 
 class BudgetTests(unittest.TestCase):
-    """The ceiling Daniel approved on 04/11 01:39 BRT, as the Torre created it in the console at 01:44."""
+    """The ceiling Daniel approved on 04/11 01:39 BRT, as the Torre created it in the console at 01:44, raised by D-315."""
 
     def setUp(self):
         self.budget = load(INFRA / 'budget.json')
 
     def test_the_ceiling_is_the_decided_one(self):
         ceiling, _, _ = decided()
-        self.assertEqual(self.budget['name'], f'torre-motor-teto-{ceiling}')
+        # the console budget keeps the name it was created with under D-303's US$ 60; D-315 changed only its limit
+        self.assertEqual(self.budget['name'], 'torre-motor-teto-60')
+        self.assertIn('`torre-motor-teto-60`', BUDGET_RECORD.read_text(encoding='utf-8'))
+        self.assertIn('US$ 200 monthly ceiling', BUDGET_RECORD.read_text(encoding='utf-8'))
+        self.assertIn('US$ 200 monthly ceiling', self.budget['contract'])
+        self.assertEqual(self.budget['amended']['approved'], 'Daniel through the Torre, 14/11/2026')
         self.assertEqual((self.budget['budget_type'], self.budget['time_unit']), ('COST', 'MONTHLY'))
         self.assertEqual(self.budget['limit'], {'amount': ceiling, 'unit': 'USD'})
 

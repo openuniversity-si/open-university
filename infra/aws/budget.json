@@ -1,5 +1,5 @@
 {
-  "contract": "the AWS budget of D-303, declared here and kept in the AWS console, outside the deploy pipeline, so no merged change can raise its own ceiling",
+  "contract": "the AWS budget of D-303, amended by D-315: US$ 150 a month under a US$ 200 monthly ceiling (approved by Daniel through the Torre, 14/11/2026); declared here and kept in the AWS console, outside the deploy pipeline, so no merged change can raise its own ceiling. The name keeps the 60 it was created with: it is the console budget's name",
   "name": "torre-motor-teto-60",
   "created": {
     "by": "Torre",
@@ -9,7 +9,7 @@
   "budget_type": "COST",
   "time_unit": "MONTHLY",
   "limit": {
-    "amount": 60,
+    "amount": 150,
     "unit": "USD"
   },
   "start": "2026-11-01",
@@ -52,5 +52,12 @@
     "by": "Torre",
     "at": "2026-11-04T09:00-03:00",
     "change": "moved from Metrics (UnblendedCost) to CostTypes with credits and refunds excluded; the AWS API does not accept Metrics together with CostTypes, and CostTypes measures unblended cost when use_blended and use_amortized are false"
+  },
+  "amended": {
+    "by": "Torre",
+    "at": "2026-11-14",
+    "approved": "Daniel through the Torre, 14/11/2026",
+    "decision": "D-315",
+    "change": "limit from US$ 60 to US$ 150 a month, under a US$ 200 monthly ceiling; the alerts stay actual 50/80/100 % and forecast 100 %"
   }
 }
