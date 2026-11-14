@@ -31,9 +31,9 @@
     },
     "DesiredCount": {
       "Type": "Number",
-      "Default": 1,
+      "Default": 0,
       "MinValue": 0,
-      "Description": "Warm runners: one at 1 PR/min; the capacity registered through the port gives one slot to each"
+      "Description": "Warm runners (the capacity registered through the port gives one slot to each). 0 since the gate left AWS (the migration to GitHub, 14/11): infra/aws/parameters.json passes it on every deploy, so an apply of this stack never starts a runner again"
     },
     "LogDays": {
       "Type": "Number",

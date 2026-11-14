@@ -985,8 +985,9 @@ class RunnerStackTests(unittest.TestCase):
 
     def test_it_is_the_warm_runner_of_the_architecture_on_fargate_spot_arm(self):
         self.assertIn('um runner quente de 2 vCPU', TARGET.read_text(encoding='utf-8'))
+        # RUNNER-OFF (the migration to GitHub, 14/11): no warm runner since the gate left AWS; parameters.json passes 0 too
         self.assertEqual((self.default('Cpu'), self.default('Memory'), self.default('DesiredCount')),
-                         ('2048', '8192', 1))
+                         ('2048', '8192', 0))
         self.assertEqual((self.task['Cpu'], self.task['Memory']), ({'Ref': 'Cpu'}, {'Ref': 'Memory'}))
         self.assertEqual(self.task['RuntimePlatform'], {'CpuArchitecture': 'ARM64', 'OperatingSystemFamily': 'LINUX'})
         service = self.resources['Service']['Properties']

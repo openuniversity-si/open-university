@@ -8,5 +8,8 @@
   "service": {
     "Cpu": "512",
     "Memory": "1024"
+  },
+  "runner": {
+    "DesiredCount": "0"
   }
 }

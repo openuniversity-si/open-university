@@ -642,6 +642,22 @@ class DeployShTests(unittest.TestCase):
         port = [c for c in (self.state / 'calls').read_text().splitlines() if 'cloudformation deploy' in c and 'tower-app-port' in c]
         self.assertNotIn('Memory=', port[0])
 
+    def test_the_runner_stack_is_applied_with_no_runner(self):
+        """RUNNER-OFF (the migration to GitHub, 14/11): the gate left AWS. A stack keeps a parameter's previous value when it
+        is not given, and the runner stack's default was 1: the first deploy from GitHub brought tower-runner back to 1/1
+        (8 GiB) after the Torre had set it to 0. infra/aws/parameters.json passes DesiredCount=0 on every apply."""
+        self.assertEqual(json.loads((ROOT / 'infra/aws/parameters.json').read_text())['runner'], {'DesiredCount': '0'})
+        runner = json.loads((ROOT / 'infra/aws/stacks/50-runner.json').read_text())
+        self.assertEqual(runner['Parameters']['DesiredCount']['Default'], 0)
+        self.five_stacks()
+        repo = self.tmp / 'repo'
+        (repo / 'infra/aws/parameters.json').write_text((ROOT / 'infra/aws/parameters.json').read_text())
+        done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        calls = [c for c in (self.state / 'calls').read_text().splitlines() if 'cloudformation deploy' in c and 'tower-app-runner' in c]
+        self.assertTrue(calls, done.stdout[-2000:])
+        self.assertIn('DesiredCount=0', calls[0])
+
     def test_the_repo_parameters_make_production_sqs_and_the_template_default_stays_the_fallback(self):
         self.assertEqual(json.loads((ROOT / 'infra/aws/parameters.json').read_text())['port']['AckPath'], 'sqs')  # PORT7-PROD
         port = json.loads((ROOT / 'infra/aws/stacks/40-port.json').read_text())
@@ -1745,6 +1761,23 @@ class SlowPathShTests(DeployShTests):
         self.assertEqual(build['rolling']['changed'], ['port', 'runner', 'service'])  # what a red smoke would roll back: both builds'
         self.assertEqual(build['rolling']['prev']['service'], 'registry.test/tower-service:one')
         self.assertEqual(build['hashes']['service'], record['rolling']['stacks']['service']['hash'])
+
+    def test_a_build_of_a_github_repository_waits_its_rollouts_and_moves_last_sha_itself(self):
+        """DEPLOY-FROM-GITHUB: no service rings the build that would verify a rolling one, so it is never left rolling."""
+        done, head, build = self.start(ORIGIN_REPO_URL='https://github.com/openuniversity-si/open-university.git', STUB_SLEEP='')
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        self.assertEqual((build['status'], self.recorded('/tower/deploy/last-sha')), ('succeeded', head))
+        self.assertNotIn('--no-execute-changeset', (self.state / 'calls').read_text())
+        self.assertIn('rollouts: waited inside the build', done.stdout)
+        self.setUp()  # an explicit DEPLOY_ROLLOUT_WAIT=0 still leaves them rolling, and Origin's URL is as before
+        for env in ({'ORIGIN_REPO_URL': 'https://github.com/openuniversity-si/open-university.git', 'DEPLOY_ROLLOUT_WAIT': '0'},
+                    {'ORIGIN_REPO_URL': 'https://origin.example/owner/repo.git'}):
+            self.setUp()
+            done, head, build = self.start(**env)
+            self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+            self.assertEqual(build['status'], 'rolling', env)
+            self.assertIsNone(self.recorded('/tower/deploy/last-sha'))
+            self.assertNotIn('rollouts: waited inside the build', done.stdout)
 
     def test_a_hard_edge_a_new_stack_a_bisection_or_the_switch_wait_inside_the_build(self):
         done, head, build = self.start(DEPLOY_ROLLOUT_WAIT='1', STUB_SLEEP='')
