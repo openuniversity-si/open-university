@@ -152,7 +152,11 @@ class BootstrapTests(unittest.TestCase):
     # say ${AWS::Partition} and ${AWS::AccountId}, which CloudFormation fills in when the Torre applies it. The pin is the
     # public template's. The account still runs the template applied before publication (fe8c30de...1300), the same
     # policy in the aws partition; the Torre re-applies this one at the next bootstrap change, nothing before it.
-    APPLIED = 'e2f617036c4d441db0e9dccc4441dce81ddadbda3082643dec6c3e8528a55472'
+    # BUILD-NO-ORIGIN (Daniel through the Torre, 14/11/2026): the deploy build clones the public GitHub repository with
+    # plain git, so its BuildSpec drops the Origin CLI, its login and the /tower/origin/api-key parameter. The Torre
+    # re-applies tower-bootstrap with this template after the merge (UsePreviousValue for its parameters); the pin is
+    # what the account has once re-applied.
+    APPLIED = '64f53161d46028a599c35d1255e7865e363e5e5e82fcbb94448758eb3df01a07'
 
     def test_the_file_is_the_template_the_account_has_applied(self):
         canonical = json.dumps(self.template, sort_keys=True, separators=(',', ':'))
@@ -391,12 +395,13 @@ class BootstrapTests(unittest.TestCase):
         for permission in permissions.values():
             self.assertEqual(permission['FunctionName'], {'Ref': 'DoorbellFunction'})
 
-    def test_the_build_exchanges_the_key_before_cloning(self):
-        # The origin credential helper reads CURSOR_AUTH_TOKEN or a stored login, never CURSOR_API_KEY: the first
-        # build (673da7b9) failed the clone with "Not logged in to Origin".
+    def test_the_build_clones_the_public_repository_without_a_key(self):
+        # BUILD-NO-ORIGIN (D-314): the base is a public GitHub repository, so the clone needs no credential; the build
+        # installs no Origin CLI and reads no Parameter Store key, and a revoked Cursor key can no longer fail it.
         spec = self.resources['DeployProject']['Properties']['Source']['BuildSpec']
-        exchange = spec.index('export CURSOR_AUTH_TOKEN="$(origin auth token)"')
-        self.assertLess(exchange, spec.index('git clone'))
+        for gone in ('parameter-store', 'CURSOR_', '/tower/origin/', 'downloads.cursor.com', 'origin auth', 'origin --version'):
+            self.assertNotIn(gone, spec)
+        self.assertLess(spec.index('git clone'), spec.index('bash repo/infra/aws/deploy.sh'))
 
     def test_the_build_never_exits_its_shell(self):
         # CodeBuild runs the commands of a buildspec 0.2 in one shell; an exit there ends the phase early.
@@ -409,7 +414,7 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(project['Source']['Type'], 'NO_SOURCE')
         spec = project['Source']['BuildSpec']
         spec += (INFRA / 'deploy.sh').read_text()  # DEP1: the deploy logic is in the repo, the buildspec runs it
-        for needle in ('CURSOR_API_KEY: /tower/origin/api-key', '--branch "$BASE_BRANCH"', '--stack-name "tower-app-$n"',
+        for needle in ('--branch "$BASE_BRANCH"', '--stack-name "tower-app-$n"',
                        '--role-arn "$CFN_EXEC_ROLE_ARN"', '/tower/deploy/last-sha', 'bash repo/infra/aws/deploy.sh'):
             self.assertIn(needle, spec)
         self.assertEqual(self.template['Parameters']['BaseBranch']['Default'], 'mod/roadmap-integration')
