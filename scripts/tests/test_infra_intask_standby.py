@@ -897,10 +897,7 @@ class OnlyTheContainersFirstProcessSupervises(unittest.TestCase):
         self.assertFalse(due('run-container', {supervisor.DIR: '/spool'}, pid=7, parent=1))  # a supervised orphan stays a role's process
         self.assertFalse(due('run-container', {supervisor.FORCE: '0'}, pid=7, parent=1))
         self.assertFalse(due('healthy', {}, pid=7, parent=1))  # the health check ECS runs beside it
-        runner_stack = json.loads((ROOT / 'infra/aws/stacks/50-runner.json').read_text(encoding='utf-8'))
-        [task] = [each for each in runner_stack['Resources'].values() if each['Type'] == 'AWS::ECS::TaskDefinition']
-        [container] = task['Properties']['ContainerDefinitions']
-        self.assertEqual(container['LinuxParameters'], {'InitProcessEnabled': True})  # why the rule is needed
+        # (GATE-SHUTDOWN, D-314: the runner's task definition, whose init at pid 1 made the rule needed, left 50-runner.json)
 
     def test_the_supervisor_comes_before_the_boot_and_a_supervised_process_boots_and_serves_as_before(self):
         order = []

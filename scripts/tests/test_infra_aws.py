@@ -882,8 +882,8 @@ class PrewarmStandbyTests(unittest.TestCase):
     def test_pass_role_only_the_four_task_roles_and_only_to_ecs_tasks(self):
         to_ecs = {'iam:PassedToService': 'ecs-tasks.amazonaws.com'}
         names = {load(INFRA / 'stacks' / stack)['Resources'][role]['Properties']['RoleName']
-                 for stack in ('30-service.json', '50-runner.json') for role in ('TaskRole', 'ExecutionRole')}
-        self.assertEqual(names, {'tower-app-runner', 'tower-app-runner-exec', 'tower-app-service', 'tower-app-service-exec'})
+                 for stack in ('30-service.json',) for role in ('TaskRole', 'ExecutionRole')}  # GATE-SHUTDOWN: no runner roles
+        self.assertEqual(names, {'tower-app-service', 'tower-app-service-exec'})
         for name in names:
             self.assertTrue(self.allowed('iam:PassRole', f'arn:aws-partition:iam::ACCOUNT:role/{name}', to_ecs))
             self.assertFalse(self.allowed('iam:PassRole', f'arn:aws-partition:iam::ACCOUNT:role/{name}',
@@ -926,10 +926,7 @@ class PrewarmStandbyTests(unittest.TestCase):
         network = self.resources['Service']['Properties']['NetworkConfiguration']['AwsvpcConfiguration']
         self.assertEqual({'Fn::Split': [',', given['TOWER_STANDBY_SUBNETS']]}, network['Subnets'])
         self.assertEqual([given['TOWER_STANDBY_SECURITY_GROUPS']], network['SecurityGroups'])
-        runner = load(INFRA / 'stacks/50-runner.json')['Resources']
-        self.assertEqual(runner['TaskDefinition']['Properties']['Family'], 'tower-runner')
-        self.assertEqual(runner['Service']['Properties']['NetworkConfiguration'], self.resources['Service']['Properties'][
-            'NetworkConfiguration'])  # the runner's standby runs where the runner does
+        # (GATE-SHUTDOWN, D-314: the runner's task definition and service left 50-runner.json)
 
 
 class CloudFormationLimitTests(unittest.TestCase):
