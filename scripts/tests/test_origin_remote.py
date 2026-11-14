@@ -75,11 +75,10 @@ class Pointing(unittest.TestCase):
     def test_what_it_points_at_is_what_the_origin_adapter_accepts(self):
         forge_origin.refuse_remote(origin_remote.remote_url(), origin_remote.config.get('forge-events.repo'))
 
-    def test_the_setup_runs_it_after_its_own_fetch_and_never_fails_on_it(self):
+    def test_the_setup_leaves_a_github_origin_alone_and_the_script_never_fails(self):
+        # GITHUB-SOURCE (14/11/2026): GitHub is the source of truth; the setup no longer repoints origin at Origin
         setup = (ROOT / 'scripts' / 'cloud' / 'setup.sh').read_text(encoding='utf-8')
-        call = '"$OU_PYTHON" "$ROOT/scripts/lib/origin_remote.py" "$ROOT" >>"$LOG" 2>&1 || true'
-        self.assertIn(call, setup)
-        self.assertLess(setup.index('fetch --unshallow origin'), setup.index(call))
+        self.assertNotIn('scripts/lib/origin_remote.py" "$ROOT"', setup)
         with contextlib.redirect_stderr(io.StringIO()) as said:
             self.assertEqual(origin_remote.main(['a checkout that is not there']), 0)
         self.assertIn('origin: not pointed at Origin', said.getvalue())

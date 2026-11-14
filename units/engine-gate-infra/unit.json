@@ -25,7 +25,12 @@
     "scripts/tests/deploy-slow-b.test.sh",
     "scripts/tests/deploy.test.sh",
     "scripts/tests/test_deploy.py",
-    "scripts/tests/covers/deploy.json"
+    "scripts/tests/covers/deploy.json",
+    "scripts/verify-commit",
+    "scripts/lib/verify_commit.py",
+    "scripts/tests/verify-commit.test.sh",
+    "scripts/tests/test_verify_commit.py",
+    "scripts/tests/covers/verify-commit.json"
   ],
   "battery": {
     "command": "scripts/unit-battery engine-gate-infra"

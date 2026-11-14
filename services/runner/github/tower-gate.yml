@@ -1,0 +1,40 @@
+# tower/gate (the migration to GitHub, 14/11/2026; the Torre's choice (a)): the check main's merge queue requires.
+# Staged here and installed by the owner as .github/workflows/tower-gate.yml (D-087: sessions may not write
+# .github/workflows). A GitHub-hosted runner, free on a public repository; it runs scripts/verify-commit, the gate's own
+# plan: its stages and only the script tests whose covers the diff touches, never the whole suite. The job's name is
+# the check's name.
+name: tower-gate
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+permissions:
+  contents: read
+concurrency:
+  group: tower-gate-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+jobs:
+  gate:
+    name: tower/gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@v4
+        with:
+          path: .toolchain
+          key: toolchain-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
+      - name: toolchain
+        run: bash scripts/cloud/setup.sh
+      - name: verify
+        env:
+          EVENT: ${{ github.event_name }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base="$PR_BASE"
+          [ "$EVENT" = merge_group ] && base="$QUEUE_BASE"
+          source scripts/cloud/env.sh
+          scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post

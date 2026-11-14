@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/verify-commit.test.sh",
+  "covers": [
+    "scripts/tests/verify-commit.test.sh",
+    "scripts/tests/test_verify_commit.py",
+    "scripts/verify-commit",
+    "scripts/lib/verify_commit.py",
+    "services/runner/github/tower-gate.yml",
+    ".github/rulesets/main.json",
+    "config/registry/gate/gate.allowed_workflows.json"
+  ]
+}

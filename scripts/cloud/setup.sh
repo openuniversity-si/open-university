@@ -179,10 +179,9 @@ if [[ "$(git -C "$ROOT" rev-parse --is-shallow-repository)" == true ]]; then
   run_quiet git -C "$ROOT" fetch --unshallow origin
 fi
 
-# Daniel 04/11 16:57 BRT: this checkout's origin is Origin, and git signs in to it through the origin CLI (I-4257299c:
-# a cloud checkout can come with origin on the archived GitHub repository). After the fetch above, which still reads the
-# remote the checkout came with; it never fails the setup, and .githooks/pre-push stays the safety net.
-"$OU_PYTHON" "$ROOT/scripts/lib/origin_remote.py" "$ROOT" >>"$LOG" 2>&1 || true
+# GITHUB-SOURCE (14/11/2026): GitHub is the source of truth again and Origin a mirror, so the setup no longer points the
+# checkout's origin at Origin (scripts/lib/origin_remote.py, Daniel 04/11 16:57 BRT, did that while GitHub was archived:
+# it sent the new repository's pushes to Origin, which has no such repository). The script stays for an Origin checkout.
 
 # CENSO-NO-MANIFESTO 3bis: committed generated files (.gitattributes) merge through the regenerate driver.
 run_quiet "$OU_PYTHON" "$ROOT/scripts/lib/merge_regenerate.py" install --root "$ROOT"

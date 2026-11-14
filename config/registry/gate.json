@@ -8,14 +8,16 @@
   "properties": {
     "gate.allowed_workflows": {
       "type": "array",
-      "default": [],
+      "default": [
+        ".github/workflows/tower-gate.yml"
+      ],
       "items": {
         "type": "string",
         "pattern": "^\\.github/(workflows|actions)/"
       },
       "uniqueItems": true,
       "x-unit": "path",
-      "description": "The only GitHub Actions files the gate's `no GitHub Actions workflows` stage allows (ADR-24 as amended by ADR-41, D-086): none since F4 (vazao) deleted the staged Tower runner workflow, which no repository installs (the GitHub repository is archived and forge-events.adapter selects origin). A hosted runner stays one optional, budgeted runner kind (D-087): a workflow for it is named here first, and installed by Daniel, never by a session. The pinned gate reads its own list, so a PR cannot allow its own workflow.",
+      "description": "The only GitHub Actions files the gate's `no GitHub Actions workflows` stage allows (ADR-24 as amended by ADR-41, D-086): `tower-gate.yml`, the tower/gate check of main's merge queue (the migration to GitHub, 14/11/2026: the Torre's choice (a), a GitHub-hosted runner, free on a public repository), staged in services/runner/github/ and installed by the owner, never by a session (D-087).",
       "x-readers": [
         "scripts/lib/gate_workflows.py"
       ],

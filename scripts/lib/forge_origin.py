@@ -69,6 +69,12 @@ def git_host(url):
     return host.lower()
 
 
+def on_github(url, repo):
+    """GITHUB-SOURCE: whether `url` is `repo` on github.com (the source of truth since 14/11/2026)."""
+    path = url.removesuffix('.git').rstrip('/')
+    return git_host(url) == 'github.com' and any(path.endswith(mark + repo) for mark in '/:')
+
+
 def refuse_remote(url, repo):
     """Raise OriginAdapterError unless `url` is `repo` on a declared Origin git host. Merges and locks travel by git:
     a remote on another forge's host would carry them there (fail closed)."""
@@ -97,7 +103,11 @@ def credential_gaps(cached_probe, refs=None, client=None):
     if not any(os.environ.get(name) for name in names):
         gaps.append(f'missing {" or ".join(names)}')
     try:
-        refuse_remote((refs or GitRefs()).url(), config.get('forge-events.repo'))
+        url = (refs or GitRefs()).url()
+        # GITHUB-SOURCE (14/11/2026): GitHub is the source of truth and Origin its mirror; a checkout whose origin is the
+        # same repository on GitHub has no gap. refuse_remote still fails closed for the Origin operations that push
+        if not on_github(url, config.get('forge-events.repo')):
+            refuse_remote(url, config.get('forge-events.repo'))
     except (OriginAdapterError, RuntimeError) as error:
         gaps.append(f'Origin git remote: {error}')
     if gaps:

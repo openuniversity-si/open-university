@@ -154,6 +154,7 @@
   "refs_url": "https://origin.cursor.com/openuniversity-si/open-university.git",
   "git_remotes": {
     "foreign": {"url": "https://github.com/openuniversity-si/open-university.git", "host": "github.com"},
+    "other_forge": {"url": "https://gitlab.example/openuniversity-si/open-university.git", "host": "gitlab.example"},
     "local": {"url": "/srv/git/openuniversity-si/open-university.git", "host": ""},
     "file": {"url": "file:///srv/git/openuniversity-si/open-university.git", "host": ""},
     "relative": {"url": "./relative/openuniversity-si/open-university", "host": ""},
