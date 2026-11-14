@@ -306,14 +306,10 @@ class Stack(unittest.TestCase):
         self.assertLessEqual(len(longest), 256)  # a version's description
 
     def test_the_runner_keeps_the_artifacts_and_knows_the_bucket(self):
+        # GATE-SHUTDOWN (D-314): the runner's role and task are gone; the outputs bucket stays, retained, and its artifacts
+        # never expire (the deployer writes them, the service and the port read them)
         runner = json.loads((ROOT / 'infra/aws/stacks/50-runner.json').read_text())
-        role = next(r for r in runner['Resources'].values() if r.get('Properties', {}).get('RoleName') == 'tower-app-runner')
-        statement = next(s for s in role['Properties']['Policies'][0]['PolicyDocument']['Statement']
-                         if s['Sid'] == 'KeepTheLambdaArtifacts')
-        self.assertEqual(sorted(statement['Action']), ['s3:GetObject', 's3:PutObject'])
-        self.assertEqual(statement['Resource'], {'Fn::Sub': '${Outputs.Arn}/artifacts/lambda/*'})
-        env = runner['Resources']['TaskDefinition']['Properties']['ContainerDefinitions'][0]['Environment']
-        self.assertIn({'Name': 'TOWER_ARTIFACT_BUCKET', 'Value': {'Ref': 'Outputs'}}, env)
+        self.assertEqual(runner['Resources']['Outputs']['DeletionPolicy'], 'Retain')
         lifecycle = runner['Resources']['Outputs']['Properties']['LifecycleConfiguration']['Rules']
         self.assertTrue(all(rule['Prefix'] == 'runs/' for rule in lifecycle))  # artifacts do not expire
 

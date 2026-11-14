@@ -118,6 +118,10 @@ LAMBDA_KEYS = json.dumps({'tower-port-api': 'artifacts/lambda/tower-port-api/aa.
 
 
 
+RIG_ORDER = {'network': [], 'data': ['network'], 'service': ['data', 'network'], 'port': ['data', 'network'],
+             'runner': ['data', 'network', 'service']}  # the graph the rig's templates stand for
+
+
 class DeployShTests(unittest.TestCase):
     def setUp(self):
         # deploy.sh writes its record with jq (the deploy build has it). A runner image without it made every test here fail on
@@ -147,7 +151,10 @@ class DeployShTests(unittest.TestCase):
         repo = self.tmp / 'repo'
         for name in ('20-data', '30-service', '50-runner'):
             (repo / f'infra/aws/stacks/{name}.json').write_text('x\n')
-        (repo / 'infra/aws/order.json').write_text((ROOT / 'infra/aws/order.json').read_text())
+        # the rig's own graph, not the repository's: these tests prove the deployer's edges (a stack that waits for another),
+        # and since GATE-SHUTDOWN the real runner stack (the outputs bucket alone) waits for none; test_deploy's
+        # test_the_declared_graph_is_the_imported_graph keeps the real order.json equal to the real templates' imports
+        (repo / 'infra/aws/order.json').write_text(json.dumps(RIG_ORDER) + '\n')
         git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '.')
         git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'five')
         self.head = git(repo, 'rev-parse', 'HEAD')
@@ -790,7 +797,7 @@ class DeployShTests(unittest.TestCase):
             self.assertIn(f'--parameter-overrides LiveCode= LiveSeen={want} --tags', self.stack_calls('runner')[-1])
 
     def test_the_task_definitions_carry_the_datum_their_deploy_saw_and_it_is_not_in_the_stacks_hash(self):
-        for path, container in (('30-service.json', 'service'), ('50-runner.json', 'runner')):
+        for path, container in (('30-service.json', 'service'),):  # GATE-SHUTDOWN: the runner's task definition is gone
             template = json.loads((ROOT / 'infra/aws/stacks' / path).read_text())
             self.assertEqual(template['Parameters']['LiveSeen']['Default'], '')
             found = next(c for c in template['Resources']['TaskDefinition']['Properties']['ContainerDefinitions'] if c['Name'] == container)
@@ -1972,7 +1979,9 @@ class SlowPathShTests(DeployShTests):
     def test_the_real_templates_that_carry_an_ecs_service_are_the_service_and_the_runner(self):
         found = sorted(path.stem.split('-', 1)[1] for path in (ROOT / 'infra/aws/stacks').glob('*.json')
                        if '"AWS::ECS::Service"' in path.read_text())
-        self.assertEqual(found, ['runner', 'service'])  # what deploy.sh's grep finds: the stacks whose rollout is not waited
+        # what deploy.sh's grep finds: the stacks whose rollout is not waited; GATE-SHUTDOWN (D-314): the runner's ECS service is
+        # gone, so its stack (the outputs bucket alone) is applied and waited like any other
+        self.assertEqual(found, ['service'])
 
 
 for _name in dir(DeployShTests):  # the rig is inherited; the tests of DeployShTests are not run twice

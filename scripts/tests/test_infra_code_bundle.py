@@ -315,7 +315,7 @@ class Bundle(unittest.TestCase):
         self.assertEqual(kept.objects, {KEY: DATA})
 
     def test_both_task_roles_read_the_bundle_prefix_and_both_tasks_know_the_bucket(self):
-        for stack, role in (('30-service.json', 'TaskRole'), ('50-runner.json', 'TaskRole')):
+        for stack, role in (('30-service.json', 'TaskRole'),):  # GATE-SHUTDOWN: the runner's task and role are gone
             template = json.loads((ROOT / 'infra' / 'aws' / 'stacks' / stack).read_text())
             statements = [s for p in template['Resources'][role]['Properties']['Policies']
                           for s in p['PolicyDocument']['Statement']]

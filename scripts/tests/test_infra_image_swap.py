@@ -439,8 +439,7 @@ class Templates(unittest.TestCase):
     def test_the_ecs_tasks_carry_the_digest_and_the_live_code_bundle(self):
         stacks = ROOT / 'infra/aws/stacks'
         for name, resource, container in (('30-service.json', 'TaskDefinition', 'service'),
-                                          ('30-service.json', 'StandbyTaskDefinition', 'service'),
-                                          ('50-runner.json', 'TaskDefinition', 'runner')):
+                                          ('30-service.json', 'StandbyTaskDefinition', 'service')):  # GATE-SHUTDOWN: no runner
             template = json.loads((stacks / name).read_text(encoding='utf-8'))
             self.assertEqual(template['Parameters']['LiveCode']['Default'], '')
             self.assertEqual(template['Conditions']['HasLiveCode'],

@@ -286,20 +286,18 @@ class StackOrderTests(unittest.TestCase):
             for need in needs:
                 self.assertLess(names.index(need), names.index(name), f'{name} needs {need}, which comes later')
 
-    def test_the_runner_rolls_the_new_task_in_before_the_old_one_stops(self):
-        service = json.loads((ROOT / 'infra/aws/stacks/50-runner.json').read_text())['Resources']['Service']['Properties']
-        config = service['DeploymentConfiguration']
-        self.assertEqual((config['MinimumHealthyPercent'], config['MaximumPercent']), (100, 200))
-        self.assertTrue(config['DeploymentCircuitBreaker']['Rollback'])
-
-    def test_the_runners_health_is_read_every_10_s_within_what_ecs_allows(self):
-        # SLOW-PATH-NO-ROLLOUT-WAIT: a warmed task turns HEALTHY up to 15 s sooner (the old one stops then), at no cost on a
-        # 2 vCPU task; a runner whose beat stopped is still replaced after the same 150 s of failed checks
-        runner = json.loads((ROOT / 'infra/aws/stacks/50-runner.json').read_text())['Resources']['TaskDefinition']['Properties']
-        check = next(c for c in runner['ContainerDefinitions'] if c['Name'] == 'runner')['HealthCheck']
-        # ROLLOUT-PARTS: every 10 s (the old task stops up to 5 s sooner again); ECS allows 10 retries at most: 100 s of
-        # failed checks after the health file's own 120 s
-        self.assertEqual((check['Interval'], check['Interval'] * check['Retries'], check['StartPeriod']), (10, 100, 300))
+    def test_the_runner_stack_keeps_only_the_outputs_bucket_and_never_deletes_it(self):
+        """GATE-SHUTDOWN (D-314): the gate's runner (its ECS service, task definition, roles and logs) is gone; the stack keeps
+        the outputs bucket, which the deployer writes and the service and the port read (artifacts/lambda/*), retained."""
+        runner = json.loads((ROOT / 'infra/aws/stacks/50-runner.json').read_text())
+        self.assertEqual({name: each['Type'] for name, each in runner['Resources'].items()},
+                         {'Outputs': 'AWS::S3::Bucket', 'OutputsOnlyOverTls': 'AWS::S3::BucketPolicy'})
+        for each in runner['Resources'].values():
+            self.assertEqual((each['DeletionPolicy'], each['UpdateReplacePolicy']), ('Retain', 'Retain'))
+        self.assertEqual(runner['Resources']['Outputs']['Properties']['BucketName'],
+                         {'Fn::Sub': 'tower-outputs-${AWS::AccountId}-${AWS::Region}'})
+        # the parameters the deployer still passes stay: an unknown parameter would fail its apply
+        self.assertTrue({'Image', 'LiveCode', 'LiveSeen', 'DesiredCount'} <= set(runner['Parameters']))
 
     def test_the_project_timeout_and_the_guard_budget_agree(self):
         project = json.loads((ROOT / 'infra/aws/bootstrap.json').read_text())['Resources']['DeployProject']['Properties']
