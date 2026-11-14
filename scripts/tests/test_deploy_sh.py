@@ -1805,6 +1805,76 @@ class SlowPathShTests(DeployShTests):
         self.assertEqual(self.stacks_deployed(), [])
         self.assertEqual((self.build()['status'], self.recorded('/tower/deploy/last-sha')), ('succeeded', head))
 
+    def reloading(self, after, **extra):
+        """FAST-PATH-RELOAD: a code-only landing whose bundle is not deploy.live_code yet, on the real layout (the runner's stack
+        has no ECS service). A fake service answers the build's ask: once last-build names a reload, the status is `after`
+        with HEAD as the head the build asked for (what the live service would have said by then); before it, no live code
+        and no reload. Answers code_only's (run, head, hashes)."""
+        script = self.state / 'service.sh'
+        script.write_text(f"""record={self.state}/ssm_tower_deploy_last-build
+if grep -q '"reload":{{"key"' "$record" 2>/dev/null; then
+  h=$(sed -n 's/.*"reload":{{[^}}]*"head":"\\([0-9a-f]*\\)".*/\\1/p' "$record")
+  sed "s/HEAD/$h/g" {self.state}/status_after.json
+else echo '{{"live_code": "", "image_reload": []}}'; fi
+""")
+        (self.state / 'status_after.json').write_text(json.dumps({'live_code': '', **after}))
+        bundle = json.dumps({'key': f'artifacts/lambda/tower-code/{self.LIVE}.zip', 'sha256': self.LIVE, 'uploaded': True})
+        return self.code_only(runner_ecs=False, status={'live_code': '', 'image_reload': []}, **{
+            'DEPLOY_FAST_STATUS_CMD': f'bash {script}', 'DEPLOY_CODE_BUNDLE_CMD': f"echo '{bundle}'", 'DEPLOY_RELOAD_POLL_S': '0.1',
+            **extra})
+
+    def test_a_code_only_landing_is_reloaded_in_place_by_the_service_and_deploys_no_image_and_no_ecs_stack(self):
+        # FAST-PATH-RELOAD: the build asks (last-build.reload), the service reloads and proves itself, its autodeploy writes
+        # deploy.live_code; the build reads that in the status as it arrives and then skips the image and the rollout
+        done, head, _ = self.reloading({'live_code': f'{self.LIVE}@HEAD', 'image_reload': [
+            {'role': 'service', 'digest': self.LIVE, 'state': state, 'order': 'HEAD', 'task': 'ecs-service', 'at': 9e9, **more}
+            for state, more in (('ordered', {}), ('started', {}), ('reloaded', {'reload_s': 6.2, 'boot_s': 4.1}),
+                                ('proven', {'ticks': 11, 'window_s': 10.4}))]})
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        self.assertIn(f'reload: asked the live service to load {self.LIVE[:12]} in place', done.stdout)
+        self.assertIn('reload: the service says: ordered started reloaded proven', done.stdout)
+        self.assertIn(f'code live: yes: the head\'s code is the bundle {self.LIVE[:12]} of deploy.live_code', done.stdout)
+        self.assertNotIn('docker build', (self.state / 'calls').read_text())
+        self.assertEqual(self.stacks_deployed(), [])
+        self.assertIn('[smoke] smoked', done.stdout)  # a reload in place is smoked like a stack that changed
+        build = self.build()
+        self.assertEqual((build['status'], self.recorded('/tower/deploy/last-sha'), build['code_live']), ('succeeded', head, self.LIVE))
+        self.assertEqual({k: build['reload'][k] for k in ('state', 'sha256', 'head')}, {'state': 'live', 'sha256': self.LIVE, 'head': head})
+        self.assertEqual((build['reload']['reloaded'], build['reload']['proven']), ({'reload_s': 6.2, 'boot_s': 4.1}, {'ticks': 11, 'window_s': 10.4}))
+        self.assertIn('reload', [step['n'] for step in build['steps']])
+        self.assertNotIn('code_live_why', build)
+        asked = [json.loads(line) for line in (self.state / 'last-build.history').read_text().splitlines() if '"reload":{' in line]
+        self.assertEqual((asked[0]['status'], asked[0]['reload']['state'], asked[0]['step']), ('in_progress', 'asked', 'reload'))
+
+    def test_a_reload_that_is_never_proven_falls_back_to_the_image_in_the_same_build(self):
+        # FAST-PATH-RELOAD: the Torre's condition: an unproven reload is the image path in this build, green only if that is
+        cases = (('timeout', {'image_reload': [{'role': 'service', 'digest': self.LIVE, 'state': 'reloaded', 'order': 'HEAD', 'at': 9e9}]},
+                  {'DEPLOY_RELOAD_WAIT_S': '2'}, 0, 'reload: timeout after'),
+                 ('unordered', {'image_reload': []}, {'DEPLOY_RELOAD_ORDER_S': '1'}, 0,
+                  'reload: unordered after'),  # a live service of an older code orders nothing: 30 s at most, not 150
+                 ('failed', {'image_reload': [{'role': 'service', 'digest': self.LIVE, 'state': 'failed', 'order': 'HEAD', 'at': 9e9,
+                                                'why': 'no proof within 90 s of its claim: 2 good tick(s)'}]}, {}, 0, 'reload: failed after'),
+                 ('declined, and the image fails', {'image_reload': [{'role': 'service', 'digest': self.LIVE, 'state': 'declined',
+                                                                      'order': 'HEAD', 'at': 9e9, 'why': 'the order of 1234 is not settled'}]},
+                  {'STUB_FAIL_IMAGE': 'service'}, 1, 'reload: declined after'))
+        for label, after, extra, code, line in cases:
+            with self.subTest(label):
+                self.setUp()
+                done, head, _ = self.reloading(after, **extra)
+                self.assertEqual(done.returncode, code, done.stderr + done.stdout)
+                self.assertIn(line, done.stdout)
+                self.assertIn('the image path, in this build', done.stdout)
+                self.assertIn('docker build', (self.state / 'calls').read_text())
+                build = self.build()
+                self.assertEqual(build['reload']['state'], label.split(',')[0])
+                self.assertIn('the reload in place was', build['code_live_why'])
+                self.assertEqual(build['targets'], ['service', 'port', 'runner'])  # the image's stacks are the batch's again
+                if code == 0:
+                    self.assertEqual((build['status'], self.recorded('/tower/deploy/last-sha')), ('succeeded', head))
+                else:
+                    self.assertEqual(build['status'], 'failed')
+                    self.assertNotEqual(self.recorded('/tower/deploy/last-sha'), head)
+
     def test_code_live_beside_a_port_stack_change_builds_no_image_and_applies_the_port_stack_alone(self):
         # CODE-BESIDE-PORT: #509 changed one property of the port stack with the code: an image build, two ECS rollouts and a
         # verification build, 8 min; the code is live by the swap or in place, and only the port stack is this build's
