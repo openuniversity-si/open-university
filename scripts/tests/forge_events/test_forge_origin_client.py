@@ -517,10 +517,15 @@ class ReadinessCase(unittest.TestCase):
         self.assertEqual(self.probes, [])
 
     def test_a_remote_on_another_forge_is_a_gap(self):
-        self.refs.url.return_value = REMOTES['foreign']['url']
+        self.refs.url.return_value = REMOTES['other_forge']['url']
         found = self.gaps(self.ready())
-        self.assertEqual([line for line in found if REMOTES['foreign']['host'] in line], found)
+        self.assertEqual([line for line in found if REMOTES['other_forge']['host'] in line], found)
         self.assertTrue(found)
+
+    def test_the_same_repository_on_github_is_no_gap(self):
+        # GITHUB-SOURCE (14/11/2026): GitHub is the source of truth and Origin its mirror
+        self.refs.url.return_value = REMOTES['foreign']['url']
+        self.assertEqual(self.gaps(self.ready()), [])
 
     def test_an_api_that_refuses_the_credential_is_unreachable_and_no_value_is_printed(self):
         found = self.gaps(self.ready(), identity=False)
