@@ -222,6 +222,57 @@ class PostgresTests(unittest.TestCase):
         self.assertIn(config.get('cloud.postgres_role'), seen['argv'])
         self.assertEqual(seen['env']['PGCLIENTENCODING'], config.get('cloud.postgres_encoding'))
 
+    def test_a_cluster_whose_server_started_before_this_boot_is_discarded_and_made_again(self):
+        """CACHE-PGDATA: tower/gate's actions/cache restored a running cluster of another runner (run 43606632818):
+        its pid file predates this boot, so it is a copy or a crash's, never a live server's, and setup starts afresh."""
+        boot = postgres._boot_time()
+        self.assertIsNotNone(boot)  # Linux: /proc/stat names the boot
+        for started, kept in ((boot - 3600, False), (boot + 5, True)):
+            with self.subTest(kept=kept), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.dict(os.environ, {'OU_TOOLCHAIN_DIR': tmp}):
+                root = Path(tmp)
+                (root / 'bin').mkdir()
+                (root / 'bin' / 'psql').write_text('')
+                data = root / 'pgdata'
+                data.mkdir()
+                (data / 'PG_VERSION').write_text('18\n')
+                (data / 'postmaster.pid').write_text(f'2305\n{data}\n{started}\n54322\n')
+                (root / 'postgres.log').write_text('07:54:48 UTC [2305] LOG:  checkpoint complete\n')
+                (root / 'pgsocket').mkdir()
+                (root / 'pgsocket' / '.s.PGSQL.54322.lock').write_text('2305\n')
+                made = []
+
+                def initdb(args, log=None, **kwargs):
+                    made.append(args[0])
+                    (data / 'PG_VERSION').write_text('18\n')
+                    return mock.Mock(returncode=0)
+
+                with mock.patch.object(postgres, '_database_up', return_value=False), \
+                        mock.patch.object(postgres, '_psql', return_value=None), \
+                        mock.patch.object(postgres.identity, 'share_toolchain'), \
+                        mock.patch.object(postgres, '_service', return_value=None), \
+                        mock.patch.object(postgres, '_bin', lambda name: name), \
+                        mock.patch.object(postgres, '_run', initdb), \
+                        mock.patch.object(postgres, '_configure'), \
+                        mock.patch.object(postgres, '_start'), mock.patch.object(postgres, '_ensure_database'):
+                    postgres._ensure()
+                self.assertEqual((data / 'postmaster.pid').exists(), kept)
+                self.assertEqual((root / 'pgsocket' / '.s.PGSQL.54322.lock').exists(), kept)
+                self.assertEqual('07:54:48' in (root / 'postgres.log').read_text(), kept)
+                self.assertEqual(made, [] if kept else ['initdb'])
+
+    def test_an_unreadable_pid_file_or_boot_is_not_stale(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            self.assertFalse(postgres._stale(data, boot=10 ** 12))  # no pid file: a clean shutdown
+            (data / 'postmaster.pid').write_text('2305\n')
+            self.assertFalse(postgres._stale(data, boot=10 ** 12))
+            (data / 'postmaster.pid').write_text(f'2305\n{data}\n100\n')
+            self.assertTrue(postgres._stale(data, boot=200))
+            self.assertIsNone(postgres._boot_time(data / 'missing'))
+            with mock.patch.object(postgres, '_boot_time', return_value=None):
+                self.assertFalse(postgres._stale(data))
+
     def test_a_missing_lock_directory_is_named(self):
         with mock.patch.object(postgres.identity, 'open_lock', side_effect=OSError):
             self.assertEqual(postgres.status(),

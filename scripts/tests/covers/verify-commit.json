@@ -7,6 +7,8 @@
     "scripts/lib/verify_commit.py",
     "services/runner/github/tower-gate.yml",
     "services/runner/github/deploy-doorbell.yml",
+    "services/runner/github/full-suite.yml",
+    "scripts/cloud/postgres.py",
     ".github/rulesets/main.json",
     "config/registry/gate/gate.allowed_workflows.json"
   ]

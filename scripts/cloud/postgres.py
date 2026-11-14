@@ -8,6 +8,7 @@ Any other uid keeps the previous direct exec.
 import fcntl
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -141,6 +142,43 @@ def _service():
         raise PostgresError(str(error)) from None
 
 
+def _boot_time(stat=Path('/proc/stat')):
+    """This machine's boot, in seconds since the epoch (Linux /proc/stat btime), or None where it cannot be read."""
+    try:
+        for line in stat.read_text().splitlines():
+            if line.startswith('btime '):
+                return int(line.split()[1])
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
+def _stale(data, boot=None):
+    """CACHE-PGDATA: True when the cluster's postmaster.pid says its server started before this machine booted. That
+    server cannot be running: the cluster is a crash's or a copy's, as tower/gate's actions/cache of .toolchain restored a
+    running cluster on a fresh runner (run 43606632818, 14/11: pg_ctl start failed for 30 s and named the copy's
+    07:54 log line). Its pid may name another live process here, and a copy of a live cluster may be torn. A pid file
+    that cannot be read, or a machine whose boot cannot be read, is not stale (the previous start, unchanged)."""
+    boot = _boot_time() if boot is None else boot
+    if boot is None:
+        return False
+    try:
+        started = int((data / 'postmaster.pid').read_text().splitlines()[2])
+    except (OSError, IndexError, ValueError):
+        return False
+    return started < boot
+
+
+def _discard(root, data, log_path):
+    """CACHE-PGDATA: the stale cluster goes (GX-29: it holds throwaway test data; setup.sh recreates this checkout's
+    database), with its log, whose last line would be named as this start's failure, and the root session's socket
+    lock files, which name the dead server's pid."""
+    shutil.rmtree(data)
+    log_path.unlink(missing_ok=True)
+    for lock in (root / 'pgsocket').glob('.s.PGSQL.*'):
+        lock.unlink(missing_ok=True)
+
+
 def _ensure():
     root = manifest.toolchain_dir()
     try:
@@ -161,6 +199,8 @@ def _ensure():
     record = _service()
     data = root / 'pgdata'
     log_path = root / 'postgres.log'
+    if _stale(data):
+        _discard(root, data, log_path)
     if not (data / 'PG_VERSION').is_file():
         if data.exists() and any(data.iterdir()):
             raise PostgresError(_down() + ': data directory is not a PostgreSQL cluster')
