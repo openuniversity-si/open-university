@@ -42,13 +42,17 @@ def plan(base, run=run):
         return json.loads(answer.read_text())['plan']
 
 
-def judge(base, run=run, clock=time.monotonic, tails=None):
+def judge(base, run=run, clock=time.monotonic, tails=None, alone=None):
     """(green, red names, the plan, seconds): every stage of the plan but SKIPPED, then its tests in one batch.
-    VERIFY-TAIL: tails, when given, receives (name, the end of its output) for each red stage and a red test batch."""
+    VERIFY-TAIL: tails, when given, receives (name, the end of its output) for each red stage and each test still red.
+    VERIFY-ALONE (the engine's FULL-RUN-ALONE): a test red in the batch runs again alone, and that verdict is its own; a
+    hosted runner's 4 vCPUs starve the timing-bound ones beside the rest (infra-intask-standby: 110 s and red in the
+    batch of PR #3, 10 s and green alone). alone, when given, receives the tests that were green only alone."""
     began = clock()
     planned = plan(base, run)
     red = []
     tails = [] if tails is None else tails
+    alone = [] if alone is None else alone
     for stage in planned.get('stages') or []:
         if stage in SKIPPED:
             continue
@@ -66,11 +70,16 @@ def judge(base, run=run, clock=time.monotonic, tails=None):
                             env={**os.environ, 'TOWER_ANSWER_FILE': str(answer)})
             said = json.loads(answer.read_text()).get('tests', {}) if answer.is_file() else {}
             failed = [test for test in tests if said.get(test) != 'PASS']
-            red += failed
-            if code != 0 and not red:
+            if code != 0 and not failed:
                 red.append('script tests')
-            if failed or code != 0:
-                tails.append((', '.join(failed) or 'script tests', out[-TAIL:]))
+                tails.append(('script tests', out[-TAIL:]))
+            for test in failed:
+                again, said_alone = run(['scripts/gate-check', 'test', test])
+                if again == 0:
+                    alone.append(test)
+                else:
+                    red.append(test)
+                    tails.append((f'{test} (alone)', said_alone[-TAIL:]))
     return not red, red, planned, clock() - began
 
 
@@ -106,19 +115,21 @@ def main(argv=None, run=run):
     if not args.no_post:
         post(repo, args.sha, 'pending', 'the verifier is judging this commit', run)
     try:
-        tails = []
-        green, red, planned, seconds = judge(args.base, run, tails=tails)
+        tails, alone = [], []
+        green, red, planned, seconds = judge(args.base, run, tails=tails, alone=alone)
     except Exception as error:  # noqa: BLE001 - a verifier that could not judge says so on the commit
         if not args.no_post:
             post(repo, args.sha, 'error', f'not judged: {error}', run)
         print(f'verify-commit: not judged: {error}', file=sys.stderr)
         return 1
     checks = len([stage for stage in planned.get('stages') or [] if stage not in SKIPPED]) + len(planned.get('tests') or [])
-    description = (f'green: {checks} check(s) in {seconds:.0f} s' if green
-                   else f'red: {", ".join(red)}'[:140])
+    description = (f'green: {checks} check(s) in {seconds:.0f} s' + (f', {len(alone)} green only alone' if alone else '')
+                   if green else f'red: {", ".join(red)}'[:140])
     if not args.no_post:
         post(repo, args.sha, 'success' if green else 'failure', description, run)
     print(f'verify-commit: {args.sha[:12]} {description}')
+    if alone:  # VERIFY-ALONE: said, so a test that needs the machine to itself is seen, not hidden
+        print(f'verify-commit: red in the batch and green alone: {", ".join(alone)}')
     for name, tail in tails:  # VERIFY-TAIL: what failed, where the verifier runs (a hosted job keeps no other log)
         print(f'--- verify-commit: the end of the output of {name} ---\n{tail.rstrip()}', file=sys.stderr)
     return 0 if green else 1

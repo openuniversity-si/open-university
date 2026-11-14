@@ -16,8 +16,10 @@ PLAN = {'stages': ['pr metadata', 'structure check', 'secret scan (tree)'], 'tes
 
 
 class Fake:
-    def __init__(self, red=(), head=SHA, plan=PLAN):
+    def __init__(self, red=(), head=SHA, plan=PLAN, crowded=()):
+        """crowded: tests red in the batch and green alone (VERIFY-ALONE)."""
         self.red, self.head, self.plan, self.calls, self.statuses = set(red), head, plan, [], []
+        self.crowded = set(crowded)
 
     def __call__(self, args, cwd=None, env=None):
         self.calls.append(list(args))
@@ -30,10 +32,13 @@ class Fake:
             return 0, 'planned'
         if args[:2] == ['scripts/gate-check', 'stage']:
             return (1, f'stage {args[2]} said why') if args[2] in self.red else (0, 'quiet')
+        if args[:2] == ['scripts/gate-check', 'test']:
+            return (1, f'FAIL {args[2]} alone: the traceback') if args[2] in self.red else (0, 'PASS')
         if args[:2] == ['scripts/gate-check', 'tests']:
-            said = {test: 'FAIL' if test in self.red else 'PASS' for test in args[2].split(',')}
+            said = {test: 'FAIL' if test in self.red | self.crowded else 'PASS' for test in args[2].split(',')}
             Path(env['TOWER_ANSWER_FILE']).write_text(json.dumps({'tests': said}))
-            return (1, 'x' * 9000 + 'FAIL scripts/tests/y.test.sh: the traceback') if self.red & set(said) else (0, 'quiet')
+            return ((1, 'x' * 9000 + 'FAIL scripts/tests/y.test.sh: the traceback') if (self.red | self.crowded) & set(said)
+                    else (0, 'quiet'))
         if args[:2] == ['gh', 'api']:
             fields = dict(each.split('=', 1) for each in args[args.index('-X') + 3:][1::2])
             self.statuses.append((args[4], fields['state'], fields['context'], fields['description']))
@@ -74,8 +79,7 @@ class TheVerifier(unittest.TestCase):
                                run=Fake(red=('structure check', 'scripts/tests/y.test.sh')))
         said = err.getvalue()
         self.assertIn('--- verify-commit: the end of the output of structure check ---\nstage structure check said why', said)
-        self.assertIn('--- verify-commit: the end of the output of scripts/tests/y.test.sh ---', said)
-        self.assertIn('FAIL scripts/tests/y.test.sh: the traceback', said)
+        self.assertIn('--- verify-commit: the end of the output of scripts/tests/y.test.sh (alone) ---\nFAIL scripts/tests/y.test.sh alone', said)
         self.assertLess(len(said), verify_commit.TAIL + 400)  # the end only
         err = io.StringIO()
         with contextlib.redirect_stderr(err):
@@ -86,6 +90,22 @@ class TheVerifier(unittest.TestCase):
             verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post'], run=Fake(red=('secret scan (tree)',)))
         self.assertIn('secret scan (tree) ---\nits output is not printed (a secret scan)', err.getvalue())
         self.assertNotIn('said why', err.getvalue())
+
+    def test_a_test_red_in_the_batch_runs_alone_and_its_alone_verdict_counts_and_is_said(self):
+        """VERIFY-ALONE: the engine's FULL-RUN-ALONE; a real regression is red alone too."""
+        import contextlib
+        import io
+        fake, out = Fake(crowded=('scripts/tests/x.test.sh',)), io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=fake), 0)
+        self.assertIn(['scripts/gate-check', 'test', 'scripts/tests/x.test.sh'], fake.calls)
+        self.assertNotIn(['scripts/gate-check', 'test', 'scripts/tests/y.test.sh'], fake.calls)  # green in the batch
+        self.assertEqual(fake.statuses[-1][1], 'success')
+        self.assertTrue(fake.statuses[-1][3].endswith(', 1 green only alone'), fake.statuses[-1][3])
+        self.assertIn('red in the batch and green alone: scripts/tests/x.test.sh', out.getvalue())
+        fake = Fake(red=('scripts/tests/y.test.sh',), crowded=('scripts/tests/x.test.sh',))
+        self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=fake), 1)
+        self.assertEqual(fake.statuses[-1][1:], ('failure', 'tower/gate', 'red: scripts/tests/y.test.sh'))
 
     def test_a_commit_that_is_not_the_checkout_is_never_judged_nor_published(self):
         fake = Fake(head='c' * 40)
