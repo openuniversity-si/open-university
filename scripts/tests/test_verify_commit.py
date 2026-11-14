@@ -29,11 +29,11 @@ class Fake:
             Path(env['TOWER_ANSWER_FILE']).write_text(json.dumps({'plan': self.plan}))
             return 0, 'planned'
         if args[:2] == ['scripts/gate-check', 'stage']:
-            return (1 if args[2] in self.red else 0), ''
+            return (1, f'stage {args[2]} said why') if args[2] in self.red else (0, 'quiet')
         if args[:2] == ['scripts/gate-check', 'tests']:
             said = {test: 'FAIL' if test in self.red else 'PASS' for test in args[2].split(',')}
             Path(env['TOWER_ANSWER_FILE']).write_text(json.dumps({'tests': said}))
-            return (1 if self.red & set(said) else 0), ''
+            return (1, 'x' * 9000 + 'FAIL scripts/tests/y.test.sh: the traceback') if self.red & set(said) else (0, 'quiet')
         if args[:2] == ['gh', 'api']:
             fields = dict(each.split('=', 1) for each in args[args.index('-X') + 3:][1::2])
             self.statuses.append((args[4], fields['state'], fields['context'], fields['description']))
@@ -63,6 +63,29 @@ class TheVerifier(unittest.TestCase):
         self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=fake), 1)
         self.assertEqual(fake.statuses[-1][1:3], ('failure', 'tower/gate'))
         self.assertEqual(fake.statuses[-1][3], 'red: structure check, scripts/tests/y.test.sh')
+
+    def test_a_red_stage_or_test_prints_the_end_of_its_output_and_a_green_one_prints_none(self):
+        """VERIFY-TAIL: a hosted job keeps only what the verifier prints, so a red one prints why."""
+        import contextlib
+        import io
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post'],
+                               run=Fake(red=('structure check', 'scripts/tests/y.test.sh')))
+        said = err.getvalue()
+        self.assertIn('--- verify-commit: the end of the output of structure check ---\nstage structure check said why', said)
+        self.assertIn('--- verify-commit: the end of the output of scripts/tests/y.test.sh ---', said)
+        self.assertIn('FAIL scripts/tests/y.test.sh: the traceback', said)
+        self.assertLess(len(said), verify_commit.TAIL + 400)  # the end only
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post'], run=Fake())
+        self.assertNotIn('the end of the output', err.getvalue())
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):  # a secret scan's output may quote the secret: never printed
+            verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post'], run=Fake(red=('secret scan (tree)',)))
+        self.assertIn('secret scan (tree) ---\nits output is not printed (a secret scan)', err.getvalue())
+        self.assertNotIn('said why', err.getvalue())
 
     def test_a_commit_that_is_not_the_checkout_is_never_judged_nor_published(self):
         fake = Fake(head='c' * 40)
