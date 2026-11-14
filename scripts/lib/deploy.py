@@ -104,6 +104,16 @@ def describe(state, out=None):
         return
     print(f"last_build: {build.get('status')} {build.get('build_id')} base {str(build.get('base_head'))[:12]} "
           f"started {build.get('started')} ended {build.get('ended')}", file=out)
+    if build.get('seconds') is not None:  # FAST-PATH-RELOAD: the build's own clock, what a deploy costs end to end
+        print(f"build_seconds: {build['seconds']}" + ''.join(f", {each.get('n')} {each.get('t')}s" for each in build.get('steps') or []
+                                                         if isinstance(each, dict) and each.get('s') == 'ok'), file=out)
+    said = build.get('reload')
+    if isinstance(said, dict):  # FAST-PATH-RELOAD: the reload in place a code-only build asked the live service for
+        up, proof = said.get('reloaded') or {}, said.get('proven') or {}
+        print(f"reload: {said.get('state')} in {said.get('s')}s (bundle {str(said.get('sha256'))[:12]} at {str(said.get('head'))[:12]})"
+              + (f"; reloaded {up.get('reload_s')}s after the order (boot {up.get('boot_s')}s)" if up else '')
+              + (f"; proven by {proof.get('ticks')} good ticks in {proof.get('window_s')}s" if proof else '')
+              + (f": {said['why']}" if said.get('why') else ''), file=out)
     running, lost = state.get('in_progress'), state.get('lost')
     if running:
         print(f"in_progress: step {running.get('step') or '?'}, elapsed {running.get('elapsed_s')}s, silent {running.get('idle_s')}s", file=out)

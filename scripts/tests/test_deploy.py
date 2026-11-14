@@ -616,6 +616,23 @@ class CliTests(unittest.TestCase):
         deploy.describe(rolling, out)
         self.assertIn('rolling: runner service started and not waited', out.getvalue())
 
+    def test_status_says_the_builds_seconds_and_the_reload_in_place(self):
+        # FAST-PATH-RELOAD: what a code-only merge's deploy cost, and how long its swap took, from `scripts/deploy status`
+        state = {'last_sha': 'a', 'last_build': {
+            'status': 'succeeded', 'build_id': 'p:b9', 'base_head': 'b' * 40, 'started': 1000, 'ended': 1031, 'seconds': 31,
+            'steps': [{'n': 'classify', 's': 'ok', 't': 0}, {'n': 'reload', 's': 'ok', 't': 24}],
+            'reload': {'state': 'live', 's': 23, 'sha256': 'c' * 64, 'head': 'b' * 40,
+                       'reloaded': {'reload_s': 6.2, 'boot_s': 4.1}, 'proven': {'ticks': 11, 'window_s': 10.4}}}}
+        out = io.StringIO()
+        deploy.describe(state, out)
+        self.assertIn('build_seconds: 31, classify 0s, reload 24s', out.getvalue())
+        self.assertIn('reload: live in 23s (bundle cccccccccccc at bbbbbbbbbbbb); reloaded 6.2s after the order (boot 4.1s); '
+                      'proven by 11 good ticks in 10.4s', out.getvalue())
+        state['last_build']['reload'] = {'state': 'timeout', 's': 150, 'sha256': 'c' * 64, 'head': 'b' * 40, 'why': 'x'}
+        out = io.StringIO()
+        deploy.describe(state, out)
+        self.assertIn('reload: timeout in 150s (bundle cccccccccccc at bbbbbbbbbbbb): x', out.getvalue())
+
     def test_follow_times_out_with_2_after_the_bounded_wait(self):
         code, out, sleeps = self.follow([{'last_sha': 'a', 'last_build': None}], target='b')
         self.assertEqual(code, 2)
