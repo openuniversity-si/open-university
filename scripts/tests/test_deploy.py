@@ -634,7 +634,7 @@ class BootstrapTests(unittest.TestCase):
 
     def test_the_buildspec_clones_then_delegates_and_fails_loudly_without_the_script(self):
         self.assertIn('git clone --quiet --single-branch --branch "$BASE_BRANCH" "$ORIGIN_REPO_URL" repo', self.spec)
-        self.assertIn('origin auth setup-git', self.spec)
+        self.assertNotIn('origin', self.spec.replace('$ORIGIN_REPO_URL', ''))  # BUILD-NO-ORIGIN: a public clone, no Origin CLI
         self.assertIn('aws sns publish --topic-arn "$ALERTS_TOPIC_ARN"', self.spec)
         lines = [line.strip() for line in self.spec.splitlines()]
         self.assertIn('- bash repo/infra/aws/deploy.sh', lines)

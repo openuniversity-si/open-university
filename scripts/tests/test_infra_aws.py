@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 INFRA = ROOT / 'infra' / 'aws'
 RECORD = ROOT / 'docs/domain/decisions/D-303.md'
+BUDGET_RECORD = ROOT / 'docs/domain/decisions/D-315.md'  # D-315 amends D-303's numbers (US$ 150, ceiling US$ 200)
 
 
 def load(path):
@@ -19,8 +20,8 @@ def load(path):
 
 
 def decided():
-    """Daniel's numbers as D-303 states them: the monthly ceiling, the actual alerts and the forecast alert."""
-    text = RECORD.read_text(encoding='utf-8')
+    """Daniel's numbers as D-315 states them (it amends D-303's): the monthly limit, the actual alerts and the forecast alert."""
+    text = BUDGET_RECORD.read_text(encoding='utf-8')
     ceiling = int(re.search(r'US\$ (\d+) a month, unblended', text).group(1))
     actual = [int(value) for value in re.search(r'actual (\d+)/(\d+)/(\d+) %', text).groups()]
     forecast = int(re.search(r'forecast (\d+) %', text).group(1))
@@ -28,14 +29,19 @@ def decided():
 
 
 class BudgetTests(unittest.TestCase):
-    """The ceiling Daniel approved on 04/11 01:39 BRT, as the Torre created it in the console at 01:44."""
+    """The ceiling Daniel approved on 04/11 01:39 BRT, as the Torre created it in the console at 01:44, raised by D-315."""
 
     def setUp(self):
         self.budget = load(INFRA / 'budget.json')
 
     def test_the_ceiling_is_the_decided_one(self):
         ceiling, _, _ = decided()
-        self.assertEqual(self.budget['name'], f'torre-motor-teto-{ceiling}')
+        # the console budget keeps the name it was created with under D-303's US$ 60; D-315 changed only its limit
+        self.assertEqual(self.budget['name'], 'torre-motor-teto-60')
+        self.assertIn('`torre-motor-teto-60`', BUDGET_RECORD.read_text(encoding='utf-8'))
+        self.assertIn('US$ 200 monthly ceiling', BUDGET_RECORD.read_text(encoding='utf-8'))
+        self.assertIn('US$ 200 monthly ceiling', self.budget['contract'])
+        self.assertEqual(self.budget['amended']['approved'], 'Daniel through the Torre, 14/11/2026')
         self.assertEqual((self.budget['budget_type'], self.budget['time_unit']), ('COST', 'MONTHLY'))
         self.assertEqual(self.budget['limit'], {'amount': ceiling, 'unit': 'USD'})
 
@@ -152,7 +158,11 @@ class BootstrapTests(unittest.TestCase):
     # say ${AWS::Partition} and ${AWS::AccountId}, which CloudFormation fills in when the Torre applies it. The pin is the
     # public template's. The account still runs the template applied before publication (fe8c30de...1300), the same
     # policy in the aws partition; the Torre re-applies this one at the next bootstrap change, nothing before it.
-    APPLIED = 'e2f617036c4d441db0e9dccc4441dce81ddadbda3082643dec6c3e8528a55472'
+    # BUILD-NO-ORIGIN (Daniel through the Torre, 14/11/2026): the deploy build clones the public GitHub repository with
+    # plain git, so its BuildSpec drops the Origin CLI, its login and the /tower/origin/api-key parameter. The Torre
+    # re-applies tower-bootstrap with this template after the merge (UsePreviousValue for its parameters); the pin is
+    # what the account has once re-applied.
+    APPLIED = '64f53161d46028a599c35d1255e7865e363e5e5e82fcbb94448758eb3df01a07'
 
     def test_the_file_is_the_template_the_account_has_applied(self):
         canonical = json.dumps(self.template, sort_keys=True, separators=(',', ':'))
@@ -391,12 +401,13 @@ class BootstrapTests(unittest.TestCase):
         for permission in permissions.values():
             self.assertEqual(permission['FunctionName'], {'Ref': 'DoorbellFunction'})
 
-    def test_the_build_exchanges_the_key_before_cloning(self):
-        # The origin credential helper reads CURSOR_AUTH_TOKEN or a stored login, never CURSOR_API_KEY: the first
-        # build (673da7b9) failed the clone with "Not logged in to Origin".
+    def test_the_build_clones_the_public_repository_without_a_key(self):
+        # BUILD-NO-ORIGIN (D-314): the base is a public GitHub repository, so the clone needs no credential; the build
+        # installs no Origin CLI and reads no Parameter Store key, and a revoked Cursor key can no longer fail it.
         spec = self.resources['DeployProject']['Properties']['Source']['BuildSpec']
-        exchange = spec.index('export CURSOR_AUTH_TOKEN="$(origin auth token)"')
-        self.assertLess(exchange, spec.index('git clone'))
+        for gone in ('parameter-store', 'CURSOR_', '/tower/origin/', 'downloads.cursor.com', 'origin auth', 'origin --version'):
+            self.assertNotIn(gone, spec)
+        self.assertLess(spec.index('git clone'), spec.index('bash repo/infra/aws/deploy.sh'))
 
     def test_the_build_never_exits_its_shell(self):
         # CodeBuild runs the commands of a buildspec 0.2 in one shell; an exit there ends the phase early.
@@ -409,7 +420,7 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(project['Source']['Type'], 'NO_SOURCE')
         spec = project['Source']['BuildSpec']
         spec += (INFRA / 'deploy.sh').read_text()  # DEP1: the deploy logic is in the repo, the buildspec runs it
-        for needle in ('CURSOR_API_KEY: /tower/origin/api-key', '--branch "$BASE_BRANCH"', '--stack-name "tower-app-$n"',
+        for needle in ('--branch "$BASE_BRANCH"', '--stack-name "tower-app-$n"',
                        '--role-arn "$CFN_EXEC_ROLE_ARN"', '/tower/deploy/last-sha', 'bash repo/infra/aws/deploy.sh'):
             self.assertIn(needle, spec)
         self.assertEqual(self.template['Parameters']['BaseBranch']['Default'], 'mod/roadmap-integration')
