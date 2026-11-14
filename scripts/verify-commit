@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# The verifier thread's gate: judge the checked-out commit and publish tower/gate as its GitHub commit status
+# (scripts/lib/verify_commit.py).
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+py="$root/.toolchain/bin/python3"
+[[ -x "$py" ]] || py=python3
+exec "$py" "$root/scripts/lib/verify_commit.py" "$@"
