@@ -954,37 +954,8 @@ deploy_stacks() {
   echo "stacks done: $(tr '\n' ' ' <"$work/done")| left: $(tr '\n' ' ' <"$work/left")"
 }
 
-# deploy_control_plane <last>: the Cloudflare Worker forge-webhook (services/control-plane; F37-WORKER-DEPLOY-PATH). Runs only when
-# the tree changed since <last> (git diff of services/control-plane; an unknown <last> counts as changed) and the deployer can read
-# the token /tower/deploy/cloudflare-api-token (SecureString, inside the /tower/deploy/* read the role already has). No token: it
-# says so and skips, never failing the build. With one: scripts/lib/service_deploy.py compares the tree with GET /status
-# deployed_tree and uploads only on drift (Cloudflare REST API, no wrangler). CONTROL_PLANE_DEPLOY_CMD replaces that command (a test).
-# A real failure is "control-plane" in $failed, so last-sha stays and the next ring retries it.
-deploy_control_plane() {
-  local last="$1" token py cmd="${CONTROL_PLANE_DEPLOY_CMD:-}"
-  [[ -f "$repo/services/control-plane/wrangler.toml" ]] || return 0
-  if [[ "$last" != none ]] && git -C "$repo" cat-file -e "$last^{commit}" 2>/dev/null \
-      && git -C "$repo" diff --quiet "$last" HEAD -- services/control-plane; then
-    echo "control plane: services/control-plane unchanged since $last, not deployed"
-    return 0
-  fi
-  token="$(aws ssm get-parameter --name /tower/deploy/cloudflare-api-token --with-decryption --query Parameter.Value --output text 2>/dev/null)" || token=""
-  if [[ -z "$token" || "$token" = None ]]; then
-    echo "control plane: services/control-plane changed but /tower/deploy/cloudflare-api-token is not readable: skipped (the Worker is out of the deploy path, Daniel 09/11; docs/operations/aws.md section 21)"
-    return 0
-  fi
-  if [[ -z "$cmd" ]]; then
-    for py in python3.13 python3.12 python3.11 python3; do
-      command -v "$py" >/dev/null 2>&1 && "$py" -c 'import tomllib' 2>/dev/null && break
-      py=""
-    done
-    if [[ -z "$py" ]]; then echo "control plane: no python >= 3.11 in this image: skipped"; return 0; fi
-    cmd="$py $ctl/scripts/lib/service_deploy.py"
-  fi
-  echo "control plane: deploying services/control-plane"
-  ( cd "$repo" && CLOUDFLARE_API_TOKEN="$token" bash -c "$cmd" ) 2>&1 | sed -u "s/$token/<token>/g; s/^/[control-plane] /"
-  [[ "${PIPESTATUS[0]}" = 0 ]]
-}
+# GATE-SHUTDOWN (D-314): the deployer no longer deploys the Cloudflare Worker forge-webhook (services/control-plane): it served
+# the AWS gate's Origin webhooks, and it stays where it is, outside AWS; nothing here reads the Cloudflare token.
 
 # smoke: the post-deploy check (scripts/deploy-smoke: GET /v1/health, GET /v1/deploy/status, a registry read). Only when a
 # stack really changed in this build. DEPLOY_SMOKE_CMD replaces the command (a test); "none" skips it.
@@ -1216,7 +1187,6 @@ deploy() {
   carry_rolling
   prev_params
   deploy_stacks
-  deploy_control_plane "$last" || failed="$failed control-plane"
   # SLOW-PATH-NO-ROLLOUT-WAIT: stacks are rolling out: the build ends here, in seconds; the smoke, the rollback and last-sha are
   # the next build's, which verifies them (a bisection in progress keeps its state: this build decided nothing)
   if [ -z "$failed" ] && [ ! -s "$work/left" ] && [ -s "$work/rolling" ] && ! jq -e '.settling == true' "$work/rolling" >/dev/null 2>&1; then

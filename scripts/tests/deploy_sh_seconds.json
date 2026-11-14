@@ -3,8 +3,6 @@
  "DeployShTests.test_the_runner_stack_is_applied_with_no_runner": 3.0,
  "DeployShTests.test_the_data_stack_is_deployed_with_the_class_the_file_names": 3.0,
  "DeployShTests.test_the_bootstrap_stack_is_read_back_and_compared_with_its_mirror_in_the_record": 4.09,
- "DeployShTests.test_a_changed_control_plane_is_deployed_with_the_token_and_never_prints_it": 1.6,
- "DeployShTests.test_a_failed_control_plane_deploy_keeps_last_sha_for_the_next_ring": 1.53,
  "DeployShTests.test_a_failed_stack_blocks_what_needs_it_and_not_the_rest": 1.92,
  "DeployShTests.test_a_failed_stack_prints_only_this_operations_events_and_the_cli_error": 2.2,
  "DeployShTests.test_a_last_sha_that_cannot_be_written_fails_the_build_and_says_so": 1.46,
@@ -18,12 +16,10 @@
  "DeployShTests.test_a_term_signal_records_a_failed_build": 1.47,
  "DeployShTests.test_a_waited_stack_s_real_change_says_where_its_seconds_went": 1.47,
  "DeployShTests.test_an_image_failure_fails_the_build_and_keeps_last_sha": 1.71,
- "DeployShTests.test_an_unchanged_control_plane_is_not_deployed": 1.7,
  "DeployShTests.test_independent_stacks_run_in_parallel_after_their_needs": 2.72,
  "DeployShTests.test_lambda_packages_fail_fast_on_access_denied_and_no_stack_starts": 1.14,
  "DeployShTests.test_last_build_is_in_progress_from_the_start_and_lists_the_steps": 1.5,
  "DeployShTests.test_no_stack_is_tagged_with_the_commit": 2.09,
- "DeployShTests.test_no_token_skips_the_control_plane_and_does_not_fail_the_build": 1.67,
  "DeployShTests.test_nothing_new_succeeds_and_records_it": 0.34,
  "DeployShTests.test_per_stack_seconds_are_recorded_and_a_no_change_keeps_the_old_figure": 2.99,
  "DeployShTests.test_secrets_never_reach_the_record_or_the_output_of_the_record": 1.57,
@@ -103,5 +99,6 @@
  "SlowPathShTests.test_the_status_token_never_reaches_argv_or_the_log": 0.08,
  "SlowPathShTests.test_the_templates_name_the_image_they_read_so_its_change_is_in_their_hash": 0.11,
  "SlowPathShTests.test_two_stacks_side_by_side_overlap_however_slow_the_runner_of_the_test_is": 7.89,
- "DeployShTests.test_the_webhook_path_left_the_port_stack_and_the_deployer_passes_only_its_code_and_layer": 1.5
+ "DeployShTests.test_the_webhook_path_left_the_port_stack_and_the_deployer_passes_only_its_code_and_layer": 1.5,
+ "DeployShTests.test_the_deployer_never_deploys_the_control_plane_worker": 2.0
 }

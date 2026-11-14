@@ -379,50 +379,20 @@ class DeployShTests(unittest.TestCase):
         self.assertEqual(done.returncode, 1)
         self.assertEqual(self.build()['failed'], ['record:last-sha'])
 
-    def control_plane_repo(self, change=True):
+    def test_the_deployer_never_deploys_the_control_plane_worker(self):
+        """GATE-SHUTDOWN (D-314): the Worker forge-webhook served the AWS gate; it stays outside AWS, the deploy leaves it."""
         repo = self.tmp / 'repo'
         (repo / 'services/control-plane').mkdir(parents=True)
         (repo / 'services/control-plane/wrangler.toml').write_text('name = "forge-test"\n')
         git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '.')
         git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'plane')
-        self.base = git(repo, 'rev-parse', 'HEAD')
-        if not change:
-            (repo / 'other.txt').write_text('y\n')
-            git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '.')
-            git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'other')
-
-    def plane_cmd(self, code=0):
-        return f'echo "token_seen=${{CLOUDFLARE_API_TOKEN:+yes}} cwd=$(basename "$PWD")" >> "{self.state}/plane"; exit {code}'
-
-    def test_a_changed_control_plane_is_deployed_with_the_token_and_never_prints_it(self):
-        self.control_plane_repo()
-        done = self.run_deploy(STUB_LAST='old', STUB_CF_TOKEN='cf-token-0123456789', CONTROL_PLANE_DEPLOY_CMD=self.plane_cmd())
+        done = self.run_deploy(STUB_LAST='old', STUB_CF_TOKEN='cf-token-0123456789')
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual((self.state / 'plane').read_text().strip(), 'token_seen=yes cwd=repo')
-        self.assertNotIn('cf-token-0123456789', done.stdout + done.stderr + self.recorded('/tower/deploy/last-build'))
-        self.assertEqual(self.recorded('/tower/deploy/last-sha'), git(self.tmp / 'repo', 'rev-parse', 'HEAD'))
-
-    def test_an_unchanged_control_plane_is_not_deployed(self):
-        self.control_plane_repo(change=False)
-        done = self.run_deploy(STUB_LAST=self.base, STUB_CF_TOKEN='cf-token-0123456789',
-                               CONTROL_PLANE_DEPLOY_CMD=self.plane_cmd())
-        self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertFalse((self.state / 'plane').exists())
-        self.assertIn('unchanged since', done.stdout)
-
-    def test_no_token_skips_the_control_plane_and_does_not_fail_the_build(self):
-        self.control_plane_repo()
-        done = self.run_deploy(STUB_LAST='old', CONTROL_PLANE_DEPLOY_CMD=self.plane_cmd())
-        self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertFalse((self.state / 'plane').exists())
-        self.assertIn('cloudflare-api-token is not readable: skipped', done.stdout)
-
-    def test_a_failed_control_plane_deploy_keeps_last_sha_for_the_next_ring(self):
-        self.control_plane_repo()
-        done = self.run_deploy(STUB_LAST='old', STUB_CF_TOKEN='cf-token-0123456789', CONTROL_PLANE_DEPLOY_CMD=self.plane_cmd(1))
-        self.assertEqual(done.returncode, 1)
-        self.assertIsNone(self.recorded('/tower/deploy/last-sha'))
-        self.assertEqual(self.build()['failed'], ['control-plane'])
+        self.assertNotIn('control plane', done.stdout)
+        self.assertNotIn('cloudflare-api-token', (self.state / 'calls').read_text())
+        text = (ROOT / 'infra/aws/deploy.sh').read_text()
+        self.assertNotIn('deploy_control_plane', text)
+        self.assertNotIn('cloudflare-api-token', text)
 
     def test_nothing_new_succeeds_and_records_it(self):
         done = self.run_deploy(STUB_LAST=self.head)
