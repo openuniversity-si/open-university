@@ -135,10 +135,28 @@ class TheVerifier(unittest.TestCase):
             self.assertIn(line, staged)
         self.assertNotIn('pull_request', staged)  # never a pull request's code: only what main merged
 
+    def test_all_judges_every_script_test_of_the_checkout(self):
+        """FULL-SUITE-MAIN: the safety net after a merge judges the whole suite, not the diff's tests."""
+        fake = Fake()
+        self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post', '--all'], run=fake), 0)
+        batch = next(call for call in fake.calls if call[:2] == ['scripts/gate-check', 'tests'])[2].split(',')
+        every = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / 'scripts' / 'tests').glob('*.test.sh'))
+        self.assertEqual(batch, every)
+        self.assertGreater(len(batch), 100)
+        self.assertIn(['scripts/gate-check', 'plan', 'checks', '--base', BASE], fake.calls)  # the stages are the plan's
+
+    def test_the_full_suite_runs_after_each_merge_to_main_and_a_red_one_opens_an_issue(self):
+        staged = (ROOT / 'services' / 'runner' / 'github' / 'full-suite.yml').read_text(encoding='utf-8')
+        for line in ('  push:\n    branches: [main]', '  issues: write', '--no-post --all',
+                     "if: failure() && steps.suite.outcome == 'failure'", 'gh issue create'):
+            self.assertIn(line, staged)
+        self.assertNotIn('pull_request', staged)  # never a check a merge waits for
+
     def test_the_tower_gate_workflow_is_the_one_allowed_and_runs_the_verifier_on_the_queue_too(self):
         # the Torre's choice (a), 14/11/2026: a GitHub-hosted job, free on a public repository, named as the check
         import config
-        self.assertEqual(config.get('gate.allowed_workflows'), ['.github/workflows/tower-gate.yml', '.github/workflows/deploy-doorbell.yml'])
+        self.assertEqual(config.get('gate.allowed_workflows'), ['.github/workflows/tower-gate.yml', '.github/workflows/deploy-doorbell.yml',
+                          '.github/workflows/full-suite.yml'])
         staged = (ROOT / 'services' / 'runner' / 'github' / 'tower-gate.yml').read_text(encoding='utf-8')
         for line in ('  pull_request:', '  merge_group:', '    name: tower/gate',
                      'scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post'):
