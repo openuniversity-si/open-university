@@ -6,6 +6,7 @@
   "paths": [
     "docs/units/engine-forge-origin/**",
     "scripts/lib/forge_origin.py",
+    "scripts/lib/source_remote.py",
     "scripts/lib/forge_origin_client.py",
     "scripts/lib/forge_origin_history.py"
   ],

@@ -4,7 +4,7 @@
     {
       "name": "github",
       "kind": "forge",
-      "status": "slot",
+      "status": "active",
       "endpoints": [
         "api.github.com",
         "github.com",
@@ -18,12 +18,15 @@
         "forge_github",
         "github_cli"
       ],
-      "adapters": [],
+      "adapters": [
+        "scripts/lib/source_remote.py",
+        "scripts/lib/verify_commit.py"
+      ],
       "selectors": [],
       "baseline": [
         "scripts/lib/toolchain_manifest.py:github.com"
       ],
-      "note": "Archived forge (D-293). The active forge is Origin; GitHub remains only as a third-party binary artifact host at the classified toolchain baseline.",
+      "note": "The source of truth since 14/11/2026 (D-314): pull requests, the merge queue and tower/gate live on GitHub, through the gh CLI of the sessions and the hosted job; Origin is a mirror. Beside it, GitHub hosts third-party binary artifacts at the classified toolchain baseline.",
       "baseline_classification": {
         "scripts/lib/toolchain_manifest.py:github.com": {
           "nature": "artifact-hosting",

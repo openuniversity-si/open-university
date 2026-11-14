@@ -222,7 +222,8 @@ class Repository(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         _, errors = self.fixture_calls(source, path='scripts/lib/forge_events.py')
         self.assertEqual(len(errors), len(('endpoint', 'cli')))  # Selector permits imports, never endpoint or CLI calls.
-        found = vendor_check.calls(ROOT, [(p, '.py') for p in origin['adapters']], catalog)
+        # Origin's own calls in its adapters (D-314: an adapter may name GitHub's host, which the github vendor judges)
+        found = [each for each in vendor_check.calls(ROOT, [(p, '.py') for p in origin['adapters']], catalog) if each[2] == 'origin']
         self.assertEqual(vendor_check.judge(found, {'vendors': [origin]}), ([], []))
 
     def test_a_new_call_outside_its_adapter_fails(self):

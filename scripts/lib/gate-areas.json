@@ -100,9 +100,10 @@
     },
     {
       "id": "repo-config",
-      "title": "repository and agent configuration (hooks, git, gitleaks, Claude, Cursor)",
+      "title": "repository and agent configuration (hooks, git, GitHub, gitleaks, Claude, Cursor)",
       "paths": [
         ".githooks/**",
+        ".github/**",
         ".gitattributes",
         ".gitignore",
         ".gitleaks.toml",
