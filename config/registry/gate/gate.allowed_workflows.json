@@ -1,7 +1,8 @@
 {
   "type": "array",
   "default": [
-    ".github/workflows/tower-gate.yml"
+    ".github/workflows/tower-gate.yml",
+    ".github/workflows/deploy-doorbell.yml"
   ],
   "items": {
     "type": "string",
@@ -9,7 +10,7 @@
   },
   "uniqueItems": true,
   "x-unit": "path",
-  "description": "The only GitHub Actions files the gate's `no GitHub Actions workflows` stage allows (ADR-24 as amended by ADR-41, D-086): `tower-gate.yml`, the tower/gate check of main's merge queue (the migration to GitHub, 14/11/2026: the Torre's choice (a), a GitHub-hosted runner, free on a public repository), staged in services/runner/github/ and installed by the owner, never by a session (D-087).",
+  "description": "The only GitHub Actions files the gate's `no GitHub Actions workflows` stage allows (ADR-24 as amended by ADR-41, D-086): `tower-gate.yml`, the tower/gate check of main's merge queue, and `deploy-doorbell.yml`, which rings the AWS deploy's doorbell on a merge to main (the migration to GitHub, 14/11/2026: the Torre's choice (a), a GitHub-hosted runner, free on a public repository), staged in services/runner/github/ and installed by the owner, never by a session (D-087).",
   "x-readers": [
     "scripts/lib/gate_workflows.py"
   ],
