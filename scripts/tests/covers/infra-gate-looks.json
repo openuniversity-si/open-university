@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/infra-gate-looks.test.sh",
+  "covers": [
+    "scripts/tests/infra-gate-looks.test.sh",
+    "scripts/tests/test_infra_gate_looks.py",
+    "infra/service/tower_infra/__main__.py",
+    "infra/service/tower_infra/config_data.py",
+    "config/registry/service/service.gate_looks.json",
+    "infra/aws/stacks/30-service.json"
+  ]
+}

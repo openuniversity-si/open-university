@@ -59,6 +59,11 @@ WARM_EVENT = ("insert into log.event (event_id, tenant_id, type, occurred_at, pr
 UP_EVENT = ("with said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
             "values (%(id)s, null, 'platform.deploy.task_up', clock_timestamp(), %(producer)s, 'deploy/task', %(payload)s::jsonb) "
             "returning type) select pg_notify('tower_deploy', type) from said")
+# GATE-SHUTDOWN (14/11/2026, D-314; PR #17 stopped the AWS gate): the looks serve() starts, by module. The gate's own
+# (they served the AWS gate on Origin: its standbys, its runner, its check runs, its PR reads, its merges and its full
+# runs) start only when service.gate_looks is true; the kept ones serve the deploy, the port and the account's hygiene
+GATE_LOOKS = ('prewarm', 'ondemand', 'checks', 'observations', 'merge_ready', 'pregate', 'fullrun', 'branches')
+KEPT_LOOKS = ('autodeploy', 'drill_look', 'prune')
 
 
 def number(name, default):
@@ -148,7 +153,9 @@ def refresh_keys(forge_webhooks, workflows):
             if forge_webhooks.refresh(db, url=os.environ.get('TOWER_FORGE_KEYS_URL', forge_webhooks.KEYS_URL)):
                 LOG.info("serve: the forge's webhook keys changed")
             parameter = os.environ.get('TOWER_FORGE_KEYS_PARAMETER')
-            if parameter:  # PORT3: the webhook ingress verifies from this parameter, without a database
+            # PORT3: the webhook ingress verified from this parameter, without a database. GATE-SHUTDOWN: the ingress is
+            # gone (PR #17) and no task definition names the parameter any more, so nothing is published
+            if parameter:
                 import boto3
                 ssm = boto3.client('ssm', region_name=os.environ.get('AWS_REGION'))
                 forge_webhooks.publish(db, lambda name, value: ssm.put_parameter(
@@ -394,6 +401,10 @@ def serve():
     if not handed:
         settings.refresh(loop.scope if loop is not None and gate.boot else None)
     live_image.mark(gate, 'settings')  # LATE-SETUP-SAID: the behaviour keys read
+    # GATE-SHUTDOWN (14/11/2026, D-314): the gate is GitHub's (tower/gate, the merge queue); the AWS gate's looks, the
+    # forge's warm-up and its webhook keys' refresh start only when service.gate_looks is true (read once, here)
+    gate_looks = bool(settings.get('service.gate_looks'))
+    LOG.info("serve: the gate's looks are %s (service.gate_looks): %s", 'on' if gate_looks else 'off', ', '.join(GATE_LOOKS))
     # ENGINE-REPO: the engine's repository from service.engine_repo, live on tower_config. Imported under its own name:
     # `engine` in serve() is the database's engine (deliver, touch_health, ready_ahead), and a bare `from . import
     # engine` here rebound it to the module (the first deploy from GitHub, 14/11: AttributeError raw_connection, the
@@ -407,16 +418,6 @@ def serve():
                      config=settings,  # DEP-EVENTS: pushes and deploy ends wake it (IMAGE-SWAP-SERVICE-READY: after the work)
                      gate=gate,  # IMAGE-SWAP-RELOAD: a look in flight is work a reload of this task waits for
                      active=None if gate is None else gate.after_work(gate.active)))  # SWAP-CPU: no work of the role
-    # IMAGE-PREWARM-B2: a unit branch's push and its bundle job's end (tower_work) wake the look; only the live service
-    from . import prewarm as standbys  # not `prewarm`: the module's prewarm() of the runner
-    # IMAGE-PREWARM-C: not while sharing; IMAGE-SWAP-SERVICE-READY: after the first work; IMAGE-SWAP-RELOAD: gate, as above
-    live_image.lowly(standbys.start(workflows.connected, stop, hub.wake((wake.DEPLOY, wake.WORK)).wait, config=settings,
-                                    gate=gate, active=None if gate is None else gate.after_work(gate.sole)))  # SWAP-CPU
-    # RUNNER-ON-DEMAND: while Spot cannot place the runner (ECS's placement failure), one on Fargate on demand, stopped once
-    # Spot's runner is up again; the live service's alone
-    from . import ondemand
-    live_image.lowly(ondemand.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
-                                    active=None if gate is None else gate.after_work(gate.sole)))
     # DRILLS: a port Lambda's rollback rehearsed and Spot's placement failure provoked, when the port is asked
     from . import drill_look
     live_image.lowly(drill_look.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
@@ -425,32 +426,43 @@ def serve():
     from . import prune
     live_image.lowly(prune.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
                                  active=None if gate is None else gate.after_work(gate.sole)))
-    # CHECK-RUN-AWS: the gate's tower/gate check run, asked at the port, posted by the live service with the Origin app's key
-    live_image.lowly(checks.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
-                                  active=None if gate is None else gate.after_work(gate.sole), poster=poster))
-    # PR-OBSERVATION: what `pr metadata` reads of a PR, asked at the port, read by the live service with the forge's key
-    from . import observations
-    live_image.lowly(observations.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait, origin_forge,
+    if gate_looks:  # GATE-SHUTDOWN: the AWS gate's looks (GATE_LOOKS), kept whole behind service.gate_looks
+        # IMAGE-PREWARM-B2: a unit branch's push and its bundle job's end (tower_work) wake the look; only the live service
+        from . import prewarm as standbys  # not `prewarm`: the module's prewarm() of the runner
+        # IMAGE-PREWARM-C: not while sharing; IMAGE-SWAP-SERVICE-READY: after the first work; IMAGE-SWAP-RELOAD: gate, as above
+        live_image.lowly(standbys.start(workflows.connected, stop, hub.wake((wake.DEPLOY, wake.WORK)).wait, config=settings,
+                                        gate=gate, active=None if gate is None else gate.after_work(gate.sole)))  # SWAP-CPU
+        # RUNNER-ON-DEMAND: while Spot cannot place the runner (ECS's placement failure), one on Fargate on demand, stopped
+        # once Spot's runner is up again; the live service's alone
+        from . import ondemand
+        live_image.lowly(ondemand.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
                                         active=None if gate is None else gate.after_work(gate.sole)))
-    # MERGE-READY (criterion 2): the train front's merge started ahead, at its join, and released by its landing. Not
-    # lowly: the merge's process takes this thread's priority (a nice raised is never lowered back without privilege)
-    from . import merge_ready
-    merge_ready.start(workflows.connected, stop, hub.wake(wake.TRAIN).wait, origin_forge,
-                      active=None if gate is None else gate.after_work(gate.sole))
-    # PRE-GATE: at each push of a unit branch, its gate's plan and checks run on the runner while the PR is authored
-    from . import pregate
-    live_image.lowly(pregate.start(workflows.connected, stop, hub.wake((wake.DEPLOY, wake.WORK)).wait,
-                                   active=None if gate is None else gate.after_work(gate.sole)))
-    # FULL-RUN (revisão da arquitetura, achado 29): at each landing the base's whole battery, no cache, below the gates
-    from . import fullrun
-    live_image.lowly(fullrun.start(workflows.connected, stop, hub.wake((wake.DEPLOY, wake.WORK)).wait,
-                                   active=None if gate is None else gate.after_work(gate.sole)))
-    # BRANCH-MERGE: the base merged into a unit's branch and pushed by the live service, in a clone of its own, with the key
-    from . import branches, container
-    live_image.lowly(branches.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait, container.Container(
-        os.environ.get('TOWER_BRANCHES_WORKDIR', '/tmp/tower-branches'), credential=parameter(os.environ.get(
-            'TOWER_FORGE_KEY_PARAMETER', '/tower/origin/forge-key')), slot=branches.SLOT, token_auth=True),
-        active=None if gate is None else gate.after_work(gate.sole)))
+        # CHECK-RUN-AWS: the gate's tower/gate check run, asked at the port, posted by the live service with the Origin app's key
+        live_image.lowly(checks.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
+                                      active=None if gate is None else gate.after_work(gate.sole), poster=poster))
+        # PR-OBSERVATION: what `pr metadata` reads of a PR, asked at the port, read by the live service with the forge's key
+        from . import observations
+        live_image.lowly(observations.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait, origin_forge,
+                                            active=None if gate is None else gate.after_work(gate.sole)))
+        # MERGE-READY (criterion 2): the train front's merge started ahead, at its join, and released by its landing. Not
+        # lowly: the merge's process takes this thread's priority (a nice raised is never lowered back without privilege)
+        from . import merge_ready
+        merge_ready.start(workflows.connected, stop, hub.wake(wake.TRAIN).wait, origin_forge,
+                          active=None if gate is None else gate.after_work(gate.sole))
+        # PRE-GATE: at each push of a unit branch, its gate's plan and checks run on the runner while the PR is authored
+        from . import pregate
+        live_image.lowly(pregate.start(workflows.connected, stop, hub.wake((wake.DEPLOY, wake.WORK)).wait,
+                                       active=None if gate is None else gate.after_work(gate.sole)))
+        # FULL-RUN (revisão da arquitetura, achado 29): at each landing the base's whole battery, no cache, below the gates
+        from . import fullrun
+        live_image.lowly(fullrun.start(workflows.connected, stop, hub.wake((wake.DEPLOY, wake.WORK)).wait,
+                                       active=None if gate is None else gate.after_work(gate.sole)))
+        # BRANCH-MERGE: the base merged into a unit's branch and pushed by the live service, in a clone of its own, with the key
+        from . import branches
+        live_image.lowly(branches.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait, container.Container(
+            os.environ.get('TOWER_BRANCHES_WORKDIR', '/tmp/tower-branches'), credential=parameter(os.environ.get(
+                'TOWER_FORGE_KEY_PARAMETER', '/tower/origin/forge-key')), slot=branches.SLOT, token_auth=True),
+            active=None if gate is None else gate.after_work(gate.sole)))
     # DEPLOY-CANARY: a service that took its role by a swap, or reloaded in place, fires a canary job after its first good tick
     # FIRST-JOB-AT-ONCE: on the loop's own connection (the one that dispatches, and where the successor rehearsed the
     # canary's statements), not a pooled one: live 12/11 12:50 UTC the canary was made 0.6 s after the swap's first tick
@@ -482,8 +494,9 @@ def serve():
     # refreshes them); a task that reloaded itself reads both here, before its first tick, which is when it takes the
     # role over (Gate.back): until then the promoted standby works
     if gate is not None and gate.reloaded is not None and gate.sharing():
-        origin_forge.warm()
-        refresh_keys(forge_webhooks, workflows)
+        if gate_looks:  # GATE-SHUTDOWN: the forge's key and its webhook keys serve the AWS gate alone
+            origin_forge.warm()
+            refresh_keys(forge_webhooks, workflows)
         last_keys = time.monotonic()
         woken.wait(0)  # and its wake is drained before that tick, like a standby's (below)
     LOG.info('serve: up')
@@ -510,7 +523,8 @@ def serve():
                     last_beat = time.monotonic()
                     lifecycle.beat()  # LIFE-EVENT-RETRY: an event the database refused is written on a good beat
                     idle.beat(loop)  # DISPATCH-STALL-ALERT: an alert when no service dispatches what is ready
-                    aside(origin_forge.warm)  # IMAGE-SWAP-TICK: the swap finds the forge's key and token kept,
+                    if gate_looks:  # GATE-SHUTDOWN: the forge's key serves the AWS gate's landings alone
+                        aside(origin_forge.warm)  # IMAGE-SWAP-TICK: the swap finds the forge's key and token kept,
                 last_keys = time.monotonic()  # and the webhook keys' refresh comes an interval after it, not on its first pass
                 reload.step()  # IMAGE-SWAP-RELOAD: under a swapped bundle, after the beat; the exec does not return
             except Exception:  # noqa: BLE001 - a standby that cannot reach the database is not healthy
@@ -562,7 +576,8 @@ def serve():
             if delivered:
                 LOG.info('serve: delivered %d event(s) to %d subscription(s)', sum(delivered.values()),
                          len(delivered))
-            origin_forge.warm()  # AWS6: the key is read here, between ticks, never in a landing's seconds
+            if gate_looks:  # GATE-SHUTDOWN: no landing of the AWS gate comes, so no key is read for one
+                origin_forge.warm()  # AWS6: the key is read here, between ticks, never in a landing's seconds
             now = time.monotonic()
             # RELOAD-WITHOUT-STANDBY: not from a reload by order until its judge says proven: what does not prove itself
             # and does not go back goes unhealthy, and ECS replaces the task with one that boots the code before it
@@ -580,7 +595,8 @@ def serve():
                 with workflows.connected() as db:
                     measured.record(db)  # DB-VITALS: the hour's platform.db.vitals, and its alerts
                     live_image.sweep(db)  # SWAP-TAIL-CUT: the old standby beats, once an hour and not in every beat
-            if last_keys is None or now - last_keys >= settings.get('service.forge_keys_every_s'):
+            # GATE-SHUTDOWN: the webhook ingress that verified with these keys is gone (PR #17); off with the gate's looks
+            if gate_looks and (last_keys is None or now - last_keys >= settings.get('service.forge_keys_every_s')):
                 last_keys = now
                 refresh_keys(forge_webhooks, workflows)
         except Exception as failure:  # noqa: BLE001 - a failed tick leaves the health file stale; ECS replaces the task

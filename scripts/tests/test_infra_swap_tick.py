@@ -302,8 +302,10 @@ class TheWiring(unittest.TestCase):
         self.assertIn('aside(origin_forge.warm)  # IMAGE-SWAP-TICK', standby)  # the forge's key and token, kept by the standby
         self.assertIn('last_keys = time.monotonic()  # and the webhook keys', standby)  # their refresh: an interval after
         before = SERVE[:SERVE.index("LOG.info('serve: up')")]  # a reloaded task reads both before it takes the role over
+        # GATE-SHUTDOWN: both are the AWS gate's, read only under service.gate_looks (test_infra_gate_looks)
         self.assertIn('    if gate is not None and gate.reloaded is not None and gate.sharing():\n'
-                      '        origin_forge.warm()\n        refresh_keys(forge_webhooks, workflows)\n'
+                      '        if gate_looks:  # GATE-SHUTDOWN', before)
+        self.assertIn('            origin_forge.warm()\n            refresh_keys(forge_webhooks, workflows)\n'
                       '        last_keys = time.monotonic()\n        woken.wait(0)  # and its wake is drained', before)
 
     def test_the_services_standby_keeps_its_loops_wake_listening_and_drained(self):

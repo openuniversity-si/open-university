@@ -382,10 +382,13 @@ class ImageTests(unittest.TestCase):
                       main)
 
     def test_the_service_refreshes_the_forges_webhook_keys_and_a_failure_never_stops_the_tick(self):
-        # P4 F2b: the port's Lambda has no route to Origin's JWKS (D-309); the service records the keys in the log
+        # P4 F2b: the port's Lambda has no route to Origin's JWKS (D-309); the service records the keys in the log.
+        # GATE-SHUTDOWN: only under service.gate_looks (the ingress that verified with them is gone, PR #17)
         main = (SERVICE / 'tower_infra' / '__main__.py').read_text(encoding='utf-8')
         loop = main[main.index('while not stop.is_set():'):main.index("LOG.info('serve: stopping')")]
         self.assertIn('refresh_keys(forge_webhooks, workflows)', loop)
+        self.assertIn("if gate_looks and (last_keys is None or now - last_keys >= settings.get('service.forge_keys_every_s')):",
+                      loop)
         helper = main[main.index('def refresh_keys('):main.index('def serve():')]
         self.assertIn('forge_webhooks.refresh(db', helper)
         self.assertIn('except Exception', helper)
@@ -617,7 +620,7 @@ class StackTests(unittest.TestCase):
     def test_the_task_role_connects_as_the_service_login_reads_only_the_forge_key_and_publishes_to_tower_topics(self):
         statements = self.statements('TaskRole')
         self.assertEqual([item['Action'] for item in statements],
-                         ['rds-db:connect', 'ssm:GetParameter', 'ssm:PutParameter', 'ssm:PutParameter', 'kms:Decrypt', 'sns:Publish',
+                         ['rds-db:connect', 'ssm:GetParameter', 'ssm:PutParameter', 'kms:Decrypt', 'sns:Publish',
                           'bedrock-mantle:CreateInference', 'bedrock:InvokeModel',
                           'lambda:InvokeFunction', 'ssm:GetParameter',
                           ['lambda:UpdateFunctionCode', 'lambda:PublishVersion', 'lambda:UpdateAlias', 'lambda:GetAlias',
@@ -634,7 +637,8 @@ class StackTests(unittest.TestCase):
                          ['tower-port-api:*', 'tower-port-webhook-consumer:*', 'tower-port-ack-ingress:*'])
         self.assertEqual(bucket['Condition'], {'StringLike': {'s3:prefix': 'artifacts/lambda/*'}})
         self.assertTrue(objects['Resource']['Fn::Sub'].endswith('/artifacts/lambda/*'))
-        database, key, write_back, publish_keys, decrypt, topics, claude, converse = statements[:8]
+        # GATE-SHUTDOWN: no statement publishes the forge's webhook keys (/tower/port/forge-keys): the ingress is gone
+        database, key, write_back, decrypt, topics, claude, converse = statements[:7]
         self.assertEqual(claude['Resource'], '*')  # D-310: the model ARN of bedrock-mantle is not documented yet
         model, profile = converse['Resource']  # D-311: models and inference profiles only, never provisioned ones
         self.assertEqual((model['Fn::Sub'], profile['Fn::Sub']), ('arn:${AWS::Partition}:bedrock:*::foundation-model/*',
@@ -647,7 +651,7 @@ class StackTests(unittest.TestCase):
         # renewed OAuth credentials are written back: exactly the two CLI sessions, no wildcard (Daniel, through the Torre)
         self.assertEqual([item['Fn::Sub'].split(':parameter')[1] for item in write_back['Resource']],
                          ['/tower/sessions/claude-code', '/tower/sessions/codex'])
-        self.assertTrue(publish_keys['Resource']['Fn::Sub'].endswith(':parameter/tower/port/forge-keys'))  # PORT3: one parameter
+        self.assertNotIn('/tower/port/forge-keys', json.dumps(statements))
         self.assertIn('kms:ViaService', str(decrypt['Condition']))
         given = {item['Name']: item['Value'] for item in self.containers['service']['Environment']}
         self.assertEqual(given['TOWER_FORGE_KEY_PARAMETER'], '/tower/origin/forge-key')
