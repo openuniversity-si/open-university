@@ -8,7 +8,7 @@ archive is commit `567176bb` (D-110). No product command remains here.
 **Where it lives.** GitHub `openuniversity-si/open-university` is the source of truth (public, Apache-2.0, fresh history since 14/11/2026). A change is a pull request against `main`; it lands through GitHub's merge queue, which requires the `tower/gate` commit status. The check is the GitHub Actions job `tower/gate` (`.github/workflows/tower-gate.yml`), which runs `scripts/verify-commit` on the pull request and on the queue's `gh-readonly-queue/main/...` commit; run it yourself with `scripts/verify-commit --sha <commit> --base <base> --no-post`. A merge into `main` rings the AWS deploy (`.github/workflows/deploy-doorbell.yml`; `scripts/deploy status` reads it). Origin is a one-way mirror of `main` in a repository of Open University only (D-314). The AWS gate (its runner, queue and webhook) is stopped: where a section below still names `mod/roadmap-integration`, `origin pr`, `scripts/deliver`, the train or the box, that is the Origin-era tooling, kept in the tree and not the flow.
 
 **Resuming.** On `continue` or `continue (docs/RETOMAR.md)`, step 0 is [docs/RETOMAR.md](docs/RETOMAR.md): reach the
-current Origin base, prepare the environment, reconcile merges and active claims, then resume SEMENTE §8 step 3.
+current base (`main` on GitHub, D-314), prepare the environment, reconcile merges and active claims, then resume SEMENTE §8 step 3.
 
 **Do not read** `docs/project/PROJECT-PHASE1-v2.1.md` or `/workspace/frameworks/pesquisa-torre/C-implementacao/projeto/PROJETO-FASE1-v2.1.md`. Your phase pack (the brief you were launched with) contains everything you need.
 
