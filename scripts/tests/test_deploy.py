@@ -151,6 +151,36 @@ class SmokeTests(unittest.TestCase):
         record = f'echo "$*" >> {shlex.quote(str(log))}; ' if log else ''
         return (f'{record}if [[ "$1 $2" = "ecs describe-services" ]]; then echo {shlex.quote(desired)}; exit 0; fi; exit 255')
 
+    @staticmethod
+    def stack(answer, log=None):
+        """SMOKE-RUNNER-FROM-STACK: a fake aws CLI that refuses ECS (the deployer's role is not granted it) and answers the
+        runner stack's DesiredCount with `answer`; 'missing' says the stack does not exist, 'fail' any other error."""
+        record = f'echo "$*" >> {shlex.quote(str(log))}; ' if log else ''
+        reply = {'missing': 'echo "An error occurred (ValidationError): Stack with id tower-app-runner does not exist" >&2; exit 254',
+                 'fail': 'echo "An error occurred (Throttling)" >&2; exit 254'}.get(answer, f'echo {shlex.quote(answer)}; exit 0')
+        return (f'{record}if [[ "$1 $2" = "ecs describe-services" ]]; then echo "AccessDeniedException" >&2; exit 254; fi; '
+                f'if [[ "$1 $2" = "cloudformation describe-stacks" ]]; then {reply}; fi; exit 255')
+
+    def test_when_ecs_is_refused_the_runner_stacks_desired_count_decides(self):
+        """tower-infra-deploy:e70ed637 (14/11): the deployer may not call ECS, so the canary ran with the runner at 0."""
+        for answer, said in (('0', 'the runner stack (tower-app-runner) has DesiredCount 0'),
+                             ('missing', 'the runner stack (tower-app-runner) does not exist')):
+            self.seen = []
+            log = Path(tempfile.mkdtemp()) / 'aws.log'
+            self.addCleanup(shutil.rmtree, log.parent, True)
+            done = self.run_smoke(self.serve(), aws=self.stack(answer, log), DEPLOY_SMOKE_TOKEN='t' * 12)
+            self.assertEqual(done.returncode, 0, done.stdout)
+            self.assertIn(f'smoke: {said}', done.stdout)
+            self.assertEqual(self.canaries(), [])
+            self.assertIn('smoke ok: registry read', done.stdout)
+            self.assertIn('cloudformation describe-stacks --stack-name tower-app-runner', log.read_text())
+        red = ({'ok': False, 'stage': 'take', 'line': 'canary job dispatched in 0.4 s and not taken in 120 s: the runner'},)
+        for answer in ('1', 'fail'):  # a runner the stack starts, or neither answer: the canary runs, and red is red
+            self.seen = []
+            done = self.run_smoke(self.serve(canary=red), aws=self.stack(answer), DEPLOY_SMOKE_TOKEN='t' * 12)
+            self.assertEqual(done.returncode, 1, (answer, done.stdout))
+            self.assertTrue(self.canaries())
+
     def canaries(self):
         return [each for each in self.seen if 'canary' in each[0]]
 
