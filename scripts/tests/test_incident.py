@@ -39,5 +39,13 @@ class Register(unittest.TestCase):
             self.assertIn('root cause here', incident.show(tmp, identifier))
 
 
+
+class NeverPublished(unittest.TestCase):
+    def test_the_records_folder_is_ignored_by_git(self):
+        """The public tree leaves docs/operations/ out (D-314): a record stays on the machine and is never committed."""
+        import subprocess
+        done = subprocess.run(['git', 'check-ignore', '-q', f'{incident.FOLDER}/I-00000000.md'], cwd=ROOT, check=False)
+        self.assertEqual(done.returncode, 0)
+
 if __name__ == '__main__':
     unittest.main()

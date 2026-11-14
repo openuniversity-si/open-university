@@ -39,3 +39,7 @@ __pycache__/
 
 # RETRO-API session-log store (docs/units/RETRO-API/audit.md): local until a unit chooses the central copy
 /retro/
+
+# Internal operation records (incidents, D-231; scripts/incident): kept on the machine, never published. The public
+# tree leaves docs/operations/ out (the migration to GitHub, D-314); a push refusal wrote one here untracked each time.
+/docs/operations/
