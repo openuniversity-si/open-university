@@ -128,10 +128,17 @@ class TheVerifier(unittest.TestCase):
         self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=broken), 1)
         self.assertEqual(fake.statuses[-1][1], 'error')
 
+    def test_the_deploy_doorbell_rings_on_a_merge_to_main_with_the_secrets_only(self):
+        staged = (ROOT / 'services' / 'runner' / 'github' / 'deploy-doorbell.yml').read_text(encoding='utf-8')
+        for line in ('  push:', '    branches: [main]', 'run: python3 scripts/lib/deploy.py ring',
+                     '${{ secrets.TOWER_DEPLOY_DOORBELL_TOKEN }}', '  contents: read'):
+            self.assertIn(line, staged)
+        self.assertNotIn('pull_request', staged)  # never a pull request's code: only what main merged
+
     def test_the_tower_gate_workflow_is_the_one_allowed_and_runs_the_verifier_on_the_queue_too(self):
         # the Torre's choice (a), 14/11/2026: a GitHub-hosted job, free on a public repository, named as the check
         import config
-        self.assertEqual(config.get('gate.allowed_workflows'), ['.github/workflows/tower-gate.yml'])
+        self.assertEqual(config.get('gate.allowed_workflows'), ['.github/workflows/tower-gate.yml', '.github/workflows/deploy-doorbell.yml'])
         staged = (ROOT / 'services' / 'runner' / 'github' / 'tower-gate.yml').read_text(encoding='utf-8')
         for line in ('  pull_request:', '  merge_group:', '    name: tower/gate',
                      'scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post'):
