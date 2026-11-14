@@ -377,7 +377,9 @@ class MergeReady(Stubbed):
         self.addCleanup(setattr, forge, 'READY_LIFE_S', life)
         self.assertTrue(self.forge.ready(REPO, '7', HEAD))
         process = self.forge.kept['process']
-        self.assertIn(process.wait(timeout=30), (137, -9))  # killed by its timeout (its group: itself too) in open()
+        # killed by its timeout in open(): 137 when `timeout` kills its group, itself too; 124 when the coreutils spares
+        # itself (the GitHub runner's): either way the orphan's life ended it
+        self.assertIn(process.wait(timeout=30), (124, 137, -9))
         self.assertFalse(self.body.exists())
 
     def test_the_look_drops_its_kept_merge_when_its_process_ends(self):

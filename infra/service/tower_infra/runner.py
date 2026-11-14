@@ -403,8 +403,8 @@ class Runner:
         forge.repository.pushed: what a gate passed and the forge merged)."""
         if not SHA.match(sha):
             return False
-        from .pregate import REPO
-        return self.db.rows(LANDED, {'ref': BASE_REF, 'sha': sha, 'repo': REPO})[0][0] in (True, 't')
+        from . import engine
+        return self.db.rows(LANDED, {'ref': BASE_REF, 'sha': sha, 'repo': engine.repo()})[0][0] in (True, 't')
 
     def command(self, run, spec, checkout, log):
         """Run the command in its own process group with its timeout; (exit code, outcome), with the CPU seconds it

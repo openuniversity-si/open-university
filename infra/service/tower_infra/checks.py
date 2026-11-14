@@ -29,10 +29,11 @@ import urllib.error
 import urllib.request
 
 from . import ed25519
+from . import engine  # ENGINE-REPO
 
 LOG = logging.getLogger('tower_infra.checks')
 EVENT = 'platform.forge.check_run'
-REPO = 'openuniversity-si/open-university'
+REPO = engine.DEFAULT  # ENGINE-REPO: the default; engine.repo() is what runs
 SHA = re.compile(r'^[0-9a-f]{40}$')
 ORIGIN_API = 'https://api.cursor.com/v1/origin'
 AUDIENCE, JWT_TTL_S, TOKEN_MARGIN_S, TOKEN_FALLBACK_S = 'origin-apps', 300, 60, 300
@@ -66,8 +67,8 @@ def ask(db, who, body, clock=time.time_ns, configured=None):
     from . import canary, port
     (configured or canary.configured)(db, who)
     body = body or {}
-    if body.get('repo') != REPO:
-        raise port.PortError(400, f'only {REPO} is served')
+    if body.get('repo') != engine.repo():
+        raise port.PortError(400, f'only {engine.repo()} is served')
     if not SHA.match(str(body.get('headSha') or '')) or not isinstance(body.get('checkRun'), dict) \
             or not isinstance(body.get('checkSuite'), dict):
         raise port.PortError(400, 'headSha (40 hex), checkSuite and checkRun required')
@@ -154,7 +155,7 @@ class Poster:
         return token
 
     def post(self, asked):
-        owner, name = REPO.split('/')
+        owner, name = engine.repo().split('/')
         token = self.installation_token()
         try:
             return self.call('POST', f'{self.api}/repos/{owner}/{name}/check-runs', token, {

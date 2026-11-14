@@ -9,6 +9,7 @@ An invalid stored value never reaches a reader: the last good one (or the defaul
 Standard library only.
 """
 import json
+import re
 import logging
 import os
 from pathlib import Path
@@ -49,6 +50,9 @@ SPEC = {
     'deploy.canary_limit_s': (float, 120.0),
     # CANARY-OWN-SLOT: 1 gives the deploy canaries a slot of their own in the runner's capacity; 0 is off
     'deploy.canary_slot': (int, 1),
+    # ENGINE-REPO (14/11/2026): the engine's repository on its forge (tower_infra.engine.repo), owner/name; the default is
+    # the public repository's, and the Torre writes the deployed engine's own
+    'service.engine_repo': (str, 'openuniversity-si/open-university'),
     'service.dispatch_s': (float, 1.0),
     'service.forge_keys_every_s': (float, 600.0),
     # DB-VITALS: the database's disk (bytes) and the ratios of it and of max_connections past which the service alerts
@@ -95,6 +99,8 @@ def validate(name, value):
         raise ValueError(f'{name} wants {want.__name__} {">= 0" if name in ZERO_OK else "> 0"}')
     if want is str and not value.strip() and name not in EMPTY_OK:
         raise ValueError(f'{name} wants a non-empty string')
+    if name == 'service.engine_repo' and not re.match(r'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$', value):
+        raise ValueError('service.engine_repo wants owner/name')
     return value
 
 

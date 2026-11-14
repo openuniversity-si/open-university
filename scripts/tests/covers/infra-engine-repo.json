@@ -1,0 +1,19 @@
+{
+  "script": "scripts/tests/infra-engine-repo.test.sh",
+  "covers": [
+    "scripts/tests/infra-engine-repo.test.sh",
+    "scripts/tests/test_infra_engine_repo.py",
+    "infra/service/tower_infra/engine.py",
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/branches.py",
+    "infra/service/tower_infra/canary.py",
+    "infra/service/tower_infra/checks.py",
+    "infra/service/tower_infra/fullrun.py",
+    "infra/service/tower_infra/merge_ready.py",
+    "infra/service/tower_infra/observations.py",
+    "infra/service/tower_infra/pregate.py",
+    "infra/service/tower_infra/prewarm.py",
+    "infra/service/tower_infra/runner.py",
+    "infra/service/tower_infra/__main__.py"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "type": "string",
+  "default": "openuniversity-si/open-university",
+  "minLength": 3,
+  "x-unit": "owner/name",
+  "description": "The engine's repository on its forge: the one the service's looks (canary, checks, pre-gate, prewarm, observations, branches, full run, merge-ready) read and judge. The service reads it live from the port (PUT /v1/config/service.engine_repo); TOWER_ENGINE_REPO in the service's environment wins over it. A value that is not owner/name is refused by the port and ignored by the reader.",
+  "x-readers": [
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/engine.py"
+  ],
+  "x-source": "Torre 14/11 (GitHub migration): the repository identity comes from configuration"
+}

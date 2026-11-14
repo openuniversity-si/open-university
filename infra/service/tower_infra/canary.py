@@ -46,6 +46,7 @@ import re
 import time
 
 from . import config_data, port
+from . import engine  # ENGINE-REPO
 
 LOG = logging.getLogger('tower_infra.canary')
 EVENT = 'platform.deploy.canary'
@@ -63,7 +64,7 @@ OWN = ("insert into work.capacity (executor, account, slots) select e.name, %(ac
        "and exists (select 1 from work.capacity c where c.executor = e.name) on conflict (executor, account) do nothing")
 KEY = re.compile(r'^[A-Za-z0-9][A-Za-z0-9:._/-]{0,199}$')
 PREFIX = 'canary:'  # of the job's idempotency key
-REPO = 'openuniversity-si/open-university'  # prewarm.REPO (a test pins it): the checkout the gate's checks use
+REPO = engine.DEFAULT  # ENGINE-REPO: the default; engine.repo() is what runs; prewarm.REPO (a test pins it): the checkout the gate's checks use
 QUEUE, RANK, TIMEOUT_S = 'checks', 1000000, 60  # gate-infra.check_queue; above gate_infra's ranks, which end at 999999
 COMMAND = ['true']
 WAIT_MAX_S, WAKES = 20, 50  # the long poll stays under the API's 30 s; a burst of other jobs' events ends it too
@@ -152,7 +153,7 @@ def start(db, who, body, said=None):
         commit = str(found[0][0] or '') if found else ''
     if not re.fullmatch(r'[0-9a-f]{40}', commit):
         raise port.PortError(409, f'the log has no head of {ref} in 7 days: name a commit')
-    spec = {'repo': REPO, 'ref': ref, 'commit': commit, 'command': COMMAND, 'timeout_s': TIMEOUT_S}
+    spec = {'repo': engine.repo(), 'ref': ref, 'commit': commit, 'command': COMMAND, 'timeout_s': TIMEOUT_S}
     selector = {'adapter': 'container'}
     if cfg[SLOT]:  # CANARY-OWN-SLOT: its own slot, which exists from the first canary that asks for it
         db.rows(OWN, {'account': RESERVED, 'tenant': tenant_id})

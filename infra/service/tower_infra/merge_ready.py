@@ -9,6 +9,7 @@ import logging
 import threading
 
 from .pregate import REPO, TENANT_ID
+from . import engine  # ENGINE-REPO
 
 LOG = logging.getLogger('tower_infra.merge_ready')
 BASE = 'mod/roadmap-integration'
@@ -17,9 +18,14 @@ FRONT = ("select pr, head from work.train where tenant_id = %(tenant)s::uuid and
 
 
 class Look:
-    def __init__(self, forge, base=BASE, repo=REPO, tenant=None):
+    @property
+    def repo(self):
+        """ENGINE-REPO: the one given, else the engine's repository as configured now (engine.repo())."""
+        return self._repo or engine.repo()
+
+    def __init__(self, forge, base=BASE, repo=None, tenant=None):
         from . import config_data
-        self.forge, self.base, self.repo = forge, base, repo
+        self.forge, self.base, self._repo = forge, base, repo
         self.tenant, self.tenant_id = tenant or config_data.TENANT, None
 
     def step(self, db):
