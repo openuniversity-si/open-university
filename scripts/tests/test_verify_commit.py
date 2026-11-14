@@ -235,6 +235,21 @@ class TheVerifier(unittest.TestCase):
         verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post'], run=fake, environ=IMAGE)
         self.assertFalse([call for call in fake.calls if call[:2] == ['gh', 'api']])
 
+    def test_the_toolchain_cache_keeps_the_binaries_never_the_test_cluster_and_is_one_entry(self):
+        """CACHE-PGDATA: a cluster cached while its server ran broke setup.sh on a fresh runner (run 43606632818)."""
+        def cache_step(name):
+            text = (ROOT / 'services' / 'runner' / 'github' / name).read_text(encoding='utf-8')
+            start = text.index('      - uses: actions/cache@v4')
+            return text[start:text.index('      - name: toolchain', start)]
+        gate = cache_step('tower-gate.yml')
+        for excluded in ('pgdata', 'postgres.log', 'pgsocket', 'pghome'):
+            self.assertIn(f'            !.toolchain/{excluded}\n', gate)
+        self.assertIn('key: toolchain-bin-${{ runner.os }}-', gate)  # not the key of the entries that carried a cluster
+        self.assertEqual(cache_step('full-suite.yml'), gate)  # main's run saves what the gate restores: one version
+        made = (ROOT / 'scripts' / 'cloud' / 'postgres.py').read_text(encoding='utf-8')
+        for excluded in ('pgdata', 'postgres.log', 'pgsocket', 'pghome'):  # what postgres.py makes under .toolchain
+            self.assertIn(f" / '{excluded}'", made)
+
     def test_the_deploy_doorbell_rings_on_a_merge_to_main_with_the_secrets_only(self):
         staged = (ROOT / 'services' / 'runner' / 'github' / 'deploy-doorbell.yml').read_text(encoding='utf-8')
         for line in ('  push:', '    branches: [main]', 'run: python3 scripts/lib/deploy.py ring',
@@ -268,6 +283,14 @@ class TheVerifier(unittest.TestCase):
         for line in ('  pull_request:', '  merge_group:', '    name: tower/gate',
                      'scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post'):
             self.assertIn(line, staged)
+        for line in ('  actions: read', '          GH_TOKEN: ${{ github.token }}',
+                     'verdict=(--record "$RUNNER_TEMP/verdict")',
+                     'if [ "$EVENT" = merge_group ]; then base="$QUEUE_BASE"; verdict=(--reuse); fi',
+                     '--no-post "${verdict[@]}"', 'uses: actions/upload-artifact@v4',
+                     "if: github.event_name == 'pull_request' && steps.verify.outputs.verdict != ''",
+                     'name: ${{ steps.verify.outputs.verdict }}', 'continue-on-error: true'):
+            self.assertIn(line, staged)  # VERDICT-REUSE: kept by a green pull request run, reused by the queue's only
+        self.assertNotIn('contents: write', staged)
         ruleset = json.loads((ROOT / '.github' / 'rulesets' / 'main.json').read_text(encoding='utf-8'))
         rules = {rule['type']: rule.get('parameters') for rule in ruleset['rules']}
         self.assertEqual(rules['required_status_checks']['required_status_checks'], [{'context': 'tower/gate'}])
