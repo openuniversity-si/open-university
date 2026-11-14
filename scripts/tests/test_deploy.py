@@ -12,6 +12,7 @@ import time
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -75,10 +76,12 @@ class SmokeTests(unittest.TestCase):
         self.addCleanup(server.shutdown)
         return f'http://127.0.0.1:{server.server_address[1]}'
 
-    def run_smoke(self, url, **env):
+    def run_smoke(self, url, aws='exit 255', **env):
+        """aws: the body of the fake aws CLI (SMOKE-WITHOUT-RUNNER: what ECS answers for the runner); the default fails,
+        as with no credential."""
         bin_dir = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, bin_dir, True)
-        (bin_dir / 'aws').write_text('#!/usr/bin/env bash\nexit 255\n')
+        (bin_dir / 'aws').write_text(f'#!/usr/bin/env bash\n{aws}\n')
         (bin_dir / 'aws').chmod(0o755)
         environ = {**os.environ, 'PATH': f'{bin_dir}:{os.environ["PATH"]}', 'DEPLOY_SMOKE_URL': url, 'DEPLOY_SMOKE_TRIES': '2',
                    'DEPLOY_SMOKE_SLEEP': '0', **env}
@@ -140,6 +143,62 @@ class SmokeTests(unittest.TestCase):
         done = self.run_smoke(self.serve(created=404), DEPLOY_SMOKE_TOKEN='t' * 12)
         self.assertEqual(done.returncode, 0, done.stdout)
         self.assertIn('the canary job was skipped', done.stdout)
+
+    @staticmethod
+    def ecs(desired, log=None):
+        """A fake aws CLI whose ecs describe-services prints `desired` (what the --query selects) and records its arguments
+        in `log`; any other call fails."""
+        record = f'echo "$*" >> {shlex.quote(str(log))}; ' if log else ''
+        return (f'{record}if [[ "$1 $2" = "ecs describe-services" ]]; then echo {shlex.quote(desired)}; exit 0; fi; exit 255')
+
+    def canaries(self):
+        return [each for each in self.seen if 'canary' in each[0]]
+
+    def test_with_the_runner_stopped_or_gone_the_canary_is_skipped_and_said_and_the_rest_still_runs(self):
+        """SMOKE-WITHOUT-RUNNER: the gate left AWS; tower-runner at desired count 0, or deleted, takes no canary job."""
+        for desired, said in (('0', 'has a desired count of 0'), ('None', 'is missing or inactive'), ('', 'is missing or inactive')):
+            self.seen = []
+            log = Path(tempfile.mkdtemp()) / 'aws.log'
+            self.addCleanup(shutil.rmtree, log.parent, True)
+            done = self.run_smoke(self.serve(), aws=self.ecs(desired, log), DEPLOY_SMOKE_TOKEN='t' * 12)
+            self.assertEqual(done.returncode, 0, done.stdout)
+            self.assertIn(f'smoke: the runner (tower-runner in tower) {said}', done.stdout)
+            self.assertIn('the canary job was skipped', done.stdout)
+            self.assertEqual(self.canaries(), [])
+            self.assertIn('smoke ok: GET /v1/health', done.stdout)
+            self.assertIn('smoke ok: registry read', done.stdout)
+            self.assertIn('ecs describe-services --cluster tower --services tower-runner', log.read_text())
+
+    def test_with_the_runner_stopped_the_other_checks_are_as_strict_as_before(self):
+        stopped = self.ecs('0')
+        done = self.run_smoke(self.serve(health=500), aws=stopped, DEPLOY_SMOKE_TOKEN='t' * 12)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn('smoke RED: GET /v1/health', done.stdout)
+        done = self.run_smoke(self.serve(source='ssm'), aws=stopped, DEPLOY_SMOKE_TOKEN='t' * 12)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn('smoke RED: registry read', done.stdout)
+
+    def test_a_runner_that_runs_or_an_ecs_that_did_not_answer_runs_the_canary(self):
+        red = ({'ok': False, 'stage': 'take', 'line': 'canary job dispatched in 0.4 s and not taken in 120 s: the runner'},)
+        for aws in (self.ecs('1'), self.ecs('2'), 'exit 255', self.ecs('surprise')):
+            self.seen = []
+            done = self.run_smoke(self.serve(canary=red), aws=aws, DEPLOY_SMOKE_TOKEN='t' * 12)
+            self.assertEqual(done.returncode, 1, (aws, done.stdout))
+            self.assertIn('smoke RED: canary job dispatched in 0.4 s and not taken in 120 s', done.stdout)
+            self.assertTrue(self.canaries())
+
+    def test_deploy_smoke_canary_on_and_off_override_what_ecs_says(self):
+        done = self.run_smoke(self.serve(), aws=self.ecs('0'), DEPLOY_SMOKE_TOKEN='t' * 12, DEPLOY_SMOKE_CANARY='on')
+        self.assertEqual(done.returncode, 0, done.stdout)
+        self.assertIn('smoke ok: canary job', done.stdout)
+        self.seen = []
+        done = self.run_smoke(self.serve(), aws=self.ecs('1'), DEPLOY_SMOKE_TOKEN='t' * 12, DEPLOY_SMOKE_CANARY='off')
+        self.assertEqual(done.returncode, 0, done.stdout)
+        self.assertIn('smoke: DEPLOY_SMOKE_CANARY=off: the canary job was skipped', done.stdout)
+        self.assertEqual(self.canaries(), [])
+        done = self.run_smoke(self.serve(), aws=self.ecs('0'), DEPLOY_SMOKE_TOKEN='t' * 12, DEPLOY_SMOKE_CANARY='maybe')
+        self.assertIn("DEPLOY_SMOKE_CANARY='maybe' is not auto, on or off: the canary runs", done.stdout)
+        self.assertIn('smoke ok: canary job', done.stdout)
 
     def test_without_a_token_no_canary_is_asked_and_the_skip_is_said(self):
         done = self.run_smoke(self.serve(status=401))

@@ -14,6 +14,13 @@
 #      happened: not dispatched (the service), dispatched and not taken (the runner), taken and failed (the run). A red
 #      canary is also published to ALERTS_TOPIC_ARN when the deployer has it. A port with no canary route (a bisection's
 #      midpoint older than the route) skips it, and says so.
+#      SMOKE-WITHOUT-RUNNER (the migration to GitHub, Torre 14/11): the canary is a check's path, and a check needs the
+#      runner (stage take). Once the gate leaves AWS the ECS service tower-runner is stopped (desired count 0) or deleted,
+#      and a canary would be red on every deploy and roll it back. DEPLOY_SMOKE_CANARY says when it runs: `auto` (the
+#      default) asks ECS for tower-runner in the cluster tower (DEPLOY_SMOKE_RUNNER_CLUSTER, _SERVICE): it runs when the
+#      service is ACTIVE with a desired count above 0, it is skipped, and said, when the service is missing, inactive or at
+#      0; an answer ECS did not give (no credential, a transport failure) runs it, so a doubt never loosens the smoke.
+#      `on` always runs it, `off` never (said). Checks 1 to 3 run whatever it says.
 # The URL is DEPLOY_SMOKE_URL or the PortUrl output of tower-app-port. The token is DEPLOY_SMOKE_TOKEN or the SecureString
 # /tower/deploy/smoke-token (an installation token, inside the /tower/deploy/* read the deployer already has); with none
 # the authenticated half is said to be skipped, never silently passed. No secret is printed.
@@ -78,11 +85,35 @@ canary() {
   done
 }
 
+# runner: SMOKE-WITHOUT-RUNNER. 0 when the canary should run (a runner takes its job, or nobody could tell), 1 when it is
+# skipped; prints the reason of a skip.
+runner() {
+  local mode="${DEPLOY_SMOKE_CANARY:-auto}" cluster="${DEPLOY_SMOKE_RUNNER_CLUSTER:-tower}" service="${DEPLOY_SMOKE_RUNNER_SERVICE:-tower-runner}" desired
+  case "$mode" in
+    on) return 0 ;;
+    off) echo "smoke: DEPLOY_SMOKE_CANARY=off: the canary job was skipped"; return 1 ;;
+    auto) ;;
+    *) echo "smoke: DEPLOY_SMOKE_CANARY='$mode' is not auto, on or off: the canary runs"; return 0 ;;
+  esac
+  if ! desired="$(aws ecs describe-services --cluster "$cluster" --services "$service" \
+      --query "services[?status=='ACTIVE'] | [0].desiredCount" --output text 2>/dev/null)"; then
+    return 0  # ECS did not answer: run it
+  fi
+  if [[ "$desired" =~ ^[0-9]+$ ]] && (( desired > 0 )); then return 0; fi
+  if [[ "$desired" = 0 ]]; then
+    echo "smoke: the runner ($service in $cluster) has a desired count of 0: no runner takes a check, the canary job was skipped"; return 1
+  fi
+  if [[ -z "$desired" || "$desired" = None ]]; then
+    echo "smoke: the runner ($service in $cluster) is missing or inactive: no runner takes a check, the canary job was skipped"; return 1
+  fi
+  return 0  # an answer it does not know: run it
+}
+
 red=0
 check "GET /v1/health" /v1/health "" 200 '"ok": *true' || red=1
 if [[ -n "$token" ]]; then
   if check "registry read: GET /v1/deploy/status" /v1/deploy/status auth 200 '"source": *"registry"'; then :; else red=1; fi
-  canary || red=1
+  if runner; then canary || red=1; fi
 else
   check "GET /v1/deploy/status (no token: the route answers a refusal)" /v1/deploy/status "" '401|403' '' || red=1
   echo "smoke: no smoke token (/tower/deploy/smoke-token): the authenticated registry read was skipped, and the canary job with it"
