@@ -14,6 +14,10 @@ not fall from one capacity provider to another. So the live service's look:
     runs over, the one up already) and says {stopped}; a task of its own that ended without it says {ended};
   - a service that starts again reads its open fallback back from the log, so a reload does not leave one running.
 Every step by an event of ECS or of the runner; the look's fallback wait is the other looks'.
+
+GATE-SHUTDOWN (14/11/2026, D-314; #17, #22): this look served the AWS gate on Origin, which is shut down (the gate is
+GitHub's tower/gate and its merge queue): serve() starts it only under service.gate_looks, false by default. Its code
+stays whole, so a row of work.config_value turns it back on at the next start.
 """
 import json
 import logging

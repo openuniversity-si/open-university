@@ -39,6 +39,10 @@ the successors alone stand by. A restart of the service finds the wants in the l
 Health is DescribeTasks' healthStatus, the container's health check over the standby's own beat. The one poll: while a
 task is starting, the look runs at least every POLL_S (15 s; never more than two of them blind) and a task not healthy in
 START_LIMIT_S fails; with none starting only events wake the look (and SAFETY_S, the timeout of a lost notification).
+
+GATE-SHUTDOWN (14/11/2026, D-314; #17, #22): this look served the AWS gate on Origin, which is shut down (the gate is
+GitHub's tower/gate and its merge queue): serve() starts it only under service.gate_looks, false by default. Its code
+stays whole, so a row of work.config_value turns it back on at the next start.
 """
 import hashlib
 import json

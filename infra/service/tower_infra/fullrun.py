@@ -15,6 +15,10 @@ one runs waits for it (platform.gate.full {state: waiting, behind}) and the newe
 landed in between are judged by it, as their tree is in its. (A newer landing took over, cancelling the older run: with no
 cache, #697, a run is longer than the time between two landings, and none ended: 4c340fc4 and aaf65b73, 13/11 22:09 to
 22:15 UTC, both dropped.)
+
+GATE-SHUTDOWN (14/11/2026, D-314; #17, #22): this look served the AWS gate on Origin, which is shut down (the gate is
+GitHub's tower/gate and its merge queue): serve() starts it only under service.gate_looks, false by default. Its code
+stays whole, so a row of work.config_value turns it back on at the next start.
 """
 import json
 import logging
