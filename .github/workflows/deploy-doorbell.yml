@@ -1,0 +1,26 @@
+# deploy/doorbell (the migration to GitHub, 14/11/2026, option (b)): a merge to main rings the AWS deploy's doorbell.
+# Staged here and installed by the owner as .github/workflows/deploy-doorbell.yml (D-087: sessions may not write
+# .github/workflows). The doorbell's token is not an AWS credential: it goes in the repository secrets
+# TOWER_DEPLOY_DOORBELL_URL and TOWER_DEPLOY_DOORBELL_TOKEN. The build then deploys what the bootstrap's OriginRepoUrl and
+# BaseBranch name: they must point at this repository and main first (see the plan), or the build keeps deploying Origin.
+name: deploy-doorbell
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: deploy-doorbell
+  cancel-in-progress: false
+jobs:
+  ring:
+    name: deploy/doorbell
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: ring
+        env:
+          TOWER_DEPLOY_DOORBELL_URL: ${{ secrets.TOWER_DEPLOY_DOORBELL_URL }}
+          TOWER_DEPLOY_DOORBELL_TOKEN: ${{ secrets.TOWER_DEPLOY_DOORBELL_TOKEN }}
+        run: python3 scripts/lib/deploy.py ring
