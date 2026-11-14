@@ -49,7 +49,10 @@
     "scripts/tests/covers/aws-tenant-isolation-proof.json",
     "scripts/tests/infra-engine-repo.test.sh",
     "scripts/tests/test_infra_engine_repo.py",
-    "scripts/tests/covers/infra-engine-repo.json"
+    "scripts/tests/covers/infra-engine-repo.json",
+    "scripts/tests/infra-gate-looks.test.sh",
+    "scripts/tests/test_infra_gate_looks.py",
+    "scripts/tests/covers/infra-gate-looks.json"
   ],
   "battery": {
     "command": "scripts/unit-battery engine-infra-service"

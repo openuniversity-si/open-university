@@ -382,10 +382,13 @@ class ImageTests(unittest.TestCase):
                       main)
 
     def test_the_service_refreshes_the_forges_webhook_keys_and_a_failure_never_stops_the_tick(self):
-        # P4 F2b: the port's Lambda has no route to Origin's JWKS (D-309); the service records the keys in the log
+        # P4 F2b: the port's Lambda has no route to Origin's JWKS (D-309); the service records the keys in the log.
+        # GATE-SHUTDOWN: only under service.gate_looks (the ingress that verified with them is gone, PR #17)
         main = (SERVICE / 'tower_infra' / '__main__.py').read_text(encoding='utf-8')
         loop = main[main.index('while not stop.is_set():'):main.index("LOG.info('serve: stopping')")]
         self.assertIn('refresh_keys(forge_webhooks, workflows)', loop)
+        self.assertIn("if gate_looks and (last_keys is None or now - last_keys >= settings.get('service.forge_keys_every_s')):",
+                      loop)
         helper = main[main.index('def refresh_keys('):main.index('def serve():')]
         self.assertIn('forge_webhooks.refresh(db', helper)
         self.assertIn('except Exception', helper)
