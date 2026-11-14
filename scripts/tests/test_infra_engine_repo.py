@@ -63,9 +63,42 @@ class TheRepository(unittest.TestCase):
             self.assertFalse(re.findall(r"'openuniversity-si/open-university'", text), path.name)
             self.assertNotIn('repo=REPO', text, path.name)
 
-    def test_the_service_hands_its_settings_over(self):
-        main = (ROOT / 'infra' / 'service' / 'tower_infra' / '__main__.py').read_text(encoding='utf-8')
-        self.assertIn('engine.use(settings)', main)
+    def test_the_service_hands_its_settings_over_without_rebinding_the_database_engine(self):
+        """ENGINE-REPO: serve() hands its settings to the module, and `engine` in it stays the database's engine."""
+        import ast
+        main = ast.parse((ROOT / 'infra' / 'service' / 'tower_infra' / '__main__.py').read_text(encoding='utf-8'))
+        serve = next(node for node in main.body if isinstance(node, ast.FunctionDef) and node.name == 'serve')
+        calls = [node for node in ast.walk(serve) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                 and node.func.attr == 'use' and isinstance(node.func.value, ast.Name)]
+        self.assertEqual([(call.func.value.id, [arg.id for arg in call.args]) for call in calls], [('engine_repo', ['settings'])])
+        bound = [node.value.func.attr for node in ast.walk(serve) if isinstance(node, ast.Assign)
+                 and any(isinstance(target, ast.Name) and target.id == 'engine' for target in node.targets)]
+        self.assertEqual(bound, ['iam_engine'])  # the database's engine, the only binding of the name
+
+    def test_no_scope_binds_the_name_engine_to_the_module_and_to_something_else(self):
+        """The first deploy from GitHub (14/11) failed on this: in a scope where `engine` is the database's engine (an
+        argument or an assignment), an import of the engine module under the same name rebinds it for the whole scope."""
+        import ast
+
+        def module_imports(scope):
+            return [node for node in ast.walk(scope) if isinstance(node, ast.ImportFrom) and node.level == 1
+                    and not node.module and any(alias.name == 'engine' and alias.asname in (None, 'engine')
+                                                for alias in node.names)]
+
+        def other_bindings(scope):
+            names = [arg.arg for arg in ast.walk(scope.args) if isinstance(arg, ast.arg)] if hasattr(scope, 'args') else []
+            names += [target.id for node in ast.walk(scope) if isinstance(node, ast.Assign) for target in node.targets
+                      if isinstance(target, ast.Name)]
+            return 'engine' in names
+
+        bad = []
+        for path in sorted((ROOT / 'infra' / 'service' / 'tower_infra').glob('*.py')):
+            tree = ast.parse(path.read_text(encoding='utf-8'))
+            scopes = [tree] + [node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
+            for scope in scopes:
+                if module_imports(scope) and other_bindings(scope):
+                    bad.append(f'{path.name}:{getattr(scope, "name", "<module>")}')
+        self.assertEqual(bad, [])
 
 
 if __name__ == '__main__':
