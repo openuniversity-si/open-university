@@ -77,6 +77,7 @@
  "SlowPathShTests.test_a_task_up_on_another_image_or_before_the_rollout_settles_nothing": 5.9,
  "SlowPathShTests.test_an_image_change_builds_the_image_and_redeploys_the_stacks_that_read_it": 2.01,
  "SlowPathShTests.test_an_unmoved_head_bisects_at_once": 1.53,
+ "SlowPathShTests.test_an_earlier_build_stage_is_kept_as_its_own_image_and_is_the_next_builds_cache": 4.13,
  "SlowPathShTests.test_code_live_asks_only_the_roles_that_have_an_ecs_service": 2.65,
  "SlowPathShTests.test_code_live_beside_a_port_stack_change_builds_no_image_and_applies_the_port_stack_alone": 3.64,
  "SlowPathShTests.test_good_and_bad_adjacent_resolve_at_once_and_never_redeploy_the_same_commit": 2.6,

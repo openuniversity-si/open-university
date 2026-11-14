@@ -459,6 +459,42 @@ code_live() {
   echo "code live: yes: the head's code is the bundle ${digest:0:12} of deploy.live_code, reloaded in place by the ECS task of $want_roles and booted by any task ECS starts: no image is built, the service and runner stacks are left alone"
 }
 
+# IMAGE-STAGE-CACHE: stage_cache <dockerfile> <repository>: the cache of the image's earlier build stages, in stage_from (the
+# --cache-from arguments). The previous image (/tower/deploy/image/<name>) is the cache of the FINAL stage only: an inline cache
+# (BUILDKIT_INLINE_CACHE) and the classic builder's history both hold the layers of the image, and an earlier stage's are not in
+# it. So the service's `clis` stage (npm install of the two subscription CLIs) ran again at every build, and everything after its
+# COPY --from with it: tower-infra-deploy:41c163b1 (14/11, #22) spent 73 s on image:service for a change of tower_infra alone.
+# Each named stage that is not the last one and reads nothing of the build context (only COPY --from=, no ADD) is kept as its
+# own image, tower-<name>:stage-<stage>-<sha256 of the Dockerfile up to its end, comments and blank lines left out>: content-
+# addressed, so a tag that exists is that stage, pulled and given as cache; a missing one is built (--target, inline cache) and
+# pushed once, and the image's own build then finds it in the local cache. It names no new IAM action (the deployer pushes and
+# describes tower-<name> already) and the repository's lifecycle (10 images) expires it like any image: rebuilt once then.
+# Never fails a build: a stage that cannot be pulled or kept is built inside the image, as before.
+stage_cache() {
+  local dockerfile="$1" repository="$2" stage text tag ref total
+  stage_from=()
+  total="$(grep -c -i -E '^[[:space:]]*FROM[[:space:]]' "$dockerfile")"
+  while read -r stage; do
+    [[ -n "$stage" ]] || continue
+    text="$(grep -v -E '^[[:space:]]*(#|$)' "$dockerfile" | awk -v s="$stage" \
+      'toupper($1) == "FROM" { if (seen) exit; if (tolower($NF) == tolower(s) && toupper($(NF-1)) == "AS") seen = 1 } { print }')"
+    (( $(grep -c -i -E '^[[:space:]]*FROM[[:space:]]' <<<"$text") < total )) || continue  # the last stage is the image itself
+    if grep -i -E '^[[:space:]]*(COPY|ADD)[[:space:]]' <<<"$text" | grep -q -v -i -E '^[[:space:]]*COPY[[:space:]].*--from='; then
+      echo "image cache: stage $stage reads the build context: built in the image"; continue
+    fi
+    tag="stage-$stage-$(printf '%s\n' "$text" | sha256sum | cut -c1-20)"; ref="$IMAGE_REGISTRY/$repository:$tag"
+    if aws ecr describe-images --repository-name "$repository" --image-ids imageTag="$tag" >/dev/null 2>&1; then
+      if docker pull --quiet "$ref" >/dev/null 2>&1; then stage_from+=(--cache-from "$ref"); echo "image cache: stage $stage from $ref"
+      else echo "image cache: stage $stage: $ref could not be pulled: built in the image"; fi
+    elif docker build --quiet --target "$stage" --build-arg BUILDKIT_INLINE_CACHE=1 --file "$dockerfile" --tag "$ref" "$repo" >/dev/null \
+        && docker push --quiet "$ref" >/dev/null; then
+      stage_from+=(--cache-from "$ref"); echo "image cache: stage $stage built and kept as $ref"
+    else
+      echo "image cache: stage $stage could not be kept: built in the image"
+    fi
+  done < <(sed -n -E 's/^[[:space:]]*[Ff][Rr][Oo][Mm][[:space:]]+.*[[:space:]][Aa][Ss][[:space:]]+([A-Za-z0-9_.-]+)[[:space:]]*$/\1/p' "$dockerfile")
+}
+
 # deploy_status: the port's GET /v1/deploy/status, read once per build into $work/status.json (empty when it cannot be read).
 deploy_status() {
   [[ -f "$work/status.json" ]] && return 0
@@ -1133,6 +1169,7 @@ deploy() {
     elif aws ecr get-login-password | docker login --username AWS --password-stdin "$IMAGE_REGISTRY" >/dev/null \
         && { prior="$(aws ssm get-parameter --name "/tower/deploy/image/$name" --query Parameter.Value --output text 2>/dev/null)" || prior=""
              cache=(); [[ -n "$prior" && "$prior" != None ]] && docker pull --quiet "$prior" >/dev/null 2>&1 && cache=(--cache-from "$prior"); true; } \
+        && { stage_cache "$dockerfile" "$repository"; cache+=(${stage_from[@]+"${stage_from[@]}"}); true; } \
         && docker build --quiet ${cache[@]+"${cache[@]}"} --build-arg BUILDKIT_INLINE_CACHE=1 --file "$dockerfile" --tag "$image" "$repo" \
         && docker push --quiet "$image"; then
       echo "built $image from $dockerfile"

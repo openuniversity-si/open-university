@@ -63,7 +63,9 @@ case "$1 $2" in
     printf '%s\tNewResource\tUPDATE_FAILED\tTHIS build failure\n' "$(date -u +%Y-%m-%dT%H:%M:%S.000000+00:00)" ;;
   "cloudformation get-template") [ -f "$STUB_DIR/bootstrap.json" ] && { cat "$STUB_DIR/bootstrap.json"; exit 0; } || exit 255 ;;  # BOOTSTRAP-DRIFT
   "ecr describe-repositories") exit 0 ;;
-  "ecr describe-images") exit 255 ;;
+  "ecr describe-images")  # IMAGE-STAGE-CACHE: ecr_tags lists the tags that exist (none by default)
+    while [ $# -gt 0 ]; do case "$1" in --image-ids) t="${2#imageTag=}";; esac; shift; done
+    [ -n "${t:-}" ] && grep -qx "$t" "$STUB_DIR/ecr_tags" 2>/dev/null && exit 0; exit 255 ;;
   "ecr get-login-password") echo "ecr-password-0123456789abcdef0123456789abcdef" ;;
   "cloudformation execute-change-set")
     while [ $# -gt 0 ]; do case "$1" in --change-set-name) a="$2";; esac; shift; done
@@ -731,6 +733,35 @@ class SlowPathShTests(DeployShTests):
         self.assertEqual(self.stacks_deployed(), ['port', 'runner', 'service'])
         self.assertIn('docker build', (self.state / 'calls').read_text())
         self.assertIn('--cache-from', (self.state / 'calls').read_text())
+
+    STAGED = ('# the subscription CLIs\nFROM node AS clis\nRUN npm install\n\nFROM base AS ctx\nCOPY infra/x /x\n'
+              'FROM python\nCOPY --from=clis /opt /opt\nCOPY --from=ctx /x /x\n')
+
+    def test_an_earlier_build_stage_is_kept_as_its_own_image_and_is_the_next_builds_cache(self):
+        # IMAGE-STAGE-CACHE: the previous image caches its last stage alone; the clis stage ran again at every build (73 s, #22)
+        self.with_classifier()
+        self.commit('staged image', infra__service__Dockerfile=self.STAGED)
+        done = self.run_deploy(STUB_LAST=self.base, DEPLOY_SMOKE_CMD='none')
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        calls = (self.state / 'calls').read_text()
+        ref = re.search(r'docker build --quiet --target clis .* --tag (registry\.test/tower-service:stage-clis-[0-9a-f]{20}) ', calls).group(1)
+        self.assertIn(f'docker push --quiet {ref}', calls)
+        self.assertRegex(calls, rf'docker build --quiet .*--cache-from {re.escape(ref)} .*--tag registry\.test/tower-service:[0-9a-f]{{20}} ')
+        self.assertNotIn('--target ctx', calls)  # a stage that reads the build context is not cached apart
+        self.assertIn('image cache: stage ctx reads the build context', done.stdout)
+        self.assertNotIn('--target ingress', calls)  # a Dockerfile with one stage has no stage to keep
+        # the next image change with the same stage: its image exists, it is pulled and given as cache, nothing is built for it
+        (self.state / 'ecr_tags').write_text(ref.split(':')[-1] + '\n')
+        (self.state / 'calls').write_text('')
+        (self.state / 'param_tower_deploy_last-sha').write_text(git(self.tmp / 'repo', 'rev-parse', 'HEAD'))
+        self.commit('code', infra__service__Dockerfile=self.STAGED + '# a comment of the last stage\nENV A=1\n')
+        done = self.run_deploy(STUB_LAST=self.base, DEPLOY_SMOKE_CMD='none')
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        calls = (self.state / 'calls').read_text()
+        self.assertIn(f'docker pull --quiet {ref}', calls)
+        self.assertNotIn('--target clis', calls)
+        self.assertIn(f'--cache-from {ref}', calls)
+        self.assertIn(f'image cache: stage clis from {ref}', done.stdout)
 
     def test_a_batch_with_no_slow_target_deploys_nothing_and_still_advances_last_sha(self):
         self.with_classifier()
