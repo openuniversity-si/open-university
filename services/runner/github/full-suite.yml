@@ -1,0 +1,47 @@
+# full-suite (FULL-SUITE-MAIN; the migration to GitHub, 14/11/2026): the safety net of the plan's section 2, the whole script
+# suite after each merge into main, as the AWS FULL-RUN was. tower/gate judges only the tests a diff touches; this job
+# judges every one (scripts/verify-commit --all: a test red in the batch runs again alone, VERIFY-ALONE). A red run opens an
+# issue and blocks nothing. Staged here and installed by the owner as .github/workflows/full-suite.yml (D-087).
+name: full-suite
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: full-suite
+  cancel-in-progress: false
+jobs:
+  suite:
+    name: full-suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@v4
+        with:
+          path: .toolchain
+          key: toolchain-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
+      - name: toolchain
+        run: bash scripts/cloud/setup.sh
+      - name: suite
+        id: suite
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          base="$BEFORE"
+          git cat-file -e "${base}^{commit}" 2>/dev/null || base="$(git rev-parse HEAD~1)"
+          source scripts/cloud/env.sh
+          scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post --all
+      - name: open an issue when red
+        if: failure() && steps.suite.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "full-suite red on ${GITHUB_SHA::12}" \
+            --body "The whole script suite was red on main at $GITHUB_SHA: $RUN_URL. The job's log names each red test and the end of its output."

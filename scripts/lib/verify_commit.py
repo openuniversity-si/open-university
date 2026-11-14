@@ -42,12 +42,13 @@ def plan(base, run=run):
         return json.loads(answer.read_text())['plan']
 
 
-def judge(base, run=run, clock=time.monotonic, tails=None, alone=None):
+def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=False):
     """(green, red names, the plan, seconds): every stage of the plan but SKIPPED, then its tests in one batch.
     VERIFY-TAIL: tails, when given, receives (name, the end of its output) for each red stage and each test still red.
     VERIFY-ALONE (the engine's FULL-RUN-ALONE): a test red in the batch runs again alone, and that verdict is its own; a
     hosted runner's 4 vCPUs starve the timing-bound ones beside the rest (infra-intask-standby: 110 s and red in the
-    batch of PR #3, 10 s and green alone). alone, when given, receives the tests that were green only alone."""
+    batch of PR #3, 10 s and green alone). alone, when given, receives the tests that were green only alone.
+    FULL-SUITE-MAIN: every=True judges every script test of the checkout, not the diff's (the safety net after a merge)."""
     began = clock()
     planned = plan(base, run)
     red = []
@@ -63,6 +64,9 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None):
             tails.append((stage, 'its output is not printed (a secret scan): run it locally' if stage.startswith('secret')
                           else said[-TAIL:]))
     tests = planned.get('tests') or []
+    if every:
+        tests = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / 'scripts' / 'tests').glob('*.test.sh'))
+        planned['tests'] = tests
     if tests:
         with tempfile.TemporaryDirectory() as tmp:
             answer = Path(tmp) / 'tests.json'
@@ -105,6 +109,7 @@ def main(argv=None, run=run):
     parser.add_argument('--base', required=True)
     parser.add_argument('--repo')
     parser.add_argument('--no-post', action='store_true', help='judge and print; publish nothing')
+    parser.add_argument('--all', action='store_true', help='every script test, not only the diff\'s (FULL-SUITE-MAIN)')
     args = parser.parse_args(argv)
     code, head = run(['git', 'rev-parse', 'HEAD'])
     if code != 0 or head.strip() != args.sha:
@@ -116,7 +121,7 @@ def main(argv=None, run=run):
         post(repo, args.sha, 'pending', 'the verifier is judging this commit', run)
     try:
         tails, alone = [], []
-        green, red, planned, seconds = judge(args.base, run, tails=tails, alone=alone)
+        green, red, planned, seconds = judge(args.base, run, tails=tails, alone=alone, every=args.all)
     except Exception as error:  # noqa: BLE001 - a verifier that could not judge says so on the commit
         if not args.no_post:
             post(repo, args.sha, 'error', f'not judged: {error}', run)
