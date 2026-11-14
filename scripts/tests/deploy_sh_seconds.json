@@ -1,6 +1,7 @@
 {
  "DeployShTests.test_a_change_to_an_ack_file_alone_runs_the_smoke_and_an_unrelated_one_does_not": 1.91,
  "DeployShTests.test_a_stacks_values_in_the_file_go_beside_its_own_overrides": 3.0,
+ "DeployShTests.test_the_runner_stack_is_applied_with_no_runner": 3.0,
  "DeployShTests.test_the_data_stack_is_deployed_with_the_class_the_file_names": 3.0,
  "DeployShTests.test_the_bootstrap_stack_is_read_back_and_compared_with_its_mirror_in_the_record": 4.09,
  "DeployShTests.test_a_changed_control_plane_is_deployed_with_the_token_and_never_prints_it": 1.6,

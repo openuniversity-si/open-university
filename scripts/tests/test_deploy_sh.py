@@ -642,6 +642,22 @@ class DeployShTests(unittest.TestCase):
         port = [c for c in (self.state / 'calls').read_text().splitlines() if 'cloudformation deploy' in c and 'tower-app-port' in c]
         self.assertNotIn('Memory=', port[0])
 
+    def test_the_runner_stack_is_applied_with_no_runner(self):
+        """RUNNER-OFF (the migration to GitHub, 14/11): the gate left AWS. A stack keeps a parameter's previous value when it
+        is not given, and the runner stack's default was 1: the first deploy from GitHub brought tower-runner back to 1/1
+        (8 GiB) after the Torre had set it to 0. infra/aws/parameters.json passes DesiredCount=0 on every apply."""
+        self.assertEqual(json.loads((ROOT / 'infra/aws/parameters.json').read_text())['runner'], {'DesiredCount': '0'})
+        runner = json.loads((ROOT / 'infra/aws/stacks/50-runner.json').read_text())
+        self.assertEqual(runner['Parameters']['DesiredCount']['Default'], 0)
+        self.five_stacks()
+        repo = self.tmp / 'repo'
+        (repo / 'infra/aws/parameters.json').write_text((ROOT / 'infra/aws/parameters.json').read_text())
+        done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        calls = [c for c in (self.state / 'calls').read_text().splitlines() if 'cloudformation deploy' in c and 'tower-app-runner' in c]
+        self.assertTrue(calls, done.stdout[-2000:])
+        self.assertIn('DesiredCount=0', calls[0])
+
     def test_the_repo_parameters_make_production_sqs_and_the_template_default_stays_the_fallback(self):
         self.assertEqual(json.loads((ROOT / 'infra/aws/parameters.json').read_text())['port']['AckPath'], 'sqs')  # PORT7-PROD
         port = json.loads((ROOT / 'infra/aws/stacks/40-port.json').read_text())
