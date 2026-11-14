@@ -22,7 +22,7 @@ import time
 LOG = logging.getLogger('tower_infra.drills')
 EVENT = 'platform.deploy.drill'
 KINDS = ('lambda-rollback', 'runner-placement')
-FUNCTIONS = ('tower-port-api', 'tower-port-webhook-consumer')  # the ingress is the API Gateway's (AckPath sqs)
+FUNCTIONS = ('tower-port-api',)  # GATE-SHUTDOWN (#17): the webhook consumer and the ack-ingress left the port stack
 ASKED_S = 600
 # ondemand's (test_infra_drills holds them equal): not imported, the port's Lambda imports this module and ondemand's
 # closure (prewarm, autodeploy, live_image) is the service's

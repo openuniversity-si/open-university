@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
@@ -134,9 +135,23 @@ class Run(unittest.TestCase):
         self.assertEqual(sorted(s3.deleted), ['artifacts/lambda/head/0123abc.json', 'artifacts/lambda/tower-port-api/old.zip'])
         self.assertEqual(log.said, [said])
         self.assertEqual((said['state'], said['objects'], said['bytes']), ('done', 2, 107))
-        self.assertEqual(said['versions'], {'tower-port-api': [1, 2, 3, 5], 'tower-port-webhook-consumer': [],
-                                            'tower-port-ack-ingress': []})
-        self.assertEqual(said['kept'], {'tower-port-api': 11, 'tower-port-webhook-consumer': 3, 'tower-port-ack-ingress': 0})
+        self.assertEqual(said['versions'], {'tower-port-api': [1, 2, 3, 5]})  # GATE-SHUTDOWN: the API is the one function
+        self.assertEqual(said['kept'], {'tower-port-api': 11})
+
+    def test_a_function_that_is_gone_is_skipped_and_the_pass_goes_on(self):
+        look, lam, s3, log = self.rig(code=f'{DIGEST}@0123456789abcdef')
+
+        class NotFound(Exception):
+            pass
+        NotFound.__name__ = 'ResourceNotFoundException'
+
+        def gone(**kwargs):
+            raise NotFound('Function not found: tower-port-api')
+        lam.list_versions_by_function = gone
+        with mock.patch.object(prune, 'FUNCTIONS', ('tower-port-api',)):
+            said = look.step(log)
+        self.assertEqual((said['state'], said['versions']), ('done', {}))
+        self.assertIn('artifacts/lambda/tower-port-api/old.zip', s3.deleted)  # the packages' part still ran
 
     def test_without_every_reference_read_no_package_is_deleted_but_the_versions_still_are(self):
         look, lam, s3, log = self.rig(code=f'{DIGEST}@0123456789abcdef', broken=True)

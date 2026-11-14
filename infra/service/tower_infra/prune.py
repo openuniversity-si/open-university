@@ -21,7 +21,8 @@ import uuid
 
 LOG = logging.getLogger('tower_infra.prune')
 EVENT = 'platform.deploy.prune'
-FUNCTIONS = ('tower-port-api', 'tower-port-webhook-consumer', 'tower-port-ack-ingress')
+# GATE-SHUTDOWN (D-314, #17): the ack-ingress and the webhook consumer left the port stack; the API is the port's one function
+FUNCTIONS = ('tower-port-api',)
 SERVICES = ('tower-service', 'tower-runner')
 FAMILIES = ('tower-service', 'tower-service-standby', 'tower-runner')
 PREFIX = 'artifacts/lambda/'
@@ -93,8 +94,14 @@ class Prune:
         began = self.clock()
         deleted, kept, named = {}, {}, set()
         for function in FUNCTIONS:
-            versions = list(pages(self.lam.list_versions_by_function, 'Versions', FunctionName=function))
-            aliases = list(pages(self.lam.list_aliases, 'Aliases', FunctionName=function))
+            try:
+                versions = list(pages(self.lam.list_versions_by_function, 'Versions', FunctionName=function))
+                aliases = list(pages(self.lam.list_aliases, 'Aliases', FunctionName=function))
+            except Exception as error:  # noqa: BLE001 - a function that is gone has no version to prune
+                if 'ResourceNotFound' not in type(error).__name__ + str(error):
+                    raise
+                LOG.info('prune: %s does not exist: nothing of it to prune', function)
+                continue
             gone = []
             for number in doomed(versions, aliases, self.keep):
                 try:
