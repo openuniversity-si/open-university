@@ -685,16 +685,7 @@ class Prewarm(unittest.TestCase):
         self.assertLess(run_container.index('prewarm(container'), run_container.index('runner.serve_all'))
         self.assertIn('.warming', body)  # the health file stays untouched while warming: the old task serves meanwhile
         self.assertIn('prewarm_s=', run_container)
-        stack = json.loads((ROOT / 'infra' / 'aws' / 'stacks' / '50-runner.json').read_text())
-        text = json.dumps(stack)
-        self.assertIn('TOWER_PREWARM_REPO', text)
-        health = [d for d in stack['Resources'].values() if d['Type'] == 'AWS::ECS::TaskDefinition'][0]
-        check = health['Properties']['ContainerDefinitions'][0]['HealthCheck']
-        # ECS caps StartPeriod at 300 s: the grace is StartPeriod + Interval * Retries, and it must outlast the warm-up
-        self.assertLessEqual(check['StartPeriod'], 300)
-        self.assertGreater(check['StartPeriod'] + check['Interval'] * check['Retries'], 300 + 60)
-        env = {e['Name']: e['Value'] for e in stack['Resources']['TaskDefinition']['Properties']['ContainerDefinitions'][0]['Environment']}
-        self.assertLessEqual(int(env['TOWER_PREWARM_TIMEOUT_S']), 300)
+        # GATE-SHUTDOWN (D-314): the runner's task definition (its health check and warm-up timeout) left 50-runner.json
 
 
 class ColdStart(unittest.TestCase):
@@ -880,8 +871,7 @@ class Interruptions(RunnerWorld):
         self.assertTrue(self.runner.interrupted)
         # no run is taken after the warning: the one handed over stays for the next task (its lease gives it back)
         self.assertEqual(self.db.rows('select state from work.run where job_id = %(id)s::uuid', {'id': later}), [('starting',)])
-        stack = load(STACKS / '50-runner.json')['Resources']['TaskDefinition']['Properties']['ContainerDefinitions'][0]
-        self.assertLess(runner.TERM_GRACE_S + 10, stack['StopTimeout'])  # the end of the run fits before the SIGKILL
+        # (GATE-SHUTDOWN: the runner's task definition and its StopTimeout left 50-runner.json)
 
     def test_a_spot_interruption_ends_the_run_as_lost_and_the_job_is_dispatched_again(self):
         job = self.job('interrupted', 'sleep 30')
@@ -967,109 +957,18 @@ class Interruptions(RunnerWorld):
 
 
 class RunnerStackTests(unittest.TestCase):
-    """infra/aws/stacks/50-runner.json: the warm runner of P4 F1 and the bucket of its logs, and nothing more."""
+    """infra/aws/stacks/50-runner.json since GATE-SHUTDOWN (D-314): the outputs bucket alone; the gate's runner is gone."""
 
     def setUp(self):
         self.template = load(STACKS / '50-runner.json')
         self.resources = self.template['Resources']
-        self.task = self.resources['TaskDefinition']['Properties']
-        self.container, = self.task['ContainerDefinitions']
-        self.environment = {item['Name']: item['Value'] for item in self.container['Environment']}
 
-    def default(self, name):
-        return self.template['Parameters'][name]['Default']
-
-    def statements(self, role):
-        return [item for policy in self.resources[role]['Properties']['Policies']
-                for item in policy['PolicyDocument']['Statement']]
-
-    def test_it_is_the_warm_runner_of_the_architecture_on_fargate_spot_arm(self):
-        self.assertIn('um runner quente de 2 vCPU', TARGET.read_text(encoding='utf-8'))
-        # RUNNER-OFF (the migration to GitHub, 14/11): no warm runner since the gate left AWS; parameters.json passes 0 too
-        self.assertEqual((self.default('Cpu'), self.default('Memory'), self.default('DesiredCount')),
-                         ('2048', '8192', 0))
-        self.assertEqual((self.task['Cpu'], self.task['Memory']), ({'Ref': 'Cpu'}, {'Ref': 'Memory'}))
-        self.assertEqual(self.task['RuntimePlatform'], {'CpuArchitecture': 'ARM64', 'OperatingSystemFamily': 'LINUX'})
-        service = self.resources['Service']['Properties']
-        self.assertEqual(service['CapacityProviderStrategy'], [{'CapacityProvider': 'FARGATE_SPOT', 'Weight': 1}])
-        self.assertNotIn('LaunchType', service)  # a launch type would override the capacity provider
-        self.assertEqual(service['Cluster'], {'Fn::ImportValue': 'tower-service-cluster'})
-        cluster = load(STACKS / '30-service.json')
-        self.assertIn('FARGATE_SPOT', cluster['Resources']['Cluster']['Properties']['CapacityProviders'])
-        self.assertEqual(cluster['Outputs']['Cluster']['Export']['Name'], 'tower-service-cluster')
-
-    def test_every_check_of_the_task_runs_as_the_check_user(self):
-        # CHECK-NOT-ROOT (the review's finding 14): the task's default once full runs as tower-check were green but the uid 0
-        # probe, which runs as root from the base's landed code (UID0-FROM-BASE); the standbys and successors are this
-        # task definition too
-        self.assertEqual(self.environment['TOWER_CHECK_USER'], runner.CHECK_USER)
-
-    def test_it_runs_the_services_image_as_run_container_with_an_init_that_reaps(self):
-        image = self.template['Parameters']['Image']
-        self.assertEqual((image['Type'], image['Default']),
-                         ('AWS::SSM::Parameter::Value<String>', '/tower/deploy/image/service'))
-        self.assertEqual((self.container['Image'], self.container['Command']), ({'Ref': 'Image'}, ['run-container']))
-        self.assertEqual(self.container['LinuxParameters'], {'InitProcessEnabled': True})  # orphans of checks reaped
-        self.assertEqual(str(self.container['StopTimeout']), '120')  # the Spot warning: two minutes to end the run
-        self.assertEqual(self.container['HealthCheck']['Command'][0], 'CMD-SHELL')  # ROLLOUT-PARTS: the file's age
-        self.assertNotIn('Secrets', self.container)  # the keys are read when used, never at start
-
-    def test_the_checks_run_as_root_as_on_the_box_and_the_service_stays_unprivileged(self):
-        # INFRA-EXE 1d: the box runs every check as uid 0 and the suite is made for it (setup drops PostgreSQL to a
-        # service user; uid0-probe needs root), so the runner's checks do too; the image's USER stays the service's
-        self.assertEqual(self.container['User'], '0')
-        self.assertIn('USER nobody', (ROOT / 'infra/service/Dockerfile').read_text(encoding='utf-8'))
-        for container in load(STACKS / '30-service.json')['Resources']['TaskDefinition']['Properties'][
-                'ContainerDefinitions']:  # the init and the service containers: the image's own user
-            self.assertNotIn('User', container, container['Name'])
-
-    def test_the_warm_runner_has_four_slots(self):
-        # INFRA-EXE 1e: a check used ~0.7 s of CPU in 3.5 s of wall time on this 2 vCPU task (04/11), so it runs two;
-        # AWS2: a head of 18 checks took 150 s in two slots against the box's 44 s, so four, with 2 GB for each
-        self.assertIn("number('TOWER_RUNNER_SLOTS', 1)",
-                      (ROOT / 'infra/service/tower_infra/__main__.py').read_text(encoding='utf-8'))
-        self.assertEqual(self.environment['TOWER_RUNNER_SLOTS'], '4')
-
-    def test_the_runner_keeps_one_loop_more_than_its_slots_for_the_deploy_canary(self):
-        # CANARY-OWN-SLOT: the capacity gives the checks TOWER_RUNNER_SLOTS runs at once and the canary one of its own
-        # (mechanisms.RESERVED), so with every check slot in a run of minutes a loop, and its checkout, is free for it
-        self.assertIn("range(max(1, int(number('TOWER_RUNNER_SLOTS', 1))) + 1)",
-                      (ROOT / 'infra/service/tower_infra/__main__.py').read_text(encoding='utf-8'))
-
-    def test_the_container_gives_what_run_container_reads(self):
-        main = (ROOT / 'infra/service/tower_infra/__main__.py').read_text(encoding='utf-8')
-        source = (ROOT / 'infra/service/tower_infra/database.py').read_text(encoding='utf-8')
-        for name in ('TOWER_OUTPUTS_BUCKET', 'TOWER_WORKDIR', 'TOWER_FORGE_KEY_PARAMETER',
-                     'TOWER_SIGNING_KEY_PARAMETER'):
-            self.assertIn(f"os.environ.get('{name}'", main)
-            self.assertIn(name, self.environment)
-        for name in ('TOWER_DB_HOST', 'TOWER_DB_PORT', 'TOWER_DB_NAME'):
-            self.assertIn(f"['{name}']", source)
-            self.assertIn(name, self.environment)
-        self.assertEqual(self.environment['TOWER_OUTPUTS_BUCKET'], {'Ref': 'Outputs'})
-        self.assertIn(f"'{self.environment['TOWER_SIGNING_KEY_PARAMETER']}'", main)
-        self.assertIn(f"'{self.environment['TOWER_FORGE_KEY_PARAMETER']}'", main)
-
-    def test_its_role_reaches_only_its_login_its_two_keys_and_the_runs_prefix(self):
-        login, keys, decrypt, logs, artifacts = self.statements('TaskRole')
-        # RUNNER-OWN-LOGIN: the runner logs in as its own login (migration 0019: it owns nothing and may do only what a
-        # runner does), and its task's role may connect as no other (part B2): a check, which runs as the runner's user
-        # and can ask the task's role for a token, cannot become the service's login, the owner of every table
-        self.assertEqual((login['Sid'], login['Action'], login['Resource']['Fn::Sub'][0].rsplit('/', 1)[-1]),
-                         ('ConnectAsTheRunnerLogin', 'rds-db:connect', 'tower_runner'))
-        self.assertNotIn('tower_service', (ROOT / 'infra/aws/stacks/50-runner.json').read_text(encoding='utf-8'))
-        self.assertEqual(self.environment['TOWER_DB_USER'], 'tower_runner')  # dbinit.RUNNER_ROLE
-        self.assertIn("RUNNER_ROLE = 'tower_runner'", (ROOT / 'infra/service/tower_infra/dbinit.py').read_text(encoding='utf-8'))
-        main = (ROOT / 'infra/service/tower_infra/__main__.py').read_text(encoding='utf-8')
-        runs = main[main.index('def run_container('):]
-        self.assertIn("os.environ.get('TOWER_DB_USER', dbinit.SERVICE_ROLE)", runs)  # what its process connects as
-        self.assertEqual(keys['Action'], 'ssm:GetParameter')
-        self.assertEqual(sorted(item['Fn::Sub'].rsplit(':parameter', 1)[-1] for item in keys['Resource']),
-                         ['/tower/origin/forge-key', '/tower/runner/signing-key'])
-        self.assertEqual((decrypt['Action'], list(decrypt['Condition']['StringEquals'])),
-                         ('kms:Decrypt', ['kms:ViaService']))
-        self.assertEqual((logs['Action'], logs['Resource']), ('s3:PutObject', {'Fn::Sub': '${Outputs.Arn}/runs/*'}))
-        self.assertEqual(artifacts['Resource'], {'Fn::Sub': '${Outputs.Arn}/artifacts/lambda/*'})  # DEP8: the Lambda zips, by digest
+    def test_the_stack_is_the_outputs_bucket_and_its_tls_policy_both_retained(self):
+        self.assertEqual(sorted(self.resources), ['Outputs', 'OutputsOnlyOverTls'])
+        self.assertNotIn('AWS::ECS::Service', json.dumps(self.template))
+        self.assertEqual({name: each['DeletionPolicy'] for name, each in self.resources.items()},
+                         {'Outputs': 'Retain', 'OutputsOnlyOverTls': 'Retain'})
+        self.assertEqual(self.template['Outputs']['OutputsBucket']['Export']['Name'], 'tower-runner-outputs-bucket')
 
     def test_the_bucket_is_private_encrypted_reached_over_tls_and_forgets_the_logs(self):
         bucket = self.resources['Outputs']['Properties']
@@ -1079,12 +978,6 @@ class RunnerStackTests(unittest.TestCase):
         self.assertEqual((rule['Prefix'], rule['ExpirationInDays']), ('runs/', {'Ref': 'LogDays'}))
         deny, = self.resources['OutputsOnlyOverTls']['Properties']['PolicyDocument']['Statement']
         self.assertEqual((deny['Effect'], deny['Condition']), ('Deny', {'Bool': {'aws:SecureTransport': 'false'}}))
-
-    def test_it_runs_in_the_public_subnets_with_the_tasks_group_and_no_inbound(self):
-        network = self.resources['Service']['Properties']['NetworkConfiguration']['AwsvpcConfiguration']
-        self.assertEqual(network['AssignPublicIp'], 'ENABLED')  # no NAT: the public IP reaches Origin, ECR and S3
-        self.assertEqual(network['Subnets'], {'Fn::Split': [',', {'Fn::ImportValue': 'tower-network-public-subnets'}]})
-        self.assertEqual(network['SecurityGroups'], [{'Fn::ImportValue': 'tower-network-tasks-sg'}])
 
 
 class ArtifactEnvTests(unittest.TestCase):

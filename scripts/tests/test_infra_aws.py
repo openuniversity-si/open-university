@@ -882,8 +882,8 @@ class PrewarmStandbyTests(unittest.TestCase):
     def test_pass_role_only_the_four_task_roles_and_only_to_ecs_tasks(self):
         to_ecs = {'iam:PassedToService': 'ecs-tasks.amazonaws.com'}
         names = {load(INFRA / 'stacks' / stack)['Resources'][role]['Properties']['RoleName']
-                 for stack in ('30-service.json', '50-runner.json') for role in ('TaskRole', 'ExecutionRole')}
-        self.assertEqual(names, {'tower-app-runner', 'tower-app-runner-exec', 'tower-app-service', 'tower-app-service-exec'})
+                 for stack in ('30-service.json',) for role in ('TaskRole', 'ExecutionRole')}  # GATE-SHUTDOWN: no runner roles
+        self.assertEqual(names, {'tower-app-service', 'tower-app-service-exec'})
         for name in names:
             self.assertTrue(self.allowed('iam:PassRole', f'arn:aws-partition:iam::ACCOUNT:role/{name}', to_ecs))
             self.assertFalse(self.allowed('iam:PassRole', f'arn:aws-partition:iam::ACCOUNT:role/{name}',
@@ -926,10 +926,7 @@ class PrewarmStandbyTests(unittest.TestCase):
         network = self.resources['Service']['Properties']['NetworkConfiguration']['AwsvpcConfiguration']
         self.assertEqual({'Fn::Split': [',', given['TOWER_STANDBY_SUBNETS']]}, network['Subnets'])
         self.assertEqual([given['TOWER_STANDBY_SECURITY_GROUPS']], network['SecurityGroups'])
-        runner = load(INFRA / 'stacks/50-runner.json')['Resources']
-        self.assertEqual(runner['TaskDefinition']['Properties']['Family'], 'tower-runner')
-        self.assertEqual(runner['Service']['Properties']['NetworkConfiguration'], self.resources['Service']['Properties'][
-            'NetworkConfiguration'])  # the runner's standby runs where the runner does
+        # (GATE-SHUTDOWN, D-314: the runner's task definition and service left 50-runner.json)
 
 
 class CloudFormationLimitTests(unittest.TestCase):
@@ -977,9 +974,12 @@ class CloudFormationLimitTests(unittest.TestCase):
 
 class PortFunctionNamesTests(unittest.TestCase):
     """PORT-ZIP-RENAME: DEP8 changed the port Lambdas from Image to Zip, which replaces them; CloudFormation cannot replace a
-    custom-named resource, so the zip functions carry NEW fixed names (still inside the boundary's tower-port* scope)."""
+    custom-named resource, so the zip functions carry NEW fixed names (still inside the boundary's tower-port* scope).
+    GATE-SHUTDOWN: the ingress and the consumer left the port stack; the service's task role still names them (30-service.json
+    is not changed here), which grants nothing on a function that does not exist."""
     OLD = ('tower-port', 'tower-port-ingress', 'tower-port-webhooks')
-    NEW = {'PortFunction': 'tower-port-api', 'IngressFunction': 'tower-port-ack-ingress', 'WebhookFunction': 'tower-port-webhook-consumer'}
+    NEW = {'PortFunction': 'tower-port-api'}
+    GONE = ('tower-port-ack-ingress', 'tower-port-webhook-consumer')
 
     def test_the_zip_functions_have_new_names_and_everything_follows_them(self):
         port = load(INFRA / 'stacks' / '40-port.json')['Resources']
@@ -990,16 +990,14 @@ class PortFunctionNamesTests(unittest.TestCase):
             self.assertNotIn(name, self.OLD)
             self.assertTrue(fnmatchcase(name, 'tower-port*'))
             self.assertEqual(port[logical]['Properties']['Runtime'][:6], 'python')
-        # the api, the queue mapping and the permissions follow the aliases (Ref/GetAtt), never a name
+        # the api and the permission follow the alias (Ref/GetAtt), never a name
         text = json.dumps(port)
-        for old in self.OLD:
+        for old in self.OLD + self.GONE:
             self.assertNotIn(f'"FunctionName": "{old}"', text)
             self.assertNotIn(f'function:{old}', text)
-        for alias in ('PortAlias', 'IngressAlias', 'WebhookAlias'):
-            self.assertIn(alias, text)
-        self.assertEqual(port['WebhookSource']['Properties']['FunctionName'], {'Ref': 'WebhookAlias'})
+        self.assertEqual([r['Properties']['FunctionName'] for r in port.values() if r['Type'] == 'AWS::Lambda::Function'],
+                         list(self.NEW.values()))
         self.assertEqual(port['InvokeFromTheApi']['Properties']['FunctionName'], {'Ref': 'PortAlias'})
-        self.assertEqual(port['InvokeIngressFromTheApi']['Properties']['FunctionName'], {'Ref': 'IngressAlias'})
         # the task role's fast path names exactly these functions, with and without the alias qualifier
         listed = json.dumps(service)
         for name in self.NEW.values():

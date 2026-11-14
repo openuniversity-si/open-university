@@ -29,7 +29,7 @@
 # build's head (a later commit often fixes it, or the failure was transient); only if that fails too, or the head did not move,
 # does the bisection start. DEP7-NEW-HEAD-FIRST: this is keyed to a sha (bisect.head_tried_sha = the newest base head that failed), not
 # once per state: whenever the base head differs from it (a commit landed, also in the middle of a bisection) the current head is deployed
-# before any midpoint; red bisects (last-sha, that head], so a midpoint is never chosen while a newer, untried head exists. The control scripts (deploy_classify, deploy-smoke, ack_smoke) always come from
+# before any midpoint; red bisects (last-sha, that head], so a midpoint is never chosen while a newer, untried head exists. The control scripts (deploy_classify, deploy-smoke) always come from
 # the HEAD checkout ($ctl, a copy of the head's scripts/ taken before any midpoint is checked out): a midpoint's templates and
 # images come from the midpoint's tree ($repo), its old scripts never run.
 # SLOW-PATH-NO-ROLLOUT-WAIT (aws.md 22.10; Daniel 10/11: a 981 s cycle was about 14 minutes of two ECS rollouts, waited one after
@@ -160,11 +160,11 @@ progress() {
 }
 
 # record <status> <head> <failed...>: the last-build parameter, ALWAYS <= max_bytes (4000: the SSM Standard limit is 4096). When it
-# is too big, optional parts go in a fixed order: tail, ack_smoke variants (compact 'a:500 b:400'), ack_smoke fail_tail, steps
-# (only the not ok), hashes (with fast_owned), stack timings (with rollout and parts), the ack smoke, the bisect text; at last a minimal record. A failure to record never
+# is too big, optional parts go in a fixed order: tail, steps (only the not ok), hashes (with fast_owned), stack timings (with
+# rollout and parts), the bisect text; at last a minimal record. A failure to record never
 # changes the deploy's outcome; a failed write is retried as the minimal record {status, build_id, ended, base_head, error}.
 record() {
-  local status="$1" head="$2" ended ended_out tail failed_json json done_json left_json secs_json targets_json rolled_json bisect_json hashes_json ack_json ack_failed_json ack_smoke_json fast_owned_json live_json
+  local status="$1" head="$2" ended ended_out tail failed_json json done_json left_json secs_json targets_json rolled_json bisect_json hashes_json fast_owned_json live_json
   local n seconds usd batch steps step_cur fail_step bnote_txt lvl=0 over size lines="${record_tail_lines:-0}" migrate_json rolling_json rollout_json wait_json code_live parts_json port_tpl
   shift 2
   ended="$(date +%s)"; ended_out="$ended"; [[ "$status" = in_progress ]] && ended_out=0
@@ -184,8 +184,7 @@ record() {
     --arg rolled "$(read_work rolled)" --arg dirty "$(read_work dirty)" --arg secs "$(read_work secs)" \
     --arg rollout "$(read_work rollout)" --arg parts "$(read_work parts)" --arg targets "$(read_work targets_json)" \
     --arg bisect "$(read_work bisect)" --argjson has_bisect "$([[ -f "$work/bisect" ]] && echo true || echo false)" \
-    --arg hashlines "$hashlines" --arg live "$livelist" --arg ackpath "$(read_work ackpath)" --arg acksource "$(read_work ack_source)" \
-    --arg ack_failed "$(read_work ack_failed)" --arg ack_smoke "$(read_work ack_smoke_json)" \
+    --arg hashlines "$hashlines" --arg live "$livelist" \
     --arg fast_owned "$(read_work fast_owned)" --argjson has_fast_owned "$([[ -f "$work/fast_owned" ]] && echo true || echo false)" \
     --arg migrate "$(read_work migrate)" --arg rolling "$(read_work rolling)" --arg status "$status" \
     --arg port_tpl "$(read_work port_tpl)" --argjson has_port_tpl "$([[ -f "$work/port_tpl" ]] && echo true || echo false)" \
@@ -203,21 +202,18 @@ record() {
     | (if $has_fast_owned then ($fast_owned | try fromjson catch null) else ($p.fast_owned // null) end) as $fo
     | ([$ARGS.positional[] | select(length > 0)]),
       lines($done), lines($left), ((($p.stacks // {}) + doc($secs; {})) | keep), doc($targets; null), $rolled,
-      (if $has_bisect then doc($bisect; null) else ($p.bisect // null) end), $hashes,
-      {path: $ackpath, source: $acksource},
-      (if $ack_failed == "" then ($p.ack_failed // null) elif $ack_failed == "cleared" then null else {sha: $ack_failed} end),
-      doc($ack_smoke; null), $fo, object($migrate), (if $status == "rolling" or ($status == "succeeded" and (object($rolling) // {}).settling == true) then object($rolling) else null end),
+      (if $has_bisect then doc($bisect; null) else ($p.bisect // null) end), $hashes, $fo, object($migrate), (if $status == "rolling" or ($status == "succeeded" and (object($rolling) // {}).settling == true) then object($rolling) else null end),
       ((($p.rollout // {}) + doc($rollout; {})) | keep), ((($p.parts // {}) + doc($parts; {})) | keep), lines($dirty),
       (if ($wait | test("^[0-9]+$")) then ($wait | tonumber) else null end),
       ((($seconds / 60 * ($rate | tonumber)) * 1000000 | round) / 1000000)
     | tojson' --args "$@" 2>/dev/null)" || parts_out=""
   { read -r failed_json; read -r done_json; read -r left_json; read -r secs_json; read -r targets_json; read -r rolled_json
-    read -r bisect_json; read -r hashes_json; read -r ack_json; read -r ack_failed_json; read -r ack_smoke_json
+    read -r bisect_json; read -r hashes_json
     read -r fast_owned_json; read -r migrate_json; read -r rolling_json; read -r rollout_json; read -r parts_json
     read -r dirty_json; read -r wait_json; read -r usd; } <<<"$parts_out"
   local pair name
   for pair in 'failed_json=[]' 'done_json=[]' 'left_json=[]' 'secs_json={}' targets_json=null 'rolled_json=[]' bisect_json=null \
-      'hashes_json={}' 'ack_json={}' ack_failed_json=null ack_smoke_json=null fast_owned_json=null migrate_json=null \
+      'hashes_json={}' fast_owned_json=null migrate_json=null \
       rolling_json=null 'rollout_json={}' 'parts_json={}' 'dirty_json=[]' wait_json=null usd=0; do
     name="${pair%%=*}"
     [[ -n "${!name}" ]] || printf -v "$name" '%s' "${pair#*=}"  # what the one jq did not answer: the empty value
@@ -237,22 +233,20 @@ record() {
       --argjson failed "$failed_json" --argjson done "$done_json" --argjson left "$left_json" --argjson stacks "$secs_json" \
       --argjson started "$started" --argjson ended "$ended_out" --arg tail "$tail" --argjson targets "$targets_json" \
       --argjson rolled "$rolled_json" --argjson bisect "$bisect_json" --argjson epoch "$BISECT_EPOCH" --arg bnote "$bnote_txt" --argjson hashes "$hashes_json" --argjson dirty "$dirty_json" \
-      --argjson ack "$ack_json" --argjson ack_smoke "$ack_smoke_json" --argjson ack_failed "$ack_failed_json" --argjson fast_owned "$fast_owned_json" --argjson migrate "$migrate_json" --argjson rolling "$rolling_json" --argjson rollout "$rollout_json" --argjson parts "$parts_json" --arg port_tpl "$port_tpl" --argjson wait "$wait_json" --arg code_live "$code_live" --arg code_live_why "$code_live_why" --argjson seconds "$seconds" --argjson usd "$usd" --argjson batch "$batch" \
+      --argjson fast_owned "$fast_owned_json" --argjson migrate "$migrate_json" --argjson rolling "$rolling_json" --argjson rollout "$rollout_json" --argjson parts "$parts_json" --arg port_tpl "$port_tpl" --argjson wait "$wait_json" --arg code_live "$code_live" --arg code_live_why "$code_live_why" --argjson seconds "$seconds" --argjson usd "$usd" --argjson batch "$batch" \
       --argjson steps "$steps" --arg step "$step_cur" --arg failed_step "$fail_step" --argjson updated "$ended" \
-      '{build_id: $build_id, base_head: $base_head, status: $status, failed: $failed, done: $done, left: $left, stacks: $stacks, started: $started, ended: $ended, updated: $updated, step: $step, failed_step: $failed_step, steps: $steps, seconds: $seconds, usd: $usd, targets: $targets, batch: $batch, rolled_back: $rolled, bisect: $bisect, bisect_epoch: $epoch, bisect_note: $bnote, hashes: $hashes, dirty: $dirty, ack: $ack, ack_smoke: $ack_smoke, tail: $tail} + (if $ack_failed then {ack_failed: $ack_failed} else {} end) + (if $fast_owned then {fast_owned: $fast_owned} else {} end) + (if $migrate then {migrate: $migrate} else {} end) + (if $rolling then {rolling: $rolling} else {} end) + (if ($rollout | length) > 0 then {rollout: $rollout} else {} end) + {parts: $parts} + (if $port_tpl != "" then {port_tpl: $port_tpl} else {} end) + (if $wait != null then {rollout_wait_s: $wait} else {} end) + (if $code_live != "" then {code_live: $code_live} else {} end) + (if $code_live_why != "" then {code_live_why: $code_live_why} else {} end) + (if $bootstrap != "" then {bootstrap: $bootstrap} else {} end)' 2>/dev/null)" || json=""
+      '{build_id: $build_id, base_head: $base_head, status: $status, failed: $failed, done: $done, left: $left, stacks: $stacks, started: $started, ended: $ended, updated: $updated, step: $step, failed_step: $failed_step, steps: $steps, seconds: $seconds, usd: $usd, targets: $targets, batch: $batch, rolled_back: $rolled, bisect: $bisect, bisect_epoch: $epoch, bisect_note: $bnote, hashes: $hashes, dirty: $dirty, tail: $tail} + (if $fast_owned then {fast_owned: $fast_owned} else {} end) + (if $migrate then {migrate: $migrate} else {} end) + (if $rolling then {rolling: $rolling} else {} end) + (if ($rollout | length) > 0 then {rollout: $rollout} else {} end) + {parts: $parts} + (if $port_tpl != "" then {port_tpl: $port_tpl} else {} end) + (if $wait != null then {rollout_wait_s: $wait} else {} end) + (if $code_live != "" then {code_live: $code_live} else {} end) + (if $code_live_why != "" then {code_live_why: $code_live_why} else {} end) + (if $bootstrap != "" then {bootstrap: $bootstrap} else {} end)' 2>/dev/null)" || json=""
     [[ -n "$json" ]] || break
     size="$(bytes_of "$json")"
     (( size <= max_bytes )) && break
     over=$((size - max_bytes))
     case $lvl in
       0) if (( ${#tail} > over + 16 )); then tail="${tail: $((over + 16))}"; else tail=""; lvl=1; fi ;;
-      1) ack_smoke_json="$(jq -c 'if type == "object" and has("variants") then .variants |= (if type == "array" then map(tostring | .[0:24]) | join(" ") elif type == "object" then (to_entries | map("\(.key):\(.value | tostring | .[0:12])") | join(" ")) else tostring end | .[0:400]) else . end' <<<"$ack_smoke_json" 2>/dev/null || echo null)"; lvl=2 ;;
-      2) ack_smoke_json="$(jq -c 'if type == "object" then del(.fail_tail) else . end' <<<"$ack_smoke_json" 2>/dev/null || echo null)"; lvl=3 ;;
-      3) steps="$(jq -c 'map(select(.s != "ok") | if .e then .e |= .[-400:] else . end)' <<<"$steps" 2>/dev/null || echo '[]')"; lvl=4 ;;
-      4) hashes_json='{}'; dirty_json='[]'; fast_owned_json=null; lvl=5 ;;
-      5) secs_json='{}'; rollout_json='{}'; parts_json='{}'; lvl=6 ;;
-      6) ack_smoke_json=null; bnote_txt=""; steps="$(jq -c 'map(select(.s == "failed") | if .e then .e |= .[-200:] else . end)' <<<"$steps" 2>/dev/null || echo '[]')"; lvl=7 ;;
-      7) bisect_json="$(jq -c 'if type == "object" then del(.reason) else . end' <<<"$bisect_json" 2>/dev/null || echo null)"; ack_json='{}'; done_json='[]'; left_json='[]'; lvl=8 ;;
+      1) steps="$(jq -c 'map(select(.s != "ok") | if .e then .e |= .[-400:] else . end)' <<<"$steps" 2>/dev/null || echo '[]')"; lvl=2 ;;
+      2) hashes_json='{}'; dirty_json='[]'; fast_owned_json=null; lvl=3 ;;
+      3) secs_json='{}'; rollout_json='{}'; parts_json='{}'; lvl=4 ;;
+      4) bnote_txt=""; steps="$(jq -c 'map(select(.s == "failed") | if .e then .e |= .[-200:] else . end)' <<<"$steps" 2>/dev/null || echo '[]')"; lvl=5 ;;
+      5) bisect_json="$(jq -c 'if type == "object" then del(.reason) else . end' <<<"$bisect_json" 2>/dev/null || echo null)"; done_json='[]'; left_json='[]'; lvl=6 ;;
       *) json=""; break ;;
     esac
   done
@@ -272,45 +266,7 @@ record_minimal() {
   timeout 60 aws ssm put-parameter --name /tower/deploy/last-build --type String --overwrite --value "$json" >/dev/null
 }
 
-# ack_smoke_record <exit code>: ACK-SMOKE-EVIDENCE. $work/ack_smoke_json = the last JSON object line of the smoke's output
-# (or {ok, reason} synthesised when there is none); on a non-zero exit it also carries fail_tail, the last 40 lines
-# (redacted, capped), so the evidence outlives the build log. Never changes the deploy's outcome.
-ack_smoke_record() {
-  local rc="$1" line tail40
-  line="$(grep -E '^\{' "$work/ack_out" 2>/dev/null | tail -n 1 | jq -c 'select(type == "object")' 2>/dev/null)" || line=""
-  [[ -n "$line" ]] || line="$(jq -nc --arg r "no JSON result line from the smoke (exit $rc)" '{ok: false, http_status: null, ms: null, body: "", drop: "missing", reason: $r}')"
-  [[ "$rc" = 0 ]] || { tail40="$(tail -n 40 "$work/ack_out" 2>/dev/null | tr -d '\000-\010\013-\037' | redact | tail -c 1200)"
-    line="$(jq -c --arg t "$tail40" --argjson rc "$rc" '. + {exit: $rc, fail_tail: $t}' <<<"$line" 2>/dev/null || echo "$line")"; }
-  echo "$line" >"$work/ack_smoke_json"
-}
-
-# resolve_ack_path: PORT7-ACKPATH-EXPLICIT. The AckPath the port stack is deployed with, ALWAYS passed as
-# --parameter-overrides (`aws cloudformation deploy` keeps the previous value of a parameter it is not given, so a template
-# Default never reaches a stack that stored another value). One source: SSM /tower/deploy/ack-path (lambda|sqs; the deployer
-# reads /tower/deploy/*) if it holds a valid value, else infra/aws/parameters.json .port.AckPath, else lambda (ACK-CANARY:
-# PORT7-PROD: production is sqs (proved on the canary 09/11, docs/operations/aws.md). A RED production smoke rolls the port stack back to
-# lambda (the smoke does it) and last-build records ack_failed={sha}: while set and no commit since <sha> touched an ACK file ($ack_files)
-# sqs is refused and lambda is deployed, like #389 (the deployer cannot write /tower/deploy/ack-path). Never a failed build or a bisection.
-# Writes $work/ackpath, $work/ack_source.
 ctl="$repo"  # where the control scripts are read from; deploy() points it at a copy of the head's scripts/ before a midpoint checkout
-ack_files="infra/aws/stacks/40-port.json infra/aws/parameters.json infra/service/tower_infra/webhook_consumer.py scripts/lib/ack_smoke.py"
-resolve_ack_path() {
-  local v="" src=file bad
-  v="$(aws ssm get-parameter --name /tower/deploy/ack-path --query Parameter.Value --output text 2>/dev/null)" || v=""
-  case "$v" in lambda | sqs) src=ssm ;; *) [[ -n "$v" && "$v" != None ]] && echo "ack-path: ignoring invalid /tower/deploy/ack-path value"; v="" ;; esac
-  if [[ -z "$v" ]]; then
-    v="$(jq -r '.port.AckPath // empty' "$repo/infra/aws/parameters.json" 2>/dev/null)" || v=""
-    case "$v" in lambda | sqs) ;; "") v=lambda; src=default ;; *) echo "ack-path: invalid AckPath '$v' in infra/aws/parameters.json, using lambda"; v=lambda ;; esac
-  fi
-  bad="$(jq -r '.ack_failed.sha // empty' <<<"$prev_build" 2>/dev/null)"
-  if [[ "$v" = sqs && -n "$bad" ]] && git -C "$repo" cat-file -e "$bad^{commit}" 2>/dev/null \
-      && git -C "$repo" diff --quiet "$bad" HEAD -- $ack_files; then
-    echo "ack-path: sqs REFUSED: the ACK smoke failed at ${bad:0:10} and no commit since touched ($ack_files); deploying lambda"
-    v=lambda; src=guard
-  fi
-  echo "$v" >"$work/ackpath"; echo "$src" >"$work/ack_source"
-  echo "ack-path: AckPath=$v (from $src)"
-}
 
 # select_targets <last>: what this batch needs (DEP7). Writes $work/targets (the word all, or the stack names, one per line;
 # empty: no slow target), $work/image (1 or 0: build the images) and $work/targets_json for the record. DEPLOY_TARGETS
@@ -347,15 +303,15 @@ select_targets() {
 # resume of an incomplete build; STACK-COMMIT-OFF-TAGS: no commit tag says it any more). Before it starts, a stack whose last recorded duration no longer fits the budget is not started
 # (DEPLOY_BUDGET_S, default 1080, counted from CODEBUILD_START_TIME): the build ends `incomplete`, last-sha untouched.
 # Fills $failed, and the files done, left and secs (stack -> seconds of the real changes) in $work.
-# stack_hash <name>: the hash of what would be applied (template, images, AckPath for port); locals of deploy_stacks (tpl, lsig, ack).
+# stack_hash <name>: the hash of what would be applied (template, images, the lambda keys for port); locals of deploy_stacks (tpl, lsig).
 # DEP7-CRITICAL-PATH: only what the stack reads: the images its template names (/tower/deploy/image/<name>, $work/img/<name>), and
-# for port the lambda keys and AckPath. It held every image and every package: a new service image dirtied network, data and
+# for port the lambda keys. It held every image and every package: a new service image dirtied network, data and
 # ack-canary, so every service-image cycle redeployed them (42 s + 67 s on the critical path, 108 s beside it) for nothing.
 stack_hash() {
   local i
   { cat "${tpl[$1]}"
     for i in $(grep -o '/tower/deploy/image/[A-Za-z0-9_-]*' "${tpl[$1]}" | sort -u); do cat "$work/img/${i##*/}" 2>/dev/null; done
-    [[ $1 = port ]] && printf '%sAckPath=%s' "$lsig" "$ack"
+    [[ $1 = port ]] && printf '%s' "$lsig"
     [[ ($1 = service || $1 = runner) && -s "$work/livecode" ]] && printf 'LiveCode=%s' "$(cat "$work/livecode")"; } | sha256sum | cut -c1-20
 }
 
@@ -366,9 +322,9 @@ stack_hash() {
 # else prints why the stack is deployed and returns 1. Every unknown deploys, as before. Evidence, all of it from what the deployer
 # already reads (no IAM change):
 #  - the stack (describe-stacks): CREATE/UPDATE_COMPLETE, its parameters, and its commit tag, whose 40-port.json must be the head's;
-#    AckPath and DepsKey (the layer: the fast path never swaps it) equal to what this build passes;
+#    DepsKey (the layer: the fast path never swaps it) equal to what this build passes;
 #  - the end of its last operation (the newest stack event): a swap before it may have been overwritten by that operation;
-#  - per function whose key differs from the stack's parameter, the newest swap after that end, from the port's GET /v1/deploy/status
+#  - for tower-port-api, when its key differs from the stack's parameter (GATE-SHUTDOWN: the port's only Lambda), the newest swap after that end, from the port's GET /v1/deploy/status
 #    `fast` (the service's swaps; read like scripts/deploy-smoke with /tower/deploy/smoke-token) or carried in last-build.fast_owned:
 #    ok, not rolled back, and its digest the one the key names (artifacts/lambda/<function>/<digest>.zip). DEPLOY_FAST_STATUS_CMD
 #    replaces the status read (a test).
@@ -389,14 +345,14 @@ port_fast_owned() {
       echo "port: redeployed: its template is not the one applied at ${tagc:-an unknown commit}"; return 1
     fi
   fi
-  wantp="$(printf '%s\n' "AckPath=$ack" ${lambda_params[@]+"${lambda_params[@]}"} | jq -R 'select(length > 0) | capture("^(?<k>[^=]+)=(?<v>.*)$") | {(.k): .v}' | jq -sc add)"
+  wantp="$(printf '%s\n' ${lambda_params[@]+"${lambda_params[@]}"} | jq -R 'select(length > 0) | capture("^(?<k>[^=]+)=(?<v>.*)$") | {(.k): .v}' | jq -sc add)"
   since="$(aws cloudformation describe-stack-events --stack-name tower-app-port --max-items 1 --query 'StackEvents[0].Timestamp' --output text 2>/dev/null | head -n 1)"
   since="$(date -u -d "$since" +%s 2>/dev/null)" || { echo "port: redeployed: the end of its last operation is unknown"; return 1; }
   fast="$(fast_status "$stack" | jq -c '.fast // [] | if type == "array" then . else [] end' 2>/dev/null)"; [[ -n "$fast" ]] || fast='[]'
   ok="$(jq -nc --argjson s "$stack" --argjson w "$wantp" --argjson fast "$fast" --argjson carry "$(jq -c '.fast_owned // {} | if type == "object" then . else {} end' <<<"$prev_build" 2>/dev/null || echo '{}')" --argjson since "$since" '
     (($s.Parameters // []) | map({(.ParameterKey): .ParameterValue}) | add // {}) as $p
-    | if [$w.AckPath, $w.DepsKey] != [$p.AckPath, $p.DepsKey] or ([$w.PortCode, $w.IngressCode, $w.WebhookCode] | any(. == null)) then {why: "AckPath or the layer differs from the stack, or a lambda key is unknown"}
-      else [{k: "PortCode", f: "tower-port-api"}, {k: "IngressCode", f: "tower-port-ack-ingress"}, {k: "WebhookCode", f: "tower-port-webhook-consumer"}
+    | if ($w | type) != "object" or $w.DepsKey != $p.DepsKey or $w.PortCode == null then {why: "the layer differs from the stack, or the lambda key is unknown"}
+      else [{k: "PortCode", f: "tower-port-api"}
             | select($w[.k] != $p[.k]) | . as $x | ($w[$x.k] | (capture("/(?<d>[0-9a-f]{64})\\.zip$").d) // "") as $d
             | ([$fast[] | select(.function == $x.f and .ok != null and ((.at // 0) | tonumber? // 0) > $since)
                 | {d: .digest, v: (.to_version // .version), at: (.at | tonumber), ok, rb: (.rolled_back == true)}]
@@ -682,7 +638,7 @@ carry_rolling() {
 
 deploy_stacks() {
   local order="$repo/infra/aws/order.json" parallel="${DEPLOY_PARALLEL:-3}" budget="${DEPLOY_BUDGET_S:-1080}"
-  local begin="$started" template name n d s running=0 changed dep_ok status tag rest left_for hash stored lsig="${lambdasig:-}" ack="$(cat "$work/ackpath" 2>/dev/null || echo lambda)"
+  local begin="$started" template name n d s running=0 changed dep_ok status tag rest left_for hash stored lsig="${lambdasig:-}"
   local -A want soft rolled rolled_img
   local -a overrides
   local det roll rollhead="" settle img up f at expect=0 last_end=0 stacks_json='{}' prev_json='{}' params_json='{}' rollout_json='{}' parts_json='{}'
@@ -768,7 +724,7 @@ deploy_stacks() {
         read -r status d <"$work/res/$n"
         running=$((running - 1)); changed=1
         step_end "stack:$n" "$status"
-        if [[ "$status" = 0 ]]; then state[$n]=ok; [[ $n = port ]] && echo "$n" >"$work/ack-smoke"; echo "$(date -u +%T) end   tower-app-$n ok in ${d}s$([[ -f "$work/res/$n.rolling" ]] && echo ': its update is started and the rollout is not waited')"
+        if [[ "$status" = 0 ]]; then state[$n]=ok; echo "$(date -u +%T) end   tower-app-$n ok in ${d}s$([[ -f "$work/res/$n.rolling" ]] && echo ': its update is started and the rollout is not waited')"
         else state[$n]=failed; failed="$failed tower-app-$n"; echo "$(date -u +%T) end   tower-app-$n FAILED (exit $status) in ${d}s"; fi
       }
     done
@@ -883,17 +839,15 @@ deploy_stacks() {
       echo "$(date -u +%T) start tower-app-$n from ${tpl[$n]} (${left_for}s of budget remain)${det:+: its rollout will not be waited}"
       (
         t0="$(date +%s)"
-        overrides=(); [[ $n = port ]] && overrides=(--parameter-overrides "AckPath=$ack" ${lambda_params[@]+"${lambda_params[@]}"})
+        overrides=(); [[ $n = port && -n "${lambda_params[*]:-}" ]] && overrides=(--parameter-overrides "${lambda_params[@]}")  # PortCode, DepsKey
         # IMAGE-PREWARM-C: LiveCode; SLOW-PATH-NO-ROLLOUT-WAIT: LiveSeen, the datum this deploy saw
         [[ $n = service || $n = runner ]] && overrides=(--parameter-overrides "LiveCode=$(cat "$work/livecode" 2>/dev/null)" "LiveSeen=$(cat "$work/liveseen" 2>/dev/null || echo unknown)")
         # DB-MEDIUM, SERVICE-MEMORY: a stack's values from infra/aws/parameters.json, beside its own (`aws cloudformation
         # deploy` keeps a parameter's previous value when it is not given, so a template Default never reaches the stack): the
-        # database's class, the service's memory. The port's AckPath has its own resolution above
-        if [[ $n != port ]]; then
-          mapfile -t file_params < <(jq -r --arg n "$n" '.[$n] // {} | to_entries[] | "\(.key)=\(.value)"' "$repo/infra/aws/parameters.json" 2>/dev/null)
-          if (( ${#file_params[@]} )); then
-            if (( ${#overrides[@]} )); then overrides+=("${file_params[@]}"); else overrides=(--parameter-overrides "${file_params[@]}"); fi
-          fi
+        # database's class, the service's memory
+        mapfile -t file_params < <(jq -r --arg n "$n" '.[$n] // {} | to_entries[] | "\(.key)=\(.value)"' "$repo/infra/aws/parameters.json" 2>/dev/null)
+        if (( ${#file_params[@]} )); then
+          if (( ${#overrides[@]} )); then overrides+=("${file_params[@]}"); else overrides=(--parameter-overrides "${file_params[@]}"); fi
         fi
         aws cloudformation deploy --stack-name "tower-app-$n" --template-file "${tpl[$n]}" --role-arn "$CFN_EXEC_ROLE_ARN" \
           --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset ${det:+--no-execute-changeset} ${overrides[@]+"${overrides[@]}"} --tags project=tower 2>&1 \
@@ -1000,37 +954,8 @@ deploy_stacks() {
   echo "stacks done: $(tr '\n' ' ' <"$work/done")| left: $(tr '\n' ' ' <"$work/left")"
 }
 
-# deploy_control_plane <last>: the Cloudflare Worker forge-webhook (services/control-plane; F37-WORKER-DEPLOY-PATH). Runs only when
-# the tree changed since <last> (git diff of services/control-plane; an unknown <last> counts as changed) and the deployer can read
-# the token /tower/deploy/cloudflare-api-token (SecureString, inside the /tower/deploy/* read the role already has). No token: it
-# says so and skips, never failing the build. With one: scripts/lib/service_deploy.py compares the tree with GET /status
-# deployed_tree and uploads only on drift (Cloudflare REST API, no wrangler). CONTROL_PLANE_DEPLOY_CMD replaces that command (a test).
-# A real failure is "control-plane" in $failed, so last-sha stays and the next ring retries it.
-deploy_control_plane() {
-  local last="$1" token py cmd="${CONTROL_PLANE_DEPLOY_CMD:-}"
-  [[ -f "$repo/services/control-plane/wrangler.toml" ]] || return 0
-  if [[ "$last" != none ]] && git -C "$repo" cat-file -e "$last^{commit}" 2>/dev/null \
-      && git -C "$repo" diff --quiet "$last" HEAD -- services/control-plane; then
-    echo "control plane: services/control-plane unchanged since $last, not deployed"
-    return 0
-  fi
-  token="$(aws ssm get-parameter --name /tower/deploy/cloudflare-api-token --with-decryption --query Parameter.Value --output text 2>/dev/null)" || token=""
-  if [[ -z "$token" || "$token" = None ]]; then
-    echo "control plane: services/control-plane changed but /tower/deploy/cloudflare-api-token is not readable: skipped (the Worker is out of the deploy path, Daniel 09/11; docs/operations/aws.md section 21)"
-    return 0
-  fi
-  if [[ -z "$cmd" ]]; then
-    for py in python3.13 python3.12 python3.11 python3; do
-      command -v "$py" >/dev/null 2>&1 && "$py" -c 'import tomllib' 2>/dev/null && break
-      py=""
-    done
-    if [[ -z "$py" ]]; then echo "control plane: no python >= 3.11 in this image: skipped"; return 0; fi
-    cmd="$py $ctl/scripts/lib/service_deploy.py"
-  fi
-  echo "control plane: deploying services/control-plane"
-  ( cd "$repo" && CLOUDFLARE_API_TOKEN="$token" bash -c "$cmd" ) 2>&1 | sed -u "s/$token/<token>/g; s/^/[control-plane] /"
-  [[ "${PIPESTATUS[0]}" = 0 ]]
-}
+# GATE-SHUTDOWN (D-314): the deployer no longer deploys the Cloudflare Worker forge-webhook (services/control-plane): it served
+# the AWS gate's Origin webhooks, and it stays where it is, outside AWS; nothing here reads the Cloudflare token.
 
 # smoke: the post-deploy check (scripts/deploy-smoke: GET /v1/health, GET /v1/deploy/status, a registry read). Only when a
 # stack really changed in this build. DEPLOY_SMOKE_CMD replaces the command (a test); "none" skips it.
@@ -1243,7 +1168,7 @@ deploy() {
     # no SSM for the keys (the deployer role may not PutParameter there): publish prints them as one JSON line, passed to the port stack
     lambda_keys="$(grep '^{' "$work/lambda.out" 2>/dev/null | tail -n 1)"
     if [[ -n "${DEPLOY_LAMBDA_PACKAGE_CMD:-}" && -z "$lambda_keys" ]]; then :; elif jq -e type <<<"$lambda_keys" >/dev/null 2>&1; then
-      for pair in PortCode:tower-port-api IngressCode:tower-port-ack-ingress WebhookCode:tower-port-webhook-consumer DepsKey:deps; do
+      for pair in PortCode:tower-port-api DepsKey:deps; do  # GATE-SHUTDOWN: the port stack's only Lambda and its layer
         value="$(jq -r --arg k "${pair#*:}" '.[$k] // empty' <<<"$lambda_keys")"
         [[ -n "$value" ]] && { lambda_params+=("${pair%%:*}=$value"); lambdasig="$lambdasig$value"; }
       done
@@ -1257,39 +1182,11 @@ deploy() {
     # a missing permission or a missing tool will not fix itself in this build: stop here, the record says why
     if (( lambda_rc == 1 || lambda_rc == 13 )); then echo "failed fast:$failed; /tower/deploy/last-sha stays $last"; echo "$failed" >"$work/failed"; return 1; fi
   fi
-  resolve_ack_path
   live_code
   migrate_wait
   carry_rolling
   prev_params
   deploy_stacks
-  # ACK smoke, after a deploy that applied the port stack, or whose diff touched an ACK file. NON-BLOCKING: its exit code never
-  # reaches $failed and never starts a bisection; the evidence goes to last-build.ack_smoke.
-  # PORT7-PROD: with AckPath=sqs it runs against PRODUCTION (a deliberately invalid delivery, lowercase headers, 2xx in < 1 s); exit 1
-  # = red: the smoke itself redeploys the port stack with AckPath=lambda, and ack_failed={sha} keeps the next builds on lambda
-  # (resolve_ack_path) until an ACK file changes. ACK-CANARY-RETIRE: with AckPath=lambda there is nothing to prove (the route is
-  # the ingress Lambda's, which the deploy's own smoke reaches); the canary stack this ran against then is retired.
-  # DEPLOY_ACK_SMOKE_CMD replaces the smoke command (a test).
-  if [[ ! -f "$work/ack-smoke" && "$last" != none && "$last" != "$head" ]] && git -C "$repo" cat-file -e "$last^{commit}" 2>/dev/null \
-      && ! git -C "$repo" diff --quiet "$last" "$head" -- $ack_files 2>/dev/null; then echo ack-files >"$work/ack-smoke"; fi
-  if [[ -f "$work/ack-smoke" && -z "$failed" && "$(cat "$work/ackpath")" != sqs ]]; then
-    echo "ack-smoke: production AckPath=$(cat "$work/ackpath"): nothing to prove, not run"
-  elif [[ -f "$work/ack-smoke" && -z "$failed" && ( -n "${DEPLOY_ACK_SMOKE_CMD:-}" || -f "$ctl/scripts/lib/ack_smoke.py" ) ]]; then
-    echo "ack-smoke: running against PRODUCTION (AckPath=sqs; non-blocking)"
-    # the output is kept (tee): its last JSON line is the structured result, its last 40 lines the evidence of a red
-    { if [[ -n "${DEPLOY_ACK_SMOKE_CMD:-}" ]]; then bash -c "$DEPLOY_ACK_SMOKE_CMD"; else
-      python3 "$ctl/scripts/lib/ack_smoke.py" --template "$repo/infra/aws/stacks/40-port.json" \
-          --role-arn "$CFN_EXEC_ROLE_ARN" --commit "$head"; fi; echo $? >"$work/ack_rc"; } 2>&1 | tee "$work/ack_out" || true
-    ack_smoke_record "$(cat "$work/ack_rc" 2>/dev/null || echo 3)"
-    if [[ "$(cat "$work/ackpath")" = sqs ]]; then
-      case "$(cat "$work/ack_rc" 2>/dev/null)" in
-        0) echo cleared >"$work/ack_failed" ;;
-        1) echo "$head" >"$work/ack_failed"; rm -f "$work/res/port.hash" ;;  # rolled back to lambda by the smoke; the port stack is redeployed next
-      esac
-    fi
-    echo "ack-smoke: exit $(cat "$work/ack_rc" 2>/dev/null) recorded in last-build.ack_smoke; the build is not affected"
-  fi
-  deploy_control_plane "$last" || failed="$failed control-plane"
   # SLOW-PATH-NO-ROLLOUT-WAIT: stacks are rolling out: the build ends here, in seconds; the smoke, the rollback and last-sha are
   # the next build's, which verifies them (a bisection in progress keeps its state: this build decided nothing)
   if [ -z "$failed" ] && [ ! -s "$work/left" ] && [ -s "$work/rolling" ] && ! jq -e '.settling == true' "$work/rolling" >/dev/null 2>&1; then

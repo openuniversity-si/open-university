@@ -469,9 +469,9 @@ class PortStackTests(unittest.TestCase):
         vpc = self.function['VpcConfig']
         self.assertEqual(vpc['SubnetIds'], {'Fn::Split': [',', {'Fn::ImportValue': 'tower-network-private-subnets'}]})
         self.assertEqual(vpc['SecurityGroupIds'], [{'Fn::ImportValue': 'tower-network-tasks-sg'}])
-        # the only queues are the webhook's (PORT3: ingress -> queue -> consumer), pinned in test_infra_ingress.py
+        # GATE-SHUTDOWN: no queue any more (the webhook path, ingress -> queue -> consumer, left the stack)
         self.assertEqual(sorted(name for name, resource in self.resources.items()
-                                if resource['Type'].startswith('AWS::SQS')), ['WebhookDlq', 'WebhookQueue'])
+                                if resource['Type'].startswith('AWS::SQS')), [])
 
     def test_it_knows_the_database_and_the_installation_only_by_reference(self):
         variables = self.function['Environment']['Variables']

@@ -273,22 +273,12 @@ class Ingress(unittest.TestCase):
 
 
 class Stack(unittest.TestCase):
-    """infra/aws/stacks/40-port.json: what makes the ingress fast and the queue safe."""
+    """infra/aws/stacks/40-port.json. GATE-SHUTDOWN: the webhook path (route, ingress, queues, consumer) left the stack; the
+    ingress and consumer modules stay in the tree, deployed by nothing."""
 
     def setUp(self):
         self.template = json.loads((ROOT / 'infra/aws/stacks/40-port.json').read_text(encoding='utf-8'))
         self.resources = self.template['Resources']
-
-    def test_the_ingress_has_no_vpc_and_no_database_and_only_two_permissions(self):
-        function = self.resources['IngressFunction']['Properties']
-        self.assertNotIn('VpcConfig', function)
-        self.assertEqual((function['Runtime'], function['Handler']), ('python3.12', 'tower_infra.ingress.handler'))
-        self.assertEqual(function['MemorySize'], {'Ref': 'IngressMemory'})
-        self.assertGreaterEqual(self.template['Parameters']['IngressMemory']['Default'], 1024)
-        self.assertFalse([name for name in function['Environment']['Variables'] if name.startswith('TOWER_DB')])
-        actions = [item['Action'] for item in self.resources['IngressRole']['Properties']['Policies'][0]
-                   ['PolicyDocument']['Statement']]
-        self.assertEqual(actions, [['logs:CreateLogStream', 'logs:PutLogEvents'], 'ssm:GetParameter', 'sqs:SendMessage'])
 
     def test_the_port_api_runs_on_256_mb_since_1024_did_not_shorten_its_cold_start(self):
         # PORT-MEMORY-BACK (the Torre, 13/11, answer to items 1 to 5): #686/#687 gave tower-port-api 1024 MB for its cold
@@ -302,115 +292,13 @@ class Stack(unittest.TestCase):
         memory = self.resources['PortFunction']['Properties']['MemorySize']
         self.assertIn(f'with {memory} MB', self.resources['PortVersion']['Properties']['Description']['Fn::Sub'])
 
-    def test_the_stack_seeds_the_keys_and_runs_the_ingress_from_its_own_zip_behind_the_alias(self):
-        function = self.resources['IngressFunction']['Properties']
-        self.assertEqual(function['Environment']['Variables']['TOWER_FORGE_KEYS'], {'Ref': 'ForgeKeys'})
-        self.assertEqual(self.template['Parameters']['ForgeKeys']['Default'], '/tower/port/forge-keys')
-        self.assertEqual(function['Code']['S3Key'], {'Ref': 'IngressCode'})  # DEP8: the zip of lambda_package, not an image
-        self.assertEqual(self.template['Parameters']['IngressCode']['Default'], 'artifacts/lambda/tower-port-ack-ingress/unset.zip')
-        self.assertEqual((function['Runtime'], function['Handler'], function['Architectures']),
-                         ('python3.12', 'tower_infra.ingress.handler', ['arm64']))
-        self.assertNotIn('Layers', function)  # stdlib only
-
-    def test_the_stack_hands_the_ack_limit_to_the_ingress_and_it_defaults_to_the_registrys(self):
-        function = self.template['Resources']['IngressFunction']['Properties']
-        self.assertEqual(function['Environment']['Variables']['TOWER_INGRESS_ACK_LIMIT_S'], {'Ref': 'IngressAckLimitS'})
-        registry = json.loads((ROOT / 'config/registry/medir/medir.webhook_ack_limit_s.json').read_text(encoding='utf-8'))
-        self.assertEqual(self.template['Parameters']['IngressAckLimitS']['Default'], registry['default'])
-
-    def test_the_webhook_url_is_unchanged_and_the_template_default_is_the_lambda(self):
-        route = self.resources['WebhookRoute']['Properties']
-        self.assertEqual(route['RouteKey'], 'POST ' + forge_webhooks.PATH)
-        self.assertEqual(route['Target'], {'Fn::If': ['AckBySqs', {'Fn::Sub': 'integrations/${AckIntegration}'},
-                                                       {'Fn::Sub': 'integrations/${IngressIntegration}'}]})
-        self.assertEqual(self.template['Conditions']['AckBySqs'], {'Fn::Equals': [{'Ref': 'AckPath'}, 'sqs']})
-        self.assertEqual(self.template['Parameters']['AckPath']['Default'], 'lambda')  # the template Default is the fallback; production is sqs by infra/aws/parameters.json (PORT7-PROD), always passed by deploy.sh
-        self.assertEqual(self.template['Parameters']['AckPath']['AllowedValues'], ['lambda', 'sqs'])
-        self.assertEqual(self.resources['DefaultStage']['Properties']['StageName'], '$default')
-
-    def test_the_sqs_ack_resources_exist_only_when_the_path_is_sqs(self):
-        for name in ('AckRole', 'AckIntegration'):
-            self.assertEqual(self.resources[name].get('Condition'), 'AckBySqs', name)
-        for name, resource in self.resources.items():  # nothing unconditional may depend on them
-            if name not in ('AckRole', 'AckIntegration', 'WebhookRoute'):
-                self.assertNotIn('Ack', json.dumps({k: v for k, v in resource.items()}).replace('AckLimit', '').replace('IngressAck', ''), name)
-
-    def test_the_rollback_keeps_the_old_lambda_path_whole(self):
-        old = self.resources['IngressIntegration']['Properties']
-        self.assertEqual(old['IntegrationUri'], {'Ref': 'IngressAlias'})  # DEP8: the alias live, the pointer the fast deploy swaps
-        self.assertIn('InvokeIngressFromTheApi', self.resources)
-        self.assertIn('AckPath=lambda', self.template['Parameters']['AckPath']['Description'])
-        self.assertIn('IngressAlias', json.dumps(self.template['Resources']['IngressIntegration']))
-
-    def test_the_ack_integration_sends_the_raw_delivery_to_the_one_queue_and_answers_from_the_mapping(self):
-        integration = self.resources['AckIntegration']['Properties']
-        self.assertEqual((integration['IntegrationType'], integration['IntegrationSubtype']), ('AWS_PROXY', 'SQS-SendMessage'))
-        self.assertNotIn('IntegrationUri', integration)  # no Lambda anywhere in the ACK
-        request = integration['RequestParameters']
-        self.assertEqual(request['QueueUrl'], {'Ref': 'WebhookQueue'})
-        self.assertEqual(request['MessageBody'], '$request.body')
-        attributes = json.loads(request['MessageAttributes'])
-        self.assertEqual(sorted(attributes), ['webhook-id', 'webhook-signature', 'webhook-timestamp'])  # probe variant C
-        self.assertNotIn('requestTimeEpoch', json.dumps(request))  # probe variant D was refused by API Gateway
-        self.assertEqual(attributes['webhook-signature']['StringValue'], '${request.header.webhook-signature}')  # PORT7-PROD: the proven kbare form
-        self.assertNotIn('$request.header', request['MessageAttributes'].replace('${request.header', ''))  # `$request.header.x` in the string is a 400
-        self.assertEqual(set(webhook_consumer.HEADERS), {name.split('-')[1] for name in attributes if name.startswith('webhook-')})
-        self.assertNotIn('ResponseParameters', integration)  # PORT7-PROD: untested 200->202 mapping dropped; Origin takes any 2xx
-        self.assertEqual(integration['CredentialsArn'], {'Fn::GetAtt': ['AckRole', 'Arn']})
-
-    def test_the_production_integration_is_the_shape_the_canary_proved(self):
-        # ACK-CANARY-RETIRE: the canary stack chose this shape (kbare, 09/11: all three headers by ${request.header.x}, the
-        # role with no trust Condition) and left; what it held is said here by value
-        prod = self.resources['AckIntegration']['Properties']
-        attribute = lambda name: {'DataType': 'String', 'StringValue': '${request.header.%s}' % name}  # noqa: E731
-        self.assertEqual(json.loads(prod['RequestParameters']['MessageAttributes']),
-                         {name: attribute(name) for name in ('webhook-id', 'webhook-timestamp', 'webhook-signature')})
-        self.assertEqual(prod['RequestParameters']['MessageBody'], '$request.body')
-        self.assertEqual({key: prod[key] for key in ('IntegrationType', 'IntegrationSubtype', 'PayloadFormatVersion', 'TimeoutInMillis')},
-                         {'IntegrationType': 'AWS_PROXY', 'IntegrationSubtype': 'SQS-SendMessage', 'PayloadFormatVersion': '1.0',
-                          'TimeoutInMillis': 5000})
-        self.assertEqual(set(prod), {'ApiId', 'CredentialsArn', 'IntegrationType', 'IntegrationSubtype', 'PayloadFormatVersion',
-                                     'TimeoutInMillis', 'RequestParameters'})
-        self.assertEqual(prod['RequestParameters']['QueueUrl'], {'Ref': 'WebhookQueue'})
-
-    def test_the_ack_role_trust_has_no_condition(self):
-        trust = self.resources['AckRole']['Properties']['AssumeRolePolicyDocument']
-        self.assertEqual(trust, {'Version': '2012-10-17', 'Statement': [  # a Condition makes API Gateway answer 500 (live, 09/11)
-            {'Effect': 'Allow', 'Principal': {'Service': 'apigateway.amazonaws.com'}, 'Action': 'sts:AssumeRole'}]})
-        self.assertNotIn('Condition', json.dumps(trust))
-        self.assertIn('Confused deputy', self.resources['AckRole']['Properties']['Description'])
-
-    def test_the_ack_role_may_only_send_to_the_webhook_queue_inside_the_boundary(self):
-        role = self.resources['AckRole']['Properties']
-        self.assertTrue(role['RoleName'].startswith('tower-app-'))
-        self.assertEqual(role['PermissionsBoundary'], {'Fn::Sub': 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/tower-boundary'})
-        self.assertEqual(role['AssumeRolePolicyDocument']['Statement'][0]['Principal'], {'Service': 'apigateway.amazonaws.com'})
-        self.assertEqual(len(role['Policies']), 1)
-        statements = role['Policies'][0]['PolicyDocument']['Statement']
-        self.assertEqual([(item['Effect'], item['Action'], item['Resource']) for item in statements],
-                         [('Allow', 'sqs:SendMessage', {'Fn::GetAtt': ['WebhookQueue', 'Arn']})])
-        self.assertNotIn('*', json.dumps(statements))
-        self.assertNotIn('ProvisionedConcurrencyConfig', json.dumps(self.template))
-
-    def test_a_delivery_is_kept_until_recorded_and_ends_in_the_dead_letter_queue(self):
-        queue = self.resources['WebhookQueue']['Properties']
-        self.assertEqual(queue['RedrivePolicy']['deadLetterTargetArn'], {'Fn::GetAtt': ['WebhookDlq', 'Arn']})
-        self.assertGreaterEqual(queue['RedrivePolicy']['maxReceiveCount'], 3)
-        consumer = self.resources['WebhookFunction']['Properties']
-        self.assertGreaterEqual(queue["VisibilityTimeout"], consumer["Timeout"])  # a message is not redelivered while it is processed
-        self.assertEqual(self.resources['WebhookDlq']['Properties']['MessageRetentionPeriod'], 1209600)
-        source = self.resources['WebhookSource']['Properties']
-        self.assertEqual(source['FunctionResponseTypes'], ['ReportBatchItemFailures'])
-        self.assertLessEqual(source['ScalingConfig']['MaximumConcurrency'], 2)  # the database connections stay few
-        self.assertIn('VpcConfig', consumer)
-        self.assertEqual(consumer['Handler'], 'tower_infra.webhook_consumer.handler')
-
-    def test_the_service_publishes_the_keys_the_ingress_reads(self):
-        service = (ROOT / 'infra/aws/stacks/30-service.json').read_text(encoding='utf-8')
-        self.assertIn('"TOWER_FORGE_KEYS_PARAMETER"', service)
-        self.assertEqual(service.count('parameter/tower/port/forge-keys'), 1)
-        self.assertEqual(self.resources['IngressFunction']['Properties']['Environment']['Variables']
-                         ['TOWER_FORGE_KEYS_PARAMETER'], '/tower/port/forge-keys')
+    def test_the_webhook_route_and_what_served_it_left_the_stack(self):
+        routes = [r['Properties']['RouteKey'] for r in self.resources.values() if r['Type'] == 'AWS::ApiGatewayV2::Route']
+        self.assertEqual(routes, ['$default'])
+        self.assertNotIn(forge_webhooks.PATH, json.dumps(self.template))
+        self.assertFalse([name for name, r in self.resources.items() if r['Type'].startswith('AWS::SQS')
+                          or r['Type'] == 'AWS::Lambda::EventSourceMapping'])
+        self.assertFalse({'AckPath', 'ForgeKeys', 'IngressCode', 'WebhookCode'} & set(self.template['Parameters']))
 
 
 class Consumer(unittest.TestCase):
@@ -496,8 +384,6 @@ class Consumer(unittest.TestCase):
         self.assertEqual((said['message'], said['receives'], said['webhook_id']), ('p', webhook_consumer.MAX_RECEIVES, None))
         self.assertIn('JSONDecodeError', said['error'])
         self.assertEqual(json.loads(out.getvalue().splitlines()[0])['webhook_dead'], True)
-        redrive = json.loads((ROOT / 'infra/aws/stacks/40-port.json').read_text())['Resources']['WebhookQueue']['Properties']
-        self.assertEqual(redrive['RedrivePolicy']['maxReceiveCount'], webhook_consumer.MAX_RECEIVES)
 
     def test_a_dead_message_whose_event_cannot_be_written_still_fails_as_before(self):
         class Away:

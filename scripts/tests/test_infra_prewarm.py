@@ -740,8 +740,8 @@ class Wiring(unittest.TestCase):
     def test_the_families_containers_and_environment_are_the_templates(self):
         stacks = ROOT / 'infra/aws/stacks'
         service = json.loads((stacks / '30-service.json').read_text(encoding='utf-8'))['Resources']
-        runner = json.loads((stacks / '50-runner.json').read_text(encoding='utf-8'))['Resources']
-        for role, task in (('runner', runner['TaskDefinition']), ('service', service['StandbyTaskDefinition'])):
+        # GATE-SHUTDOWN (D-314): the runner's task definition is gone (deploy.prewarm_max_tasks is 0: no prewarm runs)
+        for role, task in (('service', service['StandbyTaskDefinition']),):
             self.assertEqual(task['Properties']['Family'], prewarm.FAMILIES[role])
             self.assertIn(prewarm.CONTAINERS[role], [each['Name'] for each in task['Properties']['ContainerDefinitions']])
         live = next(each for each in service['TaskDefinition']['Properties']['ContainerDefinitions'] if each['Name'] == 'service')
