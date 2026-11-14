@@ -2,6 +2,8 @@
 # suite after each merge into main, as the AWS FULL-RUN was. tower/gate judges only the tests a diff touches; this job
 # judges every one (scripts/verify-commit --all: a test red in the batch runs again alone, VERIFY-ALONE). A red run opens an
 # issue and blocks nothing. Staged here and installed by the owner as .github/workflows/full-suite.yml (D-087).
+# CACHE-PGDATA: its run on main saves the toolchain cache the pull requests and the merge queue restore, so its cache step
+# is tower-gate.yml's, byte for byte (the paths are part of the cache's version): the binaries, never the test cluster.
 name: full-suite
 on:
   push:
@@ -24,8 +26,13 @@ jobs:
           fetch-depth: 0
       - uses: actions/cache@v4
         with:
-          path: .toolchain
-          key: toolchain-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
+          path: |
+            .toolchain
+            !.toolchain/pgdata
+            !.toolchain/postgres.log
+            !.toolchain/pgsocket
+            !.toolchain/pghome
+          key: toolchain-bin-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
       - name: toolchain
         run: bash scripts/cloud/setup.sh
       - name: suite

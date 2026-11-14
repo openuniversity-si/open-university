@@ -3,6 +3,12 @@
 # .github/workflows). A GitHub-hosted runner, free on a public repository; it runs scripts/verify-commit, the gate's own
 # plan: its stages and only the script tests whose covers the diff touches, never the whole suite. The job's name is
 # the check's name.
+# VERDICT-REUSE (docs/process/gate-github-speed.md): a green pull request run keeps its verdict's key as an artifact; the
+# merge queue's run of a commit with the same tree, parents, base, plan and runner image lets the tests' green stand and
+# runs the stages again (actions: read, to list the artifacts).
+# CACHE-PGDATA: the toolchain cache keeps the binaries only, never the test cluster (pgdata, its log, socket and home):
+# a cluster saved while its server ran broke setup.sh on a fresh runner (run 43606632818). The key's `bin-` prefix
+# leaves the entries that carried one.
 name: tower-gate
 on:
   pull_request:
@@ -10,6 +16,7 @@ on:
   merge_group:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: tower-gate-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
@@ -24,17 +31,34 @@ jobs:
           fetch-depth: 0
       - uses: actions/cache@v4
         with:
-          path: .toolchain
-          key: toolchain-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
+          path: |
+            .toolchain
+            !.toolchain/pgdata
+            !.toolchain/postgres.log
+            !.toolchain/pgsocket
+            !.toolchain/pghome
+          key: toolchain-bin-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
       - name: toolchain
         run: bash scripts/cloud/setup.sh
       - name: verify
+        id: verify
         env:
           EVENT: ${{ github.event_name }}
           QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           base="$PR_BASE"
-          [ "$EVENT" = merge_group ] && base="$QUEUE_BASE"
+          verdict=(--record "$RUNNER_TEMP/verdict")
+          if [ "$EVENT" = merge_group ]; then base="$QUEUE_BASE"; verdict=(--reuse); fi
           source scripts/cloud/env.sh
-          scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post
+          scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post "${verdict[@]}"
+      - name: keep the green verdict
+        if: github.event_name == 'pull_request' && steps.verify.outputs.verdict != ''
+        continue-on-error: true  # no record only costs the merge queue's run its reuse, never this verdict
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.verify.outputs.verdict }}
+          path: ${{ runner.temp }}/verdict
+          retention-days: 7
+          if-no-files-found: error
