@@ -8,6 +8,10 @@ its plan from the cache) and makes those jobs, memoized by content: each check's
 what it covers (or the stage and the trees it reads). The delivery's gate makes the same jobs: what the pre-gate ran green
 is answered by the port's cache with no run, what it is still running is waited for (mechanisms.TWIN), and only what
 changed since the last push runs. A head pushed again leaves the earlier head's pre-gate to the cache as it ends.
+
+GATE-SHUTDOWN (14/11/2026, D-314; #17, #22): this look served the AWS gate on Origin, which is shut down (the gate is
+GitHub's tower/gate and its merge queue): serve() starts it only under service.gate_looks, false by default. Its code
+stays whole, so a row of work.config_value turns it back on at the next start.
 """
 import hashlib
 import json

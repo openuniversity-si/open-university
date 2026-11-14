@@ -4,6 +4,10 @@ A delivery joins the base's train (platform.train.joined; work.train NOTIFYs tow
 run (13/11 23:57 to 00:35 UTC: the gate is in between). At each wake of tower_train, and each minute, the live service reads
 the front of the base's queue and asks the forge to have its merge ready (forge.OriginForge.ready: the CLI started, waiting
 for its body in a FIFO); with no front, the one kept is stopped. The landing releases it (forge.OriginForge.released).
+
+GATE-SHUTDOWN (14/11/2026, D-314; #17, #22): this look served the AWS gate on Origin, which is shut down (the gate is
+GitHub's tower/gate and its merge queue): serve() starts it only under service.gate_looks, false by default. Its code
+stays whole, so a row of work.config_value turns it back on at the next start.
 """
 import logging
 import threading
