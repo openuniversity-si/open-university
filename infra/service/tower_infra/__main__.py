@@ -394,8 +394,12 @@ def serve():
     if not handed:
         settings.refresh(loop.scope if loop is not None and gate.boot else None)
     live_image.mark(gate, 'settings')  # LATE-SETUP-SAID: the behaviour keys read
-    from . import engine
-    engine.use(settings)  # ENGINE-REPO: the engine's repository from engine.repo, live on tower_config
+    # ENGINE-REPO: the engine's repository from service.engine_repo, live on tower_config. Imported under its own name:
+    # `engine` in serve() is the database's engine (deliver, touch_health, ready_ahead), and a bare `from . import
+    # engine` here rebound it to the module (the first deploy from GitHub, 14/11: AttributeError raw_connection, the
+    # health file never written, the ECS task replaced and rolled back)
+    from . import engine as engine_repo
+    engine_repo.use(settings)
     config_data.listen(settings, stop, hub.wake(wake.CONFIG).wait)
     if gate is not None:  # IMAGE-PREWARM-A: the pointer's write (tower_config) is seen at once, never on a poll
         config_data.listen(gate, stop, hub.wake(wake.CONFIG).wait)
