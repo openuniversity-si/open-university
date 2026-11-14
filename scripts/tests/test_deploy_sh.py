@@ -35,7 +35,6 @@ case "$1 $2" in
     while [ $# -gt 0 ]; do case "$1" in --name) n="$2";; esac; shift; done
     if [ "$n" = /tower/deploy/cloudflare-api-token ]; then [ -n "${STUB_CF_TOKEN:-}" ] && { echo "$STUB_CF_TOKEN"; exit 0; } || exit 255; fi
     if [ "$n" = /tower/deploy/last-build ]; then [ -n "${STUB_LAST_BUILD:-}" ] && { echo "$STUB_LAST_BUILD"; exit 0; } || exit 255; fi
-    if [ "$n" = /tower/deploy/ack-path ]; then [ -n "${STUB_ACK_PATH:-}" ] && { echo "$STUB_ACK_PATH"; exit 0; } || exit 255; fi
     [ -f "$STUB_DIR/param$(echo "$n" | tr / _)" ] && { cat "$STUB_DIR/param$(echo "$n" | tr / _)"; exit 0; }
     [ -n "${STUB_LAST:-}" ] && { echo "$STUB_LAST"; exit 0; } || exit 255 ;;
   "cloudformation describe-stacks")
@@ -234,9 +233,7 @@ class DeployShTests(unittest.TestCase):
 
     def test_a_record_over_4000_bytes_is_shrunk_in_order_and_still_written(self):
         prev = json.dumps({'hashes': {f'stack{i}': 'h' * 20 for i in range(60)}, 'stacks': {f'tower-app-s{i}': 100 + i for i in range(80)}})
-        smoke = ("python3 -c \"import json;print(json.dumps({'ok': True, 'variants': "
-                 "{f'v{i}': {'ms': 500 + i, 'body': 'x' * 40} for i in range(22)}}))\"")
-        done = self.run_deploy(STUB_LAST='old', STUB_LAST_BUILD=prev, DEPLOY_ACK_SMOKE_CMD=smoke, DEPLOY_TAIL_CHARS='3000')
+        done = self.run_deploy(STUB_LAST='old', STUB_LAST_BUILD=prev, DEPLOY_TAIL_CHARS='3000')
         self.assertEqual(done.returncode, 0, done.stderr)
         text = self.recorded('/tower/deploy/last-build')
         self.assertLessEqual(len(text.encode()), 4000)
@@ -563,73 +560,58 @@ class DeployShTests(unittest.TestCase):
         git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', message)
         return git(repo, 'rev-parse', 'HEAD')
 
-    # PORT7-ACKPATH-EXPLICIT: AckPath is always passed to the port stack, from one place, and a red smoke sticks.
-    SMOKE = 'echo ran >> "$STUB_DIR/smoke"; exit ${SMOKE_EXIT:-0}'
-
     def port_calls(self):
         return [c for c in (self.state / 'calls').read_text().splitlines()
                 if 'cloudformation deploy' in c and 'tower-app-port' in c]
-
-    def smoke_runs(self):
-        path = self.state / 'smoke'
-        return path.read_text().count('ran') if path.exists() else 0
 
     def test_the_port_stack_gets_the_lambda_keys_as_overrides_and_nothing_goes_to_ssm(self):
         # LAMBDA-PACKAGE-FIX: the deployer role may not PutParameter under /tower/deploy/lambda/
         self.run_deploy(STUB_LAST='old')
         call = self.port_calls()[0]
-        for pair in ('PortCode=artifacts/lambda/tower-port-api/aa.zip', 'IngressCode=artifacts/lambda/tower-port-ack-ingress/bb.zip',
-                     'WebhookCode=artifacts/lambda/tower-port-webhook-consumer/cc.zip', 'DepsKey=artifacts/lambda/deps/dd.zip'):
+        for pair in ('PortCode=artifacts/lambda/tower-port-api/aa.zip', 'DepsKey=artifacts/lambda/deps/dd.zip'):
             self.assertIn(pair, call)
         self.assertNotIn('/tower/deploy/lambda/', (self.state / 'calls').read_text())
 
-    def test_the_port_stack_always_gets_an_explicit_ackpath_default_lambda(self):
-        (self.tmp / 'repo/infra/aws/parameters.json').unlink(missing_ok=True)
-        done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
-        self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual(len(self.port_calls()), 1)
-        self.assertIn('--parameter-overrides AckPath=lambda', self.port_calls()[0])
-        for call in (self.state / 'calls').read_text().splitlines():  # only the port stack takes the parameter
-            if 'cloudformation deploy' in call and 'tower-app-port' not in call:
-                self.assertNotIn('AckPath', call)
-        self.assertEqual(self.smoke_runs(), 0)  # ACK-CANARY-RETIRE: on lambda there is nothing to prove and no canary to run it on
-        self.assertIn('ack-smoke: production AckPath=lambda: nothing to prove, not run', done.stdout)
-        build = self.build()
-        self.assertEqual(build['ack'], {'path': 'lambda', 'source': 'default'})
-        self.assertNotIn('ack_failed', build)
-
-    def test_the_file_sets_the_value_and_the_smoke_runs_only_on_the_path_it_proves(self):
-        repo = self.tmp / 'repo'
-        for value, runs in (('lambda', 0), ('sqs', 1)):  # ACK-CANARY-RETIRE: the smoke is production's, on sqs; no canary
-            (repo / 'infra/aws/parameters.json').write_text('{"port": {"AckPath": "%s"}}\n' % value)
-            (self.state / 'calls').unlink(missing_ok=True)
-            (self.state / 'smoke').unlink(missing_ok=True)
-            done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
-            self.assertEqual(done.returncode, 0, done.stderr)
-            self.assertIn(f'--parameter-overrides AckPath={value}', self.port_calls()[0])
-            self.assertEqual(self.smoke_runs(), runs)
-            self.assertNotIn('canary', ' '.join(line for line in done.stdout.splitlines() if line.startswith('ack-smoke')))
-            self.assertEqual(self.build()['ack'], {'path': value, 'source': 'file'})
-
-    def test_ssm_wins_over_the_file_and_an_invalid_value_is_ignored(self):
-        repo = self.tmp / 'repo'
-        (repo / 'infra/aws/parameters.json').write_text('{"port": {"AckPath": "sqs"}}\n')
-        self.run_deploy(STUB_LAST='old', STUB_ACK_PATH='lambda', DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
-        self.assertIn('--parameter-overrides AckPath=lambda', self.port_calls()[0])
-        self.assertEqual(self.build()['ack'], {'path': 'lambda', 'source': 'ssm'})
-        (self.state / 'calls').unlink()
-        done = self.run_deploy(STUB_LAST='old', STUB_ACK_PATH='bogus', DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
-        self.assertIn('ignoring invalid', done.stdout)
-        self.assertIn('--parameter-overrides AckPath=sqs', self.port_calls()[0])
-        self.assertEqual(self.build()['ack'], {'path': 'sqs', 'source': 'file'})
+    def test_the_webhook_path_left_the_port_stack_and_the_deployer_passes_only_its_code_and_layer(self):
+        """GATE-SHUTDOWN: the AWS gate is stopped; AWS keeps the deploy and the site data. The port stack has no webhook
+        route, no queue, no ingress and no consumer, and the deployer passes it PortCode and DepsKey only (whatever else the
+        publisher prints), no AckPath, and runs no ACK smoke."""
+        port = json.loads((ROOT / 'infra/aws/stacks/40-port.json').read_text())
+        resources = port['Resources']
+        self.assertEqual([r['Properties']['RouteKey'] for r in resources.values() if r['Type'] == 'AWS::ApiGatewayV2::Route'], ['$default'])
+        self.assertEqual([r['Properties']['FunctionName'] for r in resources.values() if r['Type'] == 'AWS::Lambda::Function'],
+                         ['tower-port-api'])
+        self.assertFalse([n for n, r in resources.items() if r['Type'].startswith('AWS::SQS') or r['Type'] == 'AWS::Lambda::EventSourceMapping'])
+        self.assertFalse([n for n in resources if n.startswith(('Webhook', 'Ingress', 'Ack'))])
+        self.assertEqual(sorted(port['Outputs']), ['PortUrl'])
+        self.assertEqual(port['Outputs']['PortUrl']['Export'], {'Name': 'tower-port-url'})
+        self.assertFalse({'AckPath', 'IngressCode', 'WebhookCode', 'ForgeKeys', 'IngressMemory', 'IngressAckLimitS'} & set(port['Parameters']))
+        self.assertNotIn('AckBySqs', port.get('Conditions', {}))
+        text = json.dumps(port)
+        for name in re.findall(r'"(?:Ref|DependsOn)": "(\w+)"', text) + re.findall(r'"Fn::GetAtt": \["(\w+)"', text):
+            self.assertIn(name, set(resources) | set(port['Parameters']), name)  # nothing names what left
+        self.assertNotIn('port', json.loads((ROOT / 'infra/aws/parameters.json').read_text()))
+        (self.tmp / 'repo/infra/aws/parameters.json').write_text((ROOT / 'infra/aws/parameters.json').read_text())
+        done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD='echo ran >> "$STUB_DIR/smoke"')
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        (call,) = self.port_calls()
+        self.assertEqual(re.search(r'--parameter-overrides (.*?) --tags', call).group(1),
+                         'PortCode=artifacts/lambda/tower-port-api/aa.zip DepsKey=artifacts/lambda/deps/dd.zip')
+        for said in ('ack-smoke', 'ack-path', 'AckPath'):
+            self.assertNotIn(said, done.stdout)
+        self.assertFalse((self.state / 'smoke').exists())
+        self.assertFalse({'ack', 'ack_smoke', 'ack_failed'} & set(self.build()))
+        deploy = (ROOT / 'infra/aws/deploy.sh').read_text()
+        for gone in ('AckPath', 'IngressCode', 'WebhookCode', 'ack_smoke', 'DEPLOY_ACK_SMOKE_CMD', '/tower/deploy/ack-path'):
+            self.assertNotIn(gone, deploy)
 
     def test_the_data_stack_is_deployed_with_the_class_the_file_names(self):
         # DB-MEDIUM (Daniel 13/11 14:39 BRT): a stack keeps a parameter's previous value when it is not given, so the class
         # reaches the database only as an override, from infra/aws/parameters.json's data object
         self.five_stacks()
         repo = self.tmp / 'repo'
-        (repo / 'infra/aws/parameters.json').write_text('{"port": {"AckPath": "sqs"}, "data": {"InstanceClass": "db.t4g.medium"}}\n')
-        done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
+        (repo / 'infra/aws/parameters.json').write_text('{"data": {"InstanceClass": "db.t4g.medium"}}\n')
+        done = self.run_deploy(STUB_LAST='old')
         self.assertEqual(done.returncode, 0, done.stderr)
         data = [c for c in (self.state / 'calls').read_text().splitlines() if 'cloudformation deploy' in c and 'tower-app-data' in c]
         self.assertTrue(data, done.stdout[-2000:])
@@ -640,8 +622,8 @@ class DeployShTests(unittest.TestCase):
         # SERVICE-MEMORY: the service's memory from infra/aws/parameters.json, beside LiveCode and LiveSeen
         self.five_stacks()
         repo = self.tmp / 'repo'
-        (repo / 'infra/aws/parameters.json').write_text('{"port": {"AckPath": "sqs"}, "service": {"Memory": "1024"}}\n')
-        done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
+        (repo / 'infra/aws/parameters.json').write_text('{"service": {"Memory": "1024"}}\n')
+        done = self.run_deploy(STUB_LAST='old')
         self.assertEqual(done.returncode, 0, done.stderr)
         service = [c for c in (self.state / 'calls').read_text().splitlines() if 'cloudformation deploy' in c and 'tower-app-service' in c]
         self.assertTrue(service, done.stdout[-2000:])
@@ -659,96 +641,11 @@ class DeployShTests(unittest.TestCase):
         self.five_stacks()
         repo = self.tmp / 'repo'
         (repo / 'infra/aws/parameters.json').write_text((ROOT / 'infra/aws/parameters.json').read_text())
-        done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
+        done = self.run_deploy(STUB_LAST='old')
         self.assertEqual(done.returncode, 0, done.stderr)
         calls = [c for c in (self.state / 'calls').read_text().splitlines() if 'cloudformation deploy' in c and 'tower-app-runner' in c]
         self.assertTrue(calls, done.stdout[-2000:])
         self.assertIn('DesiredCount=0', calls[0])
-
-    def test_the_repo_parameters_make_production_sqs_and_the_template_default_stays_the_fallback(self):
-        self.assertEqual(json.loads((ROOT / 'infra/aws/parameters.json').read_text())['port']['AckPath'], 'sqs')  # PORT7-PROD
-        port = json.loads((ROOT / 'infra/aws/stacks/40-port.json').read_text())
-        self.assertEqual(port['Parameters']['AckPath']['Default'], 'lambda')
-
-    def test_a_red_production_smoke_sticks_lambda_without_failing_or_bisecting_and_a_green_clears_it(self):
-        repo = self.tmp / 'repo'
-        (repo / 'infra/aws/parameters.json').write_text('{"port": {"AckPath": "sqs"}}\n')
-        done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD=self.SMOKE, SMOKE_EXIT='1')
-        self.assertEqual(done.returncode, 0, done.stdout)
-        self.assertIn('running against PRODUCTION', done.stdout)
-        build = self.build()
-        self.assertEqual((build['status'], build['failed'], build['bisect'], build['rolled_back']), ('succeeded', [], None, []))
-        self.assertEqual(build['ack_failed'], {'sha': self.head})  # persisted in last-build like #389
-        self.assertNotIn('port', build['hashes'])  # the rolled back port stack is redeployed next time
-        (self.state / 'calls').unlink()
-        last = json.dumps(build)
-        done = self.run_deploy(STUB_LAST='old', STUB_LAST_BUILD=last, DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
-        self.assertIn('sqs REFUSED', done.stdout)
-        self.assertIn('--parameter-overrides AckPath=lambda', self.port_calls()[0])
-        self.assertEqual(self.build()['ack'], {'path': 'lambda', 'source': 'guard'})
-        self.assertEqual(self.build()['ack_failed'], {'sha': self.head})  # carried over until an ACK file changes
-        (repo / 'scripts/lib').mkdir(parents=True, exist_ok=True)  # a change to an ACK file lifts the guard; a green smoke clears it
-        (repo / 'infra/service/tower_infra').mkdir(parents=True, exist_ok=True)
-        (repo / 'infra/service/tower_infra/webhook_consumer.py').write_text('# changed\n')
-        git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '.')
-        git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'ack file')
-        (self.state / 'calls').unlink()
-        self.run_deploy(STUB_LAST='old', STUB_LAST_BUILD=last, DEPLOY_ACK_SMOKE_CMD=self.SMOKE)
-        self.assertIn('--parameter-overrides AckPath=sqs', self.port_calls()[0])
-        self.assertNotIn('ack_failed', self.build())
-
-    def sqs(self):
-        """ACK-CANARY-RETIRE: the smoke runs only where there is something to prove, production on sqs."""
-        (self.tmp / 'repo/infra/aws/parameters.json').write_text('{"port": {"AckPath": "sqs"}}\n')
-
-    def test_an_ack_smoke_with_no_verdict_never_fails_marks_or_bisects_the_build(self):
-        self.sqs()
-        for rc in ('2', '7'):  # 1 is a red: the smoke rolled production back to lambda (the tests above)
-            (self.state / 'calls').unlink(missing_ok=True)
-            done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD=self.SMOKE, SMOKE_EXIT=rc)
-            self.assertEqual(done.returncode, 0, done.stdout)
-            self.assertEqual(self.recorded('/tower/deploy/last-sha'), self.head)  # the deploy advanced
-            build = self.build()
-            self.assertEqual((build['status'], build['failed'], build['bisect'], build['rolled_back']), ('succeeded', [], None, []))
-            self.assertNotIn('ack_failed', build)
-            self.assertEqual(build['ack_smoke']['exit'], int(rc))
-            self.assertIn('port', build['hashes'])  # no forced redeploy of the port stack
-            self.assertEqual(len(self.port_calls()), 1)  # and no rollback deploy
-
-    def test_the_smoke_result_and_the_tail_of_a_red_are_recorded(self):
-        smoke = ('echo "line one"; echo \'{"ok":false,"http_status":400,"ms":25,"body":"x","headers":{"x-amzn-errortype":"BadRequestException"},"drop":"skipped","reason":"r"}\'; '
-                 'exit ${SMOKE_EXIT:-0}')
-        self.sqs()
-        done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD=smoke, SMOKE_EXIT='1')
-        build = self.build()
-        self.assertEqual((build['ack_smoke']['http_status'], build['ack_smoke']['exit']), (400, 1))
-        self.assertEqual(build['ack_smoke']['headers']['x-amzn-errortype'], 'BadRequestException')
-        self.assertIn('line one', build['ack_smoke']['fail_tail'])
-        self.assertIn('ack-smoke: running', done.stdout)
-        green = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD='echo \'{"ok":true,"http_status":202,"ms":40}\'')
-        self.assertEqual(green.returncode, 0)
-        self.assertNotIn('fail_tail', self.build()['ack_smoke'])
-
-    def test_a_change_to_an_ack_file_alone_runs_the_smoke_and_an_unrelated_one_does_not(self):
-        self.five_stacks()
-        self.sqs()
-        repo = self.tmp / 'repo'
-        git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '.')
-        git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'production on sqs')
-        base = git(repo, 'rev-parse', 'HEAD')
-        (repo / 'scripts/lib').mkdir(parents=True)
-        (repo / 'README').write_text('x\n')
-        git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '.')
-        git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'unrelated')
-        self.run_deploy(STUB_LAST=base, STUB_TAGGED='tower-app-port', STUB_TAG_VALUE=git(repo, 'rev-parse', 'HEAD'),
-                        DEPLOY_ACK_SMOKE_CMD=self.SMOKE, DEPLOY_TARGETS='none')
-        self.assertEqual(self.smoke_runs(), 0)
-        (repo / 'scripts/lib/ack_smoke.py').write_text('y\n')
-        git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '.')
-        git(repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'ack file')
-        self.run_deploy(STUB_LAST=base, STUB_TAGGED='tower-app-port', STUB_TAG_VALUE=git(repo, 'rev-parse', 'HEAD'),
-                        DEPLOY_ACK_SMOKE_CMD=self.SMOKE, DEPLOY_TARGETS='none')
-        self.assertEqual(self.smoke_runs(), 1)
 
     # IMAGE-PREWARM-C: the service and runner stacks get LiveCode, the bundle a landing swapped to, while it is the head's code
     def stack_calls(self, stack):
@@ -881,7 +778,7 @@ class SlowPathShTests(DeployShTests):
         (self.state / 'param_tower_deploy_last-sha').unlink()
         for image in ('service', 'ingress', 'runner'):  # the same images in both builds, whatever the stub answers
             (self.state / f'param_tower_deploy_image_{image}').write_text(f'registry.test/tower-{image}:fixed')
-        for package in ('tower-port-api', 'tower-port-ack-ingress', 'tower-port-webhook-consumer', 'deps'):  # DEP8: the packages too
+        for package in ('tower-port-api', 'deps'):  # DEP8: the packages too
             (self.state / f'param_tower_deploy_lambda_{package}').write_text(f's3://fixed/{package}')
         first = self.run_deploy(STUB_LAST='old', DEPLOY_TARGETS='all', DEPLOY_SMOKE_CMD='none')
         self.assertEqual(first.returncode, 0, first.stderr + first.stdout)
@@ -903,7 +800,7 @@ class SlowPathShTests(DeployShTests):
         (self.state / 'param_tower_deploy_last-sha').unlink()
         for image in ('service', 'ingress', 'runner'):  # the same images in both builds, whatever the stub answers
             (self.state / f'param_tower_deploy_image_{image}').write_text(f'registry.test/tower-{image}:fixed')
-        for package in ('tower-port-api', 'tower-port-ack-ingress', 'tower-port-webhook-consumer', 'deps'):  # DEP8: the packages too
+        for package in ('tower-port-api', 'deps'):  # DEP8: the packages too
             (self.state / f'param_tower_deploy_lambda_{package}').write_text(f's3://fixed/{package}')
         self.run_deploy(STUB_LAST='old', DEPLOY_TARGETS='all', DEPLOY_SMOKE_CMD='none')
         hashes = self.build()['hashes']
@@ -1120,8 +1017,7 @@ class SlowPathShTests(DeployShTests):
         """The port stack as CloudFormation holds it (status, commit tag, the keys of its last apply), the end of its last
         operation (1000 s ago) and the service's swaps in GET /v1/deploy/status."""
         applied = applied or self.keys(api='api0')
-        params = {'AckPath': 'lambda', 'PortCode': applied['tower-port-api'], 'IngressCode': applied['tower-port-ack-ingress'],
-                  'WebhookCode': applied['tower-port-webhook-consumer'], 'DepsKey': applied['deps']}
+        params = {'PortCode': applied['tower-port-api'], 'DepsKey': applied['deps']}
         (self.state / 'stack_tower-app-port.json').write_text(json.dumps({
             'StackStatus': status, 'Tags': [{'Key': 'project', 'Value': 'tower'}, {'Key': 'commit', 'Value': tag or self.base}],
             'Parameters': [{'ParameterKey': k, 'ParameterValue': v} for k, v in params.items()],
@@ -1180,16 +1076,17 @@ class SlowPathShTests(DeployShTests):
         self.assertEqual(build['dirty'], [])
         self.assertNotEqual(build['hashes']['port'], 'old')  # the head's: what runs
         self.assertEqual(self.recorded('/tower/deploy/last-sha'), git(self.tmp / 'repo', 'rev-parse', 'HEAD'))
-        # the next build: the webhook consumer swapped too, the service restarted (the status forgot the api swap): the record carries it
+        # the next build: a new webhook consumer package (GATE-SHUTDOWN: no longer the port stack's, its key is not passed), the
+        # service restarted (the status forgot the api swap): the stack's hash is the head's, it is skipped, the record carries the swap
         self.base = git(self.tmp / 'repo', 'rev-parse', 'HEAD')
         self.commit('web code', **{'infra__service__tower_infra__webhook_consumer.py': 'v1\n'})
         (self.state / 'status.json').write_text(json.dumps({'fast': [self.swap('tower-port-webhook-consumer', 'web1', version='7', to_version='7')]}))
         (self.state / 'calls').write_text('')
-        again = self.run_port(self.keys(web='web1'), event, prev=build)
+        again = self.run_port(self.keys(web='web1'), event, prev=build, STUB_TAGGED='tower-app-port', STUB_TAG_VALUE='older')
         self.assertEqual(again.returncode, 0, again.stderr + again.stdout)
-        self.assertNotIn('port', self.stacks_deployed())
-        self.assertIn('code live by the fast path (tower-port-api v12, tower-port-webhook-consumer v7)', again.stdout)
-        self.assertEqual(sorted(self.build()['fast_owned']), ['tower-port-api', 'tower-port-webhook-consumer'])
+        self.assertNotIn('port', self.stacks_deployed(), again.stdout)
+        self.assertIn('skip  tower-app-port: template and images unchanged', again.stdout)
+        self.assertEqual(sorted(self.build()['fast_owned']), ['tower-port-api'])
         # unchanged keys since: the recorded hash is the head's, the stack is skipped without asking the fast path
         self.base = git(self.tmp / 'repo', 'rev-parse', 'HEAD')
         self.commit('api again', **{'infra__service__tower_infra__http_port.py': 'v1 doc\n'})
@@ -1906,14 +1803,14 @@ class SlowPathShTests(DeployShTests):
         self.assertNotEqual(build['hashes']['port'], hashes['port'])
 
     def test_a_code_only_landing_of_a_module_the_lambdas_hold_too_deploys_no_stack_at_all(self):
-        """The port's and the consumer's packages hold live_image.py: the landing swapped both aliases (the classifier names
-        every Lambda whose package holds a changed module), so the port stack is left alone too (DEP7-PORT-FAST-OWNED) and
-        the slow cycle of the landing is its three short steps."""
+        """The port's package holds live_image.py: the landing swapped its alias (the classifier names every Lambda whose
+        package holds a changed module), so the port stack is left alone too (DEP7-PORT-FAST-OWNED) and the slow cycle of the
+        landing is its three short steps. GATE-SHUTDOWN: the consumer left the stack; its swap, if any, is not the stack's."""
         swaps = [self.swap(), self.swap('tower-port-webhook-consumer', 'web1', version='7', to_version='7')]
         done, head, _ = self.code_only(status={'fast': swaps}, files={'infra__service__tower_infra__live_image.py': 'new code\n'},
                                        port=True, DEPLOY_LAMBDA_PACKAGE_CMD="echo '" + json.dumps(self.keys(web='web1')) + "'")
         self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
-        self.assertIn('code live by the fast path (tower-port-api v12, tower-port-webhook-consumer v7)', done.stdout)
+        self.assertIn('code live by the fast path (tower-port-api v12), stack not redeployed', done.stdout)
         self.assertEqual(self.stacks_deployed(), [])
         build = self.build()
         self.assertEqual([step['n'] for step in build['steps']], ['classify', 'code-live', 'lambda-package'])

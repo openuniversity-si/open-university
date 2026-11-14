@@ -1,5 +1,4 @@
 {
- "scripts/tests/ack-smoke.test.sh": 50.0,
  "scripts/tests/aws-ack-integration-probe.test.sh": 2.0,
  "scripts/tests/aws-quota-proof.test.sh": 2.5,
  "scripts/tests/aws-tenant-isolation-proof.test.sh": 1.5,

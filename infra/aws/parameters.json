@@ -1,7 +1,4 @@
 {
-  "port": {
-    "AckPath": "sqs"
-  },
   "data": {
     "InstanceClass": "db.t4g.medium"
   },

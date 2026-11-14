@@ -151,7 +151,11 @@ class Deployer(unittest.TestCase):
         with mock.patch.object(lp, 'layer_python', lambda: None):  # a builder without the Lambdas' Python: no bytecode
             keys = lp.publish(ROOT, store, run=run)
             self.assertEqual(set(keys), set(lp.PARAMETERS) | {'deps'})
-            self.assertEqual(set(lp.PARAMETERS.values()) | {lp.LAYER_PARAMETER}, {'PortCode', 'IngressCode', 'WebhookCode', 'DepsKey'})
+            # GATE-SHUTDOWN: only the port's own package is published; the webhook path left the 40-port stack
+            self.assertEqual(set(keys), {'tower-port-api', 'deps'})
+            self.assertEqual(set(lp.PARAMETERS), set(lp.PUBLISHED))
+            self.assertEqual(set(lp.PARAMETERS.values()) | {lp.LAYER_PARAMETER}, {'PortCode', 'DepsKey'})
+            self.assertEqual({key.split('/')[2] for key in store.objects}, {'tower-port-api', 'deps'})  # nothing else uploaded
             digest = hashlib.sha256((ROOT / lp.LAYER_REQUIREMENTS).read_bytes()).hexdigest()
             self.assertEqual(keys['deps'], f'artifacts/lambda/deps/{digest}.zip')
             flags = calls[0]
@@ -268,8 +272,7 @@ class Stack(unittest.TestCase):
         self.res = self.port['Resources']
 
     def test_each_function_is_a_zip_with_an_alias_live_and_retained_versions(self):
-        for function, code, logical in (('PortFunction', 'PortCode', 'Port'), ('IngressFunction', 'IngressCode', 'Ingress'),
-                                        ('WebhookFunction', 'WebhookCode', 'Webhook')):
+        for function, code, logical in (('PortFunction', 'PortCode', 'Port'),):
             properties = self.res[function]['Properties']
             self.assertNotIn('PackageType', properties)
             self.assertEqual((properties['Runtime'], properties['Architectures']), ('python3.12', ['arm64']))
@@ -283,26 +286,25 @@ class Stack(unittest.TestCase):
 
     def test_everything_that_calls_a_function_calls_the_alias(self):
         self.assertEqual(self.res['PortIntegration']['Properties']['IntegrationUri'], {'Ref': 'PortAlias'})
-        self.assertEqual(self.res['IngressIntegration']['Properties']['IntegrationUri'], {'Ref': 'IngressAlias'})
-        self.assertEqual(self.res['WebhookSource']['Properties']['FunctionName'], {'Ref': 'WebhookAlias'})
         self.assertEqual(self.res['InvokeFromTheApi']['Properties']['FunctionName'], {'Ref': 'PortAlias'})
-        self.assertEqual(self.res['InvokeIngressFromTheApi']['Properties']['FunctionName'], {'Ref': 'IngressAlias'})
 
-    def test_the_layer_carries_the_libraries_for_the_two_functions_that_open_the_database(self):
+    def test_the_layer_carries_the_libraries_for_the_function_that_opens_the_database(self):
         self.assertEqual(self.res['PortFunction']['Properties']['Layers'], [{'Ref': 'DepsLayer'}])
-        self.assertEqual(self.res['WebhookFunction']['Properties']['Layers'], [{'Ref': 'DepsLayer'}])
         self.assertEqual(self.res['DepsLayer']['Properties']['CompatibleArchitectures'], ['arm64'])
+
+    def test_the_stack_has_one_function_and_publish_builds_its_package_only(self):
+        # GATE-SHUTDOWN: the webhook path (ingress, queue, consumer) left the port stack; the deployer publishes what remains
+        functions = sorted(r['Properties']['FunctionName'] for r in self.res.values() if r['Type'] == 'AWS::Lambda::Function')
+        self.assertEqual(functions, sorted(lp.PUBLISHED))
+        self.assertEqual({p for p in self.port['Parameters'] if p.endswith('Code')}, set(lp.PARAMETERS.values()))
 
     def test_a_new_layer_reaches_the_alias_live_a_version_is_of_its_code_and_of_its_layer(self):
         # PORT-COLD-LAYER: the alias runs a published version, and a version was replaced only when the code's key
         # changed: a layer alone changed $LATEST and nothing the alias runs, until the next change of the code
         # PORT-MEMORY-LIVE: and the port's memory, which the version freezes the same way
-        for logical, code, more in (('Port', 'PortCode', ' with 256 MB'), ('Webhook', 'WebhookCode', '')):
-            self.assertEqual(self.res[logical + 'Version']['Properties']['Description'],
-                             {'Fn::Sub': 'slow deploy of ${%s} on ${DepsKey}%s' % (code, more)})
-        self.assertEqual(self.res['IngressVersion']['Properties']['Description'], {'Fn::Sub': 'slow deploy of ${IngressCode}'})
-        self.assertNotIn('Layers', self.res['IngressFunction']['Properties'])  # no layer: nothing of it to follow
-        longest = 'slow deploy of %s on %s with 3008 MB' % (lp.key_of('tower-port-webhook-consumer', 'a' * 64), lp.layer_key('a' * 64))
+        self.assertEqual(self.res['PortVersion']['Properties']['Description'],
+                         {'Fn::Sub': 'slow deploy of ${PortCode} on ${DepsKey} with 256 MB'})
+        longest = 'slow deploy of %s on %s with 3008 MB' % (lp.key_of('tower-port-api', 'a' * 64), lp.layer_key('a' * 64))
         self.assertLessEqual(len(longest), 256)  # a version's description
 
     def test_the_runner_keeps_the_artifacts_and_knows_the_bucket(self):

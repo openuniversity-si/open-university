@@ -41,9 +41,13 @@ FUNCTIONS = {
     'tower-port-webhook-consumer': ('webhook_consumer', Path('infra/service') / PACKAGE / '__init__.py'),
 }
 HANDLER = 'handler'
-# the 40-port stack parameter each function's S3 key goes to (deploy.sh --parameter-overrides; no SSM: the deployer role may not
-# PutParameter under /tower/deploy/lambda/)
-PARAMETERS = {'tower-port-api': 'PortCode', 'tower-port-ack-ingress': 'IngressCode', 'tower-port-webhook-consumer': 'WebhookCode'}
+# GATE-SHUTDOWN: the functions the 40-port stack still has, the only ones `publish` (the deployer) builds and uploads: the
+# webhook path (the ack ingress and its consumer) left the stack. FUNCTIONS keeps every package (the gate's digests, the
+# import-closure tables of deploy_classify and fastdeploy are pinned to it).
+PUBLISHED = ('tower-port-api',)
+# the 40-port stack parameter each published function's S3 key goes to (deploy.sh --parameter-overrides; no SSM: the deployer
+# role may not PutParameter under /tower/deploy/lambda/)
+PARAMETERS = {'tower-port-api': 'PortCode'}
 LAYER_PARAMETER = 'DepsKey'
 LAYER_REQUIREMENTS = Path('infra/service/requirements-lambda.txt')
 LAYER_PLATFORMS = ('--platform', 'manylinux2014_aarch64', '--platform', 'manylinux_2_28_aarch64')
@@ -285,9 +289,9 @@ def operation(label, store, key, fn, *args, **kwargs):
 
 
 def publish(root, store, with_layer=True, run=subprocess.run):
-    """The deployer's step before the stacks: every package and the layer uploaded. Answers the S3 key of each function
-    (and 'deps' for the layer): the keys are deterministic, deploy.sh passes them to the port stack as parameters."""
-    built = build_all(root)
+    """The deployer's step before the stacks: the package of each PUBLISHED function and the layer uploaded. Answers the S3
+    key of each (and 'deps' for the layer): the keys are deterministic, deploy.sh passes them to the port stack as parameters."""
+    built = {function: build(root, function) for function in PUBLISHED}
     keys = {}
     for function, (data, digest, _) in built.items():
         keys[function] = key_of(function, digest)
