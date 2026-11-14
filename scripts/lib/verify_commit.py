@@ -22,6 +22,7 @@ import time
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 CONTEXT = 'tower/gate'
+TAIL = 6000  # VERIFY-TAIL: the characters of a red stage's or test batch's output the verifier prints (the job log)
 SKIPPED = ('pr metadata',)  # reads the pull request on Origin; the GitHub pull request is judged by its own reviewers
 
 
@@ -41,27 +42,35 @@ def plan(base, run=run):
         return json.loads(answer.read_text())['plan']
 
 
-def judge(base, run=run, clock=time.monotonic):
-    """(green, red names, the plan, seconds): every stage of the plan but SKIPPED, then its tests in one batch."""
+def judge(base, run=run, clock=time.monotonic, tails=None):
+    """(green, red names, the plan, seconds): every stage of the plan but SKIPPED, then its tests in one batch.
+    VERIFY-TAIL: tails, when given, receives (name, the end of its output) for each red stage and a red test batch."""
     began = clock()
     planned = plan(base, run)
     red = []
+    tails = [] if tails is None else tails
     for stage in planned.get('stages') or []:
         if stage in SKIPPED:
             continue
-        code, _ = run(['scripts/gate-check', 'stage', stage, '--base', base])
+        code, said = run(['scripts/gate-check', 'stage', stage, '--base', base])
         if code != 0:
             red.append(stage)
+            # a secret scan's output may quote what it found: the public job log never carries it
+            tails.append((stage, 'its output is not printed (a secret scan): run it locally' if stage.startswith('secret')
+                          else said[-TAIL:]))
     tests = planned.get('tests') or []
     if tests:
         with tempfile.TemporaryDirectory() as tmp:
             answer = Path(tmp) / 'tests.json'
-            code, _ = run(['scripts/gate-check', 'tests', ','.join(tests)],
-                          env={**os.environ, 'TOWER_ANSWER_FILE': str(answer)})
+            code, out = run(['scripts/gate-check', 'tests', ','.join(tests)],
+                            env={**os.environ, 'TOWER_ANSWER_FILE': str(answer)})
             said = json.loads(answer.read_text()).get('tests', {}) if answer.is_file() else {}
-            red += [test for test in tests if said.get(test) != 'PASS']
+            failed = [test for test in tests if said.get(test) != 'PASS']
+            red += failed
             if code != 0 and not red:
                 red.append('script tests')
+            if failed or code != 0:
+                tails.append((', '.join(failed) or 'script tests', out[-TAIL:]))
     return not red, red, planned, clock() - began
 
 
@@ -97,7 +106,8 @@ def main(argv=None, run=run):
     if not args.no_post:
         post(repo, args.sha, 'pending', 'the verifier is judging this commit', run)
     try:
-        green, red, planned, seconds = judge(args.base, run)
+        tails = []
+        green, red, planned, seconds = judge(args.base, run, tails=tails)
     except Exception as error:  # noqa: BLE001 - a verifier that could not judge says so on the commit
         if not args.no_post:
             post(repo, args.sha, 'error', f'not judged: {error}', run)
@@ -109,6 +119,8 @@ def main(argv=None, run=run):
     if not args.no_post:
         post(repo, args.sha, 'success' if green else 'failure', description, run)
     print(f'verify-commit: {args.sha[:12]} {description}')
+    for name, tail in tails:  # VERIFY-TAIL: what failed, where the verifier runs (a hosted job keeps no other log)
+        print(f'--- verify-commit: the end of the output of {name} ---\n{tail.rstrip()}', file=sys.stderr)
     return 0 if green else 1
 
 
