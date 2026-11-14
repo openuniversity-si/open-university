@@ -85,8 +85,18 @@ class TheVerifier(unittest.TestCase):
         self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=broken), 1)
         self.assertEqual(fake.statuses[-1][1], 'error')
 
-    def test_the_repository_has_no_github_actions_workflow(self):
-        self.assertFalse((ROOT / '.github' / 'workflows').exists())  # the verifier is a thread, never a hosted runner
+    def test_the_tower_gate_workflow_is_the_one_allowed_and_runs_the_verifier_on_the_queue_too(self):
+        # the Torre's choice (a), 14/11/2026: a GitHub-hosted job, free on a public repository, named as the check
+        import config
+        self.assertEqual(config.get('gate.allowed_workflows'), ['.github/workflows/tower-gate.yml'])
+        staged = (ROOT / 'services' / 'runner' / 'github' / 'tower-gate.yml').read_text(encoding='utf-8')
+        for line in ('  pull_request:', '  merge_group:', '    name: tower/gate',
+                     'scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post'):
+            self.assertIn(line, staged)
+        ruleset = json.loads((ROOT / '.github' / 'rulesets' / 'main.json').read_text(encoding='utf-8'))
+        rules = {rule['type']: rule.get('parameters') for rule in ruleset['rules']}
+        self.assertEqual(rules['required_status_checks']['required_status_checks'], [{'context': 'tower/gate'}])
+        self.assertEqual(rules['merge_queue']['merge_method'], 'MERGE')
 
 
 if __name__ == '__main__':
