@@ -1695,12 +1695,14 @@ class SlowPathShTests(DeployShTests):
     # --- SLOW-PATH-NO-ROLLOUT-WAIT: a code-only landing whose code is live and durable deploys nothing of the image or the ECS stacks
     LIVE = 'c0de' * 16  # the sha256 of the head's code bundle
 
-    def code_only(self, status=None, service=None, runner=None, files=None, port=False, **extra):
+    def code_only(self, status=None, service=None, runner=None, files=None, port=False, runner_ecs=True, **extra):
         """A code-only landing over stacks a first build applied (their hashes recorded). The status says the landing's
         bundle is deploy.live_code and both ECS tasks reloaded it; the two stacks' parameters are as given. port: the port
         stack as CloudFormation holds it, on its older Lambda keys (port_rig). Answers (the run of the landing's build,
-        its head, the recorded hashes)."""
+        its head, the recorded hashes). runner_ecs=False: the runner's stack is the outputs bucket alone, as since GATE-SHUTDOWN."""
         self.ecs_stacks()
+        if not runner_ecs:
+            self.base = self.commit('the runner without ecs', **{'infra__aws__stacks__50-runner.json': self.BUCKET_ONLY})
         if port:
             extra = {'STUB_LAST_EVENT': self.port_rig(), **extra}
         (self.state / 'param_tower_deploy_last-sha').unlink()
@@ -1756,6 +1758,22 @@ class SlowPathShTests(DeployShTests):
         self.assertNotIn('code live: yes', done.stdout)
         self.assertIn('docker build', (self.state / 'calls').read_text())
 
+    BUCKET_ONLY = json.dumps({'Parameters': {'Image': {'Type': 'String', 'Default': '/tower/deploy/image/service'},
+                                             'LiveCode': {'Type': 'String'}, 'LiveSeen': {'Type': 'String'}},
+                              'Resources': {'Outputs': {'Type': 'AWS::S3::Bucket'}}}) + '\n'
+
+    def test_code_live_asks_only_the_roles_that_have_an_ecs_service(self):
+        # CODE-LIVE-ROLES-THAT-EXIST: the runner's stack is the outputs bucket alone (GATE-SHUTDOWN), so no runner task can
+        # reload anything; the service's reload is the whole proof, and the runner stack's state is not read for it
+        done, head, _ = self.code_only(runner_ecs=False, runner={'status': 'UPDATE_ROLLBACK_COMPLETE', 'LiveSeen': 'DATUM'}, status={
+            'image_reload': [{'role': 'service', 'digest': self.LIVE, 'state': 'reloaded', 'task': 'ecs-service'}]})
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        self.assertIn(f'code live: yes: the head\'s code is the bundle {self.LIVE[:12]} of deploy.live_code, reloaded in place '
+                      'by the ECS task of service', done.stdout)
+        self.assertNotIn('docker build', (self.state / 'calls').read_text())
+        self.assertEqual(self.stacks_deployed(), [])
+        self.assertEqual((self.build()['status'], self.recorded('/tower/deploy/last-sha')), ('succeeded', head))
+
     def test_code_live_beside_a_port_stack_change_builds_no_image_and_applies_the_port_stack_alone(self):
         # CODE-BESIDE-PORT: #509 changed one property of the port stack with the code: an image build, two ECS rollouts and a
         # verification build, 8 min; the code is live by the swap or in place, and only the port stack is this build's
@@ -1805,7 +1823,7 @@ class SlowPathShTests(DeployShTests):
             ('the status cannot be read', {'DEPLOY_FAST_STATUS_CMD': 'exit 1'}, 'deploy.live_code is not readable'),
             ('the runner did not reload it', {'status': {'image_reload': [{'role': 'service', 'digest': self.LIVE, 'state': 'reloaded'},
                                                                          {'role': 'runner', 'digest': self.LIVE, 'state': 'started'}]}},
-             'was not reloaded in place by the ECS task of both roles (reloaded: service)'),
+             'was not reloaded in place by the ECS task of every role (service runner; reloaded: service)'),
             ('a reload of another bundle', {'status': {'image_reload': [{'role': role, 'digest': '0' * 64, 'state': 'reloaded'}
                                                                        for role in ('service', 'runner')]}}, 'reloaded: none'),
             ('the runner\'s definition saw the datum: a new task boots its own code', {'runner': {'LiveSeen': 'DATUM'}}, 'tower-app-runner would not boot'),

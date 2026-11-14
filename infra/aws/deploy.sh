@@ -388,18 +388,32 @@ fast_status() {
 #    requirements.txt, a migration or a template is a real change);
 #  - the head's code bundle (lambda_package.py code, nothing uploaded) has the sha256 deploy.live_code names (the status's
 #    live_code, '<sha256>@<merge>', which the live service wrote after the landing's swap): the head's code IS that bundle;
-#  - both ECS tasks run it: a platform.deploy.image_reload {state: reloaded} of that digest by the service and by the runner
+#  - every ECS task runs it: a platform.deploy.image_reload {state: reloaded} of that digest by each role that has one
 #    (IMAGE-SWAP-RELOAD: the ECS task loaded the bundle in place and took the role back);
-#  - a task ECS starts later boots it (code_bundle.boot): each of the two stacks is *_COMPLETE and either its LiveCode is that
-#    digest or its LiveSeen is neither the datum nor `unknown`; and the two stacks carry the same LiveCode.
+#  - a task ECS starts later boots it (code_bundle.boot): each of those roles' stacks is *_COMPLETE and either its LiveCode is
+#    that digest or its LiveSeen is neither the datum nor `unknown`; and they carry the same LiveCode.
+# CODE-LIVE-ROLES-THAT-EXIST (GATE-SHUTDOWN, D-314): the roles are the stacks of service and runner whose template carries an
+# AWS::ECS::Service (ecs_roles). The runner's ECS service is gone (tower-app-runner is the outputs bucket alone), so no runner
+# task reloads anything: asking for "runner service" made every code-only landing fail this check for ever.
 # Then: $work/code_live = the digest (last-build.code_live), no image, no service, no runner among the targets (port keeps its own
 # rule), and the two stacks keep the LiveCode they have ($work/livecode_keep: their hash is the recorded one, nothing is dirty).
 # DEPLOY_CODE_DIGEST_CMD replaces the digest's command (a test).
 # CODE-LIVE-RELATIVE-ROOT: the reason a code-only batch was not skipped, said in the log and kept in last-build.code_live_why
 # (the log's tail in the record is too short to hold it: on 11/11 the reason of #496 could not be read from the status)
 code_live_no() { echo "code live: no: $1"; printf '%s' "$1" | cut -c1-300 >"$work/code_live_why"; }
+# ecs_roles: the names among service and runner whose stack template (infra/aws/stacks/NN-<name>.json at this tree) carries an
+# AWS::ECS::Service, in that order, space-separated: the roles that have ECS tasks to run the code.
+ecs_roles() {
+  local n f out=""
+  for n in service runner; do
+    for f in "$repo"/infra/aws/stacks/[0-9]*-"$n".json; do
+      [[ -f "$f" ]] && grep -q '"AWS::ECS::Service"' "$f" && out="$out $n"
+    done
+  done
+  printf '%s' "${out# }"
+}
 code_live() {
-  local digest datum roles stack n keep="" code
+  local digest datum roles stack n keep="" code want_roles
   [[ -z "${bgood:-}" && -z "${DEPLOY_TARGETS:-}" && -s "$work/classify.json" ]] || return 1
   # CODE-BESIDE-PORT: the port stack may change beside the code (deploy_classify.BESIDE): it stays this build's target
   # OWNER-STEP-NEEDS-ROLLOUT: the owner's step (dbinit.py) runs from the image (deploy_classify.IMAGE_RUN): not code-only
@@ -422,9 +436,13 @@ code_live() {
   deploy_status
   datum="$(jq -r '.live_code // empty' "$work/status.json" 2>/dev/null)"
   [[ "${datum%%@*}" = "$digest" ]] || { code_live_no "deploy.live_code is ${datum:-not readable}, the head's code is ${digest:0:12}"; return 1; }
+  want_roles="$(ecs_roles)"
+  [[ -n "$want_roles" ]] || { code_live_no "no stack of service or runner carries an ECS service"; return 1; }
   roles="$(jq -r --arg d "$digest" '[(.image_reload // [])[] | select(type == "object" and .digest == $d and .state == "reloaded") | .role] | unique | join(" ")' "$work/status.json" 2>/dev/null)"
-  [[ "$roles" = "runner service" ]] || { code_live_no "${digest:0:12} was not reloaded in place by the ECS task of both roles (reloaded: ${roles:-none})"; return 1; }
-  for n in service runner; do
+  for n in $want_roles; do
+    [[ " $roles " == *" $n "* ]] || { code_live_no "${digest:0:12} was not reloaded in place by the ECS task of every role ($want_roles; reloaded: ${roles:-none})"; return 1; }
+  done
+  for n in $want_roles; do
     stack="$(aws cloudformation describe-stacks --stack-name "tower-app-$n" --query 'Stacks[0]' --output json 2>/dev/null)" || stack=""
     code="$(jq -r --arg d "$digest" --arg m "$datum" '
       (((.Parameters // []) | map({(.ParameterKey): .ParameterValue}) | add) // {}) as $p
@@ -432,13 +450,13 @@ code_live() {
                and (($p.LiveCode // "") == $d or (($p.LiveSeen // "unknown") as $s | $s != "unknown" and $s != $m)))
       | "=" + ($p.LiveCode // "")' <<<"$stack" 2>/dev/null)"
     [[ -n "$code" ]] || { code_live_no "a task ECS starts in tower-app-$n would not boot ${digest:0:12} (the stack is not complete, or its task definition does not follow the live code)"; return 1; }
-    [[ -z "$keep" || "$keep" = "$code" ]] || { code_live_no "the service and runner stacks carry different LiveCode"; return 1; }
+    [[ -z "$keep" || "$keep" = "$code" ]] || { code_live_no "the stacks of $want_roles carry different LiveCode"; return 1; }
     keep="$code"
   done
   echo "$digest" >"$work/code_live"; printf '%s' "${keep#=}" >"$work/livecode_keep"  # (empty stays an empty file: no LiveCode in the hash)
   grep -v -x -e service -e runner "$work/targets" >"$work/targets.tmp"; mv "$work/targets.tmp" "$work/targets"; echo 0 >"$work/image"
   jq -R 'select(length > 0)' "$work/targets" | jq -sc . >"$work/targets_json"
-  echo "code live: yes: the head's code is the bundle ${digest:0:12} of deploy.live_code, reloaded in place by both ECS tasks and booted by any task ECS starts: no image is built, the service and runner stacks are left alone"
+  echo "code live: yes: the head's code is the bundle ${digest:0:12} of deploy.live_code, reloaded in place by the ECS task of $want_roles and booted by any task ECS starts: no image is built, the service and runner stacks are left alone"
 }
 
 # deploy_status: the port's GET /v1/deploy/status, read once per build into $work/status.json (empty when it cannot be read).
