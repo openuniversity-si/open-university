@@ -1,5 +1,5 @@
 """ENGINE-REPO (the migration to GitHub, 14/11/2026): the engine's repository on its forge comes from configuration:
-TOWER_ENGINE_REPO, else the service's `engine.repo` datum (written through PUT /v1/config, seen live), else the public
+TOWER_ENGINE_REPO, else the service's `service.engine_repo` datum (written through PUT /v1/config, seen live), else the public
 default. Hermetic: fake settings, no database."""
 from pathlib import Path
 import re
@@ -18,7 +18,7 @@ class Settings:
         self.value = value
 
     def get(self, name):
-        assert name == 'engine.repo'
+        assert name == 'service.engine_repo'
         return self.value
 
 
@@ -29,7 +29,7 @@ class TheRepository(unittest.TestCase):
 
     def test_the_default_is_the_public_repository_and_the_registrys(self):
         self.assertEqual(engine.repo({}), 'openuniversity-si/open-university')
-        self.assertEqual(config_data.SPEC['engine.repo'][1], engine.DEFAULT)
+        self.assertEqual(config_data.SPEC['service.engine_repo'][1], engine.DEFAULT)
 
     def test_the_environment_wins_then_the_settings_then_the_default(self):
         settings = Settings(OTHER)
@@ -43,8 +43,8 @@ class TheRepository(unittest.TestCase):
         engine.use(Settings('not a repo'))
         self.assertEqual(engine.repo({engine.ENV: ' '}), engine.DEFAULT)
         with self.assertRaises(ValueError):
-            config_data.validate('engine.repo', 'not a repo')
-        self.assertEqual(config_data.validate('engine.repo', OTHER), OTHER)
+            config_data.validate('service.engine_repo', 'not a repo')
+        self.assertEqual(config_data.validate('service.engine_repo', OTHER), OTHER)
 
     def test_the_looks_follow_it_unless_one_is_given(self):
         engine.use(Settings(OTHER))
