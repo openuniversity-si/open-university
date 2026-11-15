@@ -42,6 +42,9 @@ HOST-RATES: pg_cputime's counters run since the host's boot; the event carries t
 readings of this process (host.rates: user, nice, system, idle, iowait, window_s), the first of them taken on the
 process's first beat, so what a change of the server's memory does to the time the host waits for its disk is read in
 the events themselves.
+
+This module runs in the service alone: no port Lambda's package holds it (scripts/lib/deploy_classify.LAMBDA_MODULES),
+so a change here is a code-only merge of the service (QUEUE-SWAP: its heir is up before the landing).
 """
 import json
 import logging
