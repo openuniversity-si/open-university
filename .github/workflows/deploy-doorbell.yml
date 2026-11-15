@@ -3,20 +3,30 @@
 # .github/workflows). The doorbell's token is not an AWS credential: it goes in the repository secrets
 # TOWER_DEPLOY_DOORBELL_URL and TOWER_DEPLOY_DOORBELL_TOKEN. The build then deploys what the bootstrap's OriginRepoUrl and
 # BaseBranch name: they must point at this repository and main first (see the plan), or the build keeps deploying Origin.
+# QUEUE-RELOAD (15/11/2026, infra/service/tower_infra/queue_deploy.py): the merge_group job runs while the merge queue
+# verifies a merge's commit. It rings `prepare` with that commit (the service builds its code bundle meanwhile) and
+# `landed` the moment main is that commit (the service checks it and reloads a code-only merge in place). It starts no
+# build: the push job below stays the deploy, and the net. Each job has its own concurrency group, so a merge_group run
+# that waits for its merge never holds or cancels the push's ring. A merge_group run is of a commit that someone with
+# write access queued, the same code the push runs with these secrets once it merges; the token only starts a build of
+# main, or passes a claim the service checks against the repository before it acts.
 name: deploy-doorbell
 on:
   push:
     branches: [main]
+  merge_group:
+    types: [checks_requested]
 permissions:
   contents: read
-concurrency:
-  group: deploy-doorbell
-  cancel-in-progress: false
 jobs:
   ring:
+    if: github.event_name == 'push'
     name: deploy/doorbell
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    concurrency:
+      group: deploy-doorbell
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - name: ring
@@ -24,3 +34,18 @@ jobs:
           TOWER_DEPLOY_DOORBELL_URL: ${{ secrets.TOWER_DEPLOY_DOORBELL_URL }}
           TOWER_DEPLOY_DOORBELL_TOKEN: ${{ secrets.TOWER_DEPLOY_DOORBELL_TOKEN }}
         run: python3 scripts/lib/deploy.py ring
+  queue:
+    if: github.event_name == 'merge_group'
+    name: deploy/prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    concurrency:
+      group: deploy-prepare-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: prepare, then ring at the merge
+        env:
+          TOWER_DEPLOY_DOORBELL_URL: ${{ secrets.TOWER_DEPLOY_DOORBELL_URL }}
+          TOWER_DEPLOY_DOORBELL_TOKEN: ${{ secrets.TOWER_DEPLOY_DOORBELL_TOKEN }}
+        run: python3 scripts/lib/deploy.py queue --sha "${{ github.sha }}" --ref "${{ github.ref }}"
