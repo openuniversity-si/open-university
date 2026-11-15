@@ -19,6 +19,9 @@ Never raises: a database that is away never costs the process. LIFE-EVENT-RETRY:
 with the database at 65 of its 79 connections, the tasks an ECS rollout started wrote no `started`: the moment the
 events are for. An event that could not be written is kept (KEEP at most) with the time it happened (`at`) and
 written on a later good pass of the process (beat(): the service's tick, a runner slot's pass), RETRY_S apart.
+
+This module runs in the service alone: no port Lambda's package holds it (scripts/lib/deploy_classify.LAMBDA_MODULES),
+so a change here is a code-only merge of the service (QUEUE-SWAP: its heir is up before the landing).
 """
 import json
 import logging

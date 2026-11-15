@@ -12,6 +12,9 @@ changed since the last push runs. A head pushed again leaves the earlier head's 
 GATE-SHUTDOWN (14/11/2026, D-314; #17, #22): this look served the AWS gate on Origin, which is shut down (the gate is
 GitHub's tower/gate and its merge queue): serve() starts it only under service.gate_looks, false by default. Its code
 stays whole, so a row of work.config_value turns it back on at the next start.
+
+This module runs in the service alone: no port Lambda's package holds it (scripts/lib/deploy_classify.LAMBDA_MODULES),
+so a change here is a code-only merge of the service (QUEUE-SWAP: its heir is up before the landing).
 """
 import hashlib
 import json
