@@ -22,7 +22,7 @@ TOWER_CODE_SHA256; tower_infra.code_bundle) has the bundle's sha256, which code_
 it runs that code, and a bundle that cannot be loaded exits before any work. Either way the pointer's value is compared as
 an opaque string; the semantics here are the same.
 
-A standby the prewarm starts (IMAGE-PREWARM-B2, tower_infra.prewarm) has TOWER_STANDBY=1: its gate is strict, so no pointer
+A standby (IMAGE-PREWARM-B2; the prewarm that started Spot ones left, D-316) has TOWER_STANDBY=1: its gate is strict, so no pointer
 is not live for it; it works only once the pointer names its digest. Without that, a head's standby started while no pointer
 is written would take the role's work with an authoring branch's code. OnceLive runs a start that a standby must not run
 before it turns live (the service's DBOS.launch: its system-schema migrations, version registration and recovery; since
@@ -142,8 +142,9 @@ lands meanwhile is in charge (the claim wants the pointer empty, and a task stan
 no task starts a reload and the slow path deploys the head.
 
 IN-TASK-STANDBY: the standby is a successor process inside the ECS task of its role (tower_infra.supervisor), not a Spot
-task, and after a swap it keeps the role: nothing reloads by exec. (1) The want: the live service's prewarm records
-platform.deploy.successor {digest, key, state: wanted|withdrawn} for the bundle a head holds (tower_infra.prewarm), and
+task, and after a swap it keeps the role: nothing reloads by exec. (1) The want: the live service records
+platform.deploy.successor {digest, key, state: wanted|withdrawn} for the bundle a merge holds (queue_deploy; the prewarm that
+said it for a head left, D-316), and
 notifies; the open order of a landing with no standby is a want too. Each ECS task's process reads them where it looks
 at the order (Order.step: only when a look is owed) and tells its supervisor the set (deploy.intask_standbys of them at
 most; 0, the default, is off: nothing here happens). (2) The successor is the prewarm's standby inside the task: strict,
@@ -176,7 +177,7 @@ import uuid
 from . import canary, code_bundle, config_data, database, supervisor
 
 LOG = logging.getLogger('tower_infra.live_image')
-STANDBY = 'TOWER_STANDBY'  # IMAGE-PREWARM-B2: set by the prewarm on the standbys it starts: a strict gate
+STANDBY = 'TOWER_STANDBY'  # IMAGE-PREWARM-B2: set on a standby (intask: a successor in its task): a strict gate
 KEYS = {'service': 'deploy.live_image_service', 'runner': 'deploy.live_image_runner'}
 # IN-TASK-STANDBY (the module's docstring): TOWER_STANDBY's value for a successor inside the ECS task; the datum that bounds
 # them (0: off); the event of a want and of a successor that is up; what the supervisor's SIGUSR1 leaves (heed())

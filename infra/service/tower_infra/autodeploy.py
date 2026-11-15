@@ -348,8 +348,8 @@ class AutoDeploy:
         self.in_flight, self.idle_safety_s = False, idle_safety_s
         self.due_in = None
         self.cycles, self.alarmed = [], set()  # the month's cycle events (newest last) and the months with an alarm (DEP7)
-        # IMAGE-PREWARM-C: the landings already considered for the swap; the tenant of the pointers and of the prewarm's
-        # bundle jobs; ECS (DescribeTasks of the standbys, the prewarm's IAM) when the service runs them, else None
+        # IMAGE-PREWARM-C: the tenant of the pointers (LANDING-PREWARM-GONE: the landings considered for a swap and the
+        # standbys' ECS client left with the prewarm, D-316)
         self.tenant = config_data.TENANT
         self.canaries, self.alert = {}, canary.alert  # DEPLOY-CANARY: swap key -> its canary's red line (None: green); the publisher
         # SLOW-PATH-NO-ROLLOUT-WAIT: the store of the code bundles (None: no bucket), the asks (key, sha256) already tried,
@@ -893,7 +893,7 @@ class AutoDeploy:
         (the ECS tasks, not strict, work again under no pointer). Retired once a build that ended well deployed the swap's
         head or a later one: CloudFormation waited for the ECS services to be steady, the ECS tasks carry the bundle as
         LiveCode (deploy.sh) or their own image's code, and the pointers are emptied where they still name S: the strict
-        standbys stop working (the runner's slots end after their runs, then the task exits; the prewarm retires them) and
+        standbys stop working (the runner's slots end after their runs, then the task exits) and
         the ECS tasks work under no pointer, as before any swap."""
         found = db.rows(NEWEST_SWAP)
         if not found:

@@ -76,8 +76,8 @@ select leased.id::text, leased.run_id::text, leased.fencing_token, leased.n, lea
        leased.input_uri, leased.input_digest, e.adapter, e.config::text
 from leased join work.executor e on e.name = leased.executor"""
 UNIQUE = '23505'  # another dispatcher took the exclusive key between the candidates and the claim
-# FULL-RUN (revisão da arquitetura, achado 29): a job whose selector says `yield` (tower_infra.fullrun: the base's whole
-# battery at a landing) never starts while a job of its queue that does not yield waits, and one of them running is taken
+# FULL-RUN (revisão da arquitetura, achado 29): a job whose selector says `yield` (the base's whole battery at a landing:
+# tower_infra.fullrun made them, gone with D-316) never starts while a job of its queue that does not yield waits, and one of them running is taken
 # back (cancelled: the full run makes it again) when such a job finds no free slot. By the event of a job that cannot go,
 # never by a clock: the runner's slots are the gates' first
 YIELD_HELD = ROUTE  # its second column
