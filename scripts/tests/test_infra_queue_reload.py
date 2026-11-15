@@ -12,6 +12,7 @@
 Hermetic: a bare repository on disk as the remote, the log as a list.
 """
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -473,6 +474,42 @@ class Watch(unittest.TestCase):
         self.assertEqual(len(made), 2)  # opened again once, the word sent again on it
         self.assertEqual(sent, [('POST', '/', 'prepare', True), ('POST', '/', 'prepare', True), ('POST', '/', 'landed', True)])
         self.assertEqual(made[0], ('door.example', 10.0))
+
+    def test_the_push_ring_in_a_github_job_rings_a_409_again_until_a_build_starts(self):
+        # RING-RETRY (#41: its push ring got 409 while #40's build ran, and nobody rang again for it)
+        import urllib.error
+        answers, clock, slept = [409, 409, 202], [0.0], []
+
+        def opener(request, timeout=None):
+            status = answers.pop(0)
+            if status != 202:
+                raise urllib.error.HTTPError('u', status, 'conflict', {}, io.BytesIO(b'{}'))
+
+            class Answer:
+                def read(self):
+                    return b'{"build": "tower-infra-deploy:b"}'
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_):
+                    return False
+            answer = Answer()
+            answer.status = 202
+            return answer
+
+        def sleep(seconds):
+            slept.append(seconds)
+            clock[0] += seconds
+        env = {'TOWER_DEPLOY_DOORBELL_URL': 'https://door', 'TOWER_DEPLOY_DOORBELL_TOKEN': 'x', 'GITHUB_ACTIONS': 'true'}
+        self.assertEqual(deploy.ring_until_free(env, opener, clock=lambda: clock[0], sleep=sleep), (0, 'tower-infra-deploy:b'))
+        self.assertEqual(slept, [deploy.RING_EVERY_S] * 2)
+        answers[:] = [409]
+        self.assertEqual(deploy.ring_until_free({**env, 'GITHUB_ACTIONS': ''}, opener, sleep=sleep)[0], 2)  # a session: once
+        answers[:] = [409] * 30
+        clock[0], slept[:] = 0.0, []
+        self.assertEqual(deploy.ring_until_free(env, opener, clock=lambda: clock[0], sleep=sleep)[0], 2)
+        self.assertLessEqual(sum(slept), deploy.RING_WAIT_S)  # bounded by the push job's time
 
     def test_the_watch_reads_the_repository_through_the_forges_adapter(self):
         import source_remote
