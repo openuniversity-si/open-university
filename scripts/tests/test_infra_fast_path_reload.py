@@ -216,6 +216,19 @@ class TheLookOrders(nostandby.image_swap.World):
                       '\n'.join(logs.output))
         self.assertIsNone(self.watcher.reload)
 
+    def test_an_order_of_the_merge_queue_ends_the_same_way_and_writes_the_live_code(self):
+        """QUEUE-RELOAD: an order by: queue names the merge main moved to, the newest head as a build's order does (live
+        15/11, #27: proven and done, but deploy.live_code not written, so the build waited its 150 s and took the image)."""
+        queued = {key: value for key, value in ALONE.items() if key != 'build'}
+        queued['by'] = 'queue'
+        self.watcher.reload = MERGE
+        proven = {'role': 'service', 'digest': S, 'state': 'proven', 'order': MERGE}
+        self.db.order = [(json.dumps(queued), 6.0, json.dumps([claim(), proven]), False, '{}', None, 1000.0)]
+        self.watcher.reloads(self.db, [])
+        done = self.db.asked[-1]
+        self.assertEqual((done['head'], done['digest'], done['newest'], done['roles']), (MERGE, S, True, 1))
+        self.assertIsNone(self.watcher.reload)
+
     def test_the_order_done_counts_the_orders_roles(self):
         self.assertIn("and e.payload->>'state' = 'proven') = %(roles)s", autodeploy.ORDER_DONE)
 

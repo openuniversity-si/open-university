@@ -859,8 +859,9 @@ class AutoDeploy:
                 found = db.rows(ORDER_DONE, {
                     'order': f"{live_image.RELOAD}:order:{order['head']}", 'id': f"{live_image.RELOAD}:done:{order['head']}",
                     'head': order['head'], 'digest': order['digest'], 'tenant': self.tenant, 'roles': len(roles),
-                    # FAST-PATH-RELOAD: the build's own head is the newest it deploys (no landing names heads on GitHub)
-                    'newest': order['head'] == newest or order.get('by') == 'build',
+                    # FAST-PATH-RELOAD: the build's own head is the newest it deploys (no landing names heads on GitHub);
+                    # QUEUE-RELOAD: and so is the merge the queue's landing ordered (checked as main's head before the order)
+                    'newest': order['head'] == newest or order.get('by') in ('build', 'queue'),
                     'payload': json.dumps({'state': 'done', 'digest': order['digest'], 'head': order['head'],
                                            'order': order['head']})})
                 said = 'both ECS tasks run' if roles == live_image.ROLES else f"the ECS task of {' and '.join(roles)} runs"
