@@ -98,7 +98,8 @@ OK = ('succeeded', 'nothing_new')
 DEFAULTS = {'auto': True, 'base_branch': 'mod/roadmap-integration', 'debounce_s': 20,
             'lost_after_s': 3000, 'monthly_usd': 30.0, 'alarm_usd': 20.0, 'usd_per_min': 0.005,
             'fast_propagation_s': 10.0, 'fast_activate_s': 120.0,
-            'promote': True}  # IMAGE-PREWARM-C: a landing promotes its standbys (22.9a: promoting is a choice)
+            'promote': True,  # IMAGE-PREWARM-C: a landing promotes its standbys (22.9a: promoting is a choice)
+            'queue_reload': True}  # QUEUE-RELOAD: the merge queue's words order a code-only merge's reload (queue_deploy)
 ZERO_OK = ()
 # Paths whose change needs the slow path (a stack, the image, the deployer); the service image has no scripts/, so this
 # mirrors scripts/lib/deploy_classify.py, and a test pins the two on the repository's real files. An unknown set of
@@ -365,6 +366,7 @@ class AutoDeploy:
         # FAST-PATH-RELOAD: the last-build this look read, the (head, sha256) a build asked to reload already ordered here,
         # and whether a build that just started may still ask (the safety look is short meanwhile)
         self.seen_build, self.asked, self.asking = {}, set(), False
+        self.queue = None  # QUEUE-RELOAD: queue_deploy.QueueReload, the merge queue's prepare and landed (None: off)
 
     # --- the decision -----------------------------------------------------------------------------------------------
     def step(self, force=False):
@@ -478,6 +480,7 @@ class AutoDeploy:
         cfg = self.settings()
         self.migrate(db)  # SLOW-PATH-NO-ROLLOUT-WAIT: whatever the ring decides below
         self.build_reload(db)  # FAST-PATH-RELOAD: the reload a code-only merge's build asks for, ordered at once
+        self.queue_look(db, cfg)  # QUEUE-RELOAD: the merge queue's prepare and landed, before the build is even rung
         # DEP8b: the fast path is independent of the slow one: every look (a push wakes it) evaluates the new head's fast targets
         # first, whatever deploy.auto, the doorbell, a build in flight or the debounce say; only the base branch's pushes count
         pushes = self.pushes(db, cfg['base_branch'], now)
@@ -787,6 +790,13 @@ class AutoDeploy:
                  if made else f'the order of {str(busy)[:12]} is not settled: this one waits' if busy and busy != head else
                  f'not ordered: a reload onto {digest[:12]} failed' if bad else 'ordered already', self.clock(), head=head[:12])
         return made, busy, bad
+
+    def queue_look(self, db, cfg):
+        """QUEUE-RELOAD (tower_infra.queue_deploy): the merge queue's words, with deploy.queue_reload; a landing's order is
+        the service's alone, by: queue, the order FAST-PATH-RELOAD makes for a build."""
+        if self.queue is None or not cfg.get('queue_reload', True):
+            return
+        self.queue.look(db, lambda sha, digest, key: self.order(db, sha, digest, key, None, roles=['service'], by='queue'))
 
     def build_reload(self, db):
         """FAST-PATH-RELOAD (the module's docstring): the reload the deploy build in progress names in last-build.reload
@@ -1415,6 +1425,16 @@ def from_boto3(scope, environ=None):
     found.publish = lambda said, subject: canary.alert(said, environ, subject=subject)  # MODE-CHANGE-ALERT
     if environ.get('TOWER_ARTIFACT_BUCKET'):  # SLOW-PATH-NO-ROLLOUT-WAIT: where deploy.sh publishes the head's code bundle
         found.bundles = code_bundle.S3Store(environ['TOWER_ARTIFACT_BUCKET'])
+        from . import queue_deploy  # QUEUE-RELOAD: the service prepares the merge's bundle and puts it beside deploy.sh's
+        from botocore.exceptions import ClientError
+        bucket, s3 = environ['TOWER_ARTIFACT_BUCKET'], boto3.client('s3', region_name=region, config=settings)
+
+        def put(key, data):
+            try:
+                s3.head_object(Bucket=bucket, Key=key)
+            except ClientError:
+                s3.put_object(Bucket=bucket, Key=key, Body=data)
+        found.queue = queue_deploy.QueueReload(read, put)
     if environ.get('TOWER_STANDBY_CLUSTER', '').strip():  # IMAGE-PREWARM-C: DescribeTasks of the standbys (B2's IAM)
         found.cluster = environ['TOWER_STANDBY_CLUSTER'].strip()
         found.ecs = boto3.client('ecs', region_name=region, config=settings)

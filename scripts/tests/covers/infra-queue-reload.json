@@ -1,0 +1,16 @@
+{
+  "script": "scripts/tests/infra-queue-reload.test.sh",
+  "covers": [
+    "scripts/tests/infra-queue-reload.test.sh",
+    "scripts/tests/test_infra_queue_reload.py",
+    "infra/service/tower_infra/queue_deploy.py",
+    "infra/service/tower_infra/autodeploy.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/engine.py",
+    "scripts/lib/deploy.py",
+    "scripts/lib/deploy_classify.py",
+    "scripts/lib/lambda_package.py",
+    "services/runner/github/deploy-doorbell.yml"
+  ]
+}

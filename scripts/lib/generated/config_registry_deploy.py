@@ -19,6 +19,7 @@ Name = Literal[
     'deploy.monthly_usd',
     'deploy.prewarm_max_tasks',
     'deploy.promote',
+    'deploy.queue_reload',
     'deploy.standby_fresh_s',
     'deploy.usd_per_min',
 ]
@@ -41,6 +42,7 @@ Values = TypedDict('Values', {
     'deploy.monthly_usd': float,
     'deploy.prewarm_max_tasks': int,
     'deploy.promote': bool,
+    'deploy.queue_reload': bool,
     'deploy.standby_fresh_s': float,
     'deploy.usd_per_min': float,
 })

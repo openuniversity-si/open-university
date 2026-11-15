@@ -174,6 +174,28 @@ BUILD_STARTED = ("with said as (insert into log.event (event_id, tenant_id, type
                  "and occurred_at > now() - interval '2 days') returning type) select pg_notify('tower_deploy', type) from said")
 
 
+# QUEUE-RELOAD (tower_infra.queue_deploy): the merge queue's words, passed on by the doorbell Lambda in a direct invocation
+# (IAM's: only a principal granted lambda:InvokeFunction on this alias gets here, so it carries no token): `prepare` when
+# the queue built a merge's commit, `landed` when main moved to it. One event each, platform.deploy.queue {event, sha}, and
+# a wake of the autodeploy look on tower_deploy. The sha is a claim the look checks against the repository; never trusted.
+QUEUE_SAID = ("with said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
+              "select %(id)s, null, 'platform.deploy.queue', clock_timestamp(), 'doorbell', 'deploy/queue', %(payload)s::jsonb "
+              "where not exists (select 1 from log.event where event_id = %(id)s and type = 'platform.deploy.queue' "
+              "and occurred_at > now() - interval '2 days') returning type) select pg_notify('tower_deploy', type) from said")
+
+
+def queue_state(event, db):
+    """A doorbell's queue word {event: prepare|landed, sha} becomes platform.deploy.queue (QUEUE_SAID); anything else is
+    ignored."""
+    detail = event.get('detail') if isinstance(event.get('detail'), dict) else {}
+    word, sha = str(detail.get('event') or ''), str(detail.get('sha') or '')
+    if word not in ('prepare', 'landed') or not re.fullmatch(r'[0-9a-f]{40}', sha):
+        return {'ignored': True}
+    ident = f'platform.deploy.queue:{word}:{sha}'
+    db.rows(QUEUE_SAID, {'id': ident, 'payload': json.dumps({'event': word, 'sha': sha})})
+    return {'event_id': ident}
+
+
 def build_state(event, db):
     """A CodeBuild Build State Change of the deployer: a terminal status becomes platform.deploy.ended, once per build
     (EventBridge delivers at least once). Its id is not the autodeploy's own (platform.deploy.ended:<build>, written when it
@@ -272,6 +294,8 @@ def ecs_state(event, db):
 
 
 def handle(event, db, installation_sha256, now=None):
+    if 'requestContext' not in event and event.get('source') == 'tower.doorbell':  # QUEUE-RELOAD
+        return queue_state(event, db)
     if 'requestContext' not in event and event.get('source') == 'aws.ecs':  # ECS-STOPS-IN-LOG
         return ecs_state(event, db)
     if 'requestContext' not in event and event.get('source') == 'aws.codebuild' \
