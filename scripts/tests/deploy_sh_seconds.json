@@ -104,5 +104,6 @@
  "SlowPathShTests.test_the_templates_name_the_image_they_read_so_its_change_is_in_their_hash": 0.11,
  "SlowPathShTests.test_two_stacks_side_by_side_overlap_however_slow_the_runner_of_the_test_is": 7.89,
  "DeployShTests.test_the_webhook_path_left_the_port_stack_and_the_deployer_passes_only_its_code_and_layer": 1.5,
- "DeployShTests.test_the_deployer_never_deploys_the_control_plane_worker": 2.0
+ "DeployShTests.test_the_deployer_never_deploys_the_control_plane_worker": 2.0,
+ "SlowPathShTests.test_a_head_with_no_image_whose_code_is_live_keeps_the_ecs_stacks_after_a_swap": 7.3
 }
