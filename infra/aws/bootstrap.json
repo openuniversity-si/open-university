@@ -393,16 +393,13 @@
                   }
                 },
                 {
-                  "Sid": "ReadTheOriginKeyAndTheLastDeploy",
+                  "Sid": "ReadTheLastDeploy",
                   "Effect": "Allow",
                   "Action": [
                     "ssm:GetParameter",
                     "ssm:GetParameters"
                   ],
                   "Resource": [
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/origin/*"
-                    },
                     {
                       "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/deploy/*"
                     }

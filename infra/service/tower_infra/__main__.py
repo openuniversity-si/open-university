@@ -75,7 +75,10 @@ def health_file():
 
 
 def parameter(name, fresh_s=None):
-    """A SecureString of Parameter Store, read when asked and kept for a few minutes; None while it does not exist."""
+    """A SecureString of Parameter Store, read when asked and kept for a few minutes; None while it does not exist.
+    ORIGIN-ACCESS-GONE (15/11/2026): no name (the variable unset) reads nothing and answers None."""
+    if not name:
+        return lambda: None
     kept = {}
 
     def read():
@@ -301,8 +304,7 @@ def serve():
     from . import checks
     poster = checks.from_environ(workflows.connected)  # CHECK-IN-LANDING: the landing posts tower/gate with it too
     import urllib.request  # OBSERVE-HTTP: the PR observation's reads over HTTP with the forge's kept token
-    origin_forge = forge.OriginForge(credential=parameter(os.environ.get(
-        'TOWER_FORGE_KEY_PARAMETER', '/tower/origin/forge-key')), post_check=None if poster is None else poster.post,
+    origin_forge = forge.OriginForge(credential=parameter(os.environ.get('TOWER_FORGE_KEY_PARAMETER')), post_check=None if poster is None else poster.post,
         opener=urllib.request.urlopen)
     workflows.register('forge', origin_forge)
     from . import api_providers, cursor_agents  # P4 F3, D-310, D-311: the transports; each key is read when used
@@ -324,8 +326,7 @@ def serve():
                 work()
         threading.Thread(target=worker, name='session', daemon=True).start()
     providers.update(cli_sessions.providers(lambda name: readers[name](), renew,
-                                            parameter(os.environ.get('TOWER_FORGE_KEY_PARAMETER',
-                                                                     '/tower/origin/forge-key')), spawn=session))
+                                            parameter(os.environ.get('TOWER_FORGE_KEY_PARAMETER')), spawn=session))
     models = api_providers.allowed(os.environ.get('TOWER_API_MODELS'))  # no model named, no API provider spends
     providers.update(api_providers.providers(models, lambda name: parameter(f'/tower/sessions/{name}'),
                                              os.environ.get('AWS_REGION'), os.environ))
@@ -460,8 +461,7 @@ def serve():
         # BRANCH-MERGE: the base merged into a unit's branch and pushed by the live service, in a clone of its own, with the key
         from . import branches
         live_image.lowly(branches.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait, container.Container(
-            os.environ.get('TOWER_BRANCHES_WORKDIR', '/tmp/tower-branches'), credential=parameter(os.environ.get(
-                'TOWER_FORGE_KEY_PARAMETER', '/tower/origin/forge-key')), slot=branches.SLOT, token_auth=True),
+            os.environ.get('TOWER_BRANCHES_WORKDIR', '/tmp/tower-branches'), credential=parameter(os.environ.get('TOWER_FORGE_KEY_PARAMETER')), slot=branches.SLOT, token_auth=True),
             active=None if gate is None else gate.after_work(gate.sole)))
     # DEPLOY-CANARY: a service that took its role by a swap, or reloaded in place, fires a canary job after its first good tick
     # FIRST-JOB-AT-ONCE: on the loop's own connection (the one that dispatches, and where the successor rehearsed the
@@ -687,7 +687,7 @@ def run_container():
     # DB-LISTEN-ONE: one connection of this process listens, for every slot and for the gate (each was a connection)
     hub = wake.Hub(lambda: connection(database, where, user, password, purpose='listen', **wake.KEEPALIVE),
                    (wake.RUNS, wake.CONFIG, wake.DEPLOY))  # HEAD-ON-PUSH: a push notifies tower_deploy
-    forge_key = parameter(os.environ.get('TOWER_FORGE_KEY_PARAMETER', '/tower/origin/forge-key'))
+    forge_key = parameter(os.environ.get('TOWER_FORGE_KEY_PARAMETER'))
     signing_key = parameter(os.environ.get('TOWER_SIGNING_KEY_PARAMETER', '/tower/runner/signing-key'))
     intask = live_image.heed()  # IN-TASK-STANDBY: a successor inside the task: its own name, its supervisor's word heard
     name = live_image.named(os.environ.get('TOWER_RUNNER_NAME') or socket.gethostname())
