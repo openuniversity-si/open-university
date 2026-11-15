@@ -71,8 +71,8 @@ medida, conformidade calculada), e não há um modelo que ligue as partes. Por i
 É um sistema a **construir** (o modelo único e os sistemas que faltam) que **incorpora e melhora** os artefatos que já
 existem, sem recomeçar nenhum deles.
 
-**A lista dos sistemas** fica fechada pela pesquisa ([pesquisa](pesquisa.md), seção "Sistemas do ciclo"). Ponto de
-partida, de Daniel: requisitos; arquitetura; construção (unidades, código, revisão, integração, entrega); testes
+**A lista dos sistemas** fica fechada pela pesquisa ([pesquisa](pesquisa.md), §10) e pela [solução](solucao.md), em 15
+sistemas. Ponto de partida, de Daniel: requisitos; arquitetura; construção (unidades, código, revisão, integração, entrega); testes
 (unidade, integração, sistema); verificação e validação, com a validação final; o padrão; a gestão do padrão.
 
 ## Sistema ideal
