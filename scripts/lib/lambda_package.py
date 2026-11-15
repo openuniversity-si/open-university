@@ -13,8 +13,6 @@ stdlib Python only. The library the port needs (psycopg) is one pinned layer, bu
   scripts/lambda-package publish --record                         the deployer: build, upload, print the S3 keys (JSON, last line) deploy.sh passes to the port stack
   scripts/lambda-package code [--root DIR]                        IMAGE-PREWARM-B1: the service/runner code bundle's key and sha256
                                                                   (JSON), uploaded once when TOWER_ARTIFACT_BUCKET is set
-  scripts/lambda-package code-gate --base SHA --head SHA          IMAGE-PREWARM-B2: the same bundle, only for a code-only head
-                                                                  (deploy_classify.code_only of base...head); one JSON line
 """
 import argparse
 import ast
@@ -307,19 +305,6 @@ def publish_code(root, store=None):
     return found
 
 
-def gate_code(root, base, head, store=None, paths=None):
-    """IMAGE-PREWARM-B2: the prewarm's job (scripts/gate-check artifact code, made by the live service on a unit branch's
-    push). The head's diff from where it left the base (base...head) classified by deploy_classify.code_only; a code-only
-    head gets its bundle built and, with a store, uploaded. Answers {code_only, why[, key, sha256, bytes, uploaded]}; the
-    service reads it from the job's log tail (one JSON line, the last)."""
-    import deploy_classify
-    paths = changed(root, base, head, '...') if paths is None else paths
-    ok, why = deploy_classify.code_only(paths)
-    if not ok:
-        return {'code_only': False, 'why': why}
-    return {'code_only': True, 'why': why, 'published': store is not None, **publish_code(root, store)}
-
-
 def main(argv):
     parser = argparse.ArgumentParser(prog='lambda-package', description=__doc__.split('\n')[0])
     sub = parser.add_subparsers(dest='command', required=True)
@@ -333,10 +318,6 @@ def main(argv):
     pub.add_argument('--record', action='store_true', help='accepted and ignored (the keys are printed, not written to SSM)')
     pub.add_argument('--no-layer', action='store_true')
     sub.add_parser('code').add_argument('--root', default=str(ROOT))
-    code_gate = sub.add_parser('code-gate')
-    code_gate.add_argument('--base', required=True)
-    code_gate.add_argument('--head', required=True)
-    code_gate.add_argument('--root', default=str(ROOT))
     args = parser.parse_args(argv)
     bucket = os.environ.get('TOWER_ARTIFACT_BUCKET')
     store = open_store(bucket) if bucket else None
@@ -349,8 +330,6 @@ def main(argv):
             print(f"lambda-package: WARNING no artifact published for {args.head}: {result.get('why')}", file=sys.stderr)
     elif args.command == 'code':
         print(json.dumps(publish_code(args.root, store), sort_keys=True))
-    elif args.command == 'code-gate':
-        print(json.dumps(gate_code(args.root, args.base, args.head, store), sort_keys=True))  # one line, the last
     else:
         if store is None:
             parser.error('TOWER_ARTIFACT_BUCKET is not set')

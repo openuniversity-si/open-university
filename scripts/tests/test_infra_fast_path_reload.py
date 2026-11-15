@@ -184,7 +184,7 @@ class TheLookOrders(nostandby.image_swap.World):
                 self.look(BUILD)
                 [said] = self.db.declined
                 self.assertEqual((said['state'], said['digest'], said['order'], said['why']), ('declined', S, MERGE, why))
-                self.assertIsNone(self.watcher.waiting)  # a build's order never waits: the build goes on to the image
+                self.assertNotEqual(self.watcher.reload, MERGE)  # not made, and nothing waits: the build goes on to the image
 
     def test_the_build_heard_starting_keeps_the_safety_look_short_until_it_leaves_its_classification(self):
         self.db.started = [('tower-infra-deploy:b2', 3.0)]  # CodeBuild said b2 started; last-build is still b1's end

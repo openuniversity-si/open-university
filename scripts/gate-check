@@ -76,9 +76,8 @@ case "$kind" in
     ;;
   artifact)
     # DEP8: the zip packages of the port's Lambdas for this head, uploaded by digest (a red only when the package cannot be built).
-    # IMAGE-PREWARM-B2: `artifact code` is the prewarm's job, made by the live service on a unit branch's push: a code-only
-    # head (deploy_classify.code_only of base...head) gets its service/runner code bundle; any other head answers why not.
-    [[ "$name" == lambda || "$name" == code ]] || usage
+    # LANDING-PREWARM-GONE (D-316): `artifact code`, the prewarm's bundle job, left with the prewarm
+    [[ "$name" == lambda ]] || usage
     # The upload goes through the S3 adapter: boto3, else the aws CLI. The runner image has boto3 in its own Python and no aws
     # CLI, while the pinned toolchain Python has neither (live 09/11: FileNotFoundError 'aws'), so take the first Python that
     # can import boto3, falling back to the toolchain one (a local box with the aws CLI still works).
@@ -86,9 +85,7 @@ case "$kind" in
     for candidate in "$py" /usr/local/bin/python3 /usr/bin/python3; do
       if [[ -x "$candidate" ]] && "$candidate" -c 'import boto3' >/dev/null 2>&1; then apy="$candidate"; break; fi
     done
-    step=gate
-    [[ "$name" == code ]] && step=code-gate
-    "$apy" "$root/scripts/lib/lambda_package.py" "$step" --root "$root" --base "${base:?artifact needs --base}" --head "$(git -C "$root" rev-parse HEAD)"
+    "$apy" "$root/scripts/lib/lambda_package.py" gate --root "$root" --base "${base:?artifact needs --base}" --head "$(git -C "$root" rev-parse HEAD)"
     ;;
   plan)
     # PLAN-ON-RUNNER: the gate's plan of base...HEAD by this head's own adapter, answered to the runner (TOWER_ANSWER_FILE)

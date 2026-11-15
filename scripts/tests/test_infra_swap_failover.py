@@ -1137,21 +1137,5 @@ class OnPostgres(unittest.TestCase):
         self.assertEqual((self.pointer('runner'), self.retired(), ecs.active()), (S, [], False))
 
 
-@unittest.skipUnless(URL, 'needs TEST_DATABASE_URL (Postgres; local port 54322)')
-class TheLanding(unittest.TestCase):
-    def test_the_landing_never_swaps_onto_a_standby_that_is_leaving(self):
-        import test_infra_swap_tighten as tighten
-        world = tighten.OnPostgres('test_the_landing_alone_is_recorded_once_as_before')  # its fixture: the head's bundle job
-        world.setUp()
-        self.addCleanup(world.doCleanups)
-        world.beat('runner', 'service')  # both standbys of the head's bundle beat: this landing would swap
-        self.assertFalse(world.standbys['runner'].handback())  # Spot's SIGTERM reaches the runner standby just before it
-        world.standbys['runner'].beat()  # a standby pass still in flight: it beats no more
-        said = world.world.port('POST', '/v1/deploy/landed', 'torre', tighten.landed())
-        self.assertEqual(said['swap'], {'swapped': False,
-                                        'why': f'no beat of the runner standby of {tighten.S[:12]} in the last 3 s'})
-        self.assertEqual(world.pointers(), [])
-
-
 if __name__ == '__main__':
     unittest.main()
