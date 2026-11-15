@@ -119,12 +119,6 @@ class TheLook(World):
         self.assertLess(look.index('self.image(db, pushes, cfg)'), look.index('self.swap(db, pushes)'))
         self.assertLess(look.index('self.swap(db, pushes)'), look.index("if not cfg['auto']"))
 
-    def test_promote_is_a_registry_key_defaulting_to_true(self):
-        entry = json.loads((ROOT / 'config/registry/deploy/deploy.promote.json').read_text(encoding='utf-8'))
-        self.assertEqual((entry['type'], entry['default']), ('boolean', True))
-        self.assertIs(autodeploy.DEFAULTS['promote'], True)
-        self.assertEqual(live_image.config_data.SPEC['deploy.promote'], (bool, True))
-
 
 class OffTheClock(World):
     def swapped(self):

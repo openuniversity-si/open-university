@@ -45,7 +45,7 @@ and whose standby pair is not there is not left to the two rollouts: the look or
 place (order(): platform.deploy.image_reload {state: ordered}, one order at a time, the newest head after the one in flight
 settles), holds that head's ring while they do (reloading(): live_image.ORDER_LIMIT_S from the landing at most), records
 their canaries' verdicts and, once both roles are proven, writes deploy.live_code (reloads()): the build that is rung then
-finds the head's code live and deploys neither the image nor the two stacks. With deploy.promote false nothing is ordered.
+finds the head's code live and deploys neither the image nor the two stacks.
 
 FAST-PATH-RELOAD (GATE-SHUTDOWN, D-314; the Torre, 14/11): on GitHub no landing reaches this look and no runner exists,
 so a code-only merge's deploy build asks for the reload itself: deploy.sh publishes the head's bundle and names it in
@@ -98,7 +98,6 @@ OK = ('succeeded', 'nothing_new')
 DEFAULTS = {'auto': True, 'base_branch': 'mod/roadmap-integration', 'debounce_s': 20,
             'lost_after_s': 3000, 'monthly_usd': 30.0, 'alarm_usd': 20.0, 'usd_per_min': 0.005,
             'fast_propagation_s': 10.0, 'fast_activate_s': 120.0,
-            'promote': True,  # IMAGE-PREWARM-C: a landing promotes its standbys (22.9a: promoting is a choice)
             'queue_reload': True}  # QUEUE-RELOAD: the merge queue's words order a code-only merge's reload (queue_deploy)
 ZERO_OK = ()
 # Paths whose change needs the slow path (a stack, the image, the deployer); the service image has no scripts/, so this
