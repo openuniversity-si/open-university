@@ -184,6 +184,32 @@ def queue(sha, ref, environ=None, bell=None, heads=None, clock=time.monotonic, s
         bell.close()
 
 
+RING_WAIT_S = 240.0  # RING-RETRY: the push job's 5 minutes, less its checkout and the last ring
+RING_EVERY_S = 10.0
+
+
+def ring_until_free(environ=None, opener=urllib.request.urlopen, wait_s=None, every_s=RING_EVERY_S, clock=time.monotonic,
+                    sleep=time.sleep):
+    """RING-RETRY (15/11, #41): the push job's ring. A 409 means another deploy build runs (CodeBuild runs one at a
+    time), and nobody rings again for this merge (deploy.auto is false on GitHub): #41's build never ran, last-sha stayed
+    behind main, and the next merges' queue swap was refused by its parent check. In a GitHub Actions job
+    (GITHUB_ACTIONS=true) the 409 is rung again every every_s until a build starts or wait_s ends; a later build deploys
+    main's head, which carries this merge. Elsewhere (a session's scripts/deploy ring) it is one ring, as before.
+    Returns ring()'s (exit code, build id or None)."""
+    environ = os.environ if environ is None else environ
+    if wait_s is None:
+        wait_s = RING_WAIT_S if environ.get('GITHUB_ACTIONS') == 'true' else 0.0
+    began = clock()
+    while True:
+        code, build = ring(environ, opener)
+        if code != 2 or build is not None or clock() - began + every_s > wait_s:
+            return code, build
+        if missing(DOORBELL_VARS, environ):
+            return code, build
+        print(f'deploy: ringing again in {every_s:g} s, until a build starts ({wait_s:g} s at most)')
+        sleep(every_s)
+
+
 def read_status(port):
     return port.call('GET', '/v1/deploy/status')
 
@@ -306,7 +332,7 @@ def main(argv=None, environ=None):
     follows.add_argument('--since', type=float, help='epoch seconds; a recorded build that started earlier is not the one')
     args = parser.parse_args(argv)
     if args.command == 'ring':
-        return ring(environ)[0]
+        return ring_until_free(environ)[0]
     if args.command == 'queue':
         return queue(args.sha, args.ref, environ)
     absent = missing(PORT_VARS, environ)
