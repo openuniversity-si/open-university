@@ -48,7 +48,7 @@
       "adapters": [],
       "selectors": [],
       "baseline": [],
-      "note": "Never a CI runner (AGENTS.md: no GitHub Actions or third-party CI). The CI runner port is scripts/lib/adapters/ci_runner.py; its adapter is the local gate runner."
+      "note": "The engine's scripts never call GitHub Actions' API (its runs, workflows or jobs). Since D-314 (14/11/2026) the gate itself runs as GitHub Actions jobs: tower/gate, deploy-doorbell and full-suite (.github/workflows/, the gate.allowed_workflows registry key), each running a script of this tree (scripts/verify-commit, scripts/lib/deploy.py). The CI runner port is scripts/lib/adapters/ci_runner.py; its adapter is the local gate runner."
     },
     {
       "name": "claude",
