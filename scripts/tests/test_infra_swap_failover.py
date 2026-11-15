@@ -9,8 +9,8 @@ standing by and no job was dispatched for 23 minutes.
    in flight, so a runner whose slots are all busy never looks dead. With no pointer or no digest nothing beats.
 2. The watchdog: the standby pass of an ECS task (not strict) is one statement that also reads how old the pointed digest's
    live beat is; past deploy.live_stale_s (registry, 10 s) it empties the pointer by compare-and-swap
-   (platform.deploy.image_retired, by: failover) and works at once. Each role apart; the autodeploy's revert and the
-   prewarm's retirement take a half-emptied pair; an ECS runner the pointer leaves stays up, standing by.
+   (platform.deploy.image_retired, by: failover) and works at once. Each role apart; the autodeploy's revert takes a
+   half-emptied pair; an ECS runner the pointer leaves stays up, standing by.
 3. The handback: on SIGTERM (Spot's warning, a StopTask) a promoted standby first withdraws its beat and empties its pointer
    by the same compare-and-swap (by: handback), on a connection with short timeouts, and only then stops taking work: the
    ECS task works at once. The landing never swaps onto a standby that is leaving.
@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
-from tower_infra import autodeploy, config_data, live_image, mechanisms, prewarm, runner  # noqa: E402
+from tower_infra import autodeploy, config_data, live_image, mechanisms, runner  # noqa: E402
 import medir  # noqa: E402
 import test_infra_image_swap as image_swap  # noqa: E402
 from test_infra_swap_ready import workflows_with  # noqa: E402
@@ -823,8 +823,8 @@ class TheMeasure(unittest.TestCase):
 
 
 class AHalfEmptiedPair(image_swap.World):
-    """One role failed over (its pointer emptied), the other still on the promoted standby: the autodeploy's way back and
-    the prewarm's retirement take the pair as it is, and nothing fights over a pointer."""
+    """One role failed over (its pointer emptied), the other still on the promoted standby: the autodeploy's way back
+    takes the pair as it is, and nothing fights over a pointer."""
 
     def failed_over(self, role, live=('runner', 'service')):
         self.land()
@@ -853,42 +853,6 @@ class AHalfEmptiedPair(image_swap.World):
         self.assertEqual((event['by'], event['keys']), ('revert', [live_image.KEYS['runner']]))
         self.watcher.settle_image(self.db, self.heads)  # both emptied (failover, then revert): one event each, no fight
         self.assertEqual(len(self.retired()), 1)
-
-    def test_the_prewarm_keeps_the_bundle_while_one_pointer_names_it_and_retires_it_once_none_does(self):
-        world = image_swap.Retire('test_a_promoted_bundle_stays_while_the_pointer_names_it_whatever_its_branch')
-        world.setUp()
-        world.promote()
-        world.db.pointer[live_image.KEYS['service']] = ''  # the service failed over; the promoted runner works on
-        world.now[0] += prewarm.POLL_S
-        world.watcher.step()
-        self.assertEqual((world.ecs.stopped, sorted(world.watcher.standbys[image_swap.S]['tasks'])), ([], ['runner', 'service']))
-        world.ecs.status[world.service].update(lastStatus='STOPPED', stoppedReason='Your Spot Task was interrupted.')
-        world.now[0] += prewarm.POLL_S
-        world.watcher.step()  # the interrupted standby is seen gone; its bundle stays for the runner
-        self.assertEqual((world.db.recorded[-1]['state'], world.db.recorded[-1]['why']),
-                         ('failed', 'Your Spot Task was interrupted.'))
-        world.db.pointer[live_image.KEYS['runner']] = ''  # then the runner's too
-        world.now[0] += prewarm.POLL_S
-        world.watcher.step()
-        self.assertEqual((world.db.states()[-1], world.ecs.stopped), (('runner', image_swap.S, 'retiring'), []))
-
-    def test_an_ecs_service_that_takes_the_role_back_resumes_the_prewarm_from_the_log(self):
-        world = image_swap.Retire('test_a_promoted_bundle_stays_while_the_pointer_names_it_whatever_its_branch')
-        world.setUp()
-        watcher, stop, live, waits = world.watcher, threading.Event(), [False, False, True], []
-        self.assertIn(image_swap.S, watcher.standbys)
-        world.db.known = [{'role': 'runner', 'digest': 'c' * 64, 'task': 'arn:new', 'branch': 'units/b', 'state': 'healthy',
-                           'at': 5, 'started_at': 1}]  # what the promoted service did while this one stood by
-
-        def wait(timeout_s):
-            waits.append((timeout_s, sorted(watcher.standbys), watcher.restored))
-            if len(waits) == 3:
-                stop.set()
-        with mock.patch.object(prewarm, 'from_boto3', return_value=watcher):
-            prewarm.start(None, stop, wait, active=lambda: live.pop(0)).join(5)
-        self.assertEqual(waits[:2], [(prewarm.SAFETY_S, [], False)] * 2)  # standing by: no look, its memory dropped
-        self.assertEqual(waits[2][1:], (['c' * 64], True))  # live again: the tasks are the log's
-        self.assertEqual(watcher.holds, {'units/b': 'c' * 64})
 
 
 @unittest.skipUnless(URL, 'needs TEST_DATABASE_URL (Postgres; local port 54322)')

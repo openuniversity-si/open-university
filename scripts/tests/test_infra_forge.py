@@ -382,35 +382,6 @@ class MergeReady(Stubbed):
         self.assertIn(process.wait(timeout=30), (124, 137, -9))
         self.assertFalse(self.body.exists())
 
-    def test_the_look_drops_its_kept_merge_when_its_process_ends(self):
-        main = (ROOT / 'infra' / 'service' / 'tower_infra' / 'merge_ready.py').read_text(encoding='utf-8')
-        self.assertIn('atexit.register(dropped)', main)
-
-    def test_the_look_readies_the_trains_front_and_stops_the_kept_one_when_the_queue_is_empty(self):
-        from tower_infra import merge_ready
-
-        class Db:
-            front = [('7', HEAD)]
-
-            def rows(self, sql, params=None):
-                if sql == merge_ready.TENANT_ID:
-                    return [('t-1',)]
-                assert sql == merge_ready.FRONT and params == {'tenant': 't-1', 'base': 'mod/roadmap-integration'}
-                return self.front
-        db, look = Db(), merge_ready.Look(self.forge)
-        self.assertEqual(look.step(db), ('7', HEAD))
-        process = self.forge.kept['process']
-        db.front = []
-        self.assertIsNone(look.step(db))
-        self.assertIsNotNone(process.poll())
-        self.assertIsNone(self.forge.kept)
-
-    def test_the_live_service_starts_the_look_on_tower_train_at_the_threads_own_priority(self):
-        main = (ROOT / 'infra' / 'service' / 'tower_infra' / '__main__.py').read_text(encoding='utf-8')
-        line = next(each for each in main.splitlines() if 'merge_ready.start(' in each)
-        self.assertNotIn('lowly', line)  # its merge's process takes the thread's nice, never lowered back
-        self.assertIn('hub.wake(wake.TRAIN)', line)
-
 
 class ThroughTheDispatcher(Stubbed):
     def setUp(self):

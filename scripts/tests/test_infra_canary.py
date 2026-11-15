@@ -29,8 +29,8 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
-from tower_infra import (autodeploy, canary, code_bundle, config_data, forge, http_port, live_image, mechanisms, port,  # noqa: E402
-                         prewarm, runner, wake)
+from tower_infra import (autodeploy, canary, code_bundle, config_data, engine, forge, http_port, live_image, mechanisms, port,  # noqa: E402
+                         runner, wake)
 import config  # noqa: E402
 import gate_infra  # noqa: E402
 import medir  # noqa: E402
@@ -118,9 +118,8 @@ class TheVerdict(unittest.TestCase):
 class TheJob(unittest.TestCase):
     def test_it_is_a_check_of_the_gate_with_the_command_true_ahead_of_every_check(self):
         self.assertEqual(canary.QUEUE, config.get('gate-infra.check_queue'))
-        self.assertEqual((canary.REPO, canary.QUEUE), (prewarm.REPO, prewarm.QUEUE))
+        self.assertEqual(canary.REPO, engine.DEFAULT)
         self.assertGreater(canary.RANK, gate_infra.RANK_PER_CHECK * gate_infra.RANK_CAP - 1)  # the best rank a check has
-        self.assertGreater(canary.RANK, prewarm.RANK)
         self.assertEqual(canary.COMMAND, ['true'])
         self.assertEqual(canary.RESERVED, mechanisms.RESERVED)  # CANARY-OWN-SLOT: the account the dispatch reserves
 

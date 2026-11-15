@@ -20,8 +20,8 @@ task of its role, held by the task's first process, a supervisor.
    minutes gives the new runs to the new code at once, in its other slot; (d) the canary red: the previous processes take
    the role back and work on, and the want drops the bundle (the supervisor stops the successor).
 4. The parts: the look with the datum off or with no supervisor is today's; a successor leaves at once on SIGTERM; a
-   slot's checkout is one process's at a time; the prewarm says and withdraws the want under its slot's rules and finds
-   it again after a restart; the measure counts a landing swapped by its order once.
+   slot's checkout is one process's at a time; the measure counts a landing swapped by its order once (GATE-LOOKS-GONE,
+   D-316: the prewarm that said and withdrew the want left; the merge queue's prepare says it, queue_deploy).
 """
 import json
 import os
@@ -41,9 +41,8 @@ sys.path.insert(0, str(SERVICE))
 sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 from tower_infra import __main__ as service_main, autodeploy, canary, code_bundle, config_data, live_image  # noqa: E402
-from tower_infra import database, port as service_port, prewarm, reserve, runner, supervisor  # noqa: E402
+from tower_infra import database, port as service_port, queue_deploy, reserve, runner, supervisor  # noqa: E402
 import medir  # noqa: E402
-import test_infra_prewarm as standbys  # noqa: E402
 import test_infra_reload_nostandby as nostandby  # noqa: E402
 import test_infra_swap_failover as failover  # noqa: E402
 import test_infra_swap_reload as reload  # noqa: E402
@@ -922,11 +921,6 @@ class OnlyTheContainersFirstProcessSupervises(unittest.TestCase):
             self.assertEqual((sent, os.listdir(spool)), ([(41, signal.SIGUSR1)], ['want.json']))
 
 
-# the want as an event, for the code before this unit (which reads it nowhere): the reproduction fails on its behaviour
-WANT_BEFORE = ("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) values "
-               "(%(id)s, null, 'platform.deploy.successor', clock_timestamp(), 'prewarm', 'deploy/successor', %(payload)s::jsonb)")
-
-
 def heir(role):
     return f'ecs-{role}:{S[:12]}'
 
@@ -1050,8 +1044,8 @@ class OnPostgres(unittest.TestCase):
             "select payload->>'runner' from log.event where type = 'run.running' and subject = 'job/' || %(job)s", {'job': job})]
 
     def wanted(self):
-        """The prewarm's want of the bundle S, and each ECS task's process telling its supervisor on its next look."""
-        self.db.rows(getattr(prewarm, 'WANT', WANT_BEFORE), {'id': f'platform.deploy.successor:{S}:wanted:1', 'payload': json.dumps(
+        """The want of the bundle S (the merge queue's, queue_deploy.WANT), and each ECS task's process telling its supervisor on its next look."""
+        self.db.rows(queue_deploy.WANT, {'id': f'platform.deploy.successor:{S}:wanted:1', 'payload': json.dumps(
             {'digest': S, 'key': KEY, 'branch': 'units/a', 'state': 'wanted'})})
         self.heard()
         self.tick(self.service)
@@ -1212,13 +1206,13 @@ class OnPostgres(unittest.TestCase):
             each.give()
 
     def test_a_want_withdrawn_right_after_the_swap_never_stops_the_successor_that_took_the_role(self):
-        # PROMOTED-SUCCESSOR-STAYS: the landing swapped onto the successors; the prewarm, woken by the landing's word,
+        # PROMOTED-SUCCESSOR-STAYS: the landing swapped onto the successors; the want's sayer, woken by the landing's word,
         # lets the merged branch go and withdraws the bundle's want; the processes that had the role look at the wants
         # (that notification) before their listeners read the pointer, so the order's look does not stand aside
         self.wanted()
         service, runner_ = self.successors()
         self.assertEqual(self.port('POST', '/v1/deploy/landed', 'torre', tighten.landed())['swap'], {'swapped': True})
-        self.db.rows(prewarm.WANT, {'id': f'platform.deploy.successor:{S}:withdrawn:2', 'payload': json.dumps(
+        self.db.rows(queue_deploy.WANT, {'id': f'platform.deploy.successor:{S}:withdrawn:2', 'payload': json.dumps(
             {'digest': S, 'key': KEY, 'branch': None, 'state': 'withdrawn', 'why': 'units/a: its PR was merged'})})
         for process in (self.service, self.runner):
             process.gate.reads += 1  # the notification of the withdrawal: a look that reads the wants is owed
@@ -1248,7 +1242,7 @@ class OnPostgres(unittest.TestCase):
                      f"where type = '{live_image.RELOAD}'")  # the order is of minutes ago
         self.db.rows("update work.config_value set value = '\"\"'::jsonb where key like 'deploy.live_image_%%'")
         other, its = 'c' * 64, f"artifacts/lambda/tower-code/{'c' * 64}.zip"
-        self.db.rows(prewarm.WANT, {'id': f'platform.deploy.successor:{other}:wanted:9', 'payload': json.dumps(
+        self.db.rows(queue_deploy.WANT, {'id': f'platform.deploy.successor:{other}:wanted:9', 'payload': json.dumps(
             {'digest': other, 'key': its, 'branch': 'units/b', 'state': 'wanted'})})
         self.wants.clear()
         late = self.process('runner')  # the task the rollout started: its first look
@@ -1558,73 +1552,6 @@ class TheParts(unittest.TestCase):
         self.assertEqual(medir.image_code_landing(status, since=2000.0), [0.125, 0.25])
         self.assertEqual(medir.from_deploy_status(status, since=2000.0)['image_code_landing_s'], [0.125, 0.25])
         self.assertNotIn('image_code_landing_s', medir.from_deploy_status(status, since=4000.0))
-
-
-class Wants(standbys.Db):
-    """IMAGE-PREWARM-B2's statements with the want and the wants a restarted service finds."""
-
-    def __init__(self):
-        super().__init__()
-        self.wants = []
-
-    def rows(self, sql, params=None):
-        if sql == prewarm.WANT:
-            self.wants.append(json.loads(params['payload']))
-            return [(None,)]
-        if sql == prewarm.WANTED:
-            newest = {each['digest']: each for each in self.wants}
-            return [(json.dumps(each),) for each in newest.values() if each['state'] == 'wanted']
-        return super().rows(sql, params)
-
-
-class ThePrewarmSaysTheWant(standbys.World):
-    def setUp(self):
-        super().setUp()
-        self.db = Wants()
-        self.config = standbys.Config(cap=0)  # no Spot standby at all
-        self.config.values['deploy.intask_standbys'] = 1
-        self.watcher = self.make(self.config)
-
-    def states(self):
-        return [(each['digest'][:1], each['state'], each['branch']) for each in self.db.wants]
-
-    def test_a_code_only_push_is_a_want_with_no_spot_task_and_a_newer_bundle_or_a_closed_pr_withdraws_it(self):
-        self.at(standbys.push('units/a', standbys.H1))
-        self.finish(standbys.H1, standbys.said(standbys.S1))
-        self.assertEqual((self.states(), self.ecs.ran, self.watcher.holds), ([('a', 'wanted', 'units/a')], [], {'units/a': standbys.S1}))
-        self.assertEqual(self.db.wants[0]['key'], f'artifacts/lambda/tower-code/{standbys.S1}.zip')
-        self.at(standbys.push('units/a', standbys.H2))  # the branch moves to another bundle
-        self.finish(standbys.H2, standbys.said(standbys.S2))
-        self.assertEqual(self.states()[1:], [('a', 'withdrawn', None), ('c', 'wanted', 'units/a')])
-        self.at(standbys.closed('units/a'))
-        self.assertEqual((self.states()[3:], self.watcher.standbys, self.db.recorded), ([('c', 'withdrawn', None)], {}, []))
-
-    def test_the_slot_is_one_and_the_train_keeps_it_as_with_the_spot_standbys(self):
-        self.at(standbys.push('units/a', standbys.H1))
-        self.finish(standbys.H1, standbys.said(standbys.S1))
-        self.db.train.add(standbys.H1)  # PREWARM-TRAIN-SLOT: its delivery is in the merge train
-        self.at(standbys.push('units/b', standbys.H2))
-        self.finish(standbys.H2, standbys.said(standbys.S2))
-        self.assertEqual(self.states(), [('a', 'wanted', 'units/a')])
-        self.db.train.clear()
-        self.at(standbys.closed('units/a'), later=61)
-        self.assertEqual(self.states()[1:], [('a', 'withdrawn', None), ('c', 'wanted', 'units/b')])
-
-    def test_a_promoted_bundle_is_withdrawn_once_no_pointer_names_it_and_a_restart_finds_the_wants(self):
-        self.at(standbys.push('units/a', standbys.H1))
-        self.finish(standbys.H1, standbys.said(standbys.S1))
-        self.db.pointer = {key: standbys.S1 for key in live_image.KEYS.values()}  # the landing promoted it
-        self.db.swapped = {standbys.S1}
-        self.at(standbys.closed('units/a'))
-        self.assertEqual(self.states(), [('a', 'wanted', 'units/a')])  # the pointer's: never withdrawn under it
-        del self.db.events[:]
-        again = self.make(self.config)  # the successor that adopted the role is a new service: it finds the want in the log
-        again.step()
-        self.assertEqual((sorted(again.standbys), again.standbys[standbys.S1]['wanted']), ([standbys.S1], True))
-        self.db.pointer = {key: '' for key in live_image.KEYS.values()}  # adopted: the role is the ECS tasks' again
-        self.now[0] += 1
-        again.step()
-        self.assertEqual((self.states()[1:], again.standbys), ([('a', 'withdrawn', None)], {}))
 
 
 if __name__ == '__main__':

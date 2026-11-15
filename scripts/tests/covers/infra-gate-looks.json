@@ -5,6 +5,8 @@
     "scripts/tests/test_infra_gate_looks.py",
     "infra/service/tower_infra/__main__.py",
     "infra/service/tower_infra/config_data.py",
+    "infra/service/tower_infra/drills.py",
+    "infra/service/tower_infra/http_port.py",
     "config/registry/service/service.gate_looks.json",
     "infra/aws/stacks/30-service.json"
   ]

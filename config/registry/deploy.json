@@ -106,8 +106,7 @@
       "x-unit": "processes",
       "description": "IN-TASK-STANDBY (docs/operations/aws.md 22.9): how many successor processes the ECS task of each role holds at once, one per code bundle of an authoring head: the standby the landing swaps onto, inside the task (tower_infra.supervisor), at no cost of its own. 0 (the default) is off: the standbys are the Fargate Spot tasks of deploy.prewarm_max_tasks and a swap is followed by a reload in place. 1: each task holds one successor; the landing promotes it by the pointer and it keeps the role (the previous process finishes what it has in flight and exits). The maximum is 1 while the service task has 512 MiB: a second successor is ~120 MiB and ~8 database connections more in each service task, which does not fit beside a process that is still finishing.",
       "x-readers": [
-        "infra/service/tower_infra/live_image.py",
-        "infra/service/tower_infra/prewarm.py"
+        "infra/service/tower_infra/live_image.py"
       ],
       "x-source": "IN-TASK-STANDBY"
     },
@@ -174,17 +173,6 @@
         "infra/service/tower_infra/autodeploy.py"
       ],
       "x-source": "AUTO1"
-    },
-    "deploy.prewarm_max_tasks": {
-      "type": "integer",
-      "default": 0,
-      "minimum": 0,
-      "x-unit": "tasks",
-      "description": "IMAGE-PREWARM-B2 (docs/operations/aws.md 22.9): how many code bundles of authoring heads have a standby at once, one Fargate Spot task per role each (runner + service, about US$ 29/month at saturation for 1). Over it the newest push wins: the oldest bundle's standbys stop and its branches fall back to the slow path (a log line). 0 starts no standby. Raising it is new spend, Daniel's decision (budget US$ 60/month).",
-      "x-readers": [
-        "infra/service/tower_infra/prewarm.py"
-      ],
-      "x-source": "IMAGE-PREWARM-B2"
     },
     "deploy.promote": {
       "type": "boolean",

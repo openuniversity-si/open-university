@@ -64,7 +64,7 @@ OWN = ("insert into work.capacity (executor, account, slots) select e.name, %(ac
        "and exists (select 1 from work.capacity c where c.executor = e.name) on conflict (executor, account) do nothing")
 KEY = re.compile(r'^[A-Za-z0-9][A-Za-z0-9:._/-]{0,199}$')
 PREFIX = 'canary:'  # of the job's idempotency key
-REPO = engine.DEFAULT  # ENGINE-REPO: the default; engine.repo() is what runs; prewarm.REPO (a test pins it): the checkout the gate's checks use
+REPO = engine.DEFAULT  # ENGINE-REPO: the default; engine.repo() is what runs
 QUEUE, RANK, TIMEOUT_S = 'checks', 1000000, 60  # gate-infra.check_queue; above gate_infra's ranks, which end at 999999
 COMMAND = ['true']
 WAIT_MAX_S, WAKES = 20, 50  # the long poll stays under the API's 30 s; a burst of other jobs' events ends it too
@@ -187,41 +187,6 @@ def drill(db, who, body):
     found = db.rows(DRILL, {'id': f'platform.deploy.drill:{role}:{digest}:{time.time_ns()}', 'producer': port.PRODUCER,
                             'payload': json.dumps({'digest': digest, 'role': role, 'kind': 'lost-at-swap'})})
     return json.loads(found[0][0])
-
-
-MEASURE_EVENT = 'platform.deploy.measure'
-# SWAP-MEASURE: a round asked, unless one asked in the last MEASURE_BUSY_S has not ended (swapped or failed): one at a time
-MEASURE = ("with busy as (select 1 from log.event a where a.type = 'platform.deploy.measure' and a.tenant_id is null "
-           "and a.payload->>'state' = 'asked' and a.occurred_at > clock_timestamp() - make_interval(secs => %(busy_s)s::float8) "
-           "and not exists (select 1 from log.event e where e.type = 'platform.deploy.measure' and e.tenant_id is null "
-           "and e.payload->>'round' = a.payload->>'round' and e.payload->>'state' in ('done', 'failed'))), "
-           "said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
-           "select %(id)s, null, 'platform.deploy.measure', clock_timestamp(), %(producer)s, 'deploy/measure', %(payload)s::jsonb "
-           "|| jsonb_build_object('at', round(extract(epoch from clock_timestamp())::numeric, 3)) "
-           "where not exists (select 1 from busy) returning payload::text) "
-           "select payload, pg_notify('tower_deploy', 'platform.deploy.measure') from said")
-MEASURE_BUSY_S = 600
-
-
-def measure(db, who, body, clock=time.time_ns):
-    """POST /v1/deploy/measure {drill: true|false}: SWAP-MEASURE, one round of the image swap measured by command, no
-    PR, no timer (Daniel's rule: a measure with no change of code is asked by an event or a command). The live service's
-    prewarm builds the published head's bundle with the round's mark (the same code, another digest: the bundle job of a
-    push, on the runner), wants its successors in the ECS tasks, with drill asks the loss of both at the swap, and swaps
-    onto them by the autodeploy's own statement when both beat warm: the pointers, the canary, the role adopted and
-    deploy.live_code as after any swap, at the same published head. One event, platform.deploy.measure {round, drill,
-    state: asked}; 409 while another round is not done. The installation or the configuration tenant."""
-    configured(db, who)
-    body = body or {}
-    drill_ = body.get('drill', True)
-    if not isinstance(drill_, bool):
-        raise port.PortError(400, 'drill is true (the loss of both successors at the swap) or false')
-    round_ = str(clock())
-    found = db.rows(MEASURE, {'id': f'{MEASURE_EVENT}:{round_}:asked', 'producer': port.PRODUCER, 'busy_s': MEASURE_BUSY_S,
-                              'payload': json.dumps({'round': round_, 'drill': drill_, 'state': 'asked'})})
-    if not found:
-        raise port.PortError(409, 'a measured round is in flight: one at a time')
-    return json.loads(found[0][0]) if isinstance(found[0][0], str) else found[0][0]
 
 
 def verdict(state, age_s, limit_s, started_s, running_s, ended_s, error=None, full=False):

@@ -33,11 +33,9 @@ SPEC = {
     'deploy.live_image_runner': (str, ''),
     # SLOW-PATH-NO-ROLLOUT-WAIT: the code bundle a task boots when its definition has not seen it: '<sha256>@<merge>', '' none
     'deploy.live_code': (str, ''),
-    # IMAGE-PREWARM-B2: the code bundles with a standby (one task per role each); 0 is off, every head on the slow path
     # DEFAULTS-AS-LIVE (revisão da arquitetura, achado 36): the defaults are the values the engine runs on (the Torre's rows
-    # of 11/11): Spot standbys off, a successor in each task, the canary's own slot. A lost row no longer brings back
-    # Spot standbys and successors together, which the db.t4g.micro's connections do not hold (achado 34a)
-    'deploy.prewarm_max_tasks': (int, 0),
+    # of 11/11): a successor in each task, the canary's own slot. GATE-LOOKS-GONE (D-316): the Spot standbys' key
+    # (deploy.prewarm_max_tasks) left with the prewarm
     # IN-TASK-STANDBY: the successor processes the ECS task of each role holds (the standby inside the task); 0 is off
     'deploy.intask_standbys': (int, 1),
     # IMAGE-PREWARM-C: a landing promotes its healthy standbys (22.9a); false lets the landings accumulate
@@ -76,7 +74,7 @@ SPEC = {
 # IMAGE-PREWARM-A: writing '' removes the pointer; SLOW-PATH-NO-ROLLOUT-WAIT: and the live code
 EMPTY_OK = ('deploy.live_image_service', 'deploy.live_image_runner', 'deploy.live_code')
 # IMAGE-PREWARM-B2, IN-TASK-STANDBY: 0 starts no standby; CANARY-OWN-SLOT: 0 is no slot of the canary's own
-ZERO_OK = ('deploy.prewarm_max_tasks', 'deploy.intask_standbys', 'deploy.canary_slot')
+ZERO_OK = ('deploy.intask_standbys', 'deploy.canary_slot')
 # SWAP-SECOND-QUIET: the engine's own state, kept in the same table: written by the engine (the landing, the look, the
 # handover), read by the gate of each process, which says so itself (platform.deploy.image_live, the reload's events).
 # No platform.config.observed for them: it was an insert, in a transaction of its own, by each service process on the

@@ -6,8 +6,8 @@ inputs; the merge's parent is base_before) and both roles have a healthy standby
 as today, with the reason in platform.deploy.image_swap. The ECS tasks carry TOWER_IMAGE_DIGEST (LiveCode from deploy.sh, or
 their image), so they stand by under a pointer naming another digest. Off the clock: the reconciled ECS service hands the
 role over (its pointer emptied), a build that ended well at the swap's head or later empties the rest, a swap no standby
-took within SWAP_LIMIT_S is undone; the prewarm retires the promoted standbys (the runner exits on its own, never
-StopTask'd). scripts/medir: image_landing_s and prewarm_task_usd.
+took within SWAP_LIMIT_S is undone (GATE-LOOKS-GONE, D-316: the prewarm that retired the promoted Spot standbys left).
+scripts/medir: image_landing_s and prewarm_task_usd.
 
 Hermetic: fake database, ECS and git repositories made here; OnPostgres runs the real statements (TEST_DATABASE_URL).
 """
@@ -23,16 +23,22 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
-from tower_infra import autodeploy, live_image, prewarm  # noqa: E402
+from tower_infra import autodeploy, live_image  # noqa: E402
 import gate_infra  # noqa: E402
 import medir  # noqa: E402
-from test_infra_prewarm import Db as PrewarmDb, Ecs as PrewarmEcs, NETWORK, said, push  # noqa: E402
 
 URL = os.environ.get('TEST_DATABASE_URL', '')
 BASE, MERGE, PR_HEAD, LATER = 'b' * 40, '9' * 40, '8' * 40, '7' * 40
 S, OLD = 'a' * 64, 'f' * 64
 KEYS = sorted(live_image.KEYS.values())
 CFG = {'promote': True}
+
+
+def said(sha=None, why='3 file(s) of infra/service/tower_infra/ only'):
+    """A bundle job's result as the runner keeps it: the log's tail ends with gate_code's JSON line."""
+    line = ({'code_only': True, 'why': why, 'published': True, 'key': f'artifacts/lambda/tower-code/{sha}.zip',
+             'sha256': sha, 'bytes': 10, 'uploaded': True} if sha else {'code_only': False, 'why': why})
+    return json.dumps({'exit': 0, 'log_uri': 's3://x', 'tail': 'setup: ok\n' + json.dumps(line, sort_keys=True) + '\n'})
 
 
 def landed(**code):
@@ -322,82 +328,6 @@ class Handover(unittest.TestCase):
         self.assertLess(loop.index('if gate is not None and not gate.active():'), loop.index('gate.handover()'))
 
 
-class Retire(unittest.TestCase):
-    def setUp(self):
-        self.db, self.ecs, self.now = PrewarmDb(), PrewarmEcs(), [1_000_000.0]
-        self.watcher = prewarm.Prewarm(self.db.scope, self.ecs, 'tower', NETWORK, clock=lambda: self.now[0])
-        self.at(push('units/a', '4' * 40))
-        self.db.jobs[self.watcher.pending['4' * 40]] = ('succeeded', said(S))
-        self.watcher.step()
-        self.ecs.healthy()
-        self.now[0] += prewarm.POLL_S
-        self.watcher.step()
-        self.runner, self.service = (self.watcher.standbys[S]['tasks'][role]['task'] for role in ('runner', 'service'))
-
-    def at(self, kind_body):
-        self.now[0] += 1
-        self.db.add(self.now[0], *kind_body)
-        return self.watcher.step()
-
-    def promote(self):
-        self.db.swapped.add(S)
-        self.db.pointer = {key: S for key in KEYS}
-
-    def test_a_promoted_bundle_stays_while_the_pointer_names_it_whatever_its_branch(self):
-        self.promote()
-        self.at(push('units/a', None, deleted=True))  # the branch is deleted after the merge
-        self.assertEqual(self.ecs.stopped, [])
-        self.assertIn(S, self.watcher.standbys)
-
-    def test_once_retired_the_service_is_stopped_and_the_runner_exits_on_its_own(self):
-        self.promote()
-        self.at(push('units/a', None, deleted=True))
-        self.db.pointer = {key: '' for key in KEYS}  # the reconciliation emptied the pointers
-        self.now[0] += prewarm.POLL_S
-        self.assertEqual(self.watcher.step(), prewarm.POLL_S)  # the retiring runner is watched
-        self.assertEqual([task for task, _ in self.ecs.stopped], [self.service])  # never a StopTask of the runner
-        self.assertEqual(self.db.states()[-2:], [('runner', S, 'retiring'), ('service', S, 'stopped')])
-        self.now[0] += prewarm.POLL_S
-        self.watcher.step()
-        self.assertIn(S, self.watcher.standbys)  # its run in flight goes on
-        self.ecs.status[self.runner].update(lastStatus='STOPPED', stoppedReason='Essential container in task exited')
-        self.now[0] += prewarm.POLL_S
-        self.watcher.step()
-        self.assertEqual(self.db.recorded[-1]['state'], 'stopped')
-        self.assertEqual(self.db.recorded[-1]['why'], 'retired: Essential container in task exited')
-        self.assertEqual((self.watcher.standbys, [task for task, _ in self.ecs.stopped]), ({}, [self.service]))
-        self.assertTrue(all(each.get('started_at') for each in self.db.recorded))
-
-    def test_a_promoted_bundle_still_held_by_a_branch_is_retired_too_and_a_retiring_one_is_not_counted(self):
-        self.promote()
-        self.db.pointer = {key: '' for key in KEYS}
-        self.now[0] += prewarm.POLL_S
-        self.watcher.step()
-        self.assertEqual(self.db.states()[-2:], [('runner', S, 'retiring'), ('service', S, 'stopped')])
-        self.at(push('units/b', '5' * 40))
-        self.db.jobs[self.watcher.pending['5' * 40]] = ('succeeded', said('c' * 64))
-        self.now[0] += 1
-        self.watcher.step()
-        self.assertEqual(self.ecs.digests()[-2:], ['c' * 64, 'c' * 64])  # the cap of 1 is free while S retires
-
-    def test_a_runner_still_retiring_after_the_limit_is_stopped(self):
-        self.promote()
-        self.db.pointer = {key: '' for key in KEYS}
-        self.now[0] += prewarm.POLL_S
-        self.watcher.step()
-        self.now[0] += prewarm.RETIRE_LIMIT_S + prewarm.POLL_S
-        self.watcher.step()
-        self.assertEqual([task for task, _ in self.ecs.stopped], [self.service, self.runner])
-        self.assertIn('still retiring after', self.db.recorded[-1]['why'])
-
-    def test_a_restart_takes_a_retiring_runner_back(self):
-        self.db.known = [{'role': 'runner', 'digest': S, 'task': 'arn:9', 'branch': 'units/a', 'state': 'retiring', 'at': 5,
-                          'started_at': 1}]
-        again = prewarm.Prewarm(self.db.scope, self.ecs, 'tower', NETWORK, clock=lambda: self.now[0])
-        again.restore(self.db)
-        self.assertEqual(again.standbys[S]['tasks']['runner']['state'], 'retiring')
-
-
 class LandedCode(unittest.TestCase):
     def setUp(self):
         self.repo = Path(tempfile.mkdtemp())
@@ -537,7 +467,6 @@ class OnPostgres(unittest.TestCase):
         self.assertEqual([each['swapped'] for each in status['image_swap']], [True])
         self.assertEqual([each.get('by') for each in status['image_retired']], ['reconciled', 'handover'])
         self.assertEqual(status['image_retired'][0]['keys'], [live_image.KEYS['runner']])
-        self.assertTrue(self.db.rows(prewarm.PROMOTED, {'sha': S}))
         landing = self.db.rows("select payload::text from log.event where type = 'platform.deploy.landed'")
         self.assertTrue(json.loads(landing[0][0])['code']['bundle_same'])  # the port keeps the delivery's word
 

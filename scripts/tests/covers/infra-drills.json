@@ -6,7 +6,6 @@
     "scripts/tests/runner_world.py",
     "infra/service/tower_infra/drills.py",
     "infra/service/tower_infra/drill_look.py",
-    "infra/service/tower_infra/ondemand.py",
     "infra/service/tower_infra/fastdeploy.py",
     "infra/service/tower_infra/http_port.py",
     "infra/service/tower_infra/canary.py",

@@ -6,7 +6,6 @@
     "infra/db/migrations/*.sql",
     "infra/service/tower_infra/port.py",
     "infra/service/tower_infra/autodeploy.py",
-    "infra/service/tower_infra/prewarm.py",
     "infra/service/tower_infra/live_image.py",
     "infra/service/tower_infra/config_data.py",
     "infra/service/tower_infra/http_port.py",

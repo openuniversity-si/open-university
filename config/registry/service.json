@@ -154,7 +154,7 @@
       "default": "openuniversity-si/open-university",
       "minLength": 3,
       "x-unit": "owner/name",
-      "description": "The engine's repository on its forge: the one the service's looks (canary, checks, pre-gate, prewarm, observations, branches, full run, merge-ready) read and judge. The service reads it live from the port (PUT /v1/config/service.engine_repo); TOWER_ENGINE_REPO in the service's environment wins over it. A value that is not owner/name is refused by the port and ignored by the reader.",
+      "description": "The engine's repository on its forge: the one the service's looks (canary, checks, observations, branches) read and judge. The service reads it live from the port (PUT /v1/config/service.engine_repo); TOWER_ENGINE_REPO in the service's environment wins over it. A value that is not owner/name is refused by the port and ignored by the reader.",
       "x-readers": [
         "infra/service/tower_infra/config_data.py",
         "infra/service/tower_infra/engine.py"
@@ -206,7 +206,7 @@
       "type": "boolean",
       "default": false,
       "x-unit": "bool",
-      "description": "GATE-SHUTDOWN (14/11/2026, D-314): when true the infrastructure service also starts the AWS gate's looks (prewarm, on-demand runner, check runs, PR observations, merge-ready, pre-gate, full run, branch merges), warms the forge's key between ticks and refreshes the forge's webhook keys; false (the default) starts none of them, since the gate moved to GitHub and those looks only idled against Origin. The autodeploy, drills and prune looks start either way. Read from work.config_value (DEP9) once, when serve starts: a change takes effect at the service's next start.",
+      "description": "GATE-SHUTDOWN (14/11/2026, D-314): when true the infrastructure service also starts the Origin forge's looks (check runs, PR observations, branch merges; GATE-LOOKS-GONE, D-316: the AWS gate's own looks left the tree), warms the forge's key between ticks and refreshes the forge's webhook keys; false (the default) starts none of them, since the gate moved to GitHub and those looks only idled against Origin. The autodeploy, drills and prune looks start either way. Read from work.config_value (DEP9) once, when serve starts: a change takes effect at the service's next start.",
       "x-readers": [
         "infra/service/tower_infra/__main__.py",
         "infra/service/tower_infra/config_data.py"

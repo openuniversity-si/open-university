@@ -2,7 +2,7 @@
   "type": "boolean",
   "default": false,
   "x-unit": "bool",
-  "description": "GATE-SHUTDOWN (14/11/2026, D-314): when true the infrastructure service also starts the AWS gate's looks (prewarm, on-demand runner, check runs, PR observations, merge-ready, pre-gate, full run, branch merges), warms the forge's key between ticks and refreshes the forge's webhook keys; false (the default) starts none of them, since the gate moved to GitHub and those looks only idled against Origin. The autodeploy, drills and prune looks start either way. Read from work.config_value (DEP9) once, when serve starts: a change takes effect at the service's next start.",
+  "description": "GATE-SHUTDOWN (14/11/2026, D-314): when true the infrastructure service also starts the Origin forge's looks (check runs, PR observations, branch merges; GATE-LOOKS-GONE, D-316: the AWS gate's own looks left the tree), warms the forge's key between ticks and refreshes the forge's webhook keys; false (the default) starts none of them, since the gate moved to GitHub and those looks only idled against Origin. The autodeploy, drills and prune looks start either way. Read from work.config_value (DEP9) once, when serve starts: a change takes effect at the service's next start.",
   "x-readers": [
     "infra/service/tower_infra/__main__.py",
     "infra/service/tower_infra/config_data.py"

@@ -234,48 +234,5 @@ class OnPostgres(unittest.TestCase):
             self.assertEqual(getattr(refused.exception, 'status', None), 400, body)
 
 
-@unittest.skipUnless(URL, 'needs TEST_DATABASE_URL (Postgres; local port 54322)')
-class PremergeOnPostgres(unittest.TestCase):
-    """PREMERGE end to end on the log (the Torre, 13/11): the base pushed under a unit branch, the pre-gate asks, the
-    Merger premerges on a ref of its own, the pre-gate plans that merge, and the delivery's merge is that very commit."""
-
-    asked = TheMerger.asked
-
-    def setUp(self):
-        TheMerger.setUp(self)  # the forge and the Merger of the other tests, not their tests
-        from infra_db import psql
-        import test_db
-        name, self.db = psql.migrated(URL)
-        self.addCleanup(test_db.destroy, URL, name)
-
-    def pushed(self, ident, ref, after):
-        owner, name = REPO.split('/')
-        self.db.rows("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) values "
-                     "(%(id)s, null, 'forge.repository.pushed', clock_timestamp(), 'ingress', 'repository', %(payload)s::jsonb)",
-                     {'id': ident, 'payload': json.dumps({'delivery': {'event': {'payload': {
-                         'repository': {'owner': {'slug': owner}, 'name': name}, 'refUpdates': [{'ref': ref, 'after': after}]}}}})})
-
-    def test_a_base_that_moves_under_a_branch_has_its_combination_planned_and_the_delivery_merges_that_commit(self):
-        from tower_infra import pregate
-        made = []
-        look = pregate.Pregate(base_branch='mod/base', tenant='t',
-                               create=lambda db, who, body: made.append(body) or {'id': f'j{len(made)}'})
-        look.who = lambda db: ('tenant', 't')
-        head = self.forge.commit('units/x', {'b.txt': 'b\n'})
-        self.pushed('p1', 'refs/heads/units/x', head)
-        look.follow(self.db)  # the branch's own push (no base pushed yet in the log: nothing to plan against)
-        moved = self.forge.commit('mod/base', {'c.txt': 'c\n'})
-        self.pushed('p2', 'refs/heads/mod/base', moved)
-        look.follow(self.db)  # the base moved: units/x's head asked to be premerged
-        self.assertEqual(self.merger.step(self.db), 1)  # the Merger's look, by the same event as a delivery's merge
-        self.assertEqual(look.premerged(self.db), 1)
-        spec = json.loads(__import__('base64').b64decode(made[-1]['input_uri'].split(',', 1)[1]))
-        self.assertEqual((spec['ref'], spec['base']), (f'refs/heads/premerge/units/x/{moved[:12]}', moved))
-        self.assertEqual(self.forge.tip(spec['ref'][len('refs/heads/'):]), spec['commit'])
-        outcome, merged = self.merger.merge(self.asked(head))  # the delivery, later
-        self.assertEqual((outcome, merged['sha']), ('merged', spec['commit']))  # the commit the pre-gate planned
-        self.assertEqual(made[-1]['input_digest'], pregate.digest('gate-plan', merged['sha'], moved))  # its plan: cached
-
-
 if __name__ == '__main__':
     unittest.main()

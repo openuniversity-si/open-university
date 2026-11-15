@@ -4,7 +4,6 @@
     "scripts/tests/infra-looks-after-work.test.sh",
     "scripts/tests/test_infra_looks_after_work.py",
     "infra/service/tower_infra/autodeploy.py",
-    "infra/service/tower_infra/prewarm.py",
     "infra/service/tower_infra/live_image.py",
     "infra/service/tower_infra/__main__.py"
   ]

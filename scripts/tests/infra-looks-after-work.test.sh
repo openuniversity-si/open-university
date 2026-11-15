@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LOOKS-AFTER-WORK: a process the role waits for makes the autodeploy's and the prewarm's looks, and their AWS clients, in
+# LOOKS-AFTER-WORK: a process the role waits for makes the autodeploy's look, and its AWS clients, in
 # their own threads after its first work; any other process makes them before it goes on, as before. Hermetic.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"

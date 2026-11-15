@@ -115,7 +115,7 @@ class Runs(RunnerWorld):
     def test_a_job_has_root_only_for_a_commit_the_forge_pushed_to_the_base(self):
         # UID0-FROM-BASE (the Torre, 13/11 ~14:15 BRT): the uid 0 probe keeps its coverage by a job of root that runs the
         # base's landed code, never a PR's head; and no job escapes the task's check user by asking for another user
-        from tower_infra.pregate import REPO
+        from tower_infra.engine import DEFAULT as REPO
         owner, name = REPO.split('/')
         landed, head = 'a' * 40, 'b' * 40
         for n, (ref, after) in enumerate(((runner.BASE_REF, landed), ('refs/heads/units/x', head))):
