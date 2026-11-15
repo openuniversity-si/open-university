@@ -94,7 +94,6 @@ class Defaults(unittest.TestCase):
         # connections do not hold (achado 34a: the port answered 500 on 11/11 22:17 to 22:21 UTC)
         defaults = {name: config_data.SPEC[name][1] for name in config_data.ZERO_OK}
         self.assertEqual(defaults, {'deploy.intask_standbys': 1, 'deploy.canary_slot': 1})  # GATE-LOOKS-GONE: no Spot standbys
-        self.assertNotIn('deploy.prewarm_max_tasks', config_data.SPEC)
 
     def test_validate_follows_the_registry_types(self):
         self.assertEqual(config_data.validate('deploy.monthly_usd', 5), 5.0)
@@ -102,7 +101,7 @@ class Defaults(unittest.TestCase):
         self.assertEqual(config_data.validate('deploy.intask_standbys', 0), 0)  # 0 holds no successor
         for name, bad in (('deploy.auto', 'no'), ('deploy.debounce_s', 1.5), ('deploy.debounce_s', 0), ('deploy.debounce_s', True),
                           ('deploy.base_branch', ' '), ('service.dispatch_s', -1), ('nope.x', 1),
-                          ('deploy.prewarm_max_tasks', -1), ('deploy.prewarm_max_tasks', 1.5)):
+                          ('deploy.intask_standbys', -1), ('deploy.intask_standbys', 1.5)):
             with self.assertRaises(ValueError, msg=(name, bad)):
                 config_data.validate(name, bad)
 

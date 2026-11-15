@@ -115,8 +115,9 @@ class TheAwsGateIsGone(unittest.TestCase):
             self.assertNotIn(f'{name}.start(', SOURCE)
         for name in ('prewarm', 'ondemand', 'pregate', 'fullrun'):
             self.assertFalse((ROOT / 'scripts' / 'tests' / f'test_infra_{name}.py').exists(), name)
-        self.assertNotIn('deploy.prewarm_max_tasks', config_data.SPEC)
-        self.assertFalse((ROOT / 'config/registry/deploy/deploy.prewarm_max_tasks.json').exists())
+        # the prewarm's keys, by their prefix: no file spells a removed key's name (schema_compat: a reader names it whole)
+        self.assertEqual([name for name in config_data.SPEC if name.startswith('deploy.prewarm_')], [])
+        self.assertEqual(list((ROOT / 'config/registry/deploy').glob('deploy.prewarm_*.json')), [])
         from tower_infra import drills, http_port
         self.assertEqual(drills.KINDS, ('lambda-rollback',))  # the runner-placement drill provoked the on-demand look
         self.assertNotIn('/v1/deploy/measure', {pattern for _, pattern, _ in http_port.ROUTES})  # the prewarm's round
