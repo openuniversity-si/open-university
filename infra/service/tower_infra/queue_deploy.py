@@ -21,9 +21,24 @@ records platform.deploy.queue {event, sha} and wakes this look on tower_deploy (
            why, key, sha256, bytes, s}, once per (sha, base).
   landed   the claim is checked, never trusted: main on the engine's repository is the sha (git ls-remote), the sha's first
            parent is /tower/deploy/last-sha (the build of the merge before it ended green, so the classification is the
-           one the deploy build will make), the prepared bundle is code-only. Then the look orders the reload in place of
-           the service alone (AutoDeploy.order, by: queue): the same order, proof and deploy.live_code as FAST-PATH-RELOAD.
-           Recorded as platform.deploy.queue_reload {sha, state: ordered|skipped, why, verify_s}.
+           one the deploy build will make), the prepared bundle is code-only. Then the swap below, or, with no heir
+           ready, the order of the reload in place of the service alone (AutoDeploy.order, by: queue): the same order,
+           proof and deploy.live_code as FAST-PATH-RELOAD. Recorded as platform.deploy.queue_reload {sha, state:
+           swapped|ordered|skipped, why, verify_s, version, wrote_at}.
+
+QUEUE-SWAP (the Torre, 15/11: the deploy is the pointer's move). A prepared code-only bundle is also wanted
+(platform.deploy.successor {digest, key, branch: queue, state: wanted}, the prewarm's want, and tower_config woken): each
+ECS task's process tells its supervisor, which starts the heir, a successor process of that bundle inside the task
+(live_image IN-TASK-STANDBY). The heir boots, launches DBOS and warms its statements while the queue verifies; it takes
+no work, no lease and writes no engine state, and beats (work.standby_beat). At the landing, a heir that beat within
+deploy.standby_fresh_s gets the service's pointer, alone and in one statement (SWAP: deploy.live_image_service = the
+bundle, and platform.deploy.image_swap {by: queue, roles: [service], head, versions}); the NOTIFY of the pointer's write
+turns it live, and the old process stands by. Its proof is its own (no runner's canary: the gate already proved the code
+in the queue): its first work (image_live) and PROVE_QUEUE_S of live beats after it (live_image.RELOAD_OF), then the old
+process gives it the role for good (Reload.heir), it adopts it ({state: reloaded}) and hands the pointer back to empty,
+and this look writes deploy.live_code for the merge (adopted(); AutoDeploy.live_code). If the heir stops beating, the old
+process takes the role back by its watch (deploy.live_stale_s, IMAGE-SWAP-FAILOVER); if it never works, the swap is
+undone (settle_image, SWAP_LIMIT_S). A heir of a head that did not land is withdrawn at the next landing.
 
 The push still rings the deploy build, which stays the net: it classifies the merge itself, finds the head's code live
 (code_live) or asks for the same order (the look's order is the build's: ordered already), and runs the smoke and moves
@@ -43,7 +58,7 @@ import sys
 import tarfile
 import time
 
-from . import engine
+from . import config_data, engine, live_image
 
 LOG = logging.getLogger('tower_infra.queue_deploy')
 QUEUE, PREPARED, OUTCOME = 'platform.deploy.queue', 'platform.deploy.prepared', 'platform.deploy.queue_reload'
@@ -64,12 +79,49 @@ QUEUED = ("select payload->>'event', payload->>'sha', extract(epoch from occurre
           "order by occurred_at")
 PREPARED_OF = (f"select payload::text from log.event where type = '{PREPARED}' and event_id = %(id)s "
                "and occurred_at > now() - interval '1 day' limit 1")
-OUTCOME_OF = (f"select 1 from log.event where type = '{OUTCOME}' and event_id = %(id)s "
+OUTCOME_OF = (f"select payload::text from log.event where type = '{OUTCOME}' and event_id = %(id)s "
               "and occurred_at > now() - interval '1 day' limit 1")
 SAY = ("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
        "select %(id)s, null, %(type)s, clock_timestamp(), 'autodeploy', 'deploy/queue', %(payload)s::jsonb "
        "where not exists (select 1 from log.event where event_id = %(id)s and type = %(type)s "
        "and occurred_at > now() - interval '2 days')")
+
+# QUEUE-SWAP: a want said or withdrawn, once per id, and the tasks' processes woken (prewarm.WANT's statement)
+WANT = ("with said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
+        f"select %(id)s, null, '{live_image.SUCCESSOR}', clock_timestamp(), 'autodeploy', 'deploy/successor', %(payload)s::jsonb "
+        f"where not exists (select 1 from log.event where event_id = %(id)s and type = '{live_image.SUCCESSOR}' "
+        "and occurred_at > now() - interval '2 days') returning type) select pg_notify('tower_config', type) from said")
+# the merge queue's wants still standing: the newest want of each digest in a day, said by this look (branch: queue)
+WANTED = ("select digest from (select distinct on (payload->>'digest') payload->>'digest' as digest, payload->>'state' as state "
+          f"from log.event where type = '{live_image.SUCCESSOR}' and tenant_id is null and occurred_at > now() - interval '1 day' "
+          "and payload->>'branch' = 'queue' and payload->>'state' in ('wanted', 'withdrawn') "
+          "order by payload->>'digest', occurred_at desc) w where state = 'wanted'")
+# the service's pointer to the heir, in one statement, only while it beats: the swap and its record (the pointer's write
+# notifies tower_config, which turns the heir live). Answers (version, wrote_at) when it swapped
+SWAP = ("with w as (insert into work.config_value as v (tenant_id, key, value, actor, reason) "
+        f"select t.id, '{live_image.KEYS['service']}', to_jsonb(%(digest)s::text), 'autodeploy', %(reason)s from work.tenant t "
+        "where t.name = %(tenant)s and exists (select 1 from work.standby_beat b where b.role = 'service' "
+        "and b.digest = %(digest)s and b.beat_at > clock_timestamp() - make_interval(secs => %(fresh_s)s::float8)) "
+        "on conflict (tenant_id, key) do update set value = excluded.value, version = v.version + 1, actor = excluded.actor, "
+        "reason = excluded.reason, updated_at = clock_timestamp() returning v.version, v.updated_at), "
+        "swap as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
+        "select %(id)s, null, 'platform.deploy.image_swap', clock_timestamp(), 'autodeploy', 'deploy/image', %(payload)s::jsonb "
+        "|| jsonb_build_object('swapped', true, 'by', 'queue', 'roles', jsonb_build_array('service'), 'versions', "
+        f"jsonb_build_object('{live_image.KEYS['service']}', w.version), "
+        "'wrote_at', round(extract(epoch from w.updated_at)::numeric, 3)) from w returning 1) "
+        "select version, round(extract(epoch from updated_at)::numeric, 3)::float8 from w")
+# a swap of the merge queue for this head and bundle, in the hour: the swap is in charge (the build orders nothing)
+SWAP_OF = ("select 1 from log.event where type = 'platform.deploy.image_swap' and tenant_id is null "
+           "and occurred_at > now() - interval '1 hour' and payload->>'swapped' = 'true' and payload->>'by' = 'queue' "
+           "and payload->>'head' = %(head)s and payload->>'digest' = %(digest)s limit 1")
+# the head of the newest swap of the merge queue whose heir took the role over ({state: reloaded} of its bundle by the
+# service since the swap): what deploy.live_code names (AutoDeploy.live_code writes it once, guarded by the swap's time)
+ADOPTED = ("select s.payload->>'head' from (select payload, occurred_at from log.event "
+           "where type = 'platform.deploy.image_swap' and tenant_id is null and occurred_at > now() - interval '1 hour' "
+           "and payload->>'swapped' = 'true' and payload->>'by' = 'queue' order by occurred_at desc limit 1) s "
+           f"where exists (select 1 from log.event r where r.type = '{live_image.RELOAD}' and r.tenant_id is null "
+           "and r.occurred_at >= s.occurred_at and r.payload->>'role' = 'service' and r.payload->>'state' = 'reloaded' "
+           "and r.payload->>'digest' = s.payload->>'digest')")
 
 # run in a subprocess with last-sha's scripts/lib first on the path: the classifier's verdict and, code-only, the bundle
 BUILD = r'''
@@ -101,10 +153,15 @@ class QueueReload:
     """The look's part for the doorbell's queue words. ssm(name) reads a parameter (None when absent); put(key, data)
     stores a bundle unless the key exists; run is subprocess.run."""
 
-    def __init__(self, ssm, put, run=subprocess.run, clock=time.time, work=WORK, remote=None):
+    def __init__(self, ssm, put, run=subprocess.run, clock=time.time, work=WORK, remote=None, config=None,
+                 tenant=config_data.TENANT):
         self.ssm, self.put, self.run, self.clock, self.work = ssm, put, run, clock, Path(work)
-        self.remote = remote
+        self.remote, self.config, self.tenant = remote, config, tenant
         self.done = set()  # (event, sha) this process already handled
+
+    def setting(self, name):
+        """A deploy.* datum as the service reads it (config_data.Config), its default without one."""
+        return self.config.get(name) if self.config is not None else config_data.SPEC[name][1]
 
     # --- git ------------------------------------------------------------------------------------------------------
     def git(self, *args, timeout=GIT_TIMEOUT_S, data=None):
@@ -180,6 +237,7 @@ class QueueReload:
                 key = f"artifacts/lambda/tower-code/{said['sha256']}.zip"
                 self.put(key, bundle.read_bytes())
                 found.update(key=key, sha256=said['sha256'], bytes=said.get('bytes'))
+                self.want(db, found['sha256'], key, sha)  # QUEUE-SWAP: the heir boots while the queue verifies
         except Refused as error:
             found.update(code_only=False, why=str(error))
         except (OSError, ValueError, subprocess.SubprocessError) as error:
@@ -190,6 +248,47 @@ class QueueReload:
         LOG.info('queue: prepared %s on %s: %s (%s) in %.1fs', sha[:12], base[:12],
                  'code-only' if found['code_only'] else 'not code-only', found.get('why'), found['s'])
         return found
+
+    def want(self, db, digest, key, sha, state='wanted'):
+        """QUEUE-SWAP: the heir of a bundle wanted (or withdrawn) in each ECS task: platform.deploy.successor and the NOTIFY
+        of tower_config its processes read the wants on (live_image.Order.wants)."""
+        at = self.clock()
+        db.rows(WANT, {'id': f'{live_image.SUCCESSOR}:{digest}:{state}:queue:{sha}', 'payload': json.dumps(
+            {'digest': digest, 'key': key, 'branch': 'queue', 'sha': sha, 'state': state, 'at': round(at, 3)})})
+        LOG.info('queue: a heir of %s (%s) in each ECS task is %s', digest[:12], sha[:12], state)
+
+    def withdraw(self, db, sha, keep=None):
+        """QUEUE-SWAP: the heirs of the merge queue's bundles but `keep` withdrawn at a landing: their heads did not land."""
+        for (digest,) in db.rows(WANTED, {}) or []:
+            if digest and digest != keep:
+                self.want(db, digest, None, sha, state='withdrawn')
+
+    def swapping(self, db, head, digest):
+        """QUEUE-SWAP: whether a swap of the merge queue gave the service's pointer to this head's bundle (the hour)."""
+        return bool(db.rows(SWAP_OF, {'head': head, 'digest': digest}))
+
+    def adopted(self, db):
+        """QUEUE-SWAP: the head of the newest queue swap whose heir took the role over, else None."""
+        found = db.rows(ADOPTED, {})
+        return found[0][0] if found and found[0][0] else None
+
+    def swap(self, db, sha, found):
+        """QUEUE-SWAP: the service's pointer to the heir of the merge's bundle when it beats; answers (version, wrote_at)
+        or None (no heir ready: the order of the reload in place, as before)."""
+        digest, key = found['sha256'], found['key']
+        done = db.rows(SWAP, {
+            'digest': digest, 'tenant': self.tenant, 'fresh_s': float(self.setting('deploy.standby_fresh_s')),
+            'reason': f'QUEUE-SWAP: the merge queue landed {sha[:12]}: its heir takes the role',
+            'id': f'platform.deploy.image_swap:{digest}:queue:{sha}',
+            'payload': json.dumps({'digest': digest, 'key': key, 'head': sha})})
+        if not done:
+            return None
+        version, wrote_at = int(done[0][0]), float(done[0][1])
+        # what deploy.sh's reload_live reads of this head (reload_states): the swap is the head's own reload
+        db.rows(SAY, {'id': f'{live_image.RELOAD}:service:{digest}:swapped:{sha}', 'type': live_image.RELOAD,
+                      'payload': json.dumps({'role': 'service', 'digest': digest, 'head': sha, 'state': 'swapped',
+                                             'by': 'queue', 'version': version, 'at': wrote_at})})
+        return version, wrote_at
 
     def landed(self, db, sha, order):
         """The reload of a merge that landed, ordered once its claim is checked; answers the outcome recorded."""
@@ -205,11 +304,16 @@ class QueueReload:
             if found.get('parent') != found.get('base'):
                 raise Refused(f"main before it was {str(found.get('parent'))[:12]}, the deployed is {found['base'][:12]}")
             outcome['verify_s'] = round(self.clock() - began, 3)
-            made, busy, bad = order(sha, found['sha256'], found['key'])
-            outcome.update(digest=found['sha256'], state='ordered' if made or busy == sha else 'skipped')
-            if not (made or busy == sha):
-                outcome['why'] = f'a reload onto {found["sha256"][:12]} failed before' if bad else \
-                    f'the order of {str(busy)[:12]} is not settled'
+            swapped = self.swap(db, sha, found)  # QUEUE-SWAP: the pointer's move to the heir already up
+            if swapped:
+                outcome.update(digest=found['sha256'], state='swapped', version=swapped[0], wrote_at=swapped[1])
+            else:
+                made, busy, bad = order(sha, found['sha256'], found['key'])
+                outcome.update(digest=found['sha256'], state='ordered' if made or busy == sha else 'skipped')
+                if not (made or busy == sha):
+                    outcome['why'] = f'a reload onto {found["sha256"][:12]} failed before' if bad else \
+                        f'the order of {str(busy)[:12]} is not settled'
+            self.withdraw(db, sha, keep=found['sha256'] if swapped else None)
         except Refused as error:
             outcome['why'] = str(error)
         except (OSError, ValueError, subprocess.SubprocessError) as error:
@@ -234,11 +338,12 @@ class QueueReload:
             if landings and ('landed', landings[-1]) not in self.done:
                 sha = landings[-1]
                 self.done.add(('landed', sha))
-                if db.rows(OUTCOME_OF, {'id': f'{OUTCOME}:{sha}'}):
+                said = db.rows(OUTCOME_OF, {'id': f'{OUTCOME}:{sha}'})
+                if said:
                     found = self.prepared(db, sha, str(self.ssm(LAST_SHA) or '').strip())
-                    if found and found.get('code_only'):
+                    if found and found.get('code_only') and json.loads(said[0][0]).get('state') == 'ordered':
                         order(sha, found['sha256'], found['key'])  # follow it: the order exists, this answers busy
-                    return
+                    return  # a swap needs no following: the heir and the process it took over from do the rest
                 self.landed(db, sha, order)
         except Exception:  # noqa: BLE001 - the deploy build is the net
             LOG.exception('queue: the look failed')

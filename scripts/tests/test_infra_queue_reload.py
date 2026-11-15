@@ -24,7 +24,7 @@ import unittest
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
-from tower_infra import autodeploy, config_data, http_port, queue_deploy  # noqa: E402
+from tower_infra import autodeploy, config_data, http_port, live_image, queue_deploy  # noqa: E402
 import deploy  # noqa: E402
 import lambda_package  # noqa: E402
 
@@ -37,6 +37,8 @@ class Log:
 
     def __init__(self):
         self.events, self.at = [], 100.0
+        self.beating = set()  # QUEUE-SWAP: the digests whose service heir beats fresh
+        self.pointer = ('', 0)  # deploy.live_image_service and its version
 
     def has(self, ident, kind):
         return any(each['id'] == ident and each['type'] == kind for each in self.events)
@@ -59,7 +61,26 @@ class Log:
             return [(json.dumps(each['payload']),) for each in self.events
                     if each['type'] == queue_deploy.PREPARED and each['id'] == params['id']]
         if sql == queue_deploy.OUTCOME_OF:
-            return [(1,)] if self.has(params['id'], queue_deploy.OUTCOME) else []
+            return [(json.dumps(each['payload']),) for each in self.events
+                    if each['type'] == queue_deploy.OUTCOME and each['id'] == params['id']]
+        if sql == queue_deploy.WANT:
+            return [(live_image.SUCCESSOR,)] if self.add(params['id'], live_image.SUCCESSOR, json.loads(params['payload'])) else []
+        if sql == queue_deploy.WANTED:
+            newest = {}
+            for each in self.events:
+                if each['type'] == live_image.SUCCESSOR and each['payload'].get('branch') == 'queue':
+                    newest[each['payload']['digest']] = each['payload']['state']
+            return [(digest,) for digest, state in newest.items() if state == 'wanted']
+        if sql == queue_deploy.SWAP:
+            if params['digest'] not in self.beating:
+                return []
+            self.pointer = (params['digest'], self.pointer[1] + 1)
+            self.add(params['id'], 'platform.deploy.image_swap', {**json.loads(params['payload']), 'swapped': True,
+                                                                   'by': 'queue', 'roles': ['service']})
+            return [(self.pointer[1], 1000.5)]
+        if sql == queue_deploy.SWAP_OF:
+            return [(1,)] if any(each['type'] == 'platform.deploy.image_swap' and each['payload'].get('head') == params['head']
+                                 and each['payload'].get('digest') == params['digest'] for each in self.events) else []
         if sql == queue_deploy.SAY:
             self.add(params['id'], params['type'], json.loads(params['payload']))
             return []
@@ -208,6 +229,42 @@ class Prepared(unittest.TestCase):
         self.assertEqual(len(self.log.of(queue_deploy.OUTCOME)), 1)
         self.assertEqual(len(self.log.of(queue_deploy.PREPARED)), 1)
 
+    def test_a_prepared_bundle_is_wanted_and_a_landing_whose_heir_beats_swaps_the_pointer_alone(self):
+        """QUEUE-SWAP: the prepare wants a heir of the bundle in each ECS task; at the landing a heir that beats gets the
+        service's pointer (no order: the deploy is the pointer's move), the swap says the head's reload for deploy.sh,
+        and the merge queue's other heirs are withdrawn."""
+        stale = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 9\n'}, 2)
+        self.queue.prepare(self.log, stale)  # a group that will not land
+        sha = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        found = self.queue.prepare(self.log, sha)
+        wants = {each['digest']: each for each in self.log.of(live_image.SUCCESSOR)}
+        self.assertEqual((wants[found['sha256']]['state'], wants[found['sha256']]['branch'], wants[found['sha256']]['key']),
+                         ('wanted', 'queue', found['key']))
+        self.log.beating.add(found['sha256'])
+        self.remote.land(sha)
+        said = self.queue.landed(self.log, sha, self.order)
+        self.assertEqual((said['state'], said['digest'], said['version']), ('swapped', found['sha256'], 1))
+        self.assertEqual(self.orders, [])
+        self.assertEqual(self.log.pointer, (found['sha256'], 1))
+        [reload] = [each['payload'] for each in self.log.events if each['type'] == live_image.RELOAD]
+        self.assertEqual((reload['state'], reload['head'], reload['role'], reload['by']), ('swapped', sha, 'service', 'queue'))
+        self.assertTrue(self.queue.swapping(self.log, sha, found['sha256']))
+        states = [(each['digest'] == found['sha256'], each['state']) for each in self.log.of(live_image.SUCCESSOR)]
+        self.assertEqual(states[-1], (False, 'withdrawn'))  # the group that did not land lets its heir go
+        self.assertNotIn((True, 'withdrawn'), states)  # the heir that took the role keeps its want
+        self.reload_of().look(self.log, self.order)  # a process that starts after it follows no order: the heir has it
+        self.assertEqual(self.orders, [])
+
+    def test_a_landing_with_no_heir_ready_orders_the_reload_and_withdraws_the_heir(self):
+        sha = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        found = self.queue.prepare(self.log, sha)
+        self.remote.land(sha)
+        said = self.queue.landed(self.log, sha, self.order)  # its heir never beat (booting, or no successors)
+        self.assertEqual(said['state'], 'ordered')
+        self.assertEqual(self.orders, [(sha, found['sha256'], found['key'])])
+        self.assertEqual(self.log.pointer, ('', 0))
+        self.assertEqual(self.log.of(live_image.SUCCESSOR)[-1]['state'], 'withdrawn')
+
     def test_a_landing_whose_parent_is_not_the_deployed_head_waits_for_the_deploy_build(self):
         first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
         self.remote.land(first)
@@ -236,6 +293,9 @@ class Prepared(unittest.TestCase):
         class Queue:
             def look(self, db, order):
                 seen.append(order)
+
+            def adopted(self, db):
+                return None
         look.queue = Queue()
         made = []
         look.order = lambda db, head, digest, key, pr_head, **more: made.append((head, digest, key, pr_head, more))
@@ -245,7 +305,99 @@ class Prepared(unittest.TestCase):
         seen[0]('s' * 40, 'd' * 64, 'k')
         self.assertEqual(made, [('s' * 40, 'd' * 64, 'k', None, {'roles': ['service'], 'by': 'queue'})])
         self.assertEqual(config_data.SPEC['deploy.queue_reload'], (bool, True))
+
+    def test_the_build_orders_nothing_while_the_queue_swap_of_its_head_is_in_charge(self):
+        """QUEUE-SWAP: the build's ask of the head the queue swapped is not ordered (it would reload the process the heir
+        takes over from); the build waits for deploy.live_code, which the look writes once the heir took the role over."""
+        look = autodeploy.AutoDeploy(None, lambda name: None, None)
+        sha, digest = 's' * 40, 'd' * 64
+
+        class Queue:
+            def swapping(self, db, head, bundle):
+                return (head, bundle) == (sha, digest)
+
+            def look(self, db, order):
+                pass
+
+            def adopted(self, db):
+                return sha
+        look.queue = Queue()
+        made, written = [], []
+        look.order = lambda *args, **more: made.append(args) or (True, None, False)
+        look.live_code = lambda db, head: written.append(head)
+        look.seen_build = {'build_id': 'b', 'base_head': sha, 'status': 'in_progress', 'step': 'reload',
+                           'reload': {'key': f'artifacts/lambda/tower-code/{digest}.zip', 'sha256': digest, 'head': sha}}
+
+        class DB:
+            def rows(self, sql, params=None):
+                return []
+        look.build_reload(DB())
+        self.assertEqual(made, [])
+        look.queue_look(DB(), look.settings())
+        self.assertEqual(written, [sha])
+
+    def test_a_queue_swap_fires_no_canary_and_is_proven_by_its_heir(self):
+        look = autodeploy.AutoDeploy(None, lambda name: None, None)
+
+        class DB:
+            def rows(self, sql, params=None):
+                raise AssertionError('a queue swap reads no canary')
+        self.assertIsNone(look.swap_canary(DB(), {'digest': 'd' * 64, 'by': 'queue', 'versions': {}}, 100.0))
+        self.assertIn("payload->>'by' = 'queue'", live_image.RELOAD_OF)
+        self.assertEqual(live_image.PROVE_QUEUE_S, live_image.PROVE_S)
         self.assertTrue(autodeploy.DEFAULTS['queue_reload'])
+
+
+@unittest.skipUnless(os.environ.get('TEST_DATABASE_URL'), 'TEST_DATABASE_URL is not set')
+class OnPostgres(unittest.TestCase):
+    """QUEUE-SWAP's statements on the engine's own schema: the swap only while the heir beats, its proof by the heir's
+    first work and PROVE_QUEUE_S, the takeover that names the head, and deploy.live_code written for it."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
+        from infra_db.psql import migrated
+        cls.url = os.environ['TEST_DATABASE_URL']
+        cls.name, cls.db = migrated(cls.url)
+        cls.db.run("insert into work.tenant (name) values ('torre');")
+
+    @classmethod
+    def tearDownClass(cls):
+        import test_db
+        test_db.destroy(cls.url, cls.name)
+
+    def test_the_swap_its_proof_and_the_takeover_end_in_the_live_code_of_the_merge(self):
+        digest, head = 'e' * 64, 'f' * 40
+        swap = {'digest': digest, 'tenant': 'torre', 'fresh_s': 3.0, 'reason': 'test',
+                'id': f'platform.deploy.image_swap:{digest}:queue:{head}',
+                'payload': json.dumps({'digest': digest, 'key': f'artifacts/lambda/tower-code/{digest}.zip', 'head': head})}
+        self.assertEqual(self.db.rows(queue_deploy.SWAP, swap), [])  # no heir beats: no swap
+        self.db.run(f"insert into work.standby_beat (role, digest, task) values ('service', '{digest}', 't:{digest[:12]}');")
+        [(version, wrote_at)] = self.db.rows(queue_deploy.SWAP, swap)
+        self.assertEqual(self.db.rows("select value #>> '{}' from work.config_value where key = 'deploy.live_image_service'"),
+                         [(digest,)])
+        self.assertEqual(self.db.rows(queue_deploy.SWAP_OF, {'head': head, 'digest': digest}), [('1',)])
+        live = f'platform.deploy.image_live:service:{digest}:{version}'
+        reload_of = {'role': 'service', 'digest': digest, 'tenant': 'torre', 'live': live}
+        self.assertEqual(self.db.rows(live_image.RELOAD_OF, reload_of)[0][4], 'proving')  # no first work yet
+        self.db.run("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
+                    f"values ('{live}', null, 'platform.deploy.image_live', clock_timestamp(), 't', 'deploy/image/service', '{{}}');")
+        self.assertEqual(self.db.rows(live_image.RELOAD_OF, reload_of)[0][4], 'proving')  # working, not PROVE_QUEUE_S yet
+        self.db.run(f"update log.event set occurred_at = occurred_at - interval '{live_image.PROVE_QUEUE_S + 1:g} seconds' "
+                    f"where event_id = '{live}';")
+        self.assertEqual(self.db.rows(live_image.RELOAD_OF, reload_of)[0][4], 'succeeded')  # proven by the heir alone
+        self.assertEqual(self.db.rows(queue_deploy.ADOPTED, {}), [])  # not taken over yet
+        self.db.run("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
+                    f"values ('r', null, '{live_image.RELOAD}', clock_timestamp(), 't', 'deploy/image/service', "
+                    f"'{{\"role\": \"service\", \"digest\": \"{digest}\", \"state\": \"reloaded\"}}');")
+        self.assertEqual(self.db.rows(queue_deploy.ADOPTED, {}), [(head,)])
+        self.assertEqual(self.db.rows(autodeploy.LIVE_CODE_WRITE, {'tenant': 'torre', 'head': head}), [(f'{digest}@{head}',)])
+        want = {'id': 'w1', 'payload': json.dumps({'digest': digest, 'branch': 'queue', 'state': 'wanted'})}
+        self.db.rows(queue_deploy.WANT, want)
+        self.assertEqual(self.db.rows(queue_deploy.WANTED, {}), [(digest,)])
+        self.db.rows(queue_deploy.WANT, {'id': 'w2', 'payload': json.dumps({'digest': digest, 'branch': 'queue',
+                                                                            'state': 'withdrawn'})})
+        self.assertEqual(self.db.rows(queue_deploy.WANTED, {}), [])
 
 
 class Watch(unittest.TestCase):

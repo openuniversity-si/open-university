@@ -218,6 +218,23 @@ class OffTheClock(World):
         self.assertEqual(retired['by'], 'revert')
         self.assertIn('no image_live of the runner standby', retired['why'])
 
+    def test_a_queue_swap_of_the_service_alone_is_kept_once_the_service_took_it(self):
+        # QUEUE-SWAP (the merge queue, 15/11): a swap of the service alone (roles [service]) has no runner standby to
+        # wait for: once its heir said image_live it stands, and a heir that never did is undone as before
+        self.db.pointer[live_image.KEYS['service']] = S
+        self.db.events.append((autodeploy.SWAP, {'digest': S, 'head': MERGE, 'swapped': True, 'by': 'queue',
+                                                 'roles': ['service'], 'versions': {live_image.KEYS['service']: 1}}))
+        self.db.live = {'service'}
+        self.now[0] = 100.0 + autodeploy.SWAP_LIMIT_S + 1
+        self.watcher.settle_image(self.db, self.heads)
+        self.assertEqual(self.db.pointer[live_image.KEYS['service']], S)
+        self.assertEqual([each for kind, each in self.db.events if kind == 'platform.deploy.image_retired'], [])
+        self.db.live = set()
+        self.watcher.settle_image(self.db, self.heads)
+        self.assertEqual(self.db.pointer[live_image.KEYS['service']], '')
+        [retired] = [each for kind, each in self.db.events if kind == 'platform.deploy.image_retired']
+        self.assertEqual((retired['by'], retired['why']), ('revert', f'no image_live of the service standby in {autodeploy.SWAP_LIMIT_S} s'))
+
     def test_a_role_that_beats_live_but_took_no_work_yet_keeps_the_swap(self):
         # PROMOTED-RUNNER-WAITS-ALIVE: live 11/11 (#537): the runner's four slots were in long checks of the process before
         # the swap, its in-task successor waited for a checkout, and at 60 s the swap was undone for "no image_live of
