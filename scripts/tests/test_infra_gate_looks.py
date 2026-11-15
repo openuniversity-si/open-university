@@ -1,8 +1,9 @@
-"""GATE-SHUTDOWN follow-up (14/11/2026, D-314): the gate is GitHub's (tower/gate, the merge queue) and PR #17 stopped the
-AWS gate, so the infrastructure service no longer does the gate's work. serve() starts the gate's looks (GATE_LOOKS),
-warms the forge's key and refreshes the forge's webhook keys only when service.gate_looks is true (default false); the
-looks of the deploy, the drills and the prune (KEPT_LOOKS) start either way. Read from serve()'s own source (its
-syntax tree), as the other wiring tests do: serve() needs a database, DBOS and AWS to run. Hermetic.
+"""GATE-SHUTDOWN follow-up (14/11/2026, D-314) and GATE-LOOKS-GONE (15/11/2026, D-316): the gate is GitHub's (tower/gate,
+the merge queue), so the infrastructure service does none of the gate's work. serve() starts the looks of the deploy, the
+drills and the prune (KEPT_LOOKS) and nothing else: the AWS gate's own looks left the tree, and the Origin forge's
+(checks, observations, branches), its key's warm-up and its webhook keys' refresh stay in the tree, dormant on purpose,
+with no start and no flag (the service's flag of the gate's looks left with them). Read from serve()'s own source (its syntax tree), as the
+other wiring tests do: serve() needs a database, DBOS and AWS to run. Hermetic.
 """
 import ast
 import json
@@ -17,29 +18,11 @@ from tower_infra import __main__ as main, config_data  # noqa: E402
 
 SOURCE = (SERVICE / 'tower_infra' / '__main__.py').read_text(encoding='utf-8')
 STACK = ROOT / 'infra' / 'aws' / 'stacks' / '30-service.json'
+ORIGIN_LOOKS = ('checks', 'observations', 'branches')
 
 
 def serve_node():
     return next(node for node in ast.parse(SOURCE).body if isinstance(node, ast.FunctionDef) and node.name == 'serve')
-
-
-def guarded(test):
-    """True when an if's test asks gate_looks (alone or in an and)."""
-    return any(isinstance(node, ast.Name) and node.id == 'gate_looks' for node in ast.walk(test))
-
-
-def walk(node, under=False):
-    """(node, under an `if` that asks gate_looks) for every node of serve(), its body only (never the if's else)."""
-    yield node, under
-    if isinstance(node, ast.If):
-        for child in node.body:
-            yield from walk(child, under or guarded(node.test))
-        for child in node.orelse:
-            yield from walk(child, under)
-        yield from walk(node.test, under)
-        return
-    for child in ast.iter_child_nodes(node):
-        yield from walk(child, under)
 
 
 def aliases(serve):
@@ -49,57 +32,35 @@ def aliases(serve):
 
 
 def started(serve):
-    """{module: under gate_looks} for every `<module>.start(...)` serve() calls."""
-    names, found = aliases(serve), {}
-    for node, under in walk(serve):
-        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == 'start'
-                and isinstance(node.func.value, ast.Name) and node.func.value.id in names):
-            found.setdefault(names[node.func.value.id], set()).add(under)
-    return found
+    """The modules whose `<module>.start(...)` serve() calls."""
+    names = aliases(serve)
+    return {names[node.func.value.id] for node in ast.walk(serve)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == 'start'
+            and isinstance(node.func.value, ast.Name) and node.func.value.id in names}
 
 
 class TheServicesLooks(unittest.TestCase):
-    def test_the_gates_looks_start_only_under_service_gate_looks_and_the_kept_ones_always(self):
-        found = started(serve_node())
-        self.assertEqual(set(found), set(main.GATE_LOOKS) | set(main.KEPT_LOOKS))  # every look is classified
-        self.assertFalse(set(main.GATE_LOOKS) & set(main.KEPT_LOOKS))
-        for name in main.GATE_LOOKS:
-            self.assertEqual(found[name], {True}, name)
-        for name in main.KEPT_LOOKS:
-            self.assertEqual(found[name], {False}, name)
+    def test_serve_starts_the_kept_looks_and_no_look_of_the_origin_forge(self):
+        self.assertEqual(started(serve_node()), set(main.KEPT_LOOKS))
         self.assertIn('autodeploy', main.KEPT_LOOKS)  # GET /v1/deploy/status: the deploy's look stays
+        self.assertFalse(set(ORIGIN_LOOKS) & set(main.KEPT_LOOKS))
+        self.assertFalse(hasattr(main, 'GATE_LOOKS'))
+        for name in ORIGIN_LOOKS:  # dormant on purpose: in the tree, never started
+            self.assertTrue((SERVICE / 'tower_infra' / f'{name}.py').exists(), name)
 
-    def test_the_forges_warm_up_and_its_webhook_keys_refresh_run_only_under_service_gate_looks(self):
-        warmed, refreshed = [], []
-        for node, under in walk(serve_node()):
-            if isinstance(node, ast.Attribute) and node.attr == 'warm' and isinstance(node.value, ast.Name) \
-                    and node.value.id == 'origin_forge':
-                warmed.append(under)
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'refresh_keys':
-                refreshed.append(under)
-        self.assertEqual(len(warmed), 3)  # the reloaded task's, the standby's beat and the live pass's
-        self.assertEqual(len(refreshed), 2)  # the reloaded task's and the loop's interval
-        self.assertTrue(all(warmed + refreshed))
+    def test_the_forges_warm_up_and_its_webhook_keys_refresh_are_never_run(self):
+        serve = ast.unparse(serve_node())
+        self.assertNotIn('origin_forge.warm', serve)
+        self.assertNotIn('refresh_keys', SOURCE)
+        self.assertNotIn('gate_looks', SOURCE)
 
-    def test_the_flag_is_read_once_from_the_settings_before_any_look_starts(self):
-        serve = serve_node()
-        assigned = [node for node in ast.walk(serve) if isinstance(node, ast.Assign)
-                    and any(isinstance(target, ast.Name) and target.id == 'gate_looks' for target in node.targets)]
-        self.assertEqual(len(assigned), 1)
-        self.assertIn("settings.get('service.gate_looks')", ast.unparse(assigned[0].value))
-        first = min(node.lineno for node, under in walk(serve) if under and hasattr(node, 'lineno'))
-        self.assertLess(assigned[0].lineno, first)
-        refreshed = [node.lineno for node in ast.walk(serve) if isinstance(node, ast.Call)
-                     and ast.unparse(node.func) == 'settings.refresh']
-        self.assertLess(min(refreshed), assigned[0].lineno)  # the table read (or the spool handed) comes first
-
-    def test_the_key_is_off_by_default_in_the_compiled_defaults_and_the_registry(self):
-        self.assertEqual(config_data.SPEC['service.gate_looks'], (bool, False))
-        item = json.loads((ROOT / 'config/registry/service/service.gate_looks.json').read_text(encoding='utf-8'))
-        self.assertEqual((item['type'], item['default']), ('boolean', False))
-        self.assertIn('infra/service/tower_infra/__main__.py', item['x-readers'])
-        self.assertIs(config_data.Config(None).get('service.gate_looks'), False)  # no row: the default
-        self.assertIs(config_data.validate('service.gate_looks', True), True)  # the Torre may turn them back on
+    def test_the_flag_and_the_keys_interval_left_the_registry(self):
+        # by their parts: no file spells a removed key's whole name (schema_compat: a reader names it whole)
+        for name in ('.'.join(('service', 'gate_looks')), '.'.join(('service', 'forge_keys_every_s'))):
+            self.assertNotIn(name, config_data.SPEC)
+            self.assertFalse((ROOT / 'config' / 'registry' / 'service' / f'{name}.json').exists(), name)
+            with self.assertRaises(ValueError):
+                config_data.validate(name, True)
 
 
 class TheAwsGateIsGone(unittest.TestCase):
@@ -111,7 +72,7 @@ class TheAwsGateIsGone(unittest.TestCase):
     def test_the_five_looks_their_tests_and_their_key_are_gone(self):
         for name in self.GONE:
             self.assertFalse((SERVICE / 'tower_infra' / f'{name}.py').exists(), name)
-            self.assertNotIn(name, main.GATE_LOOKS + main.KEPT_LOOKS)
+            self.assertNotIn(name, main.KEPT_LOOKS)
             self.assertNotIn(f'{name}.start(', SOURCE)
         for name in ('prewarm', 'ondemand', 'pregate', 'fullrun'):
             self.assertFalse((ROOT / 'scripts' / 'tests' / f'test_infra_{name}.py').exists(), name)

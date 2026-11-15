@@ -582,7 +582,7 @@ class TheParts(unittest.TestCase):
         hub.begin()  # once
         hub.closed.set()
         source = (ROOT / 'infra/service/tower_infra/__main__.py').read_text(encoding='utf-8')
-        self.assertIn("(wake.WORK, wake.CONFIG, wake.DEPLOY, wake.TRAIN), later=late_listen)", source)
+        self.assertIn("(wake.WORK, wake.CONFIG, wake.DEPLOY), later=late_listen)", source)
         self.assertLess(source.index('started = workflows.tick(lease, **timed)'), source.index('            hub.begin()'))
 
     def test_the_engine_s_connections_come_through_the_pool_too(self):

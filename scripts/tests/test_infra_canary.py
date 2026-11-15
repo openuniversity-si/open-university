@@ -359,7 +359,7 @@ class TheLiveService(unittest.TestCase):
         made = serve.index('if proving.step():')
         again = serve.index('started += workflows.tick(lease, scope=loop.scope)')
         self.assertEqual(serve[made:again].count('\n'), 1)  # the very next statement: nothing of the pass between them
-        for later in ('followed.follow(db)', 'deliver(engine, sinks)', 'origin_forge.warm()  # AWS6'):
+        for later in ('followed.follow(db)', 'deliver(engine, sinks)'):
             self.assertLess(again, serve.index(later))
         live, asked, _ = self.live(gate_of(), {'ok': None}, {'ok': True})
         self.assertIs(live.step(), True)  # made now: the loop dispatches it at once

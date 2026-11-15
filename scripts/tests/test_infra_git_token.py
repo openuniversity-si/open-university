@@ -88,7 +88,7 @@ class TheToken(unittest.TestCase):
 
     def test_the_live_services_containers_ask_for_it(self):
         main = (ROOT / 'infra' / 'service' / 'tower_infra' / '__main__.py').read_text(encoding='utf-8')
-        self.assertEqual(main.count('token_auth=True'), 3)  # the Merger's clone, the runner's slots, the pushed heads
+        self.assertEqual(main.count('token_auth=True'), 2)  # the runner's slots, the pushed heads (the Merger's clone: dormant, D-316)
 
 
 if __name__ == '__main__':

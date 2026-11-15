@@ -161,18 +161,6 @@
       ],
       "x-source": "Torre 14/11 (GitHub migration): the repository identity comes from configuration"
     },
-    "service.forge_keys_every_s": {
-      "type": "number",
-      "default": 600,
-      "exclusiveMinimum": 0,
-      "x-unit": "s",
-      "description": "How often the infrastructure service re-reads the forge's webhook public keys between ticks (a safety refresh of a key rotation, P4 F2b). Read at runtime from work.config_value (DEP9), the compiled default when no row exists.",
-      "x-readers": [
-        "infra/service/tower_infra/__main__.py",
-        "infra/service/tower_infra/config_data.py"
-      ],
-      "x-source": "DEP9; docs/operations/aws.md 22.5"
-    },
     "service.free_rows_read_day": {
       "type": "integer",
       "default": 5000000,
@@ -201,17 +189,6 @@
         "scripts/lib/service_runner.py"
       ],
       "x-source": "D-086, D-291; docs/operations/services.md"
-    },
-    "service.gate_looks": {
-      "type": "boolean",
-      "default": false,
-      "x-unit": "bool",
-      "description": "GATE-SHUTDOWN (14/11/2026, D-314): when true the infrastructure service also starts the Origin forge's looks (check runs, PR observations, branch merges; GATE-LOOKS-GONE, D-316: the AWS gate's own looks left the tree), warms the forge's key between ticks and refreshes the forge's webhook keys; false (the default) starts none of them, since the gate moved to GitHub and those looks only idled against Origin. The autodeploy, drills and prune looks start either way. Read from work.config_value (DEP9) once, when serve starts: a change takes effect at the service's next start.",
-      "x-readers": [
-        "infra/service/tower_infra/__main__.py",
-        "infra/service/tower_infra/config_data.py"
-      ],
-      "x-source": "GATE-SHUTDOWN follow-up (the Torre, 14/11/2026): the service no longer does the gate's work"
     },
     "service.heartbeat_stale_s": {
       "type": "integer",

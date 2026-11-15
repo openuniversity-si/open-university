@@ -245,9 +245,9 @@ class TheWiring(unittest.TestCase):
     """What each process of the engine listens with, counted from serve() and run_container()."""
 
     def test_the_service_makes_one_hub_for_its_five_waiters(self):
-        self.assertEqual((SERVE.count('wake.Hub('), SERVE.count('wake.Wake('), SERVE.count('hub.wake(')), (1, 0, 9))  # CHECK-RUN-AWS, PR-OBSERVATION, BRANCH-MERGE, DRILLS, LAMBDA-PRUNE: their looks (GATE-LOOKS-GONE)
+        self.assertEqual((SERVE.count('wake.Hub('), SERVE.count('wake.Wake('), SERVE.count('hub.wake(')), (1, 0, 6))  # DRILLS, LAMBDA-PRUNE: their looks (GATE-LOOKS-GONE, D-316)
         self.assertIn("hub = wake.Hub(lambda: connection(database, where, user, password, purpose='listen', "
-                      "**wake.KEEPALIVE),\n                   (wake.WORK, wake.CONFIG, wake.DEPLOY, wake.TRAIN), later=late_listen)", SERVE)
+                      "**wake.KEEPALIVE),\n                   (wake.WORK, wake.CONFIG, wake.DEPLOY), later=late_listen)", SERVE)
         for waiter in ('woken = hub.wake(wake.WORK)', 'config_data.listen(settings, stop, hub.wake(wake.CONFIG).wait)',
                        'config_data.listen(gate, stop, hub.wake(wake.CONFIG).wait)',
                        'autodeploy.start(workflows.connected, stop, wait=hub.wake(wake.DEPLOY).wait,'):
