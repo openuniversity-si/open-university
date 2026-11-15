@@ -87,7 +87,8 @@ def toplevel(cwd=None):
 
 
 def default_base(root):
-    return f"{config.get('push-guard.remote', root)}/{config.get('train.base_branch', root)}"
+    """The base a push is compared with: prepush.base_ref, main on GitHub (D-314)."""
+    return config.get('prepush.base_ref', root)
 
 
 def changed(root, base):
