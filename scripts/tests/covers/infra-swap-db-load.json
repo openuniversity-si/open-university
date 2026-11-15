@@ -14,6 +14,7 @@
     "infra/service/tower_infra/runner.py",
     "infra/service/tower_infra/mechanisms.py",
     "scripts/tests/infra_db/psql.py",
-    "infra/service/tower_infra/canary.py"
+    "infra/service/tower_infra/canary.py",
+    "infra/service/tower_infra/queue_deploy.py"
   ]
 }

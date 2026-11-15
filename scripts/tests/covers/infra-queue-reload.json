@@ -12,6 +12,8 @@
     "scripts/lib/deploy_classify.py",
     "scripts/lib/lambda_package.py",
     "services/runner/github/deploy-doorbell.yml",
-    "scripts/lib/source_remote.py"
+    "scripts/lib/source_remote.py",
+    "infra/service/tower_infra/live_image.py",
+    "infra/service/tower_infra/supervisor.py"
   ]
 }

@@ -796,7 +796,14 @@ class AutoDeploy:
         the service's alone, by: queue, the order FAST-PATH-RELOAD makes for a build."""
         if self.queue is None or not cfg.get('queue_reload', True):
             return
+        self.queue.config, self.queue.tenant = self.config, self.tenant  # QUEUE-SWAP: deploy.standby_fresh_s as it is now
         self.queue.look(db, lambda sha, digest, key: self.order(db, sha, digest, key, None, roles=['service'], by='queue'))
+        try:  # QUEUE-SWAP: the heir took the role over: the merge's code is the datum a task ECS starts later boots
+            head = self.queue.adopted(db)
+            if head:
+                self.live_code(db, head)
+        except Exception:  # noqa: BLE001 - the build waits for the datum and takes the image without it
+            LOG.exception('autodeploy: deploy.live_code of the queue swap was not written')
 
     def build_reload(self, db):
         """FAST-PATH-RELOAD (the module's docstring): the reload the deploy build in progress names in last-build.reload
@@ -820,6 +827,11 @@ class AutoDeploy:
             if (head, sha) in self.asked:
                 return
             self.asked.add((head, sha))
+            if self.queue is not None and self.queue.swapping(db, head, sha):
+                # QUEUE-SWAP: the merge queue's swap already gave the service's pointer to this bundle's heir: no order
+                # (it would reload the process the heir takes over from); the build waits for deploy.live_code
+                self.say('image', f'reload not ordered: the queue swap of {head[:12]} is in charge', self.clock())
+                return
             named = MIGRATE_KEY.fullmatch(key)
             if not named or named.group(1) != sha or not re.fullmatch(r'[0-9a-f]{40}', head) or head != build.get('base_head'):
                 self.say('image', f'reload not ordered: {key} @ {head[:12]} is not the code bundle of the build\'s head',
@@ -971,7 +983,8 @@ class AutoDeploy:
             return
         live = {row[0] for row in db.rows(LIVE_SEEN, {'digest': digest, 'since': at})}
         last = self.last_build()
-        missing = set(ROLES) - live if self.clock() - at > SWAP_LIMIT_S else set()
+        roles = set(swap['roles']) & set(ROLES) if isinstance(swap.get('roles'), list) else set()  # QUEUE-SWAP: its own
+        missing = (roles or set(ROLES)) - live if self.clock() - at > SWAP_LIMIT_S else set()
         if missing and not red:
             # PROMOTED-RUNNER-WAITS-ALIVE: a role that beats live holds the swap though it took no work yet: an in-task
             # runner successor whose task's slots are all in runs of the process before it waits for a checkout (live
@@ -1004,6 +1017,8 @@ class AutoDeploy:
         and a red one published, once. Answers the red verdict's line, else None. Never raises: the swap's own way back
         (revert, reconciled) goes on whatever happens here."""
         digest, version = swap.get('digest'), (swap.get('versions') or {}).get(live_image.KEYS['service'])
+        if swap.get('by') == 'queue':  # QUEUE-SWAP: proven by its heir (live_image.RELOAD_OF), no runner takes a canary
+            return None
         key = canary.swap_key(digest, version)
         if key in self.canaries:
             return self.canaries[key]  # a red one is answered until the pointers are emptied

@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 from infra_db.psql import PLACEHOLDER, literal, migrated  # noqa: E402
 import test_db  # noqa: E402
-from tower_infra import autodeploy, canary, config_data, forge_webhooks, http_port, live_image, mechanisms, port, prewarm, runner  # noqa: E402
+from tower_infra import autodeploy, canary, config_data, forge_webhooks, http_port, live_image, mechanisms, port, prewarm, queue_deploy, runner  # noqa: E402
 
 URL = os.environ.get('TEST_DATABASE_URL', '')
 MIGRATION = ROOT / 'infra/db/migrations/0015_swap_indexes.sql'
@@ -119,12 +119,19 @@ SWAP_MOMENT = [
     ('work.wake_held', "select * from work.job where state = 'waiting' and lease_run_id is null and wait_reason is not null "
      "order by id for update skip locked", {}),
     ('mechanisms.QUEUES', mechanisms.QUEUES, {}),
+    # QUEUE-SWAP: the merge queue's want, the landing's swap and what the looks read of it after
+    ('queue_deploy.WANT', queue_deploy.WANT, {'id': 'platform.deploy.successor:t', 'payload': '{}'}),
+    ('queue_deploy.WANTED', queue_deploy.WANTED, {}),
+    ('queue_deploy.SWAP', queue_deploy.SWAP, {'digest': DIGEST, 'tenant': 'torre', 'fresh_s': 3.0, 'reason': 'r',
+                                              'id': 'platform.deploy.image_swap:t', 'payload': '{}'}),
+    ('queue_deploy.SWAP_OF', queue_deploy.SWAP_OF, {'head': DIGEST, 'digest': DIGEST}),
+    ('queue_deploy.ADOPTED', queue_deploy.ADOPTED, {}),
 ]
 # the idempotency checks by event_id: the primary key leads with occurred_at, so reaching them by it reads the whole index
 BY_ID = ('port.LANDED_SWAP', 'port.LANDED_ONLY', 'autodeploy.OBSERVE', 'autodeploy.SWAP_OF', 'prewarm.RECORD',
          'live_image.LIVE', 'config_data.OBSERVE', 'http_port.BUILD_ENDED', 'live_image.RELOAD_OF', 'live_image.RELOAD_SAY',
          'canary.READ', 'canary.SETTLE', 'autodeploy.ORDER', 'autodeploy.ORDER_DONE', 'live_image.ORDER_START',
-         'live_image.ORDER_SAY', 'http_port.BUILD_STARTED')
+         'live_image.ORDER_SAY', 'http_port.BUILD_STARTED', 'queue_deploy.WANT', 'queue_deploy.SWAP')
 FILL = f"""
 insert into work.tenant (name) values ('torre');
 insert into work.executor (name, adapter) values ('runner', 'container');

@@ -328,6 +328,7 @@ RELOAD_ASK_S = 1  # a task's first second after it sees a swap is the swap's: no
 DRAIN_S = 120  # the longest a service's reload waits for its DBOS workflows: past every adapter's own timeout (the forge's 60 s)
 RELOAD_LIMIT_S = 120  # a started reload whose task recorded no work on the bundle by then failed: the task died on it
 RELOAD_TASKS = 3  # the ECS tasks of one role that reload one bundle, one at a time: more is a task that keeps dying on it
+PROVE_QUEUE_S = 10.0  # QUEUE-SWAP: how long the heir of a merge queue's swap works before its proof holds (PROVE_S's)
 # The trigger's one read, by the log's indexes (type and occurred_at; image_live by its event_id): the key of the bundle in
 # the swap's record (no row: the pointer names no swapped bundle), whether the promoted standby recorded image_live for
 # this pointer version, the reloads of the digest in this role, and the database clock
@@ -339,11 +340,19 @@ RELOAD_OF = ("select (select payload->>'key' from log.event where type = 'platfo
              f"(select jsonb_agg(payload) from log.event where type = '{RELOAD}' and tenant_id is null "
              "and occurred_at > now() - interval '7 days' and payload->>'role' = %(role)s and payload->>'digest' = %(digest)s)::text, "
              "extract(epoch from clock_timestamp())::float8, "
-             # DEPLOY-CANARY: the state of that swap's canary job (keyed by the service pointer's version the swap recorded)
-             "(select j.state from (select payload from log.event where type = 'platform.deploy.image_swap' and tenant_id is null "
+             # DEPLOY-CANARY: the state of that swap's canary job (keyed by the service pointer's version the swap recorded).
+             # QUEUE-SWAP (the Torre, 15/11): a swap of the merge queue (by: queue, the service alone) has no canary (no
+             # runner takes one): it is proven by its heir itself, `succeeded` once the heir's image_live (its first work on
+             # the bundle) is PROVE_S old, `proving` before; the heir's live beat is HEIR's, read at the turn
+             "(select case when s.payload->>'by' = 'queue' then (case when exists (select 1 from log.event l "
+             "where l.event_id = %(live)s and l.type = 'platform.deploy.image_live' and l.occurred_at > now() - interval '2 days' "
+             f"and l.occurred_at <= clock_timestamp() - interval '{PROVE_QUEUE_S:g} seconds') then 'succeeded' else 'proving' end) "
+             "else (select j.state from work.tenant t join work.job j on j.tenant_id = t.id "
+             f"and j.idempotency_key = '{canary.PREFIX}swap:' || %(digest)s || ':' || (s.payload->'versions'->>'deploy.live_image_service') "
+             "where t.name = %(tenant)s) end "
+             "from (select payload from log.event where type = 'platform.deploy.image_swap' and tenant_id is null "
              "and occurred_at > now() - interval '7 days' and payload->>'digest' = %(digest)s and payload->>'swapped' = 'true' "
-             "order by occurred_at desc limit 1) s join work.tenant t on t.name = %(tenant)s join work.job j on j.tenant_id = t.id "
-             f"and j.idempotency_key = '{canary.PREFIX}swap:' || %(digest)s || ':' || (s.payload->'versions'->>'deploy.live_image_service'))")
+             "order by occurred_at desc limit 1) s)")
 # The claim, right before the exec: {state: started} only while the pointer still names the digest at the version this task
 # read (the comparison of every other writer of the pointer: one that emptied it first cancels the reload), and one task
 # per turn: occurred_at is the pointer's write, so the log's primary key (occurred_at, event_id) lets one insert through
@@ -1601,7 +1610,9 @@ class Reload:
             return self.stay(swap, f'{len(done)} tasks of the role reloaded it already')
         if live not in (True, 't'):
             return None, None  # the promoted standby has not worked yet: the swap may still be undone
-        if proven != 'succeeded':  # DEPLOY-CANARY: the bundle has not proven dispatch, take and run on the promoted pair
+        # DEPLOY-CANARY: the bundle has not proven dispatch, take and run on the promoted pair; QUEUE-SWAP: a merge queue's
+        # swap is `proving` until its heir has worked PROVE_QUEUE_S (RELOAD_OF), and waits for it
+        if proven != 'succeeded':
             limit_s = config_data.SPEC[canary.LIMIT][1]
             if proven is None and gate.clock() - self.since > limit_s:
                 return self.stay(swap, f'no canary of this swap in {limit_s:g} s: the promoted pair keeps the role')
