@@ -29,11 +29,9 @@ kind="${1:-}" name="${2:-}"
 shift
 shift
 base=""
-salt=""  # SWAP-MEASURE: a measured round's mark, for `artifact code` only
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --base) base="${2:?}"; shift; shift ;;
-    --salt) salt="${2:?}"; shift; shift ;;
     *) usage ;;
   esac
 done
@@ -90,12 +88,7 @@ case "$kind" in
     done
     step=gate
     [[ "$name" == code ]] && step=code-gate
-    if [[ -n "$salt" ]]; then
-      [[ "$name" == code ]] || usage
-      "$apy" "$root/scripts/lib/lambda_package.py" "$step" --root "$root" --base "${base:?artifact needs --base}" --head "$(git -C "$root" rev-parse HEAD)" --salt "$salt"
-    else
-      "$apy" "$root/scripts/lib/lambda_package.py" "$step" --root "$root" --base "${base:?artifact needs --base}" --head "$(git -C "$root" rev-parse HEAD)"
-    fi
+    "$apy" "$root/scripts/lib/lambda_package.py" "$step" --root "$root" --base "${base:?artifact needs --base}" --head "$(git -C "$root" rev-parse HEAD)"
     ;;
   plan)
     # PLAN-ON-RUNNER: the gate's plan of base...HEAD by this head's own adapter, answered to the runner (TOWER_ANSWER_FILE)

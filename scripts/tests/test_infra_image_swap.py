@@ -7,7 +7,7 @@ as today, with the reason in platform.deploy.image_swap. The ECS tasks carry TOW
 their image), so they stand by under a pointer naming another digest. Off the clock: the reconciled ECS service hands the
 role over (its pointer emptied), a build that ended well at the swap's head or later empties the rest, a swap no standby
 took within SWAP_LIMIT_S is undone (GATE-LOOKS-GONE, D-316: the prewarm that retired the promoted Spot standbys left).
-scripts/medir: image_landing_s and prewarm_task_usd.
+scripts/medir: image_landing_s.
 
 Hermetic: fake database, ECS and git repositories made here; OnPostgres runs the real statements (TEST_DATABASE_URL).
 """
@@ -407,20 +407,13 @@ class Templates(unittest.TestCase):
 
 
 class Measure(unittest.TestCase):
-    def test_landing_to_pointer_and_the_price_of_each_standby(self):
+    def test_landing_to_pointer_and_no_price_of_the_spot_standbys(self):
         status = {'image_swap': [{'swapped': True, 'landed_s': 0.031}, {'swapped': False, 'why': 'x'}],
-                  'standby': [{'role': 'runner', 'state': 'stopped', 'at': 3600 + 100, 'started_at': 100},
-                              {'role': 'service', 'state': 'failed', 'at': 7300, 'started_at': 100},
-                              {'role': 'runner', 'state': 'healthy', 'at': 50, 'started_at': 1},
-                              {'role': 'service', 'state': 'stopped', 'at': 50}]}
-        import config
+                  'standby': [{'role': 'runner', 'state': 'stopped', 'at': 3600 + 100, 'started_at': 100}]}
         found = medir.from_deploy_status(status)
         self.assertEqual(found['image_landing_s'], [0.031])
-        self.assertEqual(found['prewarm_task_usd'], [round(config.get('medir.prewarm_runner_usd_h'), 6),
-                                                     round(2 * config.get('medir.prewarm_service_usd_h'), 6)])
-        self.assertEqual((config.get('medir.prewarm_runner_usd_h'), config.get('medir.prewarm_service_usd_h')),
-                         (0.029, 0.0031))
-        self.assertNotIn('prewarm_task_usd', medir.from_deploy_status({'standby': []}))
+        # GATE-LOOKS-GONE (D-316): the Spot standbys left with the prewarm, and their price with them
+        self.assertEqual([name for name in found if 'usd' in name], [])
 
 
 @unittest.skipUnless(URL, 'needs TEST_DATABASE_URL (Postgres; local port 54322)')

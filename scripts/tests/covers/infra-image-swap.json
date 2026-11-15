@@ -15,8 +15,6 @@
     "scripts/lib/deploy_classify.py",
     "scripts/lib/medir.py",
     "config/registry/deploy/deploy.promote.json",
-    "config/registry/medir/medir.prewarm_runner_usd_h.json",
-    "config/registry/medir/medir.prewarm_service_usd_h.json",
     "infra/aws/deploy.sh",
     "infra/aws/stacks/30-service.json",
     "infra/aws/stacks/50-runner.json",

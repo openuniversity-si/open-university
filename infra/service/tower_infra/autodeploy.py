@@ -952,11 +952,6 @@ class AutoDeploy:
         return (f"reloading: the ECS tasks are taking the swapped code of {head[:12]} over (so far: {' '.join(took) or 'none'}); "
                 f'the build is rung when both have, in {left:.0f} s at most')
 
-    def taken_over(self, db, head):
-        """SWAP-MEASURE: whether the ECS task of both roles took the newest swap of this head over ({state: reloaded})."""
-        found = db.rows(TAKEOVER, {'head': head})
-        return bool(found) and bool(found[0][0]) and set(ROLES) <= set(str(found[0][1] or '').split())
-
     def pointers(self, db):
         found = {}
         for role in ROLES:
@@ -996,11 +991,7 @@ class AutoDeploy:
         elif missing:
             by, why = 'revert', f"no image_live of the {' and '.join(sorted(missing))} standby in {SWAP_LIMIT_S} s"
         elif (last.get('status') in OK and last.get('ended') and not last.get('dirty') and head in heads
-              and last.get('base_head') in heads and heads.index(last['base_head']) >= heads.index(head)
-              and (swap.get('by') != 'measure' or self.taken_over(db, head))):
-            # SWAP-MEASURE: a measured round swaps the published head again, which a build deployed before the swap:
-            # its pointers go back as a landing's do, after the build that follows the ECS tasks' takeover, so once
-            # both roles reloaded its bundle, not on the look after its swap (the round's successors still turning live)
+              and last.get('base_head') in heads and heads.index(last['base_head']) >= heads.index(head)):
             by, why = 'reconciled', f"build {last.get('build_id')} deployed {str(last['base_head'])[:12]}"
         else:
             return

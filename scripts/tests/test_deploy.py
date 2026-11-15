@@ -330,9 +330,6 @@ class FakeDb:
         if "type = 'platform.deploy.successor'" in sql:  # IN-TASK-STANDBY: the installation's wants and successors
             assert 'tenant_id is null' in sql
             return []
-        if "type = 'platform.deploy.measure'" in sql:  # SWAP-MEASURE: the installation's measured rounds
-            assert 'tenant_id is null' in sql
-            return []
         if "type = 'platform.deploy.ended'" in sql:  # ROLLOUT-PARTS: the app stacks' ends
             assert 'tenant_id is null' in sql
             return []
@@ -440,7 +437,7 @@ class StatusEndpointTests(unittest.TestCase):
             self.assertEqual(json.loads(answered['body']), {'last_sha': 'a0bd4d1', 'last_build': record, 'observed_at': 2,
                                                             'ring': ring, 'head': None, 'pending': None,
                                                             'source': 'registry', 'cycle': None, 'cycles': [], 'config_version': {},
-                                                            'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'standby': [], 'successor': [], 'measure': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'full_run': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None, 'culprit': None,
+                                                            'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'standby': [], 'successor': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'full_run': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None, 'culprit': None,
                                                             'bisect_note': None, 'in_progress': None, 'lost': None})
 
     def test_another_tenants_observation_is_never_served(self):
@@ -456,7 +453,7 @@ class StatusEndpointTests(unittest.TestCase):
         self.assertEqual(answered['statusCode'], 200)
         self.assertEqual(json.loads(answered['body']), {'last_sha': None, 'last_build': None, 'observed_at': None,
                                                         'ring': None, 'head': None, 'pending': None, 'source': 'registry',
-                                                        'cycle': None, 'cycles': [], 'config_version': {}, 'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'standby': [], 'successor': [], 'measure': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'full_run': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None,
+                                                        'cycle': None, 'cycles': [], 'config_version': {}, 'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'standby': [], 'successor': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'full_run': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None,
                                                     'culprit': None, 'bisect_note': None, 'in_progress': None, 'lost': None})
 
     def test_no_token_or_an_unknown_one_is_refused_before_anything_is_read(self):
