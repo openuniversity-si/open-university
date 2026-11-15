@@ -25,8 +25,7 @@ import logging
 import os
 import re
 import time
-import urllib.error
-import urllib.request
+import urllib.error  # urllib.request (and http.client under it) only in Poster: the port's handler imports this module
 
 from . import ed25519
 from . import engine  # ENGINE-REPO
@@ -120,14 +119,18 @@ def app_jwt(seed, app_id, now_s):
 class Poster:
     """The live service's half: the asked check runs posted with the app's installation token."""
 
-    def __init__(self, scope, key, app_id, installation, opener=urllib.request.urlopen, clock=time.time,
+    def __init__(self, scope, key, app_id, installation, opener=None, clock=time.time,
                  api=ORIGIN_API, agent='tower-service'):
+        if opener is None:  # COLD-START-GREEN: the HTTP client loads with the poster, never at the port's cold start
+            import urllib.request
+            opener = urllib.request.urlopen
         self.scope, self.key, self.app_id, self.installation = scope, key, app_id, installation
         self.opener, self.clock, self.api, self.agent = opener, clock, api, agent
         self.seed = self.kid = None
         self.token, self.until = None, 0.0
 
     def call(self, method, url, token, body=None):
+        import urllib.request
         request = urllib.request.Request(url, method=method, data=None if body is None else json.dumps(body).encode(),
                                          headers={'authorization': f'Bearer {token}', 'accept': 'application/json',
                                                   'content-type': 'application/json', 'user-agent': self.agent})
