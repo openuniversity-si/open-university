@@ -12,6 +12,9 @@ region's code storage), so the zip it came from is no longer what it runs. The l
     the current task definitions of the cluster's services and families (TOWER_CODE_KEY and every other key in their
     environment). When any of those reads fails, no package is deleted (the versions' part stands on the aliases alone).
 It says platform.deploy.prune {state: done, versions, objects, bytes, kept, seconds}; the next pass is EVERY_S after it.
+
+This module runs in the service alone: no port Lambda's package holds it (scripts/lib/deploy_classify.LAMBDA_MODULES),
+so a change here is a code-only merge of the service (QUEUE-SWAP: its heir is up before the landing).
 """
 import json
 import logging
