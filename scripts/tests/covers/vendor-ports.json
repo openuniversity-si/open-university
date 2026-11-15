@@ -17,6 +17,7 @@
     "scripts/lib/structure.py",
     "scripts/structure-check",
     "scripts/tests/test_vendor_classification.py",
-    "scripts/lib/source_facts.py"
+    "scripts/lib/source_facts.py",
+    "scripts/lib/*.py"
   ]
 }
