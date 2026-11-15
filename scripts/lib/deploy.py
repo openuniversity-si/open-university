@@ -16,11 +16,13 @@ Exit: 0 the doorbell rang / the deploy succeeded; 1 refused (401) or the build f
 running, the wait ran out, the port unreachable, the environment incomplete).
 """
 import argparse
+import http.client
 import json
 import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -91,37 +93,95 @@ def ring(environ=None, opener=urllib.request.urlopen, word=None):
     return 1, None
 
 
-def queue(sha, ref, environ=None, opener=urllib.request.urlopen, heads=None, clock=time.monotonic, sleep=time.sleep,
-          limit_s=1800.0, every_s=0.25, gone_s=15.0):
+WARM_S = 5.0  # QUEUE-BELL: how often the watch rings `prepare` again, to keep the connection and both Lambdas warm
+
+
+class Bell:
+    """QUEUE-BELL (the Torre, 15/11): one HTTPS connection to the doorbell, kept open for the whole watch. The `landed`
+    ring was 236-1400 ms on five merges (#34-#39): a new TLS connection from the runner each time, and a doorbell or port
+    Lambda that had gone cold since `prepare`. The watch now sends every word on this connection (HTTP/1.1 keep-alive)
+    and rings `prepare` again every WARM_S while it waits: the port records a prepare once (http_port.QUEUE_SAID) and
+    wakes nobody for the repeats, so they only keep the connection, the doorbell and the port warm for the landing. A
+    connection the server closed is opened again once and the word sent again (the port's record is idempotent).
+    send() answers the HTTP status, or None when the doorbell did not answer; the token is never printed."""
+
+    def __init__(self, environ, connect=http.client.HTTPSConnection, timeout_s=10.0):
+        parts = urllib.parse.urlsplit(environ['TOWER_DEPLOY_DOORBELL_URL'])
+        self.host, self.path = parts.netloc, parts.path or '/'
+        self.headers = {'Authorization': f"Bearer {environ['TOWER_DEPLOY_DOORBELL_TOKEN']}",
+                        'Content-Type': 'application/json'}
+        self.connect, self.timeout_s, self.connection = connect, timeout_s, None
+
+    def send(self, word):
+        body = json.dumps(word).encode()
+        for attempt in (1, 2):
+            try:
+                if self.connection is None:
+                    self.connection = self.connect(self.host, timeout=self.timeout_s)
+                self.connection.request('POST', self.path, body=body, headers=self.headers)
+                answer = self.connection.getresponse()
+                answer.read()
+                return answer.status
+            except (http.client.HTTPException, OSError):
+                self.close()
+        return None
+
+    def close(self):
+        if self.connection is not None:
+            try:
+                self.connection.close()
+            except OSError:
+                pass
+            self.connection = None
+
+
+def queue(sha, ref, environ=None, bell=None, heads=None, clock=time.monotonic, sleep=time.sleep,
+          limit_s=1800.0, every_s=0.25, gone_s=15.0, warm_s=WARM_S):
     """QUEUE-RELOAD (infra/service/tower_infra/queue_deploy.py): the merge_group job's part. Rings `prepare` for the queue's
     commit at once, then watches main and the queue's branch every every_s: main at sha rings `landed` at once (the
     service checks it again before it orders anything); the branch gone for gone_s with main elsewhere is the group
     leaving the queue unmerged. GitHub pushes nothing to a job, so this is the one bounded watch: limit_s at most, the
-    job's own timeout above it. Returns the exit code of the landed ring, 0 when nothing landed."""
+    job's own timeout above it. QUEUE-BELL: every word goes on one kept connection (Bell), and `prepare` is rung again
+    every warm_s while it waits. Returns 0 when the landing was rung (202) or nothing landed, 1 when it was refused, 2
+    when the doorbell did not answer or the environment lacks it."""
     environ = os.environ if environ is None else environ
+    if bell is None:
+        absent = missing(DOORBELL_VARS, environ)
+        if absent:
+            say_missing(absent, 'the doorbell')
+            return 2
+        bell = Bell(environ)
     if heads is None:  # the forge's adapter (D-069 item 7): its URL and its ls-remote
         url = source_remote.repo_url(environ)
         heads = lambda: source_remote.heads(url, ['refs/heads/main', ref])  # noqa: E731
-    ring(environ, opener, {'event': 'prepare', 'sha': sha})  # a failed prepare does not stop the watch: landed prepares too
     began, gone = clock(), None
-    while clock() - began < limit_s:
-        found = heads()
-        if found.get('refs/heads/main') == sha:
-            seen = clock()
-            code, _ = ring(environ, opener, {'event': 'landed', 'sha': sha})
-            print(f'deploy: main is {sha[:12]} {seen - began:.1f} s after the watch began; landed rung in '
-                  f'{(clock() - seen) * 1000:.0f} ms')
-            return code
-        if found and ref not in found:
-            gone = clock() if gone is None else gone
-            if clock() - gone >= gone_s:
-                print(f'deploy: {ref} left the queue and main is not {sha[:12]}: nothing landed')
-                return 0
-        else:
-            gone = None
-        sleep(every_s)
-    print(f'deploy: {sha[:12]} did not land within {limit_s:.0f} s: the push rings the deploy build when it does')
-    return 0
+    status = bell.send({'event': 'prepare', 'sha': sha})  # a failed prepare does not stop the watch: landed prepares too
+    print(f'deploy: prepare rung for {sha[:12]} ({status}, {(clock() - began) * 1000:.0f} ms)')
+    warmed = clock()
+    try:
+        while clock() - began < limit_s:
+            found = heads()
+            if found.get('refs/heads/main') == sha:
+                seen = clock()
+                status = bell.send({'event': 'landed', 'sha': sha})
+                print(f'deploy: main is {sha[:12]} {seen - began:.1f} s after the watch began; landed rung in '
+                      f'{(clock() - seen) * 1000:.0f} ms ({status})')
+                return 0 if status == 202 else 1 if status in (400, 401, 403) else 2
+            if found and ref not in found:
+                gone = clock() if gone is None else gone
+                if clock() - gone >= gone_s:
+                    print(f'deploy: {ref} left the queue and main is not {sha[:12]}: nothing landed')
+                    return 0
+            else:
+                gone = None
+            if clock() - warmed >= warm_s:  # QUEUE-BELL: the connection and both Lambdas stay warm for the landing
+                bell.send({'event': 'prepare', 'sha': sha})
+                warmed = clock()
+            sleep(every_s)
+        print(f'deploy: {sha[:12]} did not land within {limit_s:.0f} s: the push rings the deploy build when it does')
+        return 0
+    finally:
+        bell.close()
 
 
 def read_status(port):
