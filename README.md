@@ -4,13 +4,11 @@ Open source under the [Apache License 2.0](LICENSE). This public repository star
 commit, 14/11/2026); contributions follow [CONTRIBUTING.md](CONTRIBUTING.md), and security reports
 [SECURITY.md](SECURITY.md). Operations runbooks and internal records are not part of the public tree.
 
-This repository is the engine of A Torre: the gate that judges every pull request, the merge train that merges them,
-the event log they share, the contracts, the configuration registry and the services that run the gate and the train
-without an AI session. Agents start from [AGENTS.md](AGENTS.md).
+This repository is the engine of A Torre: the gate that judges every pull request, the event log, the contracts, the
+configuration registry, and the services the engine deploys and runs. Agents start from [AGENTS.md](AGENTS.md).
 
 Open University, the course site that lived in this repository, left the repository (D-105, D-111). Its archive is commit
-`567176bb`, with full history (D-110). Its production site is frozen until Daniel pauses it
-([RELEASES.md](docs/process/RELEASES.md)).
+`567176bb`, with full history (D-110). The site is no longer built or deployed from this repository.
 
 ## Structure
 
@@ -46,13 +44,16 @@ scripts/cloud/preflight          # names every gap and exits 2 when there is one
 
 ## Workflow
 
-- **GitHub `openuniversity-si/open-university` is the working repository.** A PR branches from `mod/roadmap-integration` and targets
-  it; the merge train merges it with a merge commit once the gate passes on its exact head ([AGENTS.md](AGENTS.md),
-  delivery flow).
-- **No GitHub Actions dependency.** Every test runs through the local gate. A hosted runner is one optional, budgeted
-  runner kind (ADR-41, D-086, D-087).
-- **`main` is frozen** (D-054). A release is one merge of `mod/roadmap-integration` into `main`, and none is made while
-  production is frozen.
+- **GitHub `openuniversity-si/open-university` is the source of truth** (D-314). A pull request branches from `main`
+  and targets it, with a commit plan in its body ([AGENTS.md](AGENTS.md), delivery flow).
+- **It lands through GitHub's merge queue.** The queue requires the `tower/gate` status, which a GitHub Actions job
+  (`.github/workflows/tower-gate.yml`) posts by running `scripts/verify-commit` on the pull request and on the queue's
+  merge commit. Run it yourself with `scripts/verify-commit --sha <commit> --base <base> --no-post`.
+- **Every merge into `main` deploys the engine.** The `deploy-doorbell` workflow rings the deploy on AWS, which
+  applies only what the merge changed. A change to the service's code alone is prepared while the queue verifies it,
+  and the running service reloads it in place when `main` moves. No one deploys by hand
+  ([RELEASES.md](docs/process/RELEASES.md)).
+- **After each merge, the whole script suite runs** (`.github/workflows/full-suite.yml`); a red run opens an issue.
 
 ## Legacy backup
 
