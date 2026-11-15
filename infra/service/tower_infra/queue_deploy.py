@@ -86,7 +86,7 @@ SAY = ("insert into log.event (event_id, tenant_id, type, occurred_at, producer,
        "where not exists (select 1 from log.event where event_id = %(id)s and type = %(type)s "
        "and occurred_at > now() - interval '2 days')")
 
-# QUEUE-SWAP: a want said or withdrawn, once per id, and the tasks' processes woken (prewarm.WANT's statement)
+# QUEUE-SWAP: a want said or withdrawn, once per id, and the tasks' processes woken (the statement the prewarm said it with)
 WANT = ("with said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
         f"select %(id)s, null, '{live_image.SUCCESSOR}', clock_timestamp(), 'autodeploy', 'deploy/successor', %(payload)s::jsonb "
         f"where not exists (select 1 from log.event where event_id = %(id)s and type = '{live_image.SUCCESSOR}' "
