@@ -198,18 +198,12 @@
                   }
                 },
                 {
-                  "Sid": "ReadTheForgeAndSessionKeysWhenUsed",
+                  "Sid": "ReadTheSessionKeysWhenUsed",
                   "Effect": "Allow",
                   "Action": "ssm:GetParameter",
                   "Resource": [
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/origin/forge-key"
-                    },
-                    {
                       "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/sessions/*"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/origin/factory-app-signing-key"
                     }
                   ]
                 },
@@ -688,10 +682,6 @@
                 }
               },
               {
-                "Name": "TOWER_FORGE_KEY_PARAMETER",
-                "Value": "/tower/origin/forge-key"
-              },
-              {
                 "Name": "TOWER_API_MODELS",
                 "Value": "{\"bedrock\":[\"anthropic.claude-haiku-5-5\",\"global.anthropic.claude-haiku-5-5\",\"us.anthropic.claude-haiku-5-5\"],\"bedrock-converse\":[\"amazon.nova-micro-v1:0\",\"us.amazon.nova-micro-v1:0\",\"us.anthropic.claude-haiku-4-5-20251001-v1:0\"]}"
               },
@@ -722,10 +712,6 @@
                 "Value": {
                   "Fn::ImportValue": "tower-network-tasks-sg"
                 }
-              },
-              {
-                "Name": "TOWER_ORIGIN_APP_KEY_PARAMETER",
-                "Value": "/tower/origin/factory-app-signing-key"
               },
               {
                 "Name": "TOWER_ORIGIN_APP_ID",
@@ -885,10 +871,6 @@
                 }
               },
               {
-                "Name": "TOWER_FORGE_KEY_PARAMETER",
-                "Value": "/tower/origin/forge-key"
-              },
-              {
                 "Name": "TOWER_API_MODELS",
                 "Value": "{\"bedrock\":[\"anthropic.claude-haiku-5-5\",\"global.anthropic.claude-haiku-5-5\",\"us.anthropic.claude-haiku-5-5\"],\"bedrock-converse\":[\"amazon.nova-micro-v1:0\",\"us.amazon.nova-micro-v1:0\",\"us.anthropic.claude-haiku-4-5-20251001-v1:0\"]}"
               },
@@ -919,10 +901,6 @@
                 "Value": {
                   "Fn::ImportValue": "tower-network-tasks-sg"
                 }
-              },
-              {
-                "Name": "TOWER_ORIGIN_APP_KEY_PARAMETER",
-                "Value": "/tower/origin/factory-app-signing-key"
               },
               {
                 "Name": "TOWER_ORIGIN_APP_ID",

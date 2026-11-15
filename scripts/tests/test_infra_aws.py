@@ -165,7 +165,10 @@ class BootstrapTests(unittest.TestCase):
     # QUEUE-RELOAD (the Torre, 15/11/2026): the doorbell passes the merge queue's words {event, sha} to tower-port-api:live
     # (lambda:InvokeFunction on that alias alone) and starts no build for them. The Torre re-applies tower-bootstrap with
     # this template after the merge (UsePreviousValue for its parameters), as for BUILD-NO-ORIGIN.
-    APPLIED = '4a842e1d1793bfa0773f095bde7dec4e6f9278ef0a99dd223965d32215ba3199'
+    # ORIGIN-ACCESS-GONE (the Torre, 15/11/2026): the deployer no longer reads /tower/origin/* (its statement is
+    # ReadTheLastDeploy, /tower/deploy/* alone), so the Torre deletes the Origin parameters after this lands. The Torre
+    # re-applies tower-bootstrap with this template after the merge (UsePreviousValue for its parameters).
+    APPLIED = '42c69db6ff4ff77cfcbea95716a5e8de02d8365b2abe1d1326246d2d8b5d3719'
 
     def test_the_file_is_the_template_the_account_has_applied(self):
         canonical = json.dumps(self.template, sort_keys=True, separators=(',', ':'))

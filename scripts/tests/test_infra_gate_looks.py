@@ -116,8 +116,9 @@ class TheServicesStack(unittest.TestCase):
             for container in item['Properties']['ContainerDefinitions']:
                 given = {each['Name']: each['Value'] for each in container.get('Environment', [])}
                 self.assertNotIn('TOWER_FORGE_KEYS_PARAMETER', given, f"{name}/{container['Name']}")
-                if container['Name'] == 'service':  # the forge's own key is still named: a landing reads it when asked
-                    self.assertEqual(given['TOWER_FORGE_KEY_PARAMETER'], '/tower/origin/forge-key', name)
+                # ORIGIN-ACCESS-GONE (15/11/2026): nor the forge's own key, nor the Origin app's signing key
+                self.assertNotIn('TOWER_FORGE_KEY_PARAMETER', given, f"{name}/{container['Name']}")
+                self.assertNotIn('TOWER_ORIGIN_APP_KEY_PARAMETER', given, f"{name}/{container['Name']}")
 
     def test_the_task_role_may_no_longer_write_the_forge_keys_parameter(self):
         statements = [each for policy in self.resources['TaskRole']['Properties']['Policies']

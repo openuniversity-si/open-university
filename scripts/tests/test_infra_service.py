@@ -403,7 +403,7 @@ class ImageTests(unittest.TestCase):
         main = (SERVICE / 'tower_infra' / '__main__.py').read_text(encoding='utf-8')
         start = main.index('def run_container():')
         body = main[start:main.index('\ndef ', start + 1)]
-        for needle in ("parameter(os.environ.get('TOWER_FORGE_KEY_PARAMETER', '/tower/origin/forge-key'))",
+        for needle in ("parameter(os.environ.get('TOWER_FORGE_KEY_PARAMETER'))",  # ORIGIN-ACCESS-GONE: no default
                        "'/tower/runner/signing-key'", 'checkout_of=box.checkout_of',
                        'beat=lambda: health_file().touch()', 'runner.serve_all(workers, stop'):
             self.assertIn(needle, body)
@@ -648,17 +648,20 @@ class StackTests(unittest.TestCase):
         self.assertEqual((model['Fn::Sub'], profile['Fn::Sub']), ('arn:${AWS::Partition}:bedrock:*::foundation-model/*',
                                                        'arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/*'))
         self.assertEqual(topics['Resource'], {'Fn::Sub': 'arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:tower-*'})
-        forge_key, session_keys, app_key = key['Resource']  # read when used: a landing, a session, a check run
-        self.assertTrue(app_key['Fn::Sub'].endswith(':parameter/tower/origin/factory-app-signing-key'))  # CHECK-RUN-AWS
-        self.assertTrue(forge_key['Fn::Sub'].endswith(':parameter/tower/origin/forge-key'))
+        # ORIGIN-ACCESS-GONE (15/11/2026): the Origin keys (/tower/origin/forge-key, factory-app-signing-key) are no
+        # longer read: the sessions' keys alone, when used
+        [session_keys] = key['Resource']
+        self.assertEqual(key['Sid'], 'ReadTheSessionKeysWhenUsed')
         self.assertTrue(session_keys['Fn::Sub'].endswith(':parameter/tower/sessions/*'))
+        self.assertNotIn('/tower/origin/', json.dumps(statements))
         # renewed OAuth credentials are written back: exactly the two CLI sessions, no wildcard (Daniel, through the Torre)
         self.assertEqual([item['Fn::Sub'].split(':parameter')[1] for item in write_back['Resource']],
                          ['/tower/sessions/claude-code', '/tower/sessions/codex'])
         self.assertNotIn('/tower/port/forge-keys', json.dumps(statements))
         self.assertIn('kms:ViaService', str(decrypt['Condition']))
         given = {item['Name']: item['Value'] for item in self.containers['service']['Environment']}
-        self.assertEqual(given['TOWER_FORGE_KEY_PARAMETER'], '/tower/origin/forge-key')
+        self.assertNotIn('TOWER_FORGE_KEY_PARAMETER', given)  # ORIGIN-ACCESS-GONE
+        self.assertNotIn('TOWER_ORIGIN_APP_KEY_PARAMETER', given)
         # D-310, D-311: the models an API provider may run; only the cheap ones of the test, on Bedrock. Haiku 5.5 waits on
         # AWS's release for the account (the Torre, 04/11 18:54 BRT); Haiku 4.5 answers through Converse meanwhile.
         self.assertEqual(json.loads(given['TOWER_API_MODELS']), {
