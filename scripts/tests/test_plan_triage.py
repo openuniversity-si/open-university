@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
@@ -133,6 +134,29 @@ def gate_failed(unit, tests, klass='code', at='2026-10-27T17:00:00.000Z', stage=
                    stages=[{'name': stage, 'result': 'FAIL', 'duration_ms': 1, 'class': klass}],
                    failing_tests=[{'id': test, 'stage': stage, 'signature': error} for test, error in tests])
     return envelope('gate.failed', payload, at, f'gate-{unit}-{pr}-{at}')
+
+
+class JournalOnGitHub(unittest.TestCase):
+    """GITHUB-DIARY: plan note and plan input write the journal alone (forge-events.log_adapter), never building the
+    forge's main adapter, whose Origin adapter refuses a GitHub remote (every plan note failed after D-314)."""
+
+    def test_a_note_goes_to_the_log_adapter_and_never_builds_the_forge_adapter(self):
+        journal = forge_events.MemoryAdapter()
+
+        def refused():
+            raise AssertionError('plan note built the forge adapter (Origin)')
+        adapters = {**forge_events.ADAPTERS, 'git-ref': lambda: journal, 'origin': refused}
+        with mock.patch.dict(forge_events.ADAPTERS, adapters), contextlib.redirect_stdout(io.StringIO()) as out:
+            code = plan_triage.main(['note', '--program', 'deploy', '--from', 'QUEUE-SWAP', '--affects', 'deploy',
+                                     '--kind', 'engine', '--evidence', 'pr 49', 'the swap landed'])
+        self.assertEqual(code, 0)
+        said = [event for events in journal.logs.values() for event in events]
+        self.assertEqual([event['type'] for event in said], ['plan.note'])
+        self.assertEqual((said[0]['payload']['text'], said[0]['payload']['program']), ('the swap landed', 'deploy'))
+        self.assertIn(said[0]['event_id'], out.getvalue())
+        with mock.patch.dict(forge_events.ADAPTERS, adapters):
+            self.assertIsInstance(forge_events.journal_from_config(), (forge_events.MemoryAdapter, forge_events.RoutingAdapter))
+        self.assertEqual(plan_triage.JOURNAL_ONLY, ('note', 'input'))
 
 
 class Signatures(unittest.TestCase):
