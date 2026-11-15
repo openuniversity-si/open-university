@@ -9,7 +9,7 @@ of a vCPU, a quota of 25 ms in every 100 ms shared by every process of the task.
 1. The cgroup's cpu.stat, v2 and v1, read; the record of a process told to go says, from the word to its first work,
    the wall time, the CPU the task used and how long the quota held it back.
 2. The service's gate reads first through its loop's own connection; the threads of no work of the role (the
-   autodeploy's look, the prewarm's) run at a lower priority.
+   autodeploy's look) run at a lower priority.
 """
 import json
 import os
@@ -135,7 +135,7 @@ class TheSecondIsLighter(unittest.TestCase):
         source = (ROOT / 'infra/service/tower_infra/__main__.py').read_text(encoding='utf-8')
         serve = source[source.index('def serve('):source.index('\ndef ', source.index('def serve(') + 1)]
         self.assertIn('    live_image.lowly(autodeploy.start(workflows.connected,', serve)
-        self.assertIn('    live_image.lowly(standbys.start(workflows.connected,', serve)
+        self.assertNotIn('standbys.start(', serve)  # GATE-LOOKS-GONE: the prewarm's look left
         self.assertIn('timed.update(cpu_since(os.environ.get(code_bundle.CPU_AT)))',
                       (ROOT / 'infra/service/tower_infra/live_image.py').read_text(encoding='utf-8'))
 

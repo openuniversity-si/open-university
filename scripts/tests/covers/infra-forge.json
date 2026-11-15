@@ -5,7 +5,6 @@
     "scripts/tests/test_infra_forge.py",
     "scripts/tests/infra_db/psql.py",
     "infra/service/tower_infra/forge.py",
-    "infra/service/tower_infra/merge_ready.py",
     "infra/service/tower_infra/mechanisms.py",
     "infra/service/tower_infra/port.py",
     "infra/service/tower_infra/subscriptions.py",

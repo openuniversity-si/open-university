@@ -1,4 +1,4 @@
-"""DRILLS (the Torre, 13/11 ~16:20 BRT: what waits for an incident is provoked, under control, and proved): two drills the
+"""DRILLS (the Torre, 13/11 ~16:20 BRT: what waits for an incident is provoked, under control, and proved): the drill the
 live service runs when the installation (or the configuration tenant) asks the port.
 
   - POST /v1/deploy/drills {kind: lambda-rollback[, function]}: the rollback of a port Lambda rehearsed. The live alias of
@@ -6,14 +6,10 @@ live service runs when the installation (or the configuration tenant) asks the p
     same pointer write a fast deploy's rollback is (fastdeploy.FastDeploy.rollback), each waited until the alias answers
     that version healthy (fastdeploy's propagate). Said: rollback_ms, rollback_propagation_ms, forward_ms,
     forward_propagation_ms. Whatever fails on the way, the alias is put back on the version it named.
-  - POST /v1/deploy/drills {kind: runner-placement}: Spot's placement failure of the runner, as ECS says it
-    (platform.ecs.service_action SERVICE_TASK_PLACEMENT_FAILURE of tower-runner), written with `drill` set: the
-    RUNNER-ON-DEMAND look (ondemand.py) runs its runner on Fargate on demand and, a drill, stops it once that task said it
-    is up (Spot placed the runner all along: no Spot task to wait for). Said: injected; the look says the rest
-    (platform.deploy.ondemand started, stopped {drill, up_s}).
   - GET /v1/deploy/drills/<id>: its newest state.
 Each ask is one event platform.deploy.drill {id, state: asked, kind, ...} and a NOTIFY of tower_deploy; the live service
-takes each once (taken) and says done {...} or failed {why}.
+takes each once (taken) and says done {...} or failed {why}. GATE-LOOKS-GONE (D-316): the runner-placement drill left with
+the RUNNER-ON-DEMAND look it provoked.
 """
 import json
 import logging
@@ -21,12 +17,9 @@ import time
 
 LOG = logging.getLogger('tower_infra.drills')
 EVENT = 'platform.deploy.drill'
-KINDS = ('lambda-rollback', 'runner-placement')
+KINDS = ('lambda-rollback',)
 FUNCTIONS = ('tower-port-api',)  # GATE-SHUTDOWN (#17): the webhook consumer and the ack-ingress left the port stack
 ASKED_S = 600
-# ondemand's (test_infra_drills holds them equal): not imported, the port's Lambda imports this module and ondemand's
-# closure (prewarm, autodeploy, live_image) is the service's
-PLACEMENT, SERVICE = 'SERVICE_TASK_PLACEMENT_FAILURE', 'tower-runner'
 SAY = ("with said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
        f"select %(event)s, null, '{EVENT}', clock_timestamp(), %(producer)s, 'deploy/drill', %(payload)s::jsonb "
        "|| jsonb_build_object('at', round(extract(epoch from clock_timestamp())::numeric, 3)) "
@@ -39,9 +32,6 @@ OPEN = (f"select a.payload::text from log.event a where a.type = '{EVENT}' and a
         "and a.payload->>'state' = 'asked' and a.occurred_at > clock_timestamp() - make_interval(secs => %(asked_s)s::float8) "
         f"and not exists (select 1 from log.event t where t.type = '{EVENT}' and t.tenant_id is null "
         "and t.payload->>'id' = a.payload->>'id' and t.payload->>'state' <> 'asked') order by a.occurred_at")
-INJECT = ("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
-          "select %(id)s, null, 'platform.ecs.service_action', clock_timestamp(), 'drill', 'ecs/service', %(payload)s::jsonb "
-          "where not exists (select 1 from log.event where event_id = %(id)s and type = 'platform.ecs.service_action')")
 
 
 def say(db, ident, state, producer, **more):
@@ -105,12 +95,6 @@ class Drills:
         said['ok'] = all(said[key] for key in ('rollback_healthy', 'rollback_propagated', 'forward_healthy', 'forward_propagated'))
         return said
 
-    def runner_placement(self, db, ident):
-        db.rows(INJECT, {'id': f'drill:{ident}', 'payload': json.dumps({
-            'name': PLACEMENT, 'level': 'WARN', 'services': [SERVICE], 'drill': ident,
-            'reason': 'DRILLS: Spot placement failure of the runner, provoked'})})
-        return {'injected': True}
-
     def step(self, db):
         done = 0
         for (payload,) in db.rows(OPEN, {'asked_s': ASKED_S}):
@@ -118,10 +102,7 @@ class Drills:
             if not say(db, asked['id'], 'taken', 'tower-service'):
                 continue
             try:
-                if asked.get('kind') == 'lambda-rollback':
-                    said = self.lambda_rollback(asked.get('function') or 'tower-port-api')
-                else:
-                    said = self.runner_placement(db, asked['id'])
+                said = self.lambda_rollback(asked.get('function') or 'tower-port-api')
             except Exception as error:  # noqa: BLE001 - said; the next ask tries again
                 say(db, asked['id'], 'failed', 'tower-service', why=f'{type(error).__name__}: {error}'[:300])
                 LOG.warning('drills: %s failed: %s', asked.get('kind'), error)

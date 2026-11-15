@@ -15,9 +15,7 @@
     "infra/service/tower_infra/forge.py",
     "infra/service/tower_infra/http_port.py",
     "infra/service/tower_infra/port.py",
-    "infra/service/tower_infra/prewarm.py",
     "scripts/tests/test_infra_image_swap.py",
-    "scripts/tests/test_infra_prewarm.py",
     "scripts/tests/runner_world.py",
     "scripts/tests/test_infra_swap_ready.py",
     "scripts/tests/test_infra_swap_tighten.py"

@@ -80,7 +80,7 @@ class Defaults(unittest.TestCase):
                           'infra/service/tower_infra/live_image.py' if name in config_data.EMPTY_OK + ('deploy.live_stale_s',) else
                           # DEPLOY-CANARY, CANARY-OWN-SLOT: the canary's own keys are read by the canary
                           'infra/service/tower_infra/canary.py' if name in ('deploy.canary_limit_s', 'deploy.canary_slot') else
-                          'infra/service/tower_infra/prewarm.py' if name in config_data.ZERO_OK else
+                          'infra/service/tower_infra/live_image.py' if name in config_data.ZERO_OK else
                           'infra/service/tower_infra/port.py' if name == 'deploy.standby_fresh_s' else  # IMAGE-SWAP-TIGHTEN
                           'infra/service/tower_infra/autodeploy.py' if area == 'deploy' else
                           'infra/service/tower_infra/config_data.py' if area == 'service' else 'infra/service/tower_infra/ingress.py',
@@ -93,16 +93,15 @@ class Defaults(unittest.TestCase):
         # defaults (1, 0, 0); a lost row brought back Spot standbys and successors together, which the db.t4g.micro's
         # connections do not hold (achado 34a: the port answered 500 on 11/11 22:17 to 22:21 UTC)
         defaults = {name: config_data.SPEC[name][1] for name in config_data.ZERO_OK}
-        self.assertEqual(defaults, {'deploy.prewarm_max_tasks': 0, 'deploy.intask_standbys': 1, 'deploy.canary_slot': 1})
-        self.assertFalse(defaults['deploy.prewarm_max_tasks'] and defaults['deploy.intask_standbys'])
+        self.assertEqual(defaults, {'deploy.intask_standbys': 1, 'deploy.canary_slot': 1})  # GATE-LOOKS-GONE: no Spot standbys
 
     def test_validate_follows_the_registry_types(self):
         self.assertEqual(config_data.validate('deploy.monthly_usd', 5), 5.0)
         self.assertIs(config_data.validate('deploy.auto', False), False)
-        self.assertEqual(config_data.validate('deploy.prewarm_max_tasks', 0), 0)  # IMAGE-PREWARM-B2: 0 starts no standby
+        self.assertEqual(config_data.validate('deploy.intask_standbys', 0), 0)  # 0 holds no successor
         for name, bad in (('deploy.auto', 'no'), ('deploy.debounce_s', 1.5), ('deploy.debounce_s', 0), ('deploy.debounce_s', True),
                           ('deploy.base_branch', ' '), ('service.dispatch_s', -1), ('nope.x', 1),
-                          ('deploy.prewarm_max_tasks', -1), ('deploy.prewarm_max_tasks', 1.5)):
+                          ('deploy.intask_standbys', -1), ('deploy.intask_standbys', 1.5)):
             with self.assertRaises(ValueError, msg=(name, bad)):
                 config_data.validate(name, bad)
 

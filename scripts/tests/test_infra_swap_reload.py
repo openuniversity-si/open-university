@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
-from tower_infra import autodeploy, canary, code_bundle, live_image, mechanisms, prewarm, runner  # noqa: E402
+from tower_infra import autodeploy, canary, code_bundle, live_image, mechanisms, runner  # noqa: E402
 import medir  # noqa: E402
 import test_infra_code_bundle as bundle  # noqa: E402
 import test_infra_image_swap as image_swap  # noqa: E402
@@ -279,7 +279,7 @@ class TheDrain(unittest.TestCase):
         self.assertEqual(pair.table.reloads[-1]['stragglers'], ['run-stuck'])  # and in what the status shows
 
     def test_work_in_flight_is_never_execed_over_whatever_it_takes(self):
-        for name in ('autodeploy', 'prewarm', 'ecs/1'):  # a look of the service; a slot of the runner in a run
+        for name in ('autodeploy', 'drills', 'ecs/1'):  # a look of the service; a slot of the runner in a run
             pair = Pair()
             pair.worked()
             with pair.ecs.engaged(name) as free:
@@ -318,7 +318,7 @@ class TheDrain(unittest.TestCase):
             pair.passes(1)
 
     def test_the_looks_of_the_service_are_counted_and_none_starts_under_a_reload(self):
-        for module, name in ((autodeploy, 'autodeploy'), (prewarm, 'prewarm')):
+        for module, name in ((autodeploy, 'autodeploy'),):  # GATE-LOOKS-GONE: the prewarm's look left
             table = Table()
             gate, stop, seen = gate_on(table), threading.Event(), []
 
@@ -704,20 +704,6 @@ class AfterBothHandovers(image_swap.World):
         self.now[0] = 100.0 + 10 * autodeploy.SWAP_LIMIT_S
         self.watcher.settle_image(self.db, self.heads)  # the slow build ended well: LiveCode=S, tasks born on S
         self.assertEqual([each for kind, each in self.db.events if kind == 'platform.deploy.image_retired'], [])
-
-    def test_the_prewarm_retires_the_promoted_pair_and_never_stops_the_runner_with_its_runs(self):
-        world = image_swap.Retire('test_a_promoted_bundle_stays_while_the_pointer_names_it_whatever_its_branch')
-        world.setUp()
-        world.promote()
-        world.db.pointer[live_image.KEYS['service']] = ''  # the reloaded service handed over; the runner drains its runs
-        world.now[0] += prewarm.POLL_S
-        world.watcher.step()
-        self.assertEqual(world.ecs.stopped, [])  # one pointer still names it: the pair stays
-        world.db.pointer[live_image.KEYS['runner']] = ''  # then the reloaded runner
-        world.now[0] += prewarm.POLL_S
-        world.watcher.step()
-        self.assertEqual([task for task, _ in world.ecs.stopped], [world.service])
-        self.assertEqual(world.db.states()[-2:], [('runner', image_swap.S, 'retiring'), ('service', image_swap.S, 'stopped')])
 
 
 class TheMeasure(unittest.TestCase):

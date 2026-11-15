@@ -102,6 +102,32 @@ class TheServicesLooks(unittest.TestCase):
         self.assertIs(config_data.validate('service.gate_looks', True), True)  # the Torre may turn them back on
 
 
+class TheAwsGateIsGone(unittest.TestCase):
+    """GATE-LOOKS-GONE (D-316, Daniel through the Torre, 15/11/2026): the AWS gate's own looks left the tree, their tests,
+    their registry key and the port's routes that only they served; the Origin-era code stays, dormant on purpose."""
+
+    GONE = ('prewarm', 'ondemand', 'merge_ready', 'pregate', 'fullrun')
+
+    def test_the_five_looks_their_tests_and_their_key_are_gone(self):
+        for name in self.GONE:
+            self.assertFalse((SERVICE / 'tower_infra' / f'{name}.py').exists(), name)
+            self.assertNotIn(name, main.GATE_LOOKS + main.KEPT_LOOKS)
+            self.assertNotIn(f'{name}.start(', SOURCE)
+        for name in ('prewarm', 'ondemand', 'pregate', 'fullrun'):
+            self.assertFalse((ROOT / 'scripts' / 'tests' / f'test_infra_{name}.py').exists(), name)
+        # the prewarm's keys, by their prefix: no file spells a removed key's name (schema_compat: a reader names it whole)
+        self.assertEqual([name for name in config_data.SPEC if name.startswith('deploy.prewarm_')], [])
+        self.assertEqual(list((ROOT / 'config/registry/deploy').glob('deploy.prewarm_*.json')), [])
+        from tower_infra import drills, http_port
+        self.assertEqual(drills.KINDS, ('lambda-rollback',))  # the runner-placement drill provoked the on-demand look
+        self.assertNotIn('/v1/deploy/measure', {pattern for _, pattern, _ in http_port.ROUTES})  # the prewarm's round
+
+    def test_the_origin_era_code_stays_in_the_tree(self):
+        for path in ('scripts/lib/forge_origin.py', 'scripts/deliver', 'scripts/train', 'scripts/service',
+                     'services/runner', 'services/control-plane'):
+            self.assertTrue((ROOT / path).exists(), path)
+
+
 class TheServicesStack(unittest.TestCase):
     """The forge's webhook keys were published to /tower/port/forge-keys for the webhook ingress, which PR #17 deleted:
     no task of the service is told the parameter, and the task role may no longer write it."""

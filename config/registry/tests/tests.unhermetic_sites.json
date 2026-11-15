@@ -14,7 +14,6 @@
     "scripts/tests/test_infra_sessions.py:wall_clock",
     "scripts/tests/test_infra_swap_db_load.py:wall_clock",
     "scripts/tests/test_infra_swap_failover.py:wall_clock",
-    "scripts/tests/test_infra_swap_measure.py:wall_clock",
     "scripts/tests/test_infra_swap_ready.py:wall_clock",
     "scripts/tests/test_infra_swap_reload.py:wall_clock",
     "scripts/tests/test_infra_swap_tick.py:wall_clock",

@@ -1,5 +1,4 @@
-"""DRILLS (the Torre, 13/11 ~16:20 BRT): a port Lambda's rollback rehearsed and Spot's placement failure of the runner
-provoked, by the port's ask and the live service's look. A fake Lambda client; the statements on PostgreSQL."""
+"""DRILLS (the Torre, 13/11 ~16:20 BRT): a port Lambda's rollback rehearsed, by the port's ask and the live service's look. A fake Lambda client; the statements on PostgreSQL."""
 import json
 import os
 from pathlib import Path
@@ -9,7 +8,7 @@ import unittest
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
-from tower_infra import drills, fastdeploy, http_port, ondemand, port  # noqa: E402
+from tower_infra import drills, fastdeploy, http_port, port  # noqa: E402
 
 URL = os.environ.get('TEST_DATABASE_URL', '')
 
@@ -36,9 +35,6 @@ class Lambda:
 
 
 class TheLambdaRollback(unittest.TestCase):
-    def test_the_placement_it_writes_is_the_one_the_on_demand_look_reads(self):
-        self.assertEqual((drills.PLACEMENT, drills.SERVICE), (ondemand.PLACEMENT, ondemand.SERVICE))
-
     def test_the_alias_goes_to_the_version_before_and_back_each_move_timed(self):
         lam = Lambda()
         said = drills.Drills(fastdeploy.FastDeploy(lam, None, None, sleep=lambda s: None)).lambda_rollback('tower-port-api')
@@ -53,7 +49,7 @@ class TheLambdaRollback(unittest.TestCase):
         self.assertEqual((lam.version, said['rollback_healthy'], said['forward_healthy'], said['ok']), ('151', False, True, False))
 
 
-@unittest.skipUnless(URL, 'TEST_DATABASE_URL: the asks, the look and the placement on PostgreSQL')
+@unittest.skipUnless(URL, 'TEST_DATABASE_URL: the asks and the look on PostgreSQL')
 class OnPostgres(unittest.TestCase):
     def setUp(self):
         from runner_world import RunnerWorld
@@ -77,37 +73,6 @@ class OnPostgres(unittest.TestCase):
         self.assertEqual((said['state'], said['kind'], said['ok'], said['previous']), ('done', 'lambda-rollback', True, '150'))
         refused = self.world.port('POST', '/v1/deploy/drills', 'torre', {'kind': 'reboot'})
         self.assertIn('kind is one of', json.dumps(refused))
-
-    def test_a_placement_asked_makes_the_on_demand_look_run_a_drill_and_stop_it_once_up(self):
-        asked = self.world.port('POST', '/v1/deploy/drills', 'torre', {'kind': 'runner-placement'})
-        self.assertEqual(drills.Drills(None).step(self.db), 1)
-
-        class Ecs:
-            ran, stopped = [], []
-
-            def run_task(self, **asked):
-                self.ran.append(asked)
-                return {'tasks': [{'taskArn': 'arn:task/od'}]}
-
-            def describe_tasks(self, cluster, tasks):
-                return {'tasks': [{'lastStatus': 'RUNNING', 'attachments': [{'details': [
-                    {'name': 'privateIPv4Address', 'value': '10.40.1.2'}]}]}]}
-
-            def stop_task(self, cluster, task, reason):
-                self.stopped.append(reason)
-        ecs = Ecs()
-        look = ondemand.OnDemand(ecs, 'tower', {'subnets': ['s']})
-        look.since = 0.0
-        self.assertEqual(look.step(self.db), 'started')
-        self.db.rows("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) values "
-                     "('up-od', null, 'platform.deploy.task_up', clock_timestamp(), 'runner', 'deploy', %(payload)s::jsonb)",
-                     {'payload': json.dumps({'role': 'runner', 'task': 'ip-10-40-1-2.example.internal'})})
-        self.assertEqual(look.step(self.db), 'stopped')
-        self.assertEqual(ecs.stopped, ['DRILLS: the drill is over'])
-        states = [json.loads(each)['state'] for each, in self.db.rows(
-            "select payload::text from log.event where type = 'platform.deploy.ondemand' order by occurred_at")]
-        self.assertEqual(states, ['started', 'stopped'])
-        self.assertEqual(self.world.port('GET', f"/v1/deploy/drills/{asked['id']}", 'torre')['state'], 'done')
 
 
 if __name__ == '__main__':

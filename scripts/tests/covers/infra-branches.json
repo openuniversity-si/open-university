@@ -5,7 +5,6 @@
     "scripts/tests/test_infra_branches.py",
     "scripts/tests/runner_world.py",
     "infra/service/tower_infra/branches.py",
-    "infra/service/tower_infra/pregate.py",
     "infra/service/tower_infra/container.py",
     "infra/service/tower_infra/http_port.py",
     "infra/service/tower_infra/canary.py",
