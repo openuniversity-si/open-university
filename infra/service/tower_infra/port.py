@@ -602,7 +602,6 @@ STANDBY_ROWS = 20  # IMAGE-PREWARM-B2: the standby transitions the deploy status
 # landing found no standby of its premerge's bundle (13/11 23:41:11 UTC; the swap by the order 13.97 s later)
 SUCCESSOR_ROWS = 200
 STACK_ROWS = 20  # ROLLOUT-PARTS: the app stacks' ends the deploy status keeps
-MEASURE_ROWS = 40  # SWAP-MEASURE: the measured rounds' steps the deploy status keeps (seven a round that ends well)
 SWAP_ROWS = 20  # IMAGE-PREWARM-C: the landings' image swaps (or why not) and the pointers' retirements the status keeps
 CANARY_ROWS = 20  # DEPLOY-CANARY: the canaries' verdicts the deploy status keeps
 ECS_ROWS = 20  # ECS-STOPS-READ: the stopped tasks and the services' actions the deploy status keeps
@@ -714,11 +713,6 @@ def deploy_status(db, who, landings=None):
             "select (jsonb_build_object('at', extract(epoch from occurred_at)::bigint) || payload)::text from log.event "
             "where type = 'platform.deploy.fast' and tenant_id is null and occurred_at > now() - interval '30 days' "
             "order by occurred_at desc limit %(limit)s", {'limit': swap_rows})]
-    # SWAP-MEASURE: the measured rounds' steps, platform.deploy.measure {round, drill, state, ...} (tenant_id null), newest first:
-    # where a round is and why one failed, which the swap's own rows do not say
-    measures = db.rows("select payload::text from log.event where type = 'platform.deploy.measure' and tenant_id is null "
-                       "and occurred_at > now() - interval '30 days' order by occurred_at desc limit %(limit)s",
-                       {'limit': MEASURE_ROWS})
     # IMAGE-PREWARM-C: platform.deploy.image_swap {head, swapped, digest, key, wrote_at, landed_s | why} (the autodeploy, at a
     # landing) and platform.deploy.image_retired {digest, by: handover|reconciled|revert, keys} (tenant_id null), newest first;
     # IMAGE-SWAP-FAILOVER: by failover {role, task, stale_s} (the ECS task's watchdog) and by handback {role, task} (SIGTERM)
@@ -798,7 +792,6 @@ def deploy_status(db, who, landings=None):
             # IMAGE-PREWARM-B2: each standby's transition ({role, digest, task, branch, state, at})
             'standby': [json.loads(row[0]) for row in standby or []],
             'successor': [json.loads(row[0]) for row in successors or []],  # IN-TASK-STANDBY
-            'measure': [json.loads(row[0]) for row in measures or []],  # SWAP-MEASURE
             'stacks': [json.loads(row[0]) for row in stacks or []],  # ROLLOUT-PARTS
             'image_swap': [json.loads(row[0]) for row in swaps or []],  # IMAGE-PREWARM-C
             'image_retired': [json.loads(row[0]) for row in retired or []],

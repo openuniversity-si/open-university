@@ -1117,7 +1117,6 @@ class Warm:
         # write, the runner 0.025 s). The signal's own read of the pointer already left the pool's newest connection warm
         self.primed, self.readied = primed, False
         self.told = False  # READY-BEFORE-LANDING: an in-task successor's {state: warm}, said once
-        self.said_heard = self  # SWAP-MEASURE: the reading whose rehearsal was said last (self: none yet)
         gate.warm = self
 
     def step(self, db):
@@ -1130,7 +1129,7 @@ class Warm:
         if mine.get('at') is not None and self.clock() - mine['at'] < WARM_S and mine.get('heard') == heard:
             return None
         mine['at'], mine['heard'] = self.clock(), heard
-        began, took, rehearsed = mine['at'], None, self  # rehearsed: the reading this pass rehearsed on (self: none)
+        began, took = mine['at'], None
         try:
             connection = getattr(getattr(db, 'ready', lambda: db)(), 'connection', None)
             if connection is None or not hasattr(connection, 'transaction'):
@@ -1150,7 +1149,6 @@ class Warm:
                 # log.event: 0.4 to 0.6 s in nearly every landing of 12/11
                 rehearse = mine.get('record', self) != heard
                 if rehearse:
-                    rehearsed = heard
                     mine['record'] = heard
                     gate = self.gate
                     arm = getattr(gate, 'arm', None)  # SWAP-DRILL: is this successor to end as it turns live
@@ -1192,8 +1190,6 @@ class Warm:
             tell, self.told = not self.told and getattr(self.gate, 'intask', False) is True, True
             job = ({'job_s': round(mine['job_first'], 3)} if 'job_first' in mine else
                    {'job_error': mine['job_error']} if 'job_error' in mine else {})
-        if rehearsed is not self and not tell:  # SWAP-MEASURE: a rehearsal after the first warm-up (that one says `warm`)
-            self.say_rehearsed(rehearsed, db)
         if tell:  # READY-BEFORE-LANDING: said once a process, after its first warm-up
             try:
                 gate = self.gate
@@ -1211,28 +1207,6 @@ class Warm:
             except Exception:  # noqa: BLE001 - the delivery then lands after its bounded wait
                 LOG.exception('live image: the %s successor did not say it is warm', self.gate.role)
         return took
-
-    def say_rehearsed(self, heard, db):
-        """SWAP-MEASURE: an in-task successor says, once a reading of the pointer, that the swap's record was rehearsed on
-        it and whether a drill armed it: platform.deploy.successor {state: rehearsed, armed}. The rehearsal's own
-        transaction is rolled back, so this is written after it, on the loop's connection. A measured round
-        (POST /v1/deploy/measure) swaps once both roles said it after its readiness notification: what the delivery's
-        merge gives a landing (the seconds between its readiness question and its swap) is then by the event."""
-        gate = self.gate
-        if not (getattr(gate, 'intask', False) is True and gate.strict):
-            return
-        with self.lock:
-            if self.said_heard == heard:
-                return
-            self.said_heard = heard
-        try:
-            gate.sent(UP, {'id': f'{SUCCESSOR}:{gate.role}:{gate.digest}:{gate.task}:rehearsed:{BORN}:{heard}',
-                           'producer': f'tower-{gate.role}', 'role': gate.role, 'payload': json.dumps({
-                               'role': gate.role, 'digest': gate.digest, 'task': gate.task, 'state': 'rehearsed',
-                               'armed': bool(getattr(gate, 'armed', False)), 'reads': heard})},
-                      db if hasattr(db, 'rows') else None)
-        except Exception:  # noqa: BLE001 - a measured round that hears nothing fails by its bound; a landing needs none
-            LOG.exception('live image: the %s successor did not say its rehearsal', gate.role)
 
     def said(self):
         with self.lock:

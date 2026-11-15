@@ -129,10 +129,7 @@ def build_all(root):
     return {function: build(root, function) for function in FUNCTIONS}
 
 
-SALT = 'MEASURE'  # SWAP-MEASURE: the file a measured round's bundle carries beside the code (tower_infra/MEASURE)
-
-
-def build_code(root, salt=None):
+def build_code(root):
     """IMAGE-PREWARM-B1: the code bundle a service/runner task boots from (tower_infra.code_bundle): what the Dockerfile copies
     that is not a heavy layer, i.e. the whole tower_infra package and infra/db/migrations, plus requirements.txt, which the
     boot compares with the image's (another one needs a new image). Same (zip, sha256, parts) as build()."""
@@ -141,8 +138,6 @@ def build_code(root, salt=None):
              if path.is_file() and '__pycache__' not in path.parts and path.suffix != '.pyc'}
     files.update({f'migrations/{path.name}': path for path in sorted((root / MIGRATIONS).iterdir()) if path.is_file()})
     files['requirements.txt'] = root / REQUIREMENTS
-    if salt:  # SWAP-MEASURE: the same code with a mark of the round: another digest, so a successor of it may stand by
-        files[f'{PACKAGE}/{SALT}'] = f'{salt}\n'.encode()
     return archive_of(files)
 
 
@@ -302,9 +297,9 @@ def publish(root, store, with_layer=True, run=subprocess.run):
     return keys
 
 
-def publish_code(root, store=None, salt=None):
+def publish_code(root, store=None):
     """IMAGE-PREWARM-B1: the code bundle's key, sha256 and size; uploaded once (the key names its content) with a store."""
-    data, digest, _ = build_code(root, salt)
+    data, digest, _ = build_code(root)
     found = {'key': code_key(digest), 'sha256': digest, 'bytes': len(data), 'uploaded': False}
     if store is not None and not store.exists(found['key']):
         store.put(found['key'], data)
@@ -312,17 +307,12 @@ def publish_code(root, store=None, salt=None):
     return found
 
 
-def gate_code(root, base, head, store=None, paths=None, salt=None):
+def gate_code(root, base, head, store=None, paths=None):
     """IMAGE-PREWARM-B2: the prewarm's job (scripts/gate-check artifact code, made by the live service on a unit branch's
     push). The head's diff from where it left the base (base...head) classified by deploy_classify.code_only; a code-only
     head gets its bundle built and, with a store, uploaded. Answers {code_only, why[, key, sha256, bytes, uploaded]}; the
     service reads it from the job's log tail (one JSON line, the last)."""
     import deploy_classify
-    if salt:  # SWAP-MEASURE: a measured round: the published head itself (base == head), its bundle with the round's mark
-        if base != head:
-            return {'code_only': False, 'why': 'a measured round is of the published head: base and head are one'}
-        return {'code_only': True, 'why': f'a measured round ({salt})', 'published': store is not None,
-                **publish_code(root, store, salt)}
     paths = changed(root, base, head, '...') if paths is None else paths
     ok, why = deploy_classify.code_only(paths)
     if not ok:
@@ -347,7 +337,6 @@ def main(argv):
     code_gate.add_argument('--base', required=True)
     code_gate.add_argument('--head', required=True)
     code_gate.add_argument('--root', default=str(ROOT))
-    code_gate.add_argument('--salt', default='', help="SWAP-MEASURE: a measured round's mark (base and head the same)")
     args = parser.parse_args(argv)
     bucket = os.environ.get('TOWER_ARTIFACT_BUCKET')
     store = open_store(bucket) if bucket else None
@@ -361,7 +350,7 @@ def main(argv):
     elif args.command == 'code':
         print(json.dumps(publish_code(args.root, store), sort_keys=True))
     elif args.command == 'code-gate':
-        print(json.dumps(gate_code(args.root, args.base, args.head, store, salt=args.salt or None), sort_keys=True))  # one line, the last
+        print(json.dumps(gate_code(args.root, args.base, args.head, store), sort_keys=True))  # one line, the last
     else:
         if store is None:
             parser.error('TOWER_ARTIFACT_BUCKET is not set')

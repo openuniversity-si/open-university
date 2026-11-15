@@ -388,8 +388,6 @@ def from_deploy_status(status, since=None):
     found = {**found, **({'image_landing_s': landed} if landed else {})}  # IMAGE-PREWARM-C: landing to pointer written
     ends = image_landing_to_live(status)
     found = {**found, **({'image_landing_to_live_s': ends} if ends else {})}  # IMAGE-SWAP-TIGHTEN: Daniel's 1 s
-    usd = prewarm_task_usd(status.get('standby') or [])
-    found = {**found, **({'prewarm_task_usd': usd} if usd else {})}
     backs = [each['rollback_ms'] for each in status.get('fast') or [] if isinstance(each, dict) and each.get('rolled_back')
              and each.get('rollback_ms') is not None]  # FAST-ROLLBACK-MS: the alias written back after a red swap
     found = {**found, **({'fast_rollback_ms': backs} if backs else {})}
@@ -582,15 +580,6 @@ def image_landing_to_live(status):
     return found
 
 
-def prewarm_task_usd(standby):
-    """IMAGE-PREWARM-C: US$ of each standby task that ended (platform.deploy.standby stopped or failed with started_at):
-    its seconds from started_at to that `at` times the hourly price of its role (registry medir.prewarm_<role>_usd_h)."""
-    price = {role: config.get(f'medir.prewarm_{role}_usd_h') for role in ('runner', 'service')}
-    return [round((each['at'] - each['started_at']) / 3600 * price[each['role']], 6) for each in standby
-            if isinstance(each, dict) and each.get('state') in ('stopped', 'failed') and each.get('role') in price
-            and isinstance(each.get('at'), (int, float)) and isinstance(each.get('started_at'), (int, float))]
-
-
 def at_of(value):
     """Epoch seconds of an ISO time of ECS's (or a number), None for none."""
     if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -725,7 +714,7 @@ def main(argv=None):
     ack = from_ingress(args.ingress_log) if args.ingress_log else None
     if ack:
         measures['ingress_ack_s'] = ack['ack_s']
-    answer = {name: summary(values, total=name.startswith('cost_') or name in ('deploy_cycle_usd', 'prewarm_task_usd'))
+    answer = {name: summary(values, total=name.startswith('cost_') or name == 'deploy_cycle_usd')
               for name, values in sorted(measures.items())}
     if url and token:
         answer['first_check_s'] = {**summary(measures.get('first_check_s', [])), 'max': max(measures.get('first_check_s', []),

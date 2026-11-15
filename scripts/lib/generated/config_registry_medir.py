@@ -4,8 +4,6 @@ from typing import Any, Literal, NotRequired, Required, TypedDict  # noqa: F401
 Name = Literal[
     'medir.landing_slack_s',
     'medir.log_page',
-    'medir.prewarm_runner_usd_h',
-    'medir.prewarm_service_usd_h',
     'medir.quantiles',
     'medir.shadow_prs',
     'medir.webhook_ack_limit_s',
@@ -14,8 +12,6 @@ Name = Literal[
 Values = TypedDict('Values', {
     'medir.landing_slack_s': float,
     'medir.log_page': int,
-    'medir.prewarm_runner_usd_h': float,
-    'medir.prewarm_service_usd_h': float,
     'medir.quantiles': list[float],
     'medir.shadow_prs': int,
     'medir.webhook_ack_limit_s': float,
