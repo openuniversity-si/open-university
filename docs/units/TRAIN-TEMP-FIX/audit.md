@@ -21,7 +21,7 @@ window 14:10:31Z–17:32:00Z `train/lock` holds **36 records = 18 take/release p
 (`git log refs/tt/lock --since=… --until=… | wc -l` → `36`).
 
 F3. **Every runner-VM run since 14:14 holds the lock for 2–4 seconds.** The take and release pairs on `train/lock`
-(take sha → release sha), all owned by `train@the-tower-runner.us-central1-a.c.savvy-bonito-286513.internal:<pid>`:
+(take sha → release sha), all owned by `train@<vm>:<pid>`:
 
 | take (UTC) | take sha | release (UTC) | release sha |
 |---|---|---|---|
