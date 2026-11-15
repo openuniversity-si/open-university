@@ -794,10 +794,14 @@ class WiringTests(unittest.TestCase):
         minutes = self.bootstrap['Resources']['DeployProject']['Properties']['TimeoutInMinutes']
         self.assertEqual(autodeploy.BUILD_MAX_S, minutes * 60)
 
-    def test_the_task_role_can_invoke_only_the_doorbell_and_read_only_the_two_deploy_parameters(self):
+    def test_the_task_role_can_invoke_only_the_doorbell_and_read_only_the_two_deploy_parameters(self):  # and put bundles
         policies = {each['PolicyName']: each['PolicyDocument']['Statement']
                     for each in self.stack['Resources']['TaskRole']['Properties']['Policies']}
-        invoke, read, fast, artifacts = policies['autodeploy']
+        invoke, read, fast, artifacts, put = policies['autodeploy']
+        # QUEUE-RELOAD: and put the code bundles it prepares, under artifacts/lambda/tower-code/ only
+        self.assertEqual((put['Effect'], put['Action']), ('Allow', 's3:PutObject'))
+        self.assertEqual(put['Resource']['Fn::Sub'],
+                         'arn:${AWS::Partition}:s3:::tower-outputs-${AWS::AccountId}-${AWS::Region}/artifacts/lambda/tower-code/*')
         self.assertEqual((invoke['Action'], read['Action']), ('lambda:InvokeFunction', 'ssm:GetParameter'))
         # DEP8: the pointer swap acts on exactly the three port functions (and their versions), nothing broader
         self.assertEqual(sorted(fast['Action']), sorted(['lambda:UpdateFunctionCode', 'lambda:PublishVersion', 'lambda:UpdateAlias',
