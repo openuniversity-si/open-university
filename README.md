@@ -18,8 +18,8 @@ Open University, the course site that lived in this repository, left the reposit
 | `config/registry/` | The configuration registry: one file per key, and each owner's generated aggregate |
 | `contracts/` | JSON contracts of events, units and the registry, and their generated types |
 | `units/` | The engine's unit manifests |
-| `services/runner/` | The Tower runner: gates new PR heads and runs the train |
-| `services/control-plane/` | The control plane, a Cloudflare Worker that owns the queue, the leases and the event log |
+| `services/runner/` | The Origin-era runner, kept in the tree and stopped (D-314); `services/runner/github/` stages the GitHub workflows |
+| `services/control-plane/` | The Origin-era control plane (a Cloudflare Worker), kept in the tree and not part of the GitHub flow |
 | `docs/` | Decisions, process, architecture, operations, and the units' records |
 
 ## Local setup
@@ -40,7 +40,7 @@ scripts/cloud/preflight          # names every gap and exits 2 when there is one
 | `scripts/test-suite` | The whole script suite |
 | `scripts/structure-check --base <ref>` | The structure check of a change |
 | `scripts/generate --check` | Every generated file is current |
-| `scripts/service status` | The gate and the train as services |
+| `scripts/deploy status` | The engine's deploy on AWS: the last build, `last-sha` and the live code |
 
 ## Workflow
 
