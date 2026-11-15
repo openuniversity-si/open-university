@@ -1,6 +1,7 @@
 """QUEUE-RELOAD (the Torre, 15/11/2026; Daniel's target of 09/11): a code-only merge is live about a second after it lands.
 
-1. (the merge_group job: its own commit)
+1. The merge_group job (scripts/lib/deploy.py queue) rings `prepare` at once, watches main and rings `landed` the moment
+   main is the queue's commit; a group that leaves the queue rings nothing more.
 2. The doorbell's word reaches the port as a direct invocation and becomes one platform.deploy.queue event that wakes the
    look (http_port.queue_state); anything else is ignored.
 3. prepare: the service fetches the repository, checks that the sha is the head of main or of a merge-queue branch,
@@ -24,6 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 from tower_infra import autodeploy, config_data, http_port, queue_deploy  # noqa: E402
+import deploy  # noqa: E402
 import lambda_package  # noqa: E402
 
 GIT_ENV = {**os.environ, 'GIT_AUTHOR_NAME': 't', 'GIT_AUTHOR_EMAIL': 't@t', 'GIT_COMMITTER_NAME': 't',
@@ -244,6 +246,47 @@ class Prepared(unittest.TestCase):
         self.assertEqual(made, [('s' * 40, 'd' * 64, 'k', None, {'roles': ['service'], 'by': 'queue'})])
         self.assertEqual(config_data.SPEC['deploy.queue_reload'], (bool, True))
         self.assertTrue(autodeploy.DEFAULTS['queue_reload'])
+
+
+class Watch(unittest.TestCase):
+    """deploy.py queue: the merge_group job's part."""
+
+    def run_queue(self, sequence):
+        rung, clock = [], [0.0]
+        heads = iter(sequence)
+
+        def opener(request, timeout=None):
+            rung.append(json.loads(request.data))
+
+            class Answer:
+                status = 202
+
+                def read(self):
+                    return b'{}'
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_):
+                    return False
+            return Answer()
+
+        def tick(seconds):
+            clock[0] += seconds
+        env = {'TOWER_DEPLOY_DOORBELL_URL': 'https://door', 'TOWER_DEPLOY_DOORBELL_TOKEN': 'x'}
+        code = deploy.queue('c' * 40, 'refs/heads/gh-readonly-queue/main/pr-1-x', env, opener=opener,
+                            heads=lambda: next(heads), clock=lambda: clock[0], sleep=tick, limit_s=60)
+        return code, [each['event'] for each in rung]
+
+    def test_it_rings_prepare_at_once_and_landed_when_main_is_the_commit(self):
+        ref = 'refs/heads/gh-readonly-queue/main/pr-1-x'
+        code, rung = self.run_queue([{'refs/heads/main': 'a' * 40, ref: 'c' * 40}, {},
+                                     {'refs/heads/main': 'c' * 40}])
+        self.assertEqual((code, rung), (0, ['prepare', 'landed']))
+
+    def test_a_group_that_leaves_the_queue_rings_nothing_more(self):
+        code, rung = self.run_queue([{'refs/heads/main': 'a' * 40}] * 200)
+        self.assertEqual((code, rung), (0, ['prepare']))
 
 
 if __name__ == '__main__':

@@ -255,7 +255,17 @@ class TheVerifier(unittest.TestCase):
         for line in ('  push:', '    branches: [main]', 'run: python3 scripts/lib/deploy.py ring',
                      '${{ secrets.TOWER_DEPLOY_DOORBELL_TOKEN }}', '  contents: read'):
             self.assertIn(line, staged)
-        self.assertNotIn('pull_request', staged)  # never a pull request's code: only what main merged
+        self.assertNotIn('pull_request', staged)  # never a pull request's code: only what main merged or the queue merges
+
+    def test_the_merge_queue_job_prepares_and_rings_at_the_merge_in_its_own_concurrency(self):
+        """QUEUE-RELOAD: the merge_group job rings prepare and landed (scripts/lib/deploy.py queue) and never shares the
+        push's concurrency group, which would hold or cancel the push's ring while it waits for its merge."""
+        staged = (ROOT / 'services' / 'runner' / 'github' / 'deploy-doorbell.yml').read_text(encoding='utf-8')
+        for line in ('  merge_group:', "if: github.event_name == 'merge_group'", "if: github.event_name == 'push'",
+                     'group: deploy-prepare-${{ github.ref }}', '      group: deploy-doorbell',
+                     'run: python3 scripts/lib/deploy.py queue --sha "${{ github.sha }}" --ref "${{ github.ref }}"'):
+            self.assertIn(line, staged)
+        self.assertNotIn('\nconcurrency:', staged)  # no workflow-wide group
 
     def test_all_judges_every_script_test_of_the_checkout(self):
         """FULL-SUITE-MAIN: the safety net after a merge judges the whole suite, not the diff's tests."""
