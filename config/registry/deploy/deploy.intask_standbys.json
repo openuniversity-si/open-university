@@ -6,8 +6,7 @@
   "x-unit": "processes",
   "description": "IN-TASK-STANDBY (docs/operations/aws.md 22.9): how many successor processes the ECS task of each role holds at once, one per code bundle of an authoring head: the standby the landing swaps onto, inside the task (tower_infra.supervisor), at no cost of its own. 0 (the default) is off: the standbys are the Fargate Spot tasks of deploy.prewarm_max_tasks and a swap is followed by a reload in place. 1: each task holds one successor; the landing promotes it by the pointer and it keeps the role (the previous process finishes what it has in flight and exits). The maximum is 1 while the service task has 512 MiB: a second successor is ~120 MiB and ~8 database connections more in each service task, which does not fit beside a process that is still finishing.",
   "x-readers": [
-    "infra/service/tower_infra/live_image.py",
-    "infra/service/tower_infra/prewarm.py"
+    "infra/service/tower_infra/live_image.py"
   ],
   "x-source": "IN-TASK-STANDBY"
 }

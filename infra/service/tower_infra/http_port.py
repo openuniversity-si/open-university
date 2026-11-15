@@ -26,10 +26,9 @@ Routes (the bearer token names the caller; a tenant sees only its own):
                                          ?landings=N                        STATUS-LANDINGS: with the swaps of its newest N landings (10 with none)
   GET  /v1/deploy/ready/{sha256}                                            READY-BY-BEATS: the roles whose standby of the bundle beats now
   POST /v1/deploy/drill                  {digest, role}                     SWAP-DRILL: that bundle's successor of the role ends as it turns live
-  POST /v1/deploy/measure                {drill}                            SWAP-MEASURE: one round of the image swap, by command
   POST /v1/check-run                     {repo, headSha, checkSuite, checkRun}  CHECK-RUN-AWS: tower/gate, posted by the service
   GET  /v1/check-run/<id>                                                   CHECK-RUN-AWS: its newest state
-  POST /v1/deploy/drills                 {kind[, function]}                 DRILLS: a drill of the live service (lambda-rollback, runner-placement)
+  POST /v1/deploy/drills                 {kind[, function]}                 DRILLS: a drill of the live service (lambda-rollback)
   GET  /v1/deploy/drills/<id>                                                DRILLS: its newest state
   POST /v1/deploy/canary                 {key[, commit]}                    DEPLOY-CANARY: one job through dispatch, take and run; the installation
   GET  /v1/deploy/canary/{id}            ?wait_s=N                          its state, seconds and verdict; a long poll until it has one
@@ -95,7 +94,6 @@ ROUTES = [
      lambda db, who, body, digest: port.deploy_ready(db, who, digest)),
     ('POST', r'/v1/deploy/canary', lambda db, who, body: canary.start(db, who, body)),  # DEPLOY-CANARY
     ('POST', r'/v1/deploy/drill', lambda db, who, body: canary.drill(db, who, body)),  # SWAP-DRILL
-    ('POST', r'/v1/deploy/measure', lambda db, who, body: canary.measure(db, who, body)),  # SWAP-MEASURE
     ('POST', r'/v1/check-run', lambda db, who, body: checks.ask(db, who, body)),  # CHECK-RUN-AWS
     ('GET', r'/v1/check-run/(?P<ident>[0-9]{1,24})', lambda db, who, body, ident: checks.state(db, who, ident)),
     ('POST', r'/v1/pr-observation', lambda db, who, body: observations.ask(db, who, body)),  # PR-OBSERVATION

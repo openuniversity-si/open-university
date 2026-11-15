@@ -773,11 +773,8 @@ class WiringTests(unittest.TestCase):
             if path.stem == 'deploy.live_code':  # SLOW-PATH-NO-ROLLOUT-WAIT: a datum the look writes and the boot reads
                 self.assertEqual(entry['x-readers'], ['infra/service/tower_infra/autodeploy.py', 'infra/service/tower_infra/code_bundle.py'])
                 continue
-            if path.stem == 'deploy.prewarm_max_tasks':  # IMAGE-PREWARM-B2: the prewarm's cap, not a knob of the look
-                self.assertEqual(entry['x-readers'], ['infra/service/tower_infra/prewarm.py'])
-                continue
-            if path.stem == 'deploy.intask_standbys':  # IN-TASK-STANDBY: the successors a task holds: the gate's, said by the prewarm
-                self.assertEqual(entry['x-readers'], ['infra/service/tower_infra/live_image.py', 'infra/service/tower_infra/prewarm.py'])
+            if path.stem == 'deploy.intask_standbys':  # IN-TASK-STANDBY: the successors a task holds (GATE-LOOKS-GONE: no prewarm)
+                self.assertEqual(entry['x-readers'], ['infra/service/tower_infra/live_image.py'])
                 continue
             # IMAGE-SWAP-TIGHTEN: the landing's freshness is the port's; IMAGE-SWAP-FAILOVER: the stale window is the gate's
             other = {'deploy.standby_fresh_s': 'port.py', 'deploy.live_stale_s': 'live_image.py',

@@ -59,10 +59,13 @@ WARM_EVENT = ("insert into log.event (event_id, tenant_id, type, occurred_at, pr
 UP_EVENT = ("with said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
             "values (%(id)s, null, 'platform.deploy.task_up', clock_timestamp(), %(producer)s, 'deploy/task', %(payload)s::jsonb) "
             "returning type) select pg_notify('tower_deploy', type) from said")
-# GATE-SHUTDOWN (14/11/2026, D-314; PR #17 stopped the AWS gate): the looks serve() starts, by module. The gate's own
-# (they served the AWS gate on Origin: its standbys, its runner, its check runs, its PR reads, its merges and its full
-# runs) start only when service.gate_looks is true; the kept ones serve the deploy, the port and the account's hygiene
-GATE_LOOKS = ('prewarm', 'ondemand', 'checks', 'observations', 'merge_ready', 'pregate', 'fullrun', 'branches')
+# GATE-SHUTDOWN (14/11/2026, D-314; PR #17 stopped the AWS gate): the looks serve() starts, by module. The Origin
+# forge's own (its check runs, its PR reads, its branch merges: dormant on purpose with the Origin-era code, D-316) start
+# only when service.gate_looks is true; the kept ones serve the deploy, the port and the account's hygiene.
+# GATE-LOOKS-GONE (Daniel through the Torre, 15/11/2026, D-316): the AWS gate's own looks (prewarm, ondemand,
+# merge_ready, pregate, fullrun: its Spot standbys, its runner on demand, the train's merge ahead, the pre-gate, the
+# base's full run) left the tree
+GATE_LOOKS = ('checks', 'observations', 'branches')
 KEPT_LOOKS = ('autodeploy', 'drill_look', 'prune')
 
 
@@ -366,7 +369,7 @@ def serve():
     # pool gives the new process the connections the lost one left; at 12/11 22:21 UTC it took 7 and logged in twice)
     late_listen = gate is not None and gate.strict and intask and gate.live is True
     hub = wake.Hub(lambda: connection(database, where, user, password, purpose='listen', **wake.KEEPALIVE),
-                   (wake.WORK, wake.CONFIG, wake.DEPLOY, wake.TRAIN), later=late_listen)  # TRAIN: MERGE-READY's look
+                   (wake.WORK, wake.CONFIG, wake.DEPLOY, wake.TRAIN), later=late_listen)  # TRAIN: MERGE-READY's look, gone (D-316)
     woken = hub.wake(wake.WORK)
     stop = threading.Event()
     # IMAGE-SWAP-FAILOVER: a promoted standby that is stopped (Spot's warning, a StopTask) hands its pointer back first
@@ -428,16 +431,6 @@ def serve():
     live_image.lowly(prune.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
                                  active=None if gate is None else gate.after_work(gate.sole)))
     if gate_looks:  # GATE-SHUTDOWN: the AWS gate's looks (GATE_LOOKS), kept whole behind service.gate_looks
-        # IMAGE-PREWARM-B2: a unit branch's push and its bundle job's end (tower_work) wake the look; only the live service
-        from . import prewarm as standbys  # not `prewarm`: the module's prewarm() of the runner
-        # IMAGE-PREWARM-C: not while sharing; IMAGE-SWAP-SERVICE-READY: after the first work; IMAGE-SWAP-RELOAD: gate, as above
-        live_image.lowly(standbys.start(workflows.connected, stop, hub.wake((wake.DEPLOY, wake.WORK)).wait, config=settings,
-                                        gate=gate, active=None if gate is None else gate.after_work(gate.sole)))  # SWAP-CPU
-        # RUNNER-ON-DEMAND: while Spot cannot place the runner (ECS's placement failure), one on Fargate on demand, stopped
-        # once Spot's runner is up again; the live service's alone
-        from . import ondemand
-        live_image.lowly(ondemand.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
-                                        active=None if gate is None else gate.after_work(gate.sole)))
         # CHECK-RUN-AWS: the gate's tower/gate check run, asked at the port, posted by the live service with the Origin app's key
         live_image.lowly(checks.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
                                       active=None if gate is None else gate.after_work(gate.sole), poster=poster))
@@ -445,19 +438,6 @@ def serve():
         from . import observations
         live_image.lowly(observations.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait, origin_forge,
                                             active=None if gate is None else gate.after_work(gate.sole)))
-        # MERGE-READY (criterion 2): the train front's merge started ahead, at its join, and released by its landing. Not
-        # lowly: the merge's process takes this thread's priority (a nice raised is never lowered back without privilege)
-        from . import merge_ready
-        merge_ready.start(workflows.connected, stop, hub.wake(wake.TRAIN).wait, origin_forge,
-                          active=None if gate is None else gate.after_work(gate.sole))
-        # PRE-GATE: at each push of a unit branch, its gate's plan and checks run on the runner while the PR is authored
-        from . import pregate
-        live_image.lowly(pregate.start(workflows.connected, stop, hub.wake((wake.DEPLOY, wake.WORK)).wait,
-                                       active=None if gate is None else gate.after_work(gate.sole)))
-        # FULL-RUN (revisão da arquitetura, achado 29): at each landing the base's whole battery, no cache, below the gates
-        from . import fullrun
-        live_image.lowly(fullrun.start(workflows.connected, stop, hub.wake((wake.DEPLOY, wake.WORK)).wait,
-                                       active=None if gate is None else gate.after_work(gate.sole)))
         # BRANCH-MERGE: the base merged into a unit's branch and pushed by the live service, in a clone of its own, with the key
         from . import branches
         live_image.lowly(branches.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait, container.Container(

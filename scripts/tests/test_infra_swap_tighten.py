@@ -26,7 +26,7 @@ sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 from tower_infra import autodeploy, config_data, live_image, port, runner  # noqa: E402
 import medir  # noqa: E402
-from test_infra_prewarm import said  # noqa: E402
+from test_infra_image_swap import said  # noqa: E402
 
 URL = os.environ.get('TEST_DATABASE_URL', '')
 BASE, MERGE, PR_HEAD, NEXT, NEXT_HEAD = 'b' * 40, '9' * 40, '8' * 40, '6' * 40, '5' * 40

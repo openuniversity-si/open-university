@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 from infra_db.psql import PLACEHOLDER, literal, migrated  # noqa: E402
 import test_db  # noqa: E402
-from tower_infra import autodeploy, canary, config_data, forge_webhooks, http_port, live_image, mechanisms, port, prewarm, queue_deploy, runner  # noqa: E402
+from tower_infra import autodeploy, canary, config_data, forge_webhooks, http_port, live_image, mechanisms, port, queue_deploy, runner  # noqa: E402
 
 URL = os.environ.get('TEST_DATABASE_URL', '')
 MIGRATION = ROOT / 'infra/db/migrations/0015_swap_indexes.sql'
@@ -65,10 +65,6 @@ SWAP_MOMENT = [
     ('autodeploy.STANDBYS', autodeploy.STANDBYS, {'digest': DIGEST}),
     ('autodeploy.NEWEST_SWAP', autodeploy.NEWEST_SWAP, {}),
     ('autodeploy.LIVE_SEEN', autodeploy.LIVE_SEEN, {'digest': DIGEST, 'since': time.time() - 120}),
-    ('prewarm.PROMOTED', prewarm.PROMOTED, {'sha': DIGEST}),
-    ('prewarm.EVENTS', prewarm.EVENTS, {'since': time.time() - 3600}),
-    ('prewarm.KNOWN', prewarm.KNOWN, {}),
-    ('prewarm.RECORD', prewarm.RECORD, {'id': 'platform.deploy.standby:t', 'role': 'runner', 'payload': '{}'}),
     ('live_image.LIVE', live_image.LIVE, {
         'id': 'platform.deploy.image_live:t', 'producer': 'runner', 'role': 'runner', 'digest': DIGEST, 'task': 't',
         'parts': '{}', 'tenant': 'torre', 'key': live_image.KEYS['runner'], 'version': 1}),
@@ -128,7 +124,7 @@ SWAP_MOMENT = [
     ('queue_deploy.ADOPTED', queue_deploy.ADOPTED, {}),
 ]
 # the idempotency checks by event_id: the primary key leads with occurred_at, so reaching them by it reads the whole index
-BY_ID = ('port.LANDED_SWAP', 'port.LANDED_ONLY', 'autodeploy.OBSERVE', 'autodeploy.SWAP_OF', 'prewarm.RECORD',
+BY_ID = ('port.LANDED_SWAP', 'port.LANDED_ONLY', 'autodeploy.OBSERVE', 'autodeploy.SWAP_OF',
          'live_image.LIVE', 'config_data.OBSERVE', 'http_port.BUILD_ENDED', 'live_image.RELOAD_OF', 'live_image.RELOAD_SAY',
          'canary.READ', 'canary.SETTLE', 'autodeploy.ORDER', 'autodeploy.ORDER_DONE', 'live_image.ORDER_START',
          'live_image.ORDER_SAY', 'http_port.BUILD_STARTED', 'queue_deploy.WANT', 'queue_deploy.SWAP')

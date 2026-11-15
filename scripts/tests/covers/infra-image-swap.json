@@ -5,7 +5,6 @@
     "scripts/tests/test_infra_image_swap.py",
     "infra/service/tower_infra/autodeploy.py",
     "infra/service/tower_infra/live_image.py",
-    "infra/service/tower_infra/prewarm.py",
     "infra/service/tower_infra/__main__.py",
     "infra/service/tower_infra/config_data.py",
     "infra/service/tower_infra/port.py",
@@ -26,7 +25,6 @@
     "infra/service/tower_infra/http_port.py",
     "infra/service/tower_infra/mechanisms.py",
     "infra/service/tower_infra/runner.py",
-    "scripts/tests/test_infra_prewarm.py",
     "scripts/tests/runner_world.py"
   ]
 }

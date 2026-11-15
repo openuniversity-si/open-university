@@ -24,11 +24,9 @@
     "scripts/tests/runner_world.py",
     "infra/service/tower_infra/container.py",
     "infra/service/tower_infra/forge.py",
-    "infra/service/tower_infra/prewarm.py",
     "infra/service/tower_infra/wake.py",
     "scripts/tests/test_infra_aws.py",
     "scripts/tests/test_infra_code_bundle.py",
-    "scripts/tests/test_infra_prewarm.py",
     "scripts/tests/test_infra_swap_tighten.py"
   ]
 }

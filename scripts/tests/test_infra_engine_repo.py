@@ -8,7 +8,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
-from tower_infra import config_data, engine, fullrun, merge_ready, observations, pregate, prewarm  # noqa: E402
+from tower_infra import config_data, engine, observations  # noqa: E402
 
 OTHER = 'some-owner/some-repo'
 
@@ -48,11 +48,7 @@ class TheRepository(unittest.TestCase):
 
     def test_the_looks_follow_it_unless_one_is_given(self):
         engine.use(Settings(OTHER))
-        looks = [pregate.Pregate(), fullrun.FullRun(create=lambda *a: None, cancel=lambda *a: None),
-                 merge_ready.Look(object()), observations.Observer(object())]
-        self.assertEqual({look.repo for look in looks}, {OTHER})
-        self.assertEqual(pregate.Pregate(repo='given/one').repo, 'given/one')
-        self.assertEqual(prewarm.Prewarm.repo.fget(type('P', (), {'_repo': None})()), OTHER)
+        self.assertEqual(observations.Observer(object()).repo, OTHER)  # GATE-LOOKS-GONE: the gate's own looks left
 
     def test_no_look_reads_a_hard_coded_repository_any_more(self):
         service = ROOT / 'infra' / 'service' / 'tower_infra'
