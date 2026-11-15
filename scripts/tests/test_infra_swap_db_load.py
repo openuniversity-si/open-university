@@ -42,12 +42,6 @@ def since(days):
 # every statement on the swap's moment: (name, sql, params); the dispatcher's functions by the loops they run
 SWAP_MOMENT = [
     ('port.BASE_HEAD', port.BASE_HEAD, {'refs': REF, 'ref': 'refs/heads/mod/roadmap-integration', 'merge': 'x' * 40}),
-    ('port.DECIDE', port.DECIDE, {'tenant': 'torre', 'keys': ','.join(port.SWAP_KEYS), 'base': 'mod/roadmap-integration',
-                                  'merge': 'x' * 40, 'key': 'prewarm:code:' + 'p' * 40}),  # LANDING-ONE-READ
-    ('port.LANDED_SWAP', port.LANDED_SWAP, {
-        'id': 'platform.deploy.landed:t', 'digest': DIGEST, 'fresh_s': 3, 'keys': ','.join(live_image.KEYS.values()),
-        'reason': 't', 'config_tenant': 'torre', 'tenant': None, 'payload': '{}', 'why': '',
-        'swap_id': 'platform.deploy.image_swap:t', 'swap': '{}'}),
     ('port.LANDED_ONLY', port.LANDED_ONLY, {'id': 'platform.deploy.landed:t', 'tenant': None, 'payload': '{}'}),
     ('status.observed', "select payload::text from log.event where type = 'platform.deploy.observed' and "
      "(tenant_id is null or tenant_id = %(tenant)s::uuid) and occurred_at > now() - interval '400 days' "
@@ -61,8 +55,6 @@ SWAP_MOMENT = [
     ('autodeploy.LANDINGS', autodeploy.LANDINGS, {'since': since(7)}),
     ('autodeploy.LEDGER', autodeploy.LEDGER, {'since': since(30)}),
     ('autodeploy.OBSERVE', autodeploy.OBSERVE, {'id': 'platform.deploy.observed:t', 'payload': '{}'}),
-    ('autodeploy.SWAP_OF', autodeploy.SWAP_OF, {'id': 'platform.deploy.image_swap:t'}),
-    ('autodeploy.STANDBYS', autodeploy.STANDBYS, {'digest': DIGEST}),
     ('autodeploy.NEWEST_SWAP', autodeploy.NEWEST_SWAP, {}),
     ('autodeploy.LIVE_SEEN', autodeploy.LIVE_SEEN, {'digest': DIGEST, 'since': time.time() - 120}),
     ('live_image.LIVE', live_image.LIVE, {
@@ -124,7 +116,7 @@ SWAP_MOMENT = [
     ('queue_deploy.ADOPTED', queue_deploy.ADOPTED, {}),
 ]
 # the idempotency checks by event_id: the primary key leads with occurred_at, so reaching them by it reads the whole index
-BY_ID = ('port.LANDED_SWAP', 'port.LANDED_ONLY', 'autodeploy.OBSERVE', 'autodeploy.SWAP_OF',
+BY_ID = ('port.LANDED_ONLY', 'autodeploy.OBSERVE',
          'live_image.LIVE', 'config_data.OBSERVE', 'http_port.BUILD_ENDED', 'live_image.RELOAD_OF', 'live_image.RELOAD_SAY',
          'canary.READ', 'canary.SETTLE', 'autodeploy.ORDER', 'autodeploy.ORDER_DONE', 'live_image.ORDER_START',
          'live_image.ORDER_SAY', 'http_port.BUILD_STARTED', 'queue_deploy.WANT', 'queue_deploy.SWAP')

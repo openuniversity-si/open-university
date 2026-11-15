@@ -2,9 +2,9 @@
 
 The image-only swap needs both roles' Spot standbys beating at the landing; without them the landed bundle went to the slow
 path's two ECS rollouts (minutes). Here the ECS tasks load it in place, one role at a time, with no standby to fall back on:
-1. The order: the autodeploy's look records platform.deploy.image_reload {state: ordered} for a landing whose code is a
-   verified bundle and whose pair is missing (never with a pair, with deploy.promote false or with no bundle), one order at
-   a time, and holds that head's ring while the tasks reload.
+1. The order: the autodeploy's look records platform.deploy.image_reload {state: ordered}, one order at a time, and holds
+   that head's ring while the tasks reload (LANDING-PREWARM-GONE, D-316: the merge queue and the build make it; the
+   landing that found no standby of the prewarm's bundle left with the prewarm).
 2. The runner first: it stages the bundle, takes no new run while the ones in flight end, claims and execs; then the
    service, which goes on dispatching until the pass that finds nothing in flight.
 3. The judge is never the process under test: the service (on the code it had) fires and reads the runner's canary, the
@@ -354,70 +354,40 @@ def answered(events=(), refused=False, age=5.0, jobs=None, head=MERGE):
 
 
 class TheLooksOrder(image_swap.World):
+    """LANDING-PREWARM-GONE (D-316): the order no longer comes from a landing that found no standby of the prewarm's
+    bundle (autodeploy.promote left with the prewarm); the queue and the build make it (order()), and this is its life."""
+
     def setUp(self):
         super().setUp()
         self.db = Db()
         self.watcher.landed_at[MERGE] = self.now[0] - 1
 
-    def test_a_code_only_landing_with_no_pair_is_ordered_to_the_ecs_tasks(self):
-        self.db.standbys = []
+    def ordered(self):
+        return self.watcher.order(self.db, MERGE, S, KEY, PR_HEAD)
+
+    def test_an_order_goes_to_the_ecs_tasks_runner_first_and_once(self):
         with self.assertLogs('tower_infra.autodeploy', 'INFO') as logs:
-            self.land()
-        [swap] = self.db.swaps()
-        self.assertEqual((swap['swapped'], self.db.pointer), (False, {}))  # no swap, said as before
-        self.assertIn('no healthy runner or service standby', swap['why'])
+            self.ordered()
+        self.assertEqual((self.db.pointer, self.db.swaps()), ({}, []))  # an order writes no pointer
         self.assertEqual(self.db.asked, [ORDER])
         self.assertIn('ordered: the ECS tasks load aaaaaaaaaaaa in place, the runner first', '\n'.join(logs.output))
         self.assertEqual(self.watcher.reload, MERGE)
-        self.watcher.promote(self.db, self.heads, image_swap.CFG)  # the same landing again: nothing
-        self.assertEqual(len(self.db.asked), 1)
-
-    def test_a_pair_present_swaps_as_today_and_orders_nothing(self):
-        with self.assertLogs('tower_infra.autodeploy', 'INFO'):
-            self.land()
-        self.assertEqual((self.db.pointer, self.db.asked, self.watcher.reload), ({key: S for key in image_swap.KEYS}, [], None))
-        self.watcher.reloads(self.db, self.heads)  # and the look follows nothing: no statement
-        self.assertEqual(self.db.asked, [])
-
-    def test_with_promote_false_or_no_bundle_it_is_the_slow_path_as_today(self):
-        for given in ({'cfg': {'promote': False}}, {'job': []}, {'event': image_swap.landed(bundle_same=False)},
-                      {'heads': [LATER, MERGE]}, {'event': image_swap.landed(code_only=False)}):
-            self.setUp()
-            self.db.standbys = []
-            if 'job' in given:
-                self.db.job = given['job']
-            self.land(given.get('event'), given.get('cfg', image_swap.CFG), given.get('heads'))
-            self.assertEqual((self.db.asked, self.db.pointer, self.watcher.reload), ([], {}, None), given)
-
-    def test_one_order_at_a_time_and_the_newest_head_after_the_one_in_flight_settles(self):
-        self.db.standbys, self.db.busy = [], 'c' * 40
+    def test_one_order_at_a_time(self):
+        self.db.busy = 'c' * 40
         with self.assertLogs('tower_infra.autodeploy', 'INFO') as logs:
-            self.land()
-        self.assertIn('is not settled: this one waits', '\n'.join(logs.output))
-        self.assertEqual((self.watcher.reload, self.watcher.waiting), (None, (MERGE, S, KEY, PR_HEAD)))
-        self.assertRegex(self.watcher.reloading(MERGE, self.now[0]), '^reloading: ')  # its ring waits for it too
-        self.watcher.reloads(self.db, self.heads)  # still not settled: asked again, waits again
-        self.assertEqual((len(self.db.asked), self.watcher.waiting[0]), (2, MERGE))
-        self.db.busy = None
-        with self.assertLogs('tower_infra.autodeploy', 'INFO'):
-            self.watcher.reloads(self.db, self.heads)  # settled: ordered now
-        self.assertEqual((self.watcher.reload, self.watcher.waiting, len(self.db.asked)), (MERGE, None, 3))
-        self.setUp()
-        self.db.standbys, self.db.busy = [], 'c' * 40
-        self.land()
-        self.watcher.reloads(self.db, [*self.heads, LATER])  # another landing on top: this one is never ordered
-        self.assertEqual((self.watcher.waiting, len(self.db.asked)), (None, 1))
-
+            self.assertEqual(self.ordered(), (False, 'c' * 40, False))
+        self.assertIn('is not settled: this one is not made', '\n'.join(logs.output))
+        self.assertIsNone(self.watcher.reload)  # nothing waits: the queue and the build each say their own (declined)
+        self.assertIsNone(self.watcher.reloading(MERGE, self.now[0]))
     def test_a_bundle_a_reload_failed_on_is_not_ordered_again(self):
-        self.db.standbys, self.db.bad = [], True
+        self.db.bad = True
         with self.assertLogs('tower_infra.autodeploy', 'INFO') as logs:
-            self.land()
+            self.ordered()
         self.assertIn('not ordered: a reload onto aaaaaaaaaaaa failed', '\n'.join(logs.output))
-        self.assertEqual((self.watcher.reload, self.watcher.waiting, self.watcher.reloading(MERGE, self.now[0])), (None, None, None))
+        self.assertEqual((self.watcher.reload, self.watcher.reloading(MERGE, self.now[0])), (None, None))
 
     def test_the_ring_of_the_head_waits_for_the_reload_and_never_past_the_limit(self):
-        self.db.standbys = []
-        self.land()
+        self.ordered()
         why = self.watcher.reloading(MERGE, self.now[0])
         self.assertEqual(why, f'reloading: the ECS tasks are loading the code of {MERGE[:12]} in place; the build is rung when '
                               'both are proven or one fails, in 299 s at most')
@@ -467,8 +437,7 @@ class TheLooksOrder(image_swap.World):
         self.assertIsNone(none.watcher.taking_over(none.db, LATER, looks.T0))
 
     def test_both_roles_proven_is_the_orders_end_and_the_live_code_of_the_newest_head(self):
-        self.db.standbys = []
-        self.land()
+        self.ordered()
         self.db.order = answered(reloaded('runner') + [proven('runner')])
         self.watcher.reloads(self.db, self.heads)
         self.assertEqual((self.watcher.reload, [each for each in self.db.asked if isinstance(each, dict) and 'newest' in each]),
@@ -483,33 +452,24 @@ class TheLooksOrder(image_swap.World):
                       '\n'.join(logs.output))
         self.assertEqual((self.watcher.reload, self.watcher.reloading(MERGE, self.now[0])), (None, None))  # the build is rung
         self.setUp()
-        self.db.standbys = []
-        self.land()
+        self.ordered()
         self.db.order = answered([proven('runner'), proven('service')])
         self.watcher.reloads(self.db, [*self.heads, LATER])  # another landing on top: done, and the datum is not this head's
         self.assertIs(self.db.asked[-1]['newest'], False)
 
-    def test_a_failed_reload_or_another_order_ends_the_wait_and_a_service_that_starts_mid_way_follows_the_order(self):
-        self.db.standbys = []
-        self.land()
+    def test_a_failed_reload_or_another_order_ends_the_wait(self):
+        self.ordered()
         self.db.order = answered(refused=True)
         self.watcher.reloads(self.db, self.heads)
         self.assertEqual((self.watcher.reload, self.watcher.reloading(MERGE, self.now[0])), (None, None))  # the slow path
         self.setUp()
-        self.db.idents.add(f'{autodeploy.SWAP}:{MERGE}')  # the service before this one said why it did not swap
-        self.land()
-        self.assertEqual((self.watcher.reload, self.db.asked), (MERGE, []))
+        self.ordered()
         self.db.order = answered(head=LATER)
         self.watcher.reloads(self.db, self.heads)  # no order of this head: nothing to follow
         self.assertIsNone(self.watcher.reload)
-        self.setUp()
-        self.db.idents.add(f'{autodeploy.SWAP}:{MERGE}')
-        self.land({**image_swap.landed(), 'swap': {'swapped': True}})  # the landing swapped: not even a read
-        self.assertIsNone(self.watcher.reload)
 
     def test_the_canaries_verdicts_are_recorded_by_the_look_once_each(self):
-        self.db.standbys = []
-        self.land()
+        self.ordered()
         asked = []
 
         def settle(db, tenant, key, said=None, fire=False, publish=None, **_):
@@ -1001,7 +961,7 @@ class OnPostgres(unittest.TestCase):
         self.assertEqual(self.said('failed')[0]['why'], 'ecs-runner did not come up on it within 0.2 s of its reload')
         self.assertEqual((self.take(self.runner), len(self.bundle.execed), self.runner.gate.reloading), ((None, None), 1, False))
 
-    def test_the_claim_is_refused_under_a_pointer_and_one_order_waits_for_the_other(self):
+    def test_the_claim_is_refused_under_a_pointer_and_one_order_at_a_time(self):
         self.ordered()
         self.db.rows(autodeploy.SWAP_WRITE, {  # a later landing swapped; this task has not read the pointer yet
             'tenant': 'torre', 'digest': 'b' * 64, 'keys': ','.join(sorted(live_image.KEYS.values())), 'reason': 'test',
@@ -1009,9 +969,9 @@ class OnPostgres(unittest.TestCase):
         self.assertIsNone(self.look(self.runner))
         self.assertEqual((self.bundle.execed, self.states(), self.runner.gate.reloading), ([], [(None, 'ordered')], False))
         with self.assertLogs('tower_infra.autodeploy', 'INFO') as logs:
-            self.watcher.order(self.db, LATER, 'c' * 64, 'k', PR_HEAD)  # the first order is not settled: this one waits
-        self.assertIn(f'the order of {MERGE[:12]} is not settled: this one waits', '\n'.join(logs.output))
-        self.assertEqual((self.watcher.waiting[0], len(self.said('ordered'))), (LATER, 1))
+            self.watcher.order(self.db, LATER, 'c' * 64, 'k', PR_HEAD)  # the first order is not settled: not made
+        self.assertIn(f'the order of {MERGE[:12]} is not settled: this one is not made', '\n'.join(logs.output))
+        self.assertEqual((self.watcher.reload, len(self.said('ordered'))), (MERGE, 1))  # LANDING-PREWARM-GONE: none waits
         self.watcher.order(self.db, MERGE, S, KEY, PR_HEAD)  # the same landing again: the order it has
         self.assertEqual((self.watcher.reload, len(self.said('ordered'))), (MERGE, 1))
 

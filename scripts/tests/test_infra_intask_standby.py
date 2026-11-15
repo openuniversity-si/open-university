@@ -945,9 +945,6 @@ class OnPostgres(unittest.TestCase):
                      "('push:1', %(tenant)s::uuid, 'forge.repository.pushed', clock_timestamp() - interval '1 minute', "
                      "'forge/origin', 'app/origin', %(payload)s::jsonb)",
                      {'tenant': self.tenant, 'payload': json.dumps({'delivery': {'event': {'payload': push}}})})
-        job = self.world.job(f'prewarm:code:{PR_HEAD}', 'true')  # the PR head's bundle job: the bundle S
-        self.db.rows("update work.job set state = 'succeeded', result = %(result)s::jsonb where id = %(id)s::uuid",
-                     {'id': job, 'result': tighten.said(S)})
         self.db.rows("insert into work.config_value (tenant_id, key, value, actor, reason) "
                      "values (%(tenant)s::uuid, 'deploy.intask_standbys', '1'::jsonb, 'test', 'IN-TASK-STANDBY: on')",
                      {'tenant': self.tenant})
@@ -1039,6 +1036,16 @@ class OnPostgres(unittest.TestCase):
             "select payload::text from log.event where type = %(type)s order by occurred_at", {'type': kind})]
         return [each for each in found if state in (None, each.get('state'))]
 
+    def swap(self):
+        """Both pointers onto S in one statement and its platform.deploy.image_swap, the autodeploy's swap of a landed
+        bundle (SWAP_WRITE, as reloads() writes it onto the successors). LANDING-PREWARM-GONE (D-316): the landing's own
+        swap left with the prewarm; this is the swap the successors take the role on."""
+        found = self.db.rows(autodeploy.SWAP_WRITE, {
+            'tenant': 'torre', 'digest': S, 'keys': ','.join(live_image.KEYS[role] for role in ('runner', 'service')),
+            'reason': 'test', 'id': f'{autodeploy.SWAP}:{MERGE}', 'landed_at': time.time(), 'payload': json.dumps(
+                {'digest': S, 'key': KEY, 'head': MERGE, 'pr_head': PR_HEAD, 'by': 'autodeploy'})})  # judged by its canary
+        return json.loads(found[0][0])
+
     def taken_by(self, job):
         return [row[0] for row in self.db.rows(
             "select payload->>'runner' from log.event where type = 'run.running' and subject = 'job/' || %(job)s", {'job': job})]
@@ -1080,8 +1087,8 @@ class OnPostgres(unittest.TestCase):
                          [('service', heir('service'), 'up'), ('runner', heir('runner'), 'up')])
         self.assertEqual(self.said('platform.deploy.standby'), [])  # no Spot standby anywhere
         began = time.monotonic()
-        landing = self.port('POST', '/v1/deploy/landed', 'torre', tighten.landed())  # the landing swaps in its own statement
-        self.assertEqual((landing['swap'], landing['image_swap']['by']), ({'swapped': True}, 'landing'))
+        swapped = self.swap()  # both pointers in one statement
+        self.assertEqual((swapped['swapped'], swapped['by']), (True, 'autodeploy'))
         self.heard()
         self.assertEqual([each.gate.active() for each in (service, runner_, self.service, self.runner)], [True, True, False, False])
         self.assertEqual(self.tick(service, later=0), [])  # the successors work: the first tick, the first TAKE on the bundle
@@ -1187,8 +1194,7 @@ class OnPostgres(unittest.TestCase):
         self.assertEqual([each.take() for each in checks], [True, True])
         waits = self.world.job('a-check-that-waits', 'true')
         began = time.monotonic()
-        landing = self.port('POST', '/v1/deploy/landed', 'torre', tighten.landed())
-        self.assertEqual(landing['swap'], {'swapped': True})
+        self.assertTrue(self.swap()['swapped'])
         self.heard()
         # the service that took the role fires the swap's canary and its tick dispatches it, on the canary's own slot
         self.assertEqual(len(self.tick(service, later=0) or self.tick(service, later=0)), 1)
@@ -1211,7 +1217,7 @@ class OnPostgres(unittest.TestCase):
         # (that notification) before their listeners read the pointer, so the order's look does not stand aside
         self.wanted()
         service, runner_ = self.successors()
-        self.assertEqual(self.port('POST', '/v1/deploy/landed', 'torre', tighten.landed())['swap'], {'swapped': True})
+        self.assertTrue(self.swap()['swapped'])
         self.db.rows(queue_deploy.WANT, {'id': f'platform.deploy.successor:{S}:withdrawn:2', 'payload': json.dumps(
             {'digest': S, 'key': KEY, 'branch': None, 'state': 'withdrawn', 'why': 'units/a: its PR was merged'})})
         for process in (self.service, self.runner):
@@ -1269,14 +1275,11 @@ class OnPostgres(unittest.TestCase):
         self.db.rows("update work.standby_beat set beat_at = beat_at - interval '10 seconds' where role = 'runner'")
         self.assertEqual((ready()['roles'], ready()['ready']), (['service'], False))
         self.assertNotIn('tower_config', self.db.call(['-A', '-t', '-c', f'listen tower_config; {asked}']))
-        landing = self.port('POST', '/v1/deploy/landed', 'torre', tighten.landed())  # and a landing now agrees: no swap
-        self.assertEqual(landing['swap']['swapped'], False)
-        self.assertIn('no beat of the runner standby', landing['swap']['why'])
 
     def test_the_canary_red_stops_the_successor_and_the_previous_process_works_on(self):
         self.wanted()
         service, runner_ = self.successors()
-        self.port('POST', '/v1/deploy/landed', 'torre', tighten.landed())
+        self.swap()
         self.heard()
         self.tick(service)  # its first work, and the swap's canary fired
         [(job,)] = self.db.rows("select id::text from work.job where idempotency_key like 'canary:swap:%%'")

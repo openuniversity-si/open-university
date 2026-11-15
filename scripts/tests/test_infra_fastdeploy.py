@@ -259,11 +259,13 @@ class Tables(unittest.TestCase):
             self.assertEqual(fastdeploy.functions_of([relative]), wanted, relative)
 
     def test_a_module_two_packages_hold_swaps_both_and_a_service_only_module_none(self):
-        """SLOW-PATH-NO-ROLLOUT-WAIT: the consumer imports http_port, and both packages hold config_data and live_image."""
-        for module in ('http_port', 'live_image', 'config_data'):
+        """SLOW-PATH-NO-ROLLOUT-WAIT: the consumer imports http_port, and both packages hold config_data (LANDING-PREWARM-GONE:
+        live_image is the service's alone now, the port's landing imports it no more)."""
+        for module in ('http_port', 'config_data'):
             self.assertEqual(fastdeploy.functions_of([f'infra/service/tower_infra/{module}.py']),
                              ['tower-port-api', 'tower-port-webhook-consumer'], module)
         self.assertEqual(fastdeploy.functions_of(['infra/service/tower_infra/autodeploy.py', 'docs/a.md']), [])
+        self.assertEqual(fastdeploy.functions_of(['infra/service/tower_infra/live_image.py']), [])
 
     def test_every_function_has_a_smoke_and_a_parameter(self):
         self.assertEqual(sorted(fastdeploy.SMOKE), sorted(fastdeploy.FUNCTIONS))

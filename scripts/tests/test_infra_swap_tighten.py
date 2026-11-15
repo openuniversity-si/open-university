@@ -1,10 +1,8 @@
 """IMAGE-SWAP-TIGHTEN (docs/operations/aws.md 22.9): the image-only swap from the landing to both roles working, under 1 s.
 
-1. Landing -> pointer: the landing (POST /v1/deploy/landed, port.deploy_landed) decides and writes both pointers in the
-   statement that records it, when the merge runs the PR head's bundle (autodeploy.merged_bundle, the rule the autodeploy
-   applies too) and both roles' standbys beat now (work.standby_beat, migration 0014, within deploy.standby_fresh_s on the
-   database clock): no AWS call and no service look on the clock. Otherwise the landing says why and the autodeploy decides
-   as before (its fallback keeps the landing's why).
+1. Landing -> pointer: LANDING-PREWARM-GONE (D-316): the landing (POST /v1/deploy/landed) swapped onto the bundle a
+   prewarm job built; the prewarm left, and the landing is a record alone. The merge queue's swap writes the pointers
+   (queue_deploy.SWAP, test_infra_queue_reload).
 2. Pointer -> working: platform.deploy.image_live is recorded when the role really takes work (the runner's first TAKE, the
    service's first dispatch tick after DBOS.launch), with its parts: notify_s (the pointer's write to the gate's read, the
    database clock), work_s (that read to the work, the process's clock), launch_s (the service's DBOS.launch), swap_s their
@@ -17,16 +15,14 @@ import os
 from pathlib import Path
 import sys
 import tempfile
-import threading
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
-from tower_infra import autodeploy, config_data, live_image, port, runner  # noqa: E402
+from tower_infra import live_image, port, runner  # noqa: E402
 import medir  # noqa: E402
-from test_infra_image_swap import said  # noqa: E402
 
 URL = os.environ.get('TEST_DATABASE_URL', '')
 BASE, MERGE, PR_HEAD, NEXT, NEXT_HEAD = 'b' * 40, '9' * 40, '8' * 40, '6' * 40, '5' * 40
@@ -37,131 +33,6 @@ KEYS = sorted(live_image.KEYS.values())
 def landed(merge=MERGE, base=BASE, head=PR_HEAD, **code):
     return {'merge_sha': merge, 'base_before': base, 'pr_head': head, 'pr': '7', 'functions': [], 'paths': [],
             'code': {'code_only': True, 'why': '1 file(s)', 'bundle_same': True, **code}}
-
-
-class Reads:
-    """The landing's reads before its statement, by their text."""
-
-    def __init__(self, base=BASE, job=None, config=None):
-        self.base, self.config, self.asked = base, config or {}, []
-        self.job = [('succeeded', said(S))] if job is None else job
-
-    def rows(self, sql, params=None):
-        self.asked.append(sql)
-        if sql == port.DECIDE:  # LANDING-ONE-READ: the three reads in one statement, as it answers them
-            assert params['merge'] == MERGE and params['key'] == f'prewarm:code:{PR_HEAD}'
-            assert params['base'] == 'mod/roadmap-integration' and params['keys'] == ','.join(port.SWAP_KEYS)
-            named = self.config.get('deploy.base_branch')
-            ref = 'refs/heads/' + (named if isinstance(named, str) and named.strip() else params['base'])
-            job = [json.dumps({'state': state, 'result': json.loads(result) if result else None})
-                   for state, result in self.job[:1]]
-            return [(json.dumps(self.config), self.base, job[0] if job else None, ref)]
-        if sql == port.SWAP_CONFIG:
-            return [(name, json.dumps(value)) for name, value in self.config.items()]
-        if sql == port.BASE_HEAD:
-            assert params['ref'] == 'refs/heads/mod/roadmap-integration' and params['merge'] == MERGE
-            return [(self.base,)] if self.base else []
-        if sql == autodeploy.BUNDLE_JOB:
-            assert params['key'] == f'prewarm:code:{PR_HEAD}'
-            return self.job
-        raise AssertionError(sql)
-
-
-class TheLandingDecides(unittest.TestCase):
-    def test_a_code_only_merge_of_the_heads_bundle_names_it_with_the_registry_freshness(self):
-        self.assertEqual(port.landing_swap(Reads(), landed()),
-                         (S, f'artifacts/lambda/tower-code/{S}.zip', 3.0, ''))
-        self.assertEqual(port.landing_swap(Reads(config={'deploy.standby_fresh_s': 7.5}), landed())[2], 7.5)
-        self.assertEqual(config_data.SPEC['deploy.standby_fresh_s'], (float, 3.0))
-
-    def test_every_reason_not_to_is_the_autodeploys(self):
-        cases = [(Reads(config={'deploy.promote': False}), landed(), 'deploy.promote is false'),
-                 (Reads(), landed(bundle_same=False, moved=['infra/service/x.py']), "the base changed the bundle's inputs"),
-                 (Reads(base='c' * 40), landed(), "the merge's parent is not base_before"),
-                 (Reads(base=None), landed(), "the merge's parent is not base_before"),
-                 (Reads(job=[]), landed(), 'the PR head has no bundle job'),
-                 (Reads(job=[('failed', None)]), landed(), 'its bundle job ended failed')]
-        for db, event, why in cases:
-            digest, key, _, said_why = port.landing_swap(db, event)
-            self.assertEqual((digest, key), ('', None), why)
-            self.assertTrue(said_why.startswith(why), said_why)
-
-    def test_the_landing_decides_on_one_read(self):
-        """LANDING-ONE-READ: the landing read the registry's rows, the base's head and the PR head's bundle job in three
-        statements before its own, each a round trip from a 256 MB Lambda: decide_s was 0.05 to 0.12 s of every landing
-        (live 12/11, ten landings), a third to a half of a swap of 0.15 to 0.25 s. One statement answers the three."""
-        db = Reads()
-        self.assertEqual(port.landing_swap(db, landed())[0], S)
-        self.assertEqual(db.asked, [port.DECIDE])
-        db = Reads(job=[])
-        self.assertEqual(port.landing_swap(db, landed())[3], 'the PR head has no bundle job')
-        self.assertEqual(db.asked, [port.DECIDE])
-        # a row of the base's name the registry refuses (the statement took it, the registry's rule gives the default):
-        # the base's head is asked again for the name the service reads, the one case of a second read
-        db = Reads(config={'deploy.base_branch': 7})
-        self.assertEqual(port.landing_swap(db, landed())[0], S)
-        self.assertEqual(db.asked, [port.DECIDE])  # 7 is no string: the statement took the default too
-        odd = Reads(config={'deploy.base_branch': '\t'})
-        odd.rows = lambda sql, params=None, rows=odd.rows: (
-            [(json.dumps(odd.config), None, json.dumps({'state': 'succeeded', 'result': json.loads(said(S))}), 'refs/heads/\t')]
-            if sql == port.DECIDE and not odd.asked.append(sql) else rows(sql, params))
-        self.assertEqual(port.landing_swap(odd, landed())[0], S)
-        self.assertEqual(odd.asked, [port.DECIDE, port.BASE_HEAD])
-
-    def test_a_landing_that_is_not_code_only_has_nothing_to_say(self):
-        self.assertEqual(port.landing_swap(Reads(), landed(code_only=False)), ('', None, 0, ''))
-
-    def test_the_landing_is_recorded_whatever_the_reads_do(self):
-        class Broken(Reads):
-            def rows(self, sql, params=None):
-                if sql == port.LANDED_SWAP:
-                    self.sent = params
-                    return [('{"swapped": false, "why": "x"}', None)]
-                raise RuntimeError('db hiccup')
-        db = Broken()
-        found = port.deploy_landed(db, ('tenant', 't-1'), landed())
-        self.assertEqual((db.sent['digest'], db.sent['why']), ('', 'the landing could not decide: RuntimeError'))
-        self.assertEqual(found['swap'], {'swapped': False, 'why': 'x'})
-
-    def test_a_statement_that_cannot_swap_still_records_the_landing(self):
-        class Db(Reads):
-            def rows(self, sql, params=None):
-                if sql == port.LANDED_SWAP:
-                    raise RuntimeError('relation "work.standby_beat" does not exist')
-                if sql == port.LANDED_ONLY:
-                    self.recorded = json.loads(params['payload'])
-                    return [(1,)]
-                return super().rows(sql, params)
-        db = Db()
-        found = port.deploy_landed(db, ('tenant', 't-1'), landed())
-        self.assertEqual(db.recorded['swap'], {'swapped': False, 'why': 'the landing could not swap: RuntimeError'})
-        self.assertEqual(found['swap'], db.recorded['swap'])
-
-    def test_the_decision_is_timed_on_the_lambdas_clock(self):
-        ticks = iter([10.0, 10.004])
-
-        class Db(Reads):
-            def rows(self, sql, params=None):
-                if sql == port.LANDED_SWAP:
-                    self.sent = params
-                    return [('{"swapped": true}', json.dumps({'swapped': True, 'landed_s': 0.002}))]
-                return super().rows(sql, params)
-        db = Db()
-        found = port.deploy_landed(db, ('tenant', 't-1'), landed(), clock=lambda: next(ticks))
-        self.assertEqual(json.loads(db.sent['swap'])['decide_s'], 0.004)
-        self.assertEqual((db.sent['digest'], db.sent['fresh_s'], db.sent['keys']), (S, 3.0, ','.join(KEYS)))
-        self.assertEqual(found['image_swap'], {'swapped': True, 'landed_s': 0.002})
-
-    def test_the_autodeploy_falls_back_with_the_landings_why(self):
-        from test_infra_image_swap import Db, Ecs
-        db = Db()
-        watcher = autodeploy.AutoDeploy(db.scope, {}.get, lambda _: {}, clock=lambda: 1000.0)
-        watcher.ecs, watcher.cluster = Ecs(), 'tower'
-        watcher.landed[MERGE] = {**landed(), 'swap': {'swapped': False, 'why': 'no beat of the runner standby'}}
-        watcher.landed_at[MERGE] = 990.0
-        watcher.promote(db, [BASE, MERGE], {'promote': True})
-        swap = db.swaps(True)[0]
-        self.assertEqual((swap['by'], swap['landing_why']), ('autodeploy', 'no beat of the runner standby'))
 
 
 class Clock:
@@ -374,8 +245,7 @@ class Measure(unittest.TestCase):
 
 @unittest.skipUnless(URL, 'needs TEST_DATABASE_URL (Postgres; local port 54322)')
 class OnPostgres(unittest.TestCase):
-    """The real statements: the beats, the landing that swaps in its own statement (or says why), the gate's notify_s and
-    the image_live of its parts, and the measure from the status."""
+    """The real statements: the beats and the landing, recorded alone."""
 
     def setUp(self):
         from runner_world import RunnerWorld
@@ -389,33 +259,8 @@ class OnPostgres(unittest.TestCase):
                      "('push:1', %(tenant)s::uuid, 'forge.repository.pushed', clock_timestamp() - interval '1 minute', "
                      "'forge/origin', 'app/origin', %(payload)s::jsonb)",
                      {'tenant': tenant, 'payload': json.dumps({'delivery': {'event': {'payload': push}}})})
-        for head in (PR_HEAD, NEXT_HEAD):
-            job = self.world.job(f'prewarm:code:{head}', 'true')
-            self.db.rows("update work.job set state = 'succeeded', result = %(result)s::jsonb where id = %(id)s::uuid",
-                         {'id': job, 'result': said(S)})
         self.standbys = {role: live_image.gate(role, S, live_image.kept(self.db), task=f'{role}-standby', strict=True)
                          for role in ('runner', 'service')}
-
-    def test_the_landing_s_commit_does_not_wait_for_the_disk(self):
-        """LANDING-ASYNC-COMMIT: the pointers' notification leaves when the landing's transaction commits, and a commit
-        waits for the WAL to reach the disk. On a host that pages (12/11: 420 to 620 MB in swap on the db.t4g.micro) that
-        disk is the swap's too: COMMITs of 0.10 to 0.25 s in the evidence of every slow landing, and the roles read the
-        pointer 0.2 to 0.47 s after its write. The landing's statement sets synchronous_commit off for its own
-        transaction: the commit answers and notifies at once and the WAL follows within the writer's delay. What a crash
-        inside that delay would lose is the landing's record and its pointers, both together: the merge is at the
-        forge, and its push takes the head to the slow path, the net that was always there."""
-        from infra_db.psql import PLACEHOLDER, literal
-        self.assertIn("set_config('synchronous_commit', 'off', true)", port.LANDED_SWAP)
-        params = {'id': 'platform.deploy.landed:t', 'digest': S, 'fresh_s': 3, 'keys': ','.join(KEYS), 'reason': 't',
-                  'config_tenant': 'torre', 'tenant': None, 'payload': '{}', 'why': '', 'swap_id': 'platform.deploy.image_swap:t',
-                  'swap': '{}'}
-        landing = PLACEHOLDER.sub(lambda found: literal(params[found.group(1)]), port.LANDED_SWAP)
-        server = self.db.rows("select current_setting('synchronous_commit')")
-        said = self.db.call(['-A', '-t', '-c', "begin; set local synchronous_commit = on; select 'before: ' || "
-                             f"current_setting('synchronous_commit'); {landing}; "
-                             "select 'commit: ' || current_setting('synchronous_commit'); commit"])
-        self.assertIn('commit: off', said)  # the statement turned it off, in the landing's own transaction
-        self.assertEqual(self.db.rows("select current_setting('synchronous_commit')"), server)  # and in no other
 
     def beat(self, *roles, ago_s=0):
         for role in roles:
@@ -427,62 +272,18 @@ class OnPostgres(unittest.TestCase):
         return self.db.rows("select key, value::text, version::text, actor from work.config_value "
                             "where key like 'deploy.live_image_%%' order by key")
 
-    def test_the_landing_swaps_in_its_own_statement_and_the_roles_record_their_parts(self):
-        self.beat('runner', 'service')
-        said_ = self.world.port('POST', '/v1/deploy/landed', 'torre', landed())
-        self.assertEqual(said_['swap'], {'swapped': True})
-        swap = said_['image_swap']
-        self.assertEqual((swap['by'], swap['digest'], swap['versions']), ('landing', S, {key: 1 for key in KEYS}))
-        self.assertGreaterEqual(swap['landed_s'], 0)
-        self.assertLess(swap['landed_s'], 0.2)  # one statement; the old path was a service look, 0.31-0.39 s live
-        self.assertEqual(self.pointers(), [(key, json.dumps(S), '1', 'port') for key in KEYS])
-        self.assertTrue(self.db.rows(autodeploy.SWAP_OF, {'id': f'{autodeploy.SWAP}:{MERGE}'}))  # the fallback stays out
-        again = self.world.port('POST', '/v1/deploy/landed', 'torre', landed())  # the same landing: nothing new
-        self.assertNotIn('swap', again)
-        self.assertEqual([row[2] for row in self.pointers()], ['1', '1'])
-        for role, gate in self.standbys.items():
-            self.assertTrue(gate.refresh())
-            self.assertGreaterEqual(gate.swapped[1], 0)  # notify_s on the database clock
-            gate.working(**({'launch_s': 0.05} if role == 'service' else {}))
-        status = self.world.port('GET', '/v1/deploy/status', 'torre')
-        live = {each['role']: each for each in status['image_live']}
-        self.assertEqual(set(live['service']) >= {'notify_s', 'work_s', 'swap_s', 'launch_s'}, True)
-        self.assertAlmostEqual(live['runner']['swap_s'], live['runner']['notify_s'] + live['runner']['work_s'],
-                               delta=0.0011)  # each is rounded to the millisecond by itself
-        self.assertEqual(len(medir.image_landing_to_live(status)), 1)
-
-    def test_a_stale_or_missing_beat_says_why_and_the_freshness_is_the_registrys(self):
-        self.beat('runner', 'service', ago_s=10)
-        said_ = self.world.port('POST', '/v1/deploy/landed', 'torre', landed())
-        self.assertEqual(said_['swap'], {'swapped': False,
-                                         'why': f'no beat of the runner or service standby of {S[:12]} in the last 3 s'})
-        self.assertEqual(self.pointers(), [])
-        self.assertFalse(self.db.rows(autodeploy.SWAP_OF, {'id': f'{autodeploy.SWAP}:{MERGE}'}))  # the autodeploy decides
-        stored = self.db.rows("select payload->'swap'->>'why' from log.event where type = 'platform.deploy.landed'")
-        self.assertTrue(stored[0][0].startswith('no beat'))
-        self.world.port('PUT', '/v1/config/deploy.standby_fresh_s', 'torre', {'value': 30.0, 'reason': 'test'})
-        self.beat('service', ago_s=10)
-        said_ = self.world.port('POST', '/v1/deploy/landed', 'torre', landed(merge=NEXT, base=MERGE, head=NEXT_HEAD))
-        self.assertEqual(said_['swap'], {'swapped': True})
-
     def test_the_landing_alone_is_recorded_once_as_before(self):
         params = {'id': f'{port.LANDED}:{MERGE}', 'tenant': None, 'payload': json.dumps(landed())}
         self.assertEqual((self.db.rows(port.LANDED_ONLY, params), self.db.rows(port.LANDED_ONLY, params)), ([('1',)], []))
 
-    def test_a_landing_that_is_not_code_only_is_recorded_with_nothing_about_a_swap(self):
+    def test_any_landing_is_recorded_with_nothing_about_a_swap(self):
+        # LANDING-PREWARM-GONE: a code-only landing whose bundle's standbys beat swaps nothing either
         self.beat('runner', 'service')
-        said_ = self.world.port('POST', '/v1/deploy/landed', 'torre', landed(code_only=False))
-        self.assertEqual(said_, {'event_id': f'{port.LANDED}:{MERGE}', 'merge_sha': MERGE})
+        for each in (landed(code_only=False), landed(merge=NEXT, base=MERGE, head=NEXT_HEAD)):
+            said_ = self.world.port('POST', '/v1/deploy/landed', 'torre', each)
+            self.assertEqual(said_, {'event_id': f"{port.LANDED}:{each['merge_sha']}", 'merge_sha': each['merge_sha']})
         stored = self.db.rows("select payload ? 'swap' from log.event where type = 'platform.deploy.landed'")
-        self.assertEqual((stored, self.pointers()), ([('f',)], []))
-
-    def test_one_role_without_a_beat_or_a_moved_base_never_swaps(self):
-        self.beat('service')
-        self.assertIn('no beat of the runner standby', self.world.port('POST', '/v1/deploy/landed', 'torre', landed())['swap']['why'])
-        self.beat('runner', 'service')
-        said_ = self.world.port('POST', '/v1/deploy/landed', 'torre', landed(merge=NEXT, base=BASE, head=NEXT_HEAD))
-        self.assertTrue(said_['swap']['why'].startswith("the merge's parent is not base_before"))  # MERGE landed between
-        self.assertEqual(self.pointers(), [])
+        self.assertEqual((stored, self.pointers()), ([('f',), ('f',)], []))
 
 
 if __name__ == '__main__':

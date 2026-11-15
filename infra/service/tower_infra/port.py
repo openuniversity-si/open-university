@@ -379,12 +379,11 @@ def get_job(db, who, job_id):
 
 LANDED = 'platform.deploy.landed'
 LANDED_FIELDS = ('merge_sha', 'base_before', 'pr', 'pr_head', 'functions', 'manifest_key', 'paths',
-                 'code')  # IMAGE-PREWARM-C: {code_only, why, bundle_same[, moved]}, the merge-vs-head rule of the swap
+                 'code')  # IMAGE-PREWARM-C: {code_only, why, bundle_same[, moved]}, as the Origin-era delivery says it
 
 
 # IMAGE-SWAP-TIGHTEN (docs/operations/aws.md 22.9): the image-only swap decided and written where the landing is recorded,
 # in the statement that records it: the pointers move the instant the landing exists, with no service look in between.
-SWAP_KEYS = ('deploy.promote', 'deploy.standby_fresh_s', 'deploy.base_branch')
 SWAP_CONFIG = ("select v.key, v.value::text from work.config_value v join work.tenant t on t.id = v.tenant_id "
                "where t.name = %(tenant)s and v.key = any(string_to_array(%(keys)s, ','))")
 # the head of the base before this merge as the log knows it: the newest push of the base (its after) or landing (its
@@ -399,105 +398,10 @@ BASE_HEAD = (
     "union all (select payload->>'merge_sha', occurred_at from log.event where type = 'platform.deploy.landed' "
     "and occurred_at > now() - interval '7 days' and payload->>'merge_sha' <> %(merge)s order by occurred_at desc limit 1)) h "
     "order by occurred_at desc limit 1")
-# LANDING-ONE-READ: what the landing decides on, in one statement and one round trip: the registry's rows of SWAP_KEYS (as
-# jsonb), the base's head before this merge (BASE_HEAD, for the base the row names, else %(base)s, the registry's
-# default), the PR head's bundle job {state, result} (BUNDLE_JOB's row), and the ref the statement took for the base, so
-# the caller sees a row the registry's own rule refuses (config_data.validate) and asks BASE_HEAD again for its name.
-# They were three statements from a 256 MB Lambda: decide_s 0.05 to 0.12 s of every landing (live 12/11)
-DECIDE = (
-    "with cfg as materialized (select coalesce(jsonb_object_agg(v.key, v.value), '{}'::jsonb) as found "
-    "from work.config_value v join work.tenant t on t.id = v.tenant_id "
-    "where t.name = %(tenant)s and v.key = any(string_to_array(%(keys)s, ','))), "
-    "base as materialized (select 'refs/heads/' || case when jsonb_typeof(found->'deploy.base_branch') = 'string' "
-    "and found->>'deploy.base_branch' ~ '\\S' then found->>'deploy.base_branch' else %(base)s end as ref from cfg) "
-    "select (select found::text from cfg), ("
-    + BASE_HEAD.replace('%(refs)s::jsonb', "(select jsonb_build_array(jsonb_build_object('ref', ref)) from base)")
-    .replace('%(ref)s', '(select ref from base)')
-    + "), (select jsonb_build_object('state', j.state, 'result', j.result)::text from work.job j "
-    "join work.tenant t on t.id = j.tenant_id where t.name = %(tenant)s and j.idempotency_key = %(key)s), "
-    "(select ref from base)")
-# One statement: the landing (occurred_at = its start, c.at), and when the decision named a bundle (digest) and both roles
-# have a beat of it within fresh_s (work.standby_beat, migration 0014, the database clock), both pointers and
-# platform.deploy.image_swap {by: landing, landed_s, versions}; the landing's payload says swap {swapped[, why]} either way.
-# A landing already recorded (2 days) writes nothing. The lookups come before the pointers' update, so the commit, and the
-# NOTIFY the standbys turn live on, follow it at once.
-# LANDING-ASYNC-COMMIT: and that commit does not wait for the WAL to reach the disk (synchronous_commit off, for this
-# transaction alone: set_config(..., true) in the statement itself, no round trip more): on a host that pages the disk is
-# the swap's too (live 12/11: COMMITs of 0.10 to 0.25 s at every slow landing, the pointer read 0.2 to 0.47 s after its
-# write). A crash inside the WAL writer's delay loses the landing's record and its pointers together; the merge's push
-# takes the head to the slow path, the net that was always there
-LANDED_SWAP = (
-    "with c as materialized (select clock_timestamp() as at, set_config('synchronous_commit', 'off', true) as commit), "
-    "new as materialized (select 1 as one where not exists (select 1 from log.event where event_id = %(id)s "
-    f"and type = '{LANDED}' and occurred_at > now() - interval '2 days')), "
-    "fresh as materialized (select coalesce(array_agg(distinct role), '{}') as roles from work.standby_beat "
-    "where %(digest)s <> '' and digest = %(digest)s and beat_at > clock_timestamp() - make_interval(secs => %(fresh_s)s::float8)), "
-    "go as materialized (select 1 as one from c, new, fresh where %(digest)s <> '' and fresh.roles @> array['runner', 'service']), "
-    "w as (insert into work.config_value as v (tenant_id, key, value, actor, reason) "
-    "select t.id, k, to_jsonb(%(digest)s::text), 'port', %(reason)s from go, work.tenant t, unnest(string_to_array(%(keys)s, ',')) k "
-    "where t.name = %(config_tenant)s on conflict (tenant_id, key) do update set value = excluded.value, version = v.version + 1, "
-    "actor = excluded.actor, reason = excluded.reason, updated_at = clock_timestamp() returning v.key, v.version, v.updated_at), "
-    "landed as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
-    f"select %(id)s, %(tenant)s::uuid, '{LANDED}', c.at, '{PRODUCER}', 'deploy/landed', %(payload)s::jsonb || "
-    "case when %(digest)s = '' and %(why)s = '' then '{}'::jsonb else jsonb_build_object("  # not code-only: nothing to say
-    "'swap', case when exists (select 1 from w) then jsonb_build_object('swapped', true) "
-    "when %(why)s <> '' then jsonb_build_object('swapped', false, 'why', %(why)s::text) "
-    "when exists (select 1 from go) then jsonb_build_object('swapped', false, 'why', 'no tenant ' || %(config_tenant)s) "
-    "else jsonb_build_object('swapped', false, 'why', 'no beat of the ' || (select string_agg(r, ' or ' order by r) "
-    "from fresh, unnest(array['runner', 'service']) r where not r = any(fresh.roles)) || ' standby of ' || left(%(digest)s, 12) "
-    "|| ' in the last ' || %(fresh_s)s::float8::text || ' s') end) end from c, new returning payload), "
-    "swap as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
-    f"select %(swap_id)s, null, 'platform.deploy.image_swap', clock_timestamp(), '{PRODUCER}', 'deploy/image', "
-    "%(swap)s::jsonb || jsonb_build_object('swapped', true, 'by', 'landing', 'versions', (select jsonb_object_agg(key, version) from w), "
-    "'wrote_at', (select round(extract(epoch from max(updated_at))::numeric, 3) from w), "
-    "'landed_s', (select round(extract(epoch from max(w.updated_at) - min(c.at))::numeric, 3) from w, c)) "
-    "where exists (select 1 from w) returning payload) "
-    "select (select (payload->'swap')::text from landed), (select payload::text from swap)")
-
-
 LANDED_ONLY = ("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
                f"select %(id)s, %(tenant)s::uuid, '{LANDED}', clock_timestamp(), '{PRODUCER}', 'deploy/landed', %(payload)s::jsonb "
                f"where not exists (select 1 from log.event where event_id = %(id)s and type = '{LANDED}' "
                "and occurred_at > now() - interval '2 days') returning 1")
-
-
-BUNDLE_JOB = ("select j.state, j.result::text from work.job j join work.tenant t on t.id = j.tenant_id "
-              "where t.name = %(tenant)s and j.idempotency_key = %(key)s")
-
-
-def bundle_answer(state, result):
-    """IMAGE-PREWARM-B2 (prewarm.answer): ((key, sha256), None) of the bundle a job built, or (None, why) for the slow path."""
-    if state != 'succeeded':
-        return None, f'its bundle job ended {state}'
-    tail = (json.loads(result or '{}') or {}).get('tail') or ''
-    for line in reversed(tail.strip().splitlines()):
-        try:
-            said = json.loads(line)
-        except ValueError:
-            continue
-        if isinstance(said, dict) and 'code_only' in said:
-            if not said['code_only']:
-                return None, f"not code-only: {said.get('why')}"
-            if not said.get('published') or not said.get('key') or not re.fullmatch(r'[0-9a-f]{64}', str(said.get('sha256'))):
-                return None, 'its bundle was not published'
-            return (said['key'], said['sha256']), None
-    return None, 'its bundle job said nothing'
-
-
-def merged_bundle(db, tenant, promote, event, parent, job=None):
-    """IMAGE-SWAP-TIGHTEN: the merge-vs-head rule of the swap, shared by the landing (deploy_landed) and autodeploy.promotable():
-    ((key, digest), None) of the PR head's bundle when the merge runs it, else (None, why). parent is the head of the
-    base before the merge as the caller knows it (None: unknown)."""
-    if not promote:
-        return None, 'deploy.promote is false: the landing waits for the slow path'
-    code = event['code']
-    if not code.get('bundle_same'):
-        return None, f"the base changed the bundle's inputs: {', '.join(code.get('moved') or []) or 'unknown'}"
-    if parent is None or parent != event.get('base_before'):
-        return None, f"the merge's parent is not base_before {str(event.get('base_before'))[:12]}: the base moved"
-    if job is None:  # LANDING-ONE-READ: the landing read it with its other reads (job: BUNDLE_JOB's rows, [] for none)
-        job = db.rows(BUNDLE_JOB, {'tenant': tenant, 'key': f"prewarm:code:{event.get('pr_head')}"})
-    return bundle_answer(*job[0]) if job else (None, 'the PR head has no bundle job')
 
 
 def stored(db, tenant, names):
@@ -512,48 +416,14 @@ def stored(db, tenant, names):
     return cfg
 
 
-def landing_swap(db, payload):
-    """IMAGE-SWAP-TIGHTEN: what the landing's statement may swap to: (digest, key, fresh_s, why), digest '' with why when
-    not, ('', None, 0, '') for a landing that is not code-only (today's paths, nothing to explain). The same rule as the
-    autodeploy's (merged_bundle: deploy.promote, the base changed none of the bundle's inputs, the merge's
-    parent is base_before, the PR head's bundle job); the standbys' health is the statement's, by their beats."""
-    code = payload.get('code') or {}
-    if not code.get('code_only'):
-        return '', None, 0, ''
-    tenant = os.environ.get('TOWER_CONFIG_TENANT', config_data.TENANT)
-    # LANDING-ONE-READ: the registry's rows, the base's head and the bundle job in one statement (DECIDE)
-    merge = str(payload['merge_sha'])
-    rows, head, job, took = db.rows(DECIDE, {
-        'tenant': tenant, 'keys': ','.join(SWAP_KEYS), 'base': config_data.SPEC['deploy.base_branch'][1], 'merge': merge,
-        'key': f"prewarm:code:{payload.get('pr_head')}"})[0]
-    cfg = {name: config_data.SPEC[name][1] for name in SWAP_KEYS}
-    for name, value in ((json.loads(rows) if isinstance(rows, str) else rows) or {}).items():
-        try:
-            cfg[name] = config_data.validate(name, value)
-        except ValueError:  # an invalid row is the default, as the service reads it (stored())
-            pass
-    ref = f"refs/heads/{cfg['deploy.base_branch']}"
-    if took != ref:  # the statement took a row the registry's rule refuses: the base's head for the name the service reads
-        found = db.rows(BASE_HEAD, {'ref': ref, 'refs': json.dumps([{'ref': ref}]), 'merge': merge})
-        head = found[0][0] if found else None
-    job = json.loads(job) if isinstance(job, str) else job
-    bundle, why = merged_bundle(db, tenant, cfg['deploy.promote'], payload, head, job=[(
-        job.get('state'), json.dumps(job['result']) if job.get('result') is not None else None)] if job else [])
-    if why:
-        return '', None, 0, why
-    key, digest = bundle
-    return digest, key, cfg['deploy.standby_fresh_s'], ''
-
-
-def deploy_landed(db, who, body, clock=time.monotonic):
+def deploy_landed(db, who, body):
     """FAST-ON-LANDED: the delivery that merged a PR tells the registry what it landed, as the event platform.deploy.landed
     (merge sha, the base before, the PR head, the fast Lambdas it changed, the gate's manifest key, the paths). Origin's push
     events list no files, so the autodeploy reads its fast targets from this event (it wakes the look, migration 0013).
-    Idempotent by the merge sha: the same landing is the same event. IMAGE-SWAP-TIGHTEN: a code-only landing whose bundle's
-    standbys beat now swaps both pointers in the same statement (LANDED_SWAP); otherwise the landing says why and the
-    autodeploy's path (promote) decides as before."""
-    from . import live_image
-    began = clock()
+    Idempotent by the merge sha: the same landing is the same event. Only the Origin-era delivery (scripts/deliver,
+    gate_infra.announce_landed) asks it, dormant on purpose (D-316). LANDING-PREWARM-GONE: the landing no longer swaps
+    onto the bundle a prewarm job built (prewarm:code:<head>): the prewarm left (D-316), and a code-only merge of the
+    merge queue goes live by queue_deploy's swap or its reload in place."""
     tenant = tenant_only(who)
     body = body or {}
     sha = str(body.get('merge_sha') or '')
@@ -564,33 +434,9 @@ def deploy_landed(db, who, body, clock=time.monotonic):
         raise PortError(400, 'functions is a list (empty: no fast target) and paths a list')
     payload = {name: body.get(name) for name in LANDED_FIELDS}
     payload.update(functions=[str(each) for each in functions], pr=str(body.get('pr') or ''),
-                   paths=[str(each) for each in paths] if paths is not None else None,
-                   code=body['code'] if isinstance(body.get('code'), dict) else None)  # IMAGE-PREWARM-C
-    try:
-        digest, key, fresh_s, why = landing_swap(db, payload)
-    except Exception as error:  # noqa: BLE001 - the landing is recorded whatever happens; the autodeploy is the net
-        digest, key, fresh_s, why = '', None, 0, f'the landing could not decide: {type(error).__name__}'
-    swap = {'digest': digest, 'key': key, 'head': sha, 'pr_head': payload['pr_head'],
-            'decide_s': round(clock() - began, 3)}  # the reads before the statement, on the Lambda's clock
-    try:
-        found = db.rows(LANDED_SWAP, {
-            'id': f'{LANDED}:{sha}', 'tenant': tenant, 'payload': json.dumps(payload), 'digest': digest, 'why': why,
-            'fresh_s': fresh_s, 'keys': ','.join(live_image.KEYS[role] for role in ('runner', 'service')),
-            'config_tenant': os.environ.get('TOWER_CONFIG_TENANT', config_data.TENANT),
-            'reason': f'IMAGE-SWAP-TIGHTEN: landed {sha[:12]}', 'swap_id': f'platform.deploy.image_swap:{sha}',
-            'swap': json.dumps(swap)})
-    except Exception as error:  # noqa: BLE001 - e.g. this code before migration 0014: the landing as before, no swap here
-        why = f'the landing could not swap: {type(error).__name__}'
-        payload['swap'] = {'swapped': False, 'why': why}
-        found = [(json.dumps(payload['swap']), None)] if db.rows(LANDED_ONLY, {
-            'id': f'{LANDED}:{sha}', 'tenant': tenant, 'payload': json.dumps(payload)}) else []
-    said, swapped = (found[0] if found else (None, None))
-    answer = {'event_id': f'{LANDED}:{sha}', 'merge_sha': sha}
-    if said:
-        answer['swap'] = json.loads(said)
-    if swapped:
-        answer['image_swap'] = json.loads(swapped)
-    return answer
+                   paths=[str(each) for each in paths] if paths is not None else None)
+    db.rows(LANDED_ONLY, {'id': f'{LANDED}:{sha}', 'tenant': tenant, 'payload': json.dumps(payload)})
+    return {'event_id': f'{LANDED}:{sha}', 'merge_sha': sha}
 
 
 WARM_ROWS = 20  # RUNNER-WARM-STATUS: the warm-ups the deploy status keeps (the runner's tasks of the last deploys)

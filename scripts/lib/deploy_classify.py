@@ -29,8 +29,8 @@ PORT, INGRESS, WEBHOOKS = 'port', 'ingress', 'webhooks'
 EVERY = (INGRESS, PORT, WEBHOOKS)
 LAMBDA_MODULES = {
     'ingress': (INGRESS,), 'awsjson': (INGRESS,), 'webhook_consumer': (WEBHOOKS,),
-    **{name: (PORT, WEBHOOKS) for name in ('__init__', 'branches', 'canary', 'checks', 'code_bundle', 'config_data', 'database', 'dbinit', 'drills', 'engine', 'http_port',
-                                           'live_image', 'observations', 'port', 'subscriptions', 'supervisor', 'wake')},
+    **{name: (PORT, WEBHOOKS) for name in ('__init__', 'branches', 'canary', 'checks', 'config_data', 'database', 'drills', 'engine', 'http_port',
+                                           'observations', 'port', 'subscriptions', 'wake')},
     **{name: EVERY for name in ('ed25519', 'forge_webhooks')},
 }
 STACK = re.compile(r'^infra/aws/stacks/\d+-([a-z0-9-]+)\.json$')

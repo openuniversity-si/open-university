@@ -332,41 +332,5 @@ class GateCheck(unittest.TestCase):
         self.assertEqual(gate_infra.checks(spec, {'stages': [], 'tests': []}, trees, '2026-11-09'), [])
 
 
-class CodeGate(unittest.TestCase):
-    """IMAGE-PREWARM-B2: `scripts/gate-check artifact code`, the prewarm's job: the bundle only for a code-only head."""
-
-    def test_a_code_only_head_gets_its_bundle_once_and_any_other_head_says_why_not(self):
-        store = FakeStore()
-        done = lp.gate_code(ROOT, 'a', 'b', store, paths=['infra/service/tower_infra/runner.py'])
-        data, digest, _ = lp.build_code(ROOT)
-        self.assertEqual(done, {'code_only': True, 'why': '1 file(s) of infra/service/tower_infra/ only', 'published': True,
-                                'key': lp.code_key(digest), 'sha256': digest, 'bytes': len(data), 'uploaded': True})
-        self.assertEqual(store.objects, {lp.code_key(digest): data})
-        self.assertFalse(lp.gate_code(ROOT, 'a', 'b', store, paths=['infra/service/tower_infra/runner.py'])['uploaded'])
-        self.assertFalse(lp.gate_code(ROOT, 'a', 'b', None, paths=['infra/service/tower_infra/runner.py'])['published'])
-        slow = lp.gate_code(ROOT, 'a', 'b', FakeStore(), paths=['infra/service/Dockerfile'])
-        self.assertEqual(slow, {'code_only': False, 'why': 'the image itself changes: infra/service/Dockerfile'})
-
-    def test_the_diff_is_from_where_the_head_left_the_base(self):
-        with mock.patch.object(lp.subprocess, 'run', return_value=mock.Mock(stdout='docs/x.md\n')) as run:
-            self.assertFalse(lp.gate_code(ROOT, 'b' * 40, 'h' * 40)['code_only'])
-        self.assertEqual(run.call_args[0][0][-1], f"{'b' * 40}...{'h' * 40}")
-
-    def test_the_gate_check_runs_it_with_the_artifact_environment_and_prints_one_line(self):
-        script = (ROOT / 'scripts/gate-check').read_text()
-        self.assertIn('[[ "$name" == lambda || "$name" == code ]] || usage', script)
-        self.assertIn('[[ "$name" == code ]] && step=code-gate', script)
-        sys.path.insert(0, str(ROOT / 'infra' / 'service'))
-        from tower_infra import runner
-        env = runner.passed_env(['scripts/gate-check', 'artifact', 'code', '--base', 'b' * 40],
-                                {'TOWER_ARTIFACT_BUCKET': 'bucket', 'PATH': '/bin'})
-        self.assertEqual(env, {'TOWER_ARTIFACT_BUCKET': 'bucket', 'PATH': '/bin'})  # #430: the artifact job's bucket
-        out = io.StringIO()
-        with mock.patch.dict(os.environ, {'TOWER_ARTIFACT_BUCKET': ''}), contextlib.redirect_stdout(out):
-            lp.main(['code-gate', '--base', 'HEAD', '--head', 'HEAD'])
-        self.assertEqual(json.loads(out.getvalue().strip().splitlines()[-1]),
-                         {'code_only': False, 'why': 'no service/runner image target'})
-
-
 if __name__ == '__main__':
     unittest.main()

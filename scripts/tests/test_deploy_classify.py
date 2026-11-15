@@ -34,7 +34,8 @@ class ClassifyPath(unittest.TestCase):
         self.assertEqual(t('infra/service/tower_infra/webhook_consumer.py'), ['fast:lambda-webhooks', 'slow:service-image'])
         # the consumer's package holds http_port too (it imports it): a change to it swaps both, or the port stack is applied for it
         self.assertEqual(t('infra/service/tower_infra/http_port.py'), ['fast:lambda-port', 'fast:lambda-webhooks', 'slow:service-image'])
-        self.assertEqual(t('infra/service/tower_infra/live_image.py'), ['fast:lambda-port', 'fast:lambda-webhooks', 'slow:service-image'])
+        # LANDING-PREWARM-GONE: the port's landing no longer imports live_image: the service's alone, as code_bundle is
+        self.assertEqual(t('infra/service/tower_infra/live_image.py'), ['slow:service-image'])
         self.assertEqual(t('infra/service/tower_infra/forge_webhooks.py'), ['fast:lambda-all', 'slow:service-image'])
         self.assertEqual(t('infra/service/tower_infra/autodeploy.py'), ['slow:service-image'])
 

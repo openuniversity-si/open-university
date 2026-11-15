@@ -14,7 +14,6 @@
     "scripts/lib/lambda_package.py",
     "scripts/lib/deploy_classify.py",
     "scripts/lib/medir.py",
-    "config/registry/deploy/deploy.promote.json",
     "infra/aws/deploy.sh",
     "infra/aws/stacks/30-service.json",
     "infra/aws/stacks/50-runner.json",

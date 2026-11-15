@@ -1,9 +1,8 @@
 """IMAGE-PREWARM-C (docs/operations/aws.md 22.9): the image-only swap on landing and the reconciliation off the clock.
 
-On platform.deploy.landed the autodeploy writes deploy.live_image_runner and deploy.live_image_service to the PR head's
-bundle S in one statement, only when the merge runs S (the delivery's code: code-only, the base changed none of the bundle's
-inputs; the merge's parent is base_before) and both roles have a healthy standby of S (the log, then ECS); else the slow path
-as today, with the reason in platform.deploy.image_swap. The ECS tasks carry TOWER_IMAGE_DIGEST (LiveCode from deploy.sh, or
+A swap writes deploy.live_image_runner and deploy.live_image_service to a bundle S in one statement and
+platform.deploy.image_swap (LANDING-PREWARM-GONE, D-316: the merge queue's swap, queue_deploy; the landing's own promotion
+of a prewarm's standbys left with the prewarm). The ECS tasks carry TOWER_IMAGE_DIGEST (LiveCode from deploy.sh, or
 their image), so they stand by under a pointer naming another digest. Off the clock: the reconciled ECS service hands the
 role over (its pointer emptied), a build that ended well at the swap's head or later empties the rest, a swap no standby
 took within SWAP_LIMIT_S is undone (GATE-LOOKS-GONE, D-316: the prewarm that retired the promoted Spot standbys left).
@@ -31,7 +30,6 @@ URL = os.environ.get('TEST_DATABASE_URL', '')
 BASE, MERGE, PR_HEAD, LATER = 'b' * 40, '9' * 40, '8' * 40, '7' * 40
 S, OLD = 'a' * 64, 'f' * 64
 KEYS = sorted(live_image.KEYS.values())
-CFG = {'promote': True}
 
 
 def said(sha=None, why='3 file(s) of infra/service/tower_infra/ only'):
@@ -50,8 +48,7 @@ class Db:
     """The image statements of the autodeploy and of the gate, by their text."""
 
     def __init__(self):
-        self.pointer, self.events, self.job, self.live, self.idents = {}, [], [('succeeded', said(S))], set(), set()
-        self.standbys = [('runner', 'healthy', 'arn:r'), ('service', 'healthy', 'arn:s')]
+        self.pointer, self.events, self.live, self.idents = {}, [], set(), set()
 
     def scope(self):
         import contextlib
@@ -61,13 +58,6 @@ class Db:
         return [each for kind, each in self.events if kind == autodeploy.SWAP and swapped in (None, each.get('swapped'))]
 
     def rows(self, sql, params=None):
-        if sql == autodeploy.SWAP_OF:
-            return [(1,)] if params['id'] in self.idents else []
-        if sql == autodeploy.BUNDLE_JOB:
-            assert params['key'] == f'prewarm:code:{PR_HEAD}'
-            return self.job
-        if sql == autodeploy.STANDBYS:
-            return self.standbys if params['digest'] == S else []
         if sql == live_image.READ:
             value = self.pointer.get(params['key'])
             return [] if value is None else [(json.dumps(value), 1)]
@@ -105,86 +95,29 @@ class Db:
         raise AssertionError(sql)
 
 
-class Ecs:
-    def __init__(self, healthy=True):
-        self.healthy, self.calls = healthy, []
-
-    def describe_tasks(self, cluster, tasks):
-        self.calls.append((cluster, tasks))
-        return {'tasks': [{'taskArn': each, 'lastStatus': 'RUNNING', 'healthStatus': 'HEALTHY' if self.healthy else 'UNHEALTHY'}
-                          for each in tasks]}
-
-
 class World(unittest.TestCase):
     def setUp(self):
         self.db, self.now, self.params = Db(), [1000.0], {}
         self.watcher = autodeploy.AutoDeploy(self.db.scope, self.params.get, lambda _: {}, clock=lambda: self.now[0])
-        self.watcher.ecs, self.watcher.cluster = Ecs(), 'tower'
         self.heads = [BASE, MERGE]
 
-    def land(self, event=None, cfg=CFG, heads=None):
+    def land(self, event=None):
+        """MERGE swapped onto its bundle S, as the merge queue's swap leaves it: both pointers in one statement and
+        platform.deploy.image_swap {swapped: true}. LANDING-PREWARM-GONE (D-316): the landing no longer promotes standbys
+        itself (autodeploy.promote left with the prewarm); what the look does after a swap is what these tests judge."""
         self.watcher.landed[MERGE] = event or landed()
-        self.watcher.promote(self.db, heads or self.heads, cfg)
+        self.db.rows(autodeploy.SWAP_WRITE, {
+            'tenant': self.watcher.tenant, 'digest': S, 'keys': ','.join(KEYS), 'reason': 'test',
+            'id': f'{autodeploy.SWAP}:{MERGE}', 'landed_at': self.watcher.landed_at.get(MERGE), 'payload': json.dumps(
+                {'digest': S, 'key': f'artifacts/lambda/tower-code/{S}.zip', 'head': MERGE, 'pr_head': PR_HEAD, 'by': 'queue'})})
 
 
-class OnLanding(World):
-    def test_both_pointers_are_written_in_one_statement_to_the_pr_heads_bundle(self):
-        with self.assertLogs('tower_infra.autodeploy', 'INFO') as logs:
-            self.land()
-        self.assertEqual(self.db.pointer, {key: S for key in KEYS})
-        [swap] = self.db.swaps()
-        self.assertEqual((swap['digest'], swap['head'], swap['pr_head'], swap['swapped'], swap['key']),
-                         (S, MERGE, PR_HEAD, True, f'artifacts/lambda/tower-code/{S}.zip'))
-        self.assertEqual(self.watcher.ecs.calls, [('tower', ['arn:r', 'arn:s'])])  # ECS says healthy now, not only the log
-        self.assertIn('both pointers -> aaaaaaaaaaaa', '\n'.join(logs.output))
-        self.watcher.promote(self.db, self.heads, CFG)  # the same landing again: nothing
-        self.assertEqual(len(self.db.swaps()), 1)
-
-    def test_any_reason_not_to_swap_is_the_slow_path_with_the_reason(self):
-        cases = (
-            ({'cfg': {'promote': False}}, 'deploy.promote is false'),
-            ({'event': landed(bundle_same=False, moved=['infra/service/tower_infra/x.py'])},
-             "the base changed the bundle's inputs: infra/service/tower_infra/x.py"),
-            ({'heads': [LATER, MERGE]}, "the merge's parent is not base_before"),
-            ({'job': []}, 'the PR head has no bundle job'),
-            ({'job': [('succeeded', said(why='not code'))]}, 'not code-only: not code'),
-            ({'standbys': [('runner', 'healthy', 'arn:r'), ('service', 'started', 'arn:s')]}, 'no healthy service standby'),
-            ({'ecs': Ecs(healthy=False)}, 'no healthy runner or service standby'),
-        )
-        for given, why in cases:
-            self.setUp()
-            for name in ('job', 'standbys'):
-                if name in given:
-                    setattr(self.db, name, given[name])
-            if 'ecs' in given:
-                self.watcher.ecs = given['ecs']
-            self.land(given.get('event'), given.get('cfg', CFG), given.get('heads'))
-            self.assertEqual(self.db.pointer, {}, why)
-            [swap] = self.db.swaps()
-            self.assertEqual((swap['swapped'], swap['head']), (False, MERGE))
-            self.assertIn(why, swap['why'])
-
-    def test_a_landing_that_is_not_code_only_or_not_the_newest_head_is_todays_path_and_says_nothing(self):
-        self.land(landed(code_only=False))
-        self.watcher.landed[MERGE] = landed()
-        self.watcher.promote(self.db, [MERGE, LATER], CFG)  # another merge landed on top: not swapped
-        event = landed()
-        del event['code']  # a delivery that does not say (an older port): nothing
-        self.watcher.landed[LATER] = event
-        self.watcher.promote(self.db, [BASE, LATER], CFG)
-        self.assertEqual((self.db.pointer, self.db.events), ({}, []))
-
+class TheLook(World):
     def test_the_swap_runs_before_the_lambda_swap_in_the_look(self):
         source = (ROOT / 'infra/service/tower_infra/autodeploy.py').read_text(encoding='utf-8')
         look = source[source.index('    def decide_in('):]
         self.assertLess(look.index('self.image(db, pushes, cfg)'), look.index('self.swap(db, pushes)'))
         self.assertLess(look.index('self.swap(db, pushes)'), look.index("if not cfg['auto']"))
-
-    def test_promote_is_a_registry_key_defaulting_to_true(self):
-        entry = json.loads((ROOT / 'config/registry/deploy/deploy.promote.json').read_text(encoding='utf-8'))
-        self.assertEqual((entry['type'], entry['default']), ('boolean', True))
-        self.assertIs(autodeploy.DEFAULTS['promote'], True)
-        self.assertEqual(live_image.config_data.SPEC['deploy.promote'], (bool, True))
 
 
 class OffTheClock(World):
@@ -430,7 +363,7 @@ class OnPostgres(unittest.TestCase):
 
     def test_the_swap_handover_and_retirement_on_the_real_tables(self):
         said = self.world.port('POST', '/v1/deploy/landed', 'torre', {**landed(), 'functions': []})
-        self.assertFalse(said['swap']['swapped'])  # IMAGE-SWAP-TIGHTEN: no bundle job here, so the autodeploy decides
+        self.assertNotIn('swap', said)  # LANDING-PREWARM-GONE: the landing is recorded; the swap is written below
         at = float(self.db.rows("select extract(epoch from occurred_at) from log.event where type = 'platform.deploy.landed'")[0][0])
         found = self.db.rows(autodeploy.SWAP_WRITE, {
             'tenant': 'torre', 'digest': S, 'keys': ','.join(KEYS), 'reason': 'test', 'id': f'{autodeploy.SWAP}:{MERGE}',

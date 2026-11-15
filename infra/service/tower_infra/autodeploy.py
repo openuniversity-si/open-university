@@ -45,7 +45,7 @@ and whose standby pair is not there is not left to the two rollouts: the look or
 place (order(): platform.deploy.image_reload {state: ordered}, one order at a time, the newest head after the one in flight
 settles), holds that head's ring while they do (reloading(): live_image.ORDER_LIMIT_S from the landing at most), records
 their canaries' verdicts and, once both roles are proven, writes deploy.live_code (reloads()): the build that is rung then
-finds the head's code live and deploys neither the image nor the two stacks. With deploy.promote false nothing is ordered.
+finds the head's code live and deploys neither the image nor the two stacks.
 
 FAST-PATH-RELOAD (GATE-SHUTDOWN, D-314; the Torre, 14/11): on GitHub no landing reaches this look and no runner exists,
 so a code-only merge's deploy build asks for the reload itself: deploy.sh publishes the head's bundle and names it in
@@ -98,7 +98,6 @@ OK = ('succeeded', 'nothing_new')
 DEFAULTS = {'auto': True, 'base_branch': 'mod/roadmap-integration', 'debounce_s': 20,
             'lost_after_s': 3000, 'monthly_usd': 30.0, 'alarm_usd': 20.0, 'usd_per_min': 0.005,
             'fast_propagation_s': 10.0, 'fast_activate_s': 120.0,
-            'promote': True,  # IMAGE-PREWARM-C: a landing promotes its standbys (22.9a: promoting is a choice)
             'queue_reload': True}  # QUEUE-RELOAD: the merge queue's words order a code-only merge's reload (queue_deploy)
 ZERO_OK = ()
 # Paths whose change needs the slow path (a stack, the image, the deployer); the service image has no scripts/, so this
@@ -130,12 +129,8 @@ RECORD = ("insert into log.event (event_id, tenant_id, type, occurred_at, produc
 SWAP = 'platform.deploy.image_swap'
 ROLES = ('runner', 'service')
 SWAP_LIMIT_S = 60  # a swap whose two standbys did not both say image_live by then is undone: the slow path, as before
-SWAP_OF = ("select 1 from log.event where type = 'platform.deploy.image_swap' and event_id = %(id)s "
-           "and occurred_at > now() - interval '7 days'")  # IMAGE-SWAP-TIGHTEN: bounded, the window of LANDINGS
-BUNDLE_JOB = port.BUNDLE_JOB  # IMAGE-SWAP-TIGHTEN: shared with the landing's swap
-STANDBYS = ("select distinct on (payload->>'task') payload->>'role', payload->>'state', payload->>'task' from log.event "
-            "where type = 'platform.deploy.standby' and tenant_id is null and occurred_at > now() - interval '1 day' "
-            "and payload->>'digest' = %(digest)s and payload->>'task' <> '' order by payload->>'task', occurred_at desc")
+# LANDING-PREWARM-GONE (D-316): the landing's swap onto the bundle a prewarm job built and its Spot standbys (SWAP_OF,
+# BUNDLE_JOB, STANDBYS, promote) left with the prewarm; a code-only merge goes live by queue_deploy's swap or its order
 # both pointers in ONE statement (one transaction: the swap is atomic across the roles) and the event that times it.
 # IMAGE-SWAP-TIGHTEN: landed_s from the landing's occurred_at the look already read (landed_at), not a lookup of the log
 # between the pointers' update and the commit, which delayed the NOTIFY by a scan of log.event (event_id is not its key's lead)
@@ -355,14 +350,14 @@ class AutoDeploy:
         self.cycles, self.alarmed = [], set()  # the month's cycle events (newest last) and the months with an alarm (DEP7)
         # IMAGE-PREWARM-C: the landings already considered for the swap; the tenant of the pointers and of the prewarm's
         # bundle jobs; ECS (DescribeTasks of the standbys, the prewarm's IAM) when the service runs them, else None
-        self.image_seen, self.tenant, self.ecs, self.cluster = set(), config_data.TENANT, None, None
+        self.tenant = config_data.TENANT
         self.canaries, self.alert = {}, canary.alert  # DEPLOY-CANARY: swap key -> its canary's red line (None: green); the publisher
         # SLOW-PATH-NO-ROLLOUT-WAIT: the store of the code bundles (None: no bucket), the asks (key, sha256) already tried,
         # and whether a build is in progress (it may ask at any step: the safety look stays short meanwhile)
         self.bundles, self.migrated, self.building = None, set(), False
         # RELOAD-WITHOUT-STANDBY: the head whose order to load its bundle in place this look follows; the landing whose
         # order waits for the one in flight to settle (head, digest, key, pr_head); the roles whose canary is settled
-        self.reload, self.waiting, self.judged = None, None, set()
+        self.reload, self.judged = None, set()
         # FAST-PATH-RELOAD: the last-build this look read, the (head, sha256) a build asked to reload already ordered here,
         # and whether a build that just started may still ask (the safety look is short meanwhile)
         self.seen_build, self.asked, self.asking = {}, set(), False
@@ -684,11 +679,10 @@ class AutoDeploy:
 
     # --- IMAGE-PREWARM-C: the image-only swap on landing --------------------------------------------------------------------
     def image(self, db, pushes, cfg):
-        """The landing's swap (promote), then the pointer's way back off the clock (settle_image). Never raises: the slow
+        """The orders followed (reloads), then the pointer's way back off the clock (settle_image). Never raises: the slow
         path is the net."""
         heads = [each[0] for each in pushes]
         try:
-            self.promote(db, heads, cfg)
             self.reloads(db, heads)  # RELOAD-WITHOUT-STANDBY: the order of a landing with no standby pair, followed
             self.settle_image(db, heads)
             self.live_code(db, heads[-1] if heads else None)
@@ -711,83 +705,23 @@ class AutoDeploy:
         if found:
             self.say('image', f'deploy.live_code -> {str(found[0][0])[:12]}: a task ECS starts later boots it', self.clock())
 
-    def promote(self, db, heads, cfg):
-        """The newest head of the base, if a landing (platform.deploy.landed), is promoted once: both pointers = the bundle
-        S of its standbys in one statement, and platform.deploy.image_swap {digest, head, wrote_at, landed_s, versions}.
-        Any reason not to is the same event with swapped false and why; the slow path then deploys the head as today."""
-        head = heads[-1] if heads else None
-        event = self.landed.get(head)
-        if event is None or head in self.image_seen:
-            return
-        self.image_seen.add(head)
-        code = event.get('code') if isinstance(event.get('code'), dict) else {}
-        if not code.get('code_only'):  # no image target, or a real image/stack change: today's paths, nothing to explain
-            return
-        ident = f'{SWAP}:{head}'
-        if db.rows(SWAP_OF, {'id': ident}):
-            if not (isinstance(event.get('swap'), dict) and event['swap'].get('swapped')):
-                self.reload = head  # RELOAD-WITHOUT-STANDBY: a service that starts mid-way follows the order left for it
-            return
-        # IMAGE-SWAP-TIGHTEN: the landing swaps where it is recorded (port.deploy_landed); here is the fallback, which
-        # keeps the landing's reason for not swapping beside its own
-        landing = {'landing_why': event['swap']['why']} if isinstance(event.get('swap'), dict) and event['swap'].get('why') else {}
-        digest, key, why = self.promotable(db, head, heads, event, cfg)
-        if why:
-            self.record(db, SWAP, ident, {'head': head, 'pr_head': event.get('pr_head'), 'swapped': False, 'why': why, **landing})
-            self.say('image', f'slow path: {why}', self.clock(), head=head[:12])
-            if digest:  # RELOAD-WITHOUT-STANDBY: the merge's code is this bundle, only its standby pair is missing
-                self.order(db, head, digest, key, event.get('pr_head'))
-            return
-        found = db.rows(SWAP_WRITE, {'tenant': self.tenant, 'digest': digest, 'keys': ','.join(live_image.KEYS[role] for role in ROLES),
-                                     'reason': f'IMAGE-PREWARM-C: landed {head[:12]}', 'id': ident,
-                                     'landed_at': self.landed_at.get(head), 'payload': json.dumps(
-                                         {'digest': digest, 'key': key, 'head': head, 'pr_head': event.get('pr_head'),
-                                          'by': 'autodeploy', **landing})})
-        swapped = json.loads(found[0][0]) if found else {}
-        self.say('image', f'both pointers -> {digest[:12]}' if found else f'no tenant {self.tenant}: nothing written',
-                 self.clock(), head=head[:12], landed_s=swapped.get('landed_s'))
-
-    def promotable(self, db, head, heads, event, cfg):
-        """(digest, key, None) when the merge's code is a bundle S whose two standbys are healthy now, else (None, None, why);
-        RELOAD-WITHOUT-STANDBY: (digest, key, why) when the merge's code is S and only its standbys are missing.
-        The merge-vs-head rule: the standbys run the PR head's bundle, the merge must run the same code. The delivery says
-        (landed.code, gate_infra.landed_event) whether the PR is code-only and whether the base it merged onto changed none of
-        the bundle's inputs since the PR left it (then the clean merge's inputs ARE the head's, file by file: the same
-        deterministic bundle); and base_before must be the merge's parent, the head before it on the base here (a base that
-        moved under the merge, a landing in between, may have brought other code)."""
-        index = heads.index(head)
-        bundle, why = port.merged_bundle(db, self.tenant, cfg['promote'], event, heads[index - 1] if index else None)
-        if why:
-            return None, None, why
-        key, digest = bundle
-        tasks = {role: task for role, state, task in db.rows(STANDBYS, {'digest': digest}) if state == 'healthy'}
-        missing = [role for role in ROLES if role not in tasks]
-        if not missing and self.ecs is not None:  # the log may lag a Spot interruption: ECS says now
-            seen = {each['taskArn']: each for each in self.ecs.describe_tasks(
-                cluster=self.cluster, tasks=[tasks[role] for role in ROLES]).get('tasks') or []}
-            missing = [role for role in ROLES if (seen.get(tasks[role]) or {}).get('lastStatus') != 'RUNNING'
-                       or seen[tasks[role]].get('healthStatus') != 'HEALTHY']
-        if missing:
-            return digest, key, f"no healthy {' or '.join(missing)} standby of {digest[:12]}"
-        return digest, key, None
-
     # --- RELOAD-WITHOUT-STANDBY: the landing with no standby pair, loaded in place by the ECS tasks --------------------------
     def order(self, db, head, digest, key, pr_head, **more):
         """The order to load the landed bundle in place: platform.deploy.image_reload {state: ordered, digest, key, head,
         landed_s}, which the ECS runner obeys first and the ECS service once the runner is proven (live_image.Order). One
-        order at a time: while another is not settled this one waits (reloads() asks again, while its head is the base's
-        newest); a bundle a reload failed on is never ordered again. FAST-PATH-RELOAD: more (roles, by, build) goes in the
-        order; one a build asked for never waits (the build would wait for nothing): answers (made, busy, bad)."""
+        order at a time: while another is not settled this one is not made (the queue and the build each say it: their
+        orders never wait, LANDING-PREWARM-GONE: the landing's order that waited left with the prewarm); a bundle a
+        reload failed on is never ordered again. FAST-PATH-RELOAD: more (roles, by, build) goes in the order: answers
+        (made, busy, bad)."""
         made, busy, bad, _ = db.rows(ORDER, {
             'id': f'{live_image.RELOAD}:order:{head}', 'digest': digest, 'settle_s': live_image.ORDER_SETTLE_S,
             'landed_at': self.landed_at.get(head) or self.clock(), 'payload': json.dumps(
                 {'state': 'ordered', 'digest': digest, 'key': key, 'head': head, 'pr_head': pr_head, 'order': head, **more})})[0]
         made, bad = bool(int(made)), bad in (True, 't')
         self.reload = head if made or busy == head else self.reload
-        self.waiting = (head, digest, key, pr_head) if busy and busy != head and not more.get('by') else self.waiting if more.get('by') else None
         alone = live_image.order_roles(more) != live_image.ROLES
         self.say('image', f"ordered: the ECS tasks load {digest[:12]} in place, {'the service alone' if alone else 'the runner first'}"
-                 if made else f'the order of {str(busy)[:12]} is not settled: this one waits' if busy and busy != head else
+                 if made else f'the order of {str(busy)[:12]} is not settled: this one is not made' if busy and busy != head else
                  f'not ordered: a reload onto {digest[:12]} failed' if bad else 'ordered already', self.clock(), head=head[:12])
         return made, busy, bad
 
@@ -851,8 +785,7 @@ class AutoDeploy:
     def reloads(self, db, heads):
         """The order this look follows (the one it made, or the one a service before it left for the newest head): its
         canaries' verdicts recorded and a red one published (canary.settle, as a swap's), and once both roles' reloads
-        are proven its end: {state: done} and deploy.live_code (ORDER_DONE). An order that waited is asked again when
-        the one in flight settles. No statement while no order is followed or waits."""
+        are proven its end: {state: done} and deploy.live_code (ORDER_DONE). No statement while no order is followed."""
         newest = heads[-1] if heads else None
         order = self.reload and live_image.ordered(db.rows(live_image.ORDER_OF, {'tenant': self.tenant, 'head': self.reload}))
         if not order:
@@ -882,10 +815,6 @@ class AutoDeploy:
                          self.clock(), head=order['head'][:12])
             if proven or order['refused'] or order['age_s'] > live_image.ORDER_SETTLE_S:
                 self.reload, self.judged = None, set()
-        if self.reload is None and self.waiting is not None:
-            waiting, self.waiting = self.waiting, None
-            if waiting[0] == newest and self.clock() - self.landed_at.get(newest, 0) < live_image.ORDER_LIMIT_S:
-                self.order(db, *waiting)
 
     def succeed(self, db, order):
         """IN-TASK-STANDBY: the order of a landing that found no standby, obeyed by the successors the ECS tasks started
@@ -921,7 +850,7 @@ class AutoDeploy:
         tower_deploy): both roles proven, it finds deploy.live_code and deploys no image and no stack; failed, it is the
         slow path, as before. Never longer than live_image.ORDER_LIMIT_S after the landing: the look comes back then."""
         landed = self.landed_at.get(head)
-        if head not in (self.reload, (self.waiting or (None,))[0]) or landed is None:
+        if head != self.reload or landed is None:
             return None
         left = live_image.ORDER_LIMIT_S - (now - landed)
         if left <= 0:
@@ -1442,9 +1371,6 @@ def from_boto3(scope, environ=None):
             except ClientError:
                 s3.put_object(Bucket=bucket, Key=key, Body=data)
         found.queue = queue_deploy.QueueReload(read, put)
-    if environ.get('TOWER_STANDBY_CLUSTER', '').strip():  # IMAGE-PREWARM-C: DescribeTasks of the standbys (B2's IAM)
-        found.cluster = environ['TOWER_STANDBY_CLUSTER'].strip()
-        found.ecs = boto3.client('ecs', region_name=region, config=settings)
     return found
 
 
