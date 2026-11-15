@@ -1,6 +1,6 @@
 {
   "type": "string",
-  "default": "origin/mod/roadmap-integration",
+  "default": "origin/main",
   "x-unit": "ref",
   "description": "The ref `scripts/test-suite --changed` diffs the checkout against (base...HEAD plus the uncommitted files) to pick the script tests the PR gate would select (VAZÃO F50), and `scripts/generate --changed` diffs it against to pick the derived files to regenerate.",
   "x-readers": [

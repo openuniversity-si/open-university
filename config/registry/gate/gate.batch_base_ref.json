@@ -1,6 +1,6 @@
 {
   "type": "string",
-  "default": "origin/mod/roadmap-integration",
+  "default": "origin/main",
   "x-unit": "ref",
   "description": "The ref a batch is merged onto and diffed against when scripts/gate-batch is given no --base.",
   "x-readers": [

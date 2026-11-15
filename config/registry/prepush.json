@@ -7,6 +7,16 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "prepush.base_ref": {
+      "type": "string",
+      "default": "origin/main",
+      "minLength": 1,
+      "x-unit": "ref",
+      "description": "The base prepush compares a push with: the changed files, the census of literals and the overlap with open pull requests. The source of truth's main since D-314 (origin is GitHub); it was push-guard.remote/train.base_branch, the Origin-era train's integration branch, which a GitHub checkout does not have, so every push warned that the census and the overlap had no base.",
+      "x-readers": [
+        "scripts/lib/prepush.py"
+      ]
+    },
     "prepush.event_names_test": {
       "type": "string",
       "default": "scripts/tests/test_event_contracts.py::Contracts.test_events_md_and_the_schemas_name_the_same_events",

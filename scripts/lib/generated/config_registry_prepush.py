@@ -2,6 +2,7 @@
 from typing import Any, Literal, NotRequired, Required, TypedDict  # noqa: F401
 
 Name = Literal[
+    'prepush.base_ref',
     'prepush.event_names_test',
     'prepush.fetch_timeout_s',
     'prepush.machine_ref_keys',
@@ -15,6 +16,7 @@ Name = Literal[
 ]
 
 Values = TypedDict('Values', {
+    'prepush.base_ref': str,
     'prepush.event_names_test': str,
     'prepush.fetch_timeout_s': int,
     'prepush.machine_ref_keys': list[str],
