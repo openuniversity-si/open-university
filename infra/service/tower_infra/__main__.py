@@ -59,13 +59,9 @@ WARM_EVENT = ("insert into log.event (event_id, tenant_id, type, occurred_at, pr
 UP_EVENT = ("with said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
             "values (%(id)s, null, 'platform.deploy.task_up', clock_timestamp(), %(producer)s, 'deploy/task', %(payload)s::jsonb) "
             "returning type) select pg_notify('tower_deploy', type) from said")
-# GATE-SHUTDOWN (14/11/2026, D-314; PR #17 stopped the AWS gate): the looks serve() starts, by module. The Origin
-# forge's own (its check runs, its PR reads, its branch merges: dormant on purpose with the Origin-era code, D-316) start
-# only when service.gate_looks is true; the kept ones serve the deploy, the port and the account's hygiene.
-# GATE-LOOKS-GONE (Daniel through the Torre, 15/11/2026, D-316): the AWS gate's own looks (prewarm, ondemand,
-# merge_ready, pregate, fullrun: its Spot standbys, its runner on demand, the train's merge ahead, the pre-gate, the
-# base's full run) left the tree
-GATE_LOOKS = ('checks', 'observations', 'branches')
+# GATE-LOOKS-GONE (Daniel through the Torre, 15/11/2026, D-316): the looks serve() starts, by module: the deploy's, the
+# port's drills and the account's hygiene. The AWS gate's own looks left the tree; the Origin forge's (checks,
+# observations, branches) stay in it, dormant on purpose with the Origin-era code, and serve() starts none of them
 KEPT_LOOKS = ('autodeploy', 'drill_look', 'prune')
 
 
@@ -151,25 +147,6 @@ def deliver(engine, sinks):
         raw.close()
 
 
-def refresh_keys(forge_webhooks, workflows):
-    """The forge's webhook keys (P4 F2b): the service reaches Origin's JWKS, the port's Lambda does not (D-309), so the
-    service records them in the log when they change. Best effort: a failure is logged and the tick goes on."""
-    try:
-        with workflows.connected() as db:
-            if forge_webhooks.refresh(db, url=os.environ.get('TOWER_FORGE_KEYS_URL', forge_webhooks.KEYS_URL)):
-                LOG.info("serve: the forge's webhook keys changed")
-            parameter = os.environ.get('TOWER_FORGE_KEYS_PARAMETER')
-            # PORT3: the webhook ingress verified from this parameter, without a database. GATE-SHUTDOWN: the ingress is
-            # gone (PR #17) and no task definition names the parameter any more, so nothing is published
-            if parameter:
-                import boto3
-                ssm = boto3.client('ssm', region_name=os.environ.get('AWS_REGION'))
-                forge_webhooks.publish(db, lambda name, value: ssm.put_parameter(
-                    Name=name, Value=value, Type='String', Overwrite=True), parameter)
-    except Exception as error:  # noqa: BLE001 - the keys only matter to the webhooks; nothing else stops
-        LOG.warning("serve: the forge's webhook keys were not refreshed: %s", error)
-
-
 def pooled(engine):
     """A scope over a pooled connection of the engine (IMAGE-PREWARM-A: the gate reads before workflows.ENGINE is set)."""
     import contextlib
@@ -237,12 +214,6 @@ def task_up(role, scope, environ=None):
         LOG.exception('%s: could not record platform.deploy.task_up', role)
         return False
     return True
-
-
-def aside(work):
-    """IMAGE-SWAP-TICK: work that waits on the network (Parameter Store, the forge's CLI) in a thread of its own: a
-    standby's pass never waits for it, so the swap's wake finds the loop free."""
-    threading.Thread(target=work, name='aside', daemon=True).start()
 
 
 def touch_health(engine):
@@ -369,7 +340,7 @@ def serve():
     # pool gives the new process the connections the lost one left; at 12/11 22:21 UTC it took 7 and logged in twice)
     late_listen = gate is not None and gate.strict and intask and gate.live is True
     hub = wake.Hub(lambda: connection(database, where, user, password, purpose='listen', **wake.KEEPALIVE),
-                   (wake.WORK, wake.CONFIG, wake.DEPLOY, wake.TRAIN), later=late_listen)  # TRAIN: MERGE-READY's look, gone (D-316)
+                   (wake.WORK, wake.CONFIG, wake.DEPLOY), later=late_listen)  # TRAIN left with MERGE-READY's look (D-316)
     woken = hub.wake(wake.WORK)
     stop = threading.Event()
     # IMAGE-SWAP-FAILOVER: a promoted standby that is stopped (Spot's warning, a StopTask) hands its pointer back first
@@ -405,10 +376,6 @@ def serve():
     if not handed:
         settings.refresh(loop.scope if loop is not None and gate.boot else None)
     live_image.mark(gate, 'settings')  # LATE-SETUP-SAID: the behaviour keys read
-    # GATE-SHUTDOWN (14/11/2026, D-314): the gate is GitHub's (tower/gate, the merge queue); the AWS gate's looks, the
-    # forge's warm-up and its webhook keys' refresh start only when service.gate_looks is true (read once, here)
-    gate_looks = bool(settings.get('service.gate_looks'))
-    LOG.info("serve: the gate's looks are %s (service.gate_looks): %s", 'on' if gate_looks else 'off', ', '.join(GATE_LOOKS))
     # ENGINE-REPO: the engine's repository from service.engine_repo, live on tower_config. Imported under its own name:
     # `engine` in serve() is the database's engine (deliver, touch_health, ready_ahead), and a bare `from . import
     # engine` here rebound it to the module (the first deploy from GitHub, 14/11: AttributeError raw_connection, the
@@ -430,19 +397,6 @@ def serve():
     from . import prune
     live_image.lowly(prune.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
                                  active=None if gate is None else gate.after_work(gate.sole)))
-    if gate_looks:  # GATE-SHUTDOWN: the AWS gate's looks (GATE_LOOKS), kept whole behind service.gate_looks
-        # CHECK-RUN-AWS: the gate's tower/gate check run, asked at the port, posted by the live service with the Origin app's key
-        live_image.lowly(checks.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait,
-                                      active=None if gate is None else gate.after_work(gate.sole), poster=poster))
-        # PR-OBSERVATION: what `pr metadata` reads of a PR, asked at the port, read by the live service with the forge's key
-        from . import observations
-        live_image.lowly(observations.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait, origin_forge,
-                                            active=None if gate is None else gate.after_work(gate.sole)))
-        # BRANCH-MERGE: the base merged into a unit's branch and pushed by the live service, in a clone of its own, with the key
-        from . import branches
-        live_image.lowly(branches.start(workflows.connected, stop, hub.wake(wake.DEPLOY).wait, container.Container(
-            os.environ.get('TOWER_BRANCHES_WORKDIR', '/tmp/tower-branches'), credential=parameter(os.environ.get('TOWER_FORGE_KEY_PARAMETER')), slot=branches.SLOT, token_auth=True),
-            active=None if gate is None else gate.after_work(gate.sole)))
     # DEPLOY-CANARY: a service that took its role by a swap, or reloaded in place, fires a canary job after its first good tick
     # FIRST-JOB-AT-ONCE: on the loop's own connection (the one that dispatches, and where the successor rehearsed the
     # canary's statements), not a pooled one: live 12/11 12:50 UTC the canary was made 0.6 s after the swap's first tick
@@ -466,18 +420,12 @@ def serve():
     heartbeat = number('TOWER_HEARTBEAT_S', 30)
     partitions, lease = number('TOWER_PARTITIONS_EVERY_S', 3600), os.environ.get('TOWER_LEASE', '5 minutes')
     last_beat = last_partitions = time.monotonic() - heartbeat
-    last_keys = None  # P4 F2b: the forge's webhook keys; the interval is service.forge_keys_every_s (DEP9)
     # IMAGE-SWAP-TICK: the first pass after a swap is the dispatcher's: live 11/11 the swap's canary, made right after the
     # first tick, waited 1.3 to 6.5 s for the second (3.3 to 4.3 s on the reloaded task), the time of the pass's cold
-    # reads (the forge's key and token, its webhook keys: a Parameter Store client, the CLI, an HTTPS fetch on 0.25 vCPU).
-    # A standby keeps the forge's key warm and puts off its refresh of the webhook keys (its pass, below: the live service
-    # refreshes them); a task that reloaded itself reads both here, before its first tick, which is when it takes the
-    # role over (Gate.back): until then the promoted standby works
+    # reads (the forge's key and token, its webhook keys: GATE-LOOKS-GONE, D-316, the pass reads neither any more). A task
+    # that reloaded itself drains its wake here, before its first tick, which is when it takes the role over (Gate.back):
+    # until then the promoted standby works
     if gate is not None and gate.reloaded is not None and gate.sharing():
-        if gate_looks:  # GATE-SHUTDOWN: the forge's key and its webhook keys serve the AWS gate alone
-            origin_forge.warm()
-            refresh_keys(forge_webhooks, workflows)
-        last_keys = time.monotonic()
         woken.wait(0)  # and its wake is drained before that tick, like a standby's (below)
     LOG.info('serve: up')
     live_image.mark(gate, 'loop')  # LATE-SETUP-SAID: the loop's first pass comes next
@@ -503,9 +451,6 @@ def serve():
                     last_beat = time.monotonic()
                     lifecycle.beat()  # LIFE-EVENT-RETRY: an event the database refused is written on a good beat
                     idle.beat(loop)  # DISPATCH-STALL-ALERT: an alert when no service dispatches what is ready
-                    if gate_looks:  # GATE-SHUTDOWN: the forge's key serves the AWS gate's landings alone
-                        aside(origin_forge.warm)  # IMAGE-SWAP-TICK: the swap finds the forge's key and token kept,
-                last_keys = time.monotonic()  # and the webhook keys' refresh comes an interval after it, not on its first pass
                 reload.step()  # IMAGE-SWAP-RELOAD: under a swapped bundle, after the beat; the exec does not return
             except Exception:  # noqa: BLE001 - a standby that cannot reach the database is not healthy
                 LOG.exception('serve: standby beat failed')
@@ -558,8 +503,6 @@ def serve():
             if delivered:
                 LOG.info('serve: delivered %d event(s) to %d subscription(s)', sum(delivered.values()),
                          len(delivered))
-            if gate_looks:  # GATE-SHUTDOWN: no landing of the AWS gate comes, so no key is read for one
-                origin_forge.warm()  # AWS6: the key is read here, between ticks, never in a landing's seconds
             now = time.monotonic()
             # RELOAD-WITHOUT-STANDBY: not from a reload by order until its judge says proven: what does not prove itself
             # and does not go back goes unhealthy, and ECS replaces the task with one that boots the code before it
@@ -577,10 +520,6 @@ def serve():
                 with workflows.connected() as db:
                     measured.record(db)  # DB-VITALS: the hour's platform.db.vitals, and its alerts
                     live_image.sweep(db)  # SWAP-TAIL-CUT: the old standby beats, once an hour and not in every beat
-            # GATE-SHUTDOWN: the webhook ingress that verified with these keys is gone (PR #17); off with the gate's looks
-            if gate_looks and (last_keys is None or now - last_keys >= settings.get('service.forge_keys_every_s')):
-                last_keys = now
-                refresh_keys(forge_webhooks, workflows)
         except Exception as failure:  # noqa: BLE001 - a failed tick leaves the health file stale; ECS replaces the task
             LOG.exception('serve: tick failed')
             lifecycle.error('tick', failure)  # PROCESS-LIFE-IN-LOG

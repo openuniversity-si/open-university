@@ -54,9 +54,6 @@ SPEC = {
     # the public repository's, and the Torre writes the deployed engine's own
     'service.engine_repo': (str, 'openuniversity-si/open-university'),
     'service.dispatch_s': (float, 1.0),
-    'service.forge_keys_every_s': (float, 600.0),
-    # GATE-SHUTDOWN (14/11/2026, D-314): the AWS gate's looks, the forge's warm-up and its webhook keys' refresh; off
-    'service.gate_looks': (bool, False),
     # DB-VITALS: the database's disk (bytes) and the ratios of it and of max_connections past which the service alerts
     'service.db_disk_bytes': (int, 21474836480),
     'service.db_alert_disk_ratio': (float, 0.7),
