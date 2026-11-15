@@ -849,6 +849,14 @@ Module.prototype.require = function (name) {
       if (process.env.RUNNING) { const e = new Error('limit'); e.name = 'AccountLimitExceededException'; throw e; }
       return { build: { id: 'tower-infra-deploy:abc' } }; } }, StartBuildCommand: class { constructor(x) { this.x = x; } } };
   }
+  if (name === '@aws-sdk/client-lambda') {  // QUEUE-RELOAD: the port's invocation, written to INVOKED
+    return { LambdaClient: class { async send(command) {
+      if (process.env.STARTED) { require('fs').writeFileSync(process.env.STARTED, 'a build'); }
+      require('fs').writeFileSync(process.env.INVOKED, JSON.stringify({ name: command.x.FunctionName,
+        payload: JSON.parse(Buffer.from(command.x.Payload).toString('utf8')) }));
+      return process.env.PORT_FAILS ? { FunctionError: 'Unhandled' } : { StatusCode: 200 }; } },
+      InvokeCommand: class { constructor(x) { this.x = x; } } };
+  }
   return real.apply(this, arguments);
 };
 const source = require('fs').readFileSync(process.argv[2], 'utf8');
@@ -907,6 +915,36 @@ class DoorbellTests(unittest.TestCase):
             done = subprocess.run([self.node, str(self.harness), str(self.code), json.dumps(event)], capture_output=True,
                                   text=True, env=run, timeout=30, check=True)
             self.assertEqual(json.loads(done.stdout)['statusCode'], want)
+
+    def queue_call(self, body, fails=False, encoded=False):
+        """QUEUE-RELOAD: a Function URL call with the right token and this body: (answer, the port's invocation or None)."""
+        import base64
+        import hashlib
+        token = 'secret-of-the-test'
+        invoked = Path(self.directory.name, 'invoked.json')
+        invoked.unlink(missing_ok=True)
+        env = {**os.environ, 'PROJECT': 'p', 'TOKEN_SHA256': hashlib.sha256(token.encode()).hexdigest(),
+               'PORT': 'tower-port-api:live', 'INVOKED': str(invoked), **({'PORT_FAILS': '1'} if fails else {})}
+        raw = json.dumps(body)
+        event = {'requestContext': {}, 'headers': {'authorization': f'Bearer {token}'},
+                 'body': base64.b64encode(raw.encode()).decode() if encoded else raw, 'isBase64Encoded': encoded}
+        done = subprocess.run([self.node, str(self.harness), str(self.code), json.dumps(event)], capture_output=True,
+                              text=True, env=env, timeout=30, check=True)
+        return json.loads(done.stdout), (json.loads(invoked.read_text()) if invoked.exists() else None)
+
+    def test_a_queue_word_goes_to_the_port_alias_and_starts_no_build(self):
+        sha = 'a' * 40
+        for encoded in (False, True):
+            answer, invoked = self.queue_call({'event': 'landed', 'sha': sha}, encoded=encoded)
+            self.assertEqual((answer['statusCode'], json.loads(answer['body'])), (202, {'queue': 'landed', 'sha': sha}))
+            self.assertEqual(invoked, {'name': 'tower-port-api:live', 'payload': {
+                'source': 'tower.doorbell', 'detail-type': 'Merge Queue', 'detail': {'event': 'landed', 'sha': sha}}})
+        self.assertEqual(self.queue_call({'event': 'prepare', 'sha': sha}, fails=True)[0]['statusCode'], 502)
+
+    def test_a_queue_word_that_is_not_one_is_refused_and_invokes_nothing(self):
+        for body in ({'event': 'deploy', 'sha': 'a' * 40}, {'event': 'landed', 'sha': 'main'}, {'event': 'landed'}):
+            answer, invoked = self.queue_call(body)
+            self.assertEqual((answer['statusCode'], invoked), (400, None), body)
 
 
 if __name__ == '__main__':

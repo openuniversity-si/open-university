@@ -162,7 +162,10 @@ class BootstrapTests(unittest.TestCase):
     # plain git, so its BuildSpec drops the Origin CLI, its login and the /tower/origin/api-key parameter. The Torre
     # re-applies tower-bootstrap with this template after the merge (UsePreviousValue for its parameters); the pin is
     # what the account has once re-applied.
-    APPLIED = '64f53161d46028a599c35d1255e7865e363e5e5e82fcbb94448758eb3df01a07'
+    # QUEUE-RELOAD (the Torre, 15/11/2026): the doorbell passes the merge queue's words {event, sha} to tower-port-api:live
+    # (lambda:InvokeFunction on that alias alone) and starts no build for them. The Torre re-applies tower-bootstrap with
+    # this template after the merge (UsePreviousValue for its parameters), as for BUILD-NO-ORIGIN.
+    APPLIED = '4a842e1d1793bfa0773f095bde7dec4e6f9278ef0a99dd223965d32215ba3199'
 
     def test_the_file_is_the_template_the_account_has_applied(self):
         canonical = json.dumps(self.template, sort_keys=True, separators=(',', ':'))
@@ -321,7 +324,11 @@ class BootstrapTests(unittest.TestCase):
 
     def test_the_doorbell_can_only_start_the_deploy(self):
         actions = {action for item in self.policy('DoorbellRole') for action in as_list(item['Action'])}
-        self.assertEqual(actions, {'codebuild:StartBuild', 'logs:CreateLogStream', 'logs:PutLogEvents'})
+        self.assertEqual(actions, {'codebuild:StartBuild', 'lambda:InvokeFunction', 'logs:CreateLogStream', 'logs:PutLogEvents'})
+        # QUEUE-RELOAD: and pass the merge queue's words to the port's alias, nothing else
+        invoke = [item for item in self.policy('DoorbellRole') if 'lambda:InvokeFunction' in as_list(item['Action'])]
+        self.assertEqual([item['Resource'] for item in invoke], [
+            {'Fn::Sub': 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live'}])
         code = self.resources['DoorbellFunction']['Properties']['Code']['ZipFile']
         self.assertIn('timingSafeEqual', code)
         self.assertIn("createHash('sha256')", code)

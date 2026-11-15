@@ -881,6 +881,14 @@
                   }
                 },
                 {
+                  "Sid": "PassTheQueueWordsToThePort",
+                  "Effect": "Allow",
+                  "Action": "lambda:InvokeFunction",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+                  }
+                },
+                {
                   "Sid": "WriteItsLogs",
                   "Effect": "Allow",
                   "Action": [
@@ -931,11 +939,12 @@
             },
             "TOKEN_SHA256": {
               "Ref": "DoorbellTokenSha256"
-            }
+            },
+            "PORT": "tower-port-api:live"
           }
         },
         "Code": {
-          "ZipFile": "const crypto = require('crypto');\nconst { CodeBuildClient, StartBuildCommand } = require('@aws-sdk/client-codebuild');\nconst codebuild = new CodeBuildClient({});\n// The doorbell (D-303): a valid token only starts the deploy build; the build itself reads the base head from Origin,\n// so a caller can never choose what is deployed. The token is compared by its SHA-256, in constant time.\n// AUTO1: a DIRECT invocation (lambda:Invoke, no Function URL: the event has neither requestContext nor headers) is\n// authenticated by IAM, which only lets a principal granted lambda:InvokeFunction on this function ARN get here, so it\n// needs no token; a Function URL call always carries requestContext and keeps the token path unchanged. Both paths\n// then share the one-build-at-a-time start below (CodeBuild's concurrent limit of 1 answers 409).\nexports.handler = async (event) => {\n  const viaUrl = !!(event && (event.requestContext || event.headers));\n  if (viaUrl) {\n    const header = (event.headers && event.headers.authorization) || '';\n    const token = header.startsWith('Bearer ') ? header.slice(7) : '';\n    const want = Buffer.from(process.env.TOKEN_SHA256 || '', 'hex');\n    const got = crypto.createHash('sha256').update(token).digest();\n    if (!token || want.length !== got.length || !crypto.timingSafeEqual(got, want)) {\n      return { statusCode: 401, body: 'unauthorized' };\n    }\n  }\n  try {\n    const out = await codebuild.send(new StartBuildCommand({ projectName: process.env.PROJECT }));\n    return { statusCode: 202, body: JSON.stringify({ build: out.build.id }) };\n  } catch (error) {\n    return { statusCode: 409, body: JSON.stringify({ error: error.name }) };\n  }\n};\n"
+          "ZipFile": "const crypto = require('crypto');\nconst { CodeBuildClient, StartBuildCommand } = require('@aws-sdk/client-codebuild');\nconst codebuild = new CodeBuildClient({});\nconst { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');\nconst lambda = new LambdaClient({});\n// The doorbell (D-303): a valid token only starts the deploy build; the build itself reads the base head from Origin,\n// so a caller can never choose what is deployed. The token is compared by its SHA-256, in constant time.\n// AUTO1: a DIRECT invocation (lambda:Invoke, no Function URL: the event has neither requestContext nor headers) is\n// authenticated by IAM, which only lets a principal granted lambda:InvokeFunction on this function ARN get here, so it\n// needs no token; a Function URL call always carries requestContext and keeps the token path unchanged. Both paths\n// then share the one-build-at-a-time start below (CodeBuild's concurrent limit of 1 answers 409).\nexports.handler = async (event) => {\n  const viaUrl = !!(event && (event.requestContext || event.headers));\n  if (viaUrl) {\n    const header = (event.headers && event.headers.authorization) || '';\n    const token = header.startsWith('Bearer ') ? header.slice(7) : '';\n    const want = Buffer.from(process.env.TOKEN_SHA256 || '', 'hex');\n    const got = crypto.createHash('sha256').update(token).digest();\n    if (!token || want.length !== got.length || !crypto.timingSafeEqual(got, want)) {\n      return { statusCode: 401, body: 'unauthorized' };\n    }\n  }\n  // QUEUE-RELOAD (tower_infra.queue_deploy): the merge queue's words {event: prepare|landed, sha} go to the port as a direct\n  // invocation (platform.deploy.queue); they start no build. The sha is a claim the service checks against the repository.\n  let said = {};\n  try {\n    const raw = event && event.body ? (event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body) : '';\n    said = raw ? JSON.parse(raw) : (event && event.queue) || {};\n  } catch (error) {\n    return { statusCode: 400, body: 'the body is not JSON' };\n  }\n  if (said && said.event !== undefined) {\n    if (!['prepare', 'landed'].includes(said.event) || !/^[0-9a-f]{40}$/.test(String(said.sha || ''))) {\n      return { statusCode: 400, body: 'event must be prepare or landed, with a 40-hex sha' };\n    }\n    try {\n      const out = await lambda.send(new InvokeCommand({ FunctionName: process.env.PORT, Payload: Buffer.from(JSON.stringify(\n        { source: 'tower.doorbell', 'detail-type': 'Merge Queue', detail: { event: said.event, sha: said.sha } })) }));\n      if (out.FunctionError) {\n        return { statusCode: 502, body: JSON.stringify({ error: out.FunctionError }) };\n      }\n      return { statusCode: 202, body: JSON.stringify({ queue: said.event, sha: said.sha }) };\n    } catch (error) {\n      return { statusCode: 502, body: JSON.stringify({ error: error.name }) };\n    }\n  }\n  try {\n    const out = await codebuild.send(new StartBuildCommand({ projectName: process.env.PROJECT }));\n    return { statusCode: 202, body: JSON.stringify({ build: out.build.id }) };\n  } catch (error) {\n    return { statusCode: 409, body: JSON.stringify({ error: error.name }) };\n  }\n};\n"
         }
       }
     },
