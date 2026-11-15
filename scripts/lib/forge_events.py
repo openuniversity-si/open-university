@@ -346,6 +346,21 @@ def adapter_from_config():
     return RoutingAdapter(main, routes) if routes else main
 
 
+def journal_from_config():
+    """GITHUB-DIARY (the final review of the transition, 15/11): the port's journal alone, for the callers that only
+    append events and read them back (scripts/plan note, plan input). That is forge-events.log_adapter, the git-ref log
+    on the source of truth's remote, with forge-events.file_kinds in the local file log as adapter_from_config routes
+    them. adapter_from_config also builds the forge's main adapter, forge-events.adapter, whose Origin adapter refuses a
+    GitHub remote ("github.com: git remote is not an Origin git host"): with D-314 every plan note failed there."""
+    log = config.get('forge-events.log_adapter')
+    journal = construct_adapter(log, forge_requirements.JOURNAL, 'journal')
+    kinds = config.get('forge-events.file_kinds')
+    if not kinds or log == 'file':
+        return journal
+    routed = construct_adapter('file', forge_requirements.JOURNAL, 'file kinds journal')
+    return RoutingAdapter(journal, {kind: routed for kind in kinds})
+
+
 def board_adapter(issue):
     """BOARD (CANALE2): the board kinds' adapter for the board on `issue` of forge-events.repo."""
     import forge_board

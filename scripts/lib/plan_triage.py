@@ -351,8 +351,16 @@ Every event goes through the forge_events port (the registry's forge-events.adap
 log). Thresholds: planner.triage_promote_sightings, planner.overrun_factor."""
 
 
+JOURNAL_ONLY = ('note', 'input')  # GITHUB-DIARY: they append an event and read nothing of the forge
+
+
 def port(args, command):
-    adapter = forge_events.FileAdapter(args.log_dir) if args.log_dir else forge_events.adapter_from_config()
+    if args.log_dir:
+        adapter = forge_events.FileAdapter(args.log_dir)
+    elif command in JOURNAL_ONLY:
+        adapter = forge_events.journal_from_config()
+    else:
+        adapter = forge_events.adapter_from_config()
     return forge_events.ForgeEvents(adapter, forge_events.clock_from_config(), PRODUCER, f'{PRODUCER}-{command}')
 
 
