@@ -3,7 +3,7 @@
 ## Environment
 - This session (cloud, behind the GitHub proxy) holds `GH_TOKEN` and `$TOWER_EVENTS_TOKEN` (presence checked, values
   never printed); `scripts/train queue` and `scripts/plan note` reach the control plane.
-- **Limitation (not reachable from a session): the runner VM** `train@the-tower-runner.us-central1-a.c.savvy-bonito-286513.internal`.
+- **Limitation (not reachable from a session): the runner VM** `train@<vm>`.
   No gcloud login, ssh or keys were attempted (brief). Its `runner.env` and journal cannot be read here. Measured from
   outside: the control plane's `GET /status` gives its last heartbeat as 2026-11-01T00:14:56.751Z (~41 h before
   17:51Z), and `train/lock` shows no take by it after 17:31:03Z (checked 17:51Z and 18:02Z). Until its owner

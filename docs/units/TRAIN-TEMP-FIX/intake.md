@@ -17,7 +17,7 @@ next time a run fails nobody has to reconstruct why from ref timestamps.
 ## Contexto
 - The base `mod/roadmap-integration` sat at `fab6e204d` (#1081, 14:10Z) from 14:10Z to 17:32Z with #1084 and #1083
   ready in the train queue.
-- The runner VM (`train@the-tower-runner.us-central1-a.c.savvy-bonito-286513.internal`) ran the train every 15 min and
+- The runner VM (`train@<vm>`) ran the train every 15 min and
   each run released the lock about 3 s after taking it (audit F3).
 - A first launch of this unit (session `01B2LxDVDe3V…`, 14:28 BRT) ran the train from a cloud session at 17:32Z and
   merged #1084 and #1083 (audit F9); this replacement session interrupted it at 17:35Z to keep one writer on the branch.
