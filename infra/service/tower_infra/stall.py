@@ -22,6 +22,9 @@ such a job on its next tick, so the same job found ready for service.dispatch_st
 running, whatever the reason; the process records platform.dispatch.stalled {state: stalled, jobs, oldest_s, limit_s,
 task} and publishes it (a standby is a process of the service's task: the role that may publish), and {state: recovered}
 when none is left that old. It changes nothing: a strict standby's code may not have landed, so it never takes the role.
+
+This module runs in the service alone: no port Lambda's package holds it (scripts/lib/deploy_classify.LAMBDA_MODULES), so
+a change here is a code-only merge of the service (QUEUE-RELOAD: prepared in the merge queue, reloaded at the landing).
 """
 import json
 import logging
