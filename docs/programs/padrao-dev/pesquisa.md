@@ -144,3 +144,101 @@ teste é um gate não verificado. A conformidade é calculada, nunca preenchida 
 declarações formais de conformidade, matrizes de rastreio mantidas à mão, aprovações humanas por fase, especificações
 longas em prosa antes do código, cobertura global como número-alvo, e prosa normativa sem checagem (ela custa tokens e
 não muda o comportamento de forma confiável).
+
+## Complemento (revisão 2): os sistemas do ciclo, a gestão unificada de cada um e o modelo único
+
+Depois da correção de Daniel das 20:42 e 20:44 BRT. Mesmas marcas de verificação; nenhuma página foi lida nesta rodada
+(a rede da sessão não alcança os sites das normas), tudo é `[busca]` ou `[memória]`.
+
+**10. Fechar a lista de sistemas pelas normas.** A [ISO/IEC/IEEE 15288:2023](https://blog.ansi.org/ansi/iso-iec-ieee-15288-2023-system-life-cycle-processes/)
+e a [12207:2017](https://cdn.standards.iteh.ai/samples/63712/0bc6d9107eeb46d88dbc7b628b12cf4b/ISO-IEC-IEEE-12207-2017.pdf)
+`[busca]` têm os mesmos 30 processos em quatro grupos (acordo 2, habilitação organizacional 6, gestão técnica 8,
+técnicos 14), e diferem só no nome do processo de requisitos ([24748-3:2020](https://standards.iteh.ai/catalog/standards/iso/71a606f9-9681-4ef6-b389-fe051c8a83a0/iso-iec-ieee-24748-3-2020)
+`[busca]`). A [12207:2026](https://www.iso.org/standard/90219.html) `[busca]` substitui a de 2017 e muda gestão e
+garantia da qualidade, não a lista. O [SWEBOK v4](https://www.computer.org/education/bodies-of-knowledge/software-engineering)
+`[busca]` tem 18 áreas, três novas (arquitetura, operações, segurança). A norma prevê adaptação (Anexo A, *tailoring*)
+com registro do que se corta e por quê; a conformidade declarada passa a ser "adaptada".
+
+**11. Requisitos como sistema.** A [29148](https://cdn.standards.iteh.ai/samples/72089/62bb2ea1ef8b4f33a80d984f826267c1/ISO-IEC-IEEE-29148-2018.pdf)
+`[busca]` dá os níveis (necessidade do interessado → requisito de sistema/software), os tipos (funcional, qualidade,
+restrição, interface) e os atributos. As ferramentas comerciais convergem em três mecanismos:
+- **ciclo de vida com guardas:** Polarion aprova um requisito só com pelo menos um teste que o verifica
+  ([Siemens](https://blogs.sw.siemens.com/polarion/how-to-incorporate-the-correct-traceability-model-into-your-processes/)
+  `[busca]`); Codebeamer bloqueia transições com ligação suspeita ([PTC](https://support.ptc.com/help/codebeamer/r3.1/en/codebeamer/cbx_user_guide/cbx_trackers/cbx_11108.html)
+  `[busca]`);
+- **ligação suspeita:** muda a origem, a ligação fica suspeita até ser rejulgada ([Jama](https://help.jamasoftware.com/en/manage-content/coverage-and-traceability/relationships/clear-suspect-links.html),
+  [IBM DOORS Next](https://www.ibm.com/docs/SSYMRC_7.2/com.ibm.jazz.vvc.doc/topics/c_linkval.html) `[busca]`), ou o id do
+  alvo carrega a revisão ([OpenFastTrace](https://github.com/itsallcode/openfasttrace/blob/main/doc/user_guide.md)
+  `[busca]`);
+- **estados derivados:** "implementado" e "verificado" saem das ligações, nunca são editados.
+
+O vocabulário de ligações já existe no [OSLC RM 2.1](https://docs.oasis-open.org/oslc-domains/oslc-rm/v2.1/cs01/part2-requirements-management-vocab/oslc-rm-v2.1-cs01-part2-requirements-management-vocab.html)
+`[busca]` (satisfiedBy, implementedBy, validatedBy, trackedBy, affectedBy); o formato de troca é o
+[ReqIF 1.2](https://www.omg.org/spec/ReqIF) `[busca]`; [EARS](https://research.manchester.ac.uk/en/publications/easy-approach-to-requirements-syntax-ears/)
+`[busca]` dá enunciados testáveis por máquina. Nas ferramentas para agentes (Kiro, Spec Kit), a especificação é por
+funcionalidade e efêmera; só o [OpenSpec](https://github.com/Fission-AI/openspec) `[busca]` mantém verdade persistente
+com deltas por mudança, que é a forma certa a 1 PR por minuto: um arquivo por requisito, a PR como delta.
+
+**12. Arquitetura como sistema.** A [42010:2022](https://iteh.es/catalog/standards/iso/5fed7736-385f-477c-9133-5ba449a3c3b8/iso-iec-ieee-42010-2022)
+`[busca]` define descrição de arquitetura, preocupações, pontos de vista, visões e **correspondências** (regras de
+consistência entre elementos), e as decisões com fundamento. [Structurizr](https://docs.structurizr.com/as-code)
+`[busca]` mantém o modelo C4, as visões, a documentação arc42 e as ADRs como texto num só workspace; o
+[arc42](https://arc42.org/overview) `[busca]` tem 12 seções. O [MADR 4.0](https://ozimmer.ch/practices/2022/11/22/MADRTemplatePrimer.html)
+`[busca]` dá o ciclo da decisão (proposta, aceita, rejeitada, obsoleta, substituída) e a **confirmação** (como se
+verifica a conformidade à decisão); para a [AWS](https://docs.aws.amazon.com/prescriptive-guidance/latest/architectural-decision-records/adr-process.html)
+`[busca]`, uma decisão aceita é imutável e muda por uma nova que a substitui. A conformidade arquitetural é calculável
+por **modelos de reflexão** ([Murphy, Notkin, Sullivan, FSE 1995](https://www.cs.ubc.ca/~murphy/papers/rm/fse95.html)
+`[busca]`): o modelo declarado contra o grafo extraído do código dá convergências, divergências e ausências. O
+registro de componentes de referência é o catálogo do [Backstage](https://backstage.io/docs/features/software-catalog/system-model)
+`[busca]`: um arquivo por entidade (componente, API, recurso, sistema, domínio), dono obrigatório, relações com
+inversas calculadas.
+
+**13. O modelo único.** Normas e ferramentas convergem num **grafo tipado de objetos com ids estáveis e ligações
+tipadas e versionadas**, de que documentos e diagramas são visões geradas: o [OSLC Core 3.0](https://docs.oasis-open.org/oslc-core/oslc-core/v3.0/cs01/part1-overview/oslc-core-v3.0-cs01-part1-overview.html)
+`[busca]` sobre dados ligados; a [API do SysML v2](https://www.omg.org/news/releases/pr2025/07-21-25.htm) `[busca]`
+(OMG, 2025), que versiona o modelo como o git versiona código; o *digital thread* do DoD, que fala em fonte
+**autoritativa**, não única ([revisão MDPI 2024](https://mdpi.com/2079-8954/12/3/70) `[busca]`); o
+[Capella/Arcadia](https://download.eclipse.org/capella/publis/CSDM_2013_Thales_Arcadia.pdf) `[busca]`, com ligações de
+realização entre níveis. O [ASPICE 4.0](https://vda-qmc.de/wp-content/uploads/2023/12/Automotive-SPICE-PAM-v40.pdf)
+`[busca]` exige rastreio bidirecional em cada passo (requisito ↔ arquitetura ↔ unidade ↔ verificação ↔ qualificação) e
+separa **rastreio** (a ligação existe: calculável) de **consistência** (a ligação está certa: julgamento). A DO-178C
+trata código que não rastreia para requisito como código a mais, que precisa ser justificado ou removido
+([Parasoft](https://www.parasoft.com/learning-center/do-178c/requirements-traceability/) `[busca]`).
+
+**14. Os demais sistemas.** Verificação: a [IEEE 1012-2024](https://standards.ieee.org/ieee/1012/7324) `[busca]` fixa,
+por **nível de integridade**, o mínimo de verificação; o artefato central é a matriz requisito × método × caso ×
+resultado. Validação: evidência de que o sistema em uso atende à necessidade (15288, processo de validação
+`[memória]`), por aceitação e, em produção, canário e SLO como critério contínuo ([SRE Workbook](https://sre.google/workbook/canarying-releases/)
+`[busca]`). Medição: a [15939](https://www.iso.org/standard/71197.html) `[busca]` liga necessidade de informação →
+medida base → medida derivada → indicador → critério de decisão; o [GQM+Strategies](https://www.cs.umd.edu/users/basili/publications/proceedings/P124.pdf)
+`[busca]` liga as medidas às metas. Conformidade calculada: a escala da ISO/IEC 33020, usada pelo ASPICE, dá
+N/P/L/F por fração de itens conformes `[busca]`. Gestão do padrão: o processo de gestão do modelo de ciclo de vida da
+12207 (estabelecer, avaliar, melhorar `[memória]`) e os ativos de processo do CMMI (processos-padrão, guias de
+adaptação, repositório de medição, lições incorporadas de volta, [OPF](https://wibas.com/cmmi/organizational-process-focus-opf-cmmi-dev)
+`[busca]`); as versões trazem um mapa entre si (Anexo I da 12207:2026).
+
+**15. Agentes contra esses registros.** A Jama lançou em maio de 2026 um [servidor MCP](https://www.jamasoftware.com/press/jama-software-launches-model-context-protocol-mcp-server/)
+`[busca]` com que agentes criam itens e ligações sob as regras de ciclo de vida; o [Backstage](https://backstage.io/docs/ai/)
+`[busca]` expõe o catálogo por MCP. LLMs validam ligações existentes muito bem (cerca de 99 % em
+[TVR](https://arxiv.org/html/2504.15427v2) `[busca]`) e recuperam ligações do zero pior. Nenhum estudo mede o efeito do
+rastreio estruturado no sucesso de agentes; o de especificações em PRs ([Hill, ESEM 2026](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ESEM.2026.84)
+`[busca]`, 88.052 PRs) não acha efeito da qualidade da especificação sobre defeitos nem retrabalho.
+
+### Encaixe em nós (revisão 2)
+- **A lista se fecha em 15 sistemas** (os 30 processos agrupados por objeto gerido; ver a [solução](solucao.md)):
+  intenção, requisitos, arquitetura, decisões, trabalho, construção e entrega, verificação, validação, configuração,
+  operação, medição, conformidade, padrão, gestão do padrão, conhecimento. A pesquisa propôs 14, com padrão e gestão do
+  padrão juntos; ficam separados porque os objetos diferem (a regra; a proposta, a versão e a isenção) e porque Daniel
+  os nomeou à parte. Ficam fora, com razão: aquisição e fornecimento (não há terceiros; os pins do toolchain são itens
+  de configuração), segurança como sistema próprio (vira tipo de requisito e checagens), as áreas de fundamentos.
+- **Copiar:** o grafo tipado com ids estáveis e uma fonte autoritativa por objeto (o git é o servidor do modelo); o
+  vocabulário de ligações do OSLC; a ligação suspeita por impressão digital do alvo; os estados derivados; a separação
+  entre rastreio (o gate calcula) e consistência (um julgamento registrado, só para ligações novas ou suspeitas, onde
+  LLMs são fortes); a regra inversa da DO-178C (unidade sem requisito é código a mais); a conformidade calculada por
+  sistema com a escala N/P/L/F; a adaptação como dado; a decisão aceita imutável.
+- **Adaptar:** os campos do Backstage nos manifestos de unidade (dono, sistema, dependências, contratos fornecidos e
+  consumidos); a confirmação do MADR é o campo `proof:` das nossas decisões, que só falta ligar a estados e
+  substituições; as visões C4 e arc42 são geradas do modelo, nunca escritas.
+- **Não serve:** comprar uma ferramenta de ALM (Polarion, Jama, DOORS, Codebeamer). O modelo sairia do repositório, que é
+  a fonte da verdade e o caminho da fila de merge; agentes escreveriam por uma segunda via; e há custo recorrente. Dela
+  se copia o mecanismo, não o produto.
