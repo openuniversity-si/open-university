@@ -18,6 +18,9 @@ its successors are ready (READY-REHEARSAL), never on a cadence.
 
 It answers the seconds of each part, for the swap's record. A step that did not do what the real one does raises
 Unrehearsed: the caller logs it and goes on (a rehearsal is a courtesy). Standard library only.
+
+This module runs in the service alone: no port Lambda's package holds it (scripts/lib/deploy_classify.LAMBDA_MODULES),
+so a change here is a code-only merge of the service (QUEUE-SWAP: its heir is up before the landing).
 """
 import hashlib
 import time
