@@ -18,7 +18,6 @@ running, the wait ran out, the port unreachable, the environment incomplete).
 import argparse
 import json
 import os
-import subprocess
 import sys
 import time
 import urllib.error
@@ -27,6 +26,7 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config  # noqa: E402
 import gate_infra  # noqa: E402
+import source_remote  # noqa: E402
 
 DOORBELL_VARS = ('TOWER_DEPLOY_DOORBELL_URL', 'TOWER_DEPLOY_DOORBELL_TOKEN')
 PORT_VARS = ('TOWER_PORT_URL', 'TOWER_PORT_TOKEN')
@@ -91,17 +91,6 @@ def ring(environ=None, opener=urllib.request.urlopen, word=None):
     return 1, None
 
 
-def ls_remote(url, refs, run=subprocess.run):
-    """{ref: sha} of these refs on the repository at url (git ls-remote); {} when it does not answer."""
-    try:
-        out = run(['git', 'ls-remote', url, *refs], capture_output=True, text=True, timeout=10)
-    except (OSError, subprocess.SubprocessError):
-        return {}
-    if out.returncode != 0:
-        return {}
-    return {ref: sha for sha, _, ref in (line.partition('\t') for line in out.stdout.splitlines()) if ref}
-
-
 def queue(sha, ref, environ=None, opener=urllib.request.urlopen, heads=None, clock=time.monotonic, sleep=time.sleep,
           limit_s=1800.0, every_s=0.25, gone_s=15.0):
     """QUEUE-RELOAD (infra/service/tower_infra/queue_deploy.py): the merge_group job's part. Rings `prepare` for the queue's
@@ -110,9 +99,9 @@ def queue(sha, ref, environ=None, opener=urllib.request.urlopen, heads=None, clo
     leaving the queue unmerged. GitHub pushes nothing to a job, so this is the one bounded watch: limit_s at most, the
     job's own timeout above it. Returns the exit code of the landed ring, 0 when nothing landed."""
     environ = os.environ if environ is None else environ
-    if heads is None:
-        url = f"{environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{environ.get('GITHUB_REPOSITORY', '')}.git"
-        heads = lambda: ls_remote(url, ['refs/heads/main', ref])  # noqa: E731
+    if heads is None:  # the forge's adapter (D-069 item 7): its URL and its ls-remote
+        url = source_remote.repo_url(environ)
+        heads = lambda: source_remote.heads(url, ['refs/heads/main', ref])  # noqa: E731
     ring(environ, opener, {'event': 'prepare', 'sha': sha})  # a failed prepare does not stop the watch: landed prepares too
     began, gone = clock(), None
     while clock() - began < limit_s:

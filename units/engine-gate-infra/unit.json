@@ -42,6 +42,7 @@
   "premises": [],
   "requires": {
     "engine-cloud": "^1",
+    "engine-forge-origin": "^1",
     "engine-config": "^1",
     "engine-infra-aws": "^1",
     "engine-gate-cache": "^1",

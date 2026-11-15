@@ -284,6 +284,20 @@ class Watch(unittest.TestCase):
                                      {'refs/heads/main': 'c' * 40}])
         self.assertEqual((code, rung), (0, ['prepare', 'landed']))
 
+    def test_the_watch_reads_the_repository_through_the_forges_adapter(self):
+        import source_remote
+
+        class Out:
+            returncode, stdout = 0, f"{'a' * 40}\trefs/heads/main\n{'c' * 40}\trefs/heads/gh-readonly-queue/main/pr-1-x\n"
+        asked = []
+        found = source_remote.heads('https://h/o/r.git', ['refs/heads/main'], run=lambda cmd, **_: asked.append(cmd) or Out())
+        self.assertEqual(found, {'refs/heads/main': 'a' * 40, 'refs/heads/gh-readonly-queue/main/pr-1-x': 'c' * 40})
+        self.assertEqual(asked, [['git', 'ls-remote', 'https://h/o/r.git', 'refs/heads/main']])
+        self.assertEqual(source_remote.heads('u', [], run=lambda cmd, **_: type('E', (), {'returncode': 2})()), {})
+        self.assertEqual(source_remote.repo_url({'GITHUB_REPOSITORY': 'o/r'}), 'https://github.com/o/r.git')
+        self.assertEqual(source_remote.repo_url({'GITHUB_SERVER_URL': 'https://ghe', 'GITHUB_REPOSITORY': 'o/r'}),
+                         'https://ghe/o/r.git')
+
     def test_a_group_that_leaves_the_queue_rings_nothing_more(self):
         code, rung = self.run_queue([{'refs/heads/main': 'a' * 40}] * 200)
         self.assertEqual((code, rung), (0, ['prepare']))
