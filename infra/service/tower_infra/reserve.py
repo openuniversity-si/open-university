@@ -18,6 +18,9 @@ never runs as a second successor; the supervisor holds no reserve for that bundl
 
 Until the word comes this process opens no socket to the database, holds no credential of it and reads nothing of it:
 `ready` imports and builds, and the only network it touches is none (a client made is a model loaded).
+
+This module runs in the service alone: no port Lambda's package holds it (scripts/lib/deploy_classify.LAMBDA_MODULES),
+so a change here is a code-only merge of the service (QUEUE-SWAP: its heir is up before the landing).
 """
 import compileall
 import json
