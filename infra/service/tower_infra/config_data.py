@@ -109,6 +109,7 @@ class Config:
     def __init__(self, scope, tenant=TENANT, keep=None):
         self.scope, self.tenant = scope, tenant
         self.values, self.versions, self.lock = {}, {}, threading.Lock()
+        self.gone = set()  # KEY-GONE: the table's rows of keys the registry no longer has, said once each
         # SETTINGS-HANDED: a file of the task's own (its supervisor's spool) where every good read leaves what it read,
         # for the process the role waits for to start with, before its own read (after its first work)
         self.keep = keep
@@ -172,6 +173,11 @@ class Config:
         with self.lock:
             before_versions = dict(self.versions)
         for name, text, version in found:
+            if name not in SPEC:  # KEY-GONE: the port writes only the registry's keys, so this row's key left it
+                if name not in self.gone:
+                    self.gone.add(name)
+                    LOG.info('config: the row of %s is of a key the registry no longer has; it is not read', name)
+                continue
             try:
                 fresh[name] = (validate(name, json.loads(text)), int(version))
             except ValueError as error:

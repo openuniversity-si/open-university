@@ -142,6 +142,24 @@ class Refresh(unittest.TestCase):
             self.assertEqual(config.refresh(), [])
         self.assertEqual(config.get('deploy.debounce_s'), 7)
 
+    def test_a_row_of_a_key_the_registry_no_longer_has_is_not_read_and_said_once(self):
+        # KEY-GONE: removed keys keep their rows (the port has no delete): live 15/11 the prewarm's cap had one, and every
+        # refresh warned config.invalid about it
+        table = Table()
+        config = config_data.Config(table.scope)
+        gone = '.'.join(('deploy', 'gone_key'))
+        table.rows_[gone] = (3, 5)
+        table.put('service.dispatch_s', 0.25)
+        with self.assertLogs('tower_infra.config_data', 'INFO') as logs:
+            self.assertEqual(config.refresh(), ['service.dispatch_s'])
+        self.assertEqual([line for line in logs.output if 'WARNING' in line], [])
+        self.assertIn(f'the row of {gone} is of a key the registry no longer has', '\n'.join(logs.output))
+        self.assertNotIn(gone, config.values)
+        table.put('service.dispatch_s', 0.5, 2)
+        with self.assertLogs('tower_infra.config_data', 'INFO') as logs:
+            self.assertEqual(config.refresh(), ['service.dispatch_s'])
+        self.assertNotIn('no longer has', '\n'.join(logs.output))  # said once
+
     def test_the_listener_refreshes_on_the_notification_and_not_on_a_clock(self):
         table = Table()
         config = config_data.Config(table.scope)
