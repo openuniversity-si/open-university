@@ -1,6 +1,9 @@
 """The session's deploy tool (DEP1): ring the deploy doorbell and follow the build to its end, with no AWS credential.
 
   scripts/deploy ring                  POST to the doorbell; 202 prints the build id
+  scripts/deploy queue --sha SHA --ref REF
+                                       QUEUE-RELOAD, the merge_group job: ring `prepare` for the merge queue's commit, watch
+                                       main (git ls-remote) and ring `landed` the moment main is that commit
   scripts/deploy status                the port's GET /v1/deploy/status: last_sha, the last build with its tail and the last
                                        ring/skip decision, as the service observed them (DEP3: it publishes them to the log)
   scripts/deploy follow [--target SHA] [--build ID] [--since EPOCH]
@@ -15,6 +18,7 @@ running, the wait ran out, the port unreachable, the environment incomplete).
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.error
@@ -44,15 +48,19 @@ def say_missing(names, what):
         print(f'deploy: this environment lacks {" and ".join(names)} (the port); Daniel provisions them.', file=sys.stderr)
 
 
-def ring(environ=None, opener=urllib.request.urlopen):
-    """Ring the doorbell once. Returns (exit code, build id or None)."""
+def ring(environ=None, opener=urllib.request.urlopen, word=None):
+    """Ring the doorbell once. Returns (exit code, build id or None). word: QUEUE-RELOAD's {event, sha}, which the
+    doorbell passes to the port instead of starting a build."""
     environ = os.environ if environ is None else environ
     absent = missing(DOORBELL_VARS, environ)
     if absent:
         say_missing(absent, 'the doorbell')
         return 2, None
-    request = urllib.request.Request(environ['TOWER_DEPLOY_DOORBELL_URL'], method='POST', data=b'',
-                                     headers={'Authorization': f"Bearer {environ['TOWER_DEPLOY_DOORBELL_TOKEN']}"})
+    headers = {'Authorization': f"Bearer {environ['TOWER_DEPLOY_DOORBELL_TOKEN']}"}
+    if word:
+        headers['Content-Type'] = 'application/json'
+    request = urllib.request.Request(environ['TOWER_DEPLOY_DOORBELL_URL'], method='POST',
+                                     data=json.dumps(word).encode() if word else b'', headers=headers)
     try:
         with opener(request, timeout=config.get('gate-infra.deploy_ring_timeout_s')) as answer:
             status, body = answer.status, answer.read().decode('utf-8', 'replace')
@@ -62,6 +70,9 @@ def ring(environ=None, opener=urllib.request.urlopen):
         print(f'deploy: the doorbell did not answer ({type(error).__name__}); it was not rung twice, so ring again',
               file=sys.stderr)
         return 2, None
+    if status == 202 and word:
+        print(f"deploy: {word['event']} rung for {word['sha'][:12]}")
+        return 0, None
     if status == 202:
         try:
             build = json.loads(body).get('build')
@@ -78,6 +89,50 @@ def ring(environ=None, opener=urllib.request.urlopen):
         return 1, None
     print(f'deploy: the doorbell answered {status}: {body[:200]}', file=sys.stderr)
     return 1, None
+
+
+def ls_remote(url, refs, run=subprocess.run):
+    """{ref: sha} of these refs on the repository at url (git ls-remote); {} when it does not answer."""
+    try:
+        out = run(['git', 'ls-remote', url, *refs], capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    if out.returncode != 0:
+        return {}
+    return {ref: sha for sha, _, ref in (line.partition('\t') for line in out.stdout.splitlines()) if ref}
+
+
+def queue(sha, ref, environ=None, opener=urllib.request.urlopen, heads=None, clock=time.monotonic, sleep=time.sleep,
+          limit_s=1800.0, every_s=0.25, gone_s=15.0):
+    """QUEUE-RELOAD (infra/service/tower_infra/queue_deploy.py): the merge_group job's part. Rings `prepare` for the queue's
+    commit at once, then watches main and the queue's branch every every_s: main at sha rings `landed` at once (the
+    service checks it again before it orders anything); the branch gone for gone_s with main elsewhere is the group
+    leaving the queue unmerged. GitHub pushes nothing to a job, so this is the one bounded watch: limit_s at most, the
+    job's own timeout above it. Returns the exit code of the landed ring, 0 when nothing landed."""
+    environ = os.environ if environ is None else environ
+    if heads is None:
+        url = f"{environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{environ.get('GITHUB_REPOSITORY', '')}.git"
+        heads = lambda: ls_remote(url, ['refs/heads/main', ref])  # noqa: E731
+    ring(environ, opener, {'event': 'prepare', 'sha': sha})  # a failed prepare does not stop the watch: landed prepares too
+    began, gone = clock(), None
+    while clock() - began < limit_s:
+        found = heads()
+        if found.get('refs/heads/main') == sha:
+            seen = clock()
+            code, _ = ring(environ, opener, {'event': 'landed', 'sha': sha})
+            print(f'deploy: main is {sha[:12]} {seen - began:.1f} s after the watch began; landed rung in '
+                  f'{(clock() - seen) * 1000:.0f} ms')
+            return code
+        if found and ref not in found:
+            gone = clock() if gone is None else gone
+            if clock() - gone >= gone_s:
+                print(f'deploy: {ref} left the queue and main is not {sha[:12]}: nothing landed')
+                return 0
+        else:
+            gone = None
+        sleep(every_s)
+    print(f'deploy: {sha[:12]} did not land within {limit_s:.0f} s: the push rings the deploy build when it does')
+    return 0
 
 
 def read_status(port):
@@ -192,6 +247,9 @@ def main(argv=None, environ=None):
     parser = argparse.ArgumentParser(prog='scripts/deploy', description=__doc__.split('\n')[0])
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('ring')
+    queued = sub.add_parser('queue')
+    queued.add_argument('--sha', required=True, help="the merge queue's commit (github.sha of the merge_group run)")
+    queued.add_argument('--ref', required=True, help="its branch (github.ref: refs/heads/gh-readonly-queue/main/...)")
     sub.add_parser('status')
     follows = sub.add_parser('follow')
     follows.add_argument('--target', help='wait until /tower/deploy/last-sha is this commit')
@@ -200,6 +258,8 @@ def main(argv=None, environ=None):
     args = parser.parse_args(argv)
     if args.command == 'ring':
         return ring(environ)[0]
+    if args.command == 'queue':
+        return queue(args.sha, args.ref, environ)
     absent = missing(PORT_VARS, environ)
     if absent:
         say_missing(absent, 'the port')

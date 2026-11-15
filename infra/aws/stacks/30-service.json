@@ -334,6 +334,14 @@
                   "Resource": {
                     "Fn::Sub": "arn:${AWS::Partition}:s3:::tower-outputs-${AWS::AccountId}-${AWS::Region}/artifacts/lambda/*"
                   }
+                },
+                {
+                  "Sid": "PutTheCodeBundlesItPrepares",
+                  "Effect": "Allow",
+                  "Action": "s3:PutObject",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::tower-outputs-${AWS::AccountId}-${AWS::Region}/artifacts/lambda/tower-code/*"
+                  }
                 }
               ]
             }

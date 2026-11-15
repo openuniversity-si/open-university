@@ -196,6 +196,16 @@
       ],
       "x-source": "IMAGE-PREWARM-C"
     },
+    "deploy.queue_reload": {
+      "type": "boolean",
+      "default": true,
+      "x-unit": "flag",
+      "description": "QUEUE-RELOAD (tower_infra.queue_deploy): whether the merge queue's words order a code-only merge's reload in place. The doorbell workflow's merge_group job rings prepare when the queue builds a merge's commit (the service classifies it from last-sha with last-sha's classifier and puts its code bundle) and landed when main moves to it (the service checks main and last-sha against the repository, then orders the service alone to load the bundle, as FAST-PATH-RELOAD). True (the default) runs it; false leaves every merge to the deploy build the push rings, as before.",
+      "x-readers": [
+        "infra/service/tower_infra/autodeploy.py"
+      ],
+      "x-source": "QUEUE-RELOAD"
+    },
     "deploy.standby_fresh_s": {
       "type": "number",
       "default": 3.0,

@@ -42,6 +42,8 @@ SPEC = {
     'deploy.intask_standbys': (int, 1),
     # IMAGE-PREWARM-C: a landing promotes its healthy standbys (22.9a); false lets the landings accumulate
     'deploy.promote': (bool, True),
+    # QUEUE-RELOAD: the merge queue's prepare and landed order a code-only merge's reload in place (tower_infra.queue_deploy)
+    'deploy.queue_reload': (bool, True),
     # IMAGE-SWAP-TIGHTEN: a standby counts healthy for the landing's swap while its last beat is this recent (seconds)
     'deploy.standby_fresh_s': (float, 3.0),
     # IMAGE-SWAP-FAILOVER: an ECS task standing by takes the role back once the pointed image's live beat is this old (seconds)

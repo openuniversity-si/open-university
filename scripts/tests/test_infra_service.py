@@ -625,6 +625,7 @@ class StackTests(unittest.TestCase):
                           'lambda:InvokeFunction', 'ssm:GetParameter',
                           ['lambda:UpdateFunctionCode', 'lambda:PublishVersion', 'lambda:UpdateAlias', 'lambda:GetAlias',
                            'lambda:GetFunctionConfiguration', 'lambda:InvokeFunction'], 's3:GetObject',  # AUTO1: the doorbell; DEP8: the aliases
+                          's3:PutObject',  # QUEUE-RELOAD: the code bundles it prepares
                           'ecs:RunTask', ['ecs:StopTask', 'ecs:DescribeTasks'], 'ecs:TagResource', 'iam:PassRole',  # IMAGE-PREWARM-B2
                           ['lambda:ListVersionsByFunction', 'lambda:ListAliases'], 'lambda:DeleteFunction', 's3:ListBucket',
                           's3:DeleteObject', 'ecs:DescribeServices', 'ecs:DescribeTaskDefinition'])  # LAMBDA-PRUNE
@@ -637,6 +638,9 @@ class StackTests(unittest.TestCase):
                          ['tower-port-api:*', 'tower-port-webhook-consumer:*', 'tower-port-ack-ingress:*'])
         self.assertEqual(bucket['Condition'], {'StringLike': {'s3:prefix': 'artifacts/lambda/*'}})
         self.assertTrue(objects['Resource']['Fn::Sub'].endswith('/artifacts/lambda/*'))
+        # QUEUE-RELOAD: the service puts the code bundles it prepares, and nothing else of the bucket
+        [put] = [item for item in statements if item['Action'] == 's3:PutObject']
+        self.assertTrue(put['Resource']['Fn::Sub'].endswith('/artifacts/lambda/tower-code/*'))
         # GATE-SHUTDOWN: no statement publishes the forge's webhook keys (/tower/port/forge-keys): the ingress is gone
         database, key, write_back, decrypt, topics, claude, converse = statements[:7]
         self.assertEqual(claude['Resource'], '*')  # D-310: the model ARN of bedrock-mantle is not documented yet
