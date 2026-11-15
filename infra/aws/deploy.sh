@@ -431,9 +431,19 @@ code_live_stacks() {
   done
   printf '%s' "$keep"
 }
+# HEAD-CODE-LIVE (the Torre, 15/11: #40's build, 4 min 39 s for a change of scripts/): code_live head is the same proof for a
+# batch with no image and no stack of the ECS tasks among its targets (scripts, docs, a Lambda's swap, the port stack). After
+# a run of code-only merges kept the two stacks (livecode_keep), such a build found them "dirty": live_code moved their
+# LiveCode to the newest swap's bundle, the stack's hash with it, and the ECS service rolled out (3 min 24 s) onto code it
+# already ran. When the head's code bundle is deploy.live_code's, reloaded by every ECS task and booted by any task ECS starts
+# (the checks below), the stacks keep what they have here too; anything else is as before.
 code_live() {
   local digest datum roles n keep="" want_roles
   [[ -z "${bgood:-}" && -z "${DEPLOY_TARGETS:-}" && -s "$work/classify.json" ]] || return 1
+  if [[ "${1:-}" = head ]]; then
+    jq -e '((.slow // []) | map(select(. == "slow:service-image" or . == "slow:stack-service" or . == "slow:stack-runner"
+           or . == "slow:stack-all")) | length == 0)' "$work/classify.json" >/dev/null 2>&1 || return 1
+  else
   # CODE-BESIDE-PORT: the port stack may change beside the code (deploy_classify.BESIDE): it stays this build's target
   # OWNER-STEP-NEEDS-ROLLOUT: the owner's step (dbinit.py) runs from the image (deploy_classify.IMAGE_RUN): not code-only
   # SUPERVISOR-NEEDS-ROLLOUT: and so does the task's supervisor (supervisor.py), for the task's whole life
@@ -447,6 +457,7 @@ code_live() {
                   and . != "infra/service/tower_infra/restore_check.py"
                   and . != "infra/service/tower_infra/pooler.py")] | all)' \
     "$work/classify.json" >/dev/null 2>&1 || return 1
+  fi
   # CODE-LIVE-RELATIVE-ROOT: --root is `.` because this runs inside $repo, which is the relative `repo` in the real build: with
   # `--root $repo` the bundle was looked for in repo/repo, the digest was always "unknown" and no code-only landing was ever skipped
   digest="$(cd "$repo" && TOWER_ARTIFACT_BUCKET= bash -c "${DEPLOY_CODE_DIGEST_CMD:-python3 $ctl/scripts/lib/lambda_package.py code --root .}" 2>/dev/null \
@@ -466,7 +477,7 @@ code_live() {
   echo "$digest" >"$work/code_live"; printf '%s' "${keep#=}" >"$work/livecode_keep"  # (empty stays an empty file: no LiveCode in the hash)
   grep -v -x -e service -e runner "$work/targets" >"$work/targets.tmp"; mv "$work/targets.tmp" "$work/targets"; echo 0 >"$work/image"
   jq -R 'select(length > 0)' "$work/targets" | jq -sc . >"$work/targets_json"
-  echo "code live: yes: the head's code is the bundle ${digest:0:12} of deploy.live_code, reloaded in place by the ECS task of $want_roles and booted by any task ECS starts: no image is built, the service and runner stacks are left alone"
+  echo "code live: yes${1:+ ($1)}: the head's code is the bundle ${digest:0:12} of deploy.live_code, reloaded in place by the ECS task of $want_roles and booted by any task ECS starts: no image is built, the service and runner stacks are left alone"
 }
 
 # FAST-PATH-RELOAD (GATE-SHUTDOWN, D-314; the Torre accepted the design of PR #23, 14/11): a code-only batch whose bundle is not
@@ -1240,6 +1251,10 @@ deploy() {
       step_end code-live 0
       if [[ -s "$work/code_digest" ]]; then step_begin reload; reload_live; step_end reload 0; fi  # FAST-PATH-RELOAD
     fi
+  elif [[ -s "$work/classify.json" ]]; then  # HEAD-CODE-LIVE: no image in this batch: the head's code may be live already
+    step_begin code-live
+    code_live head || :
+    step_end code-live 0
   fi
   migrate_ask
   shopt -s nullglob

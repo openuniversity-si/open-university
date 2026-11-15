@@ -1773,6 +1773,27 @@ class SlowPathShTests(DeployShTests):
         self.assertEqual((build['hashes']['service'], build['hashes']['runner']), (hashes['service'], hashes['runner']))
         self.assertNotIn('rolling', build)
 
+    def test_a_head_with_no_image_whose_code_is_live_keeps_the_ecs_stacks_after_a_swap(self):
+        # HEAD-CODE-LIVE (the Torre, 15/11: #40, a change of scripts/ after five code-only merges swapped, 4 min 39 s): the
+        # newest swap's bundle is the head's code, deploy.live_code names it and every ECS task reloaded it; live_code used to
+        # move the stacks' LiveCode to it, their hash with it, and roll the ECS service out onto the code it already ran
+        swap = {'image_swap': [{'digest': self.LIVE, 'head': 'f' * 40, 'swapped': True, 'by': 'queue'}]}
+        done, head, hashes = self.code_only(files={'scripts__lib__other.py': 'a script\n'}, status=swap)
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        self.assertIn(f'code live: yes (head): the head\'s code is the bundle {self.LIVE[:12]} of deploy.live_code', done.stdout)
+        self.assertNotIn('dirty: tower-app-service', done.stdout)
+        self.assertEqual(self.stacks_deployed(), [])  # no ECS rollout
+        build = self.build()
+        self.assertEqual((build['status'], build['code_live'], build['dirty']), ('succeeded', self.LIVE, []))
+        self.assertEqual((build['hashes']['service'], build['hashes']['runner']), (hashes['service'], hashes['runner']))
+        self.assertEqual(self.recorded('/tower/deploy/last-sha'), head)
+        # and a head whose code is not the live bundle moves the LiveCode as before
+        self.setUp()
+        done, head, hashes = self.code_only(files={'scripts__lib__other.py': 'a script\n'}, status={
+            **swap, 'live_code': f"{'e' * 64}@{'f' * 40}"})
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        self.assertNotIn('code live: yes', done.stdout)
+
     def test_a_change_of_the_owner_s_step_builds_the_image_though_the_bundle_is_live(self):
         # OWNER-STEP-NEEDS-ROLLOUT: dbinit.py runs from the image in the init container: only a new image and a rollout run it
         done, head, hashes = self.code_only(files={'infra__service__tower_infra__dbinit.py': 'a new owner step\n'})
