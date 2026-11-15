@@ -1,5 +1,9 @@
 """DRILLS: the live service's look (drills.Drills with fastdeploy's Lambda client). Apart from drills.py, which the port's
-Lambda imports for its routes: this module's imports (fastdeploy, boto3) are the service's alone."""
+Lambda imports for its routes: this module's imports (fastdeploy, boto3) are the service's alone.
+
+This module runs in the service alone: no port Lambda's package holds it (scripts/lib/deploy_classify.LAMBDA_MODULES),
+so a change here is a code-only merge of the service (QUEUE-SWAP: its heir is up before the landing).
+"""
 import logging
 
 from . import drills
