@@ -1,13 +1,22 @@
 {
   "id": "VAL-events-no-polling",
-  "statement": "No component of the running engine polls a state on a fixed interval.",
+  "statement": "No component of the engine polls a state on a fixed interval: no sleep inside a loop is left in its code, outside the tests.",
   "validates": [
     "REQ-events-no-polling"
   ],
   "owner": "administration",
   "measure": {
-    "kind": "unwired",
-    "source": "a scan of the code for sleep loops on a clock; not written yet"
+    "kind": "code-scan",
+    "paths": [
+      "scripts/**/*",
+      "services/**/*",
+      "infra/**/*"
+    ],
+    "exclude": [
+      "scripts/tests/**/*",
+      "services/**/tests/**/*",
+      "infra/**/tests/**/*"
+    ]
   },
   "comparator": "lte",
   "threshold": 0

@@ -6,9 +6,13 @@
   ],
   "owner": "Daniel",
   "measure": {
-    "kind": "unwired",
-    "source": "the owner-stop incidents (scripts/incident open owner-stop); not read by scripts/model yet"
+    "kind": "incident-count",
+    "incident": "owner-stop"
   },
   "comparator": "lte",
-  "threshold": 0
+  "threshold": 0,
+  "window": {
+    "kind": "days",
+    "size": 7
+  }
 }
