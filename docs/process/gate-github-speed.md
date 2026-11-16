@@ -88,3 +88,58 @@ left no `auto_merge_disabled` event on its timeline; the session's transcript ha
 **The rule.** No re-arm and no nudge: a pull request with auto-merge on and a green `tower/gate` is left to GitHub.
 Only one that `scripts/queue-wait <pr>` shows still `never queued` well past the untouched maximum is a case to
 look into, with its timeline.
+
+## QUEUE-RUN: the queue's own time, and the queue built side by side (16/11/2026)
+
+**The measure** (`scripts/queue-wait --segments --last 20`, #52 to #71, from a pull request's entry into the queue to
+its merge):
+
+| segment | what it is | p50 (s) | max (s) |
+|---|---|---|---|
+| dispatch | the entry to the check suite of tower/gate on the queue's commit | 17 | 47 |
+| pickup | that suite to the job's start on a runner | 2 | 4 |
+| gate | the `merge_group` job (VERDICT-REUSE: the tests' green stands for the first entry) | 28 | 174 |
+| land | the green to the merge | 31 | 33 |
+| **total** | | **81** | **226** |
+
+`dispatch` is GitHub's own 17-19 s; #69's 47 s is that plus #68 still ahead of it, since the queue built one entry at
+a time. `land` is two groups, 3-12 s or 31-33 s, also GitHub's. `deploy/prepare` does not hold the merge: it waits for
+main to move and ends 1-2 s after it. The gate's tail (148-174 s, #55 #56 #64) is the pull requests whose plan ran the
+deploy tests. One entry at a time at the p50 is 0.74 merges a minute (about 1,070 a day), and at the max 0.27.
+
+**The values** (staged in `.github/rulesets/main.json`, applied by the owner):
+
+| key | was | is | why |
+|---|---|---|---|
+| `max_entries_to_build` | 1 | 5 | five entries verify side by side, each on main plus the entries ahead of it, so the queue's time is no longer the sum of its entries: about 5 / 81 s = 3.7 a minute at the p50, and 5 / 226 s = 1.3 a minute at the max |
+| `max_entries_to_merge` | 1 | 5 | the green entries at the front merge in one step, so `land`'s 31 s is paid once per group instead of once per entry |
+| `grouping_strategy` | ALLGREEN | ALLGREEN | every entry of a group must be green to merge (HEADGREEN would let a red entry in under a green one behind it), so every commit main takes was judged green |
+| `min_entries_to_merge`, `min_entries_to_merge_wait_minutes` | 1, 0 | 1, 0 | a lone entry never waits for company |
+| `check_response_timeout_minutes` | 60 | 20 | an entry whose check never answers leaves the queue after 20 minutes, not 60; the gate's slowest run was 490 s and its job's own timeout is 30 minutes |
+
+**What the workflows need: nothing.** `tower-gate.yml`'s concurrency group is the queue commit's sha and
+`deploy/prepare`'s the queue's branch, so the five entries' runs never cancel or wait for each other. The toolchain cache
+is restored read-only by every run. The runners: a public repository on the Free plan runs at most 20 jobs at once, and
+each building entry holds two (tower/gate and `deploy/prepare`, which waits for the merge). So 10 for the queue, up to 7
+for the fronts' pull request gates, one doorbell and one `full-suite` make 19, under 20. More than five builds, or more
+than seven fronts, starts queueing jobs for a runner.
+
+**What it costs.**
+- Only the first entry's tests reuse its pull request's green verdict. The entries behind it have the entry ahead as
+  their first parent, not main, so VERDICT-REUSE misses and their gate runs its plan's tests (a docs pull request about
+  30 s, one that touches the deploy tests 150-230 s). That costs throughput nothing: they run side by side.
+- A red entry leaves the queue and the entries behind it are built again without it.
+- The deploy's fast path (QUEUE-SWAP) needs the merge's first parent to be the deployed commit
+  (`/tower/deploy/last-sha`). In a burst main moves faster than a build ends, so only the first merge swaps. The others
+  are deployed by the build that the push rings, of main's head: correct and slower, never wrong. Making the fast path
+  follow a burst is a unit of its own.
+
+**To apply** (an admin's credential; the live ruleset also has keys the staged file does not spell, so patch it in place):
+
+```
+gh api repos/openuniversity-si/open-university/rulesets/27250343 \
+  | jq '{name, target, enforcement, conditions, bypass_actors, rules: (.rules | map(if .type == "merge_queue"
+        then .parameters += {max_entries_to_build: 5, max_entries_to_merge: 5, check_response_timeout_minutes: 20}
+        else . end))}' \
+  | gh api -X PUT repos/openuniversity-si/open-university/rulesets/27250343 --input -
+```

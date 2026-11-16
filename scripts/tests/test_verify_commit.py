@@ -1,6 +1,7 @@
 """The verifier thread's gate (scripts/verify-commit): the gate's plan run on the exact commit, its verdict published as
 the commit's tower/gate status. Hermetic: a fake run answers git, gate-check and gh."""
 import json
+import re
 import os
 from pathlib import Path
 import sys
@@ -305,6 +306,16 @@ class TheVerifier(unittest.TestCase):
         rules = {rule['type']: rule.get('parameters') for rule in ruleset['rules']}
         self.assertEqual(rules['required_status_checks']['required_status_checks'], [{'context': 'tower/gate'}])
         self.assertEqual(rules['merge_queue']['merge_method'], 'MERGE')
+        # QUEUE-RUN: entries build side by side and merge together, and every one of them must be green to merge
+        # (ALLGREEN, never HEADGREEN), so each commit main takes was judged green; an entry whose check never answers
+        # leaves the queue before the gate job's own timeout.
+        queue = rules['merge_queue']
+        self.assertEqual(queue['grouping_strategy'], 'ALLGREEN')
+        self.assertGreater(queue['max_entries_to_build'], 1)
+        self.assertLessEqual(queue['max_entries_to_merge'], queue['max_entries_to_build'])
+        self.assertEqual((queue['min_entries_to_merge'], queue['min_entries_to_merge_wait_minutes']), (1, 0))
+        timeout = re.search(r'timeout-minutes: (\d+)', staged)
+        self.assertLess(queue['check_response_timeout_minutes'], int(timeout.group(1)))
 
 
 if __name__ == '__main__':
