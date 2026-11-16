@@ -28,7 +28,6 @@ class Table(base.Table):
         self.observed = {}
         self.warm = []
         self.live = []
-        self.standby = []
 
     def rows(self, sql, params=None):
         if sql.startswith('insert into log.event'):
@@ -40,9 +39,6 @@ class Table(base.Table):
         if "from log.event where type = 'platform.deploy.image_live'" in sql:  # STATUS-EVENTS-AT: with the event's time
             assert 'tenant_id is null' in sql  # IMAGE-PREWARM-A: the swaps are the installation's, never a tenant's
             return [(json.dumps(each),) for each in self.live]
-        if sql.startswith("select payload::text from log.event where type = 'platform.deploy.standby'"):
-            assert 'tenant_id is null' in sql  # IMAGE-PREWARM-B2: the standbys are the installation's, never a tenant's
-            return [(json.dumps(each),) for each in self.standby]
         if sql.startswith('select payload::text from log.event') or " || payload)::text from log.event" in sql:
             return []
         if "v.key = 'deploy.live_code'" in sql:  # SLOW-PATH-NO-ROLLOUT-WAIT: the status's live code datum; none written here
@@ -230,13 +226,9 @@ class Observed(unittest.TestCase):
         answered = base.call(table, 'GET', '/v1/deploy/status')
         self.assertEqual(answered[1]['image_live'], table.live)
 
-    def test_status_shows_the_standbys_of_the_installation(self):
-        # IMAGE-PREWARM-B2: platform.deploy.standby is written with tenant_id null by the live service's prewarm
-        table = Table()
-        self.assertEqual(base.call(table, 'GET', '/v1/deploy/status')[1]['standby'], [])
-        table.standby = [{'role': 'runner', 'digest': 'a' * 64, 'task': 'arn:task/1', 'branch': 'units/x', 'state': 'healthy',
-                          'at': 1}]
-        self.assertEqual(base.call(table, 'GET', '/v1/deploy/status')[1]['standby'], table.standby)
+    def test_status_no_longer_shows_spot_standbys(self):
+        # SPOT-STANDBY-GONE (D-316): platform.deploy.standby was the prewarm's; the status reads it no more
+        self.assertNotIn('standby', base.call(Table(), 'GET', '/v1/deploy/status')[1])
 
 
 class Latency(unittest.TestCase):

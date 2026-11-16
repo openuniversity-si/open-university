@@ -112,8 +112,6 @@ class Table:
         if sql == live_image.DRILL:  # SWAP-DRILL: a drill of this role and bundle, newer than the process that asks
             self.asked = params
             return [(1,)] if getattr(self, 'drill', False) else []
-        if sql == live_image.DISMISSED:  # STANDBY-GRACE: the newest platform.deploy.standby of the role and bundle
-            return [(self.standby_state,)] if getattr(self, 'standby_state', None) else []
         raise AssertionError(sql)
 
 
@@ -729,57 +727,23 @@ class TheHandback(unittest.TestCase):
         self.assertEqual((table.value, live_image.HANDBACK_S), (S, 5))  # not handed back: deploy.live_stale_s is the net
         held.set()
 
-    def warned(self, state='healthy', pointer='', grace=30.0):
-        """STANDBY-GRACE: a standby that is not promoted, its SIGTERM handler, and the event of its stop."""
+    def warned(self, pointer=''):
+        """A standby, its SIGTERM handler, and the event of its stop (SPOT-STANDBY-GONE, D-316: STANDBY-GRACE, the Spot
+        standby's two minutes unless the prewarm dismissed it, left with the Spot standbys)."""
         table = Table(pointer)
-        table.standby_state = state
         standby = gate_on(table, 'service', S, strict=True, task='standby')
         standby.refresh()
         standby.beat()
         stopped = threading.Event()
-        for name, value in (('GRACE_TICK_S', 0.01), ('GRACE_S', grace)):
-            patch = mock.patch.object(live_image, name, value)
-            patch.start()
-            self.addCleanup(patch.stop)
         return table, standby, live_image.on_term(standby, table.scope, stopped.set), stopped
 
-    def test_a_standby_spot_warns_stands_by_is_promoted_and_leaves_once_the_ecs_task_took_the_role_over(self):
+    def test_a_standby_leaves_at_once_and_a_promoted_one_hands_its_role_back_first(self):
         table, standby, halt, stopped = self.warned()
-        halt(signal.SIGTERM, None)
-        self.assertFalse(stopped.wait(0.2))  # warned, not dismissed: it stays, and it still beats
-        table.beats.clear()
-        standby.beat()
-        self.assertIn(('service', S, 'standby'), table.beats)
-        table.write(S)  # a landing swaps onto its fresh beat
-        self.assertTrue(standby.refresh())
-        self.assertFalse(stopped.wait(0.2))  # promoted: it works through the swap
-        table.write('')  # the ECS task reloaded and took the role over (handover)
-        standby.refresh()
-        self.assertTrue(stopped.wait(5))
-        self.assertNotIn(('service', S, 'standby'), table.beats)  # its beat withdrawn on the way out
-        self.assertEqual(table.events, [])  # nothing to hand back: the pointer was already the ECS task's
-
-    def test_the_grace_that_runs_out_ends_with_the_handback_when_the_pointer_still_names_the_standby(self):
-        table, standby, halt, stopped = self.warned(grace=0.3)
-        halt()
-        table.write(S)
-        standby.refresh()
-        self.assertTrue(stopped.wait(5))
-        self.assertEqual((table.value, [each['by'] for each in table.events]), ('', ['handback']))
-        table, standby, halt, stopped = self.warned(grace=0.1)  # never promoted: it just leaves when the grace ends
+        began = time.monotonic()
         halt()
         self.assertTrue(stopped.wait(5))
-        self.assertEqual(table.events, [])
-
-    def test_a_standby_the_engine_dismissed_or_one_that_cannot_ask_leaves_at_once(self):
-        for state, broken in (('stopped', False), ('healthy', True)):
-            table, standby, halt, stopped = self.warned(state)
-            table.broken = broken
-            began = time.monotonic()
-            with self.assertLogs('tower_infra.live_image', 'ERROR') if broken else contextlib.nullcontext():
-                halt()
-                self.assertTrue(stopped.wait(5))
-            self.assertLess(time.monotonic() - began, 2)  # no grace: prewarm stopped it (a newer push, a deleted branch)
+        self.assertLess(time.monotonic() - began, 2)  # no grace
+        self.assertEqual(table.events, [])  # nothing to hand back: the pointer names another
         table, standby, halt, stopped = self.warned(pointer=S)  # promoted before the warning: the handback first, as before
         halt()
         self.assertTrue(stopped.wait(5))

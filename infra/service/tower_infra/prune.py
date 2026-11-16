@@ -27,7 +27,7 @@ EVENT = 'platform.deploy.prune'
 # GATE-SHUTDOWN (D-314, #17): the ack-ingress and the webhook consumer left the port stack; the API is the port's one function
 FUNCTIONS = ('tower-port-api',)
 SERVICES = ('tower-service', 'tower-runner')
-FAMILIES = ('tower-service', 'tower-service-standby', 'tower-runner')
+FAMILIES = ('tower-service', 'tower-runner')  # SPOT-STANDBY-GONE: tower-service-standby left the stack
 PREFIX = 'artifacts/lambda/'
 KEEP_VERSIONS, KEEP_DAYS, EVERY_S = 10, 30, 86400
 SLOW = 'slow deploy of '
