@@ -456,6 +456,27 @@ class Changes(unittest.TestCase):
                          {'VAL-pace': 'met', 'VAL-fast': 'not-met', 'VAL-fix': 'met', 'VAL-long': 'measuring',
                           'VAL-none': 'defined'})
 
+    def test_an_incident_count_reads_the_records_of_its_kind_inside_the_window(self):
+        today = self.git_today()
+        write(self.root, 'docs/operations/incidents/I-1.md', f'---\nid: I-1\nkind: owner-stop\ntime: {today}T00:00:00Z\n---\n')
+        write(self.root, 'docs/operations/incidents/I-2.md', f'---\nid: I-2\nkind: owner-stop\ntime: {self.git_day()}T00:00:00Z\n---\n')
+        write(self.root, 'docs/operations/incidents/I-3.md', f'---\nid: I-3\nkind: gate-red\ntime: {self.git_day()}T00:00:00Z\n---\n')
+        body = {'measure': {'kind': 'incident-count', 'incident': 'owner-stop'}, 'window': {'kind': 'days', 'size': 1}}
+        self.assertEqual(model.measured(body, {}, self.root, today), (1, True))
+        body['window']['size'] = len('long')
+        self.assertEqual(model.measured(body, {}, self.root, today)[1], False)
+
+    def test_a_code_scan_finds_a_sleep_inside_a_loop_and_not_one_outside(self):
+        write(self.root, 'lib/poll.py', 'import time\nwhile True:\n    time.sleep(1)\ntime.sleep(1)\n')
+        write(self.root, 'lib/poll.sh', '#!/usr/bin/env bash\nsleep 1\nuntil ready; do\n  sleep 2\ndone\n')
+        write(self.root, 'lib/tests/t.py', 'import time\nwhile True:\n    time.sleep(1)\n')
+        self.assertEqual(model.polling_sites(self.root, ['lib/**/*'], ['lib/tests/**/*']), ['lib/poll.py:3', 'lib/poll.sh:4'])
+
+    def git_day(self):
+        import subprocess
+        return subprocess.run(['git', 'log', '-1', '--format=%ad', '--date=short'], cwd=self.root, capture_output=True,
+                              text=True, check=True).stdout.strip()
+
     def git_today(self):
         from datetime import date, timedelta
         import subprocess

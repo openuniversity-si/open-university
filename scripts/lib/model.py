@@ -691,7 +691,80 @@ def measured(body, found, root, today):
             return reflexion_share(found)['share'], True
         counted = requirements_measure(found)
         return (counted['with_test'] / counted['active'] if counted['active'] else 0), True
+    if measure['kind'] == 'incident-count':
+        from datetime import date, timedelta
+        start = (date.fromisoformat(today) - timedelta(days=window['size'])).isoformat()
+        dates = [day for _, day in _merges(root)]
+        return (len(incidents(root, measure['incident'], start, today)), bool(dates) and min(dates) <= start)
+    if measure['kind'] == 'code-scan':
+        return len(polling_sites(root, measure['paths'], measure.get('exclude', []))), True
     return None, False
+
+
+INCIDENT_FIELD = re.compile(r'^(kind|time): (\S+)$', re.MULTILINE)
+
+
+def incidents(root, kind, start, end):
+    """The incident records (docs/operations/incidents, scripts/incident) of one kind opened on [start, end)."""
+    found = []
+    for path in sorted((Path(root) / 'docs/operations/incidents').glob('I-*.md')):
+        fields = dict(INCIDENT_FIELD.findall(path.read_text().split('\n---', 1)[0]))
+        if fields.get('kind') == kind and start <= fields.get('time', '')[:len('2026-01-01')] < end:
+            found.append(path.stem)
+    return found
+
+
+SHELL_SLEEP = re.compile(r'(^|[;&|(\s])sleep\s')
+SHELL_OPEN = re.compile(r'\b(do)\b')
+SHELL_CLOSE = re.compile(r'\b(done)\b')
+
+
+def _python_sleeps(text):
+    """Lines of a sleep call inside a loop, from the module's syntax tree."""
+    import ast
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return []
+    lines = set()
+    for loop in ast.walk(tree):
+        if not isinstance(loop, (ast.While, ast.For)):
+            continue
+        for node in ast.walk(loop):
+            if isinstance(node, ast.Call):
+                name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, 'id', '')
+                if name == 'sleep':
+                    lines.add(node.lineno)
+    return sorted(lines)
+
+
+def _shell_sleeps(text):
+    """Lines of a sleep inside a do ... done loop (a line count of the loop keywords, not a parser)."""
+    depth, lines = 0, []
+    for number, line in enumerate(text.splitlines(), 1):
+        code = line.split('#', 1)[0]
+        depth += len(SHELL_OPEN.findall(code))
+        if depth > 0 and SHELL_SLEEP.search(code):
+            lines.append(number)
+        depth = max(0, depth - len(SHELL_CLOSE.findall(code)))
+    return lines
+
+
+def polling_sites(root, paths, exclude):
+    """['path:line'] of every sleep inside a loop in the code under `paths` (globs), less `exclude`: the
+    candidates for polling a state on an interval (REQ-events-no-polling)."""
+    root = Path(root)
+    skipped = {path for pattern in exclude for path in root.glob(pattern)}
+    sites = []
+    for pattern in paths:
+        for path in sorted(root.glob(pattern)):
+            if path in skipped or not path.is_file() or '__pycache__' in path.parts:
+                continue
+            text = path.read_text(errors='replace')
+            found = _python_sleeps(text) if path.suffix == '.py' else _shell_sleeps(text) if (
+                path.suffix == '.sh' or text.startswith('#!/usr/bin/env bash') or text.startswith('#!/bin/bash')) else []
+            sites += [f'{path.relative_to(root)}:{line}' for line in found]
+    return sorted(set(sites))
 
 
 def derive_validations(found, root, today=None):

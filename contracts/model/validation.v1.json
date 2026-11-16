@@ -50,9 +50,11 @@
             "merges-per-day",
             "trailer-rate",
             "model-share",
+            "incident-count",
+            "code-scan",
             "unwired"
           ],
-          "description": "merges-per-day: merges on main's first-parent line per complete UTC day, averaged over the window's days; trailer-rate: the share of merges whose commits carry `trailer`, over the window's merges; model-share: a share scripts/model computes (`name`); unwired: no source is wired yet (`source` says which)."
+          "description": "merges-per-day: merges on main's first-parent line per complete UTC day, averaged over the window's days; trailer-rate: the share of merges whose commits carry `trailer`, over the window's merges; model-share: a share scripts/model computes (`name`); incident-count: the incident records (scripts/incident) of kind `incident` opened over the window's days; code-scan: the sleep calls inside a loop in the code under `paths` less `exclude` (globs), the candidates for polling; unwired: no source is wired yet (`source` says which)."
         },
         "trailer": {
           "type": "string"
@@ -65,6 +67,22 @@
         },
         "source": {
           "type": "string"
+        },
+        "incident": {
+          "type": "string"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
