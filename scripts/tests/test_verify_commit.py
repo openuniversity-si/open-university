@@ -278,6 +278,24 @@ class TheVerifier(unittest.TestCase):
         mixed = [('-main', 7), ('-shard1', 8), ('-alone', 7)]
         self.assertIsNone(verify_commit.recorded('o/r', key, [HEAD_OF_PR], listing(mixed), verify_commit.PARTS))
 
+    def test_a_queue_part_reuses_its_own_shares_verdict_whatever_the_other_parts_kept(self):
+        """GATE-PARTS-REUSE: a part's key holds its job's runner image, and one run's three jobs may land on different
+        images (#142, 16/11: alone's key was not main's), so a queue part asks for its own record only."""
+        asked = []
+
+        def run(args, cwd=None, env=None):
+            if args[:2] == ['gh', 'api'] and 'artifacts' in args[2]:
+                asked.append(args[2].split('name=')[1].split('&')[0])
+                return 0, json.dumps({'artifacts': [made(asked[-1])]})
+            return Fake()(args, cwd, env)
+        with mock.patch.object(verify_commit, 'judge', return_value=(True, [], {**PLAN, 'judged': 1}, 1.0)) as judged:
+            verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post', '--part', 'shard1', '--reuse'], run=run,
+                               environ=IMAGE)
+        reuse = judged.call_args.kwargs['reuse']
+        self.assertEqual(reuse(PLAN), 77)  # the run that kept this part's verdict
+        self.assertEqual(len(asked), 1)
+        self.assertTrue(asked[0].endswith('-shard1'))
+
     def test_the_staged_gate_is_three_parts_and_a_tower_gate_job_green_only_when_every_part_is(self):
         staged = (ROOT / 'services' / 'runner' / 'github' / 'tower-gate.yml').read_text(encoding='utf-8')
         for line in ('    name: gate part (${{ matrix.part }})', '      fail-fast: false', '        part: [main, shard1, alone]',

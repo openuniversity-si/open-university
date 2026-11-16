@@ -114,7 +114,8 @@ def verdict_key(base, planned, run=run, environ=None):
 def recorded(repo, key, parents, run=run, parts=None):
     """VERDICT-REUSE: the id of a run of this repository on one of HEAD's parents that kept a green verdict under key,
     else None. A fork's run (its head in another repository), an expired record, another name or any error is None.
-    GATE-PARTS: with parts, the run must have kept the verdict of every part (`<name>-<part>`), all in that one run."""
+    GATE-PARTS: with parts, the run must have kept the verdict of every part named (`<name>-<part>`), all in that one
+    run; a part asks for its own alone (GATE-PARTS-REUSE)."""
     names = [VERDICT + key] if not parts else [f'{VERDICT}{key}-{part}' for part in parts]
     runs = None
     for name in names:
@@ -309,7 +310,10 @@ def main(argv=None, run=run, environ=None):
         post(repo, args.sha, 'pending', 'the verifier is judging this commit', run)
     try:
         tails, alone = [], []
-        reuse = reuser(repo, args.base, run, environ, PARTS if args.part else None) if args.reuse else None
+        # GATE-PARTS-REUSE (16/11): each part looks up its own share's verdict only; a part's key holds its job's runner
+        # image, and the three jobs of one run may land on different images (#142: alone's key differed from main's and
+        # shard1's), so asking one run for all three under one key was a miss even for an exact duplicate
+        reuse = reuser(repo, args.base, run, environ, (args.part,) if args.part else None) if args.reuse else None
         paces = []
         green, red, planned, seconds = judge(args.base, run, tails=tails, alone=alone, every=args.all, reuse=reuse,
                                              part=args.part, paces=paces)
