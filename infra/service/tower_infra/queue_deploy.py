@@ -19,9 +19,13 @@ records platform.deploy.queue {event, sha} and wakes this look on tower_deploy (
            of code_live), the bundle is built from the sha's files (lambda_package.build_code, deterministic) and put at
            artifacts/lambda/tower-code/<sha256>.zip. Recorded as platform.deploy.prepared {sha, base, parent, code_only,
            why, key, sha256, bytes, s}, once per (sha, base).
-  landed   the claim is checked, never trusted: main on the engine's repository is the sha (git ls-remote), the sha's first
-           parent is /tower/deploy/last-sha (the build of the merge before it ended green, so the classification is the
-           one the deploy build will make), the prepared bundle is code-only. Then the swap below, or, with no heir
+  landed   the claim is checked, never trusted: main on the engine's repository is the sha (git ls-remote),
+           /tower/deploy/last-sha (the build of the merge before it ended green) is an ancestor of the sha, and the
+           prepared bundle, classified on every path from last-sha to the sha (so the classification is the one the deploy
+           build will make), is code-only. BURST-SWAP (the Torre, 16/11/2026): a sha whose first parent is not last-sha
+           is a burst, merges that landed together (the queue merges up to max_entries_to_merge at once) or one after
+           another faster than a build ends; its bundle is the sha's tree alone, so the heir of the last green commit
+           takes the pointer once, and the merges before it in the burst need no deploy of their own. Then the swap below, or, with no heir
            ready, the order of the reload in place of the service alone (AutoDeploy.order, by: queue): the same order,
            proof and deploy.live_code as FAST-PATH-RELOAD. Recorded as platform.deploy.queue_reload {sha, state:
            swapped|ordered|skipped, why, verify_s, version, wrote_at}.
@@ -181,6 +185,13 @@ class QueueReload:
     def heads(self):
         return set(self.git('for-each-ref', '--format=%(objectname)', 'refs/remotes/origin/').decode().split())
 
+    def ancestor(self, base, sha):
+        """BURST-SWAP: refuses unless base is an ancestor of sha (git merge-base --is-ancestor)."""
+        out = self.run(['git', '-C', str(self.work / 'repo'), 'merge-base', '--is-ancestor', base, sha],
+                       capture_output=True, timeout=GIT_TIMEOUT_S)
+        if out.returncode != 0:
+            raise Refused(f'the deployed {base[:12]} is not an ancestor of {sha[:12]}')
+
     def main_head(self):
         out = self.run(['git', 'ls-remote', self.remote or url(), 'refs/heads/main'], capture_output=True,
                        timeout=LS_TIMEOUT_S)
@@ -301,8 +312,8 @@ class QueueReload:
             found = self.prepare(db, sha)
             if not found.get('code_only'):
                 raise Refused(f"not code-only: {found.get('why')}")
-            if found.get('parent') != found.get('base'):
-                raise Refused(f"main before it was {str(found.get('parent'))[:12]}, the deployed is {found['base'][:12]}")
+            if found.get('parent') != found.get('base'):  # BURST-SWAP: the deployed commit is behind the sha on main
+                self.ancestor(found['base'], sha)
             outcome['verify_s'] = round(self.clock() - began, 3)
             swapped = self.swap(db, sha, found)  # QUEUE-SWAP: the pointer's move to the heir already up
             if swapped:
