@@ -1,0 +1,18 @@
+{
+  "id": "STD-lint-ratchet",
+  "statement": "No change adds a ruff finding to the engine's Python in the rule families of rules.lint_select; the rules with a legacy (rules.lint_ignored) leave the list as their legacy is cleaned, and the list never grows.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG",
+    "UNIT"
+  ],
+  "check": {
+    "kind": "test",
+    "ref": "scripts/tests/test_lint_ratchet.py"
+  },
+  "basis": [
+    "D-317"
+  ],
+  "note": "PADRAO-DEV F4b: the zero is the baseline, so no baseline file is kept; 12 rules with 153 findings are ignored on 16/11/2026."
+}

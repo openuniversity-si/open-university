@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/lint-ratchet [--help]
+# The Python lint ratchet (PADRAO-DEV F4b): ruff over the engine's Python in the rule families of rules.lint_select, minus the rules with a legacy (rules.lint_ignored); any finding fails, and an ignored rule with no finding left must leave the list.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/lint_ratchet.py" "$@"

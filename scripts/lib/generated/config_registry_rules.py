@@ -7,6 +7,9 @@ Name = Literal[
     'rules.check_mode',
     'rules.decision_register',
     'rules.groups_file',
+    'rules.lint_ignored',
+    'rules.lint_ignored_max',
+    'rules.lint_select',
     'rules.max_review_days',
     'rules.stop_patterns',
 ]
@@ -17,6 +20,9 @@ Values = TypedDict('Values', {
     'rules.check_mode': Literal['report', 'refuse'],
     'rules.decision_register': str,
     'rules.groups_file': str,
+    'rules.lint_ignored': list[Any],
+    'rules.lint_ignored_max': int,
+    'rules.lint_select': list[Any],
     'rules.max_review_days': int,
     'rules.stop_patterns': list[dict[str, Any]],
 })

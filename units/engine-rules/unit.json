@@ -5,9 +5,13 @@
   "owner": "engine-lane",
   "paths": [
     "config/registry/rules.json",
+    "scripts/lib/lint_ratchet.py",
     "scripts/lib/rule_registry.py",
+    "scripts/lint-ratchet",
     "scripts/rule",
+    "scripts/tests/lint-ratchet.test.sh",
     "scripts/tests/rule.test.sh",
+    "scripts/tests/test_lint_ratchet.py",
     "scripts/tests/test_rule_registry.py"
   ],
   "requires": {

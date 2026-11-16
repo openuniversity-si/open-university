@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/lint-ratchet.test.sh",
+  "covers": [
+    "scripts/tests/lint-ratchet.test.sh",
+    "scripts/tests/test_lint_ratchet.py",
+    "scripts/lint-ratchet",
+    "scripts/lib/lint_ratchet.py",
+    "scripts/lib/config.py",
+    "config/registry/rules/rules.lint_select.json",
+    "config/registry/rules/rules.lint_ignored.json",
+    "config/registry/rules/rules.lint_ignored_max.json",
+    "config/registry/toolchain/toolchain.ruff_version.json",
+    "scripts/**/*.py",
+    "infra/**/*.py",
+    "services/**/*.py"
+  ]
+}

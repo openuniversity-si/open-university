@@ -8,6 +8,10 @@
     {
       "name": "budgets.regression_tolerance_percent",
       "bound": "max"
+    },
+    {
+      "name": "rules.lint_ignored_max",
+      "bound": "max"
     }
   ],
   "items": {

@@ -1,0 +1,14 @@
+{
+  "type": "array",
+  "default": [
+    "F",
+    "E9",
+    "PLE",
+    "B"
+  ],
+  "x-unit": "names",
+  "description": "The ruff rule families the lint ratchet requires at zero findings (PADRAO-DEV F4b): pyflakes, syntax errors, pylint errors, bugbear.",
+  "x-readers": [
+    "scripts/lib/lint_ratchet.py"
+  ]
+}

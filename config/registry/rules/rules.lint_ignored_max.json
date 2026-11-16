@@ -1,0 +1,9 @@
+{
+  "type": "integer",
+  "default": 12,
+  "x-unit": "count",
+  "description": "The most rules rules.lint_ignored may hold; a budget that only tightens (budgets.tighten_only), so a new finding is never hidden by ignoring its rule.",
+  "x-readers": [
+    "scripts/lib/lint_ratchet.py"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "type": "array",
+  "default": [
+    "B905",
+    "F401",
+    "B023",
+    "B904",
+    "B007",
+    "F841",
+    "B017",
+    "F541",
+    "B008",
+    "F811",
+    "F402",
+    "B018"
+  ],
+  "x-unit": "names",
+  "description": "The ruff rules of rules.lint_select left out of the lint ratchet while they still have a legacy (153 findings on 16/11/2026); a rule leaves when its legacy is cleaned, and the list never grows (rules.lint_ignored_max).",
+  "x-readers": [
+    "scripts/lib/lint_ratchet.py"
+  ]
+}
