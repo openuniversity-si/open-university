@@ -29,6 +29,14 @@ class ClassifyPath(unittest.TestCase):
                      'services/runner/tower-runner.service.tmpl'):
             self.assertEqual(t(path), ['slow:service-image'], path)
 
+    def test_the_staged_github_workflows_deploy_nothing(self):
+        # STAGED-WORKFLOWS-NONE: the owner installs them as .github/workflows; no image, stack or Lambda carries them
+        for path in ('services/runner/github/tower-gate.yml', 'services/runner/github/deploy-doorbell.yml',
+                     'services/runner/github/full-suite.yml'):
+            self.assertEqual(t(path), ['none'], path)
+        self.assertEqual(dc.code_only(['infra/service/tower_infra/runner.py', 'services/runner/github/tower-gate.yml'])[0],
+                         True)  # beside code, the code-only fast path still holds
+
     def test_lambda_modules(self):
         self.assertEqual(t('infra/service/tower_infra/ingress.py'), ['fast:lambda-ingress', 'slow:service-image'])
         self.assertEqual(t('infra/service/tower_infra/webhook_consumer.py'), ['fast:lambda-webhooks', 'slow:service-image'])

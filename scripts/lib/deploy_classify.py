@@ -54,6 +54,10 @@ RULES = [
     (r'^infra/service/', [SLOW_IMAGE]),
     (r'^services/control-plane/(test/|.*\.test\.)', ['none']),
     (r'^services/control-plane/', ['fast:worker']),
+    # STAGED-WORKFLOWS-NONE (the Torre, 16/11/2026): the GitHub workflows staged for the owner to install (D-087) are in no
+    # image and no stack; as an image path, #133's staged tower-gate.yml rolled the service's ECS task out at 03:49 and
+    # #134, landing in the handover, lost its fast landing
+    (r'^services/runner/github/', ['none']),
     (r'^services/runner/', [SLOW_IMAGE]),
     (r'^config/registry/', ['data-only']),
     (r'^config/', ['data-only']),
