@@ -110,13 +110,16 @@ def _text(document):
 
 def expand(paths, root):
     """R5 A2 (D-102): a diff of split registry keys selects by the keys' readers. Each changed
-    config/registry/<owner>/<key>.json adds its x-readers (the head's file) to the paths, and the owner's aggregate
+    config/registry/<owner>/<key>.json adds its readers to the paths: the x-readers its head's file declares and, since
+    PADRAO-DEV F4a (D-317), the readers sites() finds in the code, so a reader nobody declared yet is still selected.
+    The owner's aggregate
     config/registry/<owner>.json, generated from the key files (its drift is the gate's generated drift stage), leaves
     the paths when every changed file of that owner is a key file with readers. Fail closed: a key without readers, a
     deleted key, a changed _owner.json or an owner that is not split keeps the aggregate, so the wide selection stays."""
     paths = [str(path) for path in paths]
     registry = Path(root) / 'config' / 'registry'
     explained, unexplained, readers = set(), set(), []
+    derived = None  # PADRAO-DEV F4a (D-317): the readers found in the code join the declared ones, computed once
     for path in paths:
         parts = path.split('/')
         if len(parts) != len(KEY_PATH) or not path.startswith('config/registry/'):
@@ -126,7 +129,10 @@ def expand(paths, root):
         if name == HEADER_FILE or not name.endswith('.json') or not key_file.is_file():
             unexplained.add(owner)
             continue
-        found = json.loads(key_file.read_text()).get('x-readers') or []
+        found = list(json.loads(key_file.read_text()).get('x-readers') or [])
+        if derived is None:
+            derived = sites(root)
+        found += sorted(set(derived.get(name[:-len('.json')], ())) - set(found))
         if not found:
             unexplained.add(owner)
             continue

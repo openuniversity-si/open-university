@@ -62,23 +62,32 @@ class Expand(Fixture):
     """R5 A2 (D-102): a split key's change selects by its readers; anything not explained keeps the aggregate."""
     KEY, AGGREGATE = 'config/registry/demo/demo.flag.json', 'config/registry/demo.json'
 
-    def test_a_key_with_readers_replaces_the_aggregate_by_its_readers(self):
+    def test_a_key_with_readers_replaces_the_aggregate_by_its_declared_and_its_derived_readers(self):
         self.assertEqual(registry_readers.expand([self.KEY, self.AGGREGATE, 'docs/x.md'], self.root),
-                         [self.KEY, 'docs/x.md', 'scripts/lib/known.py'])
+                         [self.KEY, 'docs/x.md', 'scripts/lib/known.py', 'scripts/lib/new.py'])
+
+    def test_a_reader_nobody_declared_is_selected_from_the_code(self):
+        (self.root / self.KEY).write_text(json.dumps({'default': True, 'x-readers': []}))
+        self.assertEqual(registry_readers.expand([self.KEY, self.AGGREGATE], self.root),
+                         [self.KEY, 'scripts/lib/known.py', 'scripts/lib/new.py'])
 
     def test_fail_closed_keeps_the_aggregate(self):
         header = 'config/registry/demo/_owner.json'
         gone = 'config/registry/demo/demo.gone.json'
         for extra in (header, gone):
             self.assertIn(self.AGGREGATE, registry_readers.expand([self.KEY, extra, self.AGGREGATE], self.root), extra)
-        (self.root / self.KEY).write_text(json.dumps({'default': True, 'x-readers': []}))
-        self.assertEqual(registry_readers.expand([self.KEY, self.AGGREGATE], self.root), [self.KEY, self.AGGREGATE])
+        lonely = 'config/registry/demo/demo.lonely.json'
+        (self.root / lonely).write_text(json.dumps({'default': True, 'x-readers': []}))
+        aggregate = json.loads((self.root / self.AGGREGATE).read_text())
+        aggregate['properties']['demo.lonely'] = {'default': True, 'x-readers': []}
+        (self.root / self.AGGREGATE).write_text(json.dumps(aggregate))
+        self.assertEqual(registry_readers.expand([lonely, self.AGGREGATE], self.root), [lonely, self.AGGREGATE])
 
     def test_the_selection_uses_it_only_while_the_switch_is_on(self):
         import gate_script_tests
         from unittest import mock
         mapping = {'scripts': ('a.test.sh', 'b.test.sh', 'c.test.sh'), 'fallback': [], 'tests': [
-            {'script': 'a.test.sh', 'covers': ['scripts/lib/known.py']},
+            {'script': 'a.test.sh', 'covers': ['scripts/lib/known.py', 'scripts/lib/new.py']},
             {'script': 'b.test.sh', 'covers': [self.AGGREGATE]},
             {'script': 'c.test.sh', 'covers': ['config/registry/*/*.json']}]}
         real = gate_script_tests.config.get
