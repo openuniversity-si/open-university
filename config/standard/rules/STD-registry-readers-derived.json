@@ -1,0 +1,18 @@
+{
+  "id": "STD-registry-readers-derived",
+  "statement": "The gate selects the tests of a changed registry key by its readers as the code shows them, never only by a list written by hand.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CFG",
+    "CHG"
+  ],
+  "check": {
+    "kind": "test",
+    "ref": "scripts/tests/test_config_registry_readers.py"
+  },
+  "basis": [
+    "D-317"
+  ],
+  "note": "PADRAO-DEV F4a: registry_readers.expand unites the declared x-readers with the readers sites() finds in the code."
+}

@@ -1,0 +1,11 @@
+{
+  "id": "PROP-retire-x-readers",
+  "statement": "The x-readers field leaves the 825 registry key files: the readers are derived from the code (registry_readers.sites), so the declared list and the check that it equals the code are retired, with scripts/scaffold config-key no longer asking for --reader.",
+  "state": "open",
+  "owner": "administration",
+  "changes": [
+    "STD-registry-readers-derived"
+  ],
+  "deadline": "2026-12-15",
+  "note": "The hand fix (registry_readers.py --fix) ran three times in PADRAO-DEV F1 alone (friction of 16/11); since F4a the selection no longer depends on the declaration."
+}
