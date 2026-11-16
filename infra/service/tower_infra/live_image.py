@@ -22,11 +22,11 @@ TOWER_CODE_SHA256; tower_infra.code_bundle) has the bundle's sha256, which code_
 it runs that code, and a bundle that cannot be loaded exits before any work. Either way the pointer's value is compared as
 an opaque string; the semantics here are the same.
 
-A standby (IMAGE-PREWARM-B2; the prewarm that started Spot ones left, D-316) has TOWER_STANDBY=1: its gate is strict, so no pointer
+A standby (IMAGE-PREWARM-B2; since D-316 only the in-task successor, TOWER_STANDBY=intask) has its gate strict, so no pointer
 is not live for it; it works only once the pointer names its digest. Without that, a head's standby started while no pointer
 is written would take the role's work with an authoring branch's code. OnceLive runs a start that a standby must not run
 before it turns live (the service's DBOS.launch: its system-schema migrations, version registration and recovery; since
-IMAGE-SWAP-SERVICE-READY only for an ECS task that starts standing by: the prewarm's standby launches at once, verifying).
+IMAGE-SWAP-SERVICE-READY only for an ECS task that starts standing by: the in-task successor launches at once, verifying).
 
 IMAGE-PREWARM-C: the ECS tasks carry TOWER_IMAGE_DIGEST too (their image's reference, or the bundle the slow path deployed
 them with, LiveCode), and are never strict: with no pointer they work, under a pointer naming another digest they stand by.
