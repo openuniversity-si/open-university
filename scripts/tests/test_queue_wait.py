@@ -65,6 +65,45 @@ class WaitTests(unittest.TestCase):
                          'queued 2026-11-16T00:00:41Z wait 41 s')
 
 
+def timed(conclusion, start, end, name='tower/gate'):
+    return {'name': name, 'conclusion': conclusion, 'started_at': start, 'completed_at': end}
+
+
+class SegmentTests(unittest.TestCase):
+    def test_the_queue_time_splits_into_its_four_segments(self):
+        # #69: queued 00:39:18, its queue gate's suite made 00:40:05, run 00:40:08-00:40:49, merged 00:41:20.
+        timeline = [ev('auto_merge_enabled', '2026-11-16T00:38:07Z'), ev('added_to_merge_queue', '2026-11-16T00:39:18Z'),
+                    ev('merged', '2026-11-16T00:41:20Z')]
+        runs = [timed('success', '2026-11-16T00:40:08Z', '2026-11-16T00:40:49Z'),
+                timed('success', '2026-11-16T00:40:08Z', '2026-11-16T00:41:22Z', name='deploy/prepare')]
+        row = queue_wait.segments_of(timeline, runs, '2026-11-16T00:40:05Z', '2026-11-16T00:41:20Z')
+        self.assertEqual(row, {'dispatch': 47, 'pickup': 3, 'gate': 41, 'land': 31, 'total': 122})
+        self.assertEqual(queue_wait.segment_line(69, row),
+                         '#69 dispatch 47 s pickup 3 s gate 41 s land 31 s total 122 s')
+
+    def test_the_last_entry_before_the_merge_counts(self):
+        timeline = [ev('added_to_merge_queue', '2026-11-16T01:00:00Z'), ev('removed_from_merge_queue', '2026-11-16T01:01:00Z'),
+                    ev('added_to_merge_queue', '2026-11-16T01:05:00Z'), ev('added_to_merge_queue', '2026-11-16T02:00:00Z')]
+        runs = [timed('failure', '2026-11-16T01:00:20Z', '2026-11-16T01:00:50Z'),
+                timed('success', '2026-11-16T01:05:20Z', '2026-11-16T01:05:50Z')]
+        row = queue_wait.segments_of(timeline, runs, '2026-11-16T01:05:17Z', '2026-11-16T01:06:00Z')
+        self.assertEqual((row['dispatch'], row['gate'], row['total']), (17, 30, 60))
+
+    def test_no_green_queue_gate_is_no_row(self):
+        timeline = [ev('added_to_merge_queue', '2026-11-16T01:00:00Z')]
+        self.assertIsNone(queue_wait.segments_of(timeline, [timed('failure', '2026-11-16T01:00:20Z', '2026-11-16T01:00:50Z')],
+                                                 '2026-11-16T01:00:17Z', '2026-11-16T01:01:00Z'))
+        self.assertIn('no green tower/gate', queue_wait.segment_line(5, None))
+
+    def test_the_summary_is_the_lower_median_and_the_max(self):
+        rows = [{'dispatch': d, 'pickup': 2, 'gate': g, 'land': 8, 'total': d + 2 + g + 8}
+                for d, g in ((17, 22), (18, 28), (47, 174), (17, 30))] + [None]
+        lines = queue_wait.summary(rows)
+        self.assertEqual(lines[0], 'dispatch p50 17 s max 47 s (n 4)')
+        self.assertEqual(lines[2], 'gate p50 28 s max 174 s (n 4)')
+        self.assertEqual(queue_wait.summary([None]), ['no merged pull request with a green queue gate'])
+
+
 class Done:
     def __init__(self, code, out='', err=''):
         self.returncode, self.stdout, self.stderr = code, out, err
