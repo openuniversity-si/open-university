@@ -1,7 +1,6 @@
 """Per-unit selection (GS1): it never under-tests, and anything it cannot attribute is the full battery. Hermetic: temp repos."""
 import json
 import pathlib
-import shutil
 import sys
 import tempfile
 import unittest
