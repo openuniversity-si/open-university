@@ -12,7 +12,6 @@ import sys
 import tempfile
 import textwrap
 import threading
-import time
 import unittest
 from unittest.mock import patch
 
