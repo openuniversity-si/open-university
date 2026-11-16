@@ -10,7 +10,7 @@ delivery signed with a rotated key verifies once they are recorded; the installa
 tenant cannot. No network.
 """
 import base64
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import hashlib
 import json
 import os
