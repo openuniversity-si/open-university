@@ -63,8 +63,7 @@
       "Properties": {
         "ClusterName": "tower",
         "CapacityProviders": [
-          "FARGATE",
-          "FARGATE_SPOT"
+          "FARGATE"
         ],
         "Tags": [
           {
