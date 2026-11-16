@@ -42,8 +42,7 @@ def channels_of(channel, known=CHANNELS):
 
 class Wake:
     """wait(timeout_s): until a notification on `channel` or the timeout; answers whether a notification woke it.
-    connect() gives a new psycopg connection; this one only listens, in autocommit. `channel` may be a tuple of channels
-    (IMAGE-PREWARM-B2: the prewarm wakes on a push, tower_deploy, and on its bundle job's end, tower_work)."""
+    connect() gives a new psycopg connection; this one only listens, in autocommit. `channel` may be a tuple of channels."""
 
     def __init__(self, connect, channel, sleep=time.sleep):
         self.connect, self.channels, self.sleep, self.connection = connect, channels_of(channel), sleep, None
