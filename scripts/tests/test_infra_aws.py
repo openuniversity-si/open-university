@@ -621,6 +621,15 @@ class StackTests(unittest.TestCase):
         groups = [resource['Properties'] for resource in resources.values()
                   if resource['Type'] == 'AWS::EC2::SecurityGroup']
         self.assertFalse(any('SecurityGroupIngress' in group for group in groups))
+        # AWS-REVIEW: the database opens no connection, so its group keeps no default allow-all egress
+        [egress] = resources['DatabaseSecurityGroup']['Properties']['SecurityGroupEgress']
+        self.assertEqual((egress['CidrIp'], egress['IpProtocol'], egress['FromPort'], egress['ToPort']),
+                         ('127.0.0.1/32', 'icmp', 252, 86))
+
+    def test_the_cluster_offers_fargate_alone(self):
+        # AWS-REVIEW: nothing places a task on Spot since SPOT-STANDBY-GONE (the service and the runner are FARGATE)
+        cluster = load(INFRA / 'stacks/30-service.json')['Resources']['Cluster']['Properties']
+        self.assertEqual(cluster['CapacityProviders'], ['FARGATE'])
 
 
 PLAN = ROOT / 'docs/arquitetura-referencia/PLANO-DE-IMPLEMENTACAO.md'

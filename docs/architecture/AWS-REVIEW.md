@@ -14,11 +14,11 @@ What was read: `infra/aws/bootstrap.json`, `budget.json`, `order.json`, `paramet
 |---|---|---|
 | Network (VPC, subnets, IGW, routes, S3 endpoint, security groups) | needed | Tasks are in public subnets with a public IP and no inbound rule; no NAT. The database is reachable only from the tasks' group. |
 | RDS `tower-data`, db.t4g.medium, 20 GB gp3 | needed | Private, encrypted, deletion protection on, 7-day backups, single AZ. **No alarm** (fixed below). |
-| ECS cluster `tower`, service `tower-service`, task definition (0.5 vCPU / 1024 MiB, ARM) | needed | Circuit breaker with rollback. **No alarm on task loss** (fixed below). The cluster still lists `FARGATE_SPOT` and the task carries `TOWER_STANDBY_CLUSTER`: leftovers. |
+| ECS cluster `tower`, service `tower-service`, task definition (0.5 vCPU / 1024 MiB, ARM) | needed | Circuit breaker with rollback. **No alarm on task loss** (fixed below). The cluster still listed `FARGATE_SPOT`, a leftover (dropped). `TOWER_STANDBY_CLUSTER` is not one: the prune's cluster (`prune.py`), misnamed only. |
 | Service ExecutionRole | needed | Least privilege. |
 | Service TaskRole | **wrong/risky** | Grants the swap and prune of two Lambdas that left the stack (`tower-port-ack-ingress`, `tower-port-webhook-consumer`): anyone who later makes a function with that name has its code replaceable by the service. `bedrock-mantle:CreateInference` on `*`, live while the task sets `TOWER_API_MODELS`, is a spend exposure. |
 | Port Lambda `tower-port-api`, HTTP API, alias `live` | needed | Authentication is in the app (bearer token checked by its sha256). Throttled at 10 rps. **No error, throttle or 5xx alarm** (fixed below); no access logs. |
-| Bucket `tower-outputs-*` (stack `tower-app-runner`) | needed | Holds the Lambda zips and code bundles; TLS only, public access blocked. The `runs/` lifecycle rule and the runner parameters are leftovers. |
+| Bucket `tower-outputs-*` (stack `tower-app-runner`) | needed | Holds the Lambda zips and code bundles; TLS only, public access blocked. The `runs/` lifecycle rule and the runner parameters serve the dormant runner (D-316): kept. |
 | ECS service `tower-runner` (seen in the status' ECS events) | **to check live** | No template defines it since 14/11 (it left `50-runner.json`). Either it is INACTIVE (deleted, still listed) or orphaned. It is a production change: `docs/process/host-swap-queue.md`. |
 | CodeBuild `tower-infra-deploy`, doorbell Lambda + URL, EventBridge rules, deployer role | needed | The doorbell URL is public (AuthType NONE) and authenticated by its token, with no throttle and no error alarm. The bootstrap's defaults still name Origin (`origin.cursor.com`, `mod/roadmap-integration`): a re-apply with defaults would deploy Origin again. |
 | Boundary `tower-boundary`, CFN exec role | needed, **risky** | The boundary's denies do not protect the alerting path (the alerts topic, the Torre's queue, the deploy logs). |
@@ -56,7 +56,7 @@ A canary is one `container` job through dispatch, take and run. Only the runner 
 | `deploy.base_branch` defaults to `main` | registry, `config_data.py`, `autodeploy.py` | service PR |
 | `fastdeploy` and the TaskRole drop the two removed Lambdas | `fastdeploy.py`, stack 30 | service PR, then stack PR |
 | The full build stops making the dead ingress image | `infra/ingress/Dockerfile` deleted (`deploy.sh` builds each `infra/*/Dockerfile`) | deployer PR |
-| Stack leftovers: `FARGATE_SPOT`, `TOWER_STANDBY_CLUSTER`, stale descriptions, the database group's egress | stacks 10, 30 | one PR |
+| Stack leftovers: the cluster's `FARGATE_SPOT`, the database group's default allow-all egress | stacks 10, 30 | one PR |
 | Topic policy, boundary denies for the alerting path, Origin defaults, doorbell concurrency and alarms, the dead log grant | bootstrap | PEDIDO À TORRE (applied by hand) |
 | Bedrock grants and `TOWER_API_MODELS` | stack 30 | for Daniel to decide (spend) |
 | The live `tower-runner` service, the webhook queue and its DLQ | production | to check with an AWS credential; `host-swap-queue.md` |
