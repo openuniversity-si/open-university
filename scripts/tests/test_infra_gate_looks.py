@@ -98,7 +98,7 @@ class TheServicesStack(unittest.TestCase):
 
     def test_no_task_definition_names_the_forge_keys_parameter(self):
         definitions = {name: item for name, item in self.resources.items() if item['Type'] == 'AWS::ECS::TaskDefinition'}
-        self.assertEqual(set(definitions), {'TaskDefinition', 'StandbyTaskDefinition'})
+        self.assertEqual(set(definitions), {'TaskDefinition'})  # SPOT-STANDBY-GONE: no standby task definition
         for name, item in definitions.items():
             for container in item['Properties']['ContainerDefinitions']:
                 given = {each['Name']: each['Value'] for each in container.get('Environment', [])}

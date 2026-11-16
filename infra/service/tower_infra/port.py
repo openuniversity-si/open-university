@@ -441,7 +441,6 @@ def deploy_landed(db, who, body):
 
 WARM_ROWS = 20  # RUNNER-WARM-STATUS: the warm-ups the deploy status keeps (the runner's tasks of the last deploys)
 LIVE_ROWS = 20  # IMAGE-PREWARM-A: the image swaps the deploy status keeps
-STANDBY_ROWS = 20  # IMAGE-PREWARM-B2: the standby transitions the deploy status keeps
 # SUCCESSOR-WINDOW (criterion 3): the successors' events the status keeps, of a day. The delivery at the train's front reads
 # its branch's want and its bundle's warm there (merge_train): with 20 rows, a few bundles' events (wanted, holds, up,
 # warm, rehearsed, reserve: about eight each) pushed #707's want out, the delivery read no want, did not wait, and the
@@ -534,11 +533,6 @@ def deploy_status(db, who, landings=None):
     live = db.rows(f"select {STATUS_AT} from log.event where type = 'platform.deploy.image_live' and tenant_id is null "
                    "and occurred_at > now() - interval '30 days' order by occurred_at desc limit %(limit)s",
                    {'limit': live_rows})
-    # IMAGE-PREWARM-B2: the standbys of the authoring heads (platform.deploy.standby {role, digest, task, branch, state, at},
-    # written by the live service's prewarm, tenant_id null), the newest STANDBY_ROWS, newest first
-    standby = db.rows("select payload::text from log.event where type = 'platform.deploy.standby' and tenant_id is null "
-                      "and occurred_at > now() - interval '30 days' order by occurred_at desc limit %(limit)s",
-                      {'limit': STANDBY_ROWS})
     # IN-TASK-STANDBY: platform.deploy.successor (tenant_id null): the prewarm's want of a successor inside each ECS task
     # {digest, key, branch, state: wanted|withdrawn} and each successor's first beat {role, digest, task, state: up}
     successors = db.rows("select payload::text from log.event where type = 'platform.deploy.successor' and tenant_id is null "
@@ -630,7 +624,6 @@ def deploy_status(db, who, landings=None):
             # IMAGE-PREWARM-A: each pointer swap a standby saw ({role, digest, version, task, swap_s})
             'image_live': [json.loads(row[0]) for row in live or []],
             # IMAGE-PREWARM-B2: each standby's transition ({role, digest, task, branch, state, at})
-            'standby': [json.loads(row[0]) for row in standby or []],
             'successor': [json.loads(row[0]) for row in successors or []],  # IN-TASK-STANDBY
             'stacks': [json.loads(row[0]) for row in stacks or []],  # ROLLOUT-PARTS
             'image_swap': [json.loads(row[0]) for row in swaps or []],  # IMAGE-PREWARM-C
