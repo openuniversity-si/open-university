@@ -1,6 +1,5 @@
 """Lesson events and the measured effect (LR1). In-memory forge log, injected clock, no network."""
 from datetime import datetime, timedelta, timezone
-import json
 from pathlib import Path
 import shutil
 import sys
