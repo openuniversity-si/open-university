@@ -61,6 +61,10 @@ class Log:
         if sql == queue_deploy.PREPARED_OF:
             return [(json.dumps(each['payload']),) for each in self.events
                     if each['type'] == queue_deploy.PREPARED and each['id'] == params['id']]
+        if sql == queue_deploy.PREPARED_FOR:
+            prefix = params['prefix'].rstrip('%')
+            return [(json.dumps(each['payload']),) for each in reversed(self.events)
+                    if each['type'] == queue_deploy.PREPARED and each['id'].startswith(prefix)][:5]
         if sql == queue_deploy.OUTCOME_OF:
             return [(json.dumps(each['payload']),) for each in self.events
                     if each['type'] == queue_deploy.OUTCOME and each['id'] == params['id']]
@@ -307,6 +311,42 @@ class Prepared(unittest.TestCase):
         self.remote.land(third, 3)
         said = self.queue.landed(self.log, third, self.order)
         self.assertEqual((said['state'], said['digest']), ('swapped', found[third]['sha256']))
+
+    def test_a_base_that_moves_under_a_burst_carries_the_prepared_bundle(self):
+        """BASE-MOVED: the second entry was prepared on the deployed base; the first's build ended before the second
+        landed, so last-sha is the first. The landing carries the second's record to the new base (no second bundle, the
+        same digest, carried_from the old base) and swaps onto its heir."""
+        first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        second = self.remote.queued({'infra/service/tower_infra/canary.py': 'LOOK = 3\n'}, 2)
+        old = self.ssm[queue_deploy.LAST_SHA]
+        found = self.queue.prepare(self.log, second)
+        self.log.beating.add(found['sha256'])
+        self.remote.land(first)
+        self.queue.prepare(self.log, first)  # the first's own prepare fetched it: the service's clone holds it
+        self.ssm[queue_deploy.LAST_SHA] = first  # the first's build ended green
+        self.remote.land(second, 2)
+        said = self.queue.landed(self.log, second, self.order)
+        self.assertEqual((said['state'], said['digest']), ('swapped', found['sha256']))
+        carried = self.queue.prepared(self.log, second, first)
+        self.assertEqual((carried['carried_from'], carried['sha256'], carried['base']), (old, found['sha256'], first))
+        builds = [each for each in self.log.of(queue_deploy.PREPARED) if each.get('sha') == second]
+        self.assertEqual(len(builds), 2)  # the first prepare and the carry, no third
+
+    def test_a_path_the_earlier_diff_did_not_have_is_prepared_again(self):
+        """BASE-MOVED: the first entry changed a migration and the second put it back, so the diff from the old base has
+        no migration but the diff from the first does: nothing is carried, and the prepare judges it (not code-only)."""
+        first = self.remote.queued({'infra/db/migrations/0001_first.sql': 'select 2;\n'})
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        second = self.remote.queued({'infra/db/migrations/0001_first.sql': 'select 1;\n',
+                                     'infra/service/tower_infra/canary.py': 'LOOK = 3\n'}, 2)
+        self.assertTrue(self.queue.prepare(self.log, second)['code_only'])
+        self.remote.land(first)
+        self.queue.prepare(self.log, first)
+        self.ssm[queue_deploy.LAST_SHA] = first
+        again = self.queue.prepare(self.log, second)
+        self.assertNotIn('carried_from', again)
+        self.assertFalse(again['code_only'])
 
     def test_merges_one_after_another_faster_than_a_build_go_live_on_the_last(self):
         """BURST-SWAP: the first landed and its build has not ended (last-sha is still the base) when the second lands;
