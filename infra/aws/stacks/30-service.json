@@ -712,6 +712,90 @@
           }
         ]
       }
+    },
+    "ServiceDownAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "tower-service-down",
+        "AlarmDescription": "AWS-ALARMS (16/11/2026): no tower-service task has reported for 3 minutes (the site and the deploy stop)",
+        "Namespace": "AWS/ECS",
+        "MetricName": "CPUUtilization",
+        "Dimensions": [
+          {
+            "Name": "ClusterName",
+            "Value": {
+              "Ref": "Cluster"
+            }
+          },
+          {
+            "Name": "ServiceName",
+            "Value": {
+              "Fn::GetAtt": [
+                "Service",
+                "Name"
+              ]
+            }
+          }
+        ],
+        "Statistic": "SampleCount",
+        "Period": 60,
+        "EvaluationPeriods": 3,
+        "Threshold": 1,
+        "ComparisonOperator": "LessThanThreshold",
+        "TreatMissingData": "breaching",
+        "AlarmActions": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:tower-platform-events"
+          }
+        ],
+        "OKActions": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:tower-platform-events"
+          }
+        ]
+      }
+    },
+    "ServiceMemoryAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "tower-service-memory",
+        "AlarmDescription": "AWS-ALARMS: the service task above 90% of its memory for 3 minutes (two heirs, a handover and the reserve share 1024 MiB)",
+        "Namespace": "AWS/ECS",
+        "MetricName": "MemoryUtilization",
+        "Dimensions": [
+          {
+            "Name": "ClusterName",
+            "Value": {
+              "Ref": "Cluster"
+            }
+          },
+          {
+            "Name": "ServiceName",
+            "Value": {
+              "Fn::GetAtt": [
+                "Service",
+                "Name"
+              ]
+            }
+          }
+        ],
+        "Statistic": "Maximum",
+        "Period": 60,
+        "EvaluationPeriods": 3,
+        "Threshold": 90,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:tower-platform-events"
+          }
+        ],
+        "OKActions": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:tower-platform-events"
+          }
+        ]
+      }
     }
   },
   "Outputs": {
