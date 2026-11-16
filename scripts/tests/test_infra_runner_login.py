@@ -95,7 +95,8 @@ class TheRunnersLogin(World):
                       fence=1, lease='5 minutes', name='rehearsal-0a1b', window=1.0, head='h' * 40, order='h' * 40,
                       window_s=1.0, since=1.0, heir='task-2', turn=1, state='started', born='1',
                       ref='refs/heads/mod/roadmap-integration', sha='a' * 40, repo='org/name',  # UID0-FROM-BASE: LANDED
-                      runs='00000000-0000-0000-0000-000000000000')  # CANCEL-WAKES-RUNNER: ENDED_JOBS
+                      runs='00000000-0000-0000-0000-000000000000',  # CANCEL-WAKES-RUNNER: ENDED_JOBS
+                      pointer=live_image.KEYS['runner'])  # OWN-POINTER: WANTS reads the runner's own pointer
         self.db.rows(POINT, {'digest': S, 'keys': BOTH})
         sent = []
         for module, left_out in ((live_image, {'EMPTY_IF', 'EMPTY_THEN', 'WOKEN', 'SWEEP_OLD', 'SWAP_CANARY'}), (runner, set()),
