@@ -4,7 +4,6 @@ A temporary git repository holds the base register and the change; the premise r
 """
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
