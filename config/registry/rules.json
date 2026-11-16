@@ -348,6 +348,28 @@
       ],
       "x-source": "D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 16:55 BRT, RULE-AUDIT)"
     },
+    "rules.metrics_scanner_files": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "PADRAO-DEV panel (padrao-metrics selection): a traced script test that opens more than this many code files is a scanner, a test that reads the code as data (a whole-repository rule), counted apart from the tests that execute what they open.",
+      "x-readers": [
+        "scripts/lib/padrao_metrics.py"
+      ],
+      "x-source": "D-317 (PADRAO-DEV F5b)"
+    },
+    "rules.metrics_trace_timeout_s": {
+      "type": "integer",
+      "default": 900,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "PADRAO-DEV panel (padrao-metrics trace): the longest one script test may run under strace, which slows it several times; a test cut at the limit keeps the files it opened until then and is reported as cut.",
+      "x-readers": [
+        "scripts/lib/padrao_metrics.py"
+      ],
+      "x-source": "D-317 (PADRAO-DEV F5b)"
+    },
     "rules.stop_patterns": {
       "type": "array",
       "default": [

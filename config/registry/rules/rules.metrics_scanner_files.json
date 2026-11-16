@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 50,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "PADRAO-DEV panel (padrao-metrics selection): a traced script test that opens more than this many code files is a scanner, a test that reads the code as data (a whole-repository rule), counted apart from the tests that execute what they open.",
+  "x-readers": [
+    "scripts/lib/padrao_metrics.py"
+  ],
+  "x-source": "D-317 (PADRAO-DEV F5b)"
+}

@@ -11,6 +11,8 @@ Name = Literal[
     'rules.lint_ignored_max',
     'rules.lint_select',
     'rules.max_review_days',
+    'rules.metrics_scanner_files',
+    'rules.metrics_trace_timeout_s',
     'rules.stop_patterns',
 ]
 
@@ -24,5 +26,7 @@ Values = TypedDict('Values', {
     'rules.lint_ignored_max': int,
     'rules.lint_select': list[Any],
     'rules.max_review_days': int,
+    'rules.metrics_scanner_files': int,
+    'rules.metrics_trace_timeout_s': int,
     'rules.stop_patterns': list[dict[str, Any]],
 })

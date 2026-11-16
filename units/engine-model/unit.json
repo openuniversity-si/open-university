@@ -12,16 +12,22 @@
     "config/validation/**",
     "contracts/model/*.json",
     "scripts/lib/model.py",
+    "scripts/lib/padrao_metrics.py",
     "scripts/model",
+    "scripts/padrao-metrics",
     "scripts/tests/model.test.sh",
-    "scripts/tests/test_model.py"
+    "scripts/tests/padrao-metrics.test.sh",
+    "scripts/tests/test_model.py",
+    "scripts/tests/test_padrao_metrics.py"
   ],
   "requires": {
     "engine-config": "^1",
     "engine-gate-plan": "^1",
     "engine-premises": "^1",
     "engine-units": "^1",
-    "engine-rules": "^1"
+    "engine-rules": "^1",
+    "engine-gate-tests": "^1",
+    "engine-config-check": "^1"
   },
   "realizes": [
     "ARC-model"
