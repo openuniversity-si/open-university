@@ -450,7 +450,7 @@ ORDER_SAY = ("with said as (insert into log.event (event_id, tenant_id, type, oc
 WANTS = ("select (select s.value::text from work.config_value s join work.tenant t on t.id = s.tenant_id "
          f"where t.name = %(tenant)s and s.key = '{SUCCESSORS}'), "
          # PROMOTED-SUCCESSOR-STAYS: and the bundle a role's pointer names, wanted or withdrawn, first: its successor has
-         # the role, or is taking it, whatever the prewarm says of the branch it came from (read with the wants, in one
+         # the role, or is taking it, whatever the wants say of the branch it came from (read with the wants, in one
          # statement: the look may come before this process's listener read the pointer)
          "(select jsonb_agg(jsonb_build_object('digest', w.digest, 'key', w.key) order by w.pointed desc, w.at desc) from ("
          "select distinct on (payload->>'digest') payload->>'digest' as digest, payload->>'key' as key, "
@@ -464,7 +464,7 @@ WANTS = ("select (select s.value::text from work.config_value s join work.tenant
          "and f.occurred_at > now() - interval '7 days' and f.payload->>'state' = 'failed' "
          "and f.payload->>'digest' = w.digest))::text")
 # a successor's first beat: platform.deploy.successor {role, digest, task, state: up}, once, and the looks are woken (the
-# autodeploy's, which swaps a landing that waited for it; the prewarm's)
+# autodeploy's, which swaps a landing that waited for it)
 UP = ("with said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
       f"select %(id)s, null, '{SUCCESSOR}', clock_timestamp(), %(producer)s, 'deploy/successor/' || %(role)s, %(payload)s::jsonb || "
       "jsonb_build_object('at', round(extract(epoch from clock_timestamp())::numeric, 3)) "
