@@ -33,7 +33,7 @@ them with, LiveCode), and are never strict: with no pointer they work, under a p
 After a swap to S the slow path deploys the ECS service with bundle S; that task is live at once (the pointer names its
 digest) beside the promoted standby, so once it is up it hands the role over (handover: the service's pointer written ''
 only if it still names S, and platform.deploy.image_retired): the strict standby stops working, the ECS task, not strict,
-goes on. sole() is active() less that short overlap, for the duties two live services must not share (the prewarm's tasks).
+goes on. sole() is active() less that short overlap, for the duties two live services must not share.
 
 IMAGE-SWAP-TIGHTEN: platform.deploy.image_live is recorded when the role really takes work, not when the read turns it
 live: the runner after its first TAKE, the service after its first dispatch tick (DBOS.launch, deferred as above, before
@@ -48,7 +48,7 @@ swap cost 2.76 s and the first tick after it ~6.1 s more on the task's 0.25 vCPU
 first dispatch is committed (workflows.tick's dispatched hook: claims made, a container run takeable), before the workflows
 start, with dispatch_s (reap and dispatch) apart; the runner's carries take_s (its first TAKE's round trip), so work_s splits
 into the wake and the work. after_work(check) is check() for the threads that wake on the same notifications as the swap
-(the autodeploy's and the prewarm's looks, the landing's tower_deploy): after a swap they wait for the first work
+(the autodeploy's look, the landing's tower_deploy): after a swap they wait for the first work
 (FIRST_WORK_S at most), so the dispatch has the task's CPU first.
 
 IMAGE-SWAP-TICK: the role's first work part by part, with nothing else on the swap's second. The service's loop keeps a
@@ -92,8 +92,8 @@ of the reload is on the swap's clock: a platform.deploy.image_swap names S (its 
 image_live for this pointer version (a swap that reverts is not chased), and no reload of S failed in this role.
 (2) The bundle is staged while the task stands by (code_bundle.stage: fetched, its sha256 and requirements checked,
 unpacked); one that cannot be loaded is recorded failed, with nothing touched. (3) The drain: nothing in flight is exec'd
-over. Gate.engaged() counts the work of the process (each runner slot's pass, its run included; the autodeploy's and the
-prewarm's looks); it counts before it reads the answer and the reload holds the gate (reloading) before it counts, so of
+over. Gate.engaged() counts the work of the process (each runner slot's pass, its run included; the autodeploy's
+look); it counts before it reads the answer and the reload holds the gate (reloading) before it counts, so of
 the two one backs off. The service also waits for its DBOS workflows (pending), DRAIN_S at most. (4) The claim
 (RELOAD_START), one statement: platform.deploy.image_reload {state: started}, only while the pointer still names S at
 that version (a failover, a handback or the revert that emptied it cancels the reload) and one task per turn: its
