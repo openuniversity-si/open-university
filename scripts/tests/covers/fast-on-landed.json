@@ -1,0 +1,14 @@
+{
+  "script": "scripts/tests/fast-on-landed.test.sh",
+  "covers": [
+    "scripts/tests/fast-on-landed.test.sh",
+    "scripts/tests/test_fast_on_landed.py",
+    "scripts/tests/test_infra_autodeploy.py",
+    "scripts/tests/test_infra_fastdeploy.py",
+    "infra/service/tower_infra/autodeploy.py",
+    "infra/service/tower_infra/fastdeploy.py",
+    "infra/service/tower_infra/http_port.py",
+    "infra/service/tower_infra/port.py",
+    "scripts/lib/gate_infra.py"
+  ]
+}
