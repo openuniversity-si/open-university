@@ -3,6 +3,7 @@
   "covers": [
     "scripts/tests/gate-script-tests.test.sh",
     "scripts/tests/test_gate_script_tests.py",
-    "scripts/tests/covers/*.json"
+    "scripts/tests/covers/*.json",
+    "scripts/tests/traced-covers.json"
   ]
 }

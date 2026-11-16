@@ -220,7 +220,7 @@ def key(script, root, mapping=None, files=None, node=None, hashes=None):
         if entry is None or not entry['covers']:
             return ''
         root = Path(root)
-        patterns = [script, *entry['covers'], *setting('test_cache_common_inputs')]
+        patterns = [script, *gate_script_tests.patterns(entry), *setting('test_cache_common_inputs')]
         listed = tracked(root) if files is None else sorted(files)
         if script not in listed:
             return ''
@@ -244,7 +244,7 @@ def key(script, root, mapping=None, files=None, node=None, hashes=None):
     return _digest([
         'script-test', setting('test_cache_version'), script, node or _node_version(),
         *(config.get(name) for name in TOOLCHAIN_PINS),
-        json.dumps({'script': entry['script'], 'covers': list(entry['covers'])}, sort_keys=True), *digests,
+        json.dumps({'script': entry['script'], 'covers': list(gate_script_tests.patterns(entry))}, sort_keys=True), *digests,
         *gate_keys.key_parts(),
     ])
 

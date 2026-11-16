@@ -21,8 +21,16 @@ def manifests():
     return [json.loads(path.read_text()) for path in sorted(COVERS.glob('*.json'))]
 
 
+@functools.lru_cache(maxsize=None)
+def traced():
+    """The traced map as written (PADRAO-DEV F5b-2): {script: [files]}, read straight from the file."""
+    target = ROOT / 'scripts' / 'tests' / 'traced-covers.json'
+    return json.loads(target.read_text())['tests'] if target.exists() else {}
+
+
 def covering(path):
-    return [item['script'] for item in manifests() if any(glob_match(path, pattern) for pattern in item['covers'])]
+    return [item['script'] for item in manifests()
+            if any(glob_match(path, pattern) for pattern in (*item['covers'], *traced().get(item['script'], ())))]
 
 
 def expected_selection(paths):
@@ -139,6 +147,24 @@ class CoversManifests(unittest.TestCase):
                 self.assertEqual(after, before)
                 self.assertEqual(tests.check(self.root), [])
                 self.assertEqual({script: cache.key(script, self.root, after, self.files, node='n') for script in after['scripts']}, keys)
+
+    def test_the_traced_map_joins_the_selection_and_the_cache_key_but_not_the_declared_covers(self):
+        before = tests.load(self.root)
+        key = cache.key('scripts/tests/a.test.sh', self.root, before, self.files, node='n')
+        (self.root / 'scripts' / 'lib' / 'y.py').write_text('y = 1\n')
+        self.files.append('scripts/lib/y.py')
+        self.assertEqual(tests.select(['scripts/lib/y.py'], before)[0], ('scripts/tests/b.test.sh',))
+        (self.root / 'scripts' / 'tests' / 'traced-covers.json').write_text(
+            json.dumps({'tests': {'scripts/tests/a.test.sh': ['scripts/lib/y.py']}}))
+        after = tests.load(self.root)
+        self.assertEqual(after['tests'][0]['covers'], ('scripts/tests/a.test.sh', 'scripts/lib/x.py'))
+        self.assertEqual(after['tests'][0]['traced'], ('scripts/lib/y.py',))
+        self.assertEqual(tests.select(['scripts/lib/y.py'], after)[0], ('scripts/tests/a.test.sh', 'scripts/tests/b.test.sh'))
+        self.assertNotEqual(cache.key('scripts/tests/a.test.sh', self.root, after, self.files, node='n'), key)
+
+    def test_a_traced_map_that_is_not_a_map_of_paths_is_refused(self):
+        (self.root / 'scripts' / 'tests' / 'traced-covers.json').write_text(json.dumps({'tests': {'a': 'x'}}))
+        self.assertIn('tests must map a script to a list of paths', tests.check(self.root)[0])
 
     def test_a_script_test_without_a_manifest_is_refused(self):
         self.assertEqual(tests.check(self.root), [])
