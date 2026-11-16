@@ -142,7 +142,8 @@ def read_decisions(root):
         fields = dict(line.split(':', 1) for line in head.group(1).splitlines() if ':' in line) if head else {}
         number = fields.get('number', path.stem).strip()
         seen.add(number)
-        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text))
+        assumed = [{'type': 'assumes', 'target': ident} for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
+        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed))
         proof = fields.get('proof', '').strip().strip('`')
         if proof:
             objects.append({'id': f'TEST:{proof}', 'type': 'TEST', 'state': 'active', 'source': proof, 'claimed': True,
@@ -556,8 +557,37 @@ def requirement_findings(found):
     return warnings
 
 
+def read_premises(root):
+    """Premises (P), read where they are through the register's own loader (scripts/lib/premises.py, D-066): the id,
+    the status as the state, the radius and the record's path as the source id the inventory counts."""
+    import premises
+    records, _ = premises.load(Path(root))
+    found = []
+    for ident, record in sorted(records.items()):
+        path = Path(root) / record['path']
+        item = _obj(ident, 'P', record['status'], record['path'], path.read_text() if path.is_file() else ident)
+        item.update(source_id=record['path'], body={'radius': record.get('radius'), 'statement': record.get('statement')})
+        found.append(item)
+    return found
+
+
+def knowledge_measure(found, radius='high'):
+    """The knowledge system's own measure: the premises, the high-blast ones not confirmed or validated, the refuted
+    ones still assumed by an active object."""
+    into = incoming(found)
+    settled = ('confirmed', 'validated')
+    premises_found = [item for item in found.values() if item['type'] == 'P']
+    return {
+        'premises': len(premises_found),
+        'high_unsettled': sum(1 for item in premises_found if item['body'].get('radius') == radius
+                              and item['state'] not in settled + ('refuted',)),
+        'refuted_assumed': sum(1 for item in premises_found if item['state'] == 'refuted'
+                               and any(kind == 'assumes' for kind, _ in into.get(item['id'], []))),
+    }
+
+
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
-           read_intent, read_requirements)
+           read_intent, read_requirements, read_premises)
 
 
 def objects(root=ROOT, readers=READERS):
@@ -746,6 +776,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'systems': systems,
         'standard': standard_measure(found, today or utc_today()),
         'standard_management': management_measure(found, today or utc_today()),
+        'knowledge': knowledge_measure(found),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors),
         'warnings': len(warnings),
@@ -782,6 +813,9 @@ def summary(found):
     lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '
                  f'with no deadline, {managed["overdue"]} past it), {managed["closed"]} closed; {managed["exemptions"]} '
                  f'exemption(s) in force; effective version {", ".join(managed["effective"]) or "none"}')
+    known = found['knowledge']
+    lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
+                 f'{known["refuted_assumed"]} refuted and still assumed')
     lines.append(f'check: {found["errors"]} error(s), {found["warnings"]} warning(s)')
     return '\n'.join(lines)
 

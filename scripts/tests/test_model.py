@@ -413,6 +413,21 @@ class RealRepository(unittest.TestCase):
         warnings = model.rule_findings(model.objects(ROOT), ROOT)
         self.assertEqual([line for line in warnings if 'with no rule of the standard' in line], [])
 
+    def test_every_premise_of_the_register_is_an_object_and_a_decision_assumes_the_premises_it_names(self):
+        import premises
+        records, _ = premises.load(ROOT)
+        found = model.objects(ROOT)
+        self.assertEqual({id for id, item in found.items() if item['type'] == 'P'}, set(records))
+        assuming = next(item for item in found.values() if item['type'] == 'D'
+                        and any(link['type'] == 'assumes' for link in item['links']))
+        target = next(link['target'] for link in assuming['links'] if link['type'] == 'assumes')
+        self.assertEqual(found[target]['type'], 'P')
+        counted = model.knowledge_measure(found)
+        self.assertEqual(counted['premises'], len(records))
+        high = [record for record in records.values() if record['radius'] == 'high'
+                and record['status'] not in ('confirmed', 'validated', 'refuted')]
+        self.assertEqual(counted['high_unsettled'], len(high))
+
     def test_show_names_an_object_with_its_links_out_and_in(self):
         text = model.show('UNIT:engine-model', ROOT)
         self.assertIn('UNIT:engine-model  UNIT  active  units/engine-model/unit.json', text)
