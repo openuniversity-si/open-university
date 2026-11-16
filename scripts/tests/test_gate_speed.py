@@ -1,6 +1,5 @@
 """Cache keys, the incremental secret scan, and the portable media copy."""
 import json
-import os
 from pathlib import Path
 import subprocess
 import tempfile
