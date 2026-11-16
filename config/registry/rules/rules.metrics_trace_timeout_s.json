@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 900,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "PADRAO-DEV panel (padrao-metrics trace): the longest one script test may run under strace, which slows it several times; a test cut at the limit keeps the files it opened until then and is reported as cut.",
+  "x-readers": [
+    "scripts/lib/padrao_metrics.py"
+  ],
+  "x-source": "D-317 (PADRAO-DEV F5b)"
+}

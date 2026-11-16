@@ -28,7 +28,8 @@
       "x-source": "D-070, D-268",
       "description": "Paths (relative to the checkout) the trace never reports: the registry every config.get reads, generated modules, the decisions file every unit-manifest load reads, the harness itself, VCS, toolchain, dependencies and bytecode.",
       "x-readers": [
-        "scripts/lib/gate_script_tests.py"
+        "scripts/lib/gate_script_tests.py",
+        "scripts/lib/padrao_metrics.py"
       ]
     },
     "gate-trace.covers_trace_max_listed": {
@@ -39,7 +40,8 @@
       "x-source": "D-070",
       "description": "Most undeclared paths one test lists in its trace report; the count of the rest is printed.",
       "x-readers": [
-        "scripts/lib/hermetic.py"
+        "scripts/lib/hermetic.py",
+        "scripts/lib/padrao_metrics.py"
       ]
     },
     "gate-trace.covers_trace_mode": {

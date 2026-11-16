@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/padrao-metrics [--help]
+# Measures the PADRAO-DEV panel: the gate selection's completeness, from strace traces of the script tests: the code files each test opens that its covers does not name.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/padrao_metrics.py" "$@"

@@ -1,0 +1,18 @@
+{
+  "script": "scripts/tests/padrao-metrics.test.sh",
+  "covers": [
+    "scripts/tests/padrao-metrics.test.sh",
+    "scripts/tests/test_padrao_metrics.py",
+    "scripts/padrao-metrics",
+    "scripts/lib/padrao_metrics.py",
+    "scripts/lib/config.py",
+    "scripts/lib/event_contracts.py",
+    "scripts/lib/forge_events.py",
+    "scripts/lib/gate_areas.py",
+    "scripts/lib/gate_script_tests.py",
+    "scripts/lib/json_schema.py",
+    "scripts/lib/registry_readers.py",
+    "config/registry/rules/rules.metrics_scanner_files.json",
+    "config/registry/rules/rules.metrics_trace_timeout_s.json"
+  ]
+}
