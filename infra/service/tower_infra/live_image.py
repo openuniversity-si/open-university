@@ -102,7 +102,7 @@ code_bundle.reload execs the same command on S. (5) The reloaded task (Gate.relo
 promoted standby; at its first work Gate.back() records {state: reloaded, reload_s: the pointer's write to that work}
 and hands the role over by EMPTY's compare-and-swap (ALONE: not while another ECS task of the role still stands by on
 the code this one left, which would then work on it), the runner's pointer like the service's. The strict standby stands
-by and the prewarm retires it. (6) The guard: a started with no reloaded after RELOAD_LIMIT_S is a task that died on the
+by until its want is withdrawn. (6) The guard: a started with no reloaded after RELOAD_LIMIT_S is a task that died on the
 bundle (ECS restarted it on its task definition's code): the next look records it failed, and a digest that failed is
 never reloaded again in that role: the promoted pair keeps the role until the slow path, as before this unit.
 
@@ -143,8 +143,7 @@ no task starts a reload and the slow path deploys the head.
 
 IN-TASK-STANDBY: the standby is a successor process inside the ECS task of its role (tower_infra.supervisor), not a Spot
 task, and after a swap it keeps the role: nothing reloads by exec. (1) The want: the live service records
-platform.deploy.successor {digest, key, state: wanted|withdrawn} for the bundle a merge holds (queue_deploy; the prewarm that
-said it for a head left, D-316), and
+platform.deploy.successor {digest, key, state: wanted|withdrawn} for the bundle a merge holds (queue_deploy), and
 notifies; the open order of a landing with no standby is a want too. Each ECS task's process reads them where it looks
 at the order (Order.step: only when a look is owed) and tells its supervisor the set (deploy.intask_standbys of them at
 most; 0, the default, is off: nothing here happens). (2) The successor is the one standby, inside the task: strict,
