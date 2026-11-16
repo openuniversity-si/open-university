@@ -169,12 +169,76 @@ class BootstrapTests(unittest.TestCase):
     # ORIGIN-ACCESS-GONE (the Torre, 15/11/2026): the deployer no longer reads /tower/origin/* (its statement is
     # ReadTheLastDeploy, /tower/deploy/* alone), so the Torre deletes the Origin parameters after this lands. The Torre
     # re-applies tower-bootstrap with this template after the merge (UsePreviousValue for its parameters).
-    APPLIED = '42c69db6ff4ff77cfcbea95716a5e8de02d8365b2abe1d1326246d2d8b5d3719'
+    # AWS-REVIEW (the Torre, 16/11/2026 06:20:44 UTC): change set req-aws-review, UPDATE_COMPLETE, parameters
+    # UsePreviousValue, nothing replaced; the topic policy to the account root, the boundary's three denies of the alerting
+    # path, the GitHub defaults, the doorbell's concurrency, alarm and dead letters, the dead log grant gone; and the
+    # Torre's two deviations: CloudWatch alarms may publish to the topic, and the deploy log denied is the real
+    # /tower/infra-deploy too. The file is the applied one (raw sha256 28402007...42ac).
+    APPLIED = 'fdd417083780c759e5b69eeb01e0bdcce3ca068fb8c9b16dfd2aa5a06eb8a335'
 
     def test_the_file_is_the_template_the_account_has_applied(self):
         canonical = json.dumps(self.template, sort_keys=True, separators=(',', ':'))
         self.assertEqual(hashlib.sha256(canonical.encode()).hexdigest(), self.APPLIED,
                          'infra/aws/bootstrap.json is not what the Torre applied: ask the Torre to apply it, then record the hash')
+
+    def test_only_the_account_root_alarms_budgets_and_the_impaired_rule_reach_the_topic_and_only_to_publish_or_read(self):
+        # AWS-REVIEW: the owner's statement named Principal * with Delete, SetAttributes, Subscribe and the permissions
+        [owner, budgets, impaired, alarms] = self.resources['AlertsTopicPolicy']['Properties']['PolicyDocument']['Statement']
+        self.assertEqual((owner['Sid'], owner['Principal']),
+                         ('OwnerAccount', {'AWS': {'Fn::Sub': 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'}}))
+        self.assertEqual(sorted(owner['Action']), ['SNS:GetTopicAttributes', 'SNS:ListSubscriptionsByTopic', 'SNS:Publish'])
+        self.assertEqual((budgets['Sid'], impaired['Sid']),
+                         ('BudgetsPublishTheDeployCostAlarm', 'EventBridgePublishesTheEngineImpairedRule'))
+        # the Torre's deviation (a): without Principal * the account's alarms (stacks 20, 30, 40, the doorbell's) publish
+        # by this statement alone, and only as alarms of this account
+        self.assertEqual((alarms['Sid'], alarms['Principal'], alarms['Action']),
+                         ('CloudWatchAlarmsOfTheAccountPublish', {'Service': 'cloudwatch.amazonaws.com'}, 'SNS:Publish'))
+        self.assertEqual(alarms['Condition'], {
+            'StringEquals': {'aws:SourceAccount': {'Ref': 'AWS::AccountId'}},
+            'ArnLike': {'aws:SourceArn': {'Fn::Sub': 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*'}}})
+        for statement in (budgets, impaired, alarms):
+            self.assertEqual(statement['Action'], 'SNS:Publish')
+
+    def test_the_boundary_keeps_the_alerting_path_out_of_reach(self):
+        # AWS-REVIEW: no factory role deletes or rewires the topic, the Torre's queue or the deploy's log
+        denies = {s['Sid']: s for s in self.resources['Boundary']['Properties']['PolicyDocument']['Statement']
+                  if s['Effect'] == 'Deny'}
+        topic, queue, log = (denies[sid] for sid in ('TheAlertTopicIsOutOfReach', 'TheTorreQueueIsOutOfReach',
+                                                     'TheDeployLogIsOutOfReach'))
+        self.assertEqual((topic['Resource'], sorted(topic['Action'])), ({'Ref': 'AlertsTopic'}, [
+            'sns:DeleteTopic', 'sns:RemovePermission', 'sns:SetTopicAttributes', 'sns:Subscribe', 'sns:Unsubscribe']))
+        self.assertEqual((queue['Resource'], sorted(queue['Action'])), ({'Fn::GetAtt': ['AlertsToTorreQueue', 'Arn']}, [
+            'sqs:DeleteQueue', 'sqs:PurgeQueue', 'sqs:SetQueueAttributes']))
+        self.assertEqual(sorted(log['Action']), ['logs:DeleteLogGroup', 'logs:DeleteRetentionPolicy', 'logs:PutRetentionPolicy'])
+        groups = [each['Fn::Sub'].split('log-group:')[1] for each in log['Resource']]
+        # the Torre's deviation (b): the build's real group is /tower/infra-deploy (DeployProject's LogsConfig)
+        self.assertEqual(self.resources['DeployProject']['Properties']['LogsConfig']['CloudWatchLogs']['GroupName'],
+                         '/tower/infra-deploy')
+        self.assertEqual(sorted(groups), ['/aws/codebuild/tower-infra-deploy', '/aws/codebuild/tower-infra-deploy:*',
+                                          '/tower/infra-deploy', '/tower/infra-deploy:*'])
+
+    def test_the_public_doorbell_is_throttled_and_alarmed_and_every_rule_keeps_its_dead_letters(self):
+        # AWS-REVIEW: the doorbell URL is public (AuthType NONE, a token): two at once at most, an error pages the topic
+        self.assertEqual(self.resources['DoorbellFunction']['Properties']['ReservedConcurrentExecutions'], 2)
+        alarm = self.resources['DoorbellErrorsAlarm']['Properties']
+        self.assertEqual((alarm['Namespace'], alarm['MetricName'], alarm['Dimensions'], alarm['Statistic'], alarm['Period'],
+                          alarm['Threshold'], alarm['ComparisonOperator'], alarm['AlarmActions']),
+                         ('AWS/Lambda', 'Errors', [{'Name': 'FunctionName', 'Value': {'Ref': 'DoorbellFunction'}}], 'Sum', 300,
+                          1, 'GreaterThanOrEqualToThreshold', [{'Ref': 'AlertsTopic'}]))
+        rules = sorted(name for name, each in self.resources.items() if each['Type'] == 'AWS::Events::Rule')
+        for name in rules:
+            for target in self.resources[name]['Properties']['Targets']:
+                self.assertEqual(target['DeadLetterConfig'], {'Arn': {'Fn::GetAtt': ['EventsDeadLetterQueue', 'Arn']}}, name)
+                self.assertEqual(target['RetryPolicy'], {'MaximumRetryAttempts': 10, 'MaximumEventAgeInSeconds': 3600}, name)
+        [send] = self.resources['EventsDeadLetterQueuePolicy']['Properties']['PolicyDocument']['Statement']
+        self.assertEqual((send['Principal'], send['Action']), ({'Service': 'events.amazonaws.com'}, 'sqs:SendMessage'))
+        self.assertEqual(sorted(each['Fn::GetAtt'][0] for each in send['Condition']['ArnEquals']['aws:SourceArn']), rules)
+
+    def test_the_deployer_reads_no_log_of_a_function_that_is_gone(self):
+        # AWS-REVIEW: ReadTheConsumerLogForTheAckSmoke read /aws/lambda/tower-port-webhooks, deleted on 14/11
+        sids = [statement['Sid'] for statement in self.policy('DeployerRole')]
+        self.assertNotIn('ReadTheConsumerLogForTheAckSmoke', sids)
+        self.assertNotIn('tower-port-webhooks', json.dumps(self.policy('DeployerRole')))
 
     def test_the_platforms_topic_is_tower_platform_events(self):
         # INFRA-AWS 3 (P6 F2): only the name changes; the resource and the deployer's variable keep theirs.
@@ -396,7 +460,8 @@ class BootstrapTests(unittest.TestCase):
             'detail': {'eventType': ['WARN', 'ERROR']}}))
         for rule, permission in (('EcsTaskStoppedRule', 'EcsTaskStoppedInvokePermission'),
                                  ('EcsServiceActionRule', 'EcsServiceActionInvokePermission')):
-            self.assertEqual(self.resources[rule]['Properties']['Targets'], [{'Id': 'tower-port-api-live', 'Arn': target}])
+            [only] = self.resources[rule]['Properties']['Targets']
+            self.assertEqual((only['Id'], only['Arn']), ('tower-port-api-live', target))
             allowed = self.resources[permission]['Properties']
             self.assertEqual((allowed['FunctionName'], allowed['Action'], allowed['Principal'], allowed['SourceArn']),
                              (target, 'lambda:InvokeFunction', 'events.amazonaws.com', {'Fn::GetAtt': [rule, 'Arn']}))
@@ -434,7 +499,10 @@ class BootstrapTests(unittest.TestCase):
         for needle in ('--branch "$BASE_BRANCH"', '--stack-name "tower-app-$n"',
                        '--role-arn "$CFN_EXEC_ROLE_ARN"', '/tower/deploy/last-sha', 'bash repo/infra/aws/deploy.sh'):
             self.assertIn(needle, spec)
-        self.assertEqual(self.template['Parameters']['BaseBranch']['Default'], 'mod/roadmap-integration')
+        # AWS-REVIEW: a re-apply with the defaults deploys GitHub's main, never Origin's mod/roadmap-integration
+        self.assertEqual(self.template['Parameters']['BaseBranch']['Default'], 'main')
+        self.assertEqual(self.template['Parameters']['OriginRepoUrl']['Default'],
+                         'https://github.com/openuniversity-si/open-university.git')
 
     def test_the_deployer_pushes_only_tower_images_and_records_only_its_own_parameters(self):
         # INFRA-SVC 1a: the boundary lets a stack start CodeBuild but never create a project, so the deployer builds
