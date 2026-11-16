@@ -116,49 +116,6 @@ class Dispatch(World):
         [got] = mechanisms.dispatch(self.db)  # behind the check in the queue, and dispatched at once: its slot is its own
         self.assertEqual((got['job'], got['account'], self.state(checks[3])), (again, 'canary', 'queued'))
 
-    def test_a_full_runs_test_waits_behind_a_gates_job_and_gives_its_slot_to_one(self):
-        # FULL-RUN (revisão da arquitetura, achado 29): the base's battery runs below the gates, by the event of a gate's job
-        # that cannot go (no clock): it never starts ahead of one, and one of it running is taken back for one
-        yields = {'adapter': 'container', 'yield': True}
-        full = [self.job(f'full-{n}', queue='ranked', rank=0, selector=yields) for n in range(5)]
-        made = mechanisms.dispatch(self.db)
-        self.assertEqual(sorted(got['job'] for got in made), sorted(full[:4]))  # nothing else waits: four slots, four tests
-        gate = self.job('gate-1', queue='ranked', rank=900, selector={'adapter': 'container'})
-        self.assertEqual(mechanisms.dispatch(self.db), [])  # no free slot: the gate's job takes one back ...
-        cancelled = [job for job in full[:4] if self.state(job) == 'cancelled']
-        self.assertEqual(len(cancelled), 1)
-        self.assertEqual(self.state(full[4]), 'queued')  # ... and the full run's last test does not start ahead of it
-        events = self.db.rows("select payload->>'yielded_to' from log.event where type = 'job.cancelled' "
-                              "and payload->>'job_id' = %(id)s", {'id': cancelled[0]})
-        self.assertEqual(events, [(gate,)])
-        run, fence = self.db.rows('select r.id::text, j.fencing_token from work.run r join work.job j on j.lease_run_id = r.id '
-                                  'where j.id = %(id)s::uuid', {'id': cancelled[0]})[0]
-        mechanisms.end(self.db, run, fence, 'stopped')  # the runner's beat sees the cancel and ends the run: the slot is free
-        [got] = mechanisms.dispatch(self.db)
-        self.assertEqual((got['job'], self.state(full[4])), (gate, 'queued'))  # the gate first; the full run's test after
-        mechanisms.end(self.db, got['run'], got['fence'], 'succeeded')
-        self.assertEqual([each['job'] for each in mechanisms.dispatch(self.db)], [full[4]])  # no gate waits: its turn
-
-    def test_a_full_runs_tests_that_cannot_go_cost_one_look_a_pass_not_one_each(self):
-        # FULL-RUN-SKIP (criterion 3): with the battery queued (211 tests) and its slots full, each pass of the dispatcher
-        # asked the route, the slot, the preemption and the hold of every one of them (50 a scan), four statements each,
-        # before the next queue's: #673's landing (13/11 16:55 UTC) waited 2.44 s to start, 0.04 to 0.2 s with no full run.
-        # The first of them that cannot go says the rest cannot either: they come after it, and none is asked
-        yields = {'adapter': 'container', 'yield': True}
-        running = [self.job(f'full-{n}', queue='ranked', rank=0, selector=yields) for n in range(4)]
-        self.assertEqual(sorted(got['job'] for got in mechanisms.dispatch(self.db)), sorted(running))
-        queued = [self.job(f'full-q-{n}', queue='ranked', rank=0, selector=yields) for n in range(30)]
-        real, asked = self.db.rows, []
-
-        def rows(statement, params=None):
-            asked.append(statement)
-            return real(statement, params)
-        with mock.patch.object(self.db, 'rows', side_effect=rows):
-            self.assertEqual(mechanisms.dispatch(self.db), [])
-        self.assertEqual(asked.count(mechanisms.ROUTE), 1)
-        self.assertFalse([each for each in asked if each in (mechanisms.PREEMPT, mechanisms.HOLD)])
-        self.assertEqual({self.state(job) for job in queued}, {'queued'})
-
     def test_the_same_job_runs_by_a_script_without_a_session_and_by_an_ai_session(self):
         script = self.job('by-script', selector={'adapter': 'container'}, input_digest='sha256:same')
         session = self.job('by-ai', selector={'any_of': ['claude-sub', 'codex-sub']}, input_digest='sha256:same')

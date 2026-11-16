@@ -161,8 +161,8 @@ REPLACED = ("select exists (select 1 from log.event e where e.type = 'platform.d
 
 
 def watch_cancels(runners, wait, db_of, stop, check_s=60.0):
-    """CANCEL-WAKES-RUNNER (criterion 3): a job cancelled while it runs (a full run's test taken back for a gate's job,
-    mechanisms.PREEMPT) is heard at once: job.cancelled notifies tower_runs (migration 0022), this thread wakes, reads which
+    """CANCEL-WAKES-RUNNER (criterion 3): a job cancelled while it runs (POST /v1/jobs/<id>/cancel; FULL-RUN-GONE: the
+    full run's test taken back for a gate's job, mechanisms.PREEMPT, left) is heard at once: job.cancelled notifies tower_runs (migration 0022), this thread wakes, reads which
     of the process's runs in flight have a job no longer open, and kills those commands as the keeper does at its renewal
     (verdict cancelled or stopped), so the slot is free for the gate's job in a second, not at the next renewal (60 s:
     #684's artifact job waited 82.6 s). A daemon thread; the keepers' renewals stay the backstop."""

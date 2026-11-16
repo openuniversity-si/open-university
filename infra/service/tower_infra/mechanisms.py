@@ -16,15 +16,11 @@ import json
 
 PRODUCER = 'dispatcher'
 QUEUES = "select distinct tenant_id::text, queue from work.job where state = 'queued' order by 1, 2"
-# FULL-RUN-SKIP: each with whether it yields (a full run's test), in the same statement and the candidates' order
-CANDIDATES = ("select c.id::text, coalesce(j.selector ? 'yield', false) "
-              'from work.candidates(%(tenant)s::uuid, %(queue)s, %(scan)s::int) with ordinality as c(id, n) '
-              'join work.job j on j.id = c.id order by c.n')
-# FULL-RUN: and, in the same statement (no round trip more on a claim, the swap's first job's too), whether the job yields
-# to a gate's job waiting in its queue (YIELD_HELD)
-ROUTE = ("select work.route(%(job)s::uuid), exists (select 1 from work.job j where j.id = %(job)s::uuid and j.selector ? 'yield') "
-         "and exists (select 1 from work.job q join work.job j on j.id = %(job)s::uuid where q.state = 'queued' "
-         "and q.queue = j.queue and q.tenant_id = j.tenant_id and not q.selector ? 'yield')")
+# FULL-RUN-GONE (D-316): the candidates and the route no longer say whether a job yields: the base's full run
+# (tower_infra.fullrun) made the only jobs that did, and it left
+CANDIDATES = ("select c.id::text from work.candidates(%(tenant)s::uuid, %(queue)s, %(scan)s::int) with ordinality as c(id, n) "
+              "order by c.n")
+ROUTE = "select work.route(%(job)s::uuid)"
 # CANARY-OWN-SLOT: the account RESERVED is of the jobs whose selector names it ({'account': 'canary'}: the swap's
 # canary, tower_infra.canary) and of no other, so a runner whose slots are all in checks still has one for the canary;
 # the job that names it takes it first and, with it taken, any other with a free slot
@@ -76,20 +72,6 @@ select leased.id::text, leased.run_id::text, leased.fencing_token, leased.n, lea
        leased.input_uri, leased.input_digest, e.adapter, e.config::text
 from leased join work.executor e on e.name = leased.executor"""
 UNIQUE = '23505'  # another dispatcher took the exclusive key between the candidates and the claim
-# FULL-RUN (revisão da arquitetura, achado 29): a job whose selector says `yield` (the base's whole battery at a landing:
-# tower_infra.fullrun made them, gone with D-316) never starts while a job of its queue that does not yield waits, and one of them running is taken
-# back (cancelled: the full run makes it again) when such a job finds no free slot. By the event of a job that cannot go,
-# never by a clock: the runner's slots are the gates' first
-YIELD_HELD = ROUTE  # its second column
-PREEMPT = ("with mine as (select j.queue, j.tenant_id from work.job j where j.id = %(job)s::uuid and not j.selector ? 'yield'), "
-           "taken as (select y.id from work.job y join mine on y.queue = mine.queue and y.tenant_id = mine.tenant_id "
-           "where y.state = 'running' and y.selector ? 'yield' order by y.lease_run_id desc limit 1), "
-           "cancelled as (update work.job j set state = 'cancelled', version = version + 1 from taken "
-           "where j.id = taken.id and j.state = 'running' returning j.id, j.tenant_id, j.version), "
-           "logged as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
-           "select 'job.cancelled:' || id || ':' || version, tenant_id, 'job.cancelled', clock_timestamp(), %(producer)s, "
-           "'job/' || id, jsonb_build_object('job_id', id, 'version', version, 'yielded_to', %(job)s::text) from cancelled) "
-           "select id::text from cancelled")
 
 
 def held(db, job, executor):
@@ -104,26 +86,12 @@ def held(db, job, executor):
 
 def dispatch_one(db, tenant, queue, lease, scan):
     """The first candidate of a queue that can go now: a cache answer, a claimed run, or None when none can."""
-    blocked = False  # FULL-RUN-SKIP: a full run's test that cannot go says none after it can, in this pass
-    for job, yields in db.rows(CANDIDATES, {'tenant': tenant, 'queue': queue, 'scan': scan}):
-        yields = yields in (True, 't')
-        if yields and blocked:
-            continue  # asked nothing: the battery's 211 tests cost one look a pass, not four statements each
-        routed = db.rows(ROUTE, {'job': job})[0]
-        executor = routed[0]
+    for (job,) in db.rows(CANDIDATES, {'tenant': tenant, 'queue': queue, 'scan': scan}):
+        executor = db.rows(ROUTE, {'job': job})[0][0]
         # CANARY-OWN-SLOT: the route answers an executor whose only free slot is the reserved one; a job it is not for
         # has no slot there, as when the route answers none
-        if len(routed) > 1 and routed[1] in (True, 't'):
-            blocked = True
-            continue  # FULL-RUN: a gate's job waits in its queue: this one stays behind it
         account = db.rows(ACCOUNT, {'job': job, 'executor': executor}) if executor else None
-        if not account and yields:  # no slot for a full run's test: it takes none back (only a gate's job does)
-            blocked = True
-            continue
         if not account:
-            # FULL-RUN: no free slot (the route answers none then): a full run's test of this queue that holds one gives
-            # it to this job (its run ends at the runner's beat, which sees the cancel)
-            db.rows(PREEMPT, {'job': job, 'producer': PRODUCER})
             held(db, job, None)  # no slot: a capacity that resets later makes the job wait for it (AWS12)
             continue
         if db.rows(FROM_CACHE, {'job': job, 'executor': executor, 'producer': PRODUCER}):
