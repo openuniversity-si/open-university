@@ -37,7 +37,7 @@ SPEC = {
     # of 11/11): a successor in each task, the canary's own slot. GATE-LOOKS-GONE (D-316): the Spot standbys' key
     # (deploy.prewarm_max_tasks) left with the prewarm
     # IN-TASK-STANDBY: the successor processes the ECS task of each role holds (the standby inside the task); 0 is off
-    'deploy.intask_standbys': (int, 1),
+    'deploy.intask_standbys': (int, 2),  # TWO-HEIRS
     # IMAGE-PREWARM-C: a landing promotes its healthy standbys (22.9a); false lets the landings accumulate
     # QUEUE-RELOAD: the merge queue's prepare and landed order a code-only merge's reload in place (tower_infra.queue_deploy)
     'deploy.queue_reload': (bool, True),

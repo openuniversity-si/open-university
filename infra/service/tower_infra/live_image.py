@@ -451,7 +451,8 @@ WANTS = ("select (select s.value::text from work.config_value s join work.tenant
          # PROMOTED-SUCCESSOR-STAYS: and the bundle a role's pointer names, wanted or withdrawn, first: its successor has
          # the role, or is taking it, whatever the wants say of the branch it came from (read with the wants, in one
          # statement: the look may come before this process's listener read the pointer)
-         "(select jsonb_agg(jsonb_build_object('digest', w.digest, 'key', w.key) order by w.pointed desc, w.at desc) from ("
+         # TWO-HEIRS (the Torre, 16/11/2026): then the oldest want first, the merge queue's entry nearest to landing
+         "(select jsonb_agg(jsonb_build_object('digest', w.digest, 'key', w.key) order by w.pointed desc, w.at) from ("
          "select distinct on (payload->>'digest') payload->>'digest' as digest, payload->>'key' as key, "
          "payload->>'state' as state, occurred_at as at, payload->>'digest' in (select p.value #>> '{}' "
          "from work.config_value p join work.tenant t on t.id = p.tenant_id where t.name = %(tenant)s "
@@ -1714,7 +1715,8 @@ class Order:
         """IN-TASK-STANDBY: the successors this task should hold now, told to its supervisor when they changed: the
         bundle of an order that is open (a landing with no standby: the successor loads it, not an exec) and the bundles
         the merge queue wants (WANTS: read on the looks a notification owes, never on the ones that only follow an open
-        order), newest first, deploy.intask_standbys at most and never the code this process runs. Answers whether
+        order), oldest first (TWO-HEIRS: the merge queue's entry nearest to landing), deploy.intask_standbys at most and
+        never the code this process runs. Answers whether
         successors are on for this task: False with no supervisor (nothing is read) or with the datum 0 (the supervisor
         is told to hold none)."""
         gate = self.gate

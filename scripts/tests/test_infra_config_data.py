@@ -93,7 +93,7 @@ class Defaults(unittest.TestCase):
         # defaults (1, 0, 0); a lost row brought back Spot standbys and successors together, which the db.t4g.micro's
         # connections do not hold (achado 34a: the port answered 500 on 11/11 22:17 to 22:21 UTC)
         defaults = {name: config_data.SPEC[name][1] for name in config_data.ZERO_OK}
-        self.assertEqual(defaults, {'deploy.intask_standbys': 1, 'deploy.canary_slot': 1})  # GATE-LOOKS-GONE: no Spot standbys
+        self.assertEqual(defaults, {'deploy.intask_standbys': 2, 'deploy.canary_slot': 1})  # GATE-LOOKS-GONE, TWO-HEIRS
 
     def test_validate_follows_the_registry_types(self):
         self.assertEqual(config_data.validate('deploy.monthly_usd', 5), 5.0)

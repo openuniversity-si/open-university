@@ -191,6 +191,23 @@ class OnPostgres(unittest.TestCase):
                 self.assertIn('(type, occurred_at)', definitions)
                 self.assertIn('(event_id)', definitions)
 
+    def test_the_wants_are_told_oldest_first_the_entry_nearest_to_landing(self):
+        """TWO-HEIRS: of the merge queue's standing wants a task holds deploy.intask_standbys, so the order is the
+        landings': the oldest want first; one withdrawn is not told."""
+        rows = [('w-a', 'a' * 64, 'wanted', 30), ('w-b', 'b' * 64, 'wanted', 20), ('w-c', 'c' * 64, 'wanted', 10),
+                ('w-d', 'd' * 64, 'wanted', 25), ('w-d2', 'd' * 64, 'withdrawn', 5)]
+        for event, digest, state, ago in rows:
+            self.db.run("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) values "
+                        f"('{event}', null, '{live_image.SUCCESSOR}', now() - interval '{ago} seconds', 't', 'deploy/successor', "
+                        f"'{{\"digest\": \"{digest}\", \"key\": \"k-{digest[0]}\", \"branch\": \"queue\", "
+                        f"\"state\": \"{state}\"}}')")
+        try:
+            out = self.db.rows(render(live_image.WANTS, {'tenant': 'torre'}))
+            told = [each['digest'][0] for each in json.loads(out[0][1])]
+            self.assertEqual(told, ['a', 'b', 'c'])  # the oldest first; d's newest word is its withdrawal
+        finally:
+            self.db.run("delete from log.event where event_id in ('w-a', 'w-b', 'w-c', 'w-d', 'w-d2')")
+
     def test_the_migration_is_additive_and_names_the_unit(self):
         sql = MIGRATION.read_text(encoding='utf-8')
         self.assertIn('IMAGE-SWAP-DB-LOAD', sql)
