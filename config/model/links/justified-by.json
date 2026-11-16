@@ -1,10 +1,11 @@
 {
   "name": "justified-by",
   "from": [
-    "STD"
+    "STD",
+    "REQ"
   ],
   "to": [
     "D"
   ],
-  "description": "A rule of the standard is justified by a decision."
+  "description": "A rule of the standard or a requirement is justified by a decision."
 }

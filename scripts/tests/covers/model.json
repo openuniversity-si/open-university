@@ -31,6 +31,8 @@
     "docs/padrao/v*/padrao.json",
     "config/standard/**",
     "config/registry/coordinator.json",
-    "scripts/lib/*.py"
+    "scripts/lib/*.py",
+    "config/intent/**",
+    "config/requirements/**"
   ]
 }

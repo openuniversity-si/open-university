@@ -296,6 +296,79 @@ class StandardManagement(unittest.TestCase):
         self.assertEqual(len(errors), 1)
 
 
+class Requirements(unittest.TestCase):
+    """Intentions, needs and requirements on a temporary checkout with the real metamodel."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-requirements-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        for folder in ('contracts/model', 'config/model'):
+            shutil.copytree(ROOT / folder, self.root / folder)
+        for path in (self.root / 'config/model/inventory').glob('*.json'):
+            path.unlink()
+        write(self.root, 'config/intent/INT-ladder.json', {'id': 'INT-ladder', 'statement': '1,000 PRs a day',
+                                                            'state': 'active', 'owner': 'Daniel', 'source': 'docs/SEMENTE.md#3'})
+        write(self.root, 'config/intent/NEED-throughput.json', {'id': 'NEED-throughput', 'statement': 'many PRs',
+                                                                'state': 'proposed', 'owner': 'Daniel',
+                                                                'refines': ['INT-ladder'], 'source': 'x'})
+        write(self.root, 'docs/CONTRACT.md', '- **INV-A1** Every course has one owner.\n- **G-B2** A batch is whole.\n')
+        write(self.root, 'config/model/inventory/contract.json', {
+            'id': 'contract', 'name': 'c', 'becomes': ['REQ'], 'description': 'd',
+            'parts': [{'kind': 'content', 'glob': 'docs/CONTRACT.md', 'pattern': '\\b((?:INV|G)-[A-Z0-9-]+)'}]})
+        write(self.root, 'config/registry/slo.json', {'properties': {'slo.gate_p95_s': {'description': 'The gate p95.'},
+                                                                     'slo.producer': {'description': 'A name.'}}})
+        write(self.root, 'config/model/inventory/slo.json', {
+            'id': 'slo', 'name': 's', 'becomes': ['REQ'], 'description': 'd',
+            'parts': [{'kind': 'registry', 'glob': 'config/registry/slo.json', 'pattern': '_p95_s$'}]})
+
+    def found(self, *readers):
+        merged = {}
+        for reader in readers or (model.read_intent, model.read_requirements):
+            for item in reader(self.root):
+                merged.setdefault(item['id'], {**item, 'links': []})['links'] += item['links']
+        return merged
+
+    def test_intentions_and_needs_are_objects_and_a_need_refines_its_intention(self):
+        found = self.found()
+        self.assertEqual((found['INT-ladder']['type'], found['NEED-throughput']['type']), ('INT', 'NEED'))
+        self.assertEqual(found['NEED-throughput']['links'], [{'type': 'refines', 'target': 'INT-ladder'}])
+
+    def test_an_import_reads_a_sources_requirements_where_they_are_with_the_batch_state(self):
+        write(self.root, 'config/requirements/imports/contract.json', {'id': 'contract', 'type': 'product',
+                                                                       'state': 'obsolete', 'owner': 'Daniel',
+                                                                       'retired_by': 'D-111'})
+        write(self.root, 'config/requirements/imports/slo.json', {'id': 'slo', 'type': 'quality', 'state': 'approved',
+                                                                  'owner': 'administration',
+                                                                  'derives_from': {'*': 'NEED-throughput'}})
+        found = self.found()
+        req = found['REQ-contract-inv-a1']
+        self.assertEqual((req['state'], req['source_id'], req['source']), ('obsolete', 'INV-A1', 'docs/CONTRACT.md'))
+        self.assertIn('Every course has one owner', req['body']['statement'])
+        self.assertIn('REQ-contract-g-b2', found)
+        self.assertEqual(found['REQ-slo-slo-gate-p95-s']['links'], [{'type': 'derives-from', 'target': 'NEED-throughput'}])
+        self.assertNotIn('REQ-slo-slo-producer', found)
+        self.assertEqual(model.requirement_findings(found), [])
+
+    def test_a_requirement_file_links_its_need_and_decision_and_gaps_are_warnings(self):
+        write(self.root, 'config/requirements/REQ-gate-60s.json', {
+            'id': 'REQ-gate-60s', 'type': 'constraint', 'statement': 'The gate answers in 60 s.', 'state': 'approved',
+            'owner': 'Daniel', 'derives_from': ['NEED-throughput'], 'basis': ['D-314'], 'source': 'x'})
+        write(self.root, 'config/requirements/REQ-alone.json', {
+            'id': 'REQ-alone', 'type': 'quality', 'statement': 's', 'state': 'approved', 'owner': 'o', 'source': 'x'})
+        write(self.root, 'config/requirements/REQ-old.json', {
+            'id': 'REQ-old', 'type': 'quality', 'statement': 's', 'state': 'obsolete', 'owner': 'o', 'source': 'x'})
+        write(self.root, 'config/requirements/imports/nowhere.json', {'id': 'nowhere', 'type': 'quality',
+                                                                      'state': 'approved', 'owner': 'o'})
+        found = self.found()
+        self.assertEqual(found['REQ-gate-60s']['links'], [{'type': 'derives-from', 'target': 'NEED-throughput'},
+                                                          {'type': 'justified-by', 'target': 'D-314'}])
+        warnings = model.requirement_findings(found)
+        self.assertIn('REQ-alone: derives from no need', warnings)
+        self.assertIn('REQ-old: obsolete with no decision that retired it', warnings)
+        errors, _ = model.check(model.metamodel(self.root), found)
+        self.assertTrue(any(error.startswith('REQ:nowhere: names no inventory source') for error in errors), errors)
+
+
 class RealRepository(unittest.TestCase):
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):
         meta = model.metamodel(ROOT)
