@@ -42,8 +42,8 @@ read to the work, this process's clock), with the service's launch_s apart; the 
 measure. A standby also beats (beat(): work.standby_beat, migration 0014) on every standby pass, the evidence the landing
 swaps on (port.deploy_landed).
 
-IMAGE-SWAP-SERVICE-READY: the role is ready before the swap, so the swap is only the wake. The prewarm's service standby
-(strict) launches DBOS while it stands by (tower_infra.__main__.serve), not at the swap: live on 10/11 the launch at the
+IMAGE-SWAP-SERVICE-READY: the role is ready before the swap, so the swap is only the wake. The service's standby
+(strict, the in-task successor) launches DBOS while it stands by (tower_infra.__main__.serve), not at the swap: live on 10/11 the launch at the
 swap cost 2.76 s and the first tick after it ~6.1 s more on the task's 0.25 vCPU. The service's image_live is timed when its
 first dispatch is committed (workflows.tick's dispatched hook: claims made, a container run takeable), before the workflows
 start, with dispatch_s (reap and dispatch) apart; the runner's carries take_s (its first TAKE's round trip), so work_s splits
@@ -147,7 +147,7 @@ platform.deploy.successor {digest, key, state: wanted|withdrawn} for the bundle 
 said it for a head left, D-316), and
 notifies; the open order of a landing with no standby is a want too. Each ECS task's process reads them where it looks
 at the order (Order.step: only when a look is owed) and tells its supervisor the set (deploy.intask_standbys of them at
-most; 0, the default, is off: nothing here happens). (2) The successor is the prewarm's standby inside the task: strict,
+most; 0, the default, is off: nothing here happens). (2) The successor is the one standby, inside the task: strict,
 TOWER_STANDBY=intask, its beat's task `<the task>:<bundle, 12>`, DBOS launched, its first statements warmed; its first
 beat says platform.deploy.successor {state: up} and notifies the look. A SIGTERM is its dismissal or the task's stop: it
 never stays through a grace. (3) The landing swaps onto its beats as onto a Spot standby's (port.LANDED_SWAP). With none
