@@ -69,7 +69,7 @@ import re
 import threading
 import time
 
-from . import canary, code_bundle, config_data, live_image, migrations, port
+from . import canary, code_bundle, config_data, live_image, migrations
 
 LOG = logging.getLogger('tower_infra.autodeploy')
 PRODUCER = 'autodeploy'
