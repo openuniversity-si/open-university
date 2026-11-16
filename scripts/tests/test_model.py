@@ -472,6 +472,25 @@ class Changes(unittest.TestCase):
         write(self.root, 'lib/tests/t.py', 'import time\nwhile True:\n    time.sleep(1)\n')
         self.assertEqual(model.polling_sites(self.root, ['lib/**/*'], ['lib/tests/**/*']), ['lib/poll.py:3', 'lib/poll.sh:4'])
 
+    def test_a_composite_validation_is_met_only_when_all_of_its_validations_are(self):
+        def val(id, measure, comparator='lte', threshold=0):
+            body = {'id': id, 'statement': 's', 'validates': ['INT-x'], 'owner': 'o', 'measure': measure,
+                    'comparator': comparator, 'threshold': threshold, 'window': {'kind': 'days', 'size': 1}}
+            return {'id': id, 'type': 'VAL', 'state': 'defined', 'fingerprint': 'f', 'links': [], 'body': body}
+        today = self.git_today()
+        found = {item['id']: item for item in (
+            val('VAL-all', {'kind': 'all-met', 'of': ['VAL-pace', 'VAL-none']}),
+            val('VAL-pace', {'kind': 'merges-per-day'}, 'gte', 1),
+            val('VAL-none', {'kind': 'unwired', 'source': 'x'}))}
+        model.derive_validations(found, self.root, today)
+        self.assertEqual(found['VAL-all']['state'], 'measuring')
+        found['VAL-none']['body']['measure'] = {'kind': 'merges-per-day'}
+        model.derive_validations(found, self.root, today)
+        self.assertEqual(found['VAL-all']['state'], 'not-met')
+        found['VAL-none']['body']['comparator'] = 'gte'
+        model.derive_validations(found, self.root, today)
+        self.assertEqual(found['VAL-all']['state'], 'met')
+
     def git_day(self):
         import subprocess
         return subprocess.run(['git', 'log', '-1', '--format=%ad', '--date=short'], cwd=self.root, capture_output=True,

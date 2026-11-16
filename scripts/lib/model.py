@@ -696,6 +696,10 @@ def measured(body, found, root, today):
         start = (date.fromisoformat(today) - timedelta(days=window['size'])).isoformat()
         dates = [day for _, day in _merges(root)]
         return (len(incidents(root, measure['incident'], start, today)), bool(dates) and min(dates) <= start)
+    if measure['kind'] == 'all-met':
+        states = [found.get(ident, {}).get('state', 'defined') for ident in measure['of']]
+        missed = sum(1 for state in states if state == 'not-met')
+        return (missed, True) if missed or all(state == 'met' for state in states) else (missed, False)
     if measure['kind'] == 'code-scan':
         return len(polling_sites(root, measure['paths'], measure.get('exclude', []))), True
     return None, False
@@ -771,9 +775,9 @@ def derive_validations(found, root, today=None):
     """Sets each validation's state from its measure: met or not-met when the window holds data, measuring while it
     is short, defined while no source is wired."""
     today = today or utc_today()
-    for item in found.values():
-        if item['type'] != 'VAL' or 'body' not in item:
-            continue
+    vals = [item for item in found.values() if item['type'] == 'VAL' and 'body' in item]
+    # a composite reads the states of the others, so it is derived after them
+    for item in sorted(vals, key=lambda item: item['body']['measure']['kind'] == 'all-met'):
         value, enough = measured(item['body'], found, root, today)
         if value is None:
             item['state'] = 'defined'

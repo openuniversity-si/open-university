@@ -4,9 +4,10 @@
     "VAL"
   ],
   "to": [
+    "INT",
     "NEED",
     "REQ"
   ],
   "oslc": "oslc_rm:validatedBy",
-  "description": "A validation validates a need or a requirement."
+  "description": "A validation validates an intention, a need or a requirement."
 }
