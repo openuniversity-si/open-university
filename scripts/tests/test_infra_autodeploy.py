@@ -800,12 +800,13 @@ class WiringTests(unittest.TestCase):
         self.assertEqual(put['Resource']['Fn::Sub'],
                          'arn:${AWS::Partition}:s3:::tower-outputs-${AWS::AccountId}-${AWS::Region}/artifacts/lambda/tower-code/*')
         self.assertEqual((invoke['Action'], read['Action']), ('lambda:InvokeFunction', 'ssm:GetParameter'))
-        # DEP8: the pointer swap acts on exactly the three port functions (and their versions), nothing broader
+        # DEP8: the pointer swap acts on exactly the port's function (and its versions), nothing broader; TASKROLE-LEAST:
+        # the ack ingress and the webhook consumer left the port stack, so the role names neither
         self.assertEqual(sorted(fast['Action']), sorted(['lambda:UpdateFunctionCode', 'lambda:PublishVersion', 'lambda:UpdateAlias',
                                                          'lambda:GetAlias', 'lambda:GetFunctionConfiguration', 'lambda:InvokeFunction']))
         prefix = 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:'
         self.assertEqual(sorted(each['Fn::Sub'] for each in fast['Resource']),
-                         sorted(prefix + name + suffix for name in ('tower-port-api', 'tower-port-ack-ingress', 'tower-port-webhook-consumer')
+                         sorted(prefix + name + suffix for name in ('tower-port-api',)
                                 for suffix in ('', ':*')))
         self.assertEqual(artifacts['Action'], 's3:GetObject')
         self.assertEqual(artifacts['Resource']['Fn::Sub'], 'arn:${AWS::Partition}:s3:::tower-outputs-${AWS::AccountId}-${AWS::Region}/artifacts/lambda/*')
