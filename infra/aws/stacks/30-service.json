@@ -306,18 +306,6 @@
                     },
                     {
                       "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:*"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-ack-ingress"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-ack-ingress:*"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-webhook-consumer"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-webhook-consumer:*"
                     }
                   ]
                 },
@@ -355,12 +343,6 @@
                   "Resource": [
                     {
                       "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-webhook-consumer"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-ack-ingress"
                     }
                   ]
                 },
@@ -371,12 +353,6 @@
                   "Resource": [
                     {
                       "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:*"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-webhook-consumer:*"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-ack-ingress:*"
                     }
                   ]
                 },
