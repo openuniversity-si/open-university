@@ -31,7 +31,7 @@ records platform.deploy.queue {event, sha} and wakes this look on tower_deploy (
            swapped|ordered|skipped, why, verify_s, version, wrote_at}.
 
 QUEUE-SWAP (the Torre, 15/11: the deploy is the pointer's move). A prepared code-only bundle is also wanted
-(platform.deploy.successor {digest, key, branch: queue, state: wanted}, the prewarm's want, and tower_config woken): each
+(platform.deploy.successor {digest, key, branch: queue, state: wanted}, and tower_config woken): each
 ECS task's process tells its supervisor, which starts the heir, a successor process of that bundle inside the task
 (live_image IN-TASK-STANDBY). The heir boots, launches DBOS and warms its statements while the queue verifies; it takes
 no work, no lease and writes no engine state, and beats (work.standby_beat). At the landing, a heir that beat within
@@ -93,7 +93,7 @@ SAY = ("insert into log.event (event_id, tenant_id, type, occurred_at, producer,
        "where not exists (select 1 from log.event where event_id = %(id)s and type = %(type)s "
        "and occurred_at > now() - interval '2 days')")
 
-# QUEUE-SWAP: a want said or withdrawn, once per id, and the tasks' processes woken (the statement the prewarm said it with)
+# QUEUE-SWAP: a want said or withdrawn, once per id, and the tasks' processes woken
 WANT = ("with said as (insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
         f"select %(id)s, null, '{live_image.SUCCESSOR}', clock_timestamp(), 'autodeploy', 'deploy/successor', %(payload)s::jsonb "
         f"where not exists (select 1 from log.event where event_id = %(id)s and type = '{live_image.SUCCESSOR}' "
