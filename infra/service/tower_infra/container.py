@@ -351,7 +351,6 @@ class Container:
 
 
 PUSHED_SLOT = 'pushed'  # HEAD-ON-PUSH: the clone beside the slots' that the pushed heads are fetched into
-PUSHED_EVENT = 'forge.repository.pushed'
 PUSHED = ("select occurred_at::text, payload::text from log.event where type = 'forge.repository.pushed' "
           "and occurred_at > %(since)s::timestamptz order by occurred_at limit 50")
 NOW = 'select clock_timestamp()::text'
