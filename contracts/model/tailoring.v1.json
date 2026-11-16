@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/tailoring.v1.json",
+  "title": "Standard tailoring exemption v1",
+  "description": "config/standard/tailoring/<id>.json (PADRAO-DEV F1c): an exemption from a rule of the standard for a scope, authorized by a decision and valid until a date (ISO/IEC/IEEE 12207 Annex A). An exemption with no record is a non-conformance.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "exempts",
+    "scope",
+    "reason",
+    "authorized_by",
+    "valid_until",
+    "state"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^TAIL-[a-z0-9][a-z0-9-]*$"
+    },
+    "exempts": {
+      "type": "string",
+      "pattern": "^STD-[a-z0-9][a-z0-9-]*$"
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The objects the exemption covers (a glob of paths, a unit, an object id)."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "authorized_by": {
+      "type": "string",
+      "pattern": "^D-[0-9]+$"
+    },
+    "valid_until": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "state": {
+      "enum": [
+        "active",
+        "expired",
+        "revoked"
+      ]
+    }
+  }
+}

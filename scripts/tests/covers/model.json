@@ -18,7 +18,6 @@
     "units/*/unit.json",
     "scripts/tests/*.test.sh",
     "scripts/tests/**/test_*.py",
-    "config/standard/rules/*.json",
     "scripts/tests/covers/*.json",
     "scripts/lib/gate-stages.json",
     "scripts/lib/rule_registry.py",
@@ -27,6 +26,10 @@
     "config/registry/rules.json",
     "scripts/lib/premises.py",
     "docs/process/principles/D-069.md",
-    "docs/padrao/METODO.md"
+    "docs/padrao/METODO.md",
+    "docs/process/rule-challenges/*.md",
+    "docs/padrao/v*/padrao.json",
+    "config/standard/**",
+    "config/registry/coordinator.json"
   ]
 }

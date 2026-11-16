@@ -219,6 +219,83 @@ class Rules(unittest.TestCase):
                                    'tested': 1, 'justified': len(['plan', 'judge']), 'overdue': 1})
 
 
+class StandardManagement(unittest.TestCase):
+    """Proposals, versions and exemptions of the standard on a temporary checkout with the real metamodel."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-management-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        for folder in ('contracts/model', 'config/model'):
+            shutil.copytree(ROOT / folder, self.root / folder)
+        import config
+        current = config.get('coordinator.padrao_version')
+        self.current = current
+        older, newer = f'v{int(current[1:]) - 1}', f'v{int(current[1:]) + 1}'
+        for name in (older, current, newer):
+            write(self.root, f'docs/padrao/{name}/padrao.json', {'rules': [{'id': 'save-often', 'file': 'save-often.md'}]})
+        self.older, self.newer = older, newer
+        write(self.root, 'docs/process/rule-challenges/RC-001.md', '# RC-001\n- Status: changed\n- D: D-9\n')
+        write(self.root, 'docs/process/rule-challenges/RC-002.md', '# RC-002\n- Status: open\n- D: none\n')
+        write(self.root, 'config/standard/rules/STD-padrao-save-often.json', {
+            'id': 'STD-padrao-save-often', 'statement': 's', 'state': 'draft', 'owner': 'administration',
+            'applies_to': ['WORK'], 'check': {'kind': 'judgment', 'ref': 'docs/x.md'}})
+
+    def found(self):
+        merged = {}
+        for reader in (model.read_rules, model.read_proposals, model.read_versions, model.read_tailoring):
+            for item in reader(self.root):
+                merged.setdefault(item['id'], {**item, 'links': []})['links'] += item['links']
+        return merged
+
+    def test_a_rule_challenge_is_a_proposal_whose_status_and_decision_are_read_where_it_is(self):
+        found = self.found()
+        self.assertEqual((found['PROP-RC-001']['state'], found['PROP-RC-001']['links']),
+                         ('applied', [{'type': 'decided-by', 'target': 'D-9'}]))
+        self.assertEqual((found['PROP-RC-002']['state'], found['PROP-RC-002']['links']), ('open', []))
+
+    def test_the_version_the_coordinator_names_is_effective_the_older_superseded_the_newer_a_draft(self):
+        found = self.found()
+        states = {id: item['state'] for id, item in found.items() if item['type'] == 'VER'}
+        self.assertEqual(states, {f'VER-{self.older}': 'superseded', f'VER-{self.current}': 'effective',
+                                  f'VER-{self.newer}': 'draft'})
+        self.assertEqual(found[f'VER-{self.current}']['links'], [{'type': 'contains', 'target': 'STD-padrao-save-often'}])
+        self.assertEqual(found[f'VER-{self.older}']['links'], [])
+
+    def test_a_version_file_contains_the_whole_catalog_and_an_exemption_links_its_rule_and_decision(self):
+        write(self.root, 'config/standard/versions/VER-v99.json', {'id': 'VER-v99', 'state': 'draft', 'statement': 's',
+                                                                  'contains': 'catalog', 'supersedes': f'VER-{self.current}'})
+        write(self.root, 'config/standard/tailoring/TAIL-x.json', {
+            'id': 'TAIL-x', 'exempts': 'STD-padrao-save-often', 'scope': 'units/engine-x/**', 'reason': 'r',
+            'authorized_by': 'D-9', 'valid_until': '2026-01-01', 'state': 'active'})
+        found = self.found()
+        self.assertEqual(found['VER-v99']['links'], [{'type': 'contains', 'target': 'STD-padrao-save-often'},
+                                                     {'type': 'supersedes', 'target': f'VER-{self.current}'}])
+        self.assertEqual(found['TAIL-x']['links'], [{'type': 'exempts', 'target': 'STD-padrao-save-often'},
+                                                    {'type': 'authorized-by', 'target': 'D-9'}])
+        _, warnings = model.management_findings(found, '2026-11-16')
+        self.assertIn('TAIL-x: active past its validity 2026-01-01', warnings)
+
+    def test_open_proposals_with_no_deadline_or_past_it_and_two_effective_versions_are_reported(self):
+        write(self.root, 'config/standard/proposals/PROP-late.json', {
+            'id': 'PROP-late', 'statement': 's', 'state': 'open', 'owner': 'administration',
+            'changes': ['STD-padrao-save-often'], 'deadline': '2026-01-01'})
+        write(self.root, 'config/standard/proposals/PROP-done.json', {
+            'id': 'PROP-done', 'statement': 's', 'state': 'applied', 'owner': 'administration',
+            'changes': ['STD-padrao-save-often']})
+        found = self.found()
+        errors, warnings = model.management_findings(found, '2026-11-16')
+        self.assertEqual(errors, [])
+        self.assertIn('PROP-RC-002: an open proposal with no deadline', warnings)
+        self.assertIn('PROP-late: past its deadline 2026-01-01', warnings)
+        self.assertIn('PROP-done: applied with no decision', warnings)
+        counted = model.management_measure(found, '2026-11-16')
+        self.assertEqual((counted['proposals'], counted['open'], counted['undated'], counted['overdue'], counted['closed']),
+                         (len(['RC-001', 'RC-002', 'late', 'done']), len(['RC-002', 'late']), 1, 1, len(['RC-001', 'done'])))
+        found['VER-v99'] = {**found[f'VER-{self.current}'], 'id': 'VER-v99'}
+        errors, _ = model.management_findings(found, '2026-11-16')
+        self.assertEqual(len(errors), 1)
+
+
 class RealRepository(unittest.TestCase):
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):
         meta = model.metamodel(ROOT)

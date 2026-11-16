@@ -268,6 +268,7 @@ def rule_findings(found, root, stops=None, stages=None):
 PRINCIPLES = 'docs/process/principles/D-069.md'
 PRINCIPLE = re.compile(r'^### ([0-9]+)\. (.+)$', re.MULTILINE)
 METHOD = 'docs/padrao/METODO.md'
+VERSION_BASIS = {'v8': 'D-115'}  # the decision that made each version of the Padrão (docs/padrao/README.md)
 SEED_NOTE = 'Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
 
 
@@ -324,6 +325,14 @@ def seeds(root, stops=None, stages=None):
         found[f'STD-d069-{number}-{_slug(title)}'] = {
             **base, 'statement': f'{title.rstrip(".")} (D-069 principle {number}).', 'state': 'draft',
             'check': {'kind': 'judgment', 'ref': f'{PRINCIPLES}#{number}'}, 'basis': ['D-069']}
+    import config
+    current = config.get('coordinator.padrao_version')
+    listing = root / 'docs' / 'padrao' / current / 'padrao.json'
+    for rule in (_read_json(listing).get('rules', []) if listing.is_file() else []):
+        found[f'STD-padrao-{rule["id"]}'] = {
+            **base, 'applies_to': ['WORK'], 'state': 'draft', 'basis': [VERSION_BASIS.get(current, '')] if VERSION_BASIS.get(current) else [],
+            'statement': f'The agent follows the Padrão {current} rule {rule["id"]} ({listing.parent.relative_to(root).as_posix()}/{rule["file"]}).',
+            'check': {'kind': 'judgment', 'ref': f'{listing.parent.relative_to(root).as_posix()}/{rule["file"]}'}}
     if (root / METHOD).is_file():
         found['STD-metodo'] = {**base, 'applies_to': ['WORK'], 'state': 'draft', 'basis': [],
                                'statement': 'Work follows the management method: program and project by PDCA, process and '
@@ -347,7 +356,105 @@ def seed_rules(root=ROOT, stops=None, stages=None):
     return written
 
 
-READERS = (read_decisions, read_units, read_tests, read_rules)
+CHALLENGES = 'docs/process/rule-challenges/RC-*.md'
+CHALLENGE_STATE = {'open': 'open', 'changed': 'applied', 'kept': 'rejected', 'rejected': 'rejected'}
+FIELD = re.compile(r'^- ([A-Za-z]+): (.*)$', re.MULTILINE)
+PROPOSALS = 'config/standard/proposals/*.json'
+VERSION_FOLDERS = 'docs/padrao/v*/padrao.json'
+VERSIONS = 'config/standard/versions/*.json'
+TAILORING = 'config/standard/tailoring/*.json'
+
+
+def _declared(root, pattern, contract, kind, links_of):
+    """Objects of one kind read from one file each, validated against their contract."""
+    root = Path(root)
+    schema = _read_json(root / CONTRACTS_DIR / contract)
+    found = []
+    for path in sorted(root.glob(pattern)):
+        text = path.read_text()
+        body = _read_json(path)
+        problems = list(json_schema.validate(schema, body))
+        if isinstance(body, dict) and body.get('id') != path.stem:
+            problems.append(f'its id must equal the file name {path.stem}')
+        if problems:
+            found.append({**_obj(f'{kind}:{path.stem}', kind, body.get('state', '') if isinstance(body, dict) else '',
+                                 path.relative_to(root).as_posix(), text), 'problems': problems})
+            continue
+        item = _obj(body['id'], kind, body['state'], path.relative_to(root).as_posix(), text, links_of(body))
+        item['body'] = body
+        found.append(item)
+    return found
+
+
+def read_proposals(root):
+    """Proposals to change the standard (PROP): the rule challenges where they are, and the proposal files."""
+    root = Path(root)
+    found = []
+    for path in sorted(root.glob(CHALLENGES)):
+        text = path.read_text()
+        fields = {key.lower(): value.strip() for key, value in FIELD.findall(text)}
+        state = CHALLENGE_STATE.get(fields.get('status', '').lower(), fields.get('status', '').lower())
+        decided = fields.get('d', 'none')
+        links = [{'type': 'decided-by', 'target': decided}] if re.fullmatch(r'D-[0-9]+', decided) else []
+        item = _obj(f'PROP-{path.stem}', 'PROP', state, path.relative_to(root).as_posix(), text, links)
+        item['body'] = {'state': state, **({'decided_by': decided} if links else {})}
+        found.append(item)
+    found += _declared(root, PROPOSALS, 'proposal.v1.json', 'PROP', lambda body: [
+        *({'type': 'changes', 'target': target} for target in body['changes']),
+        *([{'type': 'decided-by', 'target': body['decided_by']}] if body.get('decided_by') else [])])
+    return found
+
+
+def read_versions(root):
+    """Versions of the standard (VER): every docs/padrao/v<N>/ folder (the one coordinator.padrao_version names is
+    effective, the older ones superseded, a newer one a draft) and the version files. The effective or draft
+    version of a folder contains the rules its padrao.json lists; a version file with `contains: catalog` contains
+    every rule of the catalog that is not replaced."""
+    import config
+    root = Path(root)
+    current = config.get('coordinator.padrao_version')
+    number = lambda name: int(name.lstrip('v') or 0)
+    rules = {item['id']: item for item in read_rules(root) if item['type'] == 'STD' and 'rule' in item}
+    found = []
+    for path in sorted(root.glob(VERSION_FOLDERS), key=lambda found_path: number(found_path.parent.name)):
+        name = path.parent.name
+        state = 'effective' if name == current else 'superseded' if number(name) < number(current) else 'draft'
+        listed = [rule['id'] for rule in _read_json(path).get('rules', [])]
+        links = [{'type': 'contains', 'target': f'STD-padrao-{id}'} for id in listed] if state != 'superseded' else []
+        found.append(_obj(f'VER-{name}', 'VER', state, path.relative_to(root).as_posix(), path.read_text(), links))
+    def contained(body):
+        links = [{'type': 'contains', 'target': id} for id, item in sorted(rules.items()) if item['state'] != 'replaced']
+        return links + ([{'type': 'supersedes', 'target': body['supersedes']}] if body.get('supersedes') else [])
+    return found + _declared(root, VERSIONS, 'version.v1.json', 'VER', contained)
+
+
+def read_tailoring(root):
+    return _declared(root, TAILORING, 'tailoring.v1.json', 'TAIL', lambda body: [
+        {'type': 'exempts', 'target': body['exempts']}, {'type': 'authorized-by', 'target': body['authorized_by']}])
+
+
+def management_findings(found, today):
+    """Warnings of the standard's management: an open proposal with no deadline or past it, a decided or applied
+    proposal with no decision, an active exemption past its validity; an error for more than one effective version."""
+    warnings, errors = [], []
+    for item in found.values():
+        body = item.get('body', {})
+        if item['type'] == 'PROP' and item['state'] in ('open', 'warning'):
+            if not body.get('deadline'):
+                warnings.append(f'{item["id"]}: an open proposal with no deadline')
+            elif body['deadline'] < today:
+                warnings.append(f'{item["id"]}: past its deadline {body["deadline"]}')
+        if item['type'] == 'PROP' and item['state'] in ('decided', 'applied') and not body.get('decided_by'):
+            warnings.append(f'{item["id"]}: {item["state"]} with no decision')
+        if item['type'] == 'TAIL' and item['state'] == 'active' and body.get('valid_until', today) < today:
+            warnings.append(f'{item["id"]}: active past its validity {body["valid_until"]}')
+    effective = sorted(id for id, item in found.items() if item['type'] == 'VER' and item['state'] == 'effective')
+    if len(effective) > 1:
+        errors.append(f'{", ".join(effective)}: more than one effective version of the standard')
+    return errors, warnings
+
+
+READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring)
 
 
 def objects(root=ROOT, readers=READERS):
@@ -366,11 +473,14 @@ def objects(root=ROOT, readers=READERS):
     return found
 
 
-def check(meta, found, root=None):
+def check(meta, found, root=None, today=None):
     """(errors, warnings) of the objects against the metamodel; with `root`, also the warnings of the standard."""
     errors, warnings = [], []
     if root is not None:
         warnings += rule_findings(found, root)
+        managed_errors, managed_warnings = management_findings(found, today or utc_today())
+        errors += managed_errors
+        warnings += managed_warnings
     for id, item in sorted(found.items()):
         kind = meta['types'].get(item['type'])
         if kind is None:
@@ -483,6 +593,22 @@ def standard_measure(found, today):
     }
 
 
+def management_measure(found, today):
+    """The standard management's own measure: its proposals by state, those open with no deadline or past it, the
+    exemptions in force, and the version in effect."""
+    proposals = [item for item in found.values() if item['type'] == 'PROP']
+    open_ones = [item for item in proposals if item['state'] in ('open', 'warning')]
+    return {
+        'proposals': len(proposals),
+        'open': len(open_ones),
+        'closed': sum(1 for item in proposals if item['state'] in ('decided', 'applied', 'rejected')),
+        'undated': sum(1 for item in open_ones if not item.get('body', {}).get('deadline')),
+        'overdue': sum(1 for item in open_ones if item.get('body', {}).get('deadline', today) < today),
+        'exemptions': sum(1 for item in found.values() if item['type'] == 'TAIL' and item['state'] == 'active'),
+        'effective': sorted(id for id, item in found.items() if item['type'] == 'VER' and item['state'] == 'effective'),
+    }
+
+
 def utc_today():
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).date().isoformat()
@@ -491,7 +617,7 @@ def utc_today():
 def measure(root=ROOT, meta=None, found=None, today=None):
     meta = meta or metamodel(root)
     found = found if found is not None else objects(root)
-    errors, warnings = check(meta, found, root)
+    errors, warnings = check(meta, found, root, today)
     flagged = {line.split(':', 1)[0] for line in errors + warnings}
     into = incoming(found)
     requirements = [item for item in found.values() if item['type'] == 'REQ' and is_active(meta, item)]
@@ -512,6 +638,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
                       'imported': sum(item['imported'] for item in sources.values())},
         'systems': systems,
         'standard': standard_measure(found, today or utc_today()),
+        'standard_management': management_measure(found, today or utc_today()),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors),
         'warnings': len(warnings),
@@ -544,6 +671,10 @@ def summary(found):
     lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
                  f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
                  f'their deadline')
+    managed = found['standard_management']
+    lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '
+                 f'with no deadline, {managed["overdue"]} past it), {managed["closed"]} closed; {managed["exemptions"]} '
+                 f'exemption(s) in force; effective version {", ".join(managed["effective"]) or "none"}')
     lines.append(f'check: {found["errors"]} error(s), {found["warnings"]} warning(s)')
     return '\n'.join(lines)
 

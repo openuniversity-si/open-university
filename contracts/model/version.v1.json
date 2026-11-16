@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/version.v1.json",
+  "title": "Standard version v1",
+  "description": "config/standard/versions/<id>.json (PADRAO-DEV F1c): a version of the development standard that is not one of the docs/padrao/v<N>/ folders yet. A folder version is read where it is; its rules are those its padrao.json lists.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "state",
+    "statement",
+    "contains"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^VER-v[0-9]+$"
+    },
+    "state": {
+      "enum": [
+        "draft",
+        "effective",
+        "superseded"
+      ]
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contains": {
+      "enum": [
+        "catalog"
+      ],
+      "description": "catalog: every rule of config/standard/rules/ that is not replaced (derived, never listed)."
+    },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^VER-v[0-9]+$"
+    }
+  }
+}
