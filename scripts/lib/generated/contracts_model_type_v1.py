@@ -9,5 +9,6 @@ TypeV1 = TypedDict('TypeV1', {
     'derived_states': NotRequired[list[str]],
     'inactive_states': NotRequired[list[str]],
     'covered_by': NotRequired[list[dict[str, Any]]],
+    'must_link': NotRequired[list[str]],
     'description': Required[str],
 }, total=False)

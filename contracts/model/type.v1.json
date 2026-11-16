@@ -80,6 +80,15 @@
       },
       "description": "An active object of this type is covered when, for each entry, some object of `type` points to it with `link`."
     },
+    "must_link": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "An active object of this type holds at least one link of each of these kinds (a test that verifies nothing, a unit that realizes nothing, is code without a requirement: DO-178C)."
+    },
     "description": {
       "type": "string",
       "minLength": 1

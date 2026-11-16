@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/model [--help]
+# The engineering model (PADRAO-DEV): reads the objects of every system against the metamodel in config/model/, checks types, states and links, shows one object with its links, and measures the end-to-end chain, the requirement inventory and each system's conformance.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/model.py" "$@"

@@ -16,5 +16,8 @@
       "link": "verifies"
     }
   ],
+  "must_link": [
+    "realizes"
+  ],
   "description": "A unit of code with its manifest, owner and paths (units/<id>/unit.json)."
 }

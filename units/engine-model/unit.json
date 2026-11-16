@@ -4,8 +4,12 @@
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
+    "config/model/**",
     "contracts/model/*.json",
-    "config/model/**"
+    "scripts/lib/model.py",
+    "scripts/model",
+    "scripts/tests/model.test.sh",
+    "scripts/tests/test_model.py"
   ],
   "requires": {
     "engine-config": "^1"

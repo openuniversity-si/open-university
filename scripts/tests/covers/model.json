@@ -1,0 +1,22 @@
+{
+  "script": "scripts/tests/model.test.sh",
+  "covers": [
+    "scripts/tests/model.test.sh",
+    "scripts/tests/test_model.py",
+    "scripts/model",
+    "scripts/lib/model.py",
+    "scripts/lib/json_schema.py",
+    "contracts/model/*.json",
+    "config/model/**",
+    "docs/domain/decisions/*.md",
+    "docs/domain/DECISIONS.md",
+    "docs/domain/CONTRACT.md",
+    "docs/capabilities/*.md",
+    "docs/process/premises/*.yml",
+    "config/registry/slo.json",
+    "config/registry/budgets.json",
+    "units/*/unit.json",
+    "scripts/tests/*.test.sh",
+    "scripts/tests/**/test_*.py"
+  ]
+}
