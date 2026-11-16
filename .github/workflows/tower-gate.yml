@@ -9,6 +9,15 @@
 # CACHE-PGDATA: the toolchain cache keeps the binaries only, never the test cluster (pgdata, its log, socket and home):
 # a cluster saved while its server ran broke setup.sh on a fresh runner (run 43606632818). The key's `bin-` prefix
 # leaves the entries that carried one.
+# GATE-PARTS (the Torre, 16/11/2026): one tower/gate is three jobs side by side and a short one after them. `main` runs the
+# stages and half the planned tests, `shard1` the other half (verify_commit.split: longest first by the cost hints), and
+# `alone` the timing-bound tests of gate.isolated_tests on a runner of their own; the job named tower/gate, the check the
+# merge queue requires, is green only when every part is. A green part of a pull request run keeps its verdict as
+# `tower-gate-green-<key>-<part>`; the merge queue reuses the tests' verdict only when one run kept all three. A wide plan
+# (a change of tower_infra/port.py plans 49 tests) took 93 s in one job; split in two halves and the timing-bound tests
+# apart it runs in about half of that. Each building entry of the queue holds four runners at most (three parts and
+# deploy/prepare) of the Free plan's twenty.
+
 name: tower-gate
 on:
   pull_request:
@@ -21,10 +30,14 @@ concurrency:
   group: tower-gate-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 jobs:
-  gate:
-    name: tower/gate
+  part:
+    name: gate part (${{ matrix.part }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [main, shard1, alone]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,13 +59,14 @@ jobs:
           EVENT: ${{ github.event_name }}
           QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PART: ${{ matrix.part }}
           GH_TOKEN: ${{ github.token }}
         run: |
           base="$PR_BASE"
           verdict=(--record "$RUNNER_TEMP/verdict")
           if [ "$EVENT" = merge_group ]; then base="$QUEUE_BASE"; verdict=(--reuse); fi
           source scripts/cloud/env.sh
-          scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post "${verdict[@]}"
+          scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post --part "$PART" "${verdict[@]}"
       - name: keep the green verdict
         if: github.event_name == 'pull_request' && steps.verify.outputs.verdict != ''
         continue-on-error: true  # no record only costs the merge queue's run its reuse, never this verdict
@@ -62,3 +76,16 @@ jobs:
           path: ${{ runner.temp }}/verdict
           retention-days: 7
           if-no-files-found: error
+  gate:
+    name: tower/gate
+    needs: part
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every part green
+        env:
+          PARTS: ${{ needs.part.result }}
+        run: |
+          echo "the parts of tower/gate: $PARTS"
+          test "$PARTS" = success
