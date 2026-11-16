@@ -41,7 +41,7 @@ LOG = logging.getLogger('tower_infra.reserve')
 LIBRARIES = {'serve': ('psycopg', 'sqlalchemy', 'sqlalchemy.dialects.postgresql.psycopg', 'boto3', 'dbos'),
              'run-container': ('psycopg', 'boto3')}
 MODULES = {'serve': ('canary', 'code_bundle', 'container', 'database', 'live_image', 'stall', 'vitals', 'lifecycle',
-                     'config_data', 'wake', 'mechanisms', 'rehearsal', 'autodeploy', 'prewarm', 'migrations',
+                     'config_data', 'wake', 'mechanisms', 'rehearsal', 'autodeploy', 'migrations',
                      # RESERVE-AFTER-GO: what serve imports between its gate's read and its launch (none imports workflows)
                      'forge', 'forge_webhooks', 'sessions', 'subscriptions', 'api_providers', 'cursor_agents',
                      'cli_sessions'),

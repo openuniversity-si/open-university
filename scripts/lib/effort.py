@@ -12,9 +12,7 @@ D-292: the management method (docs/padrao/METODO.md) does not require the block 
 config/registry/effort.json.
 """
 import datetime
-import json
 from pathlib import Path
-import pathlib
 import re
 import subprocess
 

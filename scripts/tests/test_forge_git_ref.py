@@ -2,7 +2,6 @@
 delete or a rewind. A local bare repository is the remote; no network."""
 import json
 import os
-import re
 from pathlib import Path
 import subprocess
 import sys

@@ -2,7 +2,6 @@
 records every push as (before, after), and commit_check.push_errors judges those pushes as the gate does. No network."""
 from datetime import datetime, timedelta, timezone
 import io
-import json
 import os
 from pathlib import Path
 import shutil

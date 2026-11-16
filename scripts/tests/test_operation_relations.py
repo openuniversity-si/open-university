@@ -12,7 +12,6 @@ from pathlib import Path
 import shutil
 import sys
 import tempfile
-import textwrap
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent.parent

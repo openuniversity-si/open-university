@@ -2,7 +2,6 @@
 the forge's key (GET /v1/pr-observation), through the Origin adapter's own mapping (forge_origin.ObservedAdapter), with no
 credential and no reflog of the lane; the gate asks the port for it (gate_infra.metadata_of). Hermetic."""
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
