@@ -251,7 +251,7 @@ def holder(environ):
     mark. Only the process that holds its task's role execs itself (a standby is strict and follows no reload and no
     order), and one that was a successor and adopted the role still carried TOWER_STANDBY=intask: the process it became
     stood by as a strict successor of a bundle no pointer named, and the role had no process (live 11/11: no dispatch
-    for 7.7 min). A Spot standby's mark is the prewarm's and stays."""
+    for 7.7 min)."""
     if environ.get(STANDBY) == INTASK:
         environ = {name: value for name, value in environ.items() if name != STANDBY}
     return environ
@@ -291,7 +291,7 @@ INTASK = 'intask'  # IN-TASK-STANDBY: TOWER_STANDBY's value for a successor insi
 def successor(environ, key, sha, root):
     """IN-TASK-STANDBY: the environment of a successor process of this task (tower_infra.supervisor) for the bundle
     (key, sha): what ECS gave the task (BASE's names and the Python path put back, no bundle marked loaded, no reload
-    said) with the standby's names the prewarm gave a Spot task: the bundle as TOWER_CODE_KEY, TOWER_CODE_SHA256 and
+    said) with a standby's names: the bundle as TOWER_CODE_KEY, TOWER_CODE_SHA256 and
     TOWER_IMAGE_DIGEST, and TOWER_STANDBY (INTASK). boot() then loads the bundle as any standby's, into `root`, a
     directory of the successor's own: the processes of one task never sweep each other's code."""
     found = dict(environ)
