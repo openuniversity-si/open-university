@@ -765,6 +765,25 @@ def reflexion_share(found):
     return {**counts, 'share': counts['convergences'] / total if total else 0}
 
 
+def decisions_measure(found, root=ROOT):
+    """The decisions system's own measure: decisions by state, the accepted ones a test proves, and the decision
+    records edited after the commit that wrote them (an accepted decision changes by a new one that supersedes it)."""
+    into = incoming(found)
+    decisions = [item for item in found.values() if item['type'] == 'D' and item.get('fingerprint') is not None]
+    by_state = {}
+    for item in decisions:
+        by_state[item['state']] = by_state.get(item['state'], 0) + 1
+    accepted = [item for item in decisions if item['state'] == 'accepted']
+    proven = sum(1 for item in accepted if any(kind == 'verifies' and found.get(source, {}).get('fingerprint') is not None
+                                               for kind, source in into.get(item['id'], [])))
+    edited = 0
+    for path in sorted(Path(root).glob(DECISION_RECORDS)):
+        commits = _git(root, 'log', '--format=%H', '--', path.relative_to(root).as_posix()).split()
+        edited += len(commits) > 1
+    return {'by_state': dict(sorted(by_state.items())), 'accepted': len(accepted), 'proven': proven,
+            'edited_records': edited}
+
+
 def knowledge_measure(found, radius='high'):
     """The knowledge system's own measure: the premises, the high-blast ones not confirmed or validated, the refuted
     ones still assumed by an active object."""
@@ -973,6 +992,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'knowledge': knowledge_measure(found),
         'requirements': requirements_measure(found),
         'architecture': architecture_measure(found),
+        'decisions': decisions_measure(found, root),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors),
         'warnings': len(warnings),
@@ -1020,6 +1040,10 @@ def summary(found):
     mirror = built['reflexion']
     lines.append(f'reflexion: {mirror["share"]:.0%} conformant ({mirror["convergences"]} convergent, {mirror["divergences"]} '
                  f'divergent, {mirror["absences"]} absent dependencies between components)')
+    decided = found['decisions']
+    lines.append(f'decisions: {", ".join(f"{count} {state}" for state, count in decided["by_state"].items())}; '
+                 f'{decided["proven"]} of {decided["accepted"]} accepted proven by a test; {decided["edited_records"]} '
+                 f'record(s) edited after they were written')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')

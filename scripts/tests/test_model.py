@@ -422,6 +422,22 @@ class Changes(unittest.TestCase):
         self.assertEqual((counted['active'], counted['implemented'], counted['verified'], counted['with_test']), (len(['REQ-a', 'REQ-b']), 1, 1, 1))
         self.assertEqual(counted['by_type'], {'constraint': 1, 'quality': 1})
 
+    def test_the_decisions_measure_counts_states_proofs_and_records_edited_after_they_were_written(self):
+        write(self.root, 'docs/domain/decisions/D-1.md', 'one')
+        self.git('add', '.')
+        self.git('commit', '-q', '-m', 'D-1')
+        write(self.root, 'docs/domain/decisions/D-1.md', 'one, edited')
+        write(self.root, 'docs/domain/decisions/D-2.md', 'two')
+        self.git('add', '.')
+        self.git('commit', '-q', '-m', 'edit D-1, write D-2')
+        found = {'D-1': {'id': 'D-1', 'type': 'D', 'state': 'accepted', 'fingerprint': 'f', 'links': []},
+                 'D-2': {'id': 'D-2', 'type': 'D', 'state': 'superseded', 'fingerprint': 'f', 'links': []},
+                 'TEST:t': {'id': 'TEST:t', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
+                            'links': [{'type': 'verifies', 'target': 'D-1'}]}}
+        counted = model.decisions_measure(found, self.root)
+        self.assertEqual(counted, {'by_state': {'accepted': 1, 'superseded': 1}, 'accepted': 1, 'proven': 1,
+                                   'edited_records': 1})
+
     def test_a_directory_that_is_not_a_repository_has_no_changes(self):
         other = Path(tempfile.mkdtemp(prefix='model-nogit-'))
         self.addCleanup(shutil.rmtree, other)
