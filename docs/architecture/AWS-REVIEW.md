@@ -55,7 +55,7 @@ A canary is one `container` job through dispatch, take and run. Only the runner 
 | A dead autodeploy thread is said and started again | `autodeploy.py` | service PR |
 | `deploy.base_branch` defaults to `main` | registry, `config_data.py`, `autodeploy.py` | service PR |
 | `fastdeploy` and the TaskRole drop the two removed Lambdas | `fastdeploy.py`, stack 30 | service PR, then stack PR |
-| The full build stops making the dead ingress image | `deploy.sh` | deployer PR |
+| The full build stops making the dead ingress image | `infra/ingress/Dockerfile` deleted (`deploy.sh` builds each `infra/*/Dockerfile`) | deployer PR |
 | Stack leftovers: the cluster's `FARGATE_SPOT`, the database group's default allow-all egress | stacks 10, 30 | one PR |
 | Topic policy, boundary denies for the alerting path, Origin defaults, doorbell concurrency and alarms, the dead log grant | bootstrap | PEDIDO À TORRE (applied by hand) |
 | Bedrock grants and `TOWER_API_MODELS` | stack 30 | for Daniel to decide (spend) |
