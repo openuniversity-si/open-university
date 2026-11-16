@@ -22,7 +22,7 @@ healthy  the container's health check: exit 0 while the last good heartbeat is f
 IMAGE-PREWARM-A (docs/operations/aws.md 22.9, tower_infra.live_image): with TOWER_IMAGE_DIGEST set, a serve or run-container
 whose image is not the one deploy.live_image_<role> names stands by (it beats, it takes no work) and turns live on the
 pointer's NOTIFY; with no TOWER_IMAGE_DIGEST or no pointer both run exactly as before. IMAGE-SWAP-SERVICE-READY: the
-prewarm's service standby launches DBOS while it stands by (schema verified, not migrated; an executor id of its own).
+service's standby (an in-task successor) launches DBOS while it stands by (schema verified, not migrated; an executor id of its own).
 IMAGE-PREWARM-B1 (tower_infra.code_bundle): with TOWER_CODE_KEY and TOWER_CODE_SHA256 set, serve and run-container first load
 that code bundle and exec themselves on it (a bundle that cannot be loaded exits non-zero); without them, nothing changes.
 IMAGE-SWAP-RELOAD (live_image.Reload): an ECS task standing by under a bundle a landing swapped to loads it in place once
@@ -196,8 +196,8 @@ def task_up(role, scope, environ=None):
     """SLOW-PATH-NO-ROLLOUT-WAIT: platform.deploy.task_up {stack, role, task, image, code}, once, when a task of an ECS
     service is up (serve before its first tick, run-container after its warm-up). deploy.sh starts a stack's rollout and
     does not wait for it; the autodeploy rings the build that verifies it when the stack's new task says this, or when
-    CloudFormation's event of the stack's end comes, whichever is first (autodeploy.rolling). Not a prewarm standby (it
-    is no task of the stack) and not a process that reloaded itself in place (no rollout started it). Never raises:
+    CloudFormation's event of the stack's end comes, whichever is first (autodeploy.rolling). Not a standby (an in-task
+    successor is no task of the stack) and not a process that reloaded itself in place (no rollout started it). Never raises:
     without it the verification waits for the stack's event or the safety the build set."""
     from . import code_bundle
     environ = os.environ if environ is None else environ
@@ -240,7 +240,7 @@ def serve():
         lambda: connection(database, where, user, password, purpose='loop', autocommit=True), database.Database)
     gate = live_image.gate('service', os.environ.get('TOWER_IMAGE_DIGEST'), pooled(engine),
                            os.environ.get('TOWER_CONFIG_TENANT', live_image.config_data.TENANT),
-                           strict=bool(os.environ.get(live_image.STANDBY)),  # IMAGE-PREWARM-B2: a prewarm standby
+                           strict=bool(os.environ.get(live_image.STANDBY)),  # IMAGE-PREWARM-B2: a standby
                            intask=intask, task=live_image.named(socket.gethostname()),  # IN-TASK-STANDBY: its own name
                            reloaded=code_bundle.reloaded(),  # IMAGE-SWAP-RELOAD: an ECS task that reloaded itself
                            first=early.scope if os.environ.get('TOWER_IMAGE_DIGEST', '').strip() else None)
@@ -260,7 +260,7 @@ def serve():
         LOG.info('serve: migrations applied now: %s', migrate(engine) or 'none')
     else:
         LOG.info('serve: standing by (deploy.live_image_service is %s): no migration applied', gate.pointer)
-    # IMAGE-SWAP-SERVICE-READY: the prewarm's standby (strict) launches DBOS while it stands by, so the swap finds it ready.
+    # IMAGE-SWAP-SERVICE-READY: the standby (strict, an in-task successor) launches DBOS while it stands by, so the swap finds it ready.
     # It verifies the system schema and never migrates it (its dbos is the image's, B1; a schema behind it fails the launch:
     # the standby exits, never beats, and the landing takes the slow path); its application version is its own (code_bundle)
     # and so is its executor id, so its recovery at launch finds nothing of another process, even one of the same bundle
@@ -614,7 +614,7 @@ def run_container():
     gate = live_image.gate('runner', os.environ.get('TOWER_IMAGE_DIGEST'),
                            live_image.kept(container.Reconnecting(lambda: kept('gate'), database.Database)),
                            os.environ.get('TOWER_CONFIG_TENANT', config_data.TENANT), task=name,
-                           strict=bool(os.environ.get(live_image.STANDBY)),  # IMAGE-PREWARM-B2: a prewarm standby
+                           strict=bool(os.environ.get(live_image.STANDBY)),  # IMAGE-PREWARM-B2: a standby
                            intask=intask,  # IN-TASK-STANDBY: a successor inside the task
                            reloaded=code_bundle.reloaded())  # IMAGE-SWAP-RELOAD: an ECS task that reloaded itself
     # SWAP-TAIL-CUT: a standby slot warms its first TAKE, rolled back, on its own connection
