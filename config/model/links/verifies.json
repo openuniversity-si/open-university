@@ -6,7 +6,8 @@
   "to": [
     "REQ",
     "D",
-    "UNIT"
+    "UNIT",
+    "STD"
   ],
   "oslc": "oslc_qm:validatesRequirement",
   "description": "A test verifies a requirement, a decision or a unit (trailer Verifies:, the proof of a decision)."

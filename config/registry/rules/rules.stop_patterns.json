@@ -28,6 +28,7 @@
   "x-unit": "patterns",
   "description": "How scripts/rule discovers code that can stop a flow: every file matching glob (from the repository root), every line matching regex; group 1 names the function, so a match is <file>:<function>. The default is the RULE-AUDIT census pattern (docs/units/RULE-AUDIT/audit.md), so both counts agree. A match that no active record lists in where is an unregistered stop.",
   "x-readers": [
+    "scripts/lib/model.py",
     "scripts/lib/rule_registry.py"
   ],
   "x-source": "D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 16:55 BRT, RULE-AUDIT)"

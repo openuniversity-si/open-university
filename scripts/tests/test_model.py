@@ -134,6 +134,65 @@ class TinyModel(unittest.TestCase):
         self.assertEqual((counted['ids'], counted['imported']), (len(['D-1', 'D-2', 'D-3', 'A', 'a.one', 'a.two']), 1))
 
 
+class Rules(unittest.TestCase):
+    """The rules of the standard (STD) on a temporary checkout with the real metamodel."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-rules-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        for folder in ('contracts/model', 'config/model'):
+            shutil.copytree(ROOT / folder, self.root / folder)
+        write(self.root, 'scripts/lib/guard.py', 'def plan_errors(body):\n    return []\n')
+        write(self.root, 'scripts/tests/covers/guard.json', {'script': 'scripts/tests/guard.test.sh',
+                                                             'covers': ['scripts/lib/*.py']})
+        write(self.root, 'scripts/tests/covers/other.json', {'script': 'scripts/tests/other.test.sh',
+                                                             'covers': ['docs/**']})
+        self.rule('STD-plan', state='blocking', basis=['D-1'], check={'kind': 'function', 'ref': 'scripts/lib/guard.py:plan_errors'})
+
+    def rule(self, id, **fields):
+        body = {'id': id, 'statement': 's', 'state': 'draft', 'owner': 'administration', 'applies_to': ['CHG'],
+                'check': {'kind': 'judgment', 'ref': 'docs/x.md'}, **fields}
+        write(self.root, f'config/standard/rules/{id}.json', body)
+
+    def found(self):
+        items = model.read_rules(self.root)
+        merged = {}
+        for item in items:
+            merged.setdefault(item['id'], {**item, 'links': []})['links'] += item['links']
+        return merged
+
+    def test_a_rule_is_an_object_justified_by_its_decisions_and_verified_by_the_tests_whose_covers_name_its_check(self):
+        found = self.found()
+        self.assertEqual(found['STD-plan']['links'], [{'type': 'justified-by', 'target': 'D-1'}])
+        self.assertEqual(found['TEST:scripts/tests/guard.test.sh']['links'], [{'type': 'verifies', 'target': 'STD-plan'}])
+        self.assertNotIn('TEST:scripts/tests/other.test.sh', found)
+
+    def test_a_rule_file_the_contract_refuses_is_an_error(self):
+        self.rule('STD-bad', state='enforced')
+        found = self.found()
+        errors, _ = model.check(model.metamodel(self.root), found)
+        self.assertTrue(any(error.startswith('STD:STD-bad: $.state') for error in errors), errors)
+
+    def test_refusals_and_stages_without_a_rule_missing_checks_no_basis_and_no_deadline_are_warnings(self):
+        self.rule('STD-gone', check={'kind': 'function', 'ref': 'scripts/lib/guard.py:gone_errors'}, basis=['D-1'])
+        self.rule('STD-soon', state='warning', basis=['D-1'], check={'kind': 'gate-stage', 'ref': 'shellcheck'})
+        warnings = model.rule_findings(self.found(), self.root,
+                                       stops=['scripts/lib/guard.py:plan_errors', 'scripts/lib/guard.py:push_errors'],
+                                       stages=['shellcheck', 'schema compat'])
+        self.assertIn('scripts/lib/guard.py:push_errors: a refusal with no rule of the standard', warnings)
+        self.assertNotIn('scripts/lib/guard.py:plan_errors: a refusal with no rule of the standard', warnings)
+        self.assertIn('gate stage schema compat: a stage with no rule of the standard', warnings)
+        self.assertIn('STD-gone: function scripts/lib/guard.py:gone_errors does not exist', warnings)
+        self.assertIn('STD-soon: in warning with no deadline', warnings)
+        self.assertFalse(any(line.startswith('STD-plan') for line in warnings), warnings)
+
+    def test_a_judgment_rule_needs_its_document_and_a_rule_without_basis_is_reported(self):
+        self.rule('STD-judge')
+        warnings = model.rule_findings(self.found(), self.root, stops=[], stages=[])
+        self.assertIn('STD-judge: its check docs/x.md does not exist', warnings)
+        self.assertIn('STD-judge: no decision justifies it (basis)', warnings)
+
+
 class RealRepository(unittest.TestCase):
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):
         meta = model.metamodel(ROOT)

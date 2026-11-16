@@ -12,6 +12,8 @@
     "scripts/tests/test_model.py"
   ],
   "requires": {
-    "engine-config": "^1"
+    "engine-config": "^1",
+    "engine-gate-plan": "^1",
+    "engine-rules": "^1"
   }
 }
