@@ -216,6 +216,44 @@ class TheVerifier(unittest.TestCase):
         self.assertEqual(seen['alone'][:3], ([], ['scripts/tests/slow.test.sh'], 1))  # by itself, `gate-check test`
         self.assertEqual({tuple(each[3]) for each in seen.values()}, {tuple(plan['tests'])})  # the key's plan: whole
 
+    def test_the_main_part_runs_its_stages_beside_its_batch_and_says_the_pace(self):
+        """GATE-PACE: the stages of the main part run while its batch runs (one worker fewer), not before it; a red stage
+        is still named first, and the job log names what each one took."""
+        import threading as thread
+        started, stage_seen_batch = thread.Event(), []
+
+        class Beside(Fake):
+            def __call__(self, args, cwd=None, env=None):
+                if args[:2] == ['scripts/gate-check', 'tests']:
+                    started.set()
+                    self.workers = env.get(verify_commit.WORKERS)
+                if args[:2] == ['scripts/gate-check', 'stage']:
+                    stage_seen_batch.append(started.wait(5))  # the batch began while the stages run
+                return super().__call__(args, cwd, env)
+        plan = {'stages': PLAN['stages'], 'tests': ['scripts/tests/x.test.sh', 'scripts/tests/y.test.sh']}
+        fake, paces = Beside(plan=plan, red={'structure check', 'scripts/tests/y.test.sh'}), []
+        hints = {'scripts/tests/x.test.sh': 20, 'scripts/tests/y.test.sh': 20}.copy  # x to shard1, y to main
+        green, red, _, _ = verify_commit.judge(BASE, run=fake, part='main', hints=hints, isolated=list,
+                                               cpus=lambda: 4, paces=paces)
+        self.assertFalse(green)
+        self.assertEqual(red, ['structure check', 'scripts/tests/y.test.sh'])
+        self.assertEqual((stage_seen_batch, fake.workers), ([True, True], '3'))
+        self.assertEqual(sorted(name for name, _ in paces), ['secret scan (tree)', 'structure check', 'the batch of tests'])
+        unparted = Fake(plan=plan)
+        verify_commit.judge(BASE, run=unparted, isolated=list, cpus=lambda: 4)  # local and full-suite: in order
+        kinds = [call[1] for call in unparted.calls if call[0] == 'scripts/gate-check' and call[1] in ('stage', 'tests')]
+        self.assertEqual(kinds, ['stage', 'stage', 'tests'])
+
+    def test_the_job_log_names_the_pace_of_a_part(self):
+        import contextlib
+        import io
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), mock.patch.object(verify_commit, 'STAGES_S', 0):  # main gets a test
+            self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post', '--part', 'main'], run=Fake()), 0)
+        line = next(each for each in out.getvalue().splitlines() if each.startswith('verify-commit: pace: '))
+        for name in ('structure check', 'secret scan (tree)', 'the batch of tests'):
+            self.assertIn(name, line)
+
     def test_a_part_keeps_its_own_verdict_and_the_queue_reuses_only_one_run_that_kept_all_three(self):
         """GATE-PARTS: <name>-<part> per part; a run that kept two of the three is a miss, and so are parts of two runs."""
         import tempfile as temp
