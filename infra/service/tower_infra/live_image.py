@@ -456,7 +456,9 @@ WANTS = ("select (select s.value::text from work.config_value s join work.tenant
          "select distinct on (payload->>'digest') payload->>'digest' as digest, payload->>'key' as key, "
          "payload->>'state' as state, occurred_at as at, payload->>'digest' in (select p.value #>> '{}' "
          "from work.config_value p join work.tenant t on t.id = p.tenant_id where t.name = %(tenant)s "
-         f"and p.key in ('{KEYS['service']}', '{KEYS['runner']}')) as pointed "
+         # OWN-POINTER (the Torre, 16/11/2026): the pointer of this task's own role only; the other role's (a runner's
+         # stale pointer while it has no task) took one of the service task's two heirs (#130-#131: reloaded, 20.6 s)
+         "and p.key = %(pointer)s) as pointed "
          f"from log.event where type = '{SUCCESSOR}' and tenant_id is null "
          "and occurred_at > now() - interval '1 day' and payload->>'state' in ('wanted', 'withdrawn') "
          "order by payload->>'digest', occurred_at desc) w where (w.state = 'wanted' or w.pointed) and not exists ("
@@ -1723,7 +1725,7 @@ class Order:
         if not supervisor.supervised():
             return False
         if told or self.read is None:
-            self.read = gate.sent(WANTS, {'tenant': gate.tenant}, db)[0]
+            self.read = gate.sent(WANTS, {'tenant': gate.tenant, 'pointer': KEYS.get(gate.role, KEYS['service'])}, db)[0]
         limit, found = self.read
         try:
             limit = config_data.validate(SUCCESSORS, json.loads(limit)) if limit else config_data.SPEC[SUCCESSORS][1]

@@ -202,11 +202,20 @@ class OnPostgres(unittest.TestCase):
                         f"'{{\"digest\": \"{digest}\", \"key\": \"k-{digest[0]}\", \"branch\": \"queue\", "
                         f"\"state\": \"{state}\"}}')")
         try:
-            out = self.db.rows(render(live_image.WANTS, {'tenant': 'torre'}))
+            out = self.db.rows(render(live_image.WANTS, {'tenant': 'torre', 'pointer': live_image.KEYS['service']}))
             told = [each['digest'][0] for each in json.loads(out[0][1])]
             self.assertEqual(told, ['a', 'b', 'c'])  # the oldest first; d's newest word is its withdrawal
+            # OWN-POINTER: the runner's pointer names c's bundle: the service task does not put it first, the runner's does
+            self.db.run("insert into work.config_value (tenant_id, key, value, actor, reason) select id, "
+                        f"'{live_image.KEYS['runner']}', to_jsonb('{'c' * 64}'::text), 't', 't' from work.tenant "
+                        "where name = 'torre' on conflict (tenant_id, key) do update set value = excluded.value")
+            out = self.db.rows(render(live_image.WANTS, {'tenant': 'torre', 'pointer': live_image.KEYS['service']}))
+            self.assertEqual([each['digest'][0] for each in json.loads(out[0][1])], ['a', 'b', 'c'])
+            out = self.db.rows(render(live_image.WANTS, {'tenant': 'torre', 'pointer': live_image.KEYS['runner']}))
+            self.assertEqual([each['digest'][0] for each in json.loads(out[0][1])], ['c', 'a', 'b'])
         finally:
             self.db.run("delete from log.event where event_id in ('w-a', 'w-b', 'w-c', 'w-d', 'w-d2')")
+            self.db.run(f"delete from work.config_value where key = '{live_image.KEYS['runner']}'")
 
     def test_the_migration_is_additive_and_names_the_unit(self):
         sql = MIGRATION.read_text(encoding='utf-8')
