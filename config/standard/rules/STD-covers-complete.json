@@ -1,0 +1,18 @@
+{
+  "id": "STD-covers-complete",
+  "statement": "A script test's covers manifest names every code file the test executes, so that a change to any of them selects the test and invalidates its cache.",
+  "state": "warning",
+  "owner": "administration",
+  "applies_to": [
+    "TEST"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/gate_script_tests.py:trace_check"
+  },
+  "basis": [
+    "D-317"
+  ],
+  "deadline": "2026-11-30",
+  "note": "The covers trace (GX-29) has reported this in every Python test since the initial tree, in report mode (gate-trace.covers_trace_mode) with no deadline; PADRAO-DEV measured 7,700 test x file pairs the gate would not run (docs/programs/padrao-dev/analise.md). PROP-covers-trace-blocking gives it a deadline."
+}
