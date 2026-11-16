@@ -771,7 +771,7 @@ class Gate:
         """IMAGE-SWAP-TIGHTEN: this standby's beat in work.standby_beat (migration 0014), on db or the gate's scope; it is
         the standby pass's database round trip, so a failure raises to the caller like the `select 1` it replaces.
         IMAGE-SWAP-FAILOVER: an ECS task's (not strict) is, in the same statement, its watch over the image the pointer
-        names (WATCH, watched()); a prewarm standby (strict) only beats: no pointer would not make it live; one that
+        names (WATCH, watched()); a standby (strict) only beats: no pointer would not make it live; one that
         is stopping (handback()) beats no more."""
         if self.leaving or self.gone:  # IN-TASK-STANDBY: nor does a process that gave its role away (it watches nothing)
             return []
@@ -1068,7 +1068,7 @@ WARM_S = 60.0
 
 
 class Warm:
-    """SWAP-TAIL-CUT: a prewarm standby (strict) runs the statements of its role's first work after a swap on the
+    """SWAP-TAIL-CUT: a standby (strict) runs the statements of its role's first work after a swap on the
     connection that first work will use, in a transaction that is rolled back, when it starts and WARM_S apart. The first
     call of a function on a backend compiles and plans it and loads what it reads into the backend's caches: locally 2 ms
     against 0.2 ms; on the db.t4g.micro the promoted service's first reap took 0.32 to 1.0 s and its first roll_limits
