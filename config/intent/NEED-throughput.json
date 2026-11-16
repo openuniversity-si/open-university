@@ -1,0 +1,13 @@
+{
+  "id": "NEED-throughput",
+  "statement": "Merged PRs per second grow along the ladder, continuously, without splitting work to raise the count.",
+  "state": "proposed",
+  "owner": "Daniel",
+  "refines": [
+    "INT-intention-v1",
+    "INT-ladder-1",
+    "INT-ladder-2",
+    "INT-ladder-3"
+  ],
+  "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
+}

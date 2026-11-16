@@ -1,0 +1,10 @@
+{
+  "id": "NEED-cost",
+  "statement": "The system runs within one Claude Max quota and AWS under US$ 200 a month.",
+  "state": "proposed",
+  "owner": "Daniel",
+  "refines": [
+    "INT-limits"
+  ],
+  "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
+}

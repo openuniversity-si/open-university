@@ -1,0 +1,28 @@
+{
+  "id": "slo-budgets",
+  "type": "quality",
+  "state": "approved",
+  "owner": "administration",
+  "derives_from": {
+    "slo.gate_failure_rate_max_percent": "NEED-quality",
+    "slo.gate_tier1_p95_s": "NEED-throughput",
+    "slo.merged_prs_per_hour_min": "NEED-throughput",
+    "slo.train_queue_time_p95_s": "NEED-throughput",
+    "budgets.pr_changed_lines": "NEED-changeability",
+    "budgets.pr_commits_min": "NEED-changeability",
+    "budgets.pr_commits_max": "NEED-changeability",
+    "budgets.regression_tolerance_percent": "NEED-quality",
+    "budgets.tighten_only": "NEED-quality"
+  },
+  "overrides": {
+    "slo.gate_tier1_p95_s": {
+      "state": "superseded",
+      "retired_by": "D-314"
+    },
+    "slo.train_queue_time_p95_s": {
+      "state": "obsolete",
+      "retired_by": "D-316"
+    }
+  },
+  "note": "slo.gate_tier1_p95_s (10 s) was the gate of the engine's own box; on GitHub (D-314) the gate's ceiling is REQ-gate-60s. slo.train_queue_time_p95_s measured the train, dormant since D-316."
+}

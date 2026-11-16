@@ -454,7 +454,110 @@ def management_findings(found, today):
     return errors, warnings
 
 
-READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring)
+INTENT = 'config/intent/*.json'
+REQUIREMENTS = 'config/requirements/REQ-*.json'
+IMPORTS = 'config/requirements/imports/*.json'
+
+
+def read_intent(root):
+    """Intentions (INT) and needs (NEED), one file each; a need refines intentions."""
+    root = Path(root)
+    schema = _read_json(root / CONTRACTS_DIR / 'intent.v1.json')
+    found = []
+    for path in sorted(root.glob(INTENT)):
+        body = _read_json(path)
+        kind = path.stem.split('-', 1)[0]
+        problems = list(json_schema.validate(schema, body))
+        if isinstance(body, dict) and body.get('id') != path.stem:
+            problems.append(f'its id must equal the file name {path.stem}')
+        links = [{'type': 'refines', 'target': target} for target in body.get('refines', [])] if not problems else []
+        item = _obj(path.stem, kind, body.get('state', '') if isinstance(body, dict) else '',
+                    path.relative_to(root).as_posix(), path.read_text(), links)
+        item['body'] = body
+        if problems:
+            item['problems'] = problems
+        found.append(item)
+    return found
+
+
+def _requirement_links(body):
+    return [*({'type': 'derives-from', 'target': target} for target in body.get('derives_from', [])),
+            *({'type': 'justified-by', 'target': number} for number in body.get('basis', []))]
+
+
+def source_entries(root, source):
+    """{id: (statement, path)} of one inventory source: the matching line, the registry key's description, or the
+    first line of the file."""
+    root = Path(root)
+    found = {}
+    for part in source['parts']:
+        for path in sorted(root.glob(part['glob'])):
+            name = path.relative_to(root).as_posix()
+            if part['kind'] == 'files':
+                found.setdefault(name, (path.read_text().strip().split('\n', 1)[0].lstrip('# '), name))
+            elif part['kind'] == 'filename':
+                match = re.search(part['pattern'], path.name)
+                if match:
+                    found.setdefault(match.group(1), (path.read_text().strip().split('\n', 1)[0].lstrip('# '), name))
+            elif part['kind'] == 'content':
+                for line in path.read_text().splitlines():
+                    for match in re.findall(part['pattern'], line):
+                        found.setdefault(match, (line.strip().lstrip('-|* ').strip(), name))
+            elif part['kind'] == 'registry':
+                for key, spec in _read_json(path).get('properties', {}).items():
+                    if not part.get('pattern') or re.search(part['pattern'], key):
+                        found.setdefault(key, (spec.get('description', key), name))
+    return found
+
+
+def read_requirements(root):
+    """Requirements (REQ): the files of config/requirements/, and the requirements of every inventory source an
+    import file names, read where they are (one REQ per source id, its statement taken from the source)."""
+    root = Path(root)
+    found = _declared(root, REQUIREMENTS, 'requirement.v1.json', 'REQ', _requirement_links)
+    schema = _read_json(root / CONTRACTS_DIR / 'import.v1.json')
+    for path in sorted(root.glob(IMPORTS)):
+        body = _read_json(path)
+        problems = list(json_schema.validate(schema, body))
+        source_path = root / MODEL_DIR / 'inventory' / f'{path.stem}.json'
+        if body.get('id') != path.stem or not source_path.is_file():
+            problems.append(f'names no inventory source {path.stem}')
+        if problems:
+            found.append({**_obj(f'REQ:{path.stem}', 'REQ', 'draft', path.relative_to(root).as_posix(), path.read_text()),
+                          'problems': problems})
+            continue
+        needs = body.get('derives_from', {})
+        for source_id, (statement, where) in sorted(source_entries(root, _read_json(source_path)).items()):
+            need = needs.get(source_id, needs.get('*'))
+            own = body.get('overrides', {}).get(source_id, {})
+            retired = own.get('retired_by', body.get('retired_by'))
+            fields = {'type': body['type'], 'statement': statement, 'state': own.get('state', body['state']),
+                      'owner': body['owner'], 'source': where, **({'retired_by': retired} if retired else {}),
+                      **({'derives_from': [need]} if need else {})}
+            item = _obj(f'REQ-{path.stem}-{_slug(source_id)}', 'REQ', fields['state'], where, statement,
+                        _requirement_links(fields))
+            item.update(body=fields, source_id=source_id)
+            found.append(item)
+    return found
+
+
+def requirement_findings(found):
+    """Warnings of the requirements: a retired requirement with no decision that retired it, an active one that
+    derives from no need."""
+    warnings = []
+    for item in found.values():
+        body = item.get('body', {})
+        if item['type'] != 'REQ' or 'type' not in body:
+            continue
+        if item['state'] in ('superseded', 'obsolete') and not body.get('retired_by'):
+            warnings.append(f'{item["id"]}: {item["state"]} with no decision that retired it')
+        if item['state'] not in ('superseded', 'obsolete') and not body.get('derives_from'):
+            warnings.append(f'{item["id"]}: derives from no need')
+    return warnings
+
+
+READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
+           read_intent, read_requirements)
 
 
 def objects(root=ROOT, readers=READERS):
@@ -478,6 +581,7 @@ def check(meta, found, root=None, today=None):
     errors, warnings = [], []
     if root is not None:
         warnings += rule_findings(found, root)
+        warnings += requirement_findings(found)
         managed_errors, managed_warnings = management_findings(found, today or utc_today())
         errors += managed_errors
         warnings += managed_warnings
@@ -549,11 +653,13 @@ def chain_verified(item, into, found):
 
 
 def inventory(meta, found, root=ROOT):
-    """{source: {name, ids, imported}}: the distinct ids each source holds, and how many are requirements of the model."""
+    """{source: {name, ids, imported}}: the distinct ids each source holds, and how many of them are objects of the
+    model of a type the source may become (the object's id, or the source id it was imported from)."""
     root = Path(root)
-    imported_ids = {item.get('source_id') for item in found.values() if item['type'] == 'REQ'}
     result = {}
     for name, source in sorted(meta['inventory'].items()):
+        imported_ids = {key for item in found.values() if item['type'] in source['becomes']
+                        for key in (item['id'], item.get('source_id')) if key}
         ids = set()
         for part in source['parts']:
             paths = sorted(root.glob(part['glob']))
@@ -564,7 +670,8 @@ def inventory(meta, found, root=ROOT):
             elif part['kind'] == 'content':
                 ids |= {match for path in paths for match in re.findall(part['pattern'], path.read_text(), re.MULTILINE)}
             elif part['kind'] == 'registry':
-                ids |= {key for path in paths for key in _read_json(path).get('properties', {})}
+                ids |= {key for path in paths for key in _read_json(path).get('properties', {})
+                        if not part.get('pattern') or re.search(part['pattern'], key)}
         result[name] = {'name': source['name'], 'ids': len(ids), 'imported': len(ids & imported_ids)}
     return result
 
@@ -661,7 +768,7 @@ def summary(found):
     lines = [
         f'chain: {chain["verified"]} of {chain["active_requirements"]} active requirement(s) verified end to end '
         f'({chain["share"]:.0%})',
-        f'inventory: {stock["imported"]} of {stock["ids"]} requirement id(s) imported as requirements',
+        f'inventory: {stock["imported"]} of {stock["ids"]} requirement id(s) of the inventory are objects of the model',
     ]
     lines += [f'  {name}: {item["imported"]} of {item["ids"]}' for name, item in stock['sources'].items()]
     lines.append(f'systems ({found["objects"]} object(s)):')

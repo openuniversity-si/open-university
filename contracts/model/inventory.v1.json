@@ -52,7 +52,7 @@
           },
           "pattern": {
             "type": "string",
-            "description": "A regular expression; its first group is the id."
+            "description": "A regular expression; for content and filename its first group is the id, for registry it filters the key names."
           }
         }
       }

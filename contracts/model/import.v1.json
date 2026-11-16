@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/import.v1.json",
+  "title": "Requirement import v1",
+  "description": "config/requirements/imports/<inventory id>.json (PADRAO-DEV F2a): how the requirements of one inventory source are read where they are, without copying them. It declares what the source does not say: the state and type of the whole batch, its owner, the decision that retired it, and the need each requirement derives from.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "state",
+    "owner"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "The inventory source id (config/model/inventory/<id>.json)."
+    },
+    "type": {
+      "enum": [
+        "product",
+        "operation",
+        "quality",
+        "constraint",
+        "interface"
+      ]
+    },
+    "state": {
+      "enum": [
+        "draft",
+        "approved",
+        "superseded",
+        "obsolete"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "retired_by": {
+      "type": "string",
+      "pattern": "^D-[0-9]+$"
+    },
+    "derives_from": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^NEED-[a-z0-9][a-z0-9-]*$"
+      },
+      "description": "Source id -> the need it derives from; `*` for every id."
+    },
+    "note": {
+      "type": "string"
+    },
+    "overrides": {
+      "type": "object",
+      "description": "Source id -> the state and the retiring decision of one requirement whose state differs from the batch's.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "enum": [
+              "draft",
+              "approved",
+              "superseded",
+              "obsolete"
+            ]
+          },
+          "retired_by": {
+            "type": "string",
+            "pattern": "^D-[0-9]+$"
+          }
+        }
+      }
+    }
+  }
+}

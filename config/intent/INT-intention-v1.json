@@ -1,0 +1,7 @@
+{
+  "id": "INT-intention-v1",
+  "statement": "Intention v1: an autonomous system that improves itself and seeks capacity; quality matters and throughput is never inflated; every stop of the flow is an incident.",
+  "state": "active",
+  "owner": "Daniel",
+  "source": "docs/SEMENTE.md#3"
+}

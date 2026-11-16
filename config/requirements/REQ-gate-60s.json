@@ -1,0 +1,11 @@
+{
+  "id": "REQ-gate-60s",
+  "type": "constraint",
+  "statement": "The required tower/gate check finishes within 60 s of its start, at the median and at the 99th percentile.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-throughput"
+  ],
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+}

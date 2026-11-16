@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/requirement.v1.json",
+  "title": "Requirement v1",
+  "description": "config/requirements/<id>.json (PADRAO-DEV F2a): a requirement with no other home, one file each. Its statement is testable (EARS: ubiquitous, event-driven, state-driven, unwanted behaviour or optional feature).",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "statement",
+    "state",
+    "owner",
+    "source"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^REQ-[a-z0-9][a-z0-9.-]*$"
+    },
+    "type": {
+      "enum": [
+        "product",
+        "operation",
+        "quality",
+        "constraint",
+        "interface"
+      ],
+      "description": "ISO/IEC/IEEE 29148: what kind of requirement."
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state": {
+      "enum": [
+        "draft",
+        "approved",
+        "superseded",
+        "obsolete"
+      ],
+      "description": "The declared states; implemented and verified are derived from links."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "derives_from": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(NEED|REQ)-[a-z0-9][a-z0-9.-]*$"
+      }
+    },
+    "basis": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^D-[0-9]+$"
+      },
+      "description": "The decisions that state it."
+    },
+    "retired_by": {
+      "type": "string",
+      "pattern": "^D-[0-9]+$"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
