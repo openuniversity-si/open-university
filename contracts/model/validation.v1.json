@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/validation.v1.json",
+  "title": "Validation v1",
+  "description": "config/validation/<id>.json (PADRAO-DEV F6a): a validation criterion, the evidence in use that a need or a requirement is met (ISO/IEC/IEEE 15288 validation): what it validates, the measure, the comparator, the threshold and the window. Its state is derived by scripts/model from the measure (met, not-met, measuring while the window is short, defined while no source is wired), never written.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "statement",
+    "validates",
+    "owner",
+    "measure",
+    "comparator",
+    "threshold"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^VAL-[a-z0-9][a-z0-9-]*$"
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "validates": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(NEED|REQ)-[a-z0-9][a-z0-9.-]*$"
+      }
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "measure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "merges-per-day",
+            "trailer-rate",
+            "model-share",
+            "unwired"
+          ],
+          "description": "merges-per-day: merges on main's first-parent line per complete UTC day, averaged over the window's days; trailer-rate: the share of merges whose commits carry `trailer`, over the window's merges; model-share: a share scripts/model computes (`name`); unwired: no source is wired yet (`source` says which)."
+        },
+        "trailer": {
+          "type": "string"
+        },
+        "name": {
+          "enum": [
+            "reflexion",
+            "requirements-tested"
+          ]
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "comparator": {
+      "enum": [
+        "gte",
+        "lte"
+      ]
+    },
+    "threshold": {
+      "type": "number"
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "size"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "days",
+            "merges"
+          ]
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

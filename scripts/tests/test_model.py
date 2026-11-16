@@ -97,7 +97,7 @@ class TinyModel(unittest.TestCase):
                  {'id': 'ARC-1', 'type': 'ARC', 'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
                  {'id': 'UNIT:a', 'type': 'UNIT', 'links': [{'type': 'realizes', 'target': 'ARC-1'}]},
                  {'id': 'TEST:a', 'type': 'TEST', 'links': [{'type': 'verifies', 'target': 'REQ-1'}]},
-                 {'id': 'VAL-1', 'type': 'VAL', 'state': 'defined', 'links': [{'type': 'validates', 'target': 'REQ-1'}]}]
+                 {'id': 'VAL-1', 'type': 'VAL', 'state': 'met', 'links': [{'type': 'validates', 'target': 'REQ-1'}]}]
         for missing in range(len(chain)):
             if missing == 0:
                 continue
@@ -438,6 +438,44 @@ class Changes(unittest.TestCase):
         counted = model.decisions_measure(found, self.root)
         self.assertEqual(counted, {'by_state': {'accepted': 1, 'superseded': 1}, 'accepted': 1, 'proven': 1,
                                    'edited_records': 1})
+
+    def test_a_validation_state_is_derived_from_its_measure_never_written(self):
+        def val(id, measure, comparator, threshold, window=None):
+            body = {'id': id, 'statement': 's', 'validates': ['NEED-x'], 'owner': 'o', 'measure': measure,
+                    'comparator': comparator, 'threshold': threshold, **({'window': window} if window else {})}
+            return {'id': id, 'type': 'VAL', 'state': 'defined', 'fingerprint': 'f', 'links': [], 'body': body}
+        today = self.git_today()
+        found = {item['id']: item for item in (
+            val('VAL-pace', {'kind': 'merges-per-day'}, 'gte', 1, {'kind': 'days', 'size': 1}),
+            val('VAL-fast', {'kind': 'merges-per-day'}, 'gte', len(['a', 'b']), {'kind': 'days', 'size': 1}),
+            val('VAL-fix', {'kind': 'trailer-rate', 'trailer': 'Fixes-PR'}, 'lte', 0, {'kind': 'merges', 'size': 1}),
+            val('VAL-long', {'kind': 'trailer-rate', 'trailer': 'Fixes-PR'}, 'lte', 0, {'kind': 'merges', 'size': len('long')}),
+            val('VAL-none', {'kind': 'unwired', 'source': 'x'}, 'lte', 0))}
+        model.derive_validations(found, self.root, today)
+        self.assertEqual({id: item['state'] for id, item in found.items()},
+                         {'VAL-pace': 'met', 'VAL-fast': 'not-met', 'VAL-fix': 'met', 'VAL-long': 'measuring',
+                          'VAL-none': 'defined'})
+
+    def git_today(self):
+        from datetime import date, timedelta
+        import subprocess
+        day = subprocess.run(['git', 'log', '-1', '--format=%ad', '--date=short'], cwd=self.root, capture_output=True,
+                             text=True, check=True).stdout.strip()
+        return (date.fromisoformat(day) + timedelta(days=1)).isoformat()
+
+    def test_a_requirements_chain_needs_a_validation_that_is_met(self):
+        chain = {'REQ-1': {'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': []},
+                 'ARC-1': {'id': 'ARC-1', 'type': 'ARC', 'state': 'active', 'fingerprint': 'f',
+                           'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
+                 'UNIT:a': {'id': 'UNIT:a', 'type': 'UNIT', 'state': 'active', 'fingerprint': 'f',
+                            'links': [{'type': 'realizes', 'target': 'ARC-1'}]},
+                 'TEST:a': {'id': 'TEST:a', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
+                            'links': [{'type': 'verifies', 'target': 'REQ-1'}]},
+                 'VAL-1': {'id': 'VAL-1', 'type': 'VAL', 'state': 'not-met', 'fingerprint': 'f',
+                           'links': [{'type': 'validates', 'target': 'REQ-1'}]}}
+        self.assertFalse(model.chain_verified(chain['REQ-1'], model.incoming(chain), chain))
+        chain['VAL-1']['state'] = 'met'
+        self.assertTrue(model.chain_verified(chain['REQ-1'], model.incoming(chain), chain))
 
     def test_a_directory_that_is_not_a_repository_has_no_changes(self):
         other = Path(tempfile.mkdtemp(prefix='model-nogit-'))

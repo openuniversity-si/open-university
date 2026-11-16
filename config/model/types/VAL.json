@@ -16,5 +16,8 @@
   "inactive_states": [
     "revised"
   ],
+  "unconformant_states": [
+    "defined"
+  ],
   "description": "A validation criterion: a need, a measure, a threshold and a window."
 }
