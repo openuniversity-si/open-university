@@ -193,6 +193,15 @@ class QueueReload:
     def heads(self):
         return set(self.git('for-each-ref', '--format=%(objectname)', 'refs/remotes/origin/').decode().split())
 
+    def queued(self):
+        """PREPARE-ON-BASE-MOVE: the heads of main and the merge-queue branches now (fetched once), or none when the
+        repository does not answer (then nothing is prepared again: the landing prepares it, as before)."""
+        try:
+            self.fetch()
+            return self.heads()
+        except (Refused, OSError, subprocess.SubprocessError):
+            return set()
+
     def ancestor(self, base, sha):
         """BURST-SWAP: refuses unless base is an ancestor of sha (git merge-base --is-ancestor)."""
         out = self.run(['git', '-C', str(self.work / 'repo'), 'merge-base', '--is-ancestor', base, sha],
@@ -417,17 +426,32 @@ class QueueReload:
         return outcome
 
     def look(self, db, order):
-        """Each word not handled yet: every prepare (newest last), then the newest landing only. A process that starts
+        """Each word not handled yet: every prepare (newest last), then the newest landing only. PREPARE-ON-BASE-MOVE (the
+        Torre's AWS review, 16/11/2026): a prepare is handled once per deployed base, so when the deploy build of a merge
+        that was not code-only (a stack) ends green and moves last-sha (its platform.deploy.ended wakes this look), each
+        commit still at the head of a merge-queue branch is prepared again on the new base, and its heir warms while it
+        waits. Before, it was prepared only at its landing, too late for a heir: #144 and #145, queued behind #142's stacks,
+        landed at 05:11:29, wanted at 05:11:30.432, ordered a reload 23 ms later (21.8 s) with the heir held 93 ms after it.
+        A process that starts
         mid-way (the reloaded one) finds the landing's outcome recorded and only follows the order: AutoDeploy.order
         answers it busy with this head, which makes it the order this look follows. Never raises."""
         try:
             words = [(event, sha) for event, sha, _ in db.rows(QUEUED, {}) or []
                      if event in EVENTS and SHA.fullmatch(str(sha or ''))]
             landings = [sha for event, sha in words if event == 'landed']
-            for event, sha in words:
-                if event == 'prepare' and ('prepare', sha) not in self.done and sha not in landings:
-                    self.done.add(('prepare', sha))
-                    self.prepare(db, sha)
+            waiting = list(dict.fromkeys(sha for event, sha in words if event == 'prepare' and sha not in landings))
+            base = str(self.ssm(LAST_SHA) or '').strip() if waiting else ''
+            queued = None
+            for sha in waiting:
+                if ('prepare', sha, base) in self.done:
+                    continue
+                again = ('prepare', sha) in self.done  # PREPARE-ON-BASE-MOVE: prepared before, on another base
+                self.done.update({('prepare', sha), ('prepare', sha, base)})
+                if again:
+                    queued = self.queued() if queued is None else queued
+                    if sha not in queued:
+                        continue
+                self.prepare(db, sha)
             if landings and ('landed', landings[-1]) not in self.done:
                 sha = landings[-1]
                 self.done.add(('landed', sha))
