@@ -439,8 +439,9 @@ class Iam(unittest.TestCase):
         self.assertEqual(sorted(fast['Action']), ['lambda:GetAlias', 'lambda:GetFunctionConfiguration', 'lambda:InvokeFunction',
                                                   'lambda:PublishVersion', 'lambda:UpdateAlias', 'lambda:UpdateFunctionCode'])
         text = json.dumps(fast['Resource'])
-        for function in fastdeploy.FUNCTIONS:
-            self.assertIn(f'function:{function}', text)
+        self.assertIn('function:tower-port-api', text)
+        for gone in ('tower-port-ack-ingress', 'tower-port-webhook-consumer'):  # TASKROLE-LEAST: they left the port stack
+            self.assertNotIn(gone, text)
         self.assertNotIn('doorbell', text)
         read = next(s for p in statements for s in p['PolicyDocument']['Statement'] if s['Sid'] == 'ReadTheLambdaArtifacts')
         self.assertEqual(read['Action'], 's3:GetObject')
