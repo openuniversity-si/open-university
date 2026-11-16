@@ -121,11 +121,6 @@ def base_text(root=ROOT, remote='origin', base='mod/roadmap-integration'):
     return done.stdout if done.returncode == 0 else ''
 
 
-def suggest(root=ROOT, remote='origin', base='mod/roadmap-integration'):
-    """The next free number now, for a lap that has to renumber (the repo comes from the registry)."""
-    return free_number(base_text(root, remote, base), open_pulls(_repo(root)))
-
-
 def _claim_tries():
     from config import get as config_get  # the registry key forge-events.claim_tries (D-189)
     return config_get('forge-events.claim_tries')
