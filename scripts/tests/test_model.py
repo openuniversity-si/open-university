@@ -518,6 +518,21 @@ class Architecture(unittest.TestCase):
         self.assertIn('ARC_b -.-> ARC_c', drawn)
         self.assertIn('ARC_a --x ARC_c', drawn)
 
+    def test_a_test_file_declares_what_it_verifies_on_a_verifies_line(self):
+        root = Path(tempfile.mkdtemp(prefix='model-verifies-'))
+        self.addCleanup(shutil.rmtree, root)
+        write(root, 'scripts/tests/test_a.py', '"""A test.\n\nVerifies: REQ-a, D-1\n"""\n# Verifies: REQ-a, UNIT:x\n')
+        write(root, 'scripts/tests/b.test.sh', '#!/bin/sh\n')
+        found = {item['id']: item for item in model.read_tests(root)}
+        self.assertEqual(found['TEST:scripts/tests/test_a.py']['links'], [{'type': 'verifies', 'target': 'REQ-a'},
+                                                                           {'type': 'verifies', 'target': 'D-1'},
+                                                                           {'type': 'verifies', 'target': 'UNIT:x'}])
+        self.assertEqual(found['TEST:scripts/tests/b.test.sh']['links'], [])
+
+    def test_a_script_test_verifies_the_units_whose_code_its_covers_names(self):
+        found = {item['id']: item for item in model.read_tests(ROOT)}
+        self.assertIn({'type': 'verifies', 'target': 'UNIT:engine-model'}, found['TEST:scripts/tests/model.test.sh']['links'])
+
 
 class RealRepository(unittest.TestCase):
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):

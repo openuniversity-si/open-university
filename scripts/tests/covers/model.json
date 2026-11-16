@@ -38,6 +38,7 @@
     "config/registry/premises.json",
     "config/architecture/**",
     "docs/adr/*.md",
-    "contracts/units/unit.v1.json"
+    "contracts/units/unit.v1.json",
+    "scripts/lib/units.py"
   ]
 }
