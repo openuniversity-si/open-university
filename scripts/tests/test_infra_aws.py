@@ -1,6 +1,7 @@
 """The factory's AWS infrastructure (engine-infra-aws, D-303). Hermetic: reads the declared budget and the CloudFormation
 templates under infra/aws as JSON and checks Daniel's decision and the guardrails; no AWS call, no network.
 """
+# Verifies: REQ-aws-200
 from fnmatch import fnmatchcase
 import hashlib
 import json

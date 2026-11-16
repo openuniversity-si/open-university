@@ -1,5 +1,6 @@
 """The verifier thread's gate (scripts/verify-commit): the gate's plan run on the exact commit, its verdict published as
 the commit's tower/gate status. Hermetic: a fake run answers git, gate-check and gh."""
+# Verifies: REQ-github-truth
 import json
 import re
 import os

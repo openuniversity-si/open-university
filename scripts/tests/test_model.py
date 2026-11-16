@@ -1,5 +1,6 @@
 """scripts/model (PADRAO-DEV F1a): the metamodel as data, the objects of the systems that exist, the check, the chain,
 the inventory and the conformance. Hermetic: no network; the error cases run on a temporary checkout."""
+# Verifies: REQ-chain-verified
 import json
 from pathlib import Path
 import shutil

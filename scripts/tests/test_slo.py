@@ -1,4 +1,5 @@
 """SLO registry entries, the slo.breached contract, the reader and the dashboard (O1, D-069 item 6). Hermetic."""
+# Verifies: REQ-slo-budgets-slo-gate-failure-rate-max-percent, REQ-slo-budgets-slo-merged-prs-per-hour-min
 from datetime import datetime, timedelta, timezone
 import copy
 import functools
