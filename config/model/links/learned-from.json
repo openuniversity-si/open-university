@@ -1,0 +1,13 @@
+{
+  "name": "learned-from",
+  "from": [
+    "LESSON",
+    "PROP"
+  ],
+  "to": [
+    "INC",
+    "CHG",
+    "LESSON"
+  ],
+  "description": "A lesson or a proposal comes from an incident, a change or another lesson."
+}

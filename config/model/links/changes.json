@@ -1,0 +1,11 @@
+{
+  "name": "changes",
+  "from": [
+    "PROP"
+  ],
+  "to": [
+    "STD",
+    "VER"
+  ],
+  "description": "A proposal changes a rule or a version of the standard."
+}

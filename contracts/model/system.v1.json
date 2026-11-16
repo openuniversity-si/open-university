@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/system.v1.json",
+  "title": "Model system v1",
+  "description": "config/model/systems/<id>.json (PADRAO-DEV F1): one of the managed systems of the engineering life cycle, with the ISO/IEC/IEEE 15288/12207 processes and SWEBOK v4 areas it covers, its owner and its own measure.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "processes",
+    "owner",
+    "measure",
+    "description"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The system id, equal to the file name."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "processes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "The 15288/12207 processes and SWEBOK areas it covers."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who owns the system: one of the three domains of AGENTS.md (capacity, efficiency, administration) or Daniel."
+    },
+    "measure": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The system's own measure, in one sentence."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

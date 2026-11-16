@@ -1,0 +1,16 @@
+{
+  "id": "P",
+  "name": "premise or risk",
+  "system": "knowledge",
+  "states": [
+    "inferred",
+    "to-validate",
+    "confirmed",
+    "validated",
+    "refuted"
+  ],
+  "inactive_states": [
+    "refuted"
+  ],
+  "description": "A premise with its blast radius, which is also a risk."
+}

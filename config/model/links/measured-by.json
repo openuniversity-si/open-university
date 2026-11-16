@@ -1,0 +1,11 @@
+{
+  "name": "measured-by",
+  "from": [
+    "VAL",
+    "REQ"
+  ],
+  "to": [
+    "MEAS"
+  ],
+  "description": "A validation or a quality requirement is measured by a measure."
+}

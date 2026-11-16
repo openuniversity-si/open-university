@@ -1,0 +1,15 @@
+{
+  "id": "contract",
+  "name": "Invariants and guarantees of docs/domain/CONTRACT.md",
+  "parts": [
+    {
+      "kind": "content",
+      "glob": "docs/domain/CONTRACT.md",
+      "pattern": "\\b((?:INV|G)-[A-Z0-9-]+)"
+    }
+  ],
+  "becomes": [
+    "REQ"
+  ],
+  "description": "The domain contract's invariants and guarantees."
+}

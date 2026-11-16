@@ -1,0 +1,11 @@
+{
+  "id": "verification",
+  "name": "Verification",
+  "processes": [
+    "15288/12207 verification",
+    "SWEBOK 5 Software Testing"
+  ],
+  "owner": "capacity",
+  "measure": "Share of requirements with a test, completeness of the gate's selection, test adequacy (diff coverage, diff mutation) and the flaky rate.",
+  "description": "Tests with their level (unit, integration, system) and integrity level, and the verdict of each on an exact sha."
+}

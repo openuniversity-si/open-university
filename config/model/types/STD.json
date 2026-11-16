@@ -1,0 +1,15 @@
+{
+  "id": "STD",
+  "name": "rule of the standard",
+  "system": "standard",
+  "states": [
+    "draft",
+    "warning",
+    "blocking",
+    "replaced"
+  ],
+  "inactive_states": [
+    "replaced"
+  ],
+  "description": "A rule of the development standard with its check, the tests of the check and its mode."
+}

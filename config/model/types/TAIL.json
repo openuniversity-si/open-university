@@ -1,0 +1,15 @@
+{
+  "id": "TAIL",
+  "name": "tailoring exemption",
+  "system": "standard-management",
+  "states": [
+    "active",
+    "expired",
+    "revoked"
+  ],
+  "inactive_states": [
+    "expired",
+    "revoked"
+  ],
+  "description": "An exemption from a rule for a scope, authorized by a decision, with a validity."
+}

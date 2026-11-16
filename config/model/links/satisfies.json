@@ -1,0 +1,11 @@
+{
+  "name": "satisfies",
+  "from": [
+    "ARC"
+  ],
+  "to": [
+    "REQ"
+  ],
+  "oslc": "oslc_rm:satisfiedBy",
+  "description": "An architecture element satisfies a requirement."
+}

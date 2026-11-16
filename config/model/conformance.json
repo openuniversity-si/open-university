@@ -1,0 +1,21 @@
+{
+  "description": "The rating scale of a calculated conformance (ISO/IEC 33020, as Automotive SPICE uses it): the share of a system's objects that pass every rule that applies to them, minus live exemptions. The first level whose upper bound the share does not exceed is the rating.",
+  "scale": [
+    {
+      "level": "N",
+      "up_to": 0.15
+    },
+    {
+      "level": "P",
+      "up_to": 0.5
+    },
+    {
+      "level": "L",
+      "up_to": 0.85
+    },
+    {
+      "level": "F",
+      "up_to": 1
+    }
+  ]
+}

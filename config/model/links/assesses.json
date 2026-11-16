@@ -1,0 +1,10 @@
+{
+  "name": "assesses",
+  "from": [
+    "ASSESS"
+  ],
+  "to": [
+    "STD"
+  ],
+  "description": "An assessment assesses the conformance to a rule."
+}

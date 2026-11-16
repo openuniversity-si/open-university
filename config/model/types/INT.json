@@ -1,0 +1,21 @@
+{
+  "id": "INT",
+  "name": "intention or goal",
+  "system": "intent",
+  "states": [
+    "proposed",
+    "validated",
+    "active",
+    "superseded"
+  ],
+  "inactive_states": [
+    "superseded"
+  ],
+  "covered_by": [
+    {
+      "type": "NEED",
+      "link": "refines"
+    }
+  ],
+  "description": "The owner's intention, a goal of its ladder or a locked constraint."
+}

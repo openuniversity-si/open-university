@@ -1,0 +1,12 @@
+{
+  "name": "assumes",
+  "from": [
+    "D",
+    "REQ",
+    "STD"
+  ],
+  "to": [
+    "P"
+  ],
+  "description": "An object rests on a premise (Premises:)."
+}

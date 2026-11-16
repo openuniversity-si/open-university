@@ -1,0 +1,22 @@
+{
+  "id": "ARC",
+  "name": "architecture element",
+  "system": "architecture",
+  "states": [
+    "proposed",
+    "active",
+    "deprecated",
+    "retired"
+  ],
+  "inactive_states": [
+    "deprecated",
+    "retired"
+  ],
+  "covered_by": [
+    {
+      "type": "UNIT",
+      "link": "realizes"
+    }
+  ],
+  "description": "A system, capability, component, contract or port of the architecture."
+}

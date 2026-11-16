@@ -1,0 +1,11 @@
+{
+  "name": "tracks",
+  "from": [
+    "CHG"
+  ],
+  "to": [
+    "WORK"
+  ],
+  "oslc": "oslc_rm:trackedBy",
+  "description": "A change delivers a work item."
+}

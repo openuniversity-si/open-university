@@ -1,0 +1,17 @@
+{
+  "id": "engine-model",
+  "purpose": "The engineering model (PADRAO-DEV): the metamodel as data (object types, link types, systems, inventory sources, conformance scale) and scripts/model, which reads the objects of every system, checks the model and measures the end-to-end chain, the requirement inventory and each system's conformance.",
+  "cell": "engine",
+  "owner": "engine-lane",
+  "paths": [
+    "config/model/**",
+    "contracts/model/*.json",
+    "scripts/lib/model.py",
+    "scripts/model",
+    "scripts/tests/model.test.sh",
+    "scripts/tests/test_model.py"
+  ],
+  "requires": {
+    "engine-config": "^1"
+  }
+}

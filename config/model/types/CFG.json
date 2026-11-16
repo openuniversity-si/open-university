@@ -1,0 +1,16 @@
+{
+  "id": "CFG",
+  "name": "configuration item",
+  "system": "configuration",
+  "states": [
+    "proposed",
+    "active",
+    "deprecated",
+    "retired"
+  ],
+  "inactive_states": [
+    "deprecated",
+    "retired"
+  ],
+  "description": "A registry key, a toolchain pin or another configured value."
+}

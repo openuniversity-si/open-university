@@ -1,0 +1,14 @@
+{
+  "id": "VER",
+  "name": "version of the standard",
+  "system": "standard-management",
+  "states": [
+    "draft",
+    "effective",
+    "superseded"
+  ],
+  "inactive_states": [
+    "superseded"
+  ],
+  "description": "A version of the standard (docs/padrao/v<N>/) and the rules it contains."
+}

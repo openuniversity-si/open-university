@@ -1,0 +1,17 @@
+{
+  "id": "PROP",
+  "name": "proposal to change the standard",
+  "system": "standard-management",
+  "states": [
+    "open",
+    "warning",
+    "decided",
+    "applied",
+    "rejected"
+  ],
+  "inactive_states": [
+    "applied",
+    "rejected"
+  ],
+  "description": "A proposal to change the standard, decided by a decision within a deadline."
+}

@@ -1,0 +1,13 @@
+{
+  "name": "verifies",
+  "from": [
+    "TEST"
+  ],
+  "to": [
+    "REQ",
+    "D",
+    "UNIT"
+  ],
+  "oslc": "oslc_qm:validatesRequirement",
+  "description": "A test verifies a requirement, a decision or a unit (trailer Verifies:, the proof of a decision)."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "measurement",
+  "name": "Measurement",
+  "processes": [
+    "15288/12207 measurement",
+    "15288/12207 system analysis",
+    "SWEBOK 15 Software Engineering Economics"
+  ],
+  "owner": "administration",
+  "measure": "Share of measures with an information need and a consumer, and their freshness.",
+  "description": "Measures with the ISO/IEC/IEEE 15939 metadata: information need, base or derived, function, indicator, decision criteria."
+}

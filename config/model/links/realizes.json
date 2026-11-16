@@ -1,0 +1,10 @@
+{
+  "name": "realizes",
+  "from": [
+    "UNIT"
+  ],
+  "to": [
+    "ARC"
+  ],
+  "description": "A unit realizes an architecture element (Arcadia realization)."
+}

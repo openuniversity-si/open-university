@@ -1,0 +1,18 @@
+{
+  "id": "WORK",
+  "name": "work item",
+  "system": "work",
+  "states": [
+    "queued",
+    "claimed",
+    "in-progress",
+    "delivered"
+  ],
+  "derived_states": [
+    "delivered"
+  ],
+  "inactive_states": [
+    "delivered"
+  ],
+  "description": "A program, project, queue unit or commit plan item."
+}

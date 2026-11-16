@@ -1,0 +1,18 @@
+{
+  "name": "supersedes",
+  "from": [
+    "D",
+    "STD",
+    "VER",
+    "REQ",
+    "ARC"
+  ],
+  "to": [
+    "D",
+    "STD",
+    "VER",
+    "REQ",
+    "ARC"
+  ],
+  "description": "A newer object supersedes an older one of the same type."
+}

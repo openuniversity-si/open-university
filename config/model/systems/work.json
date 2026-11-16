@@ -1,0 +1,13 @@
+{
+  "id": "work",
+  "name": "Work",
+  "processes": [
+    "15288/12207 portfolio management",
+    "15288/12207 project planning",
+    "15288/12207 project assessment and control",
+    "SWEBOK 9 Software Engineering Management"
+  ],
+  "owner": "capacity",
+  "measure": "Throughput, work in progress, time per PR and queue age.",
+  "description": "Programs, projects, queue units and commit plans, each linked to what it delivers."
+}

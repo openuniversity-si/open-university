@@ -1,0 +1,11 @@
+{
+  "id": "VERD",
+  "name": "verdict",
+  "system": "verification",
+  "states": [
+    "pass",
+    "fail",
+    "error"
+  ],
+  "description": "The result of a test on an exact sha."
+}

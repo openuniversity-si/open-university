@@ -1,0 +1,32 @@
+{
+  "id": "REQ",
+  "name": "requirement",
+  "system": "requirements",
+  "states": [
+    "draft",
+    "approved",
+    "implemented",
+    "verified",
+    "superseded",
+    "obsolete"
+  ],
+  "derived_states": [
+    "implemented",
+    "verified"
+  ],
+  "inactive_states": [
+    "superseded",
+    "obsolete"
+  ],
+  "covered_by": [
+    {
+      "type": "ARC",
+      "link": "satisfies"
+    },
+    {
+      "type": "TEST",
+      "link": "verifies"
+    }
+  ],
+  "description": "A requirement of any kind (product, operation, quality, constraint, interface) with a testable statement."
+}

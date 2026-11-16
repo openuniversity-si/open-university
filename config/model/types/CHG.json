@@ -1,0 +1,21 @@
+{
+  "id": "CHG",
+  "name": "change",
+  "system": "construction",
+  "states": [
+    "draft",
+    "ready",
+    "queued",
+    "merged",
+    "deployed",
+    "reverted"
+  ],
+  "derived_states": [
+    "merged",
+    "deployed"
+  ],
+  "inactive_states": [
+    "reverted"
+  ],
+  "description": "A pull request and the commits it lands."
+}

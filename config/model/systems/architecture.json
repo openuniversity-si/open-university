@@ -1,0 +1,13 @@
+{
+  "id": "architecture",
+  "name": "Architecture",
+  "processes": [
+    "15288/12207 architecture definition",
+    "15288/12207 design definition",
+    "SWEBOK 2 Software Architecture",
+    "SWEBOK 3 Software Design"
+  ],
+  "owner": "administration",
+  "measure": "Reflexion conformance: convergences over convergences, divergences and absences between the declared and the extracted dependency graph.",
+  "description": "Systems, capabilities, components, contracts and ports, the views generated from them, and the functions that check them."
+}

@@ -1,0 +1,12 @@
+{
+  "name": "derives-from",
+  "from": [
+    "REQ"
+  ],
+  "to": [
+    "NEED",
+    "REQ"
+  ],
+  "oslc": "oslc_rm:elaboratedBy",
+  "description": "A requirement derives from a need or a parent requirement."
+}

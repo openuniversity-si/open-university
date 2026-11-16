@@ -1,0 +1,25 @@
+{
+  "id": "NEED",
+  "name": "stakeholder need",
+  "system": "intent",
+  "states": [
+    "proposed",
+    "validated",
+    "active",
+    "superseded"
+  ],
+  "inactive_states": [
+    "superseded"
+  ],
+  "covered_by": [
+    {
+      "type": "REQ",
+      "link": "derives-from"
+    },
+    {
+      "type": "VAL",
+      "link": "validates"
+    }
+  ],
+  "description": "A need that refines the intention and that requirements and validations answer."
+}

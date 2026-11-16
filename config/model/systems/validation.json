@@ -1,0 +1,10 @@
+{
+  "id": "validation",
+  "name": "Validation",
+  "processes": [
+    "15288/12207 validation"
+  ],
+  "owner": "Daniel",
+  "measure": "Share of needs with a validation met, and the distance to the intention's ladder.",
+  "description": "Validation criteria (a need, a measure, a threshold, a window), the final validation test and the evidence of each."
+}

@@ -1,0 +1,13 @@
+{
+  "id": "conformance",
+  "name": "Conformance",
+  "processes": [
+    "15288/12207 quality management",
+    "15288/12207 quality assurance",
+    "SWEBOK 12 Software Quality",
+    "SWEBOK 13 Software Security (as requirements and checks)"
+  ],
+  "owner": "administration",
+  "measure": "The N/P/L/F level of every system and its trend.",
+  "description": "The assessment of every system and every rule on a sha, calculated at each merge and never written by hand."
+}

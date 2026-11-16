@@ -1,0 +1,13 @@
+{
+  "id": "construction",
+  "name": "Construction and delivery",
+  "processes": [
+    "15288/12207 implementation",
+    "15288/12207 integration",
+    "15288/12207 transition",
+    "SWEBOK 4 Software Construction"
+  ],
+  "owner": "capacity",
+  "measure": "Share of PRs merged in the first round, code files without a unit, construction findings that never rise.",
+  "description": "Units and their code, each change (PR) from draft to deployed, and the releases main rings."
+}

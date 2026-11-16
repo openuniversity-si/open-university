@@ -1,0 +1,21 @@
+{
+  "id": "decisions",
+  "name": "Decisions (records and the older table rows)",
+  "parts": [
+    {
+      "kind": "filename",
+      "glob": "docs/domain/decisions/D-*.md",
+      "pattern": "^(D-[0-9]+)\\.md$"
+    },
+    {
+      "kind": "content",
+      "glob": "docs/domain/DECISIONS.md",
+      "pattern": "^\\| (D-[0-9]+) "
+    }
+  ],
+  "becomes": [
+    "D",
+    "REQ"
+  ],
+  "description": "Daniel's decisions; each becomes a D, and a requirement where it states what must be true."
+}

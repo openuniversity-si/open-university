@@ -1,0 +1,12 @@
+{
+  "id": "standard",
+  "name": "Standard",
+  "processes": [
+    "15288/12207 life cycle model management (the processes, models and rules)",
+    "SWEBOK 10 Software Engineering Process",
+    "SWEBOK 11 Software Engineering Models and Methods"
+  ],
+  "owner": "administration",
+  "measure": "Share of rules with an executable check, and rules in warning past their deadline.",
+  "description": "The rules of the development standard, one file each, with the object types they apply to, their check, the tests of the check and their mode."
+}
