@@ -614,7 +614,7 @@ class StackTests(unittest.TestCase):
                           ['lambda:UpdateFunctionCode', 'lambda:PublishVersion', 'lambda:UpdateAlias', 'lambda:GetAlias',
                            'lambda:GetFunctionConfiguration', 'lambda:InvokeFunction'], 's3:GetObject',  # AUTO1: the doorbell; DEP8: the aliases
                           's3:PutObject',  # QUEUE-RELOAD: the code bundles it prepares
-                          'ecs:RunTask', ['ecs:StopTask', 'ecs:DescribeTasks'], 'ecs:TagResource', 'iam:PassRole',  # IMAGE-PREWARM-B2
+                          # SPOT-STANDBY-GONE: IMAGE-PREWARM-B2's RunTask, StopTask, DescribeTasks, TagResource and PassRole left
                           ['lambda:ListVersionsByFunction', 'lambda:ListAliases'], 'lambda:DeleteFunction', 's3:ListBucket',
                           's3:DeleteObject', 'ecs:DescribeServices', 'ecs:DescribeTaskDefinition'])  # LAMBDA-PRUNE
         # LAMBDA-PRUNE (the review's finding 26): a version is deleted by its qualified ARN only (never the function itself),

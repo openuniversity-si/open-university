@@ -1472,10 +1472,9 @@ class TheParts(unittest.TestCase):
         table = failover.Table()
         gate = live_image.Gate(table.scope, 'service', S, strict=True, intask=True, clock=table.clock)
         gate.refresh()
-        gate.dismissed = mock.Mock(side_effect=AssertionError('a successor asks nobody: its SIGTERM is its dismissal'))
         stopped = __import__('threading').Event()
         live_image.on_term(gate, table.scope, stopped.set)()
-        self.assertTrue(stopped.wait(5))  # no grace: a Spot standby that the engine did not dismiss stays 100 s
+        self.assertTrue(stopped.wait(5))  # no grace (SPOT-STANDBY-GONE: nor any standby's now)
 
     def test_the_supervisors_signal_is_heard_from_the_start_of_a_successor_only(self):
         with mock.patch.object(live_image.signal, 'signal') as installed, mock.patch.object(live_image, 'TOLD', []):

@@ -204,16 +204,8 @@ DRILL = (f"select 1 from log.event where type = '{DRILL_EVENT}' and tenant_id is
 FIRST_WORK_S = 5  # IMAGE-SWAP-SERVICE-READY: the longest a look woken with the swap waits for the role's first work
 LIVE_BEAT_S = 2  # IMAGE-SWAP-FAILOVER: the live beat's cadence: one statement per task this often, whoever calls
 HANDBACK_S = 5  # IMAGE-SWAP-FAILOVER: the longest a stopping standby waits for its handback, and its connection's timeouts
-# STANDBY-GRACE (architecture review, finding 30): Spot warns a task two minutes ahead (SIGTERM; SIGKILL after the
-# container's StopTimeout, 120 s on the standbys). A standby that left at the warning took the landing's swap with it:
-# live 11/11 two landings 70 s and 21 s after an interruption found no beat and fell to the reload in place (29 s). A
-# standby the engine did not dismiss stays GRACE_S: it beats, a landing may promote it, and the swap needs it only until
-# the ECS tasks reload and take the role over (~25 s). DISMISSED: the newest platform.deploy.standby of its role and
-# bundle is `stopped` (prewarm records it before its StopTask): that one leaves at once, as before
-GRACE_S, GRACE_TICK_S = 100, 0.5
-DISMISSED = ("select payload->>'state' from log.event where type = 'platform.deploy.standby' and tenant_id is null "
-             "and occurred_at > now() - interval '1 day' and payload->>'role' = %(role)s and payload->>'digest' = %(digest)s "
-             "order by occurred_at desc limit 1")
+# SPOT-STANDBY-GONE (D-316): STANDBY-GRACE (a Spot standby's two minutes after Spot's warning, unless the prewarm
+# dismissed it) left with the Spot standbys; a successor inside its task stays through no grace
 # IMAGE-SWAP-TIGHTEN: the third column, the seconds from the pointer's write to this read on the database clock, is the
 # swap's notify_s (the NOTIFY's delivery and the read) when the read turns this image live
 READ = ("select v.value::text, v.version, extract(epoch from clock_timestamp() - v.updated_at)::float8 "
@@ -599,17 +591,6 @@ class Gate:
         LOG.info('live image: %s %s is stopping: %s', self.role, self.digest,
                  'its pointer is handed back, the ECS task takes the role' if done else 'the pointer does not name it')
         return bool(done)
-
-    def dismissed(self, scope=None):
-        """STANDBY-GRACE: whether the engine itself stopped this standby (DISMISSED). True too when it cannot be read: a
-        standby that cannot reach the database cannot beat either, and leaves as before."""
-        try:
-            with (scope or self.scope)() as db:
-                found = db.rows(DISMISSED, {'role': self.role, 'digest': self.digest})
-            return bool(found) and found[0][0] == 'stopped'
-        except Exception:  # noqa: BLE001
-            LOG.exception('live image: could not read whether %s %s was dismissed; it leaves', self.role, self.digest)
-            return True
 
     def handover(self):
         """IMAGE-PREWARM-C: the reconciled ECS task takes the role from the promoted standby: the pointer is emptied if it
@@ -1267,22 +1248,14 @@ def on_term(gate, scope, then, clock=time.monotonic):
     its role back (Gate.handback on scope), HANDBACK_S at most so a slow database never holds the exit, and only then
     stops; any other process (no gate, an ECS task) stops at once: then itself, as before. The handler only sets an
     event (nothing that takes a lock the interrupted thread may hold); a thread started here, before any signal, does
-    the rest. STANDBY-GRACE: a standby that is not promoted and that the engine did not dismiss (Spot's warning) stays
-    GRACE_S before that: its loop goes on beating, a landing may promote it, and it leaves as soon as a promotion ended
-    (the ECS tasks took the role over) or the grace ran out (then the handback, if the pointer still names it)."""
+    the rest. SPOT-STANDBY-GONE (D-316): the Spot standby's grace after Spot's warning left with the Spot standbys; a
+    successor inside its task (the only standby now) stays through no grace."""
     if gate is None or not gate.strict:
         return then
     term = threading.Event()
 
     def leave():
         term.wait()
-        # IN-TASK-STANDBY: a successor inside the task stays through no grace: its SIGTERM is its dismissal or the task's stop
-        if not gate.active() and not gate.intask and not gate.dismissed(scope):
-            LOG.info('live image: %s standby %s is warned of its stop: it stands by %d s more', gate.role, gate.digest, GRACE_S)
-            until, promoted, tick = clock() + GRACE_S, False, threading.Event()
-            while clock() < until and not (promoted and not gate.active()):
-                promoted = promoted or gate.active()
-                tick.wait(GRACE_TICK_S)  # the gate's state is in memory (its listener keeps it): no statement
         giving = threading.Thread(target=gate.handback, args=(scope,), name='handback', daemon=True)
         giving.start()
         giving.join(HANDBACK_S)

@@ -604,7 +604,7 @@ class StackTests(unittest.TestCase):
                     self.assertTrue(5 <= check.get('Interval', 30) <= 300, where)
                     self.assertTrue(1 <= check.get('Retries', 3) <= 10, where)
                     self.assertLess(check.get('Timeout', 5), check.get('Interval', 30), where)
-        self.assertGreaterEqual(found, 2)
+        self.assertGreaterEqual(found, 1)  # the service's (SPOT-STANDBY-GONE: the standby's left with its task definition)
 
     def test_the_network_has_no_nat_and_a_private_database(self):
         resources = load(INFRA / 'stacks/10-network.json')['Resources']
@@ -860,94 +860,34 @@ class LayerTests(unittest.TestCase):
         self.assertIsNotNone(REGION_CODE.search('arn:aws-partition:ssm:sa-east-1:'))
 
 
-class PrewarmStandbyTests(unittest.TestCase):
-    """IMAGE-PREWARM-B2: the live service (task role tower-app-service) runs a standby per role for an authoring head's code
-    bundle: RunTask of the two families only, in the cluster only; StopTask, DescribeTasks and the launch's tags on the
-    cluster's tasks only; PassRole of the four task roles only to ECS tasks. The service's standby is CloudFormation's, the
-    service without its init container, so no task definition is registered at runtime and the owner's dbinit never runs
-    per standby."""
-    CLUSTER = 'arn:aws-partition:ecs:REGION:ACCOUNT:cluster/tower'
-
+class SpotStandbyGoneTests(unittest.TestCase):
+    """SPOT-STANDBY-GONE (D-316): the live service ran Spot standbys of an authoring head's bundle (IMAGE-PREWARM-B2, the
+    prewarm); the prewarm left, and with it the standby's task definition (tower-service-standby), the task role's grant to
+    run, stop, tag and pass roles to tasks, and the standbys' network in the service's environment. The cluster's name
+    stays: the prune reads it (TOWER_STANDBY_CLUSTER)."""
     def setUp(self):
         self.template = load(INFRA / 'stacks/30-service.json')
         self.resources = self.template['Resources']
-        policy = next(item for item in self.resources['TaskRole']['Properties']['Policies'] if item['PolicyName'] == 'prewarm')
-        text = json.dumps(policy['PolicyDocument']['Statement']).replace('${Cluster}', 'tower').replace(
-            json.dumps({'Fn::GetAtt': ['Cluster', 'Arn']}), json.dumps(self.CLUSTER))
-        self.statements = json.loads(text)
-        self.boundary = load(INFRA / 'bootstrap.json')['Resources']['Boundary']['Properties']['PolicyDocument']['Statement']
+        self.statements = [each for policy in self.resources['TaskRole']['Properties']['Policies']
+                           for each in policy['PolicyDocument']['Statement']]
 
-    def allowed(self, action, resource, context=None):
-        mine = decide(self.statements, action, resource, context)
-        return mine == 'allow' and decide(self.boundary, action, resource, context) == 'allow'
+    def test_no_standby_task_definition_and_no_prewarm_policy(self):
+        definitions = {name: item['Properties']['Family'] for name, item in self.resources.items()
+                       if item['Type'] == 'AWS::ECS::TaskDefinition'}
+        self.assertEqual(definitions, {'TaskDefinition': 'tower-service'})
+        self.assertNotIn('prewarm', [policy['PolicyName'] for policy in self.resources['TaskRole']['Properties']['Policies']])
 
-    def test_run_task_only_of_the_two_families_and_only_in_the_cluster(self):
-        inside = {'ecs:cluster': self.CLUSTER}
-        for family in ('tower-runner', 'tower-service-standby'):
-            self.assertTrue(self.allowed('ecs:RunTask', f'arn:aws-partition:ecs:REGION:ACCOUNT:task-definition/{family}:7', inside))
-            self.assertFalse(self.allowed('ecs:RunTask', f'arn:aws-partition:ecs:REGION:ACCOUNT:task-definition/{family}:7',
-                                          {'ecs:cluster': 'arn:aws-partition:ecs:REGION:ACCOUNT:cluster/other'}))
-        for other in ('tower-service', 'tower-ack-canary', 'anything'):
-            self.assertFalse(self.allowed('ecs:RunTask', f'arn:aws-partition:ecs:REGION:ACCOUNT:task-definition/{other}:1', inside))
+    def test_the_task_role_runs_stops_tags_and_passes_nothing(self):
+        granted = {action for item in self.statements if item['Effect'] == 'Allow' for action in as_list(item['Action'])}
+        self.assertEqual(granted & {'ecs:RunTask', 'ecs:StopTask', 'ecs:DescribeTasks', 'ecs:TagResource', 'iam:PassRole'}, set())
+        self.assertFalse([action for action in granted if action in ('ecs:*', 'iam:*', '*')])
 
-    def test_stop_describe_and_tag_only_the_tasks_of_the_cluster(self):
-        task = 'arn:aws-partition:ecs:REGION:ACCOUNT:task/tower/0123abcd'
-        for action in ('ecs:StopTask', 'ecs:DescribeTasks'):
-            self.assertTrue(self.allowed(action, task))
-            self.assertFalse(self.allowed(action, 'arn:aws-partition:ecs:REGION:ACCOUNT:task/other/0123abcd'))
-        self.assertTrue(self.allowed('ecs:TagResource', task, {'ecs:CreateAction': 'RunTask'}))
-        self.assertFalse(self.allowed('ecs:TagResource', task))  # a tag only at the launch, never a retag
-        for action in ('ecs:UpdateService', 'ecs:RegisterTaskDefinition', 'ecs:DescribeServices', 'ecs:ListTasks'):
-            self.assertEqual(decide(self.statements, action, '*'), 'implicit', action)
-
-    def test_pass_role_only_the_four_task_roles_and_only_to_ecs_tasks(self):
-        to_ecs = {'iam:PassedToService': 'ecs-tasks.amazonaws.com'}
-        names = {load(INFRA / 'stacks' / stack)['Resources'][role]['Properties']['RoleName']
-                 for stack in ('30-service.json',) for role in ('TaskRole', 'ExecutionRole')}  # GATE-SHUTDOWN: no runner roles
-        self.assertEqual(names, {'tower-app-service', 'tower-app-service-exec'})
-        for name in names:
-            self.assertTrue(self.allowed('iam:PassRole', f'arn:aws-partition:iam::ACCOUNT:role/{name}', to_ecs))
-            self.assertFalse(self.allowed('iam:PassRole', f'arn:aws-partition:iam::ACCOUNT:role/{name}',
-                                          {'iam:PassedToService': 'lambda.amazonaws.com'}))
-        self.assertFalse(self.allowed('iam:PassRole', 'arn:aws-partition:iam::ACCOUNT:role/tower-app-port', to_ecs))
-        self.assertFalse(self.allowed('iam:PassRole', 'arn:aws-partition:iam::ACCOUNT:role/tower-cfn-exec', to_ecs))
-
-    def test_no_wildcard_beyond_the_tasks_of_the_cluster(self):
-        for item in self.statements:
-            for resource in (str(resolved(each)) for each in as_list(item['Resource'])):
-                wild = resource[resource.index('*'):] if '*' in resource else ''
-                self.assertIn(wild, ('', '*'), resource)  # only a trailing one
-                self.assertRegex(resource, r'(task-definition/tower-(runner|service-standby):|task/tower/|role/tower-app-)')
-
-    def test_the_standby_is_the_service_without_its_init_container(self):
-        live, standby = (self.resources[name]['Properties'] for name in ('TaskDefinition', 'StandbyTaskDefinition'))
-        self.assertEqual((live['Family'], standby['Family']), ('tower-service', 'tower-service-standby'))
-        self.assertEqual({key: value for key, value in standby.items() if key not in ('Family', 'ContainerDefinitions')},
-                         {key: value for key, value in live.items() if key not in ('Family', 'ContainerDefinitions')})
-        [container] = standby['ContainerDefinitions']
-        service = next(each for each in live['ContainerDefinitions'] if each['Name'] == 'service')
-        self.assertNotIn('DependsOn', container)
-        self.assertNotIn('Secrets', container)
-        self.assertEqual(container['LogConfiguration']['Options']['awslogs-stream-prefix'], 'standby')
-        same = {key: value for key, value in service.items() if key not in ('DependsOn', 'LogConfiguration')}
-        self.assertEqual({key: value for key, value in container.items() if key not in ('LogConfiguration', 'StopTimeout')}, same)
-        # STANDBY-GRACE: Spot's warning leaves the standby its two minutes (live_image.GRACE_S and the handback fit in them)
-        self.assertEqual(container['StopTimeout'], 120)
-        source = (ROOT / 'infra/service/tower_infra/live_image.py').read_text(encoding='utf-8')  # read, not imported: no dependency here
-        grace, handback = (int(re.search(pattern, source, re.M).group(1)) for pattern in (r'^GRACE_S, GRACE_TICK_S = (\d+),',
-                                                                                         r'^HANDBACK_S = (\d+)\b'))
-        self.assertLess(grace + handback, container['StopTimeout'])
-        self.assertEqual(container['Image'], {'Ref': 'Image'})  # the image parameter: the deployer's, never a runtime one
-
-    def test_the_service_knows_the_cluster_and_the_network_of_its_standbys(self):
+    def test_the_service_knows_the_cluster_and_no_standby_network(self):
         service = next(each for each in self.resources['TaskDefinition']['Properties']['ContainerDefinitions']
                        if each['Name'] == 'service')
         given = {item['Name']: item['Value'] for item in service['Environment']}
-        self.assertEqual(given['TOWER_STANDBY_CLUSTER'], {'Ref': 'Cluster'})
-        network = self.resources['Service']['Properties']['NetworkConfiguration']['AwsvpcConfiguration']
-        self.assertEqual({'Fn::Split': [',', given['TOWER_STANDBY_SUBNETS']]}, network['Subnets'])
-        self.assertEqual([given['TOWER_STANDBY_SECURITY_GROUPS']], network['SecurityGroups'])
-        # (GATE-SHUTDOWN, D-314: the runner's task definition and service left 50-runner.json)
+        self.assertEqual(given['TOWER_STANDBY_CLUSTER'], {'Ref': 'Cluster'})  # the prune's (prune.start)
+        self.assertEqual([name for name in given if name.startswith('TOWER_STANDBY_') and name != 'TOWER_STANDBY_CLUSTER'], [])
 
 
 class CloudFormationLimitTests(unittest.TestCase):

@@ -68,8 +68,6 @@ class Ecs:
                              {'taskDefinition': 'arn:task-definition/tower-runner:12'}]}
 
     def describe_task_definition(self, taskDefinition):
-        if taskDefinition == 'tower-service-standby':
-            raise RuntimeError('ClientException: Unable to describe task definition.')
         return {'taskDefinition': {'containerDefinitions': [
             {'environment': [{'name': name, 'value': value} for name, value in self.env.get(taskDefinition, {}).items()]}]}}
 
