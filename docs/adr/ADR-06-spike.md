@@ -1,5 +1,7 @@
 # ADR-06 spike: how `mux-video` takes the signed token
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Superseded (D-062, 2026-10-26): Mux is removed from the app ([ADR-11](ADR-11-playback-engine.md)). This page records the 2026-10-09 spike only; none of the files or packages it names exist.
 
 Source: `@mux/mux-video@0.31.5` and `@mux/playback-core` (bundled code and `.d.ts`), read 2026-10-09. No network spike: the real check is `pnpm mux:probe --once` after deploy.

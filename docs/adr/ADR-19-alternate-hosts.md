@@ -1,4 +1,6 @@
 # ADR-19: Alternate hosts (Open University, openuniversity.si)
+
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
 Accepted 11/10/2026. **Superseded the same day by ADR-20 (rebrand):** `openuniversity.si` became the canonical host and `thetower.si` and `www.thetower.si` redirect to it with a
 temporary 307; the mechanism below (one list in `hosts.ts`, nothing built from the request host) stays, but the alternate hosts no longer serve pages or send a `Link` canonical
 header: `alternateHostRedirects()` replaces `alternateHostHeaders()`. The text below is the original decision, kept as history.

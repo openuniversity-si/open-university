@@ -1,5 +1,7 @@
 # ADR-25 — One global list of single-discipline subject areas
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-14 · Status: accepted (Daniel)
 
 ## Context

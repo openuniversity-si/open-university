@@ -1,5 +1,7 @@
 # ADR-23 — Home performance budget that scales with the catalog
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-12 · Status: accepted (P8 of the dynamic catalog; mobile LCP target not yet met)
 
 The P8b brief names this record ADR-21; that number already belonged to course editions (ADR-21), and ADR-22 to lesson

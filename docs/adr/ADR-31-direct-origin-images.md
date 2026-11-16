@@ -1,5 +1,7 @@
 # ADR-31 — Direct origin images, no metered optimizer
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Accepted 2026-10-18, H1. Vercel Hobby exhausted image optimization and returned
 `402 OPTIMIZED_IMAGE_REQUEST_PAYMENT_REQUIRED`. No paid plan or service is authorized.
 

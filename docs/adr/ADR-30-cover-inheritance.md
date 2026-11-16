@@ -1,5 +1,7 @@
 # ADR-30: Resolve shared covers on read
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-18. Status: implementation; production acceptance pending.
 
 Repeated lesson uploads store the same image once per lesson and grow both database and media caches.

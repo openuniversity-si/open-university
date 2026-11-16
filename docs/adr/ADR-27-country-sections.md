@@ -1,5 +1,7 @@
 # ADR-27 — Universities grouped by country
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-17 · Status: accepted (Daniel, 17/10: H2 "Small dose, true color" chosen at 17:51; scope set at 17:55)
 
 ## Context

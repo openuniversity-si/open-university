@@ -1,5 +1,7 @@
 # ADR-33 — Development gates per PR, full verification at end of day
 
+Status: accepted (PADRAO-DEV F3a: an engine decision in force).
+
 Accepted 2026-10-19, Daniel's decision at 16:27/16:29 BRT. Supersedes ADR-24/28/29's requirement to run the full
 battery before every main merge. ADR-32's production hard check and rollback are unchanged.
 

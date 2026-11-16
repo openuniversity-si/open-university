@@ -1,5 +1,7 @@
 # ADR-37 — Course projections and CQRS
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Status: accepted for the structural audit (states 4.1 and 5.2).
 
 Publishing writes `catalog_course_projections`, `catalog_release_index` and `catalog_redirects` in the same transaction as the release.

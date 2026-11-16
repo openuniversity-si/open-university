@@ -1,5 +1,7 @@
 # ADR-14 — Unknown slugs are a 404 at routing
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-10 · Status: accepted; the proxy slug set is superseded by the layout guards of [ADR-17](ADR-17-dynamic-catalog.md)
 
 ## Context

@@ -1,5 +1,7 @@
 # ADR-28 — Full local gate within 90 seconds
 
+Status: accepted (PADRAO-DEV F3a: an engine decision in force).
+
 Status: accepted, 2026-10-18. Extends ADR-24. Scope: build/test infrastructure only.
 
 ## Problem

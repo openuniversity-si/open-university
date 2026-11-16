@@ -1,5 +1,7 @@
 # ADR-34 — DB PRs: gate-dev plus a Neon DB gate, not the 3-browser battery
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Accepted 2026-10-19, Daniel's decision at 18:07 BRT. Amends ADR-33's DB exception; ADR-32 is unchanged.
 
 ## Decision

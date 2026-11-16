@@ -1,5 +1,7 @@
 # ADR-15 — Home weight: right-sized media at the origin, one hero, woff2 subset, budgets
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-10 · Status: accepted
 
 ## Context

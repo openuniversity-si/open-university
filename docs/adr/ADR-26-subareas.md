@@ -1,5 +1,7 @@
 # ADR-26 — Fixed subareas and dynamic subarea rails
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-17 · Status: accepted (Daniel, 17/10: "show, manda bala")
 
 ## Context

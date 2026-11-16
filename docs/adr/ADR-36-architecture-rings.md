@@ -1,5 +1,7 @@
 # ADR-36 — Architecture rings and the cumulative checker
 
+Status: accepted (PADRAO-DEV F3a: an engine decision in force).
+
 Status: accepted for the structural audit (state 5.3).
 
 The checker in `scripts/check-architecture.mjs` is the executable form of the ring rules.

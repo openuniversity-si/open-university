@@ -1,5 +1,7 @@
 # ADR-24 — Every check runs on our box; no GitHub Actions
 
+Status: superseded by D-314 (the gate runs on GitHub Actions since 14/11/2026; PADRAO-DEV F3a).
+
 Date: 2026-10-14 · Status: accepted (Daniel's standing rule); amended 2026-10-30 by [ADR-41](ADR-41-gate-and-train-services.md) (D-086, D-087): "no GitHub Actions, ever" became "never depend on GitHub Actions": a hosted runner is one optional, budgeted runner kind, its workflow allowlisted by name (`gate.allowed_workflows`), and merging never waits on an Actions minute.
 
 ## Context

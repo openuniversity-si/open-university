@@ -1,5 +1,7 @@
 # ADR-18 — Protected admin API for the dynamic catalog
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-11 · Status: accepted (P4 of the dynamic catalog plan; builds on ADR-17)
 
 ## Context

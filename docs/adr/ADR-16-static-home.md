@@ -1,4 +1,6 @@
 # ADR-16: Static Home for visitors; signed-in Home by dynamic rewrite
+
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
 Accepted 10/10/2026 (v02); closes the ADR-15 backlog item on the Home's TTFB and CLS.
 
 ## Decision

@@ -1,5 +1,7 @@
 # ADR-35 — Content-addressed media
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Status: proposed (E2; additive database expansion before merge).
 
 The stage text names ADR-29, already allocated to disposable PR databases; ADR-34 went to the DB gate. This decision uses the next free number, 35.
