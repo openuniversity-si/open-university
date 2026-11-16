@@ -70,8 +70,8 @@ class Log:
             newest = {}
             for each in self.events:
                 if each['type'] == live_image.SUCCESSOR and each['payload'].get('branch') == 'queue':
-                    newest[each['payload']['digest']] = each['payload']['state']
-            return [(digest,) for digest, state in newest.items() if state == 'wanted']
+                    newest[each['payload']['digest']] = (each['payload']['state'], each['payload'].get('sha'))
+            return [(digest, sha) for digest, (state, sha) in newest.items() if state == 'wanted']
         if sql == queue_deploy.SWAP:
             if params['digest'] not in self.beating:
                 return []
@@ -242,7 +242,8 @@ class Prepared(unittest.TestCase):
         self.assertEqual((wants[found['sha256']]['state'], wants[found['sha256']]['branch'], wants[found['sha256']]['key']),
                          ('wanted', 'queue', found['key']))
         self.log.beating.add(found['sha256'])
-        self.remote.land(sha)
+        self.remote.git('push', '-q', str(self.remote.bare), f':refs/heads/gh-readonly-queue/main/pr-2-{self.remote.main}')
+        self.remote.land(sha)  # the stale group left the queue (its branch is gone) before this one lands
         said = self.queue.landed(self.log, sha, self.order)
         self.assertEqual((said['state'], said['digest'], said['version']), ('swapped', found['sha256'], 1))
         self.assertEqual(self.orders, [])
@@ -282,6 +283,30 @@ class Prepared(unittest.TestCase):
         self.assertEqual((said['state'], said['digest']), ('swapped', found['sha256']))
         self.assertEqual(self.orders, [])
         self.assertEqual(self.log.pointer, (found['sha256'], 1))
+
+    def test_a_landing_keeps_the_heirs_of_the_entries_still_in_the_queue(self):
+        """BURST-HEIRS: the queue builds entries side by side. The first lands with no heir of its own ready (the task
+        holds the newest want, the third's); the third is still on its merge-queue branch, so its want stands for the
+        swap that comes when it lands, while the first's own want, and the want of a group that left the queue, go."""
+        first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        gone = self.remote.queued({'infra/service/tower_infra/canary.py': 'GONE = 1\n'}, 7)
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        third = self.remote.queued({'infra/service/tower_infra/canary.py': 'LOOK = 3\n'}, 3)
+        found = {sha: self.queue.prepare(self.log, sha) for sha in (first, gone, third)}
+        self.remote.git('push', '-q', str(self.remote.bare), f':refs/heads/gh-readonly-queue/main/pr-7-{self.remote.main}')
+        self.remote.land(first)
+        said = self.queue.landed(self.log, first, self.order)
+        self.assertEqual(said['state'], 'ordered')
+        newest = {}
+        for each in self.log.of(live_image.SUCCESSOR):
+            newest[each['digest']] = each['state']
+        self.assertEqual(newest[found[third]['sha256']], 'wanted')  # still in the queue: its heir stays
+        self.assertEqual(newest[found[first]['sha256']], 'withdrawn')
+        self.assertEqual(newest[found[gone]['sha256']], 'withdrawn')  # its group left the queue
+        self.log.beating.add(found[third]['sha256'])
+        self.remote.land(third, 3)
+        said = self.queue.landed(self.log, third, self.order)
+        self.assertEqual((said['state'], said['digest']), ('swapped', found[third]['sha256']))
 
     def test_merges_one_after_another_faster_than_a_build_go_live_on_the_last(self):
         """BURST-SWAP: the first landed and its build has not ended (last-sha is still the base) when the second lands;
@@ -442,7 +467,7 @@ class OnPostgres(unittest.TestCase):
         self.assertEqual(self.db.rows(autodeploy.LIVE_CODE_WRITE, {'tenant': 'torre', 'head': head}), [(f'{digest}@{head}',)])
         want = {'id': 'w1', 'payload': json.dumps({'digest': digest, 'branch': 'queue', 'state': 'wanted'})}
         self.db.rows(queue_deploy.WANT, want)
-        self.assertEqual(self.db.rows(queue_deploy.WANTED, {}), [(digest,)])
+        self.assertEqual(self.db.rows(queue_deploy.WANTED, {}), [(digest, None)])
         self.db.rows(queue_deploy.WANT, {'id': 'w2', 'payload': json.dumps({'digest': digest, 'branch': 'queue',
                                                                             'state': 'withdrawn'})})
         self.assertEqual(self.db.rows(queue_deploy.WANTED, {}), [])
