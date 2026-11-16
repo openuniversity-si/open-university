@@ -22,7 +22,6 @@ import config
 import forge_events
 import units
 
-DIRECTIONS = ('max', 'min')
 PATTERNS = 'config.monotonic_patterns'
 PRODUCER = 'structure-check'
 REASON = 'registry default edited in the PR, not through scripts/config set'
