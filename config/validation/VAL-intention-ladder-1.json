@@ -1,0 +1,22 @@
+{
+  "id": "VAL-intention-ladder-1",
+  "statement": "The final validation of ladder step 1: 1,000 merged PRs a day over 7 complete days with no guard worse, that is, the throughput, gate, deploy, cost, escape, polling and autonomy validations all met at once.",
+  "validates": [
+    "NEED-throughput"
+  ],
+  "owner": "Daniel",
+  "measure": {
+    "kind": "all-met",
+    "of": [
+      "VAL-ladder-1",
+      "VAL-gate-60s",
+      "VAL-deploy-1s",
+      "VAL-aws-200",
+      "VAL-escape-under-1",
+      "VAL-events-no-polling",
+      "VAL-autonomy"
+    ]
+  },
+  "comparator": "lte",
+  "threshold": 0
+}
