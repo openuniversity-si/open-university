@@ -887,7 +887,8 @@
       "x-unit": "glob",
       "description": "Files every script test runs through (the hermetic wrapper, the cache and the runner); a change to one is a change to the key of every test.",
       "x-readers": [
-        "scripts/lib/gate_test_cache.py"
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/padrao_metrics.py"
       ]
     },
     "gate.test_cache_dir": {

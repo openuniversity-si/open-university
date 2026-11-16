@@ -6,6 +6,7 @@
   "x-source": "D-070",
   "description": "Most undeclared paths one test lists in its trace report; the count of the rest is printed.",
   "x-readers": [
-    "scripts/lib/hermetic.py"
+    "scripts/lib/hermetic.py",
+    "scripts/lib/padrao_metrics.py"
   ]
 }
