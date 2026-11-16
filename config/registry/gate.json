@@ -954,7 +954,8 @@
       "x-unit": "path",
       "description": "The committed cost hints of the script tests, {script: seconds of a cold run}, written by `scripts/test-suite --metrics --write-costs` (GATE-SPEED F2, D-120); a new test writes its own entry with `--write-costs scripts/tests/costs.json --test <path>`, which runs that test alone (VAZÃO F67): a box that has recorded no durations runs the longest tests first by them. Only an order; a stale or absent hint never changes a verdict.",
       "x-readers": [
-        "scripts/lib/gate_test_cache.py"
+        "scripts/lib/gate_test_cache.py",
+        "scripts/lib/verify_commit.py"
       ]
     },
     "gate.test_env_keep": {
