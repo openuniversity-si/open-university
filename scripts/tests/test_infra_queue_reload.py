@@ -266,7 +266,26 @@ class Prepared(unittest.TestCase):
         self.assertEqual(self.log.pointer, ('', 0))
         self.assertEqual(self.log.of(live_image.SUCCESSOR)[-1]['state'], 'withdrawn')
 
-    def test_a_landing_whose_parent_is_not_the_deployed_head_waits_for_the_deploy_build(self):
+    def test_a_burst_that_lands_together_swaps_once_onto_the_last_green_commit(self):
+        """BURST-SWAP: the queue merged two entries at once, so main went from the deployed base to the second, whose
+        first parent is the first and not last-sha. The second's bundle (its tree, classified on every path since the
+        base) is code-only and its heir beats: the pointer moves once, onto it, and nothing is ordered."""
+        first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        self.remote.git('checkout', '-q', '-B', 'main', first)  # the second entry is built on the first
+        second = self.remote.queued({'infra/service/tower_infra/canary.py': 'LOOK = 3\n'}, 2)
+        found = self.queue.prepare(self.log, second)
+        self.assertEqual((found['code_only'], found['base'], found['parent']), (True, self.ssm[queue_deploy.LAST_SHA], first))
+        self.assertEqual(found['sha256'], self.remote.digest_of(second))
+        self.log.beating.add(found['sha256'])
+        self.remote.land(second, 2)  # main jumps from the base to the second: the first was never main alone
+        said = self.queue.landed(self.log, second, self.order)
+        self.assertEqual((said['state'], said['digest']), ('swapped', found['sha256']))
+        self.assertEqual(self.orders, [])
+        self.assertEqual(self.log.pointer, (found['sha256'], 1))
+
+    def test_merges_one_after_another_faster_than_a_build_go_live_on_the_last(self):
+        """BURST-SWAP: the first landed and its build has not ended (last-sha is still the base) when the second lands;
+        with no heir ready the second's reload is ordered, classified from the base."""
         first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
         self.remote.land(first)
         self.remote.git('checkout', '-q', '-B', 'main', first)
@@ -274,8 +293,36 @@ class Prepared(unittest.TestCase):
         second = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 3\n'}, 2)
         self.remote.land(second, 2)
         said = self.queue.landed(self.log, second, self.order)  # last-sha is still the base: first's build has not ended
+        self.assertEqual(said['state'], 'ordered')
+        self.assertEqual([sha for sha, _, _ in self.orders], [second])
+
+    def test_a_burst_with_a_path_the_fast_path_cannot_carry_waits_for_the_deploy_build(self):
+        """BURST-SWAP: the classification is of every path since the deployed commit, so a burst whose first entry
+        changed a migration is not code-only even though its last entry changes code alone."""
+        first = self.remote.queued({'infra/db/migrations/0002_next.sql': 'select 2;\n'})
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        second = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 3\n'}, 2)
+        self.remote.land(second, 2)
+        said = self.queue.landed(self.log, second, self.order)
         self.assertEqual(said['state'], 'skipped')
-        self.assertIn('the deployed is', said['why'])
+        self.assertIn('not code-only', said['why'])
+        self.assertEqual(self.orders, [])
+
+    def test_a_deployed_commit_that_is_not_behind_the_landing_is_refused(self):
+        """BURST-SWAP: last-sha off main's history (a deploy of another line) is never a base to swap from."""
+        self.remote.git('checkout', '-q', '-B', 'side', 'main')
+        self.remote.write('infra/service/tower_infra/canary.py', 'SIDE = 1\n')
+        side = self.remote.commit('side')
+        self.remote.git('push', '-q', str(self.remote.bare), 'side:refs/heads/gh-readonly-queue/main/pr-9-side')
+        self.remote.git('checkout', '-q', 'main')
+        self.ssm[queue_deploy.LAST_SHA] = side
+        first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        second = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 3\n'}, 2)
+        self.remote.land(second, 2)
+        said = self.queue.landed(self.log, second, self.order)
+        self.assertEqual(said['state'], 'skipped')
+        self.assertIn('is not an ancestor of', said['why'])
         self.assertEqual(self.orders, [])
 
     def test_the_port_records_a_word_once_and_ignores_anything_else(self):
