@@ -31,7 +31,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(INT|NEED|REQ)-[a-z0-9][a-z0-9.-]*$"
+        "pattern": "^(NEED|REQ)-[a-z0-9][a-z0-9.-]*$"
       }
     },
     "owner": {

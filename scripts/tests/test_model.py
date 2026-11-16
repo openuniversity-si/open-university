@@ -474,7 +474,7 @@ class Changes(unittest.TestCase):
 
     def test_a_composite_validation_is_met_only_when_all_of_its_validations_are(self):
         def val(id, measure, comparator='lte', threshold=0):
-            body = {'id': id, 'statement': 's', 'validates': ['INT-x'], 'owner': 'o', 'measure': measure,
+            body = {'id': id, 'statement': 's', 'validates': ['NEED-x'], 'owner': 'o', 'measure': measure,
                     'comparator': comparator, 'threshold': threshold, 'window': {'kind': 'days', 'size': 1}}
             return {'id': id, 'type': 'VAL', 'state': 'defined', 'fingerprint': 'f', 'links': [], 'body': body}
         today = self.git_today()
