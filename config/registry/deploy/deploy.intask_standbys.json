@@ -1,10 +1,10 @@
 {
   "type": "integer",
-  "default": 1,
+  "default": 2,
   "minimum": 0,
-  "maximum": 1,
+  "maximum": 2,
   "x-unit": "processes",
-  "description": "IN-TASK-STANDBY (docs/operations/aws.md 22.9): how many successor processes the ECS task of each role holds at once, one per code bundle of an authoring head: the standby the landing swaps onto, inside the task (tower_infra.supervisor), at no cost of its own. 0 (the default) is off: the standbys are the Fargate Spot tasks of deploy.prewarm_max_tasks and a swap is followed by a reload in place. 1: each task holds one successor; the landing promotes it by the pointer and it keeps the role (the previous process finishes what it has in flight and exits). The maximum is 1 while the service task has 512 MiB: a second successor is ~120 MiB and ~8 database connections more in each service task, which does not fit beside a process that is still finishing.",
+  "description": "IN-TASK-STANDBY (docs/operations/aws.md 22.9): how many successor processes the ECS task of each role holds at once, one per code bundle the merge queue wants, the oldest first: the heirs a landing swaps onto, inside the task (tower_infra.supervisor), at no cost of their own. 0 is off: a landing reloads in place. TWO-HEIRS (the Torre, 16/11/2026): 2, so a merge that lands while the entry behind it is still building, and that entry after it, both go live by the pointer's swap (the queue builds five entries side by side, #73); with 1 the task held the newest want and the entry landing first reloaded in place (#115, 16/11: 17 s). The maximum is 2 (supervisor.MOST): the service task has 1024 MiB and 0.5 vCPU since 13/11 and used 349-353 MB with one heir and its reserve (16/11), a second heir is ~100-120 MB and ~8 database connections more, and the database (db.t4g.medium, max_connections about 410) had 13-15 open.",
   "x-readers": [
     "infra/service/tower_infra/live_image.py"
   ],
