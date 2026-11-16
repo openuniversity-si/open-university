@@ -288,6 +288,44 @@ class Prepared(unittest.TestCase):
         self.assertEqual(self.orders, [])
         self.assertEqual(self.log.pointer, (found['sha256'], 1))
 
+    def test_a_want_of_a_commit_already_in_mains_history_is_withdrawn_even_while_its_branch_is_seen(self):
+        """MERGED-WANTS: the queue merged the first and the second together and the landing's fetch still sees the first's
+        branch (GitHub deletes it a moment after); the first is an ancestor of the landing, so its want goes, while an
+        entry built behind the landing keeps its own."""
+        first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        second = self.remote.queued({'infra/service/tower_infra/canary.py': 'LOOK = 3\n'}, 2)
+        self.remote.git('checkout', '-q', '-B', 'main', second)
+        third = self.remote.queued({'infra/service/tower_infra/canary.py': 'LOOK = 4\n'}, 3)
+        found = {name: self.queue.prepare(self.log, sha) for name, sha in (('first', first), ('second', second),
+                                                                           ('third', third))}
+        self.log.beating.add(found['second']['sha256'])
+        self.remote.git('push', '-q', str(self.remote.bare), f'{second}:refs/heads/main')  # both merged; the branches stay
+        said = self.queue.landed(self.log, second, self.order)
+        self.assertEqual(said['state'], 'swapped')
+        newest = {}
+        for each in self.log.of(live_image.SUCCESSOR):
+            newest[each['digest']] = each['state']
+        self.assertEqual(newest[found['first']['sha256']], 'withdrawn')  # in main's history: done
+        self.assertEqual(newest[found['third']['sha256']], 'wanted')  # behind the landing: the next swap's
+        self.assertEqual(newest[found['second']['sha256']], 'wanted')  # the heir that took the role keeps its want
+
+    def test_a_want_a_landing_with_nothing_to_deploy_left_standing_goes_at_the_next_landing(self):
+        """MERGED-WANTS: a merge of no service code (docs) prepares no bundle and its landing withdraws nothing, so the
+        want of the code-only merge before it stood; the next landing finds it in main's history and withdraws it."""
+        first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        old = self.queue.prepare(self.log, first)
+        self.remote.land(first)
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        self.remote.main = first
+        second = self.remote.queued({'infra/service/tower_infra/canary.py': 'LOOK = 3\n'}, 2)
+        self.remote.land(second, 2)
+        self.queue.landed(self.log, second, self.order)  # first was never withdrawn: its landing was never heard
+        newest = {}
+        for each in self.log.of(live_image.SUCCESSOR):
+            newest[each['digest']] = each['state']
+        self.assertEqual(newest[old['sha256']], 'withdrawn')
+
     def test_a_landing_keeps_the_heirs_of_the_entries_still_in_the_queue(self):
         """BURST-HEIRS: the queue builds entries side by side. The first lands with no heir of its own ready (the task
         holds the newest want, the third's); the third is still on its merge-queue branch, so its want stands for the
