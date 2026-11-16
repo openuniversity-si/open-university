@@ -5,6 +5,7 @@ drills and the prune (KEPT_LOOKS) and nothing else: the AWS gate's own looks lef
 with no start and no flag (the service's flag of the gate's looks left with them). Read from serve()'s own source (its syntax tree), as the
 other wiring tests do: serve() needs a database, DBOS and AWS to run. Hermetic.
 """
+# Verifies: REQ-origin-dormant
 import ast
 import json
 from pathlib import Path

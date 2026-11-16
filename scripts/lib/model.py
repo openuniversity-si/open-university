@@ -172,11 +172,62 @@ def read_units(root):
     return objects
 
 
+VERIFIES = re.compile(r'^\s*(?:#\s*)?Verifies:\s*(.+)$', re.MULTILINE)
+
+
 def read_tests(root):
+    """Tests (TEST): every script test and test file. A test file declares what it verifies on a `Verifies:` line (a
+    comment or a docstring line naming requirements, decisions or units, comma-separated: the link on the test
+    itself, as OpenFastTrace tags do); a script test verifies the units whose code its covers manifest names
+    (derived from the declared covers, never written twice)."""
     root = Path(root)
     paths = sorted({Path(found) for pattern in TEST_GLOBS for found in globbing.glob(str(root / pattern), recursive=True)})
-    return [_obj(f'TEST:{path.relative_to(root).as_posix()}', 'TEST', 'active', path.relative_to(root).as_posix(),
-                 path.read_text(errors='replace')) for path in paths if path.is_file()]
+    found = []
+    for path in paths:
+        if not path.is_file():
+            continue
+        text = path.read_text(errors='replace')
+        targets = [target.strip() for listed in VERIFIES.findall(text) for target in listed.split(',') if target.strip()]
+        found.append(_obj(f'TEST:{path.relative_to(root).as_posix()}', 'TEST', 'active', path.relative_to(root).as_posix(),
+                          text, [{'type': 'verifies', 'target': target} for target in dict.fromkeys(targets)]))
+    covered = covered_units(root)
+    by_id = {item['id']: item for item in found}
+    for script, unit_ids in covered.items():
+        item = by_id.get(f'TEST:{script}')
+        if item is not None:
+            item['links'] += [{'type': 'verifies', 'target': f'UNIT:{unit}'} for unit in unit_ids]
+    return found
+
+
+def covered_units(root):
+    """{script test: [unit ids]}: the units that own a code file each covers manifest names (literal paths and globs
+    over the tracked files, test files left out)."""
+    from gate_areas import glob_match
+    import units
+    root = Path(root)
+    listed = _git(root, 'ls-files')
+    code = [name for name in listed.splitlines() if name.startswith(('scripts/', 'infra/', 'services/'))
+            and not name.startswith('scripts/tests/')]
+    if not code:
+        return {}
+    owner = {}
+    for name in code:
+        claims = units.units_of(name, root)
+        if claims:
+            owner[name] = claims
+    result = {}
+    for script, patterns in _covers(root):
+        hit = set()
+        for pattern in patterns:
+            if pattern.startswith('scripts/tests/'):
+                continue
+            if any(mark in pattern for mark in '*?['):
+                hit |= {unit for name, claims in owner.items() if glob_match(name, pattern) for unit in claims}
+            elif pattern in owner:
+                hit |= set(owner[pattern])
+        if hit:
+            result[script] = sorted(hit)
+    return result
 
 
 def _covers(root):

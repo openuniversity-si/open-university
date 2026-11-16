@@ -19,6 +19,7 @@
     "engine-config": "^1",
     "engine-gate-plan": "^1",
     "engine-premises": "^1",
+    "engine-units": "^1",
     "engine-rules": "^1"
   },
   "realizes": [

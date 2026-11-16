@@ -1,4 +1,5 @@
 """The registry-driven local check (LR1): one refusal per seed check, the budget rules, skip-not-fail. Temp git repos, fake clock."""
+# Verifies: REQ-slo-budgets-budgets-pr-changed-lines
 import io
 import json
 import os
