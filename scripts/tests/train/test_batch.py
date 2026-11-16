@@ -1,5 +1,5 @@
 """The merge train v0 (plan v3 M3): batch (TX24: one file per feature; fixtures in scripts/tests/test_train.py)."""
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from pathlib import Path
 import sys
 import unittest
