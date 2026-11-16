@@ -1,0 +1,14 @@
+{
+  "id": "VAL-autonomy",
+  "statement": "No stop of the flow asks Daniel for anything but a login, a credential, money or other people.",
+  "validates": [
+    "NEED-autonomy"
+  ],
+  "owner": "Daniel",
+  "measure": {
+    "kind": "unwired",
+    "source": "the owner-stop incidents (scripts/incident open owner-stop); not read by scripts/model yet"
+  },
+  "comparator": "lte",
+  "threshold": 0
+}

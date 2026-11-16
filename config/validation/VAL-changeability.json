@@ -1,0 +1,14 @@
+{
+  "id": "VAL-changeability",
+  "statement": "The architecture holds: at least 85 % of the dependencies between components are convergent (the reflexion model), so a change stays inside the components it means to touch.",
+  "validates": [
+    "NEED-changeability"
+  ],
+  "owner": "administration",
+  "measure": {
+    "kind": "model-share",
+    "name": "reflexion"
+  },
+  "comparator": "gte",
+  "threshold": 0.85
+}

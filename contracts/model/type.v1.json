@@ -89,6 +89,15 @@
       },
       "description": "An active object of this type holds at least one link of each of these kinds (a test that verifies nothing, a unit that realizes nothing, is code without a requirement: DO-178C)."
     },
+    "unconformant_states": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "States in which an object of this type is never conformant (a validation with no source wired, `defined`)."
+    },
     "description": {
       "type": "string",
       "minLength": 1

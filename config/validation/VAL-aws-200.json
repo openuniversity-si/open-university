@@ -1,0 +1,15 @@
+{
+  "id": "VAL-aws-200",
+  "statement": "The AWS spend stays under US$ 200 a month.",
+  "validates": [
+    "REQ-aws-200",
+    "NEED-cost"
+  ],
+  "owner": "efficiency",
+  "measure": {
+    "kind": "unwired",
+    "source": "the AWS budget (D-315); no reader is wired into scripts/model yet"
+  },
+  "comparator": "lte",
+  "threshold": 200
+}

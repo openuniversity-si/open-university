@@ -9,6 +9,7 @@
     "config/model/**",
     "config/requirements/**",
     "config/standard/**",
+    "config/validation/**",
     "contracts/model/*.json",
     "scripts/lib/model.py",
     "scripts/model",

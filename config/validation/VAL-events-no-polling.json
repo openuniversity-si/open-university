@@ -1,0 +1,14 @@
+{
+  "id": "VAL-events-no-polling",
+  "statement": "No component of the running engine polls a state on a fixed interval.",
+  "validates": [
+    "REQ-events-no-polling"
+  ],
+  "owner": "administration",
+  "measure": {
+    "kind": "unwired",
+    "source": "a scan of the code for sleep loops on a clock; not written yet"
+  },
+  "comparator": "lte",
+  "threshold": 0
+}

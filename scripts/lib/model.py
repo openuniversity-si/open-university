@@ -103,7 +103,7 @@ def cross_check(meta):
         if item.get('system') not in systems:
             errors.append(f'type {name}: system {item.get("system")} does not exist')
         states = set(item.get('states', []))
-        for field in ('derived_states', 'inactive_states'):
+        for field in ('derived_states', 'inactive_states', 'unconformant_states'):
             extra = sorted(set(item.get(field, [])) - states)
             if extra:
                 errors.append(f'type {name}: {field} {", ".join(extra)} are not states of the type')
@@ -436,7 +436,7 @@ def _declared(root, pattern, contract, kind, links_of):
             found.append({**_obj(f'{kind}:{path.stem}', kind, body.get('state', '') if isinstance(body, dict) else '',
                                  path.relative_to(root).as_posix(), text), 'problems': problems})
             continue
-        item = _obj(body['id'], kind, body['state'], path.relative_to(root).as_posix(), text, links_of(body))
+        item = _obj(body['id'], kind, body.get('state', 'defined'), path.relative_to(root).as_posix(), text, links_of(body))
         item['body'] = body
         found.append(item)
     return found
@@ -655,6 +655,76 @@ def read_changes(root):
     return found
 
 
+VALIDATIONS = 'config/validation/VAL-*.json'
+
+
+def read_validations(root):
+    """Validations (VAL), one file each; the state is derived later (derive_validations), never read from the file."""
+    return _declared(Path(root), VALIDATIONS, 'validation.v1.json', 'VAL',
+                     lambda body: [{'type': 'validates', 'target': target} for target in body['validates']])
+
+
+def _merges(root):
+    """[(sha, date)] of main's first-parent merges in HEAD, newest first."""
+    lines = _git(root, 'log', '--first-parent', '--merges', '--format=%H %ad', '--date=short', 'HEAD').splitlines()
+    return [tuple(line.split(' ', 1)) for line in lines if ' ' in line]
+
+
+def measured(body, found, root, today):
+    """(value, enough) of one validation's measure; value None when there is no source or no data."""
+    measure, window = body['measure'], body.get('window', {'kind': 'days', 'size': 1})
+    if measure['kind'] == 'merges-per-day':
+        from datetime import date, timedelta
+        last = date.fromisoformat(today) - timedelta(days=1)
+        days = {(last - timedelta(days=offset)).isoformat() for offset in range(window['size'])}
+        dates = [day for _, day in _merges(root)]
+        return (sum(1 for day in dates if day in days) / window['size'], bool(dates) and min(dates) <= min(days))
+    if measure['kind'] == 'trailer-rate':
+        merges = _merges(root)[:window['size']]
+        if not merges:
+            return None, False
+        marked = sum(1 for sha, _ in merges if re.search(rf'^{re.escape(measure["trailer"])}:',
+                                                         _git(root, 'log', '--format=%B', f'{sha}^1..{sha}'), re.MULTILINE))
+        return marked / len(merges), len(merges) >= window['size']
+    if measure['kind'] == 'model-share':
+        if measure['name'] == 'reflexion':
+            return reflexion_share(found)['share'], True
+        counted = requirements_measure(found)
+        return (counted['with_test'] / counted['active'] if counted['active'] else 0), True
+    return None, False
+
+
+def derive_validations(found, root, today=None):
+    """Sets each validation's state from its measure: met or not-met when the window holds data, measuring while it
+    is short, defined while no source is wired."""
+    today = today or utc_today()
+    for item in found.values():
+        if item['type'] != 'VAL' or 'body' not in item:
+            continue
+        value, enough = measured(item['body'], found, root, today)
+        if value is None:
+            item['state'] = 'defined'
+        elif not enough:
+            item['state'] = 'measuring'
+        else:
+            passes = value >= item['body']['threshold'] if item['body']['comparator'] == 'gte' else value <= item['body']['threshold']
+            item['state'] = 'met' if passes else 'not-met'
+        item['measured'] = value
+
+
+def validation_measure(found):
+    """The validation system's own measure: validations by state, and the needs that have a validation met."""
+    into = incoming(found)
+    by_state = {}
+    for item in found.values():
+        if item['type'] == 'VAL':
+            by_state[item['state']] = by_state.get(item['state'], 0) + 1
+    needs = [item for item in found.values() if item['type'] == 'NEED']
+    met = sum(1 for item in needs if any(kind == 'validates' and found.get(source, {}).get('state') == 'met'
+                                         for kind, source in into.get(item['id'], [])))
+    return {'by_state': dict(sorted(by_state.items())), 'needs': len(needs), 'needs_met': met}
+
+
 def requirement_states(found):
     """{requirement id: derived state}: implemented when a merged change implements it, verified when it is also
     verified by a test (the verdicts on main join with the verification phase), else its declared state."""
@@ -851,7 +921,7 @@ def knowledge_measure(found, radius='high'):
 
 
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
-           read_intent, read_requirements, read_premises, read_changes, read_architecture, read_adrs)
+           read_intent, read_requirements, read_premises, read_changes, read_architecture, read_adrs, read_validations)
 
 
 def objects(root=ROOT, readers=READERS):
@@ -867,6 +937,8 @@ def objects(root=ROOT, readers=READERS):
                 found[item['id']] = {**item, 'links': current['links'] + item['links']}
             else:
                 current['links'] += item['links']
+    if read_validations in readers:
+        derive_validations(found, root)
     return found
 
 
@@ -922,6 +994,8 @@ def is_active(meta, item):
 
 def covered(meta, item, into, found):
     """Whether every coverage rule (`covered_by`) and every required outgoing link (`must_link`) of the type holds."""
+    if item['state'] in meta['types'][item['type']].get('unconformant_states', []):
+        return False
     held = {link['type'] for link in item['links'] if found.get(link['target'], {}).get('fingerprint') is not None}
     if set(meta['types'][item['type']].get('must_link', [])) - held:
         return False
@@ -942,7 +1016,8 @@ def chain_verified(item, into, found):
     realized = any(sources(element, 'realizes', 'UNIT') for element in elements)
     tested = bool(sources(item['id'], 'verifies', 'TEST'))
     needs = [link['target'] for link in item['links'] if link['type'] == 'derives-from']
-    validated = any(sources(target, 'validates', 'VAL') for target in [item['id'], *needs])
+    validated = any(found[source]['state'] == 'met' for target in [item['id'], *needs]
+                    for source in sources(target, 'validates', 'VAL'))
     return bool(elements) and realized and tested and validated
 
 
@@ -1044,6 +1119,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'requirements': requirements_measure(found),
         'architecture': architecture_measure(found),
         'decisions': decisions_measure(found, root),
+        'validation': validation_measure(found),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors),
         'warnings': len(warnings),
@@ -1095,6 +1171,9 @@ def summary(found):
     lines.append(f'decisions: {", ".join(f"{count} {state}" for state, count in decided["by_state"].items())}; '
                  f'{decided["proven"]} of {decided["accepted"]} accepted proven by a test; {decided["edited_records"]} '
                  f'record(s) edited after they were written')
+    proved = found['validation']
+    lines.append(f'validation: {", ".join(f"{count} {state}" for state, count in proved["by_state"].items()) or "none"}; '
+                 f'{proved["needs_met"]} of {proved["needs"]} needs with a validation met')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')

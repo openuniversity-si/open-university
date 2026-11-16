@@ -1,0 +1,14 @@
+{
+  "id": "VAL-deploy-1s",
+  "statement": "The deploy of a merge into main completes with a median of 1 s.",
+  "validates": [
+    "REQ-deploy-1s"
+  ],
+  "owner": "efficiency",
+  "measure": {
+    "kind": "unwired",
+    "source": "the AWS deploy's events (scripts/deploy status); no reader is wired into scripts/model yet"
+  },
+  "comparator": "lte",
+  "threshold": 1
+}
