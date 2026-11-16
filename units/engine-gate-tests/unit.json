@@ -19,5 +19,8 @@
     "engine-config": "^1",
     "engine-config-check": "^1",
     "engine-gate-plan": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-gate"
+  ]
 }

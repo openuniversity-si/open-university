@@ -1,0 +1,19 @@
+{
+  "id": "ARC-model",
+  "kind": "component",
+  "name": "Engineering model",
+  "statement": "The metamodel, the rules of the standard, and scripts/model, which checks the model and measures the chain and each system's conformance (PADRAO-DEV).",
+  "state": "active",
+  "owner": "administration",
+  "satisfies": [
+    "REQ-chain-verified"
+  ],
+  "depends_on": [
+    "ARC-config",
+    "ARC-knowledge",
+    "ARC-planning"
+  ],
+  "basis": [
+    "D-317"
+  ]
+}

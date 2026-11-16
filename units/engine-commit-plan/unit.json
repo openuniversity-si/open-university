@@ -34,6 +34,9 @@
     "engine-train": "^1",
     "engine-train-admission": "^1"
   },
+  "realizes": [
+    "ARC-delivery"
+  ],
   "battery": {
     "command": "scripts/unit-battery engine-commit-plan"
   }

@@ -20,5 +20,8 @@
     "engine-gate-plan": "^1",
     "engine-premises": "^1",
     "engine-rules": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-model"
+  ]
 }

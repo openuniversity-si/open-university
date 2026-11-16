@@ -36,5 +36,8 @@
   ],
   "premises": [
     "P-27"
+  ],
+  "realizes": [
+    "ARC-deploy"
   ]
 }

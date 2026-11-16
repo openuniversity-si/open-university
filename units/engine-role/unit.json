@@ -16,5 +16,8 @@
     "engine-events": "^1",
     "engine-gate-report": "^1",
     "engine-git-ref": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-environment"
+  ]
 }

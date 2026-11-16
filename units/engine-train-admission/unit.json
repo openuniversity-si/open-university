@@ -23,5 +23,8 @@
     "engine-gate-plan": "^1",
     "engine-gate-verdict": "^1",
     "engine-role": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-delivery"
+  ]
 }

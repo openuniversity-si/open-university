@@ -50,5 +50,8 @@
     "engine-gate-run": "^1",
     "engine-gate-status": "^1",
     "engine-gate-tests": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-gate"
+  ]
 }

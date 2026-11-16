@@ -34,5 +34,8 @@
     "engine-config": "^1",
     "engine-events": "^1",
     "engine-regime": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-events"
+  ]
 }

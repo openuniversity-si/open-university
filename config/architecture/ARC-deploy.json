@@ -1,0 +1,20 @@
+{
+  "id": "ARC-deploy",
+  "kind": "component",
+  "name": "Deploy and service",
+  "statement": "The AWS infrastructure, the database, the service and its control plane, the deploy rung by a merge into main, and the production guard.",
+  "state": "active",
+  "owner": "efficiency",
+  "satisfies": [
+    "REQ-deploy-1s",
+    "REQ-aws-200"
+  ],
+  "depends_on": [
+    "ARC-config",
+    "ARC-events",
+    "ARC-environment"
+  ],
+  "basis": [
+    "D-317"
+  ]
+}

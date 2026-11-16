@@ -17,5 +17,8 @@
     "engine-config": "^1",
     "engine-gate-cache": "^1",
     "engine-gate-tests": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-gate"
+  ]
 }

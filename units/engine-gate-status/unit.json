@@ -29,5 +29,8 @@
     "engine-gate-plan": "^1",
     "engine-gate-report": "^1",
     "engine-slo": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-gate"
+  ]
 }

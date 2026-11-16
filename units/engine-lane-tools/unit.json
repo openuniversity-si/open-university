@@ -38,5 +38,8 @@
     "engine-generate": "^1",
     "engine-lane-deliver": "^1",
     "engine-session-usage": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-delivery"
+  ]
 }

@@ -58,5 +58,8 @@
     "engine-train-admission": "^1",
     "engine-units": "^1",
     "engine-vendors": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-planning"
+  ]
 }

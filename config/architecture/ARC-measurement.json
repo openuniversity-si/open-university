@@ -1,0 +1,15 @@
+{
+  "id": "ARC-measurement",
+  "kind": "component",
+  "name": "Measurement",
+  "statement": "Flow metrics, measures, SLOs, budgets, effort, session usage and the census.",
+  "state": "active",
+  "owner": "administration",
+  "depends_on": [
+    "ARC-events",
+    "ARC-config"
+  ],
+  "basis": [
+    "D-317"
+  ]
+}

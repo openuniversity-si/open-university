@@ -12,5 +12,8 @@
   ],
   "requires": {
     "engine-config": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-knowledge"
+  ]
 }

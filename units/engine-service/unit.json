@@ -29,6 +29,9 @@
     "engine-git-ref": "^1",
     "engine-role": "^1"
   },
+  "realizes": [
+    "ARC-deploy"
+  ],
   "decisions": [
     "D-085",
     "D-086",

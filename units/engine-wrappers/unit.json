@@ -11,5 +11,8 @@
   "requires": {
     "engine-cloud": "^1",
     "engine-gate-cache": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-environment"
+  ]
 }
