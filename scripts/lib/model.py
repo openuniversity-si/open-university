@@ -195,7 +195,8 @@ def check_file(rule):
 
 def read_rules(root):
     """The rules of the standard (STD). Each is validated against contracts/model/rule.v1.json; its basis becomes
-    justified-by links, and every test whose covers names the file of its check verifies it (derived, never written)."""
+    justified-by links, and every test whose covers names the file of an executable check (a function or a test, never a
+    judgment's document) verifies it (derived, never written)."""
     from gate_areas import glob_match
     root = Path(root)
     schema = _read_json(root / CONTRACTS_DIR / 'rule.v1.json')
@@ -215,7 +216,7 @@ def read_rules(root):
         item = _obj(rule['id'], 'STD', rule['state'], path.relative_to(root).as_posix(), text, links)
         item['rule'] = rule
         found.append(item)
-        target = check_file(rule)
+        target = check_file(rule) if rule['check']['kind'] in ('function', 'test') else None
         for script, patterns in manifests if target else []:
             if any(glob_match(target, pattern) for pattern in patterns):
                 found.append({'id': f'TEST:{script}', 'type': 'TEST', 'state': 'active', 'source': script, 'claimed': True,
@@ -465,7 +466,29 @@ def rate(share, scale):
     return scale[-1]['level'] if scale else ''
 
 
-def measure(root=ROOT, meta=None, found=None):
+def standard_measure(found, today):
+    """The standard's own measure: its rules, those with an executable check, with a test that verifies them, with a
+    decision that justifies them, and those in warning past their deadline (dates as YYYY-MM-DD)."""
+    into = incoming(found)
+    rules = [item for item in found.values() if item['type'] == 'STD' and 'rule' in item and item['state'] != 'replaced']
+    def tested(item):
+        return any(kind == 'verifies' and found.get(source, {}).get('fingerprint') is not None
+                   for kind, source in into.get(item['id'], []))
+    return {
+        'rules': len(rules),
+        'executable': sum(1 for item in rules if item['rule']['check']['kind'] != 'judgment'),
+        'tested': sum(1 for item in rules if tested(item)),
+        'justified': sum(1 for item in rules if item['rule'].get('basis')),
+        'overdue': sum(1 for item in rules if item['state'] == 'warning' and item['rule'].get('deadline', today) < today),
+    }
+
+
+def utc_today():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def measure(root=ROOT, meta=None, found=None, today=None):
     meta = meta or metamodel(root)
     found = found if found is not None else objects(root)
     errors, warnings = check(meta, found, root)
@@ -488,6 +511,7 @@ def measure(root=ROOT, meta=None, found=None):
         'inventory': {'sources': sources, 'ids': sum(item['ids'] for item in sources.values()),
                       'imported': sum(item['imported'] for item in sources.values())},
         'systems': systems,
+        'standard': standard_measure(found, today or utc_today()),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors),
         'warnings': len(warnings),
@@ -516,6 +540,10 @@ def summary(found):
     lines.append(f'systems ({found["objects"]} object(s)):')
     lines += [f'  {name}: {item["level"]} ({item["conformant"]} of {item["objects"]} conformant)'
               for name, item in found['systems'].items()]
+    rules = found['standard']
+    lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
+                 f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
+                 f'their deadline')
     lines.append(f'check: {found["errors"]} error(s), {found["warnings"]} warning(s)')
     return '\n'.join(lines)
 

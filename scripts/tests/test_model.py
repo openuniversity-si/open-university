@@ -208,6 +208,16 @@ class Rules(unittest.TestCase):
         errors, _ = model.check(model.metamodel(self.root), self.found())
         self.assertEqual(errors, [])
 
+    def test_the_standard_measures_its_executable_tested_justified_and_overdue_rules(self):
+        self.rule('STD-judge', basis=['D-1'])
+        self.rule('STD-late', state='warning', deadline='2026-01-01', check={'kind': 'gate-stage', 'ref': 'shellcheck'})
+        self.rule('STD-old', state='replaced', replaced_by='STD-plan')
+        found = self.found()
+        found['TEST:scripts/tests/guard.test.sh']['fingerprint'] = 'f'
+        counted = model.standard_measure(found, today='2026-11-16')
+        self.assertEqual(counted, {'rules': len(['plan', 'judge', 'late']), 'executable': len(['plan', 'late']),
+                                   'tested': 1, 'justified': len(['plan', 'judge']), 'overdue': 1})
+
 
 class RealRepository(unittest.TestCase):
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):
