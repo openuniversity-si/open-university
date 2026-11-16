@@ -10,15 +10,17 @@ Name = Literal[
     'toolchain.postgres_version',
     'toolchain.python_release_tag',
     'toolchain.python_version',
+    'toolchain.ruff_version',
 ]
 
 Values = TypedDict('Values', {
     'toolchain.claude_cli_version': str,
     'toolchain.gitleaks_version': str,
     'toolchain.node_version': str,
-    'toolchain.observed_tools': list[Literal['python', 'node', 'gitleaks', 'postgres']],
+    'toolchain.observed_tools': list[Literal['python', 'node', 'gitleaks', 'postgres', 'ruff']],
     'toolchain.postgres_revision': str,
     'toolchain.postgres_version': str,
     'toolchain.python_release_tag': str,
     'toolchain.python_version': str,
+    'toolchain.ruff_version': str,
 })

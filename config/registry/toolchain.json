@@ -46,14 +46,16 @@
           "python",
           "node",
           "gitleaks",
-          "postgres"
+          "postgres",
+          "ruff"
         ]
       },
       "default": [
         "python",
         "node",
         "gitleaks",
-        "postgres"
+        "postgres",
+        "ruff"
       ],
       "x-unit": "names",
       "description": "Tools whose installed version is observed into the attested toolchain_id (cache keys, v4 proof observed_versions). chromium (a Playwright browser) left with its probe (vazão F54): the engine drives none since OU-DECOUPLE F5 (D-113). gh and the Vercel CLI left the toolchain (vazão F6), pnpm too (vazão F16).",
@@ -97,6 +99,15 @@
       "x-readers": [
         "scripts/lib/gate_result_cache.py",
         "scripts/lib/gate_test_cache.py",
+        "scripts/lib/toolchain_manifest.py"
+      ]
+    },
+    "toolchain.ruff_version": {
+      "type": "string",
+      "default": "0.16.9",
+      "x-unit": "version",
+      "description": "ruff release used by the lint ratchet (PADRAO-DEV F4b): the Python lint the gate runs on every change.",
+      "x-readers": [
         "scripts/lib/toolchain_manifest.py"
       ]
     }

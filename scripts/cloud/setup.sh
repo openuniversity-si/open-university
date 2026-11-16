@@ -206,6 +206,6 @@ fi
 import sys
 sys.path.insert(0, sys.argv[1])
 import toolchain_manifest
-seen = toolchain_manifest.observed_versions(tools=['node', 'python', 'postgres', 'gitleaks'])
-print('the-tower cloud setup: ' + ', '.join(f'{tool} {seen[tool]}' for tool in ('node', 'python', 'postgres', 'gitleaks')))
+seen = toolchain_manifest.observed_versions(tools=['node', 'python', 'postgres', 'gitleaks', 'ruff'])
+print('the-tower cloud setup: ' + ', '.join(f'{tool} {seen[tool]}' for tool in ('node', 'python', 'postgres', 'gitleaks', 'ruff')))
 PY

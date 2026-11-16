@@ -64,7 +64,7 @@ class ToolchainPins(unittest.TestCase):
 
 SHELL = shutil.which('sh')
 # What each fake binary prints for `observed_version` (GX-28 fixture container, no network, no real toolchain).
-BANNERS = {'python': '{v}', 'node': 'v{v}', 'gitleaks': '{v}', 'postgres': 'psql (PostgreSQL) {v}'}
+BANNERS = {'python': '{v}', 'node': 'v{v}', 'gitleaks': '{v}', 'postgres': 'psql (PostgreSQL) {v}', 'ruff': 'ruff {v}'}
 
 
 def fake_toolchain(root, versions, calls=None):

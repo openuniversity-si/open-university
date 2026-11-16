@@ -18,7 +18,7 @@ MANIFEST = ROOT / 'scripts' / 'cloud' / 'toolchain.json'
 # The Vercel CLI and gh left (vazão F6): the engine runs neither (AGENTS.md, github_cli), and Vercel's production is
 # Open University's, which left the repository (D-105, D-111). pnpm left too (vazão F16, D-292): the engine has no
 # package to install, so no file of it runs pnpm. Node stays: control-plane.test.sh runs `node --test`.
-TOOLS = ('python', 'node', 'gitleaks', 'postgres')
+TOOLS = ('python', 'node', 'gitleaks', 'postgres', 'ruff')
 
 
 def toolchain_dir():
@@ -31,6 +31,7 @@ def versions():
     return {
         'python': config.get('toolchain.python_version'), 'node': config.get('toolchain.node_version'),
         'gitleaks': config.get('toolchain.gitleaks_version'), 'postgres': config.get('toolchain.postgres_version'),
+        'ruff': config.get('toolchain.ruff_version'),
     }
 
 
@@ -194,6 +195,10 @@ def artifact(name, data=None):
         version = spec['version']
         url = f'https://github.com/gitleaks/gitleaks/releases/download/v{version}/gitleaks_{version}_linux_{vendor}.tar.gz'
         kind = 'gz'
+    elif name == 'ruff':
+        version = spec['version']
+        url = f'https://github.com/astral-sh/ruff/releases/download/{version}/ruff-{arch}-unknown-linux-gnu.tar.gz'
+        kind = 'gz'
     elif name == 'postgres':
         revision = spec['revision']
         filename = f'postgresql-{revision}-{arch}-unknown-linux-gnu.tar.gz'
@@ -220,6 +225,8 @@ def observed_version(tool, root):
         args = [str(binary), '-v']
     elif tool == 'gitleaks':
         args = [str(binary), 'version']
+    elif tool == 'ruff':
+        args = [str(binary), '--version']
     elif tool == 'postgres':
         args = [str(binary), '--version']
     else:
@@ -241,7 +248,7 @@ def version_of(tool, text):
     if tool == 'postgres':
         # psql (PostgreSQL) 18.6
         return line.split()[-1] if line else ''
-    if tool in ('gitleaks', 'python'):
+    if tool in ('gitleaks', 'python', 'ruff'):
         token = line.split()[-1] if line else ''
         return token[1:] if token.startswith('v') else token
     return ''
