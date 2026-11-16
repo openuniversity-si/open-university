@@ -1,0 +1,14 @@
+{
+  "id": "VAL-knowledge",
+  "statement": "Every active requirement is verified by a test or validated in use.",
+  "validates": [
+    "NEED-knowledge"
+  ],
+  "owner": "administration",
+  "measure": {
+    "kind": "model-share",
+    "name": "requirements-tested"
+  },
+  "comparator": "gte",
+  "threshold": 1
+}

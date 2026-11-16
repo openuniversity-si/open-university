@@ -1,0 +1,14 @@
+{
+  "id": "VAL-gate-60s",
+  "statement": "The tower/gate check finishes within 60 s at the median and the 99th percentile of its runs on GitHub Actions.",
+  "validates": [
+    "REQ-gate-60s"
+  ],
+  "owner": "capacity",
+  "measure": {
+    "kind": "unwired",
+    "source": "the durations of the tower/gate runs (GitHub Actions); no reader is wired into scripts/model yet"
+  },
+  "comparator": "lte",
+  "threshold": 60
+}
