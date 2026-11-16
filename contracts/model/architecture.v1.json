@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/architecture.v1.json",
+  "title": "Architecture element v1",
+  "description": "config/architecture/<id>.json (PADRAO-DEV F3a): an element of the engine's architecture (a system, a component, a contract or a port) with no other home. It declares the requirements it satisfies and the elements it depends on; the units that realize it say so in their own manifests (units/<id>/unit.json `realizes`). A capability (docs/capabilities/) is read where it is.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "name",
+    "statement",
+    "state",
+    "owner"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ARC-[a-z0-9][a-z0-9-]*$"
+    },
+    "kind": {
+      "enum": [
+        "system",
+        "component",
+        "capability",
+        "contract",
+        "port"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the element is responsible for, in one or two sentences."
+    },
+    "state": {
+      "enum": [
+        "proposed",
+        "active",
+        "deprecated",
+        "retired"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "satisfies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^REQ-[a-z0-9][a-z0-9.-]*$"
+      }
+    },
+    "depends_on": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^ARC-[a-z0-9][a-z0-9-]*$"
+      },
+      "description": "The elements it may depend on (the declared side of the reflexion model)."
+    },
+    "basis": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^D-[0-9]+$"
+      }
+    }
+  }
+}

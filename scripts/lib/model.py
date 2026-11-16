@@ -165,6 +165,7 @@ def read_units(root):
         text = path.read_text()
         manifest = json.loads(text)
         links = [{'type': 'depends-on', 'target': f'UNIT:{name}'} for name in sorted(manifest.get('requires') or {})]
+        links += [{'type': 'realizes', 'target': element} for element in manifest.get('realizes', [])]
         objects.append(_obj(f'UNIT:{manifest["id"]}', 'UNIT', 'active', path.relative_to(root).as_posix(), text, links))
     return objects
 
@@ -638,6 +639,88 @@ def requirements_measure(found):
     }
 
 
+ARCHITECTURE = 'config/architecture/ARC-*.json'
+ARCHITECTURE_IMPORTS = 'config/architecture/imports/*.json'
+CAPABILITIES = 'docs/capabilities/CAP-*.md'
+CAPABILITY_STATE = {'requested': 'proposed', 'approved': 'active', 'done': 'active'}
+ADRS = 'docs/adr/ADR-*.md'
+ADR_STATUS = re.compile(r'Status:\s*(proposed|accepted|rejected|deprecated|superseded)\b(?:\s+by\s+\[?((?:D|ADR)-[0-9]+))?', re.IGNORECASE)
+ADR_STATE = {'rejected': 'deprecated'}
+
+
+def read_architecture(root):
+    """Architecture elements (ARC): the files of config/architecture/ (satisfies and depends-on links), and the
+    capabilities of docs/capabilities/ read where they are, through config/architecture/imports/capabilities.json."""
+    root = Path(root)
+    found = _declared(root, ARCHITECTURE, 'architecture.v1.json', 'ARC', lambda body: [
+        *({'type': 'satisfies', 'target': target} for target in body.get('satisfies', [])),
+        *({'type': 'depends-on', 'target': target} for target in body.get('depends_on', []))])
+    for item in found:
+        item.setdefault('body', {})
+    imports = root / ARCHITECTURE_IMPORTS.replace('*', 'capabilities')
+    declared = _read_json(imports) if imports.is_file() else {}
+    problems = list(json_schema.validate(_read_json(root / CONTRACTS_DIR / 'architecture-import.v1.json'), declared)) if declared else []
+    for path in sorted(root.glob(CAPABILITIES)):
+        text = path.read_text()
+        number = re.match(r'(CAP-[0-9]+)', path.stem).group(1)
+        status = re.search(r'^status:\s*([a-z]+)', text, re.MULTILINE)
+        own = declared.get('overrides', {}).get(number, {})
+        state = own.get('state', CAPABILITY_STATE.get(status.group(1) if status else '', 'proposed'))
+        links = [{'type': 'satisfies', 'target': target} for target in declared.get('satisfies', {}).get(number, [])]
+        item = _obj(f'ARC-cap-{number[len("CAP-"):]}', 'ARC', state, path.relative_to(root).as_posix(), text, links)
+        item.update(source_id=path.relative_to(root).as_posix(),
+                    body={'kind': 'capability', 'statement': text.split('\n', 1)[0].lstrip('# '),
+                          **({'retired_by': own['retired_by']} if own.get('retired_by') else {})})
+        if problems:
+            item['problems'] = problems
+        found.append(item)
+    return found
+
+
+def read_adrs(root):
+    """Architecture decision records as decisions (D): the state is the MADR status the record states (proposed,
+    accepted, deprecated, superseded; rejected reads as deprecated); `superseded by X` becomes a supersedes link on X,
+    and `deprecated by D-NNN` the decision that retired it."""
+    root = Path(root)
+    found = []
+    for path in sorted(root.glob(ADRS)):
+        text = path.read_text()
+        ident = re.match(r'(ADR-[0-9]+)', path.stem).group(1)
+        status = ADR_STATUS.search('\n'.join(text.splitlines()[:len('0123456789')]))
+        state = ADR_STATE.get(status.group(1).lower(), status.group(1).lower()) if status else 'proposed'
+        by = status.group(2) if status else None
+        item = _obj(ident, 'D', state, path.relative_to(root).as_posix(), text)
+        item['body'] = {'adr': True, **({'retired_by': by} if by and state == 'deprecated' else {})}
+        found.append(item)
+        if by and state == 'superseded':
+            found.append({'id': by, 'type': 'D', 'state': 'accepted', 'source': '', 'fingerprint': None, 'claimed': True,
+                          'links': [{'type': 'supersedes', 'target': ident}]})
+    return found
+
+
+def architecture_measure(found):
+    """The architecture system's own measure: active elements by kind, those that satisfy a requirement, those a
+    unit realizes, the units that realize an element, and the ADRs by state."""
+    into = incoming(found)
+    elements = [item for item in found.values() if item['type'] == 'ARC' and item['state'] in ('proposed', 'active')]
+    by_kind = {}
+    for item in elements:
+        kind = item.get('body', {}).get('kind', '?')
+        by_kind[kind] = by_kind.get(kind, 0) + 1
+    units = [item for item in found.values() if item['type'] == 'UNIT']
+    adrs = {}
+    for item in found.values():
+        if item.get('body', {}).get('adr'):
+            adrs[item['state']] = adrs.get(item['state'], 0) + 1
+    return {
+        'elements': len(elements), 'by_kind': dict(sorted(by_kind.items())),
+        'satisfying': sum(1 for item in elements if any(link['type'] == 'satisfies' for link in item['links'])),
+        'realized': sum(1 for item in elements if any(kind == 'realizes' for kind, _ in into.get(item['id'], []))),
+        'units_realizing': sum(1 for item in units if any(link['type'] == 'realizes' for link in item['links'])),
+        'units': len(units), 'adrs': dict(sorted(adrs.items())),
+    }
+
+
 def knowledge_measure(found, radius='high'):
     """The knowledge system's own measure: the premises, the high-blast ones not confirmed or validated, the refuted
     ones still assumed by an active object."""
@@ -654,7 +737,7 @@ def knowledge_measure(found, radius='high'):
 
 
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
-           read_intent, read_requirements, read_premises, read_changes)
+           read_intent, read_requirements, read_premises, read_changes, read_architecture, read_adrs)
 
 
 def objects(root=ROOT, readers=READERS):
@@ -845,6 +928,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'standard_management': management_measure(found, today or utc_today()),
         'knowledge': knowledge_measure(found),
         'requirements': requirements_measure(found),
+        'architecture': architecture_measure(found),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors),
         'warnings': len(warnings),
@@ -885,6 +969,10 @@ def summary(found):
     lines.append(f'requirements: {wanted["active"]} active ({", ".join(f"{count} {kind}" for kind, count in wanted["by_type"].items())}); '
                  f'{wanted["implemented"]} implemented, {wanted["verified"]} verified, {wanted["with_element"]} with an '
                  f'architecture element, {wanted["with_test"]} with a test')
+    built = found['architecture']
+    lines.append(f'architecture: {built["elements"]} active element(s) ({", ".join(f"{count} {kind}" for kind, count in built["by_kind"].items())}); '
+                 f'{built["satisfying"]} satisfy a requirement, {built["realized"]} realized by a unit; {built["units_realizing"]} '
+                 f'of {built["units"]} units realize an element; ADRs {", ".join(f"{count} {state}" for state, count in built["adrs"].items())}')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')

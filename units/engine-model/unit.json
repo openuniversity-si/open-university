@@ -4,6 +4,7 @@
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
+    "config/architecture/**",
     "config/intent/**",
     "config/model/**",
     "config/requirements/**",

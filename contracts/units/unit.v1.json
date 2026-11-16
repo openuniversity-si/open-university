@@ -62,6 +62,15 @@
       },
       "description": "Allowed dependencies: unit id to the contract version range it may import (plan v3 §4.2 item 5). U0 seeds it from the measured import graph; U2 enforces it."
     },
+    "realizes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^ARC-[a-z0-9][a-z0-9-]*$"
+      },
+      "description": "The architecture elements (config/architecture/) the unit realizes (PADRAO-DEV F3a): the unit -> element link of the engineering model."
+    },
     "ring": {
       "$ref": "#/$defs/ring",
       "description": "The ring every production file of the unit sits in, when it holds one ring (ADR-36, D-058): kernel, or a context ring (domain, ports, application, server, client, testing). The checker refuses a production file outside it (L8.unit-ring). Absent: the unit spans rings, or holds no context code."

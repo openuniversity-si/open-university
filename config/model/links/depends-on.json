@@ -1,12 +1,14 @@
 {
   "name": "depends-on",
   "from": [
-    "UNIT"
+    "UNIT",
+    "ARC"
   ],
   "to": [
-    "UNIT",
+    "ARC",
     "CFG",
-    "CON"
+    "CON",
+    "UNIT"
   ],
-  "description": "A unit depends on another unit, a configuration item or a contract (Backstage dependsOn)."
+  "description": "A unit or an architecture element depends on another (Backstage dependsOn): units on units, configuration items and contracts; elements on elements (the declared side of the reflexion model)."
 }
