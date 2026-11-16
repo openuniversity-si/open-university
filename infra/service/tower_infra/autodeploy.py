@@ -105,6 +105,8 @@ ZERO_OK = ()
 # paths always rings: the build classifies by itself and a no-op costs about a minute.
 SLOW_PATHS = ('infra/aws/', 'infra/service/', 'infra/db/', 'infra/ingress/', 'services/runner/')
 NOT_SLOW = ('infra/aws/bootstrap.json', 'infra/aws/budget.json')
+# STAGED-WORKFLOWS-NONE (#135): the GitHub workflows staged for the owner to install are in no image and no stack
+NOT_SLOW_DIRS = ('services/runner/github/',)
 
 PUSHES = ("select occurred_at, payload #> '{delivery,event,payload,refUpdates}' from log.event "
           "where type = 'forge.repository.pushed' and occurred_at > %(since)s "
@@ -308,7 +310,7 @@ def month_start(now):
 def slow_path(path):
     """True when a change to this path can need the slow deploy (a stack, the image or the deployer)."""
     path = path.strip().lstrip('./')
-    return path.startswith(SLOW_PATHS) and path not in NOT_SLOW
+    return path.startswith(SLOW_PATHS) and path not in NOT_SLOW and not path.startswith(NOT_SLOW_DIRS)
 
 
 def coerce(name, value):
