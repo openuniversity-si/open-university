@@ -2,7 +2,6 @@
 import contextlib
 from datetime import datetime, timedelta, timezone
 import io
-import json
 from pathlib import Path
 import shutil
 import subprocess
