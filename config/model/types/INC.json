@@ -1,0 +1,15 @@
+{
+  "id": "INC",
+  "name": "incident",
+  "system": "operation",
+  "states": [
+    "open",
+    "mitigated",
+    "resolved",
+    "reviewed"
+  ],
+  "inactive_states": [
+    "reviewed"
+  ],
+  "description": "An incident of the flow or of a service."
+}

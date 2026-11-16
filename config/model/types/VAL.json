@@ -1,0 +1,20 @@
+{
+  "id": "VAL",
+  "name": "validation",
+  "system": "validation",
+  "states": [
+    "defined",
+    "measuring",
+    "met",
+    "not-met",
+    "revised"
+  ],
+  "derived_states": [
+    "met",
+    "not-met"
+  ],
+  "inactive_states": [
+    "revised"
+  ],
+  "description": "A validation criterion: a need, a measure, a threshold and a window."
+}

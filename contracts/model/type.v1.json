@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/type.v1.json",
+  "title": "Model object type v1",
+  "description": "config/model/types/<ID>.json (PADRAO-DEV F1, docs/programs/padrao-dev/solucao.md): one kind of object of the engineering model, the system that manages it, its life-cycle states and what an object of it needs to be covered. scripts/lib/model.py validates every type file against this schema and checks what the schema cannot state (the id equals the file name, the system and the link types exist).",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "system",
+    "states",
+    "description"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*$",
+      "description": "The type id, equal to the file name; objects of the type have ids `<ID>-...` or `<ID>:...`."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What an object of this type is, in a few words."
+    },
+    "system": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The id of the system (config/model/systems/) that manages the objects of this type."
+    },
+    "states": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "Every life-cycle state, in order."
+    },
+    "derived_states": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "States computed from links, never written by hand."
+    },
+    "inactive_states": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "States that take an object out of the active inventory (superseded, obsolete, retired)."
+    },
+    "covered_by": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "link"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9]*$"
+          },
+          "link": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        }
+      },
+      "description": "An active object of this type is covered when, for each entry, some object of `type` points to it with `link`."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

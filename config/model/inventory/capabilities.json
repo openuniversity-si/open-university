@@ -1,0 +1,15 @@
+{
+  "id": "capabilities",
+  "name": "Capabilities",
+  "parts": [
+    {
+      "kind": "files",
+      "glob": "docs/capabilities/CAP-*.md"
+    }
+  ],
+  "becomes": [
+    "ARC",
+    "REQ"
+  ],
+  "description": "Capability files (STRUCTURE A4): an architecture element, and the requirement it states."
+}

@@ -1,0 +1,12 @@
+{
+  "name": "implements",
+  "from": [
+    "CHG"
+  ],
+  "to": [
+    "REQ",
+    "UNIT"
+  ],
+  "oslc": "oslc_rm:implementedBy",
+  "description": "A change implements a requirement or changes a unit (trailer Implements:)."
+}

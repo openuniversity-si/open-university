@@ -1,0 +1,14 @@
+{
+  "id": "configuration",
+  "name": "Configuration",
+  "processes": [
+    "15288/12207 configuration management",
+    "15288/12207 information management",
+    "15288/12207 disposal",
+    "15288/12207 acquisition",
+    "SWEBOK 8 Software Configuration Management"
+  ],
+  "owner": "administration",
+  "measure": "Drift (a generated file that differs from its sources, a pin that differs from its checksum) and items without an owner.",
+  "description": "Registry keys, contracts, toolchain pins and the baseline, which is each commit of main."
+}

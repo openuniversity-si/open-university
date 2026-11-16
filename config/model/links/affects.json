@@ -1,0 +1,15 @@
+{
+  "name": "affects",
+  "from": [
+    "D"
+  ],
+  "to": [
+    "REQ",
+    "ARC",
+    "UNIT",
+    "CFG",
+    "STD"
+  ],
+  "oslc": "oslc_rm:affectedBy",
+  "description": "A decision affects an object."
+}

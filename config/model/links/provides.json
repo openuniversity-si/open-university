@@ -1,0 +1,10 @@
+{
+  "name": "provides",
+  "from": [
+    "UNIT"
+  ],
+  "to": [
+    "CON"
+  ],
+  "description": "A unit provides a contract (Backstage providesApi)."
+}

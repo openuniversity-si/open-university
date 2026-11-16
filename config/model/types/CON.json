@@ -1,0 +1,16 @@
+{
+  "id": "CON",
+  "name": "contract or interface",
+  "system": "architecture",
+  "states": [
+    "proposed",
+    "active",
+    "deprecated",
+    "retired"
+  ],
+  "inactive_states": [
+    "deprecated",
+    "retired"
+  ],
+  "description": "A versioned JSON Schema contract a unit provides or consumes."
+}

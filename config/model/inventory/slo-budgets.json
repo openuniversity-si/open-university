@@ -1,0 +1,18 @@
+{
+  "id": "slo-budgets",
+  "name": "SLO and budget keys of the registry",
+  "parts": [
+    {
+      "kind": "registry",
+      "glob": "config/registry/slo.json"
+    },
+    {
+      "kind": "registry",
+      "glob": "config/registry/budgets.json"
+    }
+  ],
+  "becomes": [
+    "REQ"
+  ],
+  "description": "Quality requirements held as registry values."
+}

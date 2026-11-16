@@ -1,0 +1,10 @@
+{
+  "id": "decisions",
+  "name": "Decisions",
+  "processes": [
+    "15288/12207 decision management"
+  ],
+  "owner": "Daniel",
+  "measure": "Share of accepted decisions with a green proof, and superseded decisions marked.",
+  "description": "Decision records (D-NNN, the ADRs included): accepted ones are immutable and change only by a decision that supersedes them."
+}

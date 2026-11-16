@@ -1,0 +1,10 @@
+{
+  "name": "refines",
+  "from": [
+    "NEED"
+  ],
+  "to": [
+    "INT"
+  ],
+  "description": "A need refines the intention."
+}

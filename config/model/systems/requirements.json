@@ -1,0 +1,11 @@
+{
+  "id": "requirements",
+  "name": "Requirements",
+  "processes": [
+    "15288/12207 system/software requirements definition",
+    "SWEBOK 1 Software Requirements"
+  ],
+  "owner": "administration",
+  "measure": "Share of active requirements whose chain is verified end to end, and the count of suspect links.",
+  "description": "Every requirement of every kind (product, operation, quality, constraint, interface), one file each, with type, owner, state and a testable statement."
+}

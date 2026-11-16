@@ -1,0 +1,12 @@
+{
+  "name": "validates",
+  "from": [
+    "VAL"
+  ],
+  "to": [
+    "NEED",
+    "REQ"
+  ],
+  "oslc": "oslc_rm:validatedBy",
+  "description": "A validation validates a need or a requirement."
+}

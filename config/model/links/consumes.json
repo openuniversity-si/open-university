@@ -1,0 +1,10 @@
+{
+  "name": "consumes",
+  "from": [
+    "UNIT"
+  ],
+  "to": [
+    "CON"
+  ],
+  "description": "A unit consumes a contract (Backstage consumesApi)."
+}

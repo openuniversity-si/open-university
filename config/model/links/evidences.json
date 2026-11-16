@@ -1,0 +1,10 @@
+{
+  "name": "evidences",
+  "from": [
+    "VERD"
+  ],
+  "to": [
+    "TEST"
+  ],
+  "description": "A verdict is the result of a test on a sha."
+}

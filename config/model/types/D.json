@@ -1,0 +1,22 @@
+{
+  "id": "D",
+  "name": "decision",
+  "system": "decisions",
+  "states": [
+    "proposed",
+    "accepted",
+    "deprecated",
+    "superseded"
+  ],
+  "inactive_states": [
+    "deprecated",
+    "superseded"
+  ],
+  "covered_by": [
+    {
+      "type": "TEST",
+      "link": "verifies"
+    }
+  ],
+  "description": "A decision record; an accepted one is immutable."
+}

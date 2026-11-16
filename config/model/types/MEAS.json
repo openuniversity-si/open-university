@@ -1,0 +1,14 @@
+{
+  "id": "MEAS",
+  "name": "measure",
+  "system": "measurement",
+  "states": [
+    "proposed",
+    "active",
+    "retired"
+  ],
+  "inactive_states": [
+    "retired"
+  ],
+  "description": "A measure with its ISO/IEC/IEEE 15939 metadata."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "exempts",
+  "from": [
+    "TAIL"
+  ],
+  "to": [
+    "STD"
+  ],
+  "description": "An exemption exempts a scope from a rule."
+}

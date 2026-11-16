@@ -1,0 +1,15 @@
+{
+  "id": "LESSON",
+  "name": "lesson or friction",
+  "system": "knowledge",
+  "states": [
+    "open",
+    "applied",
+    "retired"
+  ],
+  "inactive_states": [
+    "applied",
+    "retired"
+  ],
+  "description": "A lesson from a retrospective, or a friction counted until it becomes a unit."
+}

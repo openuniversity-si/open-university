@@ -1,0 +1,10 @@
+{
+  "name": "decided-by",
+  "from": [
+    "PROP"
+  ],
+  "to": [
+    "D"
+  ],
+  "description": "A proposal is decided by a decision."
+}

@@ -1,0 +1,31 @@
+{
+  "name": "applies-to",
+  "from": [
+    "STD"
+  ],
+  "to": [
+    "INT",
+    "NEED",
+    "REQ",
+    "ARC",
+    "CON",
+    "UNIT",
+    "CHG",
+    "D",
+    "TEST",
+    "VERD",
+    "VAL",
+    "CFG",
+    "INC",
+    "MEAS",
+    "ASSESS",
+    "STD",
+    "PROP",
+    "VER",
+    "TAIL",
+    "WORK",
+    "P",
+    "LESSON"
+  ],
+  "description": "A rule of the standard applies to the objects of a type."
+}

@@ -1,0 +1,11 @@
+{
+  "id": "standard-management",
+  "name": "Standard management",
+  "processes": [
+    "15288/12207 life cycle model management (establish, assess, improve)",
+    "CMMI organizational process definition and focus"
+  ],
+  "owner": "administration",
+  "measure": "Share of proposals decided within their deadline, live exemptions, and the standard's own conformance.",
+  "description": "Proposals to change the standard, its versions and the tailoring exemptions."
+}

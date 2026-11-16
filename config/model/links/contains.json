@@ -1,0 +1,10 @@
+{
+  "name": "contains",
+  "from": [
+    "VER"
+  ],
+  "to": [
+    "STD"
+  ],
+  "description": "A version of the standard contains a rule."
+}

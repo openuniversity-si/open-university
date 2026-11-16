@@ -1,0 +1,11 @@
+{
+  "id": "intent",
+  "name": "Intent",
+  "processes": [
+    "15288/12207 business or mission analysis",
+    "15288/12207 stakeholder needs and requirements definition"
+  ],
+  "owner": "Daniel",
+  "measure": "Share of needs with at least one requirement and one validation.",
+  "description": "The owner's intention, goals and locked constraints (docs/SEMENTE.md) and the needs they refine."
+}

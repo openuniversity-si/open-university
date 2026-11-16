@@ -1,0 +1,15 @@
+{
+  "id": "premises",
+  "name": "Premises",
+  "parts": [
+    {
+      "kind": "files",
+      "glob": "docs/process/premises/*.yml"
+    }
+  ],
+  "becomes": [
+    "P",
+    "REQ"
+  ],
+  "description": "Premises (D-066); a premise that states a constraint becomes a requirement as well."
+}

@@ -1,0 +1,14 @@
+{
+  "id": "operation",
+  "name": "Operation",
+  "processes": [
+    "15288/12207 operation",
+    "15288/12207 maintenance",
+    "15288/12207 infrastructure management",
+    "SWEBOK 6 Software Engineering Operations",
+    "SWEBOK 7 Software Maintenance"
+  ],
+  "owner": "efficiency",
+  "measure": "Time to recover, and incidents with their cause linked to a requirement or validation.",
+  "description": "Services, environments and incidents."
+}

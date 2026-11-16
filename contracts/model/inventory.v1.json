@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/inventory.v1.json",
+  "title": "Model inventory source v1",
+  "description": "config/model/inventory/<id>.json (PADRAO-DEV F1): one place where requirements live before they are model objects. The inventory guard counts the distinct ids every source holds, so the chain measure cannot rise by leaving a source out.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "parts",
+    "becomes",
+    "description"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The source id, equal to the file name."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ways to find the source's ids; the ids of all parts are unioned.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "glob"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "content",
+              "filename",
+              "files",
+              "registry"
+            ],
+            "description": "content: distinct first groups of `pattern` in the files; filename: of `pattern` in the file names; files: one id per file; registry: one id per key of the owners' files."
+          },
+          "glob": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The files (checkout-relative glob)."
+          },
+          "pattern": {
+            "type": "string",
+            "description": "A regular expression; its first group is the id."
+          }
+        }
+      }
+    },
+    "becomes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9]*$"
+      },
+      "description": "The model types its entries may become when imported."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

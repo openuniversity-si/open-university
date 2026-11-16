@@ -1,0 +1,10 @@
+{
+  "name": "fixed-by",
+  "from": [
+    "INC"
+  ],
+  "to": [
+    "CHG"
+  ],
+  "description": "An incident was fixed by a change."
+}

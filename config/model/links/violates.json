@@ -1,0 +1,11 @@
+{
+  "name": "violates",
+  "from": [
+    "INC"
+  ],
+  "to": [
+    "REQ",
+    "VAL"
+  ],
+  "description": "An incident violated a requirement or a validation."
+}

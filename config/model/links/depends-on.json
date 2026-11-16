@@ -1,0 +1,12 @@
+{
+  "name": "depends-on",
+  "from": [
+    "UNIT"
+  ],
+  "to": [
+    "UNIT",
+    "CFG",
+    "CON"
+  ],
+  "description": "A unit depends on another unit, a configuration item or a contract (Backstage dependsOn)."
+}

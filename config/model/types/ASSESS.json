@@ -1,0 +1,12 @@
+{
+  "id": "ASSESS",
+  "name": "conformance assessment",
+  "system": "conformance",
+  "states": [
+    "calculated"
+  ],
+  "derived_states": [
+    "calculated"
+  ],
+  "description": "The conformance of a system or a rule on a sha, calculated."
+}

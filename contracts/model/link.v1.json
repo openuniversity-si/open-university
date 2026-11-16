@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/link.v1.json",
+  "title": "Model link type v1",
+  "description": "config/model/links/<name>.json (PADRAO-DEV F1): one kind of trace link. A link is stored on the object that knows it, from `from` to `to`, and records the target's fingerprint; it is suspect when the fingerprint changes.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "from",
+    "to",
+    "description"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The link name, equal to the file name."
+    },
+    "from": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9]*$"
+      },
+      "description": "The types a link of this kind may start from."
+    },
+    "to": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9]*$"
+      },
+      "description": "The types it may point to."
+    },
+    "oslc": {
+      "type": "string",
+      "description": "The OSLC property it corresponds to, when one exists (oslc_rm:satisfiedBy, ...)."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

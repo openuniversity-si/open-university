@@ -1,0 +1,13 @@
+{
+  "id": "knowledge",
+  "name": "Knowledge",
+  "processes": [
+    "15288/12207 knowledge management",
+    "15288/12207 risk management",
+    "15288/12207 human resource management (agent instructions)",
+    "SWEBOK 14 Software Engineering Professional Practice"
+  ],
+  "owner": "administration",
+  "measure": "High-blast premises not confirmed, and manual actions repeated a third time.",
+  "description": "Premises and risks, lessons, frictions and the instructions agents read."
+}

@@ -1,0 +1,15 @@
+{
+  "id": "TEST",
+  "name": "test",
+  "system": "verification",
+  "states": [
+    "proposed",
+    "active",
+    "quarantined",
+    "retired"
+  ],
+  "inactive_states": [
+    "retired"
+  ],
+  "description": "A script test or test file, with its level and the objects it verifies."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "authorized-by",
+  "from": [
+    "TAIL"
+  ],
+  "to": [
+    "D"
+  ],
+  "description": "An exemption is authorized by a decision."
+}
