@@ -8,7 +8,6 @@ from http import HTTPStatus
 from pathlib import Path
 import re
 import sys
-import tempfile
 import unittest
 from unittest import mock
 
@@ -18,7 +17,6 @@ import config  # noqa: E402
 import forge_events  # noqa: E402
 import forge_origin  # noqa: E402
 import forge_origin_client  # noqa: E402
-import config  # noqa: E402
 
 REPO = 'o/r'
 ORIGIN_HOST = 'origin.test'
