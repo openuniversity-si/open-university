@@ -149,7 +149,7 @@ def reuser(repo, base, run=run, environ=None, parts=None):
 
 
 def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=False, reuse=None, isolated=isolated_tests,
-          cpus=os.cpu_count, part=None, hints=costs):
+          cpus=os.cpu_count, part=None, hints=costs, paces=None):
     """(green, red names, the plan, seconds): every stage of the plan but SKIPPED, then its tests in one batch.
     VERIFY-TAIL: tails, when given, receives (name, the end of its output) for each red stage and each test still red.
     VERIFY-ALONE (the engine's FULL-RUN-ALONE): a test red in the batch runs again alone, and that verdict is its own; a
@@ -166,7 +166,11 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
     GATE-PARTS (the Torre, 16/11/2026): part, when given, is this job's share of the plan, the others judged by the other
     jobs of the same tower/gate: main the stages and half the tests, shard1 the other half, alone the timing-bound tests
     by themselves on a runner of their own (split()). planned['part'] names it and planned['judged'] its checks; the
-    plan, and the verdict's key, stay the whole plan's."""
+    plan, and the verdict's key, stay the whole plan's.
+    GATE-PACE (the Torre's AWS review, 16/11/2026): in the main part the stages run one after another in a thread beside
+    the batch, which keeps one worker fewer for them, instead of before it: on the hosted runner they were ~35 of main's
+    57 s (#146's queue commit: main 57 s, shard1 22 s with more of the tests), and the queue gate waits for its slowest
+    part. paces, when given, receives (name, seconds) of each stage and of the batch, for the job log to name the pace."""
     began = clock()
     planned = plan(base, run)
     red = []
@@ -175,15 +179,26 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
     shares = split(planned.get('tests') or [], set(isolated()), hints()) if part else None
     if part:
         planned['part'] = part
-    for stage in (planned.get('stages') or []) if part in (None, 'main') else []:
-        if stage in SKIPPED:
-            continue
-        code, said = run(['scripts/gate-check', 'stage', stage, '--base', base])
-        if code != 0:
-            red.append(stage)
-            # a secret scan's output may quote what it found: the public job log never carries it
-            tails.append((stage, 'its output is not printed (a secret scan): run it locally' if stage.startswith('secret')
-                          else said[-TAIL:]))
+    paces = [] if paces is None else paces
+    staged_red, staged_tails = [], []
+
+    def stages():
+        for stage in (planned.get('stages') or []) if part in (None, 'main') else []:
+            if stage in SKIPPED:
+                continue
+            at = clock()
+            code, said = run(['scripts/gate-check', 'stage', stage, '--base', base])
+            paces.append((stage, clock() - at))
+            if code != 0:
+                staged_red.append(stage)
+                # a secret scan's output may quote what it found: the public job log never carries it
+                staged_tails.append((stage, 'its output is not printed (a secret scan): run it locally'
+                                     if stage.startswith('secret') else said[-TAIL:]))
+    staging = threading.Thread(target=stages, name='verify-stages', daemon=True) if part == 'main' else None
+    if staging:
+        staging.start()
+    else:
+        stages()
     tests = planned.get('tests') or []
     if every:
         tests = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / 'scripts' / 'tests').glob('*.test.sh'))
@@ -210,9 +225,11 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
             if batch:
                 answer = Path(tmp) / 'tests.json'
                 env = {**os.environ, 'TOWER_ANSWER_FILE': str(answer)}
-                if apart:  # GATE-ISOLATED: one CPU of the runner is the isolated tests'
+                if apart or staging:  # GATE-ISOLATED, GATE-PACE: one CPU of the runner is the isolated tests' or the stages'
                     env[WORKERS] = str(max(1, int(os.environ.get(WORKERS) or cpus() or 1) - 1))
+                at = clock()
                 code, out = run(['scripts/gate-check', 'tests', ','.join(batch)], env=env)
+                paces.append(('the batch of tests', clock() - at))
                 said = json.loads(answer.read_text()).get('tests', {}) if answer.is_file() else {}
                 failed = [test for test in batch if said.get(test) != 'PASS']
                 if code != 0 and not failed:
@@ -228,6 +245,9 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
                 else:
                     red.append(test)
                     tails.append((f'{test} (alone)', said_alone[-TAIL:]))
+    if staging:
+        staging.join()
+    red[:0], tails[:0] = staged_red, staged_tails  # the stages' first, as when they ran before the tests
     if part:
         planned['judged'] = ((len([stage for stage in planned.get('stages') or [] if stage not in SKIPPED])
                               if part == 'main' else 0) + len(shares[part]))
@@ -290,8 +310,9 @@ def main(argv=None, run=run, environ=None):
     try:
         tails, alone = [], []
         reuse = reuser(repo, args.base, run, environ, PARTS if args.part else None) if args.reuse else None
+        paces = []
         green, red, planned, seconds = judge(args.base, run, tails=tails, alone=alone, every=args.all, reuse=reuse,
-                                             part=args.part)
+                                             part=args.part, paces=paces)
     except Exception as error:  # noqa: BLE001 - a verifier that could not judge says so on the commit
         if not args.no_post:
             post(repo, args.sha, 'error', f'not judged: {error}', run)
@@ -314,6 +335,9 @@ def main(argv=None, run=run, environ=None):
             print(f'verify-commit: recorded {record(args.record, args.base, planned, args.sha, run, environ)}')
         except Exception as error:  # noqa: BLE001 - no record only costs the merge queue's run its reuse
             print(f'verify-commit: no record: {error}', file=sys.stderr)
+    if paces:  # GATE-PACE: what the part's time went to, the slowest first
+        print('verify-commit: pace: ' + ', '.join(f'{name} {spent:.1f} s' for name, spent in
+                                                  sorted(paces, key=lambda pair: -pair[1])))
     if alone:  # VERIFY-ALONE: said, so a test that needs the machine to itself is seen, not hidden
         print(f'verify-commit: red in the batch and green alone: {", ".join(alone)}')
     for name, tail in tails:  # VERIFY-TAIL: what failed, where the verifier runs (a hosted job keeps no other log)
