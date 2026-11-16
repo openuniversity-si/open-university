@@ -131,11 +131,13 @@ A ordem põe primeiro o que configura os outros (o modelo e o padrão), depois a
 | F5 Verificação | todo REQ com teste; seleção completa; adequação medida | TEST como objeto com nível e nível de integridade; `Verifies:`; a seleção derivada da execução (a rastreação, o rascunho de `padrao-metrics selection`) unida à declarada; contagem de casos por teste; cobertura do diff e mutação do diff pós-merge; quarentena de instáveis com dono e prazo | 0 pares sem seleção; adequação no painel | 7–9 PRs |
 | F6 Validação | toda NEED com VAL; o teste de validação final existe | VAL para a escada da intenção (1.000 → 10.000 → 100.000 PRs/dia), as guardas da semente e os SLOs; o teste de validação final que mede, numa janela, se o sistema atende à necessidade; canário e SLO como validação contínua quando o motor tiver produção própria | toda NEED com VAL medida | 4–6 PRs |
 | F7 Os sistemas de apoio | configuração, operação, medição, conhecimento e trabalho no modelo, cada um com medida | MEAS com o metadado da 15939; INC ligado a REQ/VAL e à mudança que conserta; premissas, lições e fricções como objetos; itens de trabalho ligados a REQ e ARC | conformidade L ou F nos cinco | 5–7 PRs |
-| F8 Tudo nasce no modelo | a cadeia verificada ≥ 95 % do inventário; conformidade F em todos os sistemas | os geradores (`scripts/scaffold`) criam o objeto, as ligações e o teste juntos; o AGENTS.md vira um mapa curto gerado do modelo; as regras em aviso promovidas pela medida; o modelo aplicado a todo sistema novo que construirmos | critério de parada do programa | 4–6 PRs |
+| F8 Tudo nasce no modelo | a cadeia verificada em 100 % do inventário ativo; conformidade F em todos os sistemas | os geradores (`scripts/scaffold`) criam o objeto, as ligações e o teste juntos; o AGENTS.md vira um mapa curto gerado do modelo; as regras em aviso promovidas pela medida; o modelo aplicado a todo sistema novo que construirmos | critério de parada do programa | 4–6 PRs |
 
 ## Critério de parada
-O programa para quando a cadeia verificada de ponta a ponta cobre pelo menos 95 % do inventário de requisitos, todos
-os 15 sistemas estão em conformidade F, a taxa de escape está abaixo de 1 % numa janela de pelo menos 1.000 PRs
+O programa para quando a cadeia verificada de ponta a ponta cobre 100 % do inventário de requisitos ativos (Daniel,
+15/11 21:12 BRT, ao aprovar a revisão 2: era 95 %), todos os 15 sistemas estão em conformidade F, a taxa de escape está abaixo de 1 % numa janela de pelo menos 1.000 PRs
 mergeadas, e nenhuma guarda piorou em relação à linha de base; ou quando um limite físico medido impede (por exemplo,
 os 60 s do gate contra a checagem do modelo). O critério é registrado como decisão D-NNN na primeira PR da F1, com a
-prova (o teste de `scripts/model measure`); custo-benefício e ruído de medida não param o programa.
+prova (o teste de `scripts/model measure`); custo-benefício e ruído de medida não param o programa. Com 100 %, um
+requisito que não se consegue verificar tem duas saídas: ganha a sua verificação, ou é retirado (obsoleto ou
+substituído) por uma decisão; os retirados saem do inventário ativo, como na DO-178C.
