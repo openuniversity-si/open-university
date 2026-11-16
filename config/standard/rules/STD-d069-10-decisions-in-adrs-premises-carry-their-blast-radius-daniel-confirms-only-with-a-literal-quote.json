@@ -1,0 +1,17 @@
+{
+  "id": "STD-d069-10-decisions-in-adrs-premises-carry-their-blast-radius-daniel-confirms-only-with-a-literal-quote",
+  "statement": "Decisions in ADRs; premises carry their blast radius; Daniel confirms only with a literal quote (D-069 principle 10).",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/process/principles/D-069.md#10"
+  },
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

@@ -1,0 +1,15 @@
+{
+  "id": "STD-census-shape-errors",
+  "statement": "A change passes the refusing check _shape_errors of scripts/lib/census.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/census.py:_shape_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

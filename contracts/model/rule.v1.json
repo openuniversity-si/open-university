@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/rule.v1.json",
+  "title": "Standard rule v1",
+  "description": "config/standard/rules/<id>.json (PADRAO-DEV F1b): one rule of the development standard, an STD object of the engineering model. It holds only what is declared: the statement, its basis, its owner, the object types it applies to, how it is checked and its state. What can be derived is not here: the tests of its check come from the covers manifests, and a refusing function or a gate stage with no rule is a warning of scripts/model check.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "statement",
+    "state",
+    "owner",
+    "applies_to",
+    "check"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^STD-[a-z0-9][a-z0-9-]*$",
+      "description": "The rule id, equal to the file name."
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the rule requires, in one or two sentences."
+    },
+    "state": {
+      "enum": [
+        "draft",
+        "warning",
+        "blocking",
+        "replaced"
+      ],
+      "description": "draft: written, not yet checked; warning: checked and reported, with a deadline; blocking: a violation stops the change; replaced: a newer rule took its place."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who answers for the rule: a domain of AGENTS.md (capacity, efficiency, administration) or Daniel."
+    },
+    "applies_to": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9]*$"
+      },
+      "description": "The model object types the rule judges."
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "function",
+            "gate-stage",
+            "test",
+            "judgment"
+          ],
+          "description": "function: a refusing function, ref `<file>:<function>`; gate-stage: a stage of the gate, ref its name; test: a test file, ref its path; judgment: no executable check, ref the document where the rule is written."
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "basis": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^D-[0-9]+$"
+      },
+      "description": "The decisions that justify the rule."
+    },
+    "deadline": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "For a rule in warning: the date by which it is promoted to blocking or retired."
+    },
+    "replaced_by": {
+      "type": "string",
+      "pattern": "^STD-[a-z0-9][a-z0-9-]*$"
+    },
+    "note": {
+      "type": "string"
+    }
+  }
+}

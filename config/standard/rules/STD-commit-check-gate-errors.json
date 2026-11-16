@@ -1,0 +1,15 @@
+{
+  "id": "STD-commit-check-gate-errors",
+  "statement": "A change to the gate cites a D-NNN recorded in DECISIONS.md.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/commit_check.py:gate_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

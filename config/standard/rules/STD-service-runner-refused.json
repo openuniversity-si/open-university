@@ -1,0 +1,15 @@
+{
+  "id": "STD-service-runner-refused",
+  "statement": "The sentence of a refused runner token (service.token_holders): which variable, which secret it must equal, where its holder is.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/service_runner.py:refused"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

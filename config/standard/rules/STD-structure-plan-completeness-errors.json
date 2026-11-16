@@ -1,0 +1,15 @@
+{
+  "id": "STD-structure-plan-completeness-errors",
+  "statement": "GX-21: errors naming the plan items of the body that no real commit ticks.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/structure.py:plan_completeness_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

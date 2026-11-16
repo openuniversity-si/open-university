@@ -1,0 +1,18 @@
+{
+  "id": "STD-structure-review-errors",
+  "statement": "D-054/D-055 (B5): an `approved` trailer needs the latest review of this exact head to approve it, and to name that head.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/structure.py:review_errors"
+  },
+  "basis": [
+    "D-054",
+    "D-055"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

@@ -1,0 +1,15 @@
+{
+  "id": "STD-vendor-check-catalog-errors",
+  "statement": "A change passes the refusing check catalog_errors of scripts/lib/vendor_check.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/vendor_check.py:catalog_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

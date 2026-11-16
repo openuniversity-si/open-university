@@ -1,0 +1,18 @@
+{
+  "id": "STD-commit-check-plan-errors",
+  "statement": "D-022: a commit plan checklist of numbered items, at least PLAN_MIN of them; D-307: no maximum while budgets.pr_commits_max is 0, its default, so a PR is split by its content and never by a counter.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/commit_check.py:plan_errors"
+  },
+  "basis": [
+    "D-022",
+    "D-307"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

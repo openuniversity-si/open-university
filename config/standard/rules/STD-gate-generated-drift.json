@@ -1,0 +1,17 @@
+{
+  "id": "STD-gate-generated-drift",
+  "statement": "A change passes the gate stage \"generated drift\" on its exact head before it merges.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "gate-stage",
+    "ref": "generated drift"
+  },
+  "basis": [
+    "D-314"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

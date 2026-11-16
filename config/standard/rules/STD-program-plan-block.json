@@ -1,0 +1,15 @@
+{
+  "id": "STD-program-plan-block",
+  "statement": "A change passes the refusing check plan_block of scripts/lib/program.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/program.py:plan_block"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

@@ -13,6 +13,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
                                    object that does not exist, such as a decision proof that is gone) are counted, and
                                    are errors only with --strict
   scripts/model show <id>          one object: type, state, source, and its links out and in
+  scripts/model seed-rules         writes config/standard/rules/<id>.json for every refusal, gate stage, D-069 principle
+                                   and the method that has no rule yet (never rewrites a rule)
   scripts/model measure [--json F] the main metric (the share of active requirements whose chain is verified end to
                                    end), the requirement inventory, and each system's objects and calculated conformance
 
@@ -43,6 +45,9 @@ DECISION_TABLE = 'docs/domain/DECISIONS.md'
 DECISION_ROW = re.compile(r'^\| (D-[0-9]+) ', re.MULTILINE)
 FRONT = re.compile(r'^---\n(.*?)\n---\n', re.DOTALL)
 UNIT_MANIFESTS = 'units/*/unit.json'
+RULES = 'config/standard/rules/*.json'
+COVERS = 'scripts/tests/covers/*.json'
+GATE_STAGES = 'scripts/lib/gate-stages.json'
 TEST_GLOBS = ('scripts/tests/*.test.sh', 'scripts/tests/**/test_*.py')
 
 
@@ -169,7 +174,180 @@ def read_tests(root):
                  path.read_text(errors='replace')) for path in paths if path.is_file()]
 
 
-READERS = (read_decisions, read_units, read_tests)
+def _covers(root):
+    """[(test script, covers patterns)] of every covers manifest."""
+    found = []
+    for path in sorted(Path(root).glob(COVERS)):
+        manifest = _read_json(path)
+        found.append((manifest['script'], [manifest['script'], *manifest.get('covers', [])]))
+    return found
+
+
+def check_file(rule):
+    """The file a rule's check lives in, or None for a gate stage."""
+    kind, ref = rule['check']['kind'], rule['check']['ref']
+    if kind == 'function':
+        return ref.split(':', 1)[0]
+    if kind in ('test', 'judgment'):
+        return ref.split('#', 1)[0]
+    return None
+
+
+def read_rules(root):
+    """The rules of the standard (STD). Each is validated against contracts/model/rule.v1.json; its basis becomes
+    justified-by links, and every test whose covers names the file of an executable check (a function or a test, never a
+    judgment's document) verifies it (derived, never written)."""
+    from gate_areas import glob_match
+    root = Path(root)
+    schema = _read_json(root / CONTRACTS_DIR / 'rule.v1.json')
+    manifests = _covers(root)
+    found = []
+    for path in sorted(root.glob(RULES)):
+        text = path.read_text()
+        rule = _read_json(path)
+        problems = [f'{problem}' for problem in json_schema.validate(schema, rule)]
+        if isinstance(rule, dict) and rule.get('id') != path.stem:
+            problems.append(f'its id must equal the file name {path.stem}')
+        if problems:
+            found.append({**_obj(f'STD:{path.stem}', 'STD', 'draft', path.relative_to(root).as_posix(), text),
+                          'problems': problems})
+            continue
+        links = [{'type': 'justified-by', 'target': number} for number in rule.get('basis', [])]
+        item = _obj(rule['id'], 'STD', rule['state'], path.relative_to(root).as_posix(), text, links)
+        item['rule'] = rule
+        found.append(item)
+        target = check_file(rule) if rule['check']['kind'] in ('function', 'test') else None
+        for script, patterns in manifests if target else []:
+            if any(glob_match(target, pattern) for pattern in patterns):
+                found.append({'id': f'TEST:{script}', 'type': 'TEST', 'state': 'active', 'source': script, 'claimed': True,
+                              'fingerprint': None, 'links': [{'type': 'verifies', 'target': rule['id']}]})
+    return found
+
+
+def discovered_stops(root):
+    """Every `<file>:<function>` that refuses, as scripts/rule finds them (rules.stop_patterns)."""
+    import config
+    import rule_registry
+    return rule_registry.discovered(Path(root), config.get('rules.stop_patterns'))
+
+
+def gate_stages(root):
+    path = Path(root) / GATE_STAGES
+    return sorted(_read_json(path).get('stages', {})) if path.is_file() else []
+
+
+def rule_findings(found, root, stops=None, stages=None):
+    """Warnings of the standard: a refusal or a gate stage with no rule, a rule whose check does not exist, a rule with
+    no basis, a rule in warning with no deadline."""
+    root = Path(root)
+    rules = [item for item in found.values() if item['type'] == 'STD' and 'rule' in item]
+    refs = {(item['rule']['check']['kind'], item['rule']['check']['ref']) for item in rules}
+    stops = discovered_stops(root) if stops is None else stops
+    stages = gate_stages(root) if stages is None else stages
+    warnings = [f'{stop}: a refusal with no rule of the standard' for stop in stops if ('function', stop) not in refs]
+    warnings += [f'gate stage {stage}: a stage with no rule of the standard' for stage in stages
+                 if ('gate-stage', stage) not in refs]
+    for item in rules:
+        rule = item['rule']
+        kind, ref = rule['check']['kind'], rule['check']['ref']
+        target = check_file(rule)
+        if kind == 'gate-stage' and ref not in stages:
+            warnings.append(f'{item["id"]}: gate stage {ref} does not exist')
+        elif target and not (root / target).is_file():
+            warnings.append(f'{item["id"]}: its check {ref} does not exist')
+        elif kind == 'function' and not re.search(rf'^\s*def {re.escape(ref.split(":", 1)[1])}\(',
+                                                  (root / target).read_text(), re.MULTILINE):
+            warnings.append(f'{item["id"]}: function {ref} does not exist')
+        if not rule.get('basis'):
+            warnings.append(f'{item["id"]}: no decision justifies it (basis)')
+        if rule['state'] == 'warning' and not rule.get('deadline'):
+            warnings.append(f'{item["id"]}: in warning with no deadline')
+    return warnings
+
+
+PRINCIPLES = 'docs/process/principles/D-069.md'
+PRINCIPLE = re.compile(r'^### ([0-9]+)\. (.+)$', re.MULTILINE)
+METHOD = 'docs/padrao/METODO.md'
+SEED_NOTE = 'Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
+
+
+def _slug(text):
+    return re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')
+
+
+def _docstring(path, function):
+    """A function's whole docstring, or ''."""
+    import ast
+    try:
+        tree = ast.parse(Path(path).read_text())
+    except (OSError, SyntaxError):
+        return ''
+    return next((ast.get_docstring(node) or '' for node in ast.walk(tree)
+                 if isinstance(node, ast.FunctionDef) and node.name == function), '')
+
+
+def _docline(path, function):
+    """The first sentence of a function's docstring, or ''."""
+    import ast
+    try:
+        tree = ast.parse(Path(path).read_text())
+    except (OSError, SyntaxError):
+        return ''
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == function:
+            doc = (ast.get_docstring(node) or '').strip().split('\n\n', 1)[0].replace('\n', ' ')
+            return doc.split('. ', 1)[0].rstrip('.') + '.' if doc else ''
+    return ''
+
+
+def seeds(root, stops=None, stages=None):
+    """{rule id: rule} for every refusal, gate stage, D-069 principle and the method, the catalog's first content."""
+    root = Path(root)
+    stops = discovered_stops(root) if stops is None else stops
+    stages = gate_stages(root) if stages is None else stages
+    base = {'owner': 'administration', 'applies_to': ['CHG'], 'note': SEED_NOTE}
+    found = {}
+    for stop in stops:
+        path, function = stop.split(':', 1)
+        doc = _docline(root / path, function)
+        found[f'STD-{_slug(Path(path).stem)}-{_slug(function)}'] = {
+            **base, 'statement': doc or f'A change passes the refusing check {function} of {path}.',
+            'state': 'blocking', 'check': {'kind': 'function', 'ref': stop},
+            'basis': sorted(set(re.findall(r'\bD-[0-9]+\b', _docstring(root / path, function))),
+                            key=lambda number: int(number[len('D-'):]))}
+    for stage in stages:
+        found[f'STD-gate-{_slug(stage)}'] = {
+            **base, 'statement': f'A change passes the gate stage "{stage}" on its exact head before it merges.',
+            'state': 'blocking', 'check': {'kind': 'gate-stage', 'ref': stage}, 'basis': ['D-314']}
+    text = (root / PRINCIPLES).read_text() if (root / PRINCIPLES).is_file() else ''
+    for number, title in PRINCIPLE.findall(text.split('\n## Shared contract', 1)[0]):
+        found[f'STD-d069-{number}-{_slug(title)}'] = {
+            **base, 'statement': f'{title.rstrip(".")} (D-069 principle {number}).', 'state': 'draft',
+            'check': {'kind': 'judgment', 'ref': f'{PRINCIPLES}#{number}'}, 'basis': ['D-069']}
+    if (root / METHOD).is_file():
+        found['STD-metodo'] = {**base, 'applies_to': ['WORK'], 'state': 'draft', 'basis': [],
+                               'statement': 'Work follows the management method: program and project by PDCA, process and '
+                                            'operation by SDCA, one retrospective at every level.',
+                               'check': {'kind': 'judgment', 'ref': METHOD}}
+    return {id: {'id': id, **{key: rule[key] for key in ('statement', 'state', 'owner', 'applies_to', 'check', 'basis',
+                                                         'note')}}
+            for id, rule in found.items()}
+
+
+def seed_rules(root=ROOT, stops=None, stages=None):
+    """Writes the seed of every rule that has no file yet; never rewrites one. Returns the paths written."""
+    written = []
+    for id, rule in sorted(seeds(root, stops, stages).items()):
+        path = Path(root) / RULES.replace('*', id)
+        if path.exists():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(rule, indent=2, ensure_ascii=False) + '\n')
+        written.append(path.relative_to(root).as_posix())
+    return written
+
+
+READERS = (read_decisions, read_units, read_tests, read_rules)
 
 
 def objects(root=ROOT, readers=READERS):
@@ -188,14 +366,17 @@ def objects(root=ROOT, readers=READERS):
     return found
 
 
-def check(meta, found):
-    """(errors, warnings) of the objects against the metamodel."""
+def check(meta, found, root=None):
+    """(errors, warnings) of the objects against the metamodel; with `root`, also the warnings of the standard."""
     errors, warnings = [], []
+    if root is not None:
+        warnings += rule_findings(found, root)
     for id, item in sorted(found.items()):
         kind = meta['types'].get(item['type'])
         if kind is None:
             errors.append(f'{id}: type {item["type"]} does not exist')
             continue
+        errors += [f'{id}: {problem}' for problem in item.get('problems', [])]
         if item['state'] not in kind['states']:
             errors.append(f'{id}: state {item["state"]} is not a state of {item["type"]}')
         if item.get('claimed') and item.get('fingerprint') is None:
@@ -285,10 +466,32 @@ def rate(share, scale):
     return scale[-1]['level'] if scale else ''
 
 
-def measure(root=ROOT, meta=None, found=None):
+def standard_measure(found, today):
+    """The standard's own measure: its rules, those with an executable check, with a test that verifies them, with a
+    decision that justifies them, and those in warning past their deadline (dates as YYYY-MM-DD)."""
+    into = incoming(found)
+    rules = [item for item in found.values() if item['type'] == 'STD' and 'rule' in item and item['state'] != 'replaced']
+    def tested(item):
+        return any(kind == 'verifies' and found.get(source, {}).get('fingerprint') is not None
+                   for kind, source in into.get(item['id'], []))
+    return {
+        'rules': len(rules),
+        'executable': sum(1 for item in rules if item['rule']['check']['kind'] != 'judgment'),
+        'tested': sum(1 for item in rules if tested(item)),
+        'justified': sum(1 for item in rules if item['rule'].get('basis')),
+        'overdue': sum(1 for item in rules if item['state'] == 'warning' and item['rule'].get('deadline', today) < today),
+    }
+
+
+def utc_today():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def measure(root=ROOT, meta=None, found=None, today=None):
     meta = meta or metamodel(root)
     found = found if found is not None else objects(root)
-    errors, warnings = check(meta, found)
+    errors, warnings = check(meta, found, root)
     flagged = {line.split(':', 1)[0] for line in errors + warnings}
     into = incoming(found)
     requirements = [item for item in found.values() if item['type'] == 'REQ' and is_active(meta, item)]
@@ -308,6 +511,7 @@ def measure(root=ROOT, meta=None, found=None):
         'inventory': {'sources': sources, 'ids': sum(item['ids'] for item in sources.values()),
                       'imported': sum(item['imported'] for item in sources.values())},
         'systems': systems,
+        'standard': standard_measure(found, today or utc_today()),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors),
         'warnings': len(warnings),
@@ -336,6 +540,10 @@ def summary(found):
     lines.append(f'systems ({found["objects"]} object(s)):')
     lines += [f'  {name}: {item["level"]} ({item["conformant"]} of {item["objects"]} conformant)'
               for name, item in found['systems'].items()]
+    rules = found['standard']
+    lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
+                 f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
+                 f'their deadline')
     lines.append(f'check: {found["errors"]} error(s), {found["warnings"]} warning(s)')
     return '\n'.join(lines)
 
@@ -348,17 +556,22 @@ def main(argv=None):
     checked.add_argument('--strict', action='store_true')
     shown = commands.add_parser('show')
     shown.add_argument('id')
+    commands.add_parser('seed-rules', help='write the seed rule of every refusal, gate stage, D-069 principle and the method')
     measured = commands.add_parser('measure')
     measured.add_argument('--json')
     args = parser.parse_args(argv)
     try:
+        if args.command == 'seed-rules':
+            written = seed_rules()
+            print(f'seed-rules: {len(written)} rule file(s) written')
+            return 0
         if args.command == 'show':
             print(show(args.id))
             return 0
         meta = metamodel()
         found = objects()
         if args.command == 'check':
-            errors, warnings = check(meta, found)
+            errors, warnings = check(meta, found, ROOT)
             errors = meta['errors'] + errors
             for line in errors:
                 print(f'ERROR {line}')

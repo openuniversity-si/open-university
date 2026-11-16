@@ -1,0 +1,15 @@
+{
+  "id": "STD-effort-body-errors",
+  "statement": "The `pr metadata` refusals of a PR body: the checkout's registry when it has the effort file, else the tool's own (a body is judged even in a checkout that predates the rule).",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/effort.py:body_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

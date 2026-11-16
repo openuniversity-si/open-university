@@ -17,6 +17,16 @@
     "config/registry/budgets.json",
     "units/*/unit.json",
     "scripts/tests/*.test.sh",
-    "scripts/tests/**/test_*.py"
+    "scripts/tests/**/test_*.py",
+    "config/standard/rules/*.json",
+    "scripts/tests/covers/*.json",
+    "scripts/lib/gate-stages.json",
+    "scripts/lib/rule_registry.py",
+    "scripts/lib/gate_areas.py",
+    "scripts/lib/config.py",
+    "config/registry/rules.json",
+    "scripts/lib/premises.py",
+    "docs/process/principles/D-069.md",
+    "docs/padrao/METODO.md"
   ]
 }

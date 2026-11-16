@@ -1,0 +1,15 @@
+{
+  "id": "STD-budgets-schema-errors",
+  "statement": "A change passes the refusing check schema_errors of scripts/lib/budgets.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/budgets.py:schema_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

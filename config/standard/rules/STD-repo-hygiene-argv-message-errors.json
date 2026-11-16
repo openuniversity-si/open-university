@@ -1,0 +1,15 @@
+{
+  "id": "STD-repo-hygiene-argv-message-errors",
+  "statement": "One error per call of `path` that names a git write verb and passes `-m` or `--message` followed by anything but a literal or an f-string (a name, a call, an attribute: text of unbounded size on the command line).",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/repo_hygiene.py:argv_message_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

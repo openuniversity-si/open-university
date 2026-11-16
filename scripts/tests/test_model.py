@@ -134,6 +134,91 @@ class TinyModel(unittest.TestCase):
         self.assertEqual((counted['ids'], counted['imported']), (len(['D-1', 'D-2', 'D-3', 'A', 'a.one', 'a.two']), 1))
 
 
+class Rules(unittest.TestCase):
+    """The rules of the standard (STD) on a temporary checkout with the real metamodel."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-rules-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        for folder in ('contracts/model', 'config/model'):
+            shutil.copytree(ROOT / folder, self.root / folder)
+        write(self.root, 'scripts/lib/guard.py', 'def plan_errors(body):\n    return []\n')
+        write(self.root, 'scripts/tests/covers/guard.json', {'script': 'scripts/tests/guard.test.sh',
+                                                             'covers': ['scripts/lib/*.py']})
+        write(self.root, 'scripts/tests/covers/other.json', {'script': 'scripts/tests/other.test.sh',
+                                                             'covers': ['docs/**']})
+        self.rule('STD-plan', state='blocking', basis=['D-1'], check={'kind': 'function', 'ref': 'scripts/lib/guard.py:plan_errors'})
+
+    def rule(self, id, **fields):
+        body = {'id': id, 'statement': 's', 'state': 'draft', 'owner': 'administration', 'applies_to': ['CHG'],
+                'check': {'kind': 'judgment', 'ref': 'docs/x.md'}, **fields}
+        write(self.root, f'config/standard/rules/{id}.json', body)
+
+    def found(self):
+        items = model.read_rules(self.root)
+        merged = {}
+        for item in items:
+            merged.setdefault(item['id'], {**item, 'links': []})['links'] += item['links']
+        return merged
+
+    def test_a_rule_is_an_object_justified_by_its_decisions_and_verified_by_the_tests_whose_covers_name_its_check(self):
+        found = self.found()
+        self.assertEqual(found['STD-plan']['links'], [{'type': 'justified-by', 'target': 'D-1'}])
+        self.assertEqual(found['TEST:scripts/tests/guard.test.sh']['links'], [{'type': 'verifies', 'target': 'STD-plan'}])
+        self.assertNotIn('TEST:scripts/tests/other.test.sh', found)
+
+    def test_a_rule_file_the_contract_refuses_is_an_error(self):
+        self.rule('STD-bad', state='enforced')
+        found = self.found()
+        errors, _ = model.check(model.metamodel(self.root), found)
+        self.assertTrue(any(error.startswith('STD:STD-bad: $.state') for error in errors), errors)
+
+    def test_refusals_and_stages_without_a_rule_missing_checks_no_basis_and_no_deadline_are_warnings(self):
+        self.rule('STD-gone', check={'kind': 'function', 'ref': 'scripts/lib/guard.py:gone_errors'}, basis=['D-1'])
+        self.rule('STD-soon', state='warning', basis=['D-1'], check={'kind': 'gate-stage', 'ref': 'shellcheck'})
+        warnings = model.rule_findings(self.found(), self.root,
+                                       stops=['scripts/lib/guard.py:plan_errors', 'scripts/lib/guard.py:push_errors'],
+                                       stages=['shellcheck', 'schema compat'])
+        self.assertIn('scripts/lib/guard.py:push_errors: a refusal with no rule of the standard', warnings)
+        self.assertNotIn('scripts/lib/guard.py:plan_errors: a refusal with no rule of the standard', warnings)
+        self.assertIn('gate stage schema compat: a stage with no rule of the standard', warnings)
+        self.assertIn('STD-gone: function scripts/lib/guard.py:gone_errors does not exist', warnings)
+        self.assertIn('STD-soon: in warning with no deadline', warnings)
+        self.assertFalse(any(line.startswith('STD-plan') for line in warnings), warnings)
+
+    def test_a_judgment_rule_needs_its_document_and_a_rule_without_basis_is_reported(self):
+        self.rule('STD-judge')
+        warnings = model.rule_findings(self.found(), self.root, stops=[], stages=[])
+        self.assertIn('STD-judge: its check docs/x.md does not exist', warnings)
+        self.assertIn('STD-judge: no decision justifies it (basis)', warnings)
+
+    def test_the_seed_has_a_rule_per_refusal_stage_principle_and_the_method_and_never_rewrites_one(self):
+        write(self.root, 'scripts/lib/guard.py', 'def push_errors(push):\n    """One commit per push (D-25, D-7). More."""\n')
+        write(self.root, model.PRINCIPLES, '### 1. One source of truth\n\n### 2. Contracts first\n\n## Shared contract\n### 3. Not a principle\n')
+        write(self.root, model.METHOD, '# method')
+        seeds = model.seeds(self.root, stops=['scripts/lib/guard.py:push_errors'], stages=['schema compat'])
+        self.assertEqual(sorted(seeds), ['STD-d069-1-one-source-of-truth', 'STD-d069-2-contracts-first',
+                                         'STD-gate-schema-compat', 'STD-guard-push-errors', 'STD-metodo'])
+        push = seeds['STD-guard-push-errors']
+        self.assertEqual((push['statement'], push['basis'], push['state']), ('One commit per push (D-25, D-7).', ['D-7', 'D-25'], 'blocking'))
+        self.assertEqual(seeds['STD-d069-2-contracts-first']['check'], {'kind': 'judgment', 'ref': f'{model.PRINCIPLES}#2'})
+        written = model.seed_rules(self.root, stops=['scripts/lib/guard.py:push_errors'], stages=['schema compat'])
+        self.assertEqual(len(written), len(seeds))
+        self.assertEqual(model.seed_rules(self.root, stops=['scripts/lib/guard.py:push_errors'], stages=['schema compat']), [])
+        errors, _ = model.check(model.metamodel(self.root), self.found())
+        self.assertEqual(errors, [])
+
+    def test_the_standard_measures_its_executable_tested_justified_and_overdue_rules(self):
+        self.rule('STD-judge', basis=['D-1'])
+        self.rule('STD-late', state='warning', deadline='2026-01-01', check={'kind': 'gate-stage', 'ref': 'shellcheck'})
+        self.rule('STD-old', state='replaced', replaced_by='STD-plan')
+        found = self.found()
+        found['TEST:scripts/tests/guard.test.sh']['fingerprint'] = 'f'
+        counted = model.standard_measure(found, today='2026-11-16')
+        self.assertEqual(counted, {'rules': len(['plan', 'judge', 'late']), 'executable': len(['plan', 'late']),
+                                   'tested': 1, 'justified': len(['plan', 'judge']), 'overdue': 1})
+
+
 class RealRepository(unittest.TestCase):
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):
         meta = model.metamodel(ROOT)
@@ -163,6 +248,10 @@ class RealRepository(unittest.TestCase):
         self.assertTrue(all(item['level'] in levels for item in result['systems'].values()))
         self.assertEqual(set(result['systems']), set(meta['systems']))
         self.assertIn('chain:', model.summary(result))
+
+    def test_every_refusal_and_gate_stage_of_this_checkout_has_a_rule(self):
+        warnings = model.rule_findings(model.objects(ROOT), ROOT)
+        self.assertEqual([line for line in warnings if 'with no rule of the standard' in line], [])
 
     def test_show_names_an_object_with_its_links_out_and_in(self):
         text = model.show('UNIT:engine-model', ROOT)

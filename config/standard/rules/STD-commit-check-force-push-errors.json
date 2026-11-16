@@ -1,0 +1,15 @@
+{
+  "id": "STD-commit-check-force-push-errors",
+  "statement": "Merge commits only: a force push on the PR head ref rewrote pushed history, which no repair on the same branch undoes.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/commit_check.py:force_push_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

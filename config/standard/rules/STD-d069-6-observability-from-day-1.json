@@ -1,0 +1,17 @@
+{
+  "id": "STD-d069-6-observability-from-day-1",
+  "statement": "Observability from day 1 (D-069 principle 6).",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/process/principles/D-069.md#6"
+  },
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

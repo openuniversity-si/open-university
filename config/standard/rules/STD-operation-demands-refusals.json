@@ -1,0 +1,15 @@
+{
+  "id": "STD-operation-demands-refusals",
+  "statement": "A change passes the refusing check refusals of scripts/lib/operation_demands.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/operation_demands.py:refusals"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

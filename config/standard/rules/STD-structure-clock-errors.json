@@ -1,0 +1,17 @@
+{
+  "id": "STD-structure-clock-errors",
+  "statement": "S2 (D-196): from structure.decision_clock_from on, a decision number is written once and its row's time is not later than `now` (an aware datetime).",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/structure.py:clock_errors"
+  },
+  "basis": [
+    "D-196"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

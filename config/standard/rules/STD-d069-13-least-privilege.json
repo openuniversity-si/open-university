@@ -1,0 +1,17 @@
+{
+  "id": "STD-d069-13-least-privilege",
+  "statement": "Least privilege (D-069 principle 13).",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/process/principles/D-069.md#13"
+  },
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

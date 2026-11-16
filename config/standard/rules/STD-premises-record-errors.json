@@ -1,0 +1,15 @@
+{
+  "id": "STD-premises-record-errors",
+  "statement": "A change passes the refusing check record_errors of scripts/lib/premises.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/premises.py:record_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

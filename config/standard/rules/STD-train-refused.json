@@ -1,0 +1,17 @@
+{
+  "id": "STD-train-refused",
+  "statement": "A merge the forge refused (D-078: never a pr.conflicted with no file).",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/train.py:refused"
+  },
+  "basis": [
+    "D-078"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

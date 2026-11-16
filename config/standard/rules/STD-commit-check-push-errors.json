@@ -1,0 +1,15 @@
+{
+  "id": "STD-commit-check-push-errors",
+  "statement": "Each push may bring at most one commit of the PR.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/commit_check.py:push_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

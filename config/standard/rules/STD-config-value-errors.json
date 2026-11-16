@@ -1,0 +1,15 @@
+{
+  "id": "STD-config-value-errors",
+  "statement": "Why a value is not acceptable for a parameter: its schema, or a secret's shape.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/config.py:value_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

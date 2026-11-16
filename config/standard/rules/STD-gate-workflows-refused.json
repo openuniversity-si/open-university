@@ -1,0 +1,15 @@
+{
+  "id": "STD-gate-workflows-refused",
+  "statement": "A change passes the refusing check refused of scripts/lib/gate_workflows.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/gate_workflows.py:refused"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

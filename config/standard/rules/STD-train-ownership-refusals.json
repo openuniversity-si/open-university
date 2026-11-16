@@ -1,0 +1,15 @@
+{
+  "id": "STD-train-ownership-refusals",
+  "statement": "[{unit, owner, files}] of the units outside lane_id that the files touch without their owner's approval.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/train_ownership.py:refusals"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

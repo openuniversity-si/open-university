@@ -1,0 +1,15 @@
+{
+  "id": "STD-rule-registry-refusals",
+  "statement": "What refuse mode refuses: a stopping record with a gap, an unanswered question, no measurement or no root cause; a stop without a question (no record); a retirement without its recorded decision; a record that left the catalog without a retirement.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/rule_registry.py:refusals"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

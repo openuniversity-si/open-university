@@ -1,0 +1,15 @@
+{
+  "id": "STD-text-check-scoped-export-errors",
+  "statement": "A change passes the refusing check scoped_export_errors of scripts/lib/text_check.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/text_check.py:scoped_export_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

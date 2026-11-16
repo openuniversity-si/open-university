@@ -1,0 +1,15 @@
+{
+  "id": "STD-audit-chain-chain-errors",
+  "statement": "A change passes the refusing check chain_errors of scripts/lib/audit_chain.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/audit_chain.py:chain_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

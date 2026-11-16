@@ -1,0 +1,17 @@
+{
+  "id": "STD-gate-no-github-actions-workflows",
+  "statement": "A change passes the gate stage \"no GitHub Actions workflows\" on its exact head before it merges.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "gate-stage",
+    "ref": "no GitHub Actions workflows"
+  },
+  "basis": [
+    "D-314"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

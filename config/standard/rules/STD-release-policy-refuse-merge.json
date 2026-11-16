@@ -1,0 +1,15 @@
+{
+  "id": "STD-release-policy-refuse-merge",
+  "statement": "Raise Refused for a merge into the production branch that is not a release, or any while frozen.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/release_policy.py:refuse_merge"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}
