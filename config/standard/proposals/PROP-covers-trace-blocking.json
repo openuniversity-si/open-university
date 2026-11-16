@@ -1,0 +1,11 @@
+{
+  "id": "PROP-covers-trace-blocking",
+  "statement": "The covers trace leaves report mode: a test that executes a code file its covers does not name fails, once the verification phase derives the covers from the measured trace so the rule has no false positives.",
+  "state": "open",
+  "owner": "administration",
+  "changes": [
+    "STD-covers-complete"
+  ],
+  "deadline": "2026-11-30",
+  "note": "gate-trace.covers_trace_mode has been report since the initial tree; 30 of 214 tests print the warning on every run and nothing acts on it."
+}

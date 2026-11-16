@@ -1,0 +1,17 @@
+{
+  "id": "STD-padrao-effort",
+  "statement": "The agent follows the Padrão v8 rule effort (docs/padrao/v8/effort.md).",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "WORK"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/padrao/v8/effort.md"
+  },
+  "basis": [
+    "D-115"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

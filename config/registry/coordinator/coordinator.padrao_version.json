@@ -4,6 +4,7 @@
   "x-unit": "text",
   "description": "The active Padrão version folder the brief renderer installs.",
   "x-readers": [
-    "scripts/lib/coordinator_launch.py"
+    "scripts/lib/coordinator_launch.py",
+    "scripts/lib/model.py"
   ]
 }
