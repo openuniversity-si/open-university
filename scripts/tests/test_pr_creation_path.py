@@ -7,7 +7,6 @@ import re
 import subprocess
 import sys
 import unittest
-from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
