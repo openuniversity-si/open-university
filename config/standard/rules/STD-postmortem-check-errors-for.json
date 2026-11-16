@@ -1,0 +1,15 @@
+{
+  "id": "STD-postmortem-check-errors-for",
+  "statement": "A change passes the refusing check errors_for of scripts/lib/postmortem_check.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/postmortem_check.py:errors_for"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

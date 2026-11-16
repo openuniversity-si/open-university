@@ -1,0 +1,15 @@
+{
+  "id": "STD-gate-timing-report-eta-errors",
+  "statement": "[{pr, sha, plan, expected_s, wall_s, error_s}] for the newest `last` gates with a gate.started and its verdict.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/gate_timing_report.py:eta_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

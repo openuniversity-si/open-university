@@ -1,0 +1,17 @@
+{
+  "id": "STD-gate-areas-coverage-errors",
+  "statement": "OU-DECOUPLE F1 (D-106): every tracked path of the checkout belongs to an area, refused by name otherwise.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/gate_areas.py:coverage_errors"
+  },
+  "basis": [
+    "D-106"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

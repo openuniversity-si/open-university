@@ -13,6 +13,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
                                    object that does not exist, such as a decision proof that is gone) are counted, and
                                    are errors only with --strict
   scripts/model show <id>          one object: type, state, source, and its links out and in
+  scripts/model seed-rules         writes config/standard/rules/<id>.json for every refusal, gate stage, D-069 principle
+                                   and the method that has no rule yet (never rewrites a rule)
   scripts/model measure [--json F] the main metric (the share of active requirements whose chain is verified end to
                                    end), the requirement inventory, and each system's objects and calculated conformance
 
@@ -262,6 +264,88 @@ def rule_findings(found, root, stops=None, stages=None):
     return warnings
 
 
+PRINCIPLES = 'docs/process/principles/D-069.md'
+PRINCIPLE = re.compile(r'^### ([0-9]+)\. (.+)$', re.MULTILINE)
+METHOD = 'docs/padrao/METODO.md'
+SEED_NOTE = 'Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
+
+
+def _slug(text):
+    return re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')
+
+
+def _docstring(path, function):
+    """A function's whole docstring, or ''."""
+    import ast
+    try:
+        tree = ast.parse(Path(path).read_text())
+    except (OSError, SyntaxError):
+        return ''
+    return next((ast.get_docstring(node) or '' for node in ast.walk(tree)
+                 if isinstance(node, ast.FunctionDef) and node.name == function), '')
+
+
+def _docline(path, function):
+    """The first sentence of a function's docstring, or ''."""
+    import ast
+    try:
+        tree = ast.parse(Path(path).read_text())
+    except (OSError, SyntaxError):
+        return ''
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == function:
+            doc = (ast.get_docstring(node) or '').strip().split('\n\n', 1)[0].replace('\n', ' ')
+            return doc.split('. ', 1)[0].rstrip('.') + '.' if doc else ''
+    return ''
+
+
+def seeds(root, stops=None, stages=None):
+    """{rule id: rule} for every refusal, gate stage, D-069 principle and the method, the catalog's first content."""
+    root = Path(root)
+    stops = discovered_stops(root) if stops is None else stops
+    stages = gate_stages(root) if stages is None else stages
+    base = {'owner': 'administration', 'applies_to': ['CHG'], 'note': SEED_NOTE}
+    found = {}
+    for stop in stops:
+        path, function = stop.split(':', 1)
+        doc = _docline(root / path, function)
+        found[f'STD-{_slug(Path(path).stem)}-{_slug(function)}'] = {
+            **base, 'statement': doc or f'A change passes the refusing check {function} of {path}.',
+            'state': 'blocking', 'check': {'kind': 'function', 'ref': stop},
+            'basis': sorted(set(re.findall(r'\bD-[0-9]+\b', _docstring(root / path, function))),
+                            key=lambda number: int(number[len('D-'):]))}
+    for stage in stages:
+        found[f'STD-gate-{_slug(stage)}'] = {
+            **base, 'statement': f'A change passes the gate stage "{stage}" on its exact head before it merges.',
+            'state': 'blocking', 'check': {'kind': 'gate-stage', 'ref': stage}, 'basis': ['D-314']}
+    text = (root / PRINCIPLES).read_text() if (root / PRINCIPLES).is_file() else ''
+    for number, title in PRINCIPLE.findall(text.split('\n## Shared contract', 1)[0]):
+        found[f'STD-d069-{number}-{_slug(title)}'] = {
+            **base, 'statement': f'{title.rstrip(".")} (D-069 principle {number}).', 'state': 'draft',
+            'check': {'kind': 'judgment', 'ref': f'{PRINCIPLES}#{number}'}, 'basis': ['D-069']}
+    if (root / METHOD).is_file():
+        found['STD-metodo'] = {**base, 'applies_to': ['WORK'], 'state': 'draft', 'basis': [],
+                               'statement': 'Work follows the management method: program and project by PDCA, process and '
+                                            'operation by SDCA, one retrospective at every level.',
+                               'check': {'kind': 'judgment', 'ref': METHOD}}
+    return {id: {'id': id, **{key: rule[key] for key in ('statement', 'state', 'owner', 'applies_to', 'check', 'basis',
+                                                         'note')}}
+            for id, rule in found.items()}
+
+
+def seed_rules(root=ROOT, stops=None, stages=None):
+    """Writes the seed of every rule that has no file yet; never rewrites one. Returns the paths written."""
+    written = []
+    for id, rule in sorted(seeds(root, stops, stages).items()):
+        path = Path(root) / RULES.replace('*', id)
+        if path.exists():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(rule, indent=2, ensure_ascii=False) + '\n')
+        written.append(path.relative_to(root).as_posix())
+    return written
+
+
 READERS = (read_decisions, read_units, read_tests, read_rules)
 
 
@@ -444,10 +528,15 @@ def main(argv=None):
     checked.add_argument('--strict', action='store_true')
     shown = commands.add_parser('show')
     shown.add_argument('id')
+    commands.add_parser('seed-rules', help='write the seed rule of every refusal, gate stage, D-069 principle and the method')
     measured = commands.add_parser('measure')
     measured.add_argument('--json')
     args = parser.parse_args(argv)
     try:
+        if args.command == 'seed-rules':
+            written = seed_rules()
+            print(f'seed-rules: {len(written)} rule file(s) written')
+            return 0
         if args.command == 'show':
             print(show(args.id))
             return 0

@@ -1,0 +1,15 @@
+{
+  "id": "STD-effort-errors",
+  "statement": "The refusals of one plan or body, each naming the missing field and the rule file.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/effort.py:errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

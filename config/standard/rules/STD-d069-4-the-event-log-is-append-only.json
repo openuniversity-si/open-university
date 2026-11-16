@@ -1,0 +1,17 @@
+{
+  "id": "STD-d069-4-the-event-log-is-append-only",
+  "statement": "The event log is append-only (D-069 principle 4).",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/process/principles/D-069.md#4"
+  },
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

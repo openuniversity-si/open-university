@@ -192,6 +192,22 @@ class Rules(unittest.TestCase):
         self.assertIn('STD-judge: its check docs/x.md does not exist', warnings)
         self.assertIn('STD-judge: no decision justifies it (basis)', warnings)
 
+    def test_the_seed_has_a_rule_per_refusal_stage_principle_and_the_method_and_never_rewrites_one(self):
+        write(self.root, 'scripts/lib/guard.py', 'def push_errors(push):\n    """One commit per push (D-25, D-7). More."""\n')
+        write(self.root, model.PRINCIPLES, '### 1. One source of truth\n\n### 2. Contracts first\n\n## Shared contract\n### 3. Not a principle\n')
+        write(self.root, model.METHOD, '# method')
+        seeds = model.seeds(self.root, stops=['scripts/lib/guard.py:push_errors'], stages=['schema compat'])
+        self.assertEqual(sorted(seeds), ['STD-d069-1-one-source-of-truth', 'STD-d069-2-contracts-first',
+                                         'STD-gate-schema-compat', 'STD-guard-push-errors', 'STD-metodo'])
+        push = seeds['STD-guard-push-errors']
+        self.assertEqual((push['statement'], push['basis'], push['state']), ('One commit per push (D-25, D-7).', ['D-7', 'D-25'], 'blocking'))
+        self.assertEqual(seeds['STD-d069-2-contracts-first']['check'], {'kind': 'judgment', 'ref': f'{model.PRINCIPLES}#2'})
+        written = model.seed_rules(self.root, stops=['scripts/lib/guard.py:push_errors'], stages=['schema compat'])
+        self.assertEqual(len(written), len(seeds))
+        self.assertEqual(model.seed_rules(self.root, stops=['scripts/lib/guard.py:push_errors'], stages=['schema compat']), [])
+        errors, _ = model.check(model.metamodel(self.root), self.found())
+        self.assertEqual(errors, [])
+
 
 class RealRepository(unittest.TestCase):
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):
@@ -222,6 +238,10 @@ class RealRepository(unittest.TestCase):
         self.assertTrue(all(item['level'] in levels for item in result['systems'].values()))
         self.assertEqual(set(result['systems']), set(meta['systems']))
         self.assertIn('chain:', model.summary(result))
+
+    def test_every_refusal_and_gate_stage_of_this_checkout_has_a_rule(self):
+        warnings = model.rule_findings(model.objects(ROOT), ROOT)
+        self.assertEqual([line for line in warnings if 'with no rule of the standard' in line], [])
 
     def test_show_names_an_object_with_its_links_out_and_in(self):
         text = model.show('UNIT:engine-model', ROOT)

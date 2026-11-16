@@ -1,0 +1,15 @@
+{
+  "id": "STD-aws-tenant-isolation-proof-refusal",
+  "statement": "(status, the refusal's text with `job` masked), or (200, None) when the port answered.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/aws_tenant_isolation_proof.py:refusal"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

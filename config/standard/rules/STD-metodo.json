@@ -1,0 +1,15 @@
+{
+  "id": "STD-metodo",
+  "statement": "Work follows the management method: program and project by PDCA, process and operation by SDCA, one retrospective at every level.",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "WORK"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/padrao/METODO.md"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

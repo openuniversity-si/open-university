@@ -1,0 +1,15 @@
+{
+  "id": "STD-retro-shape-errors",
+  "statement": "Why these bytes are not a log of this kind ([] when they are).",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/retro.py:shape_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

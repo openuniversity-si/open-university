@@ -1,0 +1,15 @@
+{
+  "id": "STD-release-policy-refuse-frozen",
+  "statement": "Raise Refused when production is frozen and origin is the real host.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/release_policy.py:refuse_frozen"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

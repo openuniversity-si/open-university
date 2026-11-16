@@ -1,0 +1,15 @@
+{
+  "id": "STD-generate-blocked",
+  "statement": "Why a target cannot run now, else None.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/generate.py:blocked"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

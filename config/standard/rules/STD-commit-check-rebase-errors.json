@@ -1,0 +1,15 @@
+{
+  "id": "STD-commit-check-rebase-errors",
+  "statement": "A head behind its base must carry a merge commit of the base: a PR commit whose non-first parent is the merge base of base...head (what `git merge <remote>/<base>` leaves).",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/commit_check.py:rebase_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

@@ -1,0 +1,17 @@
+{
+  "id": "STD-d069-2-contracts-are-schema-first-in-one-schema-language",
+  "statement": "Contracts are schema-first in one schema language (D-069 principle 2).",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/process/principles/D-069.md#2"
+  },
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

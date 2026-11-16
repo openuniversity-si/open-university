@@ -1,0 +1,17 @@
+{
+  "id": "STD-d069-7-ports-and-adapters-for-every-vendor",
+  "statement": "Ports and adapters for every vendor (D-069 principle 7).",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/process/principles/D-069.md#7"
+  },
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

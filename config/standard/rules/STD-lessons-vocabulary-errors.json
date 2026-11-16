@@ -1,0 +1,15 @@
+{
+  "id": "STD-lessons-vocabulary-errors",
+  "statement": "A change passes the refusing check vocabulary_errors of scripts/lib/lessons.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/lessons.py:vocabulary_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

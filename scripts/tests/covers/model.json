@@ -25,6 +25,8 @@
     "scripts/lib/gate_areas.py",
     "scripts/lib/config.py",
     "config/registry/rules.json",
-    "scripts/lib/premises.py"
+    "scripts/lib/premises.py",
+    "docs/process/principles/D-069.md",
+    "docs/padrao/METODO.md"
   ]
 }

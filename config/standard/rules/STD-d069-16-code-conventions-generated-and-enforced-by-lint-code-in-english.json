@@ -1,0 +1,17 @@
+{
+  "id": "STD-d069-16-code-conventions-generated-and-enforced-by-lint-code-in-english",
+  "statement": "Code conventions generated and enforced by lint; code in English (D-069 principle 16).",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/process/principles/D-069.md#16"
+  },
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

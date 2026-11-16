@@ -1,0 +1,17 @@
+{
+  "id": "STD-d069-1-one-source-of-truth-per-fact",
+  "statement": "One source of truth per fact (D-069 principle 1).",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/process/principles/D-069.md#1"
+  },
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

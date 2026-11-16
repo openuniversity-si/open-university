@@ -1,0 +1,17 @@
+{
+  "id": "STD-d069-15-user-facing-text-keyed-by-locale",
+  "statement": "User-facing text keyed by locale (D-069 principle 15).",
+  "state": "draft",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "judgment",
+    "ref": "docs/process/principles/D-069.md#15"
+  },
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

@@ -5,6 +5,7 @@
   "owner": "engine-lane",
   "paths": [
     "config/model/**",
+    "config/standard/**",
     "contracts/model/*.json",
     "scripts/lib/model.py",
     "scripts/model",

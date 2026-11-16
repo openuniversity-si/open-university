@@ -1,0 +1,15 @@
+{
+  "id": "STD-json-schema-errors",
+  "statement": "The premise register's entry point (P1): a keyword outside the subset, then every violation, one line each.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/json_schema.py:errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

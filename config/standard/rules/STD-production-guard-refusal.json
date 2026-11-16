@@ -1,0 +1,15 @@
+{
+  "id": "STD-production-guard-refusal",
+  "statement": "The message a production script prints and the status it exits with, or None when it may run.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/production_guard.py:refusal"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

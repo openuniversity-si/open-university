@@ -1,0 +1,15 @@
+{
+  "id": "STD-vendor-check-shrink-errors",
+  "statement": "Against the base catalog (None when the base has none): the baseline only shrinks, new adapters live in adapter_dir, except an existing module when first registering its vendor.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/vendor_check.py:shrink_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

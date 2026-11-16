@@ -1,0 +1,17 @@
+{
+  "id": "STD-gate-structure-check",
+  "statement": "A change passes the gate stage \"structure check\" on its exact head before it merges.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "gate-stage",
+    "ref": "structure check"
+  },
+  "basis": [
+    "D-314"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

@@ -1,0 +1,15 @@
+{
+  "id": "STD-decision-wait-errors",
+  "statement": "The commit-check refusal of a PR whose comments still wait on the owner.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/decision_wait.py:errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

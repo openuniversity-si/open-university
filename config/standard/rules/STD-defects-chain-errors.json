@@ -1,0 +1,15 @@
+{
+  "id": "STD-defects-chain-errors",
+  "statement": "A change passes the refusing check chain_errors of scripts/lib/defects.py.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/defects.py:chain_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

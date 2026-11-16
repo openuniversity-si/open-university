@@ -1,0 +1,15 @@
+{
+  "id": "STD-forge-origin-refuse-remote",
+  "statement": "Raise OriginAdapterError unless `url` is `repo` on a declared Origin git host.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/forge_origin.py:refuse_remote"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

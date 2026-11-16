@@ -1,0 +1,15 @@
+{
+  "id": "STD-structure-lane-errors",
+  "statement": "GX-21: errors when the files touch the units of several lanes (the lane is undecidable and the train would refuse it), listing each unit with its lane.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/structure.py:lane_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

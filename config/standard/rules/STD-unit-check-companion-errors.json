@@ -1,0 +1,15 @@
+{
+  "id": "STD-unit-check-companion-errors",
+  "statement": "The errors of a companion claimed by a unit other than its primary's (TX21): name the line to remove.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/unit_check.py:companion_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

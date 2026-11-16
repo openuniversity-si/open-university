@@ -1,0 +1,15 @@
+{
+  "id": "STD-pr-body-effort-block",
+  "statement": "The `## Cheapest useful effort` block; the requirement must name its owner (scripts/lib/effort.py).",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/pr_body.py:effort_block"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

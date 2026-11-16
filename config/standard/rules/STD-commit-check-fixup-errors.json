@@ -1,0 +1,15 @@
+{
+  "id": "STD-commit-check-fixup-errors",
+  "statement": "A commit that only fixes the commit before it, by prefix or by a \"fix test/ids\" subject on its files only.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/commit_check.py:fixup_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}

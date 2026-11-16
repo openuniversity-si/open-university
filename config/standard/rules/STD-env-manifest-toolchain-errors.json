@@ -1,0 +1,15 @@
+{
+  "id": "STD-env-manifest-toolchain-errors",
+  "statement": "The pinned tools in root/.toolchain (or OU_TOOLCHAIN_DIR) answer the manifest versions.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/env_manifest.py:toolchain_errors"
+  },
+  "basis": [],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+}
