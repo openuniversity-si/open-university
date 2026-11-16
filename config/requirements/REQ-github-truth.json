@@ -1,0 +1,14 @@
+{
+  "id": "REQ-github-truth",
+  "type": "constraint",
+  "statement": "GitHub is the source of truth: a change reaches main only through the merge queue, with tower/gate green on the exact commit it judged.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-quality"
+  ],
+  "basis": [
+    "D-314"
+  ],
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "NEED-changeability",
+  "statement": "A change touches only its own context and the cost of change stays low as the code grows.",
+  "state": "proposed",
+  "owner": "Daniel",
+  "refines": [
+    "INT-padrao-dev"
+  ],
+  "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
+}

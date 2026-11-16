@@ -1,0 +1,11 @@
+{
+  "id": "NEED-quality",
+  "statement": "Every change that lands is real, independent and verified: main stays green and a defect found after the merge is rare.",
+  "state": "proposed",
+  "owner": "Daniel",
+  "refines": [
+    "INT-intention-v1",
+    "INT-padrao-dev"
+  ],
+  "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
+}

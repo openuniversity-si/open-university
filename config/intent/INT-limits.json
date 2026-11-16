@@ -1,0 +1,7 @@
+{
+  "id": "INT-limits",
+  "statement": "The locked constraints: only Daniel changes the intention; a stop needs him only for a login, a credential, money or other people; the budget is one Claude Max quota; external verification counts, not the session's own; no backward compatibility, no force push, no secret printed.",
+  "state": "active",
+  "owner": "Daniel",
+  "source": "docs/SEMENTE.md#6"
+}

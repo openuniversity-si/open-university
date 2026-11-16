@@ -4,7 +4,9 @@
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
+    "config/intent/**",
     "config/model/**",
+    "config/requirements/**",
     "config/standard/**",
     "contracts/model/*.json",
     "scripts/lib/model.py",

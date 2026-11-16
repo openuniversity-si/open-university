@@ -1,0 +1,10 @@
+{
+  "id": "NEED-knowledge",
+  "statement": "The system knows what is true about itself: every requirement, rule, element and test is data with a measure, and the chain from requirement to validation is verified.",
+  "state": "proposed",
+  "owner": "Daniel",
+  "refines": [
+    "INT-padrao-dev"
+  ],
+  "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
+}

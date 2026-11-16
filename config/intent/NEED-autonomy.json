@@ -1,0 +1,11 @@
+{
+  "id": "NEED-autonomy",
+  "statement": "The flow never waits for Daniel except for a login, a credential, money or other people.",
+  "state": "proposed",
+  "owner": "Daniel",
+  "refines": [
+    "INT-intention-v1",
+    "INT-limits"
+  ],
+  "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
+}

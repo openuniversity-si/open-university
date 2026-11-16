@@ -1,0 +1,11 @@
+{
+  "id": "REQ-deploy-1s",
+  "type": "constraint",
+  "statement": "When a merge lands on main, its deploy completes with a median of 1 s.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-throughput"
+  ],
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+}

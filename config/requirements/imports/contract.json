@@ -1,0 +1,8 @@
+{
+  "id": "contract",
+  "type": "product",
+  "state": "obsolete",
+  "owner": "Daniel",
+  "retired_by": "D-111",
+  "note": "The invariants and guarantees of docs/domain/CONTRACT.md are the departed product's (courses, covers, catalog, the site's schema); D-111 moved the product out of this repository."
+}

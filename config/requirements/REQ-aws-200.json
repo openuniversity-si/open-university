@@ -1,0 +1,14 @@
+{
+  "id": "REQ-aws-200",
+  "type": "constraint",
+  "statement": "The AWS spend of the account stays under US$ 200 a month.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-cost"
+  ],
+  "basis": [
+    "D-315"
+  ],
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+}

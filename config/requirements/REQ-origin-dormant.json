@@ -1,0 +1,14 @@
+{
+  "id": "REQ-origin-dormant",
+  "type": "constraint",
+  "statement": "The Origin-era code stays in the tree, dormant: nothing in the current flow starts or calls it, and none of it is removed without a new decision.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-changeability"
+  ],
+  "basis": [
+    "D-316"
+  ],
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+}

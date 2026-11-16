@@ -529,10 +529,12 @@ def read_requirements(root):
         needs = body.get('derives_from', {})
         for source_id, (statement, where) in sorted(source_entries(root, _read_json(source_path)).items()):
             need = needs.get(source_id, needs.get('*'))
-            fields = {'type': body['type'], 'statement': statement, 'state': body['state'], 'owner': body['owner'],
-                      'source': where, **({'retired_by': body['retired_by']} if body.get('retired_by') else {}),
+            own = body.get('overrides', {}).get(source_id, {})
+            retired = own.get('retired_by', body.get('retired_by'))
+            fields = {'type': body['type'], 'statement': statement, 'state': own.get('state', body['state']),
+                      'owner': body['owner'], 'source': where, **({'retired_by': retired} if retired else {}),
                       **({'derives_from': [need]} if need else {})}
-            item = _obj(f'REQ-{path.stem}-{_slug(source_id)}', 'REQ', body['state'], where, statement,
+            item = _obj(f'REQ-{path.stem}-{_slug(source_id)}', 'REQ', fields['state'], where, statement,
                         _requirement_links(fields))
             item.update(body=fields, source_id=source_id)
             found.append(item)

@@ -9,4 +9,5 @@ ImportV1 = TypedDict('ImportV1', {
     'retired_by': NotRequired[str],
     'derives_from': NotRequired[dict[str, str]],
     'note': NotRequired[str],
+    'overrides': NotRequired[dict[str, dict[str, Any]]],
 }, total=False)

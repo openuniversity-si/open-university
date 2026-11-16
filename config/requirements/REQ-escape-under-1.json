@@ -1,0 +1,14 @@
+{
+  "id": "REQ-escape-under-1",
+  "type": "quality",
+  "statement": "Fewer than 1 % of the merged PRs over a window of at least 1,000 bring to main a defect found after the merge.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-quality"
+  ],
+  "basis": [
+    "D-317"
+  ],
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+}

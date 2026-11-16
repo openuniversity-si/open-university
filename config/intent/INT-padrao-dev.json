@@ -1,0 +1,7 @@
+{
+  "id": "INT-padrao-dev",
+  "statement": "The internal development standard of the Torre: every new code is born in it, at the state of the art, and it configures every system we build; everything has a system (Daniel, 15/11/2026 19:50, 20:42, 20:44 and 21:12 BRT; D-317).",
+  "state": "active",
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+}

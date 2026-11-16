@@ -345,13 +345,17 @@ class Requirements(unittest.TestCase):
                                                                        'retired_by': 'D-111'})
         write(self.root, 'config/requirements/imports/slo.json', {'id': 'slo', 'type': 'quality', 'state': 'approved',
                                                                   'owner': 'administration',
-                                                                  'derives_from': {'*': 'NEED-throughput'}})
+                                                                  'derives_from': {'*': 'NEED-throughput'},
+                                                                  'overrides': {'slo.gate_p95_s': {'state': 'superseded',
+                                                                                                    'retired_by': 'D-314'}}})
         found = self.found()
         req = found['REQ-contract-inv-a1']
         self.assertEqual((req['state'], req['source_id'], req['source']), ('obsolete', 'INV-A1', 'docs/CONTRACT.md'))
         self.assertIn('Every course has one owner', req['body']['statement'])
         self.assertIn('REQ-contract-g-b2', found)
         self.assertEqual(found['REQ-slo-slo-gate-p95-s']['links'], [{'type': 'derives-from', 'target': 'NEED-throughput'}])
+        self.assertEqual((found['REQ-slo-slo-gate-p95-s']['state'], found['REQ-slo-slo-gate-p95-s']['body']['retired_by']),
+                         ('superseded', 'D-314'))
         self.assertNotIn('REQ-slo-slo-producer', found)
         self.assertEqual(model.requirement_findings(found), [])
 

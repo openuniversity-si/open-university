@@ -1,0 +1,12 @@
+{
+  "id": "REQ-events-no-polling",
+  "type": "constraint",
+  "statement": "The flow is driven by events: no component waits on a fixed interval or polls a state on a clock.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-throughput",
+    "NEED-cost"
+  ],
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+}

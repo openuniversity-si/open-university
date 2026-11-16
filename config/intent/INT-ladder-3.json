@@ -1,0 +1,7 @@
+{
+  "id": "INT-ladder-3",
+  "statement": "Ladder step 3: 100,000 merged PRs a day (1.16 PR/s), with no guard worse; each further step is ten times the last.",
+  "state": "active",
+  "owner": "Daniel",
+  "source": "docs/SEMENTE.md#3"
+}

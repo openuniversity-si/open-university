@@ -1,0 +1,14 @@
+{
+  "id": "REQ-chain-verified",
+  "type": "quality",
+  "statement": "Every active requirement has its chain verified end to end: an architecture element satisfies it, a unit realizes the element, a test verifies it and a validation validates it.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-knowledge"
+  ],
+  "basis": [
+    "D-317"
+  ],
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+}
