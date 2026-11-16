@@ -1,0 +1,18 @@
+{
+  "script": "scripts/tests/deploy-slow-e.test.sh",
+  "covers": [
+    "scripts/tests/deploy-slow-e.test.sh",
+    "scripts/tests/test_deploy_sh.py",
+    "scripts/tests/deploy_sh_seconds.json",
+    "infra/aws/deploy.sh",
+    "infra/aws/order.json",
+    "infra/aws/parameters.json",
+    "infra/aws/stacks/50-runner.json",
+    "infra/aws/bootstrap.json",
+    "infra/aws/stacks/40-port.json",
+    "config/registry/gate-infra.json",
+    "config/registry/gate-infra/**",
+    "units/engine-gate-infra/unit.json",
+    "scripts/lib/deploy_classify.py"
+  ]
+}
