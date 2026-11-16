@@ -141,6 +141,16 @@ class TheSecondIsLighter(unittest.TestCase):
 
 
 
+class TheReserveImportsWhatExists(unittest.TestCase):
+    def test_every_module_the_reserve_imports_ahead_is_a_module_of_the_package(self):
+        # PREWARM-GONE: 'prewarm' stayed in MODULES after its module left (#55), so every reserve of serve logged a failed
+        # import ahead; a name with no module of its own is caught here.
+        package = ROOT / 'infra' / 'service' / code_bundle.PACKAGE
+        for command, names in reserve.MODULES.items():
+            for name in names:
+                self.assertTrue((package / f'{name}.py').is_file(), f'{command}: {name} is no module of the package')
+
+
 class TheLaunchComesAfterTheClaims(unittest.TestCase):
     """LAUNCH-AFTER-CLAIM: a late service's DBOS.launch was 1.28 s of its 2.38 s with no login (12/11 23:11 UTC); its
     first pass's claims (the role's work: a runner takes the run from the database) come first, its workflows after."""
