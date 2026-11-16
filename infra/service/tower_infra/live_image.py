@@ -1321,7 +1321,7 @@ def cpu_since(said, now=None, clock=time.monotonic):
 
 
 def lowly(thread, nice=10, set_=None):
-    """SWAP-CPU: a thread that does no work of the role (the autodeploy's look, the prewarm's) runs at a lower CPU
+    """SWAP-CPU: a thread that does no work of the role (the autodeploy's look) runs at a lower CPU
     priority for good: in the second of a swap the task's quota (a quarter of a vCPU) goes to the role's own threads
     first. Raising a thread's nice needs no privilege (lowering it back would). Answers whether it was set."""
     set_ = set_ or os.setpriority
@@ -1714,7 +1714,7 @@ class Order:
     def wants(self, order, db, told=True):
         """IN-TASK-STANDBY: the successors this task should hold now, told to its supervisor when they changed: the
         bundle of an order that is open (a landing with no standby: the successor loads it, not an exec) and the bundles
-        the prewarm wants (WANTS: read on the looks a notification owes, never on the ones that only follow an open
+        the merge queue wants (WANTS: read on the looks a notification owes, never on the ones that only follow an open
         order), newest first, deploy.intask_standbys at most and never the code this process runs. Answers whether
         successors are on for this task: False with no supervisor (nothing is read) or with the datum 0 (the supervisor
         is told to hold none)."""
