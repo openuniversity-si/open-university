@@ -1,7 +1,6 @@
 """SG1: STATUS.md and undeclared visual edits are refused (D-006, D-069). Hermetic: temporary git repositories, no network."""
 import json
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
