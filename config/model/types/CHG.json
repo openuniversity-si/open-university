@@ -17,5 +17,8 @@
   "inactive_states": [
     "reverted"
   ],
+  "must_link": [
+    "implements"
+  ],
   "description": "A pull request and the commits it lands."
 }

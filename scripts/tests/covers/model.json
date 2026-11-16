@@ -33,6 +33,8 @@
     "config/registry/coordinator.json",
     "scripts/lib/*.py",
     "config/intent/**",
-    "config/requirements/**"
+    "config/requirements/**",
+    "contracts/premises/*.json",
+    "config/registry/premises.json"
   ]
 }

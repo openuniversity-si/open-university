@@ -1,0 +1,18 @@
+{
+  "id": "STD-change-implements",
+  "statement": "Every change declares what it implements: at least one commit of the pull request carries an `Implements:` trailer naming the requirements or units it realizes.",
+  "state": "warning",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "test",
+    "ref": "scripts/tests/test_model.py"
+  },
+  "basis": [
+    "D-317"
+  ],
+  "deadline": "2026-12-15",
+  "note": "PADRAO-DEV F2b: read by scripts/model from the merges of main; until the deadline it is measured (construction's conformance), then it moves to commit-check."
+}
