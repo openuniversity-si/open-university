@@ -13,6 +13,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
                                    object that does not exist, such as a decision proof that is gone) are counted, and
                                    are errors only with --strict
   scripts/model show <id>          one object: type, state, source, and its links out and in
+  scripts/model reflexion          the dependencies between components: convergent, divergent, absent
+  scripts/model view               the component view (C4 level 3) as Mermaid, generated from the model
   scripts/model seed-rules         writes config/standard/rules/<id>.json for every refusal, gate stage, D-069 principle
                                    and the method that has no rule yet (never rewrites a rule)
   scripts/model measure [--json F] the main metric (the share of active requirements whose chain is verified end to
@@ -698,6 +700,40 @@ def read_adrs(root):
     return found
 
 
+def reflexion(found):
+    """The reflexion model (Murphy, Notkin, Sullivan 1995) of the architecture: the dependencies the elements declare
+    (depends-on between ARC) against those extracted from the units (a unit of A depends on a unit of B, A and B the
+    elements they realize). {convergences, divergences, absences}: declared and present, present and not declared,
+    declared and not present, each a sorted list of (from, to)."""
+    realized = {id: [link['target'] for link in item['links'] if link['type'] == 'realizes']
+                for id, item in found.items() if item['type'] == 'UNIT'}
+    extracted = set()
+    for id, item in found.items():
+        if item['type'] != 'UNIT':
+            continue
+        for link in item['links']:
+            if link['type'] == 'depends-on' and link['target'] in realized:
+                extracted |= {(start, end) for start in realized[id] for end in realized[link['target']] if start != end}
+    declared = {(id, link['target']) for id, item in found.items() if item['type'] == 'ARC'
+                for link in item['links'] if link['type'] == 'depends-on'}
+    return {'convergences': sorted(extracted & declared), 'divergences': sorted(extracted - declared),
+            'absences': sorted(declared - extracted)}
+
+
+def view(found):
+    """The component view (C4 level 3) of the engine as a Mermaid flowchart, generated from the model: one node per
+    active component, a solid arrow for a convergent dependency, a dashed one for a divergence, a crossed one for an
+    absence."""
+    model_reflexion = reflexion(found)
+    elements = sorted(id for id, item in found.items() if item['type'] == 'ARC' and item['state'] == 'active'
+                      and item.get('body', {}).get('kind') == 'component')
+    lines = ['flowchart LR']
+    lines += [f'  {id.replace("-", "_")}["{found[id].get("body", {}).get("name", id)}"]' for id in elements]
+    for arrow, pairs in (('-->', 'convergences'), ('-.->', 'divergences'), ('--x', 'absences')):
+        lines += [f'  {start.replace("-", "_")} {arrow} {end.replace("-", "_")}' for start, end in model_reflexion[pairs]]
+    return '\n'.join(lines)
+
+
 def architecture_measure(found):
     """The architecture system's own measure: active elements by kind, those that satisfy a requirement, those a
     unit realizes, the units that realize an element, and the ADRs by state."""
@@ -718,7 +754,15 @@ def architecture_measure(found):
         'realized': sum(1 for item in elements if any(kind == 'realizes' for kind, _ in into.get(item['id'], []))),
         'units_realizing': sum(1 for item in units if any(link['type'] == 'realizes' for link in item['links'])),
         'units': len(units), 'adrs': dict(sorted(adrs.items())),
+        'reflexion': reflexion_share(found),
     }
+
+
+def reflexion_share(found):
+    model_reflexion = reflexion(found)
+    counts = {name: len(pairs) for name, pairs in model_reflexion.items()}
+    total = sum(counts.values())
+    return {**counts, 'share': counts['convergences'] / total if total else 0}
 
 
 def knowledge_measure(found, radius='high'):
@@ -973,6 +1017,9 @@ def summary(found):
     lines.append(f'architecture: {built["elements"]} active element(s) ({", ".join(f"{count} {kind}" for kind, count in built["by_kind"].items())}); '
                  f'{built["satisfying"]} satisfy a requirement, {built["realized"]} realized by a unit; {built["units_realizing"]} '
                  f'of {built["units"]} units realize an element; ADRs {", ".join(f"{count} {state}" for state, count in built["adrs"].items())}')
+    mirror = built['reflexion']
+    lines.append(f'reflexion: {mirror["share"]:.0%} conformant ({mirror["convergences"]} convergent, {mirror["divergences"]} '
+                 f'divergent, {mirror["absences"]} absent dependencies between components)')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')
@@ -986,6 +1033,8 @@ def main(argv=None):
     commands = parser.add_subparsers(dest='command', required=True)
     checked = commands.add_parser('check')
     checked.add_argument('--strict', action='store_true')
+    commands.add_parser('view', help='print the component view (C4) as Mermaid, generated from the model')
+    commands.add_parser('reflexion', help='list the convergent, divergent and absent dependencies between components')
     shown = commands.add_parser('show')
     shown.add_argument('id')
     commands.add_parser('seed-rules', help='write the seed rule of every refusal, gate stage, D-069 principle and the method')
@@ -996,6 +1045,14 @@ def main(argv=None):
         if args.command == 'seed-rules':
             written = seed_rules()
             print(f'seed-rules: {len(written)} rule file(s) written')
+            return 0
+        if args.command == 'view':
+            print(view(objects()))
+            return 0
+        if args.command == 'reflexion':
+            for name, pairs in reflexion(objects()).items():
+                print(f'{name} ({len(pairs)}):')
+                print('\n'.join(f'  {start} -> {end}' for start, end in pairs))
             return 0
         if args.command == 'show':
             print(show(args.id))

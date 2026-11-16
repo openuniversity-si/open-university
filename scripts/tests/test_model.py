@@ -483,6 +483,25 @@ class Architecture(unittest.TestCase):
         self.assertEqual((counted['satisfying'], counted['realized'], counted['units_realizing']), (len(['gate', 'cap-012']), 1, 1))
         self.assertEqual(counted['by_kind'], {'capability': 1, 'component': 1})
 
+    def test_the_reflexion_model_tells_convergent_divergent_and_absent_dependencies_and_the_view_draws_them(self):
+        def element(id, *deps):
+            return {'id': id, 'type': 'ARC', 'state': 'active', 'fingerprint': 'f', 'body': {'kind': 'component', 'name': id},
+                    'links': [{'type': 'depends-on', 'target': dep} for dep in deps]}
+        def unit(id, realizes, *deps):
+            return {'id': id, 'type': 'UNIT', 'state': 'active', 'fingerprint': 'f',
+                    'links': [{'type': 'realizes', 'target': realizes}, *({'type': 'depends-on', 'target': dep} for dep in deps)]}
+        found = {item['id']: item for item in (
+            element('ARC-a', 'ARC-b', 'ARC-c'), element('ARC-b'), element('ARC-c'),
+            unit('UNIT:a', 'ARC-a', 'UNIT:b'), unit('UNIT:b', 'ARC-b', 'UNIT:c'), unit('UNIT:c', 'ARC-c'),
+            unit('UNIT:a2', 'ARC-a', 'UNIT:a'))}
+        self.assertEqual(model.reflexion(found), {'convergences': [('ARC-a', 'ARC-b')], 'divergences': [('ARC-b', 'ARC-c')],
+                                                  'absences': [('ARC-a', 'ARC-c')]})
+        self.assertEqual(model.reflexion_share(found)['share'], 1 / len(['conv', 'div', 'abs']))
+        drawn = model.view(found)
+        self.assertIn('ARC_a --> ARC_b', drawn)
+        self.assertIn('ARC_b -.-> ARC_c', drawn)
+        self.assertIn('ARC_a --x ARC_c', drawn)
+
 
 class RealRepository(unittest.TestCase):
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):
