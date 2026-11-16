@@ -454,7 +454,8 @@
     "gate.isolated_tests": {
       "type": "array",
       "default": [
-        "scripts/tests/infra-intask-standby.test.sh"
+        "scripts/tests/infra-intask-standby.test.sh",
+        "scripts/tests/infra-swap-tick.test.sh"
       ],
       "items": {
         "type": "string",
@@ -462,7 +463,7 @@
       },
       "uniqueItems": true,
       "x-unit": "path",
-      "description": "GATE-ISOLATED (the Torre, 16/11/2026): the timing-bound script tests that verify-commit runs apart from the test batch, one after another and at the same time as it, while the batch runs with one worker fewer; an isolated test still red gets one more run alone (VERIFY-ALONE). infra-intask-standby was red in the batch and green alone in all 32 of the 150 tower-gate runs up to 16/11 where any test was, and those runs took 98-146 s against a p50 of 19 s for the others; beside a batch of 3 workers it passed in 14 s.",
+      "description": "GATE-ISOLATED (the Torre, 16/11/2026): the timing-bound script tests that verify-commit runs apart from the test batch, one after another and at the same time as it, while the batch runs with one worker fewer; an isolated test still red gets one more run alone (VERIFY-ALONE). infra-intask-standby was red in the batch and green alone in all 32 of the 150 tower-gate runs up to 16/11 where any test was, and those runs took 98-146 s against a p50 of 19 s for the others; beside a batch of 3 workers it passed in 14 s. GATE-PARTS (16/11): infra-swap-tick (9 s alone) was red in the batch and green alone in #131's queue gate; with the parts these tests are the alone part, a runner of their own, and their sum bounds it (about 25 s alone).",
       "x-readers": [
         "scripts/lib/verify_commit.py"
       ],

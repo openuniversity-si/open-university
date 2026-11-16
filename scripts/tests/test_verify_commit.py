@@ -178,6 +178,76 @@ class TheVerifier(unittest.TestCase):
         for test in named:
             self.assertTrue((ROOT / test).is_file(), test)
 
+    def test_the_parts_split_the_plan_whole_and_the_same_way_in_every_job(self):
+        """GATE-PARTS: alone holds the timing-bound tests; main and shard1 the others, longest first into the lighter."""
+        tests = ['scripts/tests/a.test.sh', 'scripts/tests/b.test.sh', 'scripts/tests/c.test.sh',
+                 'scripts/tests/d.test.sh', 'scripts/tests/slow.test.sh']
+        hints = {'scripts/tests/a.test.sh': 50, 'scripts/tests/b.test.sh': 30, 'scripts/tests/c.test.sh': 25,
+                 'scripts/tests/d.test.sh': 4, 'scripts/tests/slow.test.sh': 37}
+        parts = verify_commit.split(tests, {'scripts/tests/slow.test.sh'}, hints)
+        # main starts STAGES_S (15) heavier: a 50 -> shard1 50; b 30 -> main 45; c 25 -> main 70; d 4 -> shard1 54
+        self.assertEqual(parts, {'main': ['scripts/tests/b.test.sh', 'scripts/tests/c.test.sh'],
+                                 'shard1': ['scripts/tests/a.test.sh', 'scripts/tests/d.test.sh'],
+                                 'alone': ['scripts/tests/slow.test.sh']})
+        unhinted = verify_commit.split(['scripts/tests/e.test.sh', 'scripts/tests/f.test.sh', 'scripts/tests/g.test.sh'],
+                                       set(), {'scripts/tests/a.test.sh': 10})  # no hint weighs the median, never 0
+        self.assertEqual((len(unhinted['main']), len(unhinted['shard1'])), (1, 2))
+        self.assertEqual(parts, verify_commit.split(list(reversed(tests)), {'scripts/tests/slow.test.sh'}, hints))
+        self.assertEqual(sorted(sum(parts.values(), [])), sorted(tests))
+
+    def test_each_part_judges_its_share_and_only_main_runs_the_stages(self):
+        plan = {'stages': PLAN['stages'], 'tests': ['scripts/tests/x.test.sh', 'scripts/tests/y.test.sh',
+                                                    'scripts/tests/slow.test.sh']}
+        hints = lambda: {'scripts/tests/x.test.sh': 10, 'scripts/tests/y.test.sh': 5}  # noqa: E731
+        seen = {}
+        for part in verify_commit.PARTS:
+            fake = Fake(plan=plan)
+            green, _, planned, _ = verify_commit.judge(BASE, run=fake, part=part, hints=hints,
+                                                       isolated=lambda: ['scripts/tests/slow.test.sh'])
+            self.assertTrue(green)
+            seen[part] = ([call[2] for call in fake.calls if call[:2] == ['scripts/gate-check', 'stage']],
+                          [call[2] for call in fake.calls if call[:2] in (['scripts/gate-check', 'tests'],
+                                                                          ['scripts/gate-check', 'test'])],
+                          planned['judged'], planned['tests'])
+        # main starts heavier by its stages (STAGES_S 15): x 10 and y 5 both go to shard1
+        self.assertEqual(seen['main'][:3], (['structure check', 'secret scan (tree)'], [], 2))
+        self.assertEqual(seen['shard1'][:3], ([], ['scripts/tests/x.test.sh,scripts/tests/y.test.sh'], 2))
+        self.assertEqual(seen['alone'][:3], ([], ['scripts/tests/slow.test.sh'], 1))  # by itself, `gate-check test`
+        self.assertEqual({tuple(each[3]) for each in seen.values()}, {tuple(plan['tests'])})  # the key's plan: whole
+
+    def test_a_part_keeps_its_own_verdict_and_the_queue_reuses_only_one_run_that_kept_all_three(self):
+        """GATE-PARTS: <name>-<part> per part; a run that kept two of the three is a miss, and so are parts of two runs."""
+        import tempfile as temp
+        fake = Fake()
+        with temp.TemporaryDirectory() as tmp:
+            name = verify_commit.record(Path(tmp), BASE, {**PLAN, 'part': 'shard1'}, SHA, fake, environ=IMAGE)
+            whole = verify_commit.record(Path(tmp), BASE, PLAN, SHA, fake, environ=IMAGE)
+        self.assertEqual(name, whole + '-shard1')
+        key = whole[len(verify_commit.VERDICT):]
+
+        def listing(kept):
+            def answer(args, cwd=None, env=None):
+                if args[:2] == ['gh', 'api']:
+                    asked = args[2].split('name=')[1].split('&')[0]
+                    return 0, json.dumps({'artifacts': [made(asked) | {'workflow_run': {
+                        **made(asked)['workflow_run'], 'id': run_id}} for part, run_id in kept if asked.endswith(part)]})
+                return fake(args, cwd, env)
+            return answer
+        both = [('-main', 7), ('-shard1', 7), ('-alone', 7)]
+        self.assertEqual(verify_commit.recorded('o/r', key, [HEAD_OF_PR], listing(both), verify_commit.PARTS), 7)
+        self.assertIsNone(verify_commit.recorded('o/r', key, [HEAD_OF_PR], listing(both[:2]), verify_commit.PARTS))
+        mixed = [('-main', 7), ('-shard1', 8), ('-alone', 7)]
+        self.assertIsNone(verify_commit.recorded('o/r', key, [HEAD_OF_PR], listing(mixed), verify_commit.PARTS))
+
+    def test_the_staged_gate_is_three_parts_and_a_tower_gate_job_green_only_when_every_part_is(self):
+        staged = (ROOT / 'services' / 'runner' / 'github' / 'tower-gate.yml').read_text(encoding='utf-8')
+        for line in ('    name: gate part (${{ matrix.part }})', '      fail-fast: false', '        part: [main, shard1, alone]',
+                     '    name: tower/gate', '    needs: part', '    if: always()', '          PARTS: ${{ needs.part.result }}',
+                     '          test "$PARTS" = success'):
+            self.assertIn(line, staged)
+        self.assertEqual(staged.count('    name: tower/gate'), 1)  # only the job the merge queue requires has the name
+        self.assertEqual(list(verify_commit.PARTS), ['main', 'shard1', 'alone'])
+
     def test_a_commit_that_is_not_the_checkout_is_never_judged_nor_published(self):
         fake = Fake(head='c' * 40)
         self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=fake), 2)
@@ -351,7 +421,7 @@ class TheVerifier(unittest.TestCase):
         for line in ('  actions: read', '          GH_TOKEN: ${{ github.token }}',
                      'verdict=(--record "$RUNNER_TEMP/verdict")',
                      'if [ "$EVENT" = merge_group ]; then base="$QUEUE_BASE"; verdict=(--reuse); fi',
-                     '--no-post "${verdict[@]}"', 'uses: actions/upload-artifact@v4',
+                     '--no-post --part "$PART" "${verdict[@]}"', 'uses: actions/upload-artifact@v4',
                      "if: github.event_name == 'pull_request' && steps.verify.outputs.verdict != ''",
                      'name: ${{ steps.verify.outputs.verdict }}', 'continue-on-error: true'):
             self.assertIn(line, staged)  # VERDICT-REUSE: kept by a green pull request run, reused by the queue's only

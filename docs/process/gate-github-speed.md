@@ -153,3 +153,23 @@ the batch of the others, which gets one worker fewer (`GATE_TEST_WORKERS`). Meas
 `tower_infra/container.py` plans: the batch of all 28 took 111 s with `infra-intask-standby` red; that test beside a
 3-worker batch of the other 27 passed in 14 s and the batch took 42 s. An isolated test still red runs once more alone,
 like any test red in the batch (VERIFY-ALONE).
+
+## GATE-PARTS: one tower/gate as three jobs side by side (16/11/2026)
+
+GATE-ISOLATED alone did not bring a service change under a minute. In the TWO-HEIRS burst, three `merge_group` gates ran
+their tests:
+- #129, 96 s: `infra-intask-standby` was red beside a 3-worker batch and green alone;
+- #130, 105 s: a change of `tower_infra/port.py` plans 49 tests (554 s of cost hints), and one 4-vCPU job takes 93 s for them;
+- #131, 74 s: `infra-swap-tick` was red in the batch and green alone.
+
+The staged `tower-gate.yml` now runs three parts at once, each `verify-commit --part`:
+- `main`: the stages (about 10 s, `structure check` 7.4 s of it) and half the tests;
+- `shard1`: the other half, longest first into the lighter part by the cost hints;
+- `alone`: `gate.isolated_tests` on a runner of their own.
+
+A fourth job named `tower/gate` is green only when every part is. Measured locally on #130's queue commit:
+- `main`: 43 s;
+- `shard1`: 34 s;
+- `alone`: 21 s (`infra-swap-tick` red once and green on its rerun).
+
+Each building entry holds four runners at most (three parts and `deploy/prepare`). VERDICT-REUSE keeps one artifact per part, and the queue reuses the tests only when one run kept all three.
