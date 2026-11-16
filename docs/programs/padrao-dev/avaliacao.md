@@ -2,110 +2,135 @@
 
 Programa pelo [método de gestão](../../padrao/METODO.md) (PDCA: avaliação → pesquisa → análise → solução → fases →
 verificação → retrospectiva), com os modelos de [`_template/`](../_template/) e o
-[Padrão v8, programa](../../padrao/v8/program.md) onde não conflitam com o método. Os números desta avaliação são os
-primeiros encontrados; a linha de base completa, com os comandos, fica na [análise](analise.md).
+[Padrão v8, programa](../../padrao/v8/program.md) onde não conflitam com o método. Os números vêm da
+[análise](analise.md).
+
+**Revisão 2 (15/11, depois da correção de Daniel das 20:42 e 20:44 BRT).** A primeira versão (PR #58) subordinou tudo à
+taxa de escape: duas das seis fases eram de teste, requisitos ficaram na última fase e só os de comportamento, e
+arquitetura virou "todo arquivo tem unidade". A correção é procedente: a própria pesquisa já trazia a 12207 como lista
+de sistemas que precisam existir e o SWEBOK como mapa de cobertura, e a solução não os usou. Esta revisão põe cada
+sistema do ciclo de engenharia como objeto de primeira classe, num modelo único; testes e validação continuam, como dois
+dos sistemas, não como o eixo.
 
 ## Pedido
 Daniel Bello, 15/11/2026, 19:50 BRT (abertura do programa, resumo literal): formar o padrão interno de desenvolvimento
 da Torre; a partir dele, configurar todos os nossos sistemas e operá-los e implementá-los. O padrão precisa ser muito
-bem desenhado, para que todo código novo já nasça nele, no estado da arte. O documento de abertura entrega só o
-problema; a solução vem da pesquisa e da análise. Restrições que continuam valendo: GitHub como fonte da verdade com a
-fila de merge, gate em até 1 minuto, deploy com mediana de 1 s, teto AWS de US$200 por mês, operação por eventos sem
-polling, código da era Origin dormente.
+bem desenhado, para que todo código novo já nasça nele, no estado da arte.
 
-O repositório já tem um Padrão versionado (`docs/padrao/` v1 a v8, o método acima deles) e programas vizinhos
-([test-excellence](../test-excellence/), [gate-speed](../gate-speed/), [reach-1000-prs-per-day](../reach-1000-prs-per-day/),
-[censo-no-manifesto](../censo-no-manifesto/)). O programa não começa do zero: leva esse Padrão ao ideal, e a análise
-audita o que já existe.
+Correção, 20:42 BRT (por outra sessão, em nome dele): o programa ficou focado demais em teste. Faltam um sistema
+unificado de gestão de requisitos (todos os requisitos: produto, operação, qualidade e restrições; ciclo de vida
+proposta → aprovado → implementado → verificado → substituído; dono; rastreio requisito → arquitetura → código → teste;
+medida própria), um de arquitetura (visões, decisões com ciclo de vida e confirmação, componentes e unidades, contratos
+e portas, a arquitetura de referência existente, funções de aptidão) e um do padrão (catálogo de regras, propostas de
+mudança, versões, conformidade calculada).
+
+Complemento, 20:44 BRT: **tudo tem um sistema.** Cada parte do ciclo, do requisito ao teste de validação, tem um sistema
+de gestão próprio e unificado; no mínimo requisitos, arquitetura, desenvolvimento (construção: unidades, código,
+revisão, integração, entrega), testes (unidade, integração, sistema), verificação e validação (inclusive o teste de
+validação final), o padrão e a gestão do padrão; a lista se fecha pela pesquisa (SWEBOK v4, ISO/IEC/IEEE 12207 e 15288),
+não só pela dele. Cada sistema tem objeto gerido, ciclo de vida, dono, registro como dado, ligações de rastreio com os
+vizinhos, medida própria e conformidade calculada. Os sistemas se encaixam num modelo único, para que a cadeia
+requisito → arquitetura → código → teste → validação seja navegável e verificável de ponta a ponta.
+
+Restrições que continuam valendo: GitHub como fonte da verdade com a fila de merge, gate em até 1 minuto, deploy com
+mediana de 1 s, teto AWS de US$200 por mês, operação por eventos sem polling, código da era Origin dormente.
 
 ## Sintoma
-1. **Consertamos o que um processo teria evitado.** Em dois dias de GitHub (14–15/11, 55 PRs mergeadas), a suíte
-   completa ficou vermelha em `main` três vezes depois de um `tower/gate` verde (issues #15, #28, #36; 3 de 41 execuções
-   do `full-suite`). Na #28 (PR #26) a regra "nenhuma chamada a endpoint fora do seu adaptador" quebrou em
-   `scripts/lib/deploy.py:114`, e o gate seletivo não rodou o teste dela, porque a seleção vem de manifestos `covers`
-   escritos à mão. A correção veio numa segunda PR (#30). Na #36 um teste instável (`runner-env`) foi vermelho uma vez e
-   verde sozinho. Daniel cita arquivos compartilhados e dependências anotadas à mão em arquivo compartilhado, que já
-   deram problema várias vezes; o próprio repositório registra o caso de doze PRs abertas editando o mesmo agregado
-   gerado no mesmo dia (`scripts/lib/merge_regenerate.py`, cabeçalho).
-2. **O custo de mudança é alto.** Cada teste nomeia as suas entradas num manifesto (`scripts/tests/covers/*.json`, 214
-   manifestos, 2.486 entradas), cada chave do registro nomeia os seus leitores (`x-readers`, 1.154 entradas em 825
-   chaves), cada unidade nomeia os seus caminhos e dependências (`units/*/unit.json`, 61 unidades). Uma mudança que
-   cria um arquivo ou um leitor novo edita dados que outras mudanças também editam.
-3. **Não sabemos o que os testes garantem.** O gate roda em segundos, mas nenhuma medida diz a cobertura dos testes, se
-   cada teste selecionado de fato executou o código que diz cobrir, nem se todos os testes necessários existem. Um teste
-   cujo `covers` omite um arquivo que ele lê nem é selecionado nem tem o cache invalidado quando esse arquivo muda
-   (`scripts/lib/gate_test_cache.py`, a chave é função do `covers`); não existe ferramenta de cobertura instalada
-   (`coverage.py` ausente do toolchain).
+1. **Consertamos o que um processo teria evitado.** Em dois dias de GitHub (14–15/11, 55 PRs mergeadas), 6 PRs levaram
+   a `main` um defeito encontrado depois do merge, e outras 6 existem só para consertá-los (#7, #16, #18, #30, #47, #49).
+   Os escapes se distribuem pelo ciclo inteiro, não só pelos testes: dois são de comportamento operacional que nenhum
+   requisito escrevia (#40, #41), um de efeito em outro módulo que nenhuma arquitetura ligava (#17), um de construção que
+   um verificador de tipos pega (#3), e dois e meio de seleção de testes (#26 e a árvore inicial).
+2. **Os artefatos de cada parte do ciclo existem, espalhados, sem sistema.** Requisitos vivem em pelo menos sete lugares
+   (a intenção e as metas travadas da [semente](../../SEMENTE.md), 294 decisões, 15 invariantes e 6 garantias de
+   `CONTRACT.md`, 12 capacidades, 58 premissas, os requisitos da [arquitetura de referência](../../arquitetura-referencia/01-requisitos.md),
+   21 chaves de SLO e orçamento no registro), cada um com forma, estado e dono próprios ou nenhum. Arquitetura vive em
+   cinco (33 ADRs, a maioria do produto que saiu; 28 documentos da arquitetura de referência; 6 de `docs/architecture`;
+   61 manifestos de unidade; as regras estruturais como testes), sem ciclo de vida comum (6 das 33 ADRs declaram estado)
+   e sem ligação verificada entre eles. O padrão vive em três (o Padrão v8, os 16 princípios D-069, o registro de regras
+   com 1 registro para 49 recusas), e checagens nascem em modo relatório e nunca viram bloqueio.
+3. **O custo de mudança é alto,** porque as ligações entre os artefatos são escritas à mão em arquivos que várias
+   mudanças editam: 2.486 entradas `covers`, 1.154 `x-readers`, os `paths` e `requires` das unidades. Daniel cita
+   arquivos compartilhados e dependências anotadas à mão que já deram problema várias vezes.
+4. **Não sabemos o que é verdade.** Não sabemos quantos requisitos existem, quais têm teste, qual parte da arquitetura o
+   código segue, a cobertura dos testes, nem se os testes selecionados executam o que dizem: uma rastreação dos 214
+   testes mostrou que 207 executam algum arquivo cuja mudança, sozinha, não os faria rodar no gate.
 
 ## Sistema que falhou
-A hipótese do pedido era a falta de quatro sistemas (requisitos, arquitetura, o próprio padrão, testes e validação). A
-primeira leitura do repositório corrige o quadro: partes de cada um **existem**, espalhadas e sem um dono que as junte.
-O que falhou é um sistema só, com quatro faces:
+Não falharam quatro sistemas isolados. Falhou **o sistema de engenharia como um todo, por não ser um sistema de
+sistemas**: cada parte do ciclo tem artefatos, alguns muito bons (o registro de configuração com leitores conferidos, as
+dependências entre unidades conferidas, as decisões em um arquivo por registro, o gate por plano, a fila de merge), mas
+nenhuma parte tem os sete atributos de um sistema gerido (objeto, ciclo de vida, dono, registro como dado, rastreio,
+medida, conformidade calculada), e não há um modelo que ligue as partes. Por isso:
 
-- **O sistema de padrão de engenharia não existe como sistema gerido.** O Padrão versionado (`docs/padrao/` v1–v8 e o
-  método) cobre a gestão do trabalho (programa, projeto, processo, operação) e o fluxo de entrega; não cobre a
-  engenharia do produto: que requisitos uma mudança realiza, que forma o código tem, que testes provam o quê. As regras
-  de engenharia que existem nasceram de incidentes, uma a uma, em decisões (`docs/domain/decisions/`, 83 arquivos),
-  checagens do gate e prosa do AGENTS.md, sem um catálogo que diga quais regras existem, qual checagem prova cada uma e
-  qual regra ainda é só texto.
-- **Requisitos:** existem como invariantes e decisões (`docs/domain/CONTRACT.md`, `DECISIONS.md`, "a decisão nomeia o
-  teste que a prova"), sem rastreabilidade verificada da decisão ao teste.
-- **Arquitetura:** existem unidades com dono e dependências verificadas (`units/`, `scripts/lib/unit_map.py`), portas e
-  adaptadores (`docs/architecture/PORTS.md`) e regras de estrutura como testes; 368 arquivos de código não pertencem a
-  nenhuma unidade.
-- **Testes e validação:** existem um mapa de seleção (covers), cache por conteúdo, testes herméticos, checagem de testes
-  órfãos e a suíte completa pós-merge; falta a medida de adequação (cobertura, mutação) e a prova de que o mapa de
-  seleção é completo, e a dependência declarada à mão é a fonte da seleção.
+- uma mudança não sabe que requisito realiza, que elemento da arquitetura toca, que testes a provam e que validação a
+  aceita; quem sabe é a sessão, por leitura;
+- uma regra do padrão não sabe onde se aplica nem se está sendo seguida;
+- um defeito encontrado depois do merge não volta para o sistema que o deixou passar.
 
-Por isso é um sistema a **construir** (o padrão de engenharia gerido) que **melhora** sistemas existentes (os quatro
-acima), não quatro sistemas a criar do zero.
+É um sistema a **construir** (o modelo único e os sistemas que faltam) que **incorpora e melhora** os artefatos que já
+existem, sem recomeçar nenhum deles.
+
+**A lista dos sistemas** fica fechada pela pesquisa ([pesquisa](pesquisa.md), §10) e pela [solução](solucao.md), em 15
+sistemas. Ponto de partida, de Daniel: requisitos; arquitetura; construção (unidades, código, revisão, integração, entrega); testes
+(unidade, integração, sistema); verificação e validação, com a validação final; o padrão; a gestão do padrão.
 
 ## Sistema ideal
-Um padrão de engenharia versionado, feito para produção de código por agentes em volume (1 PR por minuto ou mais), em
-que:
+Um **modelo de engenharia único**, versionado no repositório, em que:
 
-1. **Toda regra é dado com uma checagem.** O padrão é um catálogo de regras; cada regra tem uma checagem automática que
-   roda no gate ou é declarada orientação, nunca as duas coisas sem distinção. Uma regra sem checagem não obriga
-   ninguém. O catálogo é versionado e mudar uma regra é uma PR como qualquer outra.
-2. **Nada que a máquina deriva é escrito à mão.** Dependências, leitores, seleção de testes, donos e agregados são
-   derivados do código ou da execução; o que é declarado (uma intenção, um requisito) é declarado uma vez, num arquivo
-   próprio, e verificado contra o código.
-3. **Cada mudança é local.** A forma do código faz uma mudança caber no contexto de uma unidade: um agente lê pouco,
-   muda pouco e não persegue efeitos pelo sistema; dois agentes em paralelo quase nunca tocam o mesmo arquivo.
-4. **Os testes provam o que dizem.** Cada requisito aponta para os testes que o provam; a adequação dos testes é medida
-   (cobertura e mutação) e tem piso; o gate prova que todo teste afetado rodou e passou, sem depender de declaração.
-5. **Todo código novo nasce no padrão.** Os geradores e modelos produzem código já conforme; o gate recusa o que não é.
-6. **O próprio padrão melhora pelo ciclo.** Cada escape (defeito que passou pelo gate) é classificado e vira regra com
-   checagem ou teste, para que a mesma classe não volte.
+1. **Tudo tem um sistema.** Cada parte do ciclo de vida da 12207/15288 que a Torre precisa (a lista fechada na pesquisa)
+   é um sistema com objeto gerido, estados de ciclo de vida, dono, registro como dado (um arquivo por objeto, nunca uma
+   lista compartilhada), ligações de rastreio tipadas com os sistemas vizinhos, uma medida própria e a conformidade
+   calculada por máquina.
+2. **Uma cadeia navegável de ponta a ponta.** Requisito → elemento de arquitetura → unidade e código → teste →
+   verificação → validação, com cada ligação declarada uma vez no objeto que a conhece e verificada contra o real; uma
+   ligação fica suspeita quando o objeto de origem muda, e a cadeia mostra o que uma mudança afeta antes do merge.
+3. **Nada que a máquina deriva é escrito à mão.** Dependências, leitores, seleção de testes, donos e agregados vêm do
+   código e da execução; o que só uma pessoa ou uma sessão sabe (uma intenção, um requisito, uma decisão) é declarado uma
+   vez e verificado contra o resto.
+4. **Toda regra é dado com checagem.** O padrão é um catálogo de regras, cada uma ligada aos sistemas e objetos a que se
+   aplica, com a sua checagem, os testes da checagem e um modo (aviso com prazo, depois bloqueio). Mudar o padrão é uma
+   proposta com ciclo de vida e versão, como qualquer outro objeto.
+5. **Todo código novo nasce no modelo.** Os geradores criam o objeto, as ligações e o teste juntos; o gate recusa o que
+   não está ligado.
+6. **O próprio modelo melhora pelo ciclo.** Cada escape é atribuído ao sistema que o deixou passar e muda esse sistema.
+   Só restam os limites físicos: os 60 s do gate, a fila, a cota.
 
 ## Distância
-- **Existe:** o método de gestão; o gate com plano, seleção, cache e hermeticidade; a suíte completa pós-merge que pega
-  escapes; geração com driver de merge para agregados; checagens derivadas para leitores do registro
-  (`registry_readers.py`) e dependências entre unidades (`unit_map.py`); testes de regras estruturais (portas,
-  literais, segredos).
-- **Falta:** o catálogo das regras de engenharia com a checagem de cada uma; a medida de adequação dos testes; a prova de
-  que a seleção do gate não perde testes (hoje a declaração manual `covers` decide); a rastreabilidade requisito → teste;
-  a dono e a forma de cada arquivo de código (368 sem unidade); o fim das listas escritas à mão em arquivo compartilhado;
-  a classificação dos escapes como entrada do padrão. O driver de merge dos agregados só roda num merge local: a fila
-  do GitHub não o executa, então um conflito num agregado gerado volta a ser de uma pessoa (a verificar na análise).
+- **Existe e entra no modelo como está ou quase:** o registro de configuração (825 chaves, um arquivo por chave,
+  leitores conferidos), as unidades com dependências conferidas, as decisões como registros com prova, as capacidades
+  com estado, as premissas com raio, o gate por plano com cache por conteúdo, a fila de merge, a suíte completa
+  pós-merge, os eventos com contrato, o método de gestão.
+- **Existe como prosa ou em partes, sem os sete atributos:** requisitos (sete lugares), arquitetura (cinco lugares), o
+  padrão (três lugares), testes (sem nível, sem adequação medida, seleção por declaração manual), validação (um canário
+  de deploy; nenhuma validação contra a necessidade de quem pediu), revisão (nenhuma, por decisão: D-055).
+- **Não existe:** o modelo único com as ligações tipadas e verificadas; o ciclo de vida comum; a conformidade calculada
+  por sistema; a gestão do padrão como sistema (propostas, versões, conformidade); a ligação de um escape ao sistema que
+  o deixou passar.
 
 ## Painel de métricas
-**Objetivo:** toda mudança nasce no padrão e chega a `main` certa na primeira vez, com custo baixo, sem que ninguém
-precise conferir à mão o que a máquina pode provar.
+**Objetivo:** toda mudança nasce ligada à cadeia requisito → arquitetura → código → teste → validação, cada sistema da
+cadeia é gerido e medido, e a mudança chega a `main` certa na primeira vez, com custo baixo.
 
-- **Principal: taxa de escape**, a fração das PRs mergeadas que levam a `main` um defeito encontrado depois do merge (a
-  suíte completa vermelha atribuída à PR, um revert, ou uma PR posterior que conserta o que ela quebrou). Menor é
-  melhor. Puxa o programa porque cada escape é exatamente "o problema que um processo bem definido teria evitado".
-  Aceitável no fim: abaixo de 1 % com volume de 1.000 PRs por dia. Linha de base na análise.
-- **Guarda, vazão:** PRs mergeadas por dia não caem por causa do padrão (o padrão não pode ganhar qualidade travando o
-  fluxo; SEMENTE §3).
-- **Guarda, tempo do gate:** `tower/gate` p50 e p99 ≤ 60 s (restrição travada).
-- **Guarda, custo:** AWS ≤ US$200/mês e deploy com mediana de 1 s (restrições travadas).
-- **Complementar, conhecimento dos testes:** cobertura de linhas do código Python e shell sob a suíte, escore de mutação
-  numa amostra fixa, e fração dos testes cujo `covers` contém tudo o que o teste lê de fato (completude da seleção).
-  Impedem que a taxa de escape caia só porque a suíte completa deixou de encontrar defeitos.
-- **Complementar, regras com checagem:** fração das regras do catálogo que têm checagem automática. Mede o item 1 do
-  ideal; não é meta sozinha, porque se infla com regras triviais.
-- **Complementar, custo de mudança:** arquivos tocados por PR fora da unidade principal da mudança, e arquivos editados
-  à mão por mais de uma PR no mesmo dia (exposição a conflito). Medem os itens 2 e 3 do ideal e testam as hipóteses de
-  segmentação e de fim dos arquivos compartilhados.
+**Principal: a fração da cadeia verificada de ponta a ponta.** Dos requisitos ativos (todos os tipos), a fração cuja
+cadeia está completa e verificada: ligado a pelo menos um elemento de arquitetura, que é realizado por pelo menos uma
+unidade, que tem testes ligados ao requisito, verdes em `main`, e uma verificação ou validação registrada; nenhuma
+ligação suspeita. Maior é melhor. É uma só métrica que puxa todos os sistemas: ela só sobe se requisitos existem como
+dado, se a arquitetura liga requisito a código, se o código tem dono, se os testes provam o requisito e se a validação
+existe. Ela se infla com poucos requisitos, e por isso a guarda de inventário abaixo a acompanha.
+
+**Medidas próprias de cada sistema** (uma por sistema; definidas por inteiro na solução, com a lista fechada):
+requisitos com dono, estado e verificação; elementos de arquitetura com decisão aceita e função de aptidão verde;
+arquivos de código com unidade e regras de construção sem piora; testes com nível, seleção completa e adequação medida;
+requisitos com validação registrada; regras do padrão com checagem; propostas do padrão decididas no prazo. E a
+**conformidade calculada** de cada sistema: a fração dos seus objetos que cumpre as regras do padrão que se aplicam a ele.
+
+**Guardas:**
+- **Inventário de requisitos:** os requisitos que existem em cada fonte conhecida (as sete da análise) entram no
+  sistema; a métrica principal não pode subir com fontes deixadas de fora.
+- **Taxa de escape** (resultado): PRs mergeadas que levam a `main` um defeito encontrado depois do merge, 10,9 % na
+  linha de base; cada escape atribuído ao sistema que o deixou passar. Não pode piorar, e é a prova de que o modelo
+  serve para alguma coisa.
+- **Vazão:** PRs mergeadas por dia não caem por causa do padrão (SEMENTE §3).
+- **Tempo do gate** p50 e p99 ≤ 60 s, **custo AWS** ≤ US$200/mês e **deploy** com mediana de 1 s (restrições
+  travadas).
