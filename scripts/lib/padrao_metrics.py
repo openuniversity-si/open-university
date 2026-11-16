@@ -8,6 +8,9 @@ really opened:
   trace TEST [TEST ...] --out DIR [--workers N]
       runs each scripts/tests/<name>.test.sh under `strace -f`, writing DIR/<name>.strace (every successful openat and
       execve) and DIR/<name>.exit (the test's exit status, or `cut` when rules.metrics_trace_timeout_s stopped it)
+  traced --traces DIR --base SHA [--out FILE]
+      writes the traced map (gate-tests.traced_file) that the gate's selection joins to the covers: for every test that
+      is not a scanner, the code files it opened that the covers alone did not select it for
   selection --traces DIR [--json FILE]
       for every traced test, the tracked code files it opened, those outside its covers, and those whose change alone
       the gate's own selection would not select it for: the silent-skip pairs. A test that opens more than
@@ -163,6 +166,18 @@ def selection(traces, root=ROOT, mapping=None, files=None, select=None):
     }
 
 
+def traced_map(found, base):
+    """The generated traced map (gate-tests.traced_file): for every test that is not a scanner, the code files it opened
+    that the declared selection did not reach, and the commit the traces were taken on."""
+    tests = {item['test']: item['skipped'] for item in found['per_test'] if item['skipped'] and not item['scanner']}
+    return {'generated_by': 'scripts/padrao-metrics traced', 'base': base, 'tests': dict(sorted(tests.items()))}
+
+
+def declared(mapping):
+    """The map with no traced files, so a new traced map measures against the covers alone, never against itself."""
+    return {**mapping, 'tests': tuple({**test, 'traced': ()} for test in mapping['tests'])}
+
+
 def read_traces(directory):
     """{script: strace text} for every <name>.strace in `directory`."""
     return {f'{TESTS_DIR}{path.name[:-len(".strace")]}{TEST_SUFFIX}': path.read_text(errors='replace')
@@ -194,6 +209,10 @@ def main(argv=None):
     chosen = commands.add_parser('selection', help='the completeness of the gate selection from traces')
     chosen.add_argument('--traces', required=True)
     chosen.add_argument('--json')
+    written = commands.add_parser('traced', help='write the traced map the gate selection joins to the covers')
+    written.add_argument('--traces', required=True)
+    written.add_argument('--base', required=True, help='the commit the traces were taken on')
+    written.add_argument('--out', help='default: gate-tests.traced_file')
     args = parser.parse_args(argv)
     if args.command == 'trace':
         wrong = [script for script in args.tests if not (script.startswith(TESTS_DIR) and script.endswith(TEST_SUFFIX)
@@ -203,6 +222,13 @@ def main(argv=None):
         statuses = trace(args.tests, args.out, workers=args.workers)
         for script, status in statuses.items():
             print(f'{status} {script}')
+        return 0
+    if args.command == 'traced':
+        found = selection(read_traces(args.traces), mapping=declared(gate_script_tests.load(ROOT)))
+        out = Path(args.out or ROOT / setting('gate-tests.traced_file'))
+        made = traced_map(found, args.base)
+        out.write_text(json.dumps(made, indent=1) + '\n')
+        print(f'traced: {len(made["tests"])} test(s), {sum(map(len, made["tests"].values()))} pair(s) -> {out}')
         return 0
     found = selection(read_traces(args.traces))
     if args.json:

@@ -5,10 +5,12 @@ Name = Literal[
     'gate-tests.covers_dir',
     'gate-tests.fallback',
     'gate-tests.map_check',
+    'gate-tests.traced_file',
 ]
 
 Values = TypedDict('Values', {
     'gate-tests.covers_dir': str,
     'gate-tests.fallback': list[str],
     'gate-tests.map_check': str,
+    'gate-tests.traced_file': str,
 })
