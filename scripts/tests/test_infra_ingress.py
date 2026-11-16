@@ -252,16 +252,14 @@ class Ingress(unittest.TestCase):
         unseeded = self.run_fresh(ROOT / 'infra' / 'service', {**env, 'TOWER_FORGE_KEYS': ''})
         self.assertEqual(sorted(set(unseeded['asked'])), ['sqs.us-east-1.amazonaws.com', 'ssm.us-east-1.amazonaws.com'])
 
-    def test_the_minimal_ingress_image_holds_exactly_the_modules_the_ingress_imports(self):
-        import re
+    def test_the_minimal_ingress_package_holds_exactly_the_modules_the_ingress_imports(self):
+        # AWS-REVIEW (#149): the ingress image's Dockerfile left with the image nothing read; the dormant zip package of the
+        # ack ingress (lambda_package.FUNCTIONS, D-316) ships the same layout: these four files and the minimal __init__
         import shutil
         import tempfile
-        dockerfile = (ROOT / 'infra' / 'ingress' / 'Dockerfile').read_text(encoding='utf-8')
-        copied = sorted(Path(name).name for name in re.findall(r'infra/service/tower_infra/(\S+\.py)', dockerfile))
-        self.assertEqual(copied, ['awsjson.py', 'ed25519.py', 'forge_webhooks.py', 'ingress.py'])
-        self.assertIn('FROM public.ecr.aws/lambda/python:3.12-arm64', dockerfile)
-        self.assertIn('CMD ["tower_infra.ingress.handler"]', dockerfile)
-        with tempfile.TemporaryDirectory() as root:  # the image's layout: the files, an empty package, nothing else
+        copied = ['awsjson.py', 'ed25519.py', 'forge_webhooks.py', 'ingress.py']
+        self.assertFalse((ROOT / 'infra' / 'ingress' / 'Dockerfile').exists())
+        with tempfile.TemporaryDirectory() as root:  # the package's layout: the files, an empty package, nothing else
             package = Path(root) / 'tower_infra'
             package.mkdir()
             shutil.copy(ROOT / 'infra' / 'ingress' / '__init__.py', package / '__init__.py')

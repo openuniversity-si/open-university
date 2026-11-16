@@ -32,7 +32,7 @@ from adapters import storage  # noqa: E402
 
 PACKAGE = 'tower_infra'
 SOURCE = Path('infra/service') / PACKAGE
-# function -> (handler module, the __init__ it ships). The ingress ships the minimal one, as its Dockerfile does.
+# function -> (handler module, the __init__ it ships). The ingress ships the minimal one (infra/ingress/__init__.py).
 FUNCTIONS = {
     'tower-port-api': ('http_port', Path('infra/service') / PACKAGE / '__init__.py'),
     'tower-port-ack-ingress': ('ingress', Path('infra/ingress/__init__.py')),

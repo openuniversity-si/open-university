@@ -4,6 +4,7 @@
     "scripts/tests/infra-ingress.test.sh",
     "scripts/tests/test_infra_ingress.py",
     "scripts/tests/infra_db/psql.py",
+    "infra/ingress/**",
     "infra/service/tower_infra/ed25519.py",
     "infra/service/tower_infra/forge_webhooks.py",
     "infra/service/tower_infra/ingress.py",
