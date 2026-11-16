@@ -143,3 +143,13 @@ gh api repos/openuniversity-si/open-university/rulesets/27250343 \
         else . end))}' \
   | gh api -X PUT repos/openuniversity-si/open-university/rulesets/27250343 --input -
 ```
+
+## GATE-ISOLATED: the timing-bound tests beside the batch (16/11/2026)
+
+In the 150 `tower-gate` runs up to 16/11, 32 had a test that was red in the batch and green alone, and in all 32 it was
+`infra-intask-standby` (its 20 s waits starve beside a 4-worker batch). Those runs took 98-146 s; the 110 without a rerun
+had a p50 of 19 s. `verify-commit` now runs the tests that `gate.isolated_tests` names by themselves, at the same time as
+the batch of the others, which gets one worker fewer (`GATE_TEST_WORKERS`). Measured on 4 CPUs on the 28 tests a change of
+`tower_infra/container.py` plans: the batch of all 28 took 111 s with `infra-intask-standby` red; that test beside a
+3-worker batch of the other 27 passed in 14 s and the batch took 42 s. An isolated test still red runs once more alone,
+like any test red in the batch (VERIFY-ALONE).

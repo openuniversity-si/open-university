@@ -9,7 +9,8 @@ own (scripts/gate-check plan checks: the stages and only the script tests whose 
 every stage of it runs but `pr metadata`, which reads the pull request on Origin, and the tests run in one
 `gate-check tests` batch. The status is `pending` while it runs, then `success` or `failure` with what was red. No
 GitHub Actions and no runner of its own: the verifier is a Claude Code thread, the session that publishes is the one
-that ran the checks. Standard library and the `gh` CLI (the session's GitHub credential) only.
+that ran the checks. Standard library, the registry's scripts/lib/config.py (GATE-ISOLATED) and the `gh` CLI (the
+session's GitHub credential) only.
 
 VERDICT-REUSE (docs/process/gate-github-speed.md): `--record DIR` writes a green verdict's key under DIR and names it in
 $GITHUB_OUTPUT (`verdict=tower-gate-green-<key>`), for the job to keep as an artifact of that name; `--reuse` lets the
@@ -27,6 +28,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -36,6 +38,13 @@ SKIPPED = ('pr metadata',)  # reads the pull request on Origin; the GitHub pull 
 VERDICT = 'tower-gate-green-'  # VERDICT-REUSE: the artifact name of a recorded green verdict, its key after it
 KEY_VERSION = 1  # VERDICT-REUSE: a change to what the key covers bumps it, so no older record matches
 RUNNER = ('RUNNER_OS', 'RUNNER_ARCH', 'ImageOS', 'ImageVersion')  # the hosted runner's image, part of the key
+WORKERS = 'GATE_TEST_WORKERS'  # GATE-ISOLATED: the batch's workers (gate_test_cache.WORKERS_ENV)
+
+
+def isolated_tests():
+    """GATE-ISOLATED: the timing-bound tests run apart from the batch (the registry's gate.isolated_tests)."""
+    import config  # scripts/lib, beside this file
+    return list(config.get('gate.isolated_tests') or [])
 
 
 def run(args, cwd=ROOT, env=None):
@@ -103,7 +112,8 @@ def reuser(repo, base, run=run, environ=None):
     return reuse
 
 
-def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=False, reuse=None):
+def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=False, reuse=None, isolated=isolated_tests,
+          cpus=os.cpu_count):
     """(green, red names, the plan, seconds): every stage of the plan but SKIPPED, then its tests in one batch.
     VERIFY-TAIL: tails, when given, receives (name, the end of its output) for each red stage and each test still red.
     VERIFY-ALONE (the engine's FULL-RUN-ALONE): a test red in the batch runs again alone, and that verdict is its own; a
@@ -111,7 +121,12 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
     batch of PR #3, 10 s and green alone). alone, when given, receives the tests that were green only alone.
     FULL-SUITE-MAIN: every=True judges every script test of the checkout, not the diff's (the safety net after a merge).
     VERDICT-REUSE: reuse, when given, maps the plan to the run whose green verdict of these tests stands (planned's
-    `reused`), else None and the tests run; the stages always run."""
+    `reused`), else None and the tests run; the stages always run.
+    GATE-ISOLATED (the Torre, 16/11/2026): the planned tests that isolated() names run one after another by
+    themselves, at the same time as the batch of the others, which runs with one worker fewer; one still red runs once
+    more alone after the batch, like a test red in the batch. infra-intask-standby beside a 4-worker batch was red and
+    its rerun alone made the gate 98-146 s (32 of 150 runs); beside a 3-worker batch it passed in 14 s and the batch of
+    a service change's 27 other tests took 42 s."""
     began = clock()
     planned = plan(base, run)
     red = []
@@ -134,15 +149,33 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
     if reused is not None:
         planned['reused'] = reused
     elif tests:
+        named = set(isolated())
+        apart = [test for test in tests if test in named]
+        batch = [test for test in tests if test not in named]
+        verdicts = {}
+
+        def by_themselves():
+            for test in apart:
+                verdicts[test] = run(['scripts/gate-check', 'test', test])
+        beside = threading.Thread(target=by_themselves, name='verify-isolated', daemon=True) if apart else None
+        if beside:
+            beside.start()
+        failed = []
         with tempfile.TemporaryDirectory() as tmp:
-            answer = Path(tmp) / 'tests.json'
-            code, out = run(['scripts/gate-check', 'tests', ','.join(tests)],
-                            env={**os.environ, 'TOWER_ANSWER_FILE': str(answer)})
-            said = json.loads(answer.read_text()).get('tests', {}) if answer.is_file() else {}
-            failed = [test for test in tests if said.get(test) != 'PASS']
-            if code != 0 and not failed:
-                red.append('script tests')
-                tails.append(('script tests', out[-TAIL:]))
+            if batch:
+                answer = Path(tmp) / 'tests.json'
+                env = {**os.environ, 'TOWER_ANSWER_FILE': str(answer)}
+                if apart:  # GATE-ISOLATED: one CPU of the runner is the isolated tests'
+                    env[WORKERS] = str(max(1, int(os.environ.get(WORKERS) or cpus() or 1) - 1))
+                code, out = run(['scripts/gate-check', 'tests', ','.join(batch)], env=env)
+                said = json.loads(answer.read_text()).get('tests', {}) if answer.is_file() else {}
+                failed = [test for test in batch if said.get(test) != 'PASS']
+                if code != 0 and not failed:
+                    red.append('script tests')
+                    tails.append(('script tests', out[-TAIL:]))
+            if beside:
+                beside.join()
+            failed += [test for test in apart if verdicts.get(test, (1, ''))[0] != 0]
             for test in failed:
                 again, said_alone = run(['scripts/gate-check', 'test', test])
                 if again == 0:

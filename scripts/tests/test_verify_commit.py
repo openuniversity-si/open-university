@@ -127,6 +127,57 @@ class TheVerifier(unittest.TestCase):
         self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=fake), 1)
         self.assertEqual(fake.statuses[-1][1:], ('failure', 'tower/gate', 'red: scripts/tests/y.test.sh'))
 
+    def test_an_isolated_test_runs_by_itself_beside_a_batch_of_one_worker_fewer(self):
+        """GATE-ISOLATED: the named timing-bound test is never in the batch; it runs alone at the same time, and the
+        batch of the others is told one worker fewer than the runner's CPUs."""
+        envs = []
+
+        class Seen(Fake):
+            def __call__(self, args, cwd=None, env=None):
+                if args[:2] == ['scripts/gate-check', 'tests']:
+                    envs.append(dict(env))
+                return super().__call__(args, cwd, env)
+        fake = Seen()
+        green, red, planned, _ = verify_commit.judge(BASE, run=fake, isolated=lambda: ['scripts/tests/x.test.sh'],
+                                                     cpus=lambda: 4)
+        self.assertEqual((green, red), (True, []))
+        self.assertIn(['scripts/gate-check', 'test', 'scripts/tests/x.test.sh'], fake.calls)
+        self.assertIn(['scripts/gate-check', 'tests', 'scripts/tests/y.test.sh'], fake.calls)  # the batch is the rest
+        self.assertEqual(envs[0][verify_commit.WORKERS], '3')
+        self.assertEqual(planned['tests'], PLAN['tests'])  # the plan, and its count of checks, is unchanged
+
+    def test_an_isolated_test_red_beside_the_batch_runs_once_more_alone(self):
+        """GATE-ISOLATED: red by itself beside the batch and green alone after it is green, and said; red twice is red."""
+        class Once(Fake):
+            tries = 0
+
+            def __call__(self, args, cwd=None, env=None):
+                if args == ['scripts/gate-check', 'test', 'scripts/tests/x.test.sh']:
+                    Once.tries += 1
+                    if Once.tries == 1:
+                        self.calls.append(list(args))
+                        return 1, 'FAIL beside the batch'
+                return super().__call__(args, cwd, env)
+        alone = []
+        green, red, _, _ = verify_commit.judge(BASE, run=Once(), alone=alone, isolated=lambda: ['scripts/tests/x.test.sh'],
+                                               cpus=lambda: 4)
+        self.assertEqual((green, red, alone), (True, [], ['scripts/tests/x.test.sh']))
+        green, red, _, _ = verify_commit.judge(BASE, run=Fake(red=('scripts/tests/x.test.sh',)),
+                                               isolated=lambda: ['scripts/tests/x.test.sh'], cpus=lambda: 4)
+        self.assertEqual((green, red), (False, ['scripts/tests/x.test.sh']))
+
+    def test_a_plan_of_isolated_tests_only_runs_no_batch(self):
+        fake = Fake()
+        green, _, _, _ = verify_commit.judge(BASE, run=fake, isolated=lambda: PLAN['tests'], cpus=lambda: 2)
+        self.assertTrue(green)
+        self.assertFalse([call for call in fake.calls if call[:2] == ['scripts/gate-check', 'tests']])
+
+    def test_the_registry_names_the_timing_bound_tests_that_exist(self):
+        named = verify_commit.isolated_tests()
+        self.assertIn('scripts/tests/infra-intask-standby.test.sh', named)
+        for test in named:
+            self.assertTrue((ROOT / test).is_file(), test)
+
     def test_a_commit_that_is_not_the_checkout_is_never_judged_nor_published(self):
         fake = Fake(head='c' * 40)
         self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=fake), 2)
@@ -275,7 +326,9 @@ class TheVerifier(unittest.TestCase):
         self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post', '--all'], run=fake), 0)
         batch = next(call for call in fake.calls if call[:2] == ['scripts/gate-check', 'tests'])[2].split(',')
         every = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / 'scripts' / 'tests').glob('*.test.sh'))
-        self.assertEqual(batch, every)
+        apart = [call[2] for call in fake.calls if call[:2] == ['scripts/gate-check', 'test']]  # GATE-ISOLATED
+        self.assertEqual(sorted(batch + apart), every)
+        self.assertEqual(apart, [test for test in every if test in verify_commit.isolated_tests()])
         self.assertGreater(len(batch), 100)
         self.assertIn(['scripts/gate-check', 'plan', 'checks', '--base', BASE], fake.calls)  # the stages are the plan's
 

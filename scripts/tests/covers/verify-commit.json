@@ -10,6 +10,8 @@
     "services/runner/github/full-suite.yml",
     "scripts/cloud/postgres.py",
     ".github/rulesets/main.json",
-    "config/registry/gate/gate.allowed_workflows.json"
+    "config/registry/gate/gate.allowed_workflows.json",
+    "config/registry/gate/gate.isolated_tests.json",
+    "scripts/lib/config.py"
   ]
 }
