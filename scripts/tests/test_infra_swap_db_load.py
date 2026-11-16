@@ -110,6 +110,7 @@ SWAP_MOMENT = [
     # QUEUE-SWAP: the merge queue's want, the landing's swap and what the looks read of it after
     ('queue_deploy.WANT', queue_deploy.WANT, {'id': 'platform.deploy.successor:t', 'payload': '{}'}),
     ('queue_deploy.WANTED', queue_deploy.WANTED, {}),
+    ('queue_deploy.PREPARED_FOR', queue_deploy.PREPARED_FOR, {'prefix': 'platform.deploy.prepared:t:%'}),  # BASE-MOVED
     ('queue_deploy.SWAP', queue_deploy.SWAP, {'digest': DIGEST, 'tenant': 'torre', 'fresh_s': 3.0, 'reason': 'r',
                                               'id': 'platform.deploy.image_swap:t', 'payload': '{}'}),
     ('queue_deploy.SWAP_OF', queue_deploy.SWAP_OF, {'head': DIGEST, 'digest': DIGEST}),

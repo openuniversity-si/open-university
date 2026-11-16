@@ -83,6 +83,9 @@ QUEUED = ("select payload->>'event', payload->>'sha', extract(epoch from occurre
           "order by occurred_at")
 PREPARED_OF = (f"select payload::text from log.event where type = '{PREPARED}' and event_id = %(id)s "
                "and occurred_at > now() - interval '1 day' limit 1")
+# BASE-MOVED: the records of a commit prepared on other bases, newest first
+PREPARED_FOR = (f"select payload::text from log.event where type = '{PREPARED}' and event_id like %(prefix)s "
+                "and occurred_at > now() - interval '1 day' order by occurred_at desc limit 5")
 OUTCOME_OF = (f"select payload::text from log.event where type = '{OUTCOME}' and event_id = %(id)s "
               "and occurred_at > now() - interval '1 day' limit 1")
 SAY = ("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
@@ -220,6 +223,9 @@ class QueueReload:
         found = self.prepared(db, sha, base) if SHA.fullmatch(base) else None
         if found:
             return found
+        found = self.carried(db, sha, base) if SHA.fullmatch(base) else None
+        if found:
+            return found
         found = {'sha': sha, 'base': base, 'code_only': False}
         try:
             if not SHA.fullmatch(base):
@@ -260,6 +266,34 @@ class QueueReload:
         LOG.info('queue: prepared %s on %s: %s (%s) in %.1fs', sha[:12], base[:12],
                  'code-only' if found['code_only'] else 'not code-only', found.get('why'), found['s'])
         return found
+
+    def carried(self, db, sha, base):
+        """BASE-MOVED (the Torre, 16/11/2026): the record of the sha prepared on an earlier deployed base, carried to this
+        base with no new bundle, when the earlier base is an ancestor of this one, this one of the sha, and every path from
+        this base to the sha was a path from the earlier one (so the classification of this diff, a part of a code-only
+        diff, is code-only or has nothing for the service; the bundle is the sha's tree either way). A build that ends during
+        a burst moves the base under a landing; without this the landing prepared the bundle again (#117: the pointer 2.1 s
+        after main moved, against 0.4 s). Local git only; anything it cannot read is no carry, and the prepare runs."""
+        began = self.clock()
+        for (payload,) in db.rows(PREPARED_FOR, {'prefix': f'{PREPARED}:{sha}:%'}) or []:
+            earlier = json.loads(payload) if payload else {}
+            old = str(earlier.get('base') or '')
+            if not earlier.get('code_only') or not SHA.fullmatch(old) or old == base:
+                continue
+            try:
+                self.ancestor(old, base)
+                self.ancestor(base, sha)
+                now = set(self.git('diff', '--name-only', '--no-renames', f'{base}..{sha}').decode().splitlines())
+                then = set(self.git('diff', '--name-only', '--no-renames', f'{old}..{sha}').decode().splitlines())
+            except (Refused, OSError, subprocess.SubprocessError):
+                return None
+            if not now <= then:
+                return None
+            found = {**earlier, 'base': base, 'carried_from': old, 's': round(self.clock() - began, 3)}
+            db.rows(SAY, {'id': f'{PREPARED}:{sha}:{base}', 'type': PREPARED, 'payload': json.dumps(found)})
+            LOG.info('queue: prepared %s on %s carried from %s in %.3fs', sha[:12], base[:12], old[:12], found['s'])
+            return found
+        return None
 
     def want(self, db, digest, key, sha, state='wanted'):
         """QUEUE-SWAP: the heir of a bundle wanted (or withdrawn) in each ECS task: platform.deploy.successor and the NOTIFY
