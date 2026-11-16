@@ -36,7 +36,7 @@ SLOW-PATH-NO-ROLLOUT-WAIT (docs/operations/aws.md 22.10): the live code as a dur
 only a process: a task ECS starts later (a crash, Spot, a rollout for another reason) boots the code of its task
 definition, and once the pointer was handed over nothing made it load the swapped bundle; that is why every code-only
 landing was still followed by two ECS rollouts with LiveCode. deploy.live_code ('<bundle sha256>@<merge sha>', written by
-the live service after a swap) is that code. boot() of a task of an ECS service (never a prewarm standby, TOWER_STANDBY,
+the live service after a swap) is that code. boot() of a task of an ECS service (never a standby, TOWER_STANDBY,
 which runs exactly its own bundle; never the child of an exec) reads it first, on a connection of its own with short
 timeouts (live()), and loads that bundle instead of its definition's when the datum is not the value the deployer saw
 when it deployed this task definition (TOWER_CODE_SEEN, the stacks' LiveSeen: a datum the definition has seen is older
@@ -84,7 +84,7 @@ BASE = 'TOWER_CODE_BASE'
 BASED = ('TOWER_CODE_KEY', 'TOWER_CODE_SHA256', 'TOWER_IMAGE_DIGEST', 'TOWER_IMAGE', 'TOWER_MIGRATIONS')
 FAILED = 3
 # SLOW-PATH-NO-ROLLOUT-WAIT: the stamp of the task definition (what deploy.live_code was when the deployer deployed it), the
-# word for "the deployer could not read it", the prewarm's standby mark (live_image.STANDBY), the datum's shape, and its read:
+# word for "the deployer could not read it", a standby's mark (live_image.STANDBY), the datum's shape, and its read:
 # the value, and whether a reload onto that bundle failed (platform.deploy.image_reload, IMAGE-SWAP-RELOAD's guard)
 SEEN, UNKNOWN, STANDBY = 'TOWER_CODE_SEEN', 'unknown', 'TOWER_STANDBY'
 DATUM = re.compile(r'([0-9a-f]{64})@([0-9a-f]{7,64})')
