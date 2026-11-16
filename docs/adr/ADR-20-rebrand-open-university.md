@@ -1,4 +1,6 @@
 # ADR-20: Rebrand to Open University
+
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
 Accepted 11/10/2026 (Daniel's decision, 11:02 BRT). Figma first (file `t1sPlxRI6pcEk9LRxotS4w`), code after.
 
 ## Decision

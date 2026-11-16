@@ -1,5 +1,7 @@
 # ADR-21 — Course editions
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-11 · Status: accepted (P6 of the dynamic catalog; builds on ADR-17 and ADR-18)
 
 ## Context

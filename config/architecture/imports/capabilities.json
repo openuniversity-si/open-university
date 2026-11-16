@@ -1,0 +1,31 @@
+{
+  "id": "capabilities",
+  "owner": "administration",
+  "overrides": {
+    "CAP-001": {
+      "state": "deprecated",
+      "retired_by": "D-111"
+    },
+    "CAP-002": {
+      "state": "deprecated",
+      "retired_by": "D-111"
+    },
+    "CAP-003": {
+      "state": "deprecated",
+      "retired_by": "D-111"
+    },
+    "CAP-006": {
+      "state": "deprecated",
+      "retired_by": "D-111"
+    },
+    "CAP-007": {
+      "state": "deprecated",
+      "retired_by": "D-111"
+    },
+    "CAP-008": {
+      "state": "deprecated",
+      "retired_by": "D-111"
+    }
+  },
+  "note": "Six capabilities are the departed product's (the course batch, admin lists, public pages, the catalog word, the database package, the product's contexts) and left with it (D-111); the other six are the engine's."
+}

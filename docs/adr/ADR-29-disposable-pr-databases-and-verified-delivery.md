@@ -1,5 +1,7 @@
 # ADR-29 — Disposable PR databases and verified delivery
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Accepted 2026-10-18. Daniel authorized the small Neon compute/storage cost **only for numbered `pr-<n>` branches** at 01:17 BRT. No plan changes or other paid resources are authorized. Vercel stays on Hobby. No GitHub Actions or application feature flags.
 
 ## Decision

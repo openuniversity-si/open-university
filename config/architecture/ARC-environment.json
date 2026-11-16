@@ -1,0 +1,17 @@
+{
+  "id": "ARC-environment",
+  "kind": "component",
+  "name": "Environment",
+  "statement": "The cloud toolchain, the environment checks, the forge adapters (Origin dormant), the roles and the wrappers.",
+  "state": "active",
+  "owner": "efficiency",
+  "satisfies": [
+    "REQ-origin-dormant"
+  ],
+  "depends_on": [
+    "ARC-config"
+  ],
+  "basis": [
+    "D-317"
+  ]
+}

@@ -14,6 +14,9 @@
     "engine-config": "^1",
     "engine-events": "^1"
   },
+  "realizes": [
+    "ARC-measurement"
+  ],
   "battery": {
     "command": "scripts/unit-battery engine-slo"
   },

@@ -19,6 +19,9 @@
     "engine-gate-run": "^1",
     "engine-push-guard": "^1"
   },
+  "realizes": [
+    "ARC-environment"
+  ],
   "battery": {
     "command": "scripts/unit-battery engine-cloud"
   },

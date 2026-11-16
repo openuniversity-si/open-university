@@ -35,6 +35,9 @@
     "config/intent/**",
     "config/requirements/**",
     "contracts/premises/*.json",
-    "config/registry/premises.json"
+    "config/registry/premises.json",
+    "config/architecture/**",
+    "docs/adr/*.md",
+    "contracts/units/unit.v1.json"
   ]
 }

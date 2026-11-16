@@ -32,5 +32,8 @@
   "requires": {
     "engine-config": "^1",
     "engine-env": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-gate"
+  ]
 }

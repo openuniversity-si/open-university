@@ -34,5 +34,8 @@
     "engine-gate-tests": "^1",
     "engine-git-ref": "^1",
     "engine-hermetic-tests": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-gate"
+  ]
 }

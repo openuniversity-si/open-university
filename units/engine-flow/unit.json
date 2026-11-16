@@ -28,5 +28,8 @@
     "engine-records": "^1",
     "engine-regime": "^1",
     "engine-service": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-measurement"
+  ]
 }

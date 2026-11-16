@@ -15,6 +15,9 @@
     "engine-role": "^1",
     "engine-service": "^1"
   },
+  "realizes": [
+    "ARC-deploy"
+  ],
   "decisions": [
     "D-086"
   ]

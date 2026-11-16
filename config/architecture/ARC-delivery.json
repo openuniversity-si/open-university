@@ -1,0 +1,24 @@
+{
+  "id": "ARC-delivery",
+  "kind": "component",
+  "name": "Delivery",
+  "statement": "Takes a change from its branch to main: the commit plan and its checks, the push guard, the merge queue and the dormant train, the regeneration of generated files at merge.",
+  "state": "active",
+  "owner": "capacity",
+  "satisfies": [
+    "REQ-escape-under-1",
+    "REQ-slo-budgets-slo-merged-prs-per-hour-min",
+    "REQ-slo-budgets-budgets-pr-changed-lines",
+    "REQ-slo-budgets-budgets-pr-commits-min",
+    "REQ-slo-budgets-budgets-pr-commits-max"
+  ],
+  "depends_on": [
+    "ARC-gate",
+    "ARC-config",
+    "ARC-events",
+    "ARC-environment"
+  ],
+  "basis": [
+    "D-317"
+  ]
+}

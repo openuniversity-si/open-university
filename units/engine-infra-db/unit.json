@@ -17,5 +17,8 @@
     "D-306",
     "D-308"
   ],
-  "premises": []
+  "premises": [],
+  "realizes": [
+    "ARC-deploy"
+  ]
 }

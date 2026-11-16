@@ -1,5 +1,7 @@
 # ADR-41 — The gate and the train are services; AI sessions only write code
 
+Status: deprecated by D-316 (the gate and the train as services are dormant since the move to GitHub; PADRAO-DEV F3a).
+
 Date: 2026-10-30 · Status: accepted (Daniel, 29/10 23:56–30/10 01:07 BRT; D-086) · Amends ADR-24 · Unit:
 [GATE-TRAIN-SERVICES](../units/GATE-TRAIN-SERVICES/plan.md)
 

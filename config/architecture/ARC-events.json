@@ -1,0 +1,17 @@
+{
+  "id": "ARC-events",
+  "kind": "component",
+  "name": "Events and records",
+  "statement": "The event contracts and their log, the decision and record writers, the git-ref diary.",
+  "state": "active",
+  "owner": "administration",
+  "satisfies": [
+    "REQ-events-no-polling"
+  ],
+  "depends_on": [
+    "ARC-config"
+  ],
+  "basis": [
+    "D-317"
+  ]
+}

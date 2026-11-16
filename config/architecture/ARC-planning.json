@@ -1,0 +1,16 @@
+{
+  "id": "ARC-planning",
+  "kind": "component",
+  "name": "Planning",
+  "statement": "The program and unit plans, the coordinator, idea-to-production, intake, operations, the unit map and the structure check.",
+  "state": "active",
+  "owner": "administration",
+  "depends_on": [
+    "ARC-config",
+    "ARC-events",
+    "ARC-knowledge"
+  ],
+  "basis": [
+    "D-317"
+  ]
+}

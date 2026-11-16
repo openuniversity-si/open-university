@@ -1,0 +1,15 @@
+{
+  "id": "ARC-knowledge",
+  "kind": "component",
+  "name": "Knowledge",
+  "statement": "Premises, lessons, defects and retrospectives.",
+  "state": "active",
+  "owner": "administration",
+  "depends_on": [
+    "ARC-config",
+    "ARC-events"
+  ],
+  "basis": [
+    "D-317"
+  ]
+}

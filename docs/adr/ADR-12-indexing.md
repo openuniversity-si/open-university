@@ -1,5 +1,7 @@
 # ADR-12 indexing: production fully indexable, everything else noindex (v02)
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Decision (Daniel, 10 Oct 2026; origin moved to `https://openuniversity.si` on 11 Oct 2026, ADR-20): the production origin is open to crawlers and search indexing; Vercel previews, development, CI and local builds stay noindex.
 
 ## Why

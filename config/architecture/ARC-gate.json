@@ -1,0 +1,22 @@
+{
+  "id": "ARC-gate",
+  "kind": "component",
+  "name": "The gate",
+  "statement": "Judges every change on its exact head: the plan of stages, the script tests it selects, their cache by content, the verdict and its report; tower/gate is its check on GitHub.",
+  "state": "active",
+  "owner": "capacity",
+  "satisfies": [
+    "REQ-gate-60s",
+    "REQ-github-truth",
+    "REQ-slo-budgets-slo-gate-failure-rate-max-percent",
+    "REQ-slo-budgets-budgets-regression-tolerance-percent"
+  ],
+  "depends_on": [
+    "ARC-config",
+    "ARC-events",
+    "ARC-environment"
+  ],
+  "basis": [
+    "D-317"
+  ]
+}

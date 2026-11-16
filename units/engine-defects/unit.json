@@ -22,5 +22,8 @@
     "engine-gate-tests": "^1",
     "engine-premises": "^1",
     "engine-units": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-knowledge"
+  ]
 }

@@ -23,5 +23,8 @@
   "requires": {
     "engine-config": "^1",
     "engine-gate-infra": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-measurement"
+  ]
 }

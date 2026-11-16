@@ -1,0 +1,17 @@
+{
+  "id": "ARC-config",
+  "kind": "component",
+  "name": "Configuration",
+  "statement": "The configuration registry (one file per key, its readers checked), its generator and types, the literal census and the vendor ports.",
+  "state": "active",
+  "owner": "administration",
+  "satisfies": [
+    "REQ-slo-budgets-budgets-tighten-only"
+  ],
+  "depends_on": [
+    "ARC-environment"
+  ],
+  "basis": [
+    "D-317"
+  ]
+}

@@ -13,5 +13,8 @@
   "requires": {
     "engine-config": "^1",
     "engine-premises": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-model"
+  ]
 }

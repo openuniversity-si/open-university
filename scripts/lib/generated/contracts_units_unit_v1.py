@@ -135,6 +135,7 @@ UnitV1 = TypedDict('UnitV1', {
     'paths': Required[list[Path]],
     'shared': NotRequired[list[Path]],
     'requires': NotRequired[dict[str, Range]],
+    'realizes': NotRequired[list[str]],
     'ring': NotRequired[Ring],
     'contract': NotRequired[dict[str, Any]],
     'battery': NotRequired[dict[str, Any]],

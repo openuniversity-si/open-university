@@ -1,5 +1,7 @@
 # ADR-22 — Lesson slugs: one rule, renames with permanent redirects carried by the release
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-12 · Status: accepted (P7 of the dynamic catalog; builds on ADR-17, ADR-18 and ADR-21)
 
 The P7 brief names this record ADR-20; that number already belonged to the Open University rebrand (ADR-20), and ADR-21

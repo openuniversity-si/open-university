@@ -1,5 +1,7 @@
 # ADR-42 — The gate answers by content: what did not change is judged by key, what changed runs cheaply
 
+Status: accepted (PADRAO-DEV F3a: an engine decision in force).
+
 Date: 2026-10-30 · Status: accepted (Daniel, 30/10 10:43 BRT, GATE-SPEED; D-092) · Builds on ADR-41 and D-076 · Unit:
 [GATE-SPEED](../units/GATE-SPEED/plan.md)
 

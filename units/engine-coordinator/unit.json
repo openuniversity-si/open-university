@@ -38,5 +38,8 @@
     "engine-events": "^1",
     "engine-lessons": "^1",
     "engine-train": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-planning"
+  ]
 }

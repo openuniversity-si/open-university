@@ -1,5 +1,7 @@
 # ADR-13 metadata: titles, descriptions, Open Graph, favicon and manifest (v02)
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Decision (Daniel, 10 Oct 2026): every public page ships its own title, description, canonical, Open Graph and Twitter card, plus the site icons and manifest. Production Lighthouse SEO was 50: every page was `<title>The Tower</title>` with no description, OG, canonical or favicon.
 
 ## Single source

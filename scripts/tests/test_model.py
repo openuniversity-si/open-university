@@ -428,6 +428,62 @@ class Changes(unittest.TestCase):
         self.assertEqual(model.read_changes(other), [])
 
 
+class Architecture(unittest.TestCase):
+    """Architecture elements, capabilities, ADRs and the units that realize elements, on a temporary checkout."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-architecture-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        for folder in ('contracts/model', 'config/model'):
+            shutil.copytree(ROOT / folder, self.root / folder)
+        write(self.root, 'config/architecture/ARC-gate.json', {
+            'id': 'ARC-gate', 'kind': 'component', 'name': 'The gate', 'statement': 's', 'state': 'active',
+            'owner': 'capacity', 'satisfies': ['REQ-gate-60s'], 'depends_on': ['ARC-config']})
+        write(self.root, 'docs/capabilities/CAP-001-publish.md', '# CAP-001 — Publish\nstatus: approved 2026-10-22\n')
+        write(self.root, 'docs/capabilities/CAP-012-defect.md', '# CAP-012 — Defects\nstatus: requested\n')
+        write(self.root, 'config/architecture/imports/capabilities.json', {
+            'id': 'capabilities', 'owner': 'administration', 'satisfies': {'CAP-012': ['REQ-escape-under-1']},
+            'overrides': {'CAP-001': {'state': 'deprecated', 'retired_by': 'D-111'}}})
+        write(self.root, 'docs/adr/ADR-24-no-actions.md', '# ADR-24\n\nStatus: superseded by D-314 (the gate runs on GitHub).\n')
+        write(self.root, 'docs/adr/ADR-28-local.md', '# ADR-28\n\nDate: 2026-10-18 · Status: accepted, extends ADR-24.\n')
+        write(self.root, 'docs/adr/ADR-11-player.md', '# ADR-11\n\nStatus: deprecated by D-111 (the product left).\n')
+        write(self.root, 'docs/adr/ADR-06-spike.md', '# ADR-06\n\nNo status line.\n')
+
+    def found(self):
+        merged = {}
+        for reader in (model.read_architecture, model.read_adrs):
+            for item in reader(self.root):
+                merged.setdefault(item['id'], {**item, 'links': []})['links'] += item['links']
+        return merged
+
+    def test_an_element_links_the_requirements_it_satisfies_and_the_elements_it_depends_on(self):
+        self.assertEqual(self.found()['ARC-gate']['links'], [{'type': 'satisfies', 'target': 'REQ-gate-60s'},
+                                                             {'type': 'depends-on', 'target': 'ARC-config'}])
+
+    def test_a_capability_is_an_element_read_where_it_is_with_its_status_and_the_import_overrides(self):
+        found = self.found()
+        self.assertEqual((found['ARC-cap-001']['state'], found['ARC-cap-001']['body']['retired_by']), ('deprecated', 'D-111'))
+        self.assertEqual(found['ARC-cap-012']['state'], 'proposed')
+        self.assertEqual(found['ARC-cap-012']['links'], [{'type': 'satisfies', 'target': 'REQ-escape-under-1'}])
+        self.assertEqual(found['ARC-cap-012']['source_id'], 'docs/capabilities/CAP-012-defect.md')
+
+    def test_an_adr_is_a_decision_with_the_status_it_states_and_its_successor_supersedes_it(self):
+        found = self.found()
+        self.assertEqual({id: found[id]['state'] for id in ('ADR-24', 'ADR-28', 'ADR-11', 'ADR-06')},
+                         {'ADR-24': 'superseded', 'ADR-28': 'accepted', 'ADR-11': 'deprecated', 'ADR-06': 'proposed'})
+        self.assertEqual(found['D-314']['links'], [{'type': 'supersedes', 'target': 'ADR-24'}])
+        self.assertEqual(found['ADR-11']['body']['retired_by'], 'D-111')
+
+    def test_a_unit_realizes_the_elements_its_manifest_names_and_the_measure_counts_them(self):
+        write(self.root, 'units/engine-gate/unit.json', {'id': 'engine-gate', 'requires': {}, 'realizes': ['ARC-gate']})
+        found = {item['id']: item for item in model.read_units(self.root)}
+        self.assertIn({'type': 'realizes', 'target': 'ARC-gate'}, found['UNIT:engine-gate']['links'])
+        found.update(self.found())
+        counted = model.architecture_measure(found)
+        self.assertEqual((counted['satisfying'], counted['realized'], counted['units_realizing']), (len(['gate', 'cap-012']), 1, 1))
+        self.assertEqual(counted['by_kind'], {'capability': 1, 'component': 1})
+
+
 class RealRepository(unittest.TestCase):
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):
         meta = model.metamodel(ROOT)

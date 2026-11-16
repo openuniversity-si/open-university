@@ -32,5 +32,8 @@
     "engine-literals": "^1",
     "engine-records": "^1",
     "engine-units": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-delivery"
+  ]
 }

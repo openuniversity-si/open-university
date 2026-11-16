@@ -1,5 +1,7 @@
 # ADR-39 — Data ownership and retention
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Status: accepted for the structural audit (states 2.1 and 5.4).
 
 Each application table has one owning context. SQL for that table stays in that context's adapter, plus the shared schema and migrations.

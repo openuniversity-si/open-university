@@ -1,5 +1,7 @@
 # ADR-38 — Course bundles, admin scope and durable jobs
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Status: accepted for the structural audit (states 4.3 and 4.4).
 
 A course bundle is validated, then applied in one unit of work. YouTube metadata is resolved before that transaction.

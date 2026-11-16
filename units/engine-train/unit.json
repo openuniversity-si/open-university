@@ -28,5 +28,8 @@
     "engine-role": "^1",
     "engine-train-admission": "^1",
     "engine-units": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-delivery"
+  ]
 }

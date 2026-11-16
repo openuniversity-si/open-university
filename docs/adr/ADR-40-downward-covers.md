@@ -1,5 +1,7 @@
 # ADR-40 — Covers inherit only downward
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Date: 2026-10-22. Status: accepted.
 
 A cover may be inherited only downward in the catalog: a lesson from its course, a course from its subarea when `cover_provisional` is set (ADR-30). A university (a curated Home row) and an author on the Authors tab are upper levels. They never borrow a course poster or hero. Each one that is visible and publishes a course must have its own cover.

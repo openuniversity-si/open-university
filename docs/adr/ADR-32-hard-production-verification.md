@@ -1,5 +1,7 @@
 # ADR-32 — Hard production verification and guarded rollback
 
+Status: deprecated by D-111 (the Open University product left this repository; PADRAO-DEV F3a).
+
 Accepted 2026-10-19. Supersedes ADR-29's production parity and automatic-action policy. The delivery audit found six false rollbacks and no true positive; several restored the paid optimizer's image 402 failure.
 
 ## Decision

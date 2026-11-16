@@ -68,5 +68,8 @@
     "D-310",
     "D-311"
   ],
-  "premises": []
+  "premises": [],
+  "realizes": [
+    "ARC-deploy"
+  ]
 }

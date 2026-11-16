@@ -40,5 +40,8 @@
     "engine-gate-plan": "^1",
     "engine-gate-status": "^1",
     "engine-quarantine": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-gate"
+  ]
 }

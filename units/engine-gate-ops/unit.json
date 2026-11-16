@@ -22,5 +22,8 @@
     "engine-gate-status": "^1",
     "engine-gate-verdict": "^1",
     "engine-regime": "^1"
-  }
+  },
+  "realizes": [
+    "ARC-gate"
+  ]
 }
