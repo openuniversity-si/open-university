@@ -39,6 +39,35 @@ VERDICT = 'tower-gate-green-'  # VERDICT-REUSE: the artifact name of a recorded 
 KEY_VERSION = 1  # VERDICT-REUSE: a change to what the key covers bumps it, so no older record matches
 RUNNER = ('RUNNER_OS', 'RUNNER_ARCH', 'ImageOS', 'ImageVersion')  # the hosted runner's image, part of the key
 WORKERS = 'GATE_TEST_WORKERS'  # GATE-ISOLATED: the batch's workers (gate_test_cache.WORKERS_ENV)
+PARTS = ('main', 'shard1', 'alone')  # GATE-PARTS: the jobs of one tower/gate, side by side (tower-gate.yml's matrix)
+STAGES_S = 15.0  # GATE-PARTS: what main's stages weigh in the split (#130's commit: main 41 s, shard1 24 s with none)
+
+
+def costs():
+    """GATE-PARTS: {test: seconds} of the committed cost hints (gate.test_costs_file); {} when absent."""
+    import config
+    try:
+        return json.loads((ROOT / config.get('gate.test_costs_file')).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+
+
+def split(tests, named, hints):
+    """GATE-PARTS: the planned tests of each part. alone: the timing-bound ones (named); main and shard1: the others,
+    longest first into the lighter of the two (by the cost hints, ties by name; main starts STAGES_S heavier, for its
+    stages), so every job computes the same split."""
+    parts = {'main': [], 'shard1': [], 'alone': [test for test in tests if test in named]}
+    load = {'main': STAGES_S, 'shard1': 0.0}  # main runs the stages too
+    known = sorted(float(value) for value in hints.values() if value)
+    usual = known[len(known) // 2] if known else 1.0  # a test with no hint weighs the median hint, never nothing
+
+    def weight(test):
+        return float(hints.get(test) or usual)
+    for test in sorted((test for test in tests if test not in named), key=lambda test: (-weight(test), test)):
+        lighter = min(('main', 'shard1'), key=lambda part: (load[part], part != 'main'))
+        parts[lighter].append(test)
+        load[lighter] += weight(test)
+    return parts
 
 
 def isolated_tests():
@@ -82,38 +111,45 @@ def verdict_key(base, planned, run=run, environ=None):
     return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest(), body
 
 
-def recorded(repo, key, parents, run=run):
+def recorded(repo, key, parents, run=run, parts=None):
     """VERDICT-REUSE: the id of a run of this repository on one of HEAD's parents that kept a green verdict under key,
-    else None. A fork's run (its head in another repository), an expired record, another name or any error is None."""
-    name = VERDICT + key
-    code, said = run(['gh', 'api', f'repos/{repo}/actions/artifacts?name={name}&per_page=100'])
-    if code != 0:
-        return None
-    try:
-        artifacts = json.loads(said).get('artifacts') or []
-    except (ValueError, AttributeError):
-        return None
-    for each in artifacts:
-        made = each.get('workflow_run') or {}
-        if (each.get('name') == name and each.get('expired') is False and made.get('repository_id') is not None
-                and made.get('head_repository_id') == made.get('repository_id') and made.get('head_sha') in parents):
-            return made.get('id')
-    return None
+    else None. A fork's run (its head in another repository), an expired record, another name or any error is None.
+    GATE-PARTS: with parts, the run must have kept the verdict of every part (`<name>-<part>`), all in that one run."""
+    names = [VERDICT + key] if not parts else [f'{VERDICT}{key}-{part}' for part in parts]
+    runs = None
+    for name in names:
+        code, said = run(['gh', 'api', f'repos/{repo}/actions/artifacts?name={name}&per_page=100'])
+        if code != 0:
+            return None
+        try:
+            artifacts = json.loads(said).get('artifacts') or []
+        except (ValueError, AttributeError):
+            return None
+        found = set()
+        for each in artifacts:
+            made = each.get('workflow_run') or {}
+            if (each.get('name') == name and each.get('expired') is False and made.get('repository_id') is not None
+                    and made.get('head_repository_id') == made.get('repository_id') and made.get('head_sha') in parents):
+                found.add(made.get('id'))
+        runs = found if runs is None else runs & found
+        if not runs:
+            return None
+    return min(runs) if runs else None
 
 
-def reuser(repo, base, run=run, environ=None):
+def reuser(repo, base, run=run, environ=None, parts=None):
     """VERDICT-REUSE: judge's `reuse`: the plan -> the run whose green verdict of the tests stands, or None."""
     def reuse(planned):
         try:
             key, body = verdict_key(base, planned, run, environ)
-            return recorded(repo, key, body['parents'], run)
+            return recorded(repo, key, body['parents'], run, parts)
         except Exception:  # noqa: BLE001 - a lookup that fails is a miss: the tests run
             return None
     return reuse
 
 
 def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=False, reuse=None, isolated=isolated_tests,
-          cpus=os.cpu_count):
+          cpus=os.cpu_count, part=None, hints=costs):
     """(green, red names, the plan, seconds): every stage of the plan but SKIPPED, then its tests in one batch.
     VERIFY-TAIL: tails, when given, receives (name, the end of its output) for each red stage and each test still red.
     VERIFY-ALONE (the engine's FULL-RUN-ALONE): a test red in the batch runs again alone, and that verdict is its own; a
@@ -126,13 +162,20 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
     themselves, at the same time as the batch of the others, which runs with one worker fewer; one still red runs once
     more alone after the batch, like a test red in the batch. infra-intask-standby beside a 4-worker batch was red and
     its rerun alone made the gate 98-146 s (32 of 150 runs); beside a 3-worker batch it passed in 14 s and the batch of
-    a service change's 27 other tests took 42 s."""
+    a service change's 27 other tests took 42 s.
+    GATE-PARTS (the Torre, 16/11/2026): part, when given, is this job's share of the plan, the others judged by the other
+    jobs of the same tower/gate: main the stages and half the tests, shard1 the other half, alone the timing-bound tests
+    by themselves on a runner of their own (split()). planned['part'] names it and planned['judged'] its checks; the
+    plan, and the verdict's key, stay the whole plan's."""
     began = clock()
     planned = plan(base, run)
     red = []
     tails = [] if tails is None else tails
     alone = [] if alone is None else alone
-    for stage in planned.get('stages') or []:
+    shares = split(planned.get('tests') or [], set(isolated()), hints()) if part else None
+    if part:
+        planned['part'] = part
+    for stage in (planned.get('stages') or []) if part in (None, 'main') else []:
         if stage in SKIPPED:
             continue
         code, said = run(['scripts/gate-check', 'stage', stage, '--base', base])
@@ -152,6 +195,8 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
         named = set(isolated())
         apart = [test for test in tests if test in named]
         batch = [test for test in tests if test not in named]
+        if part:  # GATE-PARTS: this job's share; the timing-bound tests have a runner of their own, so no worker is kept
+            apart, batch = (shares['alone'], []) if part == 'alone' else ([], shares[part])
         verdicts = {}
 
         def by_themselves():
@@ -183,6 +228,9 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
                 else:
                     red.append(test)
                     tails.append((f'{test} (alone)', said_alone[-TAIL:]))
+    if part:
+        planned['judged'] = ((len([stage for stage in planned.get('stages') or [] if stage not in SKIPPED])
+                              if part == 'main' else 0) + len(shares[part]))
     return not red, red, planned, clock() - began
 
 
@@ -203,9 +251,12 @@ def repo_of(run=run):
 
 
 def record(directory, base, planned, sha, run=run, environ=None):
-    """VERDICT-REUSE: the green verdict's key and what it covers in DIR/verdict.json, its name in $GITHUB_OUTPUT."""
+    """VERDICT-REUSE: the green verdict's key and what it covers in DIR/verdict.json, its name in $GITHUB_OUTPUT.
+    GATE-PARTS: a part's verdict is kept as `<name>-<part>`; a reuse asks for every part's."""
     environ = os.environ if environ is None else environ
-    key, body = verdict_key(base, planned, run, environ)
+    key, body = verdict_key(base, {**planned, 'part': None}, run, environ)
+    if planned.get('part'):
+        key, body = f"{key}-{planned['part']}", {**body, 'part': planned['part']}
     directory.mkdir(parents=True, exist_ok=True)
     (directory / 'verdict.json').write_text(json.dumps({'key': key, 'sha': sha, **body}, indent=2, sort_keys=True) + '\n')
     if environ.get('GITHUB_OUTPUT'):
@@ -223,6 +274,8 @@ def main(argv=None, run=run, environ=None):
     parser.add_argument('--all', action='store_true', help='every script test, not only the diff\'s (FULL-SUITE-MAIN)')
     parser.add_argument('--reuse', action='store_true',
                         help='VERDICT-REUSE: the tests\' green verdict recorded under the same key stands; the stages run')
+    parser.add_argument('--part', choices=PARTS,
+                        help='GATE-PARTS: judge this job\'s share of the plan; the other parts are other jobs')
     parser.add_argument('--record', type=Path, metavar='DIR',
                         help='VERDICT-REUSE: on green, write the verdict\'s key under DIR and name it in $GITHUB_OUTPUT')
     args = parser.parse_args(argv)
@@ -236,15 +289,18 @@ def main(argv=None, run=run, environ=None):
         post(repo, args.sha, 'pending', 'the verifier is judging this commit', run)
     try:
         tails, alone = [], []
-        reuse = reuser(repo, args.base, run, environ) if args.reuse else None
-        green, red, planned, seconds = judge(args.base, run, tails=tails, alone=alone, every=args.all, reuse=reuse)
+        reuse = reuser(repo, args.base, run, environ, PARTS if args.part else None) if args.reuse else None
+        green, red, planned, seconds = judge(args.base, run, tails=tails, alone=alone, every=args.all, reuse=reuse,
+                                             part=args.part)
     except Exception as error:  # noqa: BLE001 - a verifier that could not judge says so on the commit
         if not args.no_post:
             post(repo, args.sha, 'error', f'not judged: {error}', run)
         print(f'verify-commit: not judged: {error}', file=sys.stderr)
         return 1
     checks = len([stage for stage in planned.get('stages') or [] if stage not in SKIPPED]) + len(planned.get('tests') or [])
-    description = (f'green: {checks} check(s) in {seconds:.0f} s' + (f', {len(alone)} green only alone' if alone else '')
+    if 'judged' in planned:  # GATE-PARTS: this job's share of them
+        checks = planned['judged']
+    description = ((f'{args.part}: ' if args.part else '') + f'green: {checks} check(s) in {seconds:.0f} s' + (f', {len(alone)} green only alone' if alone else '')
                    + (f', tests green in run {planned["reused"]}' if 'reused' in planned else '')
                    if green else f'red: {", ".join(red)}'[:140])
     if not args.no_post:
