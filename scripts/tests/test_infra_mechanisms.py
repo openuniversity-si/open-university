@@ -12,7 +12,6 @@ import os
 from pathlib import Path
 import sys
 import unittest
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
