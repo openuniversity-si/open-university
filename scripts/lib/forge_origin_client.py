@@ -37,7 +37,7 @@ import os
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import timezone
 from urllib.parse import quote
 
 import config
