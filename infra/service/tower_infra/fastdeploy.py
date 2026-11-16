@@ -27,7 +27,6 @@ IAM (30-service.json, inside tower-boundary): UpdateFunctionCode, PublishVersion
 three functions and s3:GetObject on artifacts/lambda/*.
 """
 import base64
-import hashlib
 import json
 import logging
 import time
@@ -274,7 +273,3 @@ class FastDeploy:
             entry['reason'] = f'{entry["reason"]}; the rollback failed: {type(error).__name__}'
             LOG.error('fastdeploy: ROLLBACK FAILED for %s to version %s: %s', function, previous, error)
             return False
-
-
-def sha_of(data):
-    return hashlib.sha256(data).hexdigest()
