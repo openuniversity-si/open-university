@@ -651,11 +651,13 @@ def chain_verified(item, into, found):
 
 
 def inventory(meta, found, root=ROOT):
-    """{source: {name, ids, imported}}: the distinct ids each source holds, and how many are requirements of the model."""
+    """{source: {name, ids, imported}}: the distinct ids each source holds, and how many of them are objects of the
+    model of a type the source may become (the object's id, or the source id it was imported from)."""
     root = Path(root)
-    imported_ids = {item.get('source_id') for item in found.values() if item['type'] == 'REQ'}
     result = {}
     for name, source in sorted(meta['inventory'].items()):
+        imported_ids = {key for item in found.values() if item['type'] in source['becomes']
+                        for key in (item['id'], item.get('source_id')) if key}
         ids = set()
         for part in source['parts']:
             paths = sorted(root.glob(part['glob']))
@@ -666,7 +668,8 @@ def inventory(meta, found, root=ROOT):
             elif part['kind'] == 'content':
                 ids |= {match for path in paths for match in re.findall(part['pattern'], path.read_text(), re.MULTILINE)}
             elif part['kind'] == 'registry':
-                ids |= {key for path in paths for key in _read_json(path).get('properties', {})}
+                ids |= {key for path in paths for key in _read_json(path).get('properties', {})
+                        if not part.get('pattern') or re.search(part['pattern'], key)}
         result[name] = {'name': source['name'], 'ids': len(ids), 'imported': len(ids & imported_ids)}
     return result
 
@@ -763,7 +766,7 @@ def summary(found):
     lines = [
         f'chain: {chain["verified"]} of {chain["active_requirements"]} active requirement(s) verified end to end '
         f'({chain["share"]:.0%})',
-        f'inventory: {stock["imported"]} of {stock["ids"]} requirement id(s) imported as requirements',
+        f'inventory: {stock["imported"]} of {stock["ids"]} requirement id(s) of the inventory are objects of the model',
     ]
     lines += [f'  {name}: {item["imported"]} of {item["ids"]}' for name, item in stock['sources'].items()]
     lines.append(f'systems ({found["objects"]} object(s)):')

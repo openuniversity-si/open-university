@@ -129,9 +129,15 @@ class TinyModel(unittest.TestCase):
                 {'kind': 'content', 'glob': 'docs/D-1.md', 'pattern': '^\\| (D-[0-9]+) '},
                 {'kind': 'files', 'glob': 'docs/caps/*.md'},
                 {'kind': 'registry', 'glob': 'reg.json'}]})
-        found = self.objects({'id': 'REQ-1', 'type': 'REQ', 'state': 'draft', 'source_id': 'D-3'})
+        found = self.objects({'id': 'REQ-1', 'type': 'REQ', 'state': 'draft', 'source_id': 'D-3'},
+                             {'id': 'D-1', 'type': 'REQ', 'state': 'draft'},
+                             {'id': 'a.one', 'type': 'ARC'})
         counted = model.inventory(self.meta(), found, self.root)['all']
-        self.assertEqual((counted['ids'], counted['imported']), (len(['D-1', 'D-2', 'D-3', 'A', 'a.one', 'a.two']), 1))
+        self.assertEqual((counted['ids'], counted['imported']), (len(['D-1', 'D-2', 'D-3', 'A', 'a.one', 'a.two']), 2))
+        write(self.root, 'config/model/inventory/all.json', {
+            'id': 'all', 'name': 'all', 'becomes': ['REQ'], 'description': 'd',
+            'parts': [{'kind': 'registry', 'glob': 'reg.json', 'pattern': 'two$'}]})
+        self.assertEqual(model.inventory(self.meta(), found, self.root)['all']['ids'], 1)
 
 
 class Rules(unittest.TestCase):

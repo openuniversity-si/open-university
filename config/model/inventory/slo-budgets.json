@@ -4,15 +4,17 @@
   "parts": [
     {
       "kind": "registry",
-      "glob": "config/registry/slo.json"
+      "glob": "config/registry/slo.json",
+      "pattern": "^slo\\.(gate_failure_rate_max_percent|gate_tier1_p95_s|merged_prs_per_hour_min|train_queue_time_p95_s)$"
     },
     {
       "kind": "registry",
-      "glob": "config/registry/budgets.json"
+      "glob": "config/registry/budgets.json",
+      "pattern": "^budgets\\.(pr_changed_lines|pr_commits_min|pr_commits_max|regression_tolerance_percent|tighten_only)$"
     }
   ],
   "becomes": [
     "REQ"
   ],
-  "description": "Quality requirements held as registry values."
+  "description": "Quality requirements held as registry values: the 9 SLO and budget keys that are thresholds; the other keys of the two owners are their parameters (configuration items), not requirements (PADRAO-DEV F2a)."
 }
