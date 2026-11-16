@@ -1,7 +1,9 @@
 """The source of truth's remote (D-314): whether a git remote is a repository on GitHub, where pull requests, the merge
 queue and tower/gate live since 14/11/2026. A GitHub adapter of the vendor catalog (scripts/lib/adapters/engine-vendors.json),
-so the Origin adapter asks it instead of naming GitHub's host itself. Its one call on GitHub is heads(), the merge_group
-job's read of main and the queue's branch (QUEUE-RELOAD, scripts/lib/deploy.py queue)."""
+so the Origin adapter asks it instead of naming GitHub's host itself. Its calls on GitHub are heads(), the merge_group
+job's read of main and the queue's branch (QUEUE-RELOAD, scripts/lib/deploy.py queue), and api(), a read of GitHub's
+REST API through the gh CLI (QUEUE-REARM, scripts/lib/queue_wait.py)."""
+import json
 import subprocess
 
 HOST = 'github.com'
@@ -27,3 +29,12 @@ def heads(url, refs, run=subprocess.run):
     if out.returncode != 0:
         return {}
     return {ref: sha for sha, _, ref in (line.partition('\t') for line in out.stdout.splitlines()) if ref}
+
+
+def api(path, paginate=False, run=subprocess.run):
+    """QUEUE-REARM: the JSON GitHub's REST API answers for `path` (`gh api`); with paginate, the list of every page."""
+    args = ['gh', 'api', *(['--paginate', '--slurp'] if paginate else []), path]
+    done = run(args, capture_output=True, text=True)
+    if done.returncode != 0:
+        raise RuntimeError(f'gh api {path}: {done.stderr.strip()}')
+    return json.loads(done.stdout)
