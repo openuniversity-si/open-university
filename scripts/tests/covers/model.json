@@ -30,6 +30,7 @@
     "docs/process/rule-challenges/*.md",
     "docs/padrao/v*/padrao.json",
     "config/standard/**",
-    "config/registry/coordinator.json"
+    "config/registry/coordinator.json",
+    "scripts/lib/*.py"
   ]
 }
