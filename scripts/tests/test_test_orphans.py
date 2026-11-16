@@ -137,6 +137,17 @@ class Doubles(Repo):
                          'scripts/tests/neon.test.sh:4 "test_neon*.py"); '
                          'narrow every glob but the one of the wrapper that owns it')
 
+    def test_wrappers_that_each_run_a_shard_of_their_own_own_the_test_together(self):
+        # SHARD-OWNERS: deploy-slow-a/b/c run test_deploy_sh.py in three parts (DEPLOY_TEST_SHARD)
+        self.add_test('test_deploy_sh.py')
+        for part in ('slow-a', 'slow-b', 'slow-c'):
+            self.wrapper(f'deploy-{part}', f'DEPLOY_TEST_SHARD={part} python3 "$root/scripts/tests/test_deploy_sh.py"')
+        self.assertEqual(self.errors(), [])
+        self.wrapper('deploy-slow-d', 'DEPLOY_TEST_SHARD=slow-a python3 "$root/scripts/tests/test_deploy_sh.py"')
+        self.assertIn('run by 4 wrappers', self.one_error())  # two lines on one part: it runs twice
+        self.wrapper('deploy-slow-d', 'python3 "$root/scripts/tests/test_deploy_sh.py"')
+        self.assertIn('run by 4 wrappers', self.one_error())  # a whole run beside the parts: it runs twice
+
     def test_one_wrapper_naming_a_test_twice_runs_it_once(self):
         self.add_test('test_twice.py')
         self.wrapper('twice', 'python3 "$root/scripts/tests/test_twice.py"', 'echo "$root/scripts/tests/test_tw*.py"')
