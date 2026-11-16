@@ -96,7 +96,8 @@ WANT = ("with said as (insert into log.event (event_id, tenant_id, type, occurre
         f"where not exists (select 1 from log.event where event_id = %(id)s and type = '{live_image.SUCCESSOR}' "
         "and occurred_at > now() - interval '2 days') returning type) select pg_notify('tower_config', type) from said")
 # the merge queue's wants still standing: the newest want of each digest in a day, said by this look (branch: queue)
-WANTED = ("select digest from (select distinct on (payload->>'digest') payload->>'digest' as digest, payload->>'state' as state "
+WANTED = ("select digest, sha from (select distinct on (payload->>'digest') payload->>'digest' as digest, "
+          "payload->>'state' as state, payload->>'sha' as sha "
           f"from log.event where type = '{live_image.SUCCESSOR}' and tenant_id is null and occurred_at > now() - interval '1 day' "
           "and payload->>'branch' = 'queue' and payload->>'state' in ('wanted', 'withdrawn') "
           "order by payload->>'digest', occurred_at desc) w where state = 'wanted'")
@@ -269,10 +270,20 @@ class QueueReload:
         LOG.info('queue: a heir of %s (%s) in each ECS task is %s', digest[:12], sha[:12], state)
 
     def withdraw(self, db, sha, keep=None):
-        """QUEUE-SWAP: the heirs of the merge queue's bundles but `keep` withdrawn at a landing: their heads did not land."""
-        for (digest,) in db.rows(WANTED, {}) or []:
-            if digest and digest != keep:
-                self.want(db, digest, None, sha, state='withdrawn')
+        """QUEUE-SWAP: the heirs of the merge queue's bundles but `keep` withdrawn at a landing. BURST-HEIRS (the Torre,
+        16/11/2026): but for an entry still in the queue. The queue builds up to five entries side by side, so a want whose
+        commit is still the head of a merge-queue branch is an entry behind this landing, and its heir is the next swap's;
+        a want of a group that merged with this one or left the queue has no branch any more. With no answer from the
+        repository every want but `keep` is withdrawn, as before."""
+        try:
+            self.fetch()
+            queued = self.heads()
+        except Refused:
+            queued = set()
+        for digest, wanted in db.rows(WANTED, {}) or []:
+            if not digest or digest == keep or (wanted and wanted != sha and wanted in queued):
+                continue
+            self.want(db, digest, None, sha, state='withdrawn')
 
     def swapping(self, db, head, digest):
         """QUEUE-SWAP: whether a swap of the merge queue gave the service's pointer to this head's bundle (the hour)."""
