@@ -533,7 +533,7 @@ def deploy_status(db, who, landings=None):
     live = db.rows(f"select {STATUS_AT} from log.event where type = 'platform.deploy.image_live' and tenant_id is null "
                    "and occurred_at > now() - interval '30 days' order by occurred_at desc limit %(limit)s",
                    {'limit': live_rows})
-    # IN-TASK-STANDBY: platform.deploy.successor (tenant_id null): the prewarm's want of a successor inside each ECS task
+    # IN-TASK-STANDBY: platform.deploy.successor (tenant_id null): the merge queue's want of a successor inside each ECS task
     # {digest, key, branch, state: wanted|withdrawn} and each successor's first beat {role, digest, task, state: up}
     successors = db.rows("select payload::text from log.event where type = 'platform.deploy.successor' and tenant_id is null "
                          "and occurred_at > now() - interval '1 day' order by occurred_at desc limit %(limit)s",
