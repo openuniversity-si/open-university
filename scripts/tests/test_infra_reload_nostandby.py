@@ -703,6 +703,7 @@ class OnPostgres(unittest.TestCase):
         found.slot = runner.Runner(self.db, self.world.fetch, self.world.prepare, self.world.upload, self.world.workdir,
                                    name=f'ecs-{role}', gate=found.gate, order=found.order)
         found.live = canary.Live(found.gate, live_image.kept(self.db), publish=self.published.append)
+        found.live.runner_up = lambda db: True  # this test's runner takes the canary (CANARY-NEEDS-A-RUNNER)
         return found
 
     def look(self, task):

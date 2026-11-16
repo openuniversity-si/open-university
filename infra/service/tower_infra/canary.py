@@ -335,6 +335,13 @@ def settle(db, tenant, key, said=None, fire=False, publish=alert, producer='towe
     return verdict
 
 
+# CANARY-NEEDS-A-RUNNER (the Torre, 16/11/2026): whether any runner task beat lately (each pass of a runner beats in
+# work.standby_beat as role runner, live_image.Gate.beat); only a runner takes a canary's job
+RUNNER_UP = ("select 1 from work.standby_beat where role = 'runner' "
+             "and beat_at > clock_timestamp() - make_interval(secs => %(fresh_s)s) limit 1")
+RUNNER_FRESH_S = 120.0
+
+
 class Live:
     """The live service's canaries: step() after each good dispatch tick. A service that took its role by a pointer (a
     promoted standby: strict, and the pointer names its digest) fires the swap's canary, once per pointer version; an ECS
@@ -358,6 +365,10 @@ class Live:
             return swap_key(gate.digest, gate.version), 'swap'
         return None, None
 
+    def runner_up(self, db):
+        """CANARY-NEEDS-A-RUNNER: whether a runner task beat in RUNNER_FRESH_S (only a runner takes a canary's job)."""
+        return bool(db.rows(RUNNER_UP, {'fresh_s': RUNNER_FRESH_S}))
+
     def step(self):
         """FIRST-JOB-AT-ONCE: answers True when this step made (or found) the canary of a key it had not asked for yet:
         the loop then dispatches it in the same pass, not on its next one."""
@@ -368,7 +379,15 @@ class Live:
         gate = self.gate
         try:
             with self.scope() as db:
-                if fresh:
+                if fresh and not self.runner_up(db):
+                    # CANARY-NEEDS-A-RUNNER: no runner has beat in RUNNER_FRESH_S, so nothing would take the job: the
+                    # canary is not fired (it was red after canary_limit_s on every deploy since the runner went to
+                    # DesiredCount 0 on 13/11, and published to the platform's topic: a false alarm, AWS-REVIEW). The
+                    # merge queue's swap is proven by its heir's work (live_image.RELOAD_OF) all the same.
+                    self.fired.add(key)
+                    LOG.info('canary: no runner beat in %.0f s: no canary of %s for %s', RUNNER_FRESH_S, key, gate.role)
+                    fresh = False
+                elif fresh:
                     head = db.rows(HEAD, {'digest': gate.digest})
                     self.pending[key] = {'digest': gate.digest, 'by': by,
                                          'head': (gate.reloaded or {}).get('order') or (head[0][0] if head else None)}

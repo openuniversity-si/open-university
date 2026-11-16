@@ -297,7 +297,31 @@ class TheLiveService(unittest.TestCase):
         patch = mock.patch.object(canary, 'settle', asked)
         patch.start()
         self.addCleanup(patch.stop)
-        return canary.Live(gate, lambda: contextlib.nullcontext(db)), asked, db
+        found = canary.Live(gate, lambda: contextlib.nullcontext(db))
+        found.runner_up = lambda db: True  # the runner of these tests beats (CANARY-NEEDS-A-RUNNER)
+        return found, asked, db
+
+    def test_with_no_runner_beating_no_canary_is_fired_and_none_pages(self):
+        """CANARY-NEEDS-A-RUNNER: only a runner takes a canary's job; with none beating in RUNNER_FRESH_S (the runner
+        at DesiredCount 0) the key is not fired, nothing is settled or published, and it is not asked again."""
+        db = mock.Mock(rows=mock.Mock(return_value=[]))
+        asked = Asked({'ok': False})
+        patch = mock.patch.object(canary, 'settle', asked)
+        patch.start()
+        self.addCleanup(patch.stop)
+        live = canary.Live(gate_of(), lambda: contextlib.nullcontext(db))
+        with self.assertLogs('tower_infra.canary', 'INFO'):
+            self.assertIs(live.step(), False)
+        for _ in range(3):
+            live.step()
+        self.assertEqual(asked.calls, [])
+        db.rows.assert_called_once_with(canary.RUNNER_UP, {'fresh_s': canary.RUNNER_FRESH_S})  # asked once, then left
+
+    def test_a_runner_that_beat_lately_is_up_and_one_that_did_not_is_not(self):
+        live = canary.Live(gate_of(), None)
+        self.assertTrue(live.runner_up(mock.Mock(rows=mock.Mock(return_value=[(1,)]))))
+        self.assertFalse(live.runner_up(mock.Mock(rows=mock.Mock(return_value=[]))))
+        self.assertIn("role = 'runner'", canary.RUNNER_UP)
 
     def test_a_promoted_standby_fires_the_swaps_canary_once_and_reads_it_until_its_verdict(self):
         live, asked, db = self.live(gate_of(), {'ok': None}, {'ok': None}, {'ok': True})
@@ -881,6 +905,7 @@ class SwapOnPostgres(unittest.TestCase):
         self.ecs_runner = self.gate('runner', ECS, task='ecs-runner')
         self.assertEqual((self.promoted.active(), self.ecs.active(), self.ecs_runner.active()), (True, False, False))
         self.live = canary.Live(self.promoted, live_image.kept(self.db), publish=self.published.append)
+        self.live.runner_up = lambda db: True  # this test's runner takes the canary (CANARY-NEEDS-A-RUNNER)
 
     def gate(self, role, digest, strict=False, task=None):
         return live_image.gate(role, digest, live_image.kept(self.db), task=task, strict=strict)
