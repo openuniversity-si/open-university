@@ -29,6 +29,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -571,6 +572,72 @@ def read_premises(root):
     return found
 
 
+TRAILER_IMPLEMENTS = re.compile(r'^Implements:\s*(.+)$', re.MULTILINE)
+PR_NUMBER = re.compile(r'#([0-9]+)')
+
+
+def _git(root, *args):
+    run = subprocess.run(['git', *args], cwd=root, capture_output=True, text=True)
+    return run.stdout if run.returncode == 0 else ''
+
+
+def read_changes(root):
+    """Changes (CHG): every merge on the first-parent line of HEAD, one per pull request (CHG-<number>, else
+    CHG-<sha>), merged; the `Implements:` trailers of its commits become implements links (requirements or units,
+    comma-separated)."""
+    found = []
+    for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
+        sha, _, subject = line.partition('\x1f')
+        number = PR_NUMBER.search(subject)
+        ident = f'CHG-{number.group(1)}' if number else f'CHG-{sha[:len("0123456789ab")]}'
+        bodies = _git(root, 'log', '--format=%B', f'{sha}^1..{sha}')
+        targets = []
+        for listed in TRAILER_IMPLEMENTS.findall(bodies):
+            targets += [target.strip() for target in listed.split(',') if target.strip()]
+        links = [{'type': 'implements', 'target': target} for target in dict.fromkeys(targets)]
+        item = _obj(ident, 'CHG', 'merged', f'git:{sha}', sha, links)
+        item['body'] = {'sha': sha, 'subject': subject}
+        found.append(item)
+    return found
+
+
+def requirement_states(found):
+    """{requirement id: derived state}: implemented when a merged change implements it, verified when it is also
+    verified by a test (the verdicts on main join with the verification phase), else its declared state."""
+    into = incoming(found)
+    states = {}
+    for item in found.values():
+        if item['type'] != 'REQ' or item['state'] in ('superseded', 'obsolete'):
+            continue
+        sources = into.get(item['id'], [])
+        implemented = any(kind == 'implements' and found.get(source, {}).get('state') in ('merged', 'deployed')
+                          for kind, source in sources)
+        tested = any(kind == 'verifies' and found.get(source, {}).get('fingerprint') is not None for kind, source in sources)
+        states[item['id']] = 'verified' if implemented and tested else 'implemented' if implemented else item['state']
+    return states
+
+
+def requirements_measure(found):
+    """The requirements system's own measure: active requirements by type, implemented, verified, with an
+    architecture element, with a test, and the suspect links pointing at them."""
+    into = incoming(found)
+    states = requirement_states(found)
+    active = [found[id] for id in states]
+    by_type = {}
+    for item in active:
+        kind = item.get('body', {}).get('type', '?')
+        by_type[kind] = by_type.get(kind, 0) + 1
+    def has(item, link, kind):
+        return any(name == link and found.get(source, {}).get('type') == kind for name, source in into.get(item['id'], []))
+    return {
+        'active': len(active), 'by_type': dict(sorted(by_type.items())),
+        'implemented': sum(1 for state in states.values() if state in ('implemented', 'verified')),
+        'verified': sum(1 for state in states.values() if state == 'verified'),
+        'with_element': sum(1 for item in active if has(item, 'satisfies', 'ARC')),
+        'with_test': sum(1 for item in active if has(item, 'verifies', 'TEST')),
+    }
+
+
 def knowledge_measure(found, radius='high'):
     """The knowledge system's own measure: the premises, the high-blast ones not confirmed or validated, the refuted
     ones still assumed by an active object."""
@@ -587,7 +654,7 @@ def knowledge_measure(found, radius='high'):
 
 
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
-           read_intent, read_requirements, read_premises)
+           read_intent, read_requirements, read_premises, read_changes)
 
 
 def objects(root=ROOT, readers=READERS):
@@ -777,6 +844,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'standard': standard_measure(found, today or utc_today()),
         'standard_management': management_measure(found, today or utc_today()),
         'knowledge': knowledge_measure(found),
+        'requirements': requirements_measure(found),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors),
         'warnings': len(warnings),
@@ -813,6 +881,10 @@ def summary(found):
     lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '
                  f'with no deadline, {managed["overdue"]} past it), {managed["closed"]} closed; {managed["exemptions"]} '
                  f'exemption(s) in force; effective version {", ".join(managed["effective"]) or "none"}')
+    wanted = found['requirements']
+    lines.append(f'requirements: {wanted["active"]} active ({", ".join(f"{count} {kind}" for kind, count in wanted["by_type"].items())}); '
+                 f'{wanted["implemented"]} implemented, {wanted["verified"]} verified, {wanted["with_element"]} with an '
+                 f'architecture element, {wanted["with_test"]} with a test')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')

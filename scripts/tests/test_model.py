@@ -379,6 +379,55 @@ class Requirements(unittest.TestCase):
         self.assertTrue(any(error.startswith('REQ:nowhere: names no inventory source') for error in errors), errors)
 
 
+class Changes(unittest.TestCase):
+    """Changes read from the merges of a temporary git repository."""
+
+    def setUp(self):
+        import subprocess
+        self.root = Path(tempfile.mkdtemp(prefix='model-changes-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        def git(*args):
+            subprocess.run(['git', '-c', 'user.email=t@t', '-c', 'user.name=t', *args], cwd=self.root, check=True,
+                           capture_output=True)
+        self.git = git
+        git('init', '-q', '-b', 'main')
+        write(self.root, 'a.txt', 'a')
+        git('add', '.')
+        git('commit', '-q', '-m', 'start')
+        git('checkout', '-q', '-b', 'work')
+        write(self.root, 'b.txt', 'b')
+        git('add', '.')
+        git('commit', '-q', '-m', 'work: b\n\nImplements: REQ-a, UNIT:x')
+        git('checkout', '-q', 'main')
+        git('merge', '-q', '--no-ff', 'work', '-m', 'Merge pull request #5 from org/work')
+
+    def test_a_merge_is_a_change_and_its_commits_implements_trailers_are_links(self):
+        found = {item['id']: item for item in model.read_changes(self.root)}
+        self.assertEqual(list(found), ['CHG-5'])
+        self.assertEqual(found['CHG-5']['state'], 'merged')
+        self.assertEqual(found['CHG-5']['links'], [{'type': 'implements', 'target': 'REQ-a'},
+                                                   {'type': 'implements', 'target': 'UNIT:x'}])
+
+    def test_a_requirement_is_implemented_by_a_merged_change_and_verified_when_a_test_also_verifies_it(self):
+        found = {item['id']: item for item in model.read_changes(self.root)}
+        found['REQ-a'] = {'id': 'REQ-a', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],
+                          'body': {'type': 'quality'}}
+        found['REQ-b'] = {'id': 'REQ-b', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],
+                          'body': {'type': 'constraint'}}
+        self.assertEqual(model.requirement_states(found), {'REQ-a': 'implemented', 'REQ-b': 'approved'})
+        found['TEST:t'] = {'id': 'TEST:t', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
+                           'links': [{'type': 'verifies', 'target': 'REQ-a'}]}
+        self.assertEqual(model.requirement_states(found)['REQ-a'], 'verified')
+        counted = model.requirements_measure(found)
+        self.assertEqual((counted['active'], counted['implemented'], counted['verified'], counted['with_test']), (len(['REQ-a', 'REQ-b']), 1, 1, 1))
+        self.assertEqual(counted['by_type'], {'constraint': 1, 'quality': 1})
+
+    def test_a_directory_that_is_not_a_repository_has_no_changes(self):
+        other = Path(tempfile.mkdtemp(prefix='model-nogit-'))
+        self.addCleanup(shutil.rmtree, other)
+        self.assertEqual(model.read_changes(other), [])
+
+
 class RealRepository(unittest.TestCase):
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):
         meta = model.metamodel(ROOT)
