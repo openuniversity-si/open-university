@@ -48,7 +48,6 @@ import train_serve  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1].parent
 VERDICT = re.compile(r'gate evidence: gate\.(?:passed|failed) ([0-9a-f]+)')
 HALTED = 'train: halted'
-NOT_DECIDED = 'GATE: NOT DECIDED'
 REASON_CHARS = 300  # a result's reason is one line, bounded
 GATE, TRAIN, SWEEP, DEPLOY = 'gate', 'train', 'sweep', 'deploy'
 ORDER = (DEPLOY, TRAIN, GATE, SWEEP)
