@@ -62,3 +62,29 @@ gh api repos/openuniversity-si/open-university/actions/runs/<id>/jobs \
 gh api repos/openuniversity-si/open-university/actions/jobs/<job id>/logs \
   | grep -E 'verify-commit: |Cache (restored|not found)'                     # the verdict, the reuse, the cache
 ```
+
+## QUEUE-REARM: the wait from a green tower/gate to the merge queue (16/11/2026)
+
+**The report.** #55, #60, #63 and #64 had auto-merge on and a green `tower/gate` on their head, and entered the merge
+queue only after auto-merge was turned off and on (`DELETE`/`PUT pulls/<n>/ccr/auto_merge`).
+
+**What the measure says** (`scripts/queue-wait --last 18`, #49 to #67). GitHub adds a pull request with auto-merge on
+to the queue some time after the required check turns green, not at once. On the 14 pull requests nobody touched, that
+wait was 4 to 68 s (#54 4 s, #52 6 s, #67 5 s, #59 13 s, #51 17 s, #56 19 s, #57 23 s, #62 33 s, #65 37 s, #49 40 s,
+#58 41 s, #66 41 s, #61 46 s, #53 68 s). The four "stalls" were turned off and on 25 s (#60), 80 s (#64), 94 s (#55)
+and 119 s (#63) after their green: three of the four inside that range or just past it, so none waited long enough to
+show that GitHub would not have queued it. The session's 60 s re-arm raced GitHub's own entry. #64's earlier head was
+not queued for a real reason: #63's merge left it in conflict, fixed by a merge commit of `main`. (#63's off and on
+left no `auto_merge_disabled` event on its timeline; the session's transcript has it at 00:05:36 UTC.)
+
+**Ruled out.**
+- The check's source: the ruleset requires the context `tower/gate` with no app pinned, and the only thing that
+  reports it is the `tower/gate` job of `tower-gate.yml`, one check run per head (no commit status), its check suite
+  complete within a second of the job.
+- Auto-merge turned on before the check existed on the head: #53, #65 and #67 were armed that way too and entered on
+  their own (68, 37 and 5 s).
+- The pushing token: every head's `pull_request` run started, and the queue's entry does not wait on a workflow.
+
+**The rule.** No re-arm and no nudge: a pull request with auto-merge on and a green `tower/gate` is left to GitHub.
+Only one that `scripts/queue-wait <pr>` shows still `never queued` well past the untouched maximum is a case to
+look into, with its timeline.

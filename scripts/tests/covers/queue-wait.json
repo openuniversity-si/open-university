@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/queue-wait.test.sh",
+  "covers": [
+    "scripts/tests/queue-wait.test.sh",
+    "scripts/tests/test_queue_wait*.py",
+    "scripts/queue-wait",
+    "scripts/lib/queue_wait.py",
+    "scripts/lib/source_remote.py"
+  ]
+}

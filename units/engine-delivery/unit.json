@@ -9,11 +9,15 @@
     "scripts/lib/box_queue.py",
     "scripts/lib/delivery.py",
     "scripts/lib/merge_behind.py",
+    "scripts/lib/queue_wait.py",
     "scripts/lib/release_policy.py",
+    "scripts/queue-wait",
     "scripts/release-policy.json",
     "scripts/tests/merge-behind.test.sh",
+    "scripts/tests/queue-wait.test.sh",
     "scripts/tests/release-policy.test.sh",
     "scripts/tests/test_merge_behind.py",
+    "scripts/tests/test_queue_wait.py",
     "scripts/tests/test_release_policy.py"
   ],
   "battery": {
@@ -21,6 +25,7 @@
   },
   "requires": {
     "engine-config": "^1",
-    "engine-events": "^1"
+    "engine-events": "^1",
+    "engine-forge-origin": "^1"
   }
 }

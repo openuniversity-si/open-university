@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: scripts/queue-wait [--repo owner/name] <pr>... | --last N
+# QUEUE-REARM: how long each pull request waited, after tower/gate turned green on its head, before GitHub added it to
+# the merge queue, and whether auto-merge was turned off and on in that wait (scripts/lib/queue_wait.py).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/queue_wait.py" "$@"
