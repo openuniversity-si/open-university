@@ -307,17 +307,31 @@ class QueueReload:
         """QUEUE-SWAP: the heirs of the merge queue's bundles but `keep` withdrawn at a landing. BURST-HEIRS (the Torre,
         16/11/2026): but for an entry still in the queue. The queue builds up to five entries side by side, so a want whose
         commit is still the head of a merge-queue branch is an entry behind this landing, and its heir is the next swap's;
-        a want of a group that merged with this one or left the queue has no branch any more. With no answer from the
-        repository every want but `keep` is withdrawn, as before."""
+        a want of a group that merged with this one or left the queue has no branch any more. MERGED-WANTS (16/11): a want
+        whose commit is in main's history by now (an ancestor of the landing) is withdrawn even while its branch is still
+        seen, the moment after a batch merged (#130's at 03:24:25), and so is one a landing with nothing to deploy never
+        withdrew (#114's at 02:35, still held at 03:41 in one of the two places). With no answer from the repository
+        every want but `keep` is withdrawn, as before."""
         try:
             self.fetch()
             queued = self.heads()
-        except Refused:
+        except (Refused, OSError, subprocess.SubprocessError):
             queued = set()
         for digest, wanted in db.rows(WANTED, {}) or []:
-            if not digest or digest == keep or (wanted and wanted != sha and wanted in queued):
+            if not digest or digest == keep:
+                continue
+            if wanted and wanted != sha and wanted in queued and not self.merged(wanted, sha):
                 continue
             self.want(db, digest, None, sha, state='withdrawn')
+
+    def merged(self, wanted, sha):
+        """MERGED-WANTS: whether `wanted` is an ancestor of `sha` (in main's history once sha landed); unknown is not."""
+        try:
+            out = self.run(['git', '-C', str(self.work / 'repo'), 'merge-base', '--is-ancestor', wanted, sha],
+                           capture_output=True, timeout=GIT_TIMEOUT_S)
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return out.returncode == 0
 
     def swapping(self, db, head, digest):
         """QUEUE-SWAP: whether a swap of the merge queue gave the service's pointer to this head's bundle (the hour)."""
