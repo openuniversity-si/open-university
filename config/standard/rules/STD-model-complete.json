@@ -1,0 +1,18 @@
+{
+  "id": "STD-model-complete",
+  "statement": "The engineering model has no error, and every refusing function and every gate stage has a rule of the standard; a change that adds a refusal or a stage adds its rule.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG",
+    "STD"
+  ],
+  "check": {
+    "kind": "test",
+    "ref": "scripts/tests/test_model.py"
+  },
+  "basis": [
+    "D-317"
+  ],
+  "note": "PADRAO-DEV F1d: the model test runs in the gate whenever a file it reads changes, scripts/lib/*.py among them, so a new refusal selects it."
+}
