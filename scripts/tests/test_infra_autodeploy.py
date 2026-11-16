@@ -488,6 +488,29 @@ class DecisionTests(unittest.TestCase):
         self.assertEqual(len(rig.rings), 1)  # the event looked at once, with no tick in between
         self.assertEqual(waits[0], rig.watcher.idle_safety_s)  # idle: the long safety; in flight it is check_every_s
 
+    def test_a_pass_that_raises_is_said_and_the_look_goes_on_and_three_in_a_row_are_published(self):
+        """AUTODEPLOY-LIVES: the wait raising (a lost database connection under LISTEN) ended the thread for good while
+        the task stayed healthy; now each failure is logged, the look pauses and goes on, and the third in a row pages."""
+        import threading
+        stop, calls, published = threading.Event(), [], []
+        watcher = mock.Mock(check_every_s=1, safety_s=lambda: 1)
+
+        def wait(_):
+            calls.append(1)
+            if len(calls) <= 3:
+                raise OSError('the connection under LISTEN was lost')
+            if len(calls) == 5:
+                stop.set()
+        with mock.patch.object(autodeploy, 'from_boto3', return_value=watcher), \
+                mock.patch.object(autodeploy, 'LOOK_BACKOFF_MAX_S', 0.0), self.assertLogs('tower_infra.autodeploy', 'ERROR'):
+            thread = autodeploy.start(None, stop, wait=wait, config=None, alert=lambda said, subject: published.append(
+                (subject, said['key'], said['ok'])))
+            thread.join(5)
+        self.assertFalse(thread.is_alive())  # it ended only because it was asked to
+        self.assertEqual(len(calls), 5)  # three failures, then the look went on
+        self.assertEqual(watcher.step.call_count, 1)  # the pass after the failures stepped (the fifth stopped)
+        self.assertEqual(published, [('tower autodeploy failing', 'autodeploy', False)])  # once, at the third
+
     def test_a_newer_head_is_not_held_by_the_backoff_of_an_older_failed_one(self):
         rig = Rig()
         rig.db.push(T0 - 3000, HEAD)
