@@ -118,7 +118,8 @@ case "$kind" in
       --source "$(git -C "$root" rev-parse HEAD)" "${progress[@]}" || status=$?
     if [[ -n "${TOWER_ANSWER_FILE:-}" && -f "$logs/script-tests.json" ]]; then
       "$py" -c 'import json, sys; found = json.load(open(sys.argv[1]))
-json.dump({"tests": {each["test"]: each["result"] for each in found}}, open(sys.argv[2], "w"))' \
+json.dump({"tests": {each["test"]: each["result"] for each in found},
+           "seconds": {each["test"]: each["seconds"] for each in found if "seconds" in each}}, open(sys.argv[2], "w"))' \
         "$logs/script-tests.json" "$TOWER_ANSWER_FILE"
     fi
     exit "$status"

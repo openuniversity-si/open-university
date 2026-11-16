@@ -270,6 +270,15 @@ class RunTest(Repo):
         self.assertIn("FAILURE SUMMARY (1 failed)", text[-2000:])
         self.assertTrue(text.rstrip().endswith("AssertionError: False is not true"))
 
+    def test_a_test_that_ran_says_its_seconds_and_a_cached_one_does_not(self):
+        # GATE-PACE: the batch's walls reach verify-commit's pace line through gate-check's answer
+        [ran] = self.go([A])
+        self.assertIsInstance(ran["seconds"], float)
+        self.assertGreaterEqual(ran["seconds"], 0.0)
+        [cached] = self.go([A], now=1010)
+        self.assertTrue(cached["cached"])
+        self.assertNotIn("seconds", cached)
+
     def test_the_results_follow_the_order_of_the_list(self):
         self.go([A])
         self.assertEqual([r["test"] for r in self.go([B, A], now=1010)], [B, A])
