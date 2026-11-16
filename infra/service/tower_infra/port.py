@@ -605,12 +605,6 @@ def deploy_status(db, who, landings=None):
     canaries = db.rows("select payload::text from log.event where type = 'platform.deploy.canary' and tenant_id is null "
                        "and occurred_at > now() - interval '30 days' order by occurred_at desc limit %(limit)s",
                        {'limit': canary_rows(landings)})
-    # FULL-RUN-STATUS: platform.gate.full {sha, state: listing|running|green|red|dropped|skipped, red, n, seconds} (tenant
-    # null: the base's whole battery at each landing, tower_infra.fullrun), newest first: a red base is seen where the
-    # deploy is read, not only on the platform's topic
-    full = db.rows("select (jsonb_build_object('at', round(extract(epoch from occurred_at)::numeric, 3)) || payload)::text "
-                   "from log.event where type = 'platform.gate.full' and tenant_id is null "
-                   "and occurred_at > now() - interval '30 days' order by occurred_at desc limit %(limit)s", {'limit': ECS_ROWS})
     # LAMBDA-PRUNE-STATUS: each daily pass of the prune look, platform.deploy.prune {state, versions, kept, objects, bytes,
     # named, seconds, packages_skipped} (tenant_id null, so the log's query never answers it), newest first
     prunes = db.rows("select (jsonb_build_object('at', round(extract(epoch from occurred_at)::numeric, 3)) || payload)::text "
@@ -648,7 +642,6 @@ def deploy_status(db, who, landings=None):
             # SLOW-PATH-NO-ROLLOUT-WAIT: deploy.live_code, '<bundle sha256>@<merge>' ('' none): what deploy.sh verifies
             'live_code': str(code[0][0] or '') if code else '',
             'canary': [json.loads(row[0]) for row in canaries or []],  # DEPLOY-CANARY
-            'full_run': [json.loads(row[0]) for row in full or []],  # FULL-RUN-STATUS
             'prune': [json.loads(row[0]) for row in prunes or []],  # LAMBDA-PRUNE-STATUS
             'bisect': seen.get('bisect'), 'culprit': seen.get('culprit'), 'bisect_note': seen.get('note'),
             # DEP-WATCHDOG: the build in flight (step, elapsed_s) and the last ring declared lost ('lost: no ended build after N s')

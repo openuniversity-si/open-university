@@ -72,7 +72,7 @@ class Work(Pointer):
         if sql == mechanisms.QUEUES:
             return [('tenant', 'queue')] if self.jobs else []
         if sql == mechanisms.CANDIDATES:
-            return [(job, False) for job in self.jobs]  # FULL-RUN-SKIP: and whether it yields
+            return [(job,) for job in self.jobs]  # FULL-RUN-GONE: no longer whether it yields
         if sql == mechanisms.ROUTE:
             return [('executor',)]
         if sql == mechanisms.HOLD:

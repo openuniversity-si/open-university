@@ -153,17 +153,6 @@ class OnPostgres(World):
         self.assertTrue(self.replaced())
         self.assertFalse(self.replaced('ip-new'))
 
-    def test_the_status_says_the_bases_full_runs_newest_first(self):
-        # FULL-RUN-STATUS: the base's whole battery at each landing is said where the deploy is read
-        for at, state, extra in ((30, 'running', {'n': 2}), (5, 'red', {'n': 2, 'red': ['scripts/tests/b.test.sh']})):
-            self.db.rows("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) values "
-                         "(%(id)s, null, 'platform.gate.full', now() - (%(ago)s || ' seconds')::interval, 'fullrun', 'gate/full', "
-                         "%(payload)s::jsonb)", {'id': f'fullrun:s:{state}', 'ago': str(at),
-                                                'payload': json.dumps({'sha': 's' * 40, 'state': state, **extra})})
-        said = port.deploy_status(self.db, ('installation', None))['full_run']
-        self.assertEqual([(each['state'], each.get('red')) for each in said], [('red', ['scripts/tests/b.test.sh']), ('running', None)])
-        self.assertIsInstance(said[0]['at'], (int, float))
-
     def test_the_status_keeps_a_branchs_want_behind_many_newer_successor_events(self):
         # SUCCESSOR-WINDOW: with 20 rows, other bundles' events pushed #707's want out; its delivery did not wait for it
         rows = [{'state': 'wanted', 'branch': 'units/a', 'digest': 'd' * 64}] + [
