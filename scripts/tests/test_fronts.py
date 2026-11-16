@@ -1,7 +1,6 @@
 """The fronts in flight (VAZÃO F69): pure functions over in-memory ledger, lock and friction rows. No network, no git,
 no real cache."""
 from pathlib import Path
-import json
 import sys
 import tempfile
 import unittest
