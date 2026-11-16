@@ -40,6 +40,7 @@ KEY_VERSION = 1  # VERDICT-REUSE: a change to what the key covers bumps it, so n
 RUNNER = ('RUNNER_OS', 'RUNNER_ARCH', 'ImageOS', 'ImageVersion')  # the hosted runner's image, part of the key
 WORKERS = 'GATE_TEST_WORKERS'  # GATE-ISOLATED: the batch's workers (gate_test_cache.WORKERS_ENV)
 PARTS = ('main', 'shard1', 'alone')  # GATE-PARTS: the jobs of one tower/gate, side by side (tower-gate.yml's matrix)
+SLOWEST = 3  # GATE-PACE: the tests of a batch its pace line names, the slowest first (their walls in the batch)
 STAGES_S = 15.0  # GATE-PARTS: what main's stages weigh in the split (#130's commit: main 41 s, shard1 24 s with none)
 
 
@@ -230,8 +231,12 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
                     env[WORKERS] = str(max(1, int(os.environ.get(WORKERS) or cpus() or 1) - 1))
                 at = clock()
                 code, out = run(['scripts/gate-check', 'tests', ','.join(batch)], env=env)
-                paces.append(('the batch of tests', clock() - at))
-                said = json.loads(answer.read_text()).get('tests', {}) if answer.is_file() else {}
+                spent_s = clock() - at
+                answered = json.loads(answer.read_text()) if answer.is_file() else {}
+                said, took = answered.get('tests', {}), answered.get('seconds') or {}
+                slowest = sorted(((float(spent), test) for test, spent in took.items()), reverse=True)[:SLOWEST]
+                named_slowest = ', '.join(f'{Path(test).name.removesuffix(".test.sh")} {spent:.1f} s' for spent, test in slowest)
+                paces.append(('the batch of tests' + (f' ({named_slowest})' if slowest else ''), spent_s))
                 failed = [test for test in batch if said.get(test) != 'PASS']
                 if code != 0 and not failed:
                     red.append('script tests')

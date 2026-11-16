@@ -46,7 +46,8 @@ class Fake:
             return (1, f'FAIL {args[2]} alone: the traceback') if args[2] in self.red else (0, 'PASS')
         if args[:2] == ['scripts/gate-check', 'tests']:
             said = {test: 'FAIL' if test in self.red | self.crowded else 'PASS' for test in args[2].split(',')}
-            Path(env['TOWER_ANSWER_FILE']).write_text(json.dumps({'tests': said}))
+            took = {test: self.seconds[test] for test in said if test in getattr(self, 'seconds', {})}
+            Path(env['TOWER_ANSWER_FILE']).write_text(json.dumps({'tests': said, 'seconds': took}))
             return ((1, 'x' * 9000 + 'FAIL scripts/tests/y.test.sh: the traceback') if (self.red | self.crowded) & set(said)
                     else (0, 'quiet'))
         if args[:2] == ['gh', 'api'] and '-X' not in args:
@@ -243,6 +244,13 @@ class TheVerifier(unittest.TestCase):
         verify_commit.judge(BASE, run=unparted, isolated=list, cpus=lambda: 4)  # local and full-suite: in order
         kinds = [call[1] for call in unparted.calls if call[0] == 'scripts/gate-check' and call[1] in ('stage', 'tests')]
         self.assertEqual(kinds, ['stage', 'stage', 'tests'])
+
+    def test_the_pace_of_the_batch_names_its_three_slowest_tests(self):
+        fake, paces = Fake(plan={'stages': [], 'tests': [f'scripts/tests/t{n}.test.sh' for n in range(5)]}), []
+        fake.seconds = {f'scripts/tests/t{n}.test.sh': float(n * 10) for n in range(5)}
+        verify_commit.judge(BASE, run=fake, isolated=list, paces=paces)
+        [(name, _)] = paces
+        self.assertEqual(name, 'the batch of tests (t4 40.0 s, t3 30.0 s, t2 20.0 s)')
 
     def test_the_job_log_names_the_pace_of_a_part(self):
         import contextlib
