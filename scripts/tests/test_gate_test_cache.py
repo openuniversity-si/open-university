@@ -583,7 +583,11 @@ class RealMapTest(unittest.TestCase):
         files = cache.tracked(ROOT)
         script = "scripts/tests/gate-select.test.sh"
         entry = next(item for item in mapping["tests"] if item["script"] == script)
-        patterns = [script, *entry["covers"], *config.get("gate.test_cache_common_inputs"), "scripts/lib/forge_events.py"]
+        selecting = [script, *cache.gate_script_tests.patterns(entry), *config.get("gate.test_cache_common_inputs")]
+        # A file that neither the covers nor the traced files of the test select (PADRAO-DEV F5b-2).
+        outside = next(name for name in files if name.startswith("scripts/lib/") and name.endswith(".py")
+                       and not any(cache.glob_match(name, pattern) for pattern in selecting))
+        patterns = [*selecting, outside]
         with tempfile.TemporaryDirectory() as tmp:
             tmp = pathlib.Path(tmp)
             for name in files:
@@ -597,7 +601,7 @@ class RealMapTest(unittest.TestCase):
             covered.write_text(covered.read_text() + "\n# changed\n")
             changed = cache.key(script, tmp, mapping, listed, node="v0")
             self.assertNotEqual(changed, before)
-            other = tmp / "scripts/lib/forge_events.py"
+            other = tmp / outside
             other.write_text(other.read_text() + "\n# not covered by gate-select\n")
             self.assertEqual(cache.key(script, tmp, mapping, listed, node="v0"), changed)
 

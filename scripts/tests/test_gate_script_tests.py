@@ -105,7 +105,8 @@ class ScriptTestSelection(unittest.TestCase):
     def test_the_selector_has_no_installed_modules_question(self):
         # VAZÃO F57: modules_required and the `modules` action had no caller; no script test installs a package.
         self.assertFalse(hasattr(tests, 'modules_required'))
-        self.assertTrue(all(set(item) == {'script', 'covers'} for item in self.mapping['tests']))
+        # PADRAO-DEV F5b-2: a test may also carry its traced files, apart from its covers.
+        self.assertTrue(all({'script', 'covers'} <= set(item) <= {'script', 'covers', 'traced'} for item in self.mapping['tests']))
 
 
 class CoversManifests(unittest.TestCase):
