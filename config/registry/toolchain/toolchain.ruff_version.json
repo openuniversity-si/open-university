@@ -1,0 +1,9 @@
+{
+  "type": "string",
+  "default": "0.16.9",
+  "x-unit": "version",
+  "description": "ruff release used by the lint ratchet (PADRAO-DEV F4b): the Python lint the gate runs on every change.",
+  "x-readers": [
+    "scripts/lib/toolchain_manifest.py"
+  ]
+}

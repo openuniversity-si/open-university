@@ -291,6 +291,51 @@
       ],
       "x-source": "D-072; D-069 item 9 (Daniel's order of 2026-10-28 16:52 and 16:55 BRT, RULE-AUDIT)"
     },
+    "rules.lint_ignored": {
+      "type": "array",
+      "default": [
+        "B905",
+        "F401",
+        "B023",
+        "B904",
+        "B007",
+        "F841",
+        "B017",
+        "F541",
+        "B008",
+        "F811",
+        "F402",
+        "B018"
+      ],
+      "x-unit": "names",
+      "description": "The ruff rules of rules.lint_select left out of the lint ratchet while they still have a legacy (153 findings on 16/11/2026); a rule leaves when its legacy is cleaned, and the list never grows (rules.lint_ignored_max).",
+      "x-readers": [
+        "scripts/lib/lint_ratchet.py"
+      ]
+    },
+    "rules.lint_ignored_max": {
+      "type": "integer",
+      "default": 12,
+      "x-unit": "count",
+      "description": "The most rules rules.lint_ignored may hold; a budget that only tightens (budgets.tighten_only), so a new finding is never hidden by ignoring its rule.",
+      "x-readers": [
+        "scripts/lib/lint_ratchet.py"
+      ]
+    },
+    "rules.lint_select": {
+      "type": "array",
+      "default": [
+        "F",
+        "E9",
+        "PLE",
+        "B"
+      ],
+      "x-unit": "names",
+      "description": "The ruff rule families the lint ratchet requires at zero findings (PADRAO-DEV F4b): pyflakes, syntax errors, pylint errors, bugbear.",
+      "x-readers": [
+        "scripts/lib/lint_ratchet.py"
+      ]
+    },
     "rules.max_review_days": {
       "type": "integer",
       "default": 90,

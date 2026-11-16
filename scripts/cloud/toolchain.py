@@ -121,9 +121,9 @@ def _install_one(tool, root, staging):
             shutil.rmtree(dest)
         shutil.move(str(found[0]), str(dest))
         _link(bin_dir, 'node', Path('..') / 'node' / 'bin' / 'node')
-    elif tool == 'gitleaks':
-        shutil.copyfile(_find(unpacked, 'gitleaks'), bin_dir / 'gitleaks')
-        (bin_dir / 'gitleaks').chmod(0o755)
+    elif tool in ('gitleaks', 'ruff'):
+        shutil.copyfile(_find(unpacked, tool), bin_dir / tool)
+        (bin_dir / tool).chmod(0o755)
     elif tool == 'postgres':
         found = [item for item in unpacked.iterdir() if item.is_dir() and (item / 'bin' / 'psql').is_file()]
         if len(found) != 1:
