@@ -71,8 +71,8 @@ jobs:
       - name: build
         if: steps.changed.outputs.run == 'true'
         working-directory: apps/web
-        # Next's first build after a fresh install can stop once on its security notice; the second is the verdict.
-        run: pnpm build || pnpm build
+        # One build is the verdict: the retry for Next's security notice left with Next 16.4.6 (PADRAO-DEV F7, D-320).
+        run: pnpm build
       - name: integration tests
         if: steps.changed.outputs.run == 'true'
         working-directory: apps/web
