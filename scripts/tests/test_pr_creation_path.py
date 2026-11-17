@@ -22,12 +22,15 @@ class BodyCheck(unittest.TestCase):
 
         def fake(argv, **kwargs):
             seen.append(argv)
-            said = 'FAIL body: no plan' if Path(argv[0]).name == 'structure-check' else 'FAIL effort: no block'
+            said = {'structure-check': 'FAIL body: no trailer', 'commit-check': 'FAIL body: no plan'}.get(
+                Path(argv[0]).name, 'FAIL effort: no block')
             return subprocess.CompletedProcess(argv, 1, f'PASS other\n{said}\nWARN x\n', '')
 
-        self.assertEqual(deliver.body_problems('BODY.md', ROOT, fake), ['FAIL body: no plan', 'FAIL effort: no block'])
+        self.assertEqual(deliver.body_problems('BODY.md', ROOT, fake), ['FAIL body: no trailer', 'FAIL body: no plan',
+                                                                       'FAIL effort: no block'])
         self.assertEqual([Path(seen[0][0]).name, *seen[0][1:]], ['structure-check', '--pr-body', 'BODY.md'])
-        self.assertEqual([Path(seen[1][1]).name, *seen[1][2:]], ['measurement_checks.py', 'body', '--pr-body', 'BODY.md'])
+        self.assertEqual([Path(seen[1][0]).name, *seen[1][1:]], ['commit-check', '--pr-body', 'BODY.md'])
+        self.assertEqual([Path(seen[2][1]).name, *seen[2][2:]], ['measurement_checks.py', 'body', '--pr-body', 'BODY.md'])
 
 
 class OpenOrder(unittest.TestCase):

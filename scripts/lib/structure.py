@@ -27,7 +27,6 @@ import sys
 import time
 import python_source
 
-import commit_check
 import config
 import config_check
 import literal_census
@@ -35,14 +34,12 @@ import text_check
 import threshold_check
 import decision_premises
 import defects
+import forge_pr
 import postmortem_check
-import plan_tick
 import premises
 import repo_hygiene
 import retired_products
 import retired_vendors
-import train_git
-import train_ownership
 import unit_check
 import vendor_check
 import visual_guard
@@ -326,46 +323,14 @@ def check_premises_line(root, body, changed):
     return errors, warnings
 
 
-def plan_completeness_errors(body, commits):
-    """GX-21: errors naming the plan items of the body that no real commit ticks. commits: [{message, files}]. A body
-    without items is commit_check.plan_errors' to refuse; an empty commit ticks nothing (plan_tick.ticked_by_commits)."""
-    missing = plan_tick.unticked(body, commits)
-    if not missing:
-        return []
-    numbers = ', '.join(str(number) for number in missing)
-    return [f'plan: item(s) {numbers} not ticked by a commit that changes a file (an empty commit ticks nothing); fix: edit the '
-            f'PR body so the plan lists what the commits deliver, or add a REAL commit with the "Plan: N" trailer, never an empty one']
-
-
-def plan_verdict(body, commits, draft):
-    """D-083: (errors, warnings) of the plan completeness of a PR head. A draft's head is judged on what its commits
-    delivered: an item not yet ticked is a warning, so a serial PR can be green on every commit while its plan is still a
-    plan; a PR marked ready is refused as GX-21 says. pr.ready waits for every item either way (pr_ready, D-065 V4)."""
-    missing = plan_completeness_errors(body, commits)
-    if not draft:
-        return missing, []
-    return [], [f'{line} [draft PR: refused once it is marked ready; pr.ready waits for every item (D-083)]'
-                for line in missing]
-
-
-def lane_errors(root, merge_base, files):
-    """GX-21: errors when the files touch the units of several lanes (the lane is undecidable and the train would refuse
-    it), listing each unit with its lane. A change touching no unit, or only shared paths, has no lane and is fine; the
-    rule is train_ownership's lanes(), the one lane_of() reads (LANE-OWN)."""
-    touched = train_ownership.UnitOwnership(train_git.GitWorkspace(root)).lanes(merge_base, files, 'HEAD')  # D-112
-    if len(set(touched.values())) <= 1:
-        return []
-    listed = ', '.join(f'{unit} ({lane})' for unit, lane in sorted(touched.items()))
-    return [f'lane undecidable: the change touches units of several lanes: {listed}; split it into one PR per lane']
-
-
 def gated_fetch(root, number, sha=None, observation=None):
-    """commit-check's view of PR number judged on the gated sha (GX-14): sha, else this checkout's HEAD when it is a
-    commit of the PR (the gate runs structure-check in its checkout of the gated sha), else the live head."""
+    """The PR number as forge_pr reads it (the events layer; commit-check reads it the same way), judged on the gated sha
+    (GX-14): sha, else this checkout's HEAD when it is a commit of the PR (the gate runs structure-check in its checkout
+    of the gated sha), else the live head."""
     head = subprocess.run(['git', '-C', str(root), 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()
     if observation is None:
-        return commit_check.fetch(number, sha, root, head=head or None)
-    return commit_check.fetch(number, sha, root, head=head or None, observation=observation)  # PR-OBSERVATION
+        return forge_pr.fetch(number, sha, root, head=head or None)
+    return forge_pr.fetch(number, sha, root, head=head or None, observation=observation)  # PR-OBSERVATION
 
 
 def default_root():
@@ -380,7 +345,7 @@ TREE_CACHE_ENV = 'STRUCTURE_TREE_CACHE_DIR'
 def tree_part(root, base, today):
     """GX-15 (B-11): the modules that read only the checkout's tree and, for a diff, the base and merge-base trees.
     {errors, warnings, counts}. threshold_check is not here: it reads the PR body and commit messages (metadata)."""
-    listed = commit_check.git(root, 'ls-files', '--', 'scripts') or ''
+    listed = forge_pr.git(root, 'ls-files', '--', 'scripts') or ''
     paths = [Path(root) / name for name in listed.splitlines() if name.endswith('.py') and '/generated/' not in name]
     config_result, literal_result, unit_result, vendor_result, hygiene_result = source_checks(root, base, paths)
     cap_errors, caps = check_capabilities(root)
@@ -427,13 +392,13 @@ def tree_part(root, base, today):
 
 
 def _rev(root, *args):
-    out = commit_check.git(root, *args)
+    out = forge_pr.git(root, *args)
     return out.strip() if out and out.strip() else None
 
 
 def clean(checkout):
     """True when git holds every file of the checkout (no tracked change, no untracked file that is not ignored)."""
-    return commit_check.git(checkout, 'status', '--porcelain', '--untracked-files=normal') == ''
+    return forge_pr.git(checkout, 'status', '--porcelain', '--untracked-files=normal') == ''
 
 
 def tool_state():
@@ -499,7 +464,7 @@ def source_analysis_key(root, base):
         tool = tool_state()
         if tool is None or not clean(root):
             return ''
-        listed = commit_check.git(root, 'ls-tree', '-rz', 'HEAD')
+        listed = forge_pr.git(root, 'ls-tree', '-rz', 'HEAD')
         rows = [entry.split('\t', 1) for entry in listed.split('\0') if entry]
         files = [name for _, name in rows]
         needed = source_analysis_inputs(root, files)
@@ -581,16 +546,10 @@ def metadata_part(root, args):
     if args.pr_body:
         body = args.pr_body.read_text()
         body_errors, body_warnings = fit_review(body, root)
-        errors += body_errors + commit_check.plan_errors(body)  # EFFORT-STEP: measurement_checks.py body (D-322)
+        # D-322: the commit plan, its completeness and the lanes are commit-check's (`--pr-body`, delivery), and the
+        # effort block is measurement_checks.py body; both run beside this check wherever it ran
+        errors += body_errors
         warnings += body_warnings
-        if args.base and not args.pr:
-            try:
-                errors += plan_completeness_errors(body, plan_tick.commits_with_files(args.base, root))
-                merge_base = commit_check.git(root, 'merge-base', args.base, 'HEAD')
-                if merge_base:
-                    errors += lane_errors(root, merge_base.strip(), changed_files(root, args.base))
-            except subprocess.CalledProcessError as error:
-                warnings.append(f'plan: commits of {args.base}..HEAD not readable ({error.stderr.strip()})')
         line_errors, line_warnings = check_premises_line(root, body, changed_files(root, args.base))
         errors += line_errors
         warnings += line_warnings
@@ -609,13 +568,8 @@ def metadata_part(root, args):
             errors.append(Blind(f'commit-check: PR #{args.pr} not readable ({error})'))
         else:
             fetched = pr
-            errors += commit_check.check(pr, commit_check.decisions(root))
-            plan_errors, plan_warnings = plan_verdict(pr.get('body', ''), pr.get('commits', []), pr.get('draft', False))
-            errors += plan_errors
-            warnings += plan_warnings
-            # EFFORT-STEP (D-069 items 4, 8, 9): the body's effort block is `measurement_checks.py body`, run beside (D-322)
-            if (pr.get('base') or {}).get('merge_base'):
-                errors += lane_errors(root, pr['base']['merge_base'], pr.get('files') or [])
+            # D-322: the commit discipline, the plan completeness and the lanes are `commit-check --pr` (delivery), and
+            # EFFORT-STEP (D-069 items 4, 8, 9) the effort block is `measurement_checks.py body`, both run beside
             guard_errors, guard_warnings = visual_guard.check(root, args.base, pr.get('body', ''), pr.get('files') or [],
                                                               pr.get('branch'))  # D-006, SG1
             errors += guard_errors
@@ -707,8 +661,10 @@ def main(argv=None, port=None):
     parser.add_argument('--root', type=Path, help='repository to check (default: the current checkout)')
     parser.add_argument('--today', type=date.fromisoformat, default=date.today(), help='YYYY-MM-DD for the C5 age check')
     parser.add_argument('--base', help='warn when base...HEAD exceeds the D-008 size budget')
-    parser.add_argument('--pr-body', type=Path, help='check a PR body file for the B5 trailers and the D-022 commit plan')
-    parser.add_argument('--pr', type=int, help='run commit-check (D-025) on this PR over GitHub REST, judged on this '
+    parser.add_argument('--pr-body', type=Path, help='check a PR body file for the B5 trailers and the premises line (its '
+                        'commit plan is commit-check --pr-body, D-322)')
+    parser.add_argument('--pr', type=int, help='judge this PR\'s body and files (premises, visual guard, thresholds) read '
+                        'through the forge port (forge_pr), judged on this '
                         "checkout's HEAD when it is a PR commit (the gated sha), else the live head")
     parser.add_argument('--sha', help='--pr: the gated commit to judge instead')
     parser.add_argument('--review', type=int, metavar='PR',

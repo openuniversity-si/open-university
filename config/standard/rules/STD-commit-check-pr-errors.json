@@ -1,0 +1,18 @@
+{
+  "id": "STD-commit-check-pr-errors",
+  "statement": "D-322, GX-21: a read PR passes the commit discipline, every plan item of a ready PR is ticked by a real commit (D-083: a draft warns) and its change touches the units of one lane (commit-check --pr).",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/commit_check.py:pr_errors"
+  },
+  "basis": [
+    "D-022",
+    "D-322"
+  ],
+  "note": "Written with the move of the plan and lane checks out of the structure check (D-322)."
+}

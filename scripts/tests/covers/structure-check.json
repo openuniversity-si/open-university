@@ -43,6 +43,7 @@
     "docs/units/EFFORT-STEP/**",
     "docs/units/AUDIT-ROOT-CAUSE/**",
     "docs/units/INTAKE-RESEARCH/**",
-    "scripts/tests/forge_doubles.py"
+    "scripts/tests/forge_doubles.py",
+    "scripts/lib/forge_pr.py"
   ]
 }

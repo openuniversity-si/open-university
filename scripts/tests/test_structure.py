@@ -20,8 +20,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 import config  # noqa: E402
 import structure  # noqa: E402
-import train_git  # noqa: E402
-import train_ownership  # noqa: E402
 import regime  # noqa: E402
 
 sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))  # forge_doubles: the runner runs from here, a direct run does not
@@ -248,7 +246,8 @@ class StructureCheck(unittest.TestCase):
                 body.write_text(text)
                 self.assert_fails(needle, '--pr-body', str(body))
         body.write_text(APPROVED)
-        self.assert_fails('plan: the PR body needs a D-022 commit plan checklist of at least 1 items', '--pr-body', str(body))
+        # D-322: the commit plan is commit-check --pr-body's (delivery), no longer the structure check's
+        self.assertNotIn('plan:', self.check('--pr-body', str(body))[1])
         # D-307 (Daniel 04/11 12:53 BRT): a plan has no maximum, so a PR is split by its content, never by a counter.
         # Twelve items, one per letter, more than the old ceiling of eight.
         long_plan = ('## Commit plan\n' + ''.join(f'- [ ] {n}. Item {n}.\n' for n, _ in enumerate('abcdefghijkl', start=1))
@@ -628,129 +627,12 @@ class GatedFetch(unittest.TestCase):
             subprocess.run(['git', '-C', tmp, '-c', 'user.email=t@example.com', '-c', 'user.name=T', 'commit', '-q',
                             '--allow-empty', '-m', 'Head'], check=True)
             head = subprocess.run(['git', '-C', tmp, 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()
-            with patch.object(structure.commit_check, 'fetch', return_value={}) as fetch:
+            with patch.object(structure.forge_pr, 'fetch', return_value={}) as fetch:
                 structure.gated_fetch(root, 1)
                 structure.gated_fetch(root, 1, 'f' * len(head))
         self.assertEqual(fetch.call_args_list[0].args, (1, None, root))
         self.assertEqual(fetch.call_args_list[0].kwargs, {'head': head})
         self.assertEqual(fetch.call_args_list[-1].args, (1, 'f' * len(head), root))
-
-
-class PlanCompletenessAtGate(unittest.TestCase):
-    """GX-21: the `pr metadata` stage refuses an unticked plan item and an undecidable lane on the head itself."""
-
-    BODY = '## Plan\n- [ ] 1. first\n- [ ] 2. second\n- [ ] 3. third\n'
-
-    def test_the_615_shape_item_three_unticked_is_red_naming_it(self):
-        commits = [{'message': 'a\n\nPlan: 1', 'files': ['a.py']}, {'message': 'b\n\nPlan: 2', 'files': ['b.py']}]
-        errors = structure.plan_completeness_errors(self.BODY, commits)
-        self.assertEqual(len(errors), 1)
-        self.assertIn('item(s) 3 not ticked', errors[0])
-        self.assertIn('edit the PR body', errors[0])
-        self.assertIn('REAL commit', errors[0])
-        self.assertIn('never an empty one', errors[0])
-
-    def test_an_empty_commit_with_the_trailer_does_not_clear_it(self):
-        commits = [{'message': 'a\n\nPlan: 1, 2', 'files': ['a.py']}, {'message': 'x\n\nPlan: 3', 'files': []}]
-        self.assertIn('item(s) 3 not ticked', structure.plan_completeness_errors(self.BODY, commits)[0])
-
-    def test_a_real_commit_for_every_item_is_green(self):
-        commits = [{'message': 'a\n\nPlan: 1, 2, 3', 'files': ['a.py']}]
-        self.assertEqual(structure.plan_completeness_errors(self.BODY, commits), [])
-
-    def test_a_body_without_items_is_left_to_the_plan_count_check(self):
-        self.assertEqual(structure.plan_completeness_errors('no plan', []), [])
-
-    def test_d083_a_draft_head_is_judged_on_what_its_commits_delivered(self):
-        """A serial PR is green on every commit while its plan is still a plan; the rest is a warning naming them."""
-        commits = [{'message': 'a\n\nPlan: 1', 'files': ['a.py']}]
-        errors, warnings = structure.plan_verdict(self.BODY, commits, draft=True)
-        self.assertEqual(errors, [])
-        self.assertEqual(len(warnings), 1)
-        self.assertIn('item(s) 2, 3 not ticked', warnings[0])
-        self.assertIn('D-083', warnings[0])
-
-    def test_d083_a_ready_pr_is_refused_as_gx21_says(self):
-        commits = [{'message': 'a\n\nPlan: 1', 'files': ['a.py']}]
-        errors, warnings = structure.plan_verdict(self.BODY, commits, draft=False)
-        self.assertEqual(errors, structure.plan_completeness_errors(self.BODY, commits))
-        self.assertEqual(warnings, [])
-        self.assertEqual(structure.plan_verdict(self.BODY, [{'message': 'a\n\nPlan: 1, 2, 3', 'files': ['a.py']}],
-                                                draft=True), ([], []))
-
-    LANE_MANIFESTS = {'engine': {'id': 'engine', 'owner': 'lane-a', 'paths': ['scripts/engine/**', 'scripts/census/**'],
-                                 'shared': ['scripts/census/**']},
-                      'admin': {'id': 'admin', 'owner': 'lane-b', 'paths': ['apps/admin/**', 'apps/tsconfig.json'],
-                                'shared': ['apps/tsconfig.json']}}
-
-    def lane_fixture(self, tmp):
-        for unit, manifest in self.LANE_MANIFESTS.items():
-            path = Path(tmp, 'units', unit, 'unit.json')
-            path.parent.mkdir(parents=True)
-            path.write_text(json.dumps(manifest))
-        subprocess.run(['git', '-C', tmp, 'init', '-q'], check=True)
-        subprocess.run(['git', '-C', tmp, 'add', '-A'], check=True)
-        subprocess.run(['git', '-C', tmp, '-c', 'user.email=t@example.com', '-c', 'user.name=T', 'commit', '-q', '-m', 'base'],
-                       check=True)
-        return train_ownership.UnitOwnership(train_git.GitWorkspace(Path(tmp)))
-
-    def lane_errors(self, changed):
-        with tempfile.TemporaryDirectory() as tmp:
-            self.lane_fixture(tmp)
-            return structure.lane_errors(Path(tmp), 'HEAD', changed)
-
-    def test_a_change_across_lanes_is_refused_with_the_units_listed(self):
-        errors = self.lane_errors(['scripts/engine/a.py', 'apps/admin/r.ts'])
-        self.assertEqual(len(errors), 1)
-        self.assertIn('lane undecidable', errors[0])
-        self.assertIn('admin (lane-b), engine (lane-a)', errors[0])
-
-    def test_one_lane_or_no_unit_is_decidable(self):
-        self.assertEqual(self.lane_errors(['scripts/engine/a.py', 'scripts/engine/b.py']), [])
-        self.assertEqual(self.lane_errors(['docs/free.md']), [])
-
-    def test_lane_own_a_shared_path_alone_leaves_the_lane_decidable(self):
-        self.assertEqual(self.lane_errors(['apps/admin/r.ts', 'scripts/census/admin.json']), [])
-        self.assertEqual(self.lane_errors(['scripts/engine/a.py', 'apps/tsconfig.json']), [])
-
-    def test_lane_own_a_shared_path_with_a_real_second_lane_is_still_refused(self):
-        errors = self.lane_errors(['scripts/engine/a.py', 'apps/admin/r.ts', 'scripts/census/admin.json'])
-        self.assertEqual(len(errors), 1)
-        self.assertIn('admin (lane-b), engine (lane-a)', errors[0])
-
-    def test_lane_own_a_change_of_only_shared_paths_has_no_lane(self):
-        changed = ['scripts/census/admin.json', 'apps/tsconfig.json']
-        self.assertEqual(self.lane_errors(changed), [])
-        with tempfile.TemporaryDirectory() as tmp:
-            self.assertIsNone(self.lane_fixture(tmp).lane_of('HEAD', changed))
-
-    def test_lane_own_a_shared_path_names_its_owner_and_never_refuses(self):
-        """Sharing removes the ambiguity and the wait, never the owner (SHARED-NEEDS-NO-OWNER): owner_of() and units()
-        still name lane-a's unit for its shared path, and refusals() never asks lane-a to approve it."""
-        changed = ['apps/admin/r.ts', 'scripts/census/admin.json']
-        with tempfile.TemporaryDirectory() as tmp:
-            ownership = self.lane_fixture(tmp)
-            self.assertEqual(ownership.lane_of('HEAD', changed), 'lane-b')
-            self.assertEqual(ownership.owner_of('HEAD', 'scripts/census/admin.json'), ('engine', 'lane-a'))
-            self.assertEqual(sorted(ownership.units('HEAD', changed)), ['admin', 'engine'])
-            self.assertEqual(ownership.refusals('HEAD', changed, 'lane-b', lambda: self.fail('nobody is asked')), [])
-            self.assertEqual(ownership.refusals('HEAD', ['scripts/engine/a.py', 'scripts/census/a.json'], 'lane-a', list), [])
-            self.assertEqual(ownership.refusals('HEAD', ['scripts/engine/a.py', 'scripts/census/a.json'], 'lane-b', list),
-                             [{'unit': 'engine', 'owner': 'lane-a', 'files': ['scripts/engine/a.py']}])
-
-    def test_lane_own_lane_of_and_lane_errors_agree(self):
-        """A change lane_of names a lane for is never refused, and a refused change has no lane (train_ownership)."""
-        cases = {('scripts/engine/a.py',): 'lane-a', ('docs/free.md',): None,
-                 ('apps/admin/r.ts', 'scripts/census/admin.json'): 'lane-b', ('scripts/census/admin.json',): None,
-                 ('scripts/engine/a.py', 'apps/tsconfig.json'): 'lane-a',
-                 ('scripts/engine/a.py', 'apps/admin/r.ts'): None,
-                 ('scripts/engine/a.py', 'apps/admin/r.ts', 'apps/tsconfig.json'): None}
-        refused = {('scripts/engine/a.py', 'apps/admin/r.ts'), ('scripts/engine/a.py', 'apps/admin/r.ts', 'apps/tsconfig.json')}
-        with tempfile.TemporaryDirectory() as tmp:
-            ownership = self.lane_fixture(tmp)
-            for changed, lane in cases.items():
-                self.assertEqual(ownership.lane_of('HEAD', list(changed)), lane, changed)
-                self.assertEqual(bool(structure.lane_errors(Path(tmp), 'HEAD', list(changed))), changed in refused, changed)
 
 
 class DecisionClock(unittest.TestCase):
@@ -868,7 +750,7 @@ class ForgeReviewMigration(unittest.TestCase):
 # tests). A bare run starts these groups as side-by-side processes (about the longest group, 10 s); named classes run as is.
 GROUPS = [
     ['StructureCheck'],
-    ['TreeCache', 'PlanCompletenessAtGate'],
+    ['TreeCache'],
     ['IdeaToProd', 'ReviewErrors', 'MetadataPart', 'GatedFetch', 'DecisionClock', 'ExceptionRegime', 'LiftedLock',
      'ForgeMetricCommentsMigration', 'ForgeReviewMigration'],
 ]

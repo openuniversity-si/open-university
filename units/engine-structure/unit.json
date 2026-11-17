@@ -41,7 +41,6 @@
     "ARC-planning"
   ],
   "requires": {
-    "engine-commit-plan": "^1",
     "engine-config": "^1",
     "engine-config-check": "^1",
     "engine-defects": "^1",
@@ -49,8 +48,6 @@
     "engine-literals": "^1",
     "engine-premises": "^1",
     "engine-regime": "^1",
-    "engine-train": "^1",
-    "engine-train-admission": "^1",
     "engine-units": "^1",
     "engine-vendors": "^1"
   }

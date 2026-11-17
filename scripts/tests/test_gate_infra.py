@@ -961,14 +961,18 @@ class TheMetadataOfAForgeThatIsAway(unittest.TestCase):
     GREEN = 'structure-check (metadata, PR #7): 0 error(s), 0 warning(s)\n'
 
     BODY = 'measurement checks (body, PR #7): 0 error(s), 0 warning(s)\n'
+    COMMITS = 'commit-check: 2 commit(s); 0 refusal(s)\n'
 
-    def answers(self, *said, body=BODY):
-        left, self.commands, self.pauses, self.bodies = list(said), [], [], []
+    def answers(self, *said, body=BODY, commits=COMMITS):
+        left, self.commands, self.pauses, self.bodies, self.commits = list(said), [], [], [], []
 
         def run(command, **_):
             if 'measurement_checks.py' in ' '.join(command):  # D-322: the PR body's measurement part, beside
                 self.bodies.append(command)
                 return mock.Mock(returncode=0 if body == self.BODY else 1, stdout=body, stderr='')
+            if command[0].endswith('commit-check'):  # D-322: the PR's commit part, beside
+                self.commits.append(command)
+                return mock.Mock(returncode=0 if commits == self.COMMITS else 1, stdout=commits, stderr='')
             self.commands.append(command)
             text = left.pop(0) if len(left) > 1 else left[0]
             return mock.Mock(returncode=0 if text == self.GREEN else 1, stdout=text, stderr='')
@@ -1010,6 +1014,19 @@ class TheMetadataOfAForgeThatIsAway(unittest.TestCase):
         self.assertIn('Cheapest useful effort', said)
         self.answers(self.BLIND)
         self.assertEqual(self.bodies, [])  # a PR that was not read is not judged by either part
+
+    def test_the_prs_commit_part_runs_beside_and_its_refusal_or_blindness_is_red(self):
+        # D-322: the commit discipline, plan completeness and lanes are commit-check --pr, run beside the structure check
+        (green, _), _ = self.answers(self.GREEN)
+        self.assertTrue(green)
+        self.assertEqual([command[1:] for command in self.commits], [['--pr', '7']])
+        (green, said), _ = self.answers(self.GREEN, commits='FAIL plan: item(s) 2 not ticked by a commit\n')
+        self.assertFalse(green)
+        self.assertIn('item(s) 2 not ticked', said)
+        (green, said), _ = self.answers(self.GREEN, commits=self.BLIND)
+        self.assertFalse(green)
+        self.assertIn('the PR was not judged', said)  # its unreadable PR is retried, as the structure part's is
+        self.assertEqual(self.bodies, [])
 
     def test_a_forge_that_stays_away_is_red_by_its_name_within_the_wait_it_is_given(self):
         (green, said), _ = self.answers(self.BLIND)

@@ -729,6 +729,33 @@ def measured(port, step, subject_fields):
             measurement.tokens_in, measurement.tokens_out, measurement.model, measurement.provider))
 
 
+QueueEntry = namedtuple('Entry', 'pr sha unit premises lane_id ready_at evidence')
+OUT_OF_QUEUE = ('pr.conflicted', 'pr.ejected', 'pr.merged', 'pr.refused')
+
+
+def queue_entry(events, head):
+    """The PR's merge-queue entry from its own log and current head, or None when it is not waiting for the train (TR1):
+    its latest `pr.ready` names the head, rests on a `gate.passed` of that head on the same log, and no later
+    `pr.conflicted`, `pr.ejected`, `pr.merged` or `pr.refused` names it. A predicate over the log, so it lives with the
+    log (D-322): the train (train_queue, delivery) and the coordinator (planning) both read it."""
+    ready = [event for event in events if event['type'] == 'pr.ready']
+    if not ready:
+        return None
+    latest = ready[-1]
+    sha = latest['payload']['sha']
+    if sha != head:
+        return None  # pushed after pr.ready: it leaves the queue until a new pr.ready (pr.pushed)
+    if any(event['type'] in OUT_OF_QUEUE and event['payload']['sha'] == sha for event in events):
+        return None
+    evidence = latest['payload']['evidence']
+    if not any(event['type'] == 'gate.passed' and event['event_id'] == evidence and event['payload']['sha'] == sha
+               for event in events):
+        return None  # pr.ready must rest on a passed gate of this exact head on the same log
+    payload = latest['payload']
+    return QueueEntry(payload['pr'], sha, payload['unit'], tuple(payload['premises']), payload['lane_id'],
+                      latest['occurred_at'], evidence)
+
+
 def new_pr_state():
     return {'head': None, 'gates': {}, 'ready': None, 'merged': None, 'conflicted': [], 'ejected': []}
 

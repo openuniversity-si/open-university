@@ -8,7 +8,7 @@
   ],
   "check": {
     "kind": "function",
-    "ref": "scripts/lib/structure.py:lane_errors"
+    "ref": "scripts/lib/commit_check.py:lane_errors"
   },
   "basis": [],
   "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."

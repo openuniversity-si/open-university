@@ -74,7 +74,7 @@ EXPECTED_OPERATIONS = frozenset(
     'open_changes open_pulls pull pushes set_status unlock upsert_comment'.split())
 EXPECTED_CONSUMERS = frozenset('scripts/lib/' + name + '.py' for name in (
     'defect_router engine_role service_lock flow_check gate_report gate_status lessons pr_ready prepush replay_branch '
-    'stall_report train train_box train_queue train_verdict premises structure commit_check gate_policy idea_to_prod '
+    'stall_report train train_box train_queue train_verdict premises structure forge_pr gate_policy idea_to_prod '
     'gate_pin gate_explain merge_behind decision_next service_runner'.split()))
 
 

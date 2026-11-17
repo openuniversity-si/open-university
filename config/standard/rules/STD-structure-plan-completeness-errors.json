@@ -8,7 +8,7 @@
   ],
   "check": {
     "kind": "function",
-    "ref": "scripts/lib/structure.py:plan_completeness_errors"
+    "ref": "scripts/lib/commit_check.py:plan_completeness_errors"
   },
   "basis": [],
   "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."

@@ -563,6 +563,7 @@ class DeliverTests(unittest.TestCase):
         self.assertIn('FAIL body: no plan', lines)
         check = next(call for call in fake.calls if 'structure-check' in call)
         self.assertIn('--pr-body', check)
+        self.assertTrue(any('commit-check --pr-body' in call for call in fake.calls))  # D-322: the plan is commit-check's
 
 
 TRAIN_RUN = ['scripts/train', 'run']
