@@ -1,0 +1,18 @@
+{
+  "id": "STD-commit-check-body-errors",
+  "statement": "D-322, GX-21: a PR body file has a D-022 commit plan, and with a base every plan item is ticked by a real commit of base..HEAD and the change touches the units of one lane (commit-check --pr-body).",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/commit_check.py:body_errors"
+  },
+  "basis": [
+    "D-022",
+    "D-322"
+  ],
+  "note": "Written with the move of the plan and lane checks out of the structure check (D-322)."
+}

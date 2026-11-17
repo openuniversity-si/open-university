@@ -8,6 +8,10 @@
     "scripts/lib/decision_wait.py",
     "config/registry/push-guard.json",
     "config/registry/merge.json",
-    "scripts/tests/forge_doubles.py"
+    "scripts/tests/forge_doubles.py",
+    "scripts/lib/forge_pr.py",
+    "scripts/lib/plan_tick.py",
+    "scripts/lib/train_ownership.py",
+    "scripts/lib/train_git.py"
   ]
 }

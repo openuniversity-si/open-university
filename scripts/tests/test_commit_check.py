@@ -388,6 +388,164 @@ class GatedFetch(unittest.TestCase):
         self.assertEqual(len(self.calls), len(CALLS) + len(STEPS) + 1)  # one call per commit, one for the change
         self.assertEqual(self.operations().count('commit_files'), len(STEPS))
 
+class PlanCompletenessAtGate(unittest.TestCase):
+    """GX-21: the `pr metadata` stage refuses an unticked plan item and an undecidable lane on the head itself; since
+    D-322 through commit-check (delivery), not the structure check."""
+
+    BODY = '## Plan\n- [ ] 1. first\n- [ ] 2. second\n- [ ] 3. third\n'
+
+    def test_the_615_shape_item_three_unticked_is_red_naming_it(self):
+        commits = [{'message': 'a\n\nPlan: 1', 'files': ['a.py']}, {'message': 'b\n\nPlan: 2', 'files': ['b.py']}]
+        errors = commit_check.plan_completeness_errors(self.BODY, commits)
+        self.assertEqual(len(errors), 1)
+        self.assertIn('item(s) 3 not ticked', errors[0])
+        self.assertIn('edit the PR body', errors[0])
+        self.assertIn('REAL commit', errors[0])
+        self.assertIn('never an empty one', errors[0])
+
+    def test_an_empty_commit_with_the_trailer_does_not_clear_it(self):
+        commits = [{'message': 'a\n\nPlan: 1, 2', 'files': ['a.py']}, {'message': 'x\n\nPlan: 3', 'files': []}]
+        self.assertIn('item(s) 3 not ticked', commit_check.plan_completeness_errors(self.BODY, commits)[0])
+
+    def test_a_real_commit_for_every_item_is_green(self):
+        commits = [{'message': 'a\n\nPlan: 1, 2, 3', 'files': ['a.py']}]
+        self.assertEqual(commit_check.plan_completeness_errors(self.BODY, commits), [])
+
+    def test_a_body_without_items_is_left_to_the_plan_count_check(self):
+        self.assertEqual(commit_check.plan_completeness_errors('no plan', []), [])
+
+    def test_d083_a_draft_head_is_judged_on_what_its_commits_delivered(self):
+        """A serial PR is green on every commit while its plan is still a plan; the rest is a warning naming them."""
+        commits = [{'message': 'a\n\nPlan: 1', 'files': ['a.py']}]
+        errors, warnings = commit_check.plan_verdict(self.BODY, commits, draft=True)
+        self.assertEqual(errors, [])
+        self.assertEqual(len(warnings), 1)
+        self.assertIn('item(s) 2, 3 not ticked', warnings[0])
+        self.assertIn('D-083', warnings[0])
+
+    def test_d083_a_ready_pr_is_refused_as_gx21_says(self):
+        commits = [{'message': 'a\n\nPlan: 1', 'files': ['a.py']}]
+        errors, warnings = commit_check.plan_verdict(self.BODY, commits, draft=False)
+        self.assertEqual(errors, commit_check.plan_completeness_errors(self.BODY, commits))
+        self.assertEqual(warnings, [])
+        self.assertEqual(commit_check.plan_verdict(self.BODY, [{'message': 'a\n\nPlan: 1, 2, 3', 'files': ['a.py']}],
+                                                draft=True), ([], []))
+
+    LANE_MANIFESTS = {'engine': {'id': 'engine', 'owner': 'lane-a', 'paths': ['scripts/engine/**', 'scripts/census/**'],
+                                 'shared': ['scripts/census/**']},
+                      'admin': {'id': 'admin', 'owner': 'lane-b', 'paths': ['apps/admin/**', 'apps/tsconfig.json'],
+                                'shared': ['apps/tsconfig.json']}}
+
+    def lane_fixture(self, tmp):
+        for unit, manifest in self.LANE_MANIFESTS.items():
+            path = Path(tmp, 'units', unit, 'unit.json')
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps(manifest))
+        subprocess.run(['git', '-C', tmp, 'init', '-q'], check=True)
+        subprocess.run(['git', '-C', tmp, 'add', '-A'], check=True)
+        subprocess.run(['git', '-C', tmp, '-c', 'user.email=t@example.com', '-c', 'user.name=T', 'commit', '-q', '-m', 'base'],
+                       check=True)
+        import train_git
+        import train_ownership
+        return train_ownership.UnitOwnership(train_git.GitWorkspace(Path(tmp)))
+
+    def lane_errors(self, changed):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.lane_fixture(tmp)
+            return commit_check.lane_errors(Path(tmp), 'HEAD', changed)
+
+    def test_a_change_across_lanes_is_refused_with_the_units_listed(self):
+        errors = self.lane_errors(['scripts/engine/a.py', 'apps/admin/r.ts'])
+        self.assertEqual(len(errors), 1)
+        self.assertIn('lane undecidable', errors[0])
+        self.assertIn('admin (lane-b), engine (lane-a)', errors[0])
+
+    def test_one_lane_or_no_unit_is_decidable(self):
+        self.assertEqual(self.lane_errors(['scripts/engine/a.py', 'scripts/engine/b.py']), [])
+        self.assertEqual(self.lane_errors(['docs/free.md']), [])
+
+    def test_lane_own_a_shared_path_alone_leaves_the_lane_decidable(self):
+        self.assertEqual(self.lane_errors(['apps/admin/r.ts', 'scripts/census/admin.json']), [])
+        self.assertEqual(self.lane_errors(['scripts/engine/a.py', 'apps/tsconfig.json']), [])
+
+    def test_lane_own_a_shared_path_with_a_real_second_lane_is_still_refused(self):
+        errors = self.lane_errors(['scripts/engine/a.py', 'apps/admin/r.ts', 'scripts/census/admin.json'])
+        self.assertEqual(len(errors), 1)
+        self.assertIn('admin (lane-b), engine (lane-a)', errors[0])
+
+    def test_lane_own_a_change_of_only_shared_paths_has_no_lane(self):
+        changed = ['scripts/census/admin.json', 'apps/tsconfig.json']
+        self.assertEqual(self.lane_errors(changed), [])
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(self.lane_fixture(tmp).lane_of('HEAD', changed))
+
+    def test_lane_own_a_shared_path_names_its_owner_and_never_refuses(self):
+        """Sharing removes the ambiguity and the wait, never the owner (SHARED-NEEDS-NO-OWNER): owner_of() and units()
+        still name lane-a's unit for its shared path, and refusals() never asks lane-a to approve it."""
+        changed = ['apps/admin/r.ts', 'scripts/census/admin.json']
+        with tempfile.TemporaryDirectory() as tmp:
+            ownership = self.lane_fixture(tmp)
+            self.assertEqual(ownership.lane_of('HEAD', changed), 'lane-b')
+            self.assertEqual(ownership.owner_of('HEAD', 'scripts/census/admin.json'), ('engine', 'lane-a'))
+            self.assertEqual(sorted(ownership.units('HEAD', changed)), ['admin', 'engine'])
+            self.assertEqual(ownership.refusals('HEAD', changed, 'lane-b', lambda: self.fail('nobody is asked')), [])
+            self.assertEqual(ownership.refusals('HEAD', ['scripts/engine/a.py', 'scripts/census/a.json'], 'lane-a', list), [])
+            self.assertEqual(ownership.refusals('HEAD', ['scripts/engine/a.py', 'scripts/census/a.json'], 'lane-b', list),
+                             [{'unit': 'engine', 'owner': 'lane-a', 'files': ['scripts/engine/a.py']}])
+
+    def test_lane_own_lane_of_and_lane_errors_agree(self):
+        """A change lane_of names a lane for is never refused, and a refused change has no lane (train_ownership)."""
+        cases = {('scripts/engine/a.py',): 'lane-a', ('docs/free.md',): None,
+                 ('apps/admin/r.ts', 'scripts/census/admin.json'): 'lane-b', ('scripts/census/admin.json',): None,
+                 ('scripts/engine/a.py', 'apps/tsconfig.json'): 'lane-a',
+                 ('scripts/engine/a.py', 'apps/admin/r.ts'): None,
+                 ('scripts/engine/a.py', 'apps/admin/r.ts', 'apps/tsconfig.json'): None}
+        refused = {('scripts/engine/a.py', 'apps/admin/r.ts'), ('scripts/engine/a.py', 'apps/admin/r.ts', 'apps/tsconfig.json')}
+        with tempfile.TemporaryDirectory() as tmp:
+            ownership = self.lane_fixture(tmp)
+            for changed, lane in cases.items():
+                self.assertEqual(ownership.lane_of('HEAD', list(changed)), lane, changed)
+                self.assertEqual(bool(commit_check.lane_errors(Path(tmp), 'HEAD', list(changed))), changed in refused, changed)
+
+    def test_d322_pr_errors_judge_the_discipline_the_plan_and_the_lanes_of_the_read_pr(self):
+        """What the structure check judged of a read PR before D-322 is commit-check's pr_errors, its locks unchanged."""
+        pr = {'body': self.BODY, 'draft': False, 'files': ['a.py'],
+              'commits': [dict(commit('a', 'a', ['a.py']), message='a\n\nPlan: 1')]}
+        with mock.patch.object(commit_check, 'regime', None), tempfile.TemporaryDirectory() as tmp:
+            errors, warnings = commit_check.pr_errors(pr, Path(tmp))
+            self.assertIn('item(s) 2, 3 not ticked', ' '.join(errors))
+            self.assertEqual(warnings, [])
+            errors, warnings = commit_check.pr_errors(dict(pr, draft=True), Path(tmp))
+            self.assertNotIn('not ticked', ' '.join(errors))
+            self.assertIn('D-083', ' '.join(warnings))
+        lifting = type('Regime', (), {'lifted': staticmethod(lambda lock: lock == 'structure')})()
+        with mock.patch.object(commit_check, 'regime', lifting), contextlib.redirect_stderr(io.StringIO()):
+            self.assertNotIn('not ticked', ' '.join(commit_check.pr_errors(pr, Path(tmp))[0]))
+
+    def test_d322_the_pr_body_file_is_refused_without_a_plan_and_judged_against_its_base(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(['git', '-C', tmp, 'init', '-q', '-b', 'main'], check=True)
+            git = ['git', '-C', tmp, '-c', 'user.email=t@example.com', '-c', 'user.name=T', 'commit', '-q', '--allow-empty']
+            subprocess.run([*git, '-m', 'base'], check=True)
+            subprocess.run(['git', '-C', tmp, 'branch', 'base'], check=True)
+            (root / 'a.py').write_text('a\n')
+            subprocess.run(['git', '-C', tmp, 'add', 'a.py'], check=True)
+            subprocess.run([*git, '-m', 'a\n\nPlan: 1'], check=True)
+            body = root / 'body.md'
+            body.write_text('Summary.\n')
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(commit_check.main(['--pr-body', str(body), '--root', tmp]), 1)
+            self.assertIn('FAIL plan: the PR body needs a D-022 commit plan checklist', out.getvalue())
+            body.write_text(self.BODY)
+            with mock.patch.object(commit_check, 'regime', None):
+                self.assertEqual(commit_check.body_errors(self.BODY, root), ([], []))  # no base: the plan alone
+                errors, _ = commit_check.body_errors(self.BODY, root, 'base')
+            self.assertEqual(len(errors), 1)
+            self.assertIn('item(s) 2, 3 not ticked', errors[0])
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=1)
 

@@ -15,6 +15,10 @@ commit S (structure-check passes its checkout's HEAD), and refuses:
   decision   a PR comment waits on an owner decision and no later comment records a "Decision:" line
              (DECIDE, THEN REPORT, Daniel 2026-10-26 21:29; scripts/lib/decision_wait.py). Only comments created up to
              the gated head's push are judged (GX-14): a comment during the gate does not change its verdict.
+  plan-done  (--pr) a plan item no real commit ticks (GX-21; a draft's is a warning, D-083: plan_verdict);
+  lane       (--pr) the change touches the units of several lanes (GX-21, LANE-OWN: lane_errors).
+plan-done and lane left the structure check (planning) for this check (delivery): D-322. --pr-body FILE judges a body
+file's plan, and with --base the plan completeness against base..HEAD and the lanes of base...HEAD.
 --fixture FILE checks the same shape from JSON (tests, no network). Exit 1 on a refusal.
 --local runs the fast registry-driven local checks (scripts/lib/local_checks.py, LR1): one push per commit, the gate cites a
 decision, a diff secret scan, no registered literal, the cheap structure checks. --body-file gives the PR body, --stdin-refs
@@ -35,8 +39,11 @@ try:
 except ImportError:
     regime = None
 
+import plan_tick
+# The PR reading lives under planning and delivery both (forge_pr, the events layer, D-322); re-exported for its callers.
+from forge_pr import REPO, fetch, gated_commits, git, local_commits, local_files  # noqa: F401
+
 ROOT = Path(__file__).resolve().parents[2]
-REPO = config.get('forge-events.repo')  # the forge's slug for this repository (ORIGIN-FINISH: Origin's)
 PLAN_ITEM = re.compile(r'^\s*[-*] \[[ xX]\] \d+\.\s+\S', re.M)
 PLAN_MIN, PLAN_MAX = config.get('budgets.pr_commits_min'), config.get('budgets.pr_commits_max')
 FIXUP_PREFIX = re.compile(r'^(fixup|squash|amend)! ')
@@ -207,154 +214,123 @@ def check(pr, known):
             + decision_wait.errors(decision_wait.before(pr.get('comments', []), gated_push_time(pr)), pr.get('number')))
 
 
-def git(root, *args):
-    """stdout of a git command in root, else None (no checkout, unknown commit, shallow history)."""
-    if root is None:
-        return None
-    done = subprocess.run(['git', '-C', str(root), *args], capture_output=True, text=True)
-    return done.stdout if done.returncode == 0 else None
+def plan_completeness_errors(body, commits):
+    """GX-21: errors naming the plan items of the body that no real commit ticks. commits: [{message, files}]. A body
+    without items is plan_errors' to refuse; an empty commit ticks nothing (plan_tick.ticked_by_commits)."""
+    missing = plan_tick.unticked(body, commits)
+    if not missing:
+        return []
+    numbers = ', '.join(str(number) for number in missing)
+    return [f'plan: item(s) {numbers} not ticked by a commit that changes a file (an empty commit ticks nothing); fix: edit the '
+            f'PR body so the plan lists what the commits deliver, or add a REAL commit with the "Plan: N" trailer, never an empty one']
 
 
-def local_files(root, shas):
-    """{sha: files changed against its first parent} for every sha from one git log, else None."""
-    if not shas:
-        return {}
-    out = git(root, 'log', '--no-walk=unsorted', '--diff-merges=first-parent', '--name-only', '--format=%x00%H', *shas)
-    if out is None:
-        return None
-    files = {}
-    for record in out.split('\0')[1:]:
-        sha, _, names = record.partition('\n')
-        files[sha.strip()] = [name for name in names.splitlines() if name.strip()]
-    return files if set(shas) <= set(files) else None
+def plan_verdict(body, commits, draft):
+    """D-083: (errors, warnings) of the plan completeness of a PR head. A draft's head is judged on what its commits
+    delivered: an item not yet ticked is a warning, so a serial PR can be green on every commit while its plan is still a
+    plan; a PR marked ready is refused as GX-21 says. pr.ready waits for every item either way (pr_ready, D-065 V4)."""
+    missing = plan_completeness_errors(body, commits)
+    if not draft:
+        return missing, []
+    return [], [f'{line} [draft PR: refused once it is marked ready; pr.ready waits for every item (D-083)]'
+                for line in missing]
 
 
-def gated_commits(page, gated):
-    """PLAN-COMMIT-ORDER: the commits of the PR's page the gated sha reaches through its parents, oldest first, whatever
-    the page's order. Origin lists a PR's commits newest first, and the page cut at the gated sha's index (an oldest-first
-    reading) kept the gated commit alone: a head that is the live service's merge of the base (#678, #690) had its own
-    commits out of the plan's count ('item 1 not ticked'), and so had every earlier commit of a PR of several."""
-    by = {item['sha']: item for item in page}
-    reached, todo = set(), [gated]
-    while todo:
-        sha = todo.pop()
-        if sha in by and sha not in reached:
-            reached.add(sha)
-            todo.extend(by[sha].get('parents') or [])
-    ordered, placed = [], set()
-
-    def place(sha):  # parents first: oldest first, as local_commits answers
-        stack = [(sha, False)]
-        while stack:
-            current, ready = stack.pop()
-            if current in placed or current not in reached:
-                continue
-            if ready:
-                placed.add(current)
-                ordered.append(current)
-                continue
-            stack.append((current, True))
-            stack.extend((parent, False) for parent in reversed(by[current].get('parents') or []))
-    for item in reversed(page) if page and page[0]['sha'] == gated else page:
-        place(item['sha'])
-    return [{'sha': sha, 'message': by[sha]['message'], 'parents': list(by[sha].get('parents', []))} for sha in ordered]
+def lane_errors(root, merge_base, files):
+    """GX-21: errors when the files touch the units of several lanes (the lane is undecidable and the train would refuse
+    it), listing each unit with its lane. A change touching no unit, or only shared paths, has no lane and is fine; the
+    rule is train_ownership's lanes(), the one lane_of() reads (LANE-OWN)."""
+    import train_git  # not at import: the pre-push path never judges lanes
+    import train_ownership
+    touched = train_ownership.UnitOwnership(train_git.GitWorkspace(root)).lanes(merge_base, files, 'HEAD')  # D-112
+    if len(set(touched.values())) <= 1:
+        return []
+    listed = ', '.join(f'{unit} ({lane})' for unit, lane in sorted(touched.items()))
+    return [f'lane undecidable: the change touches units of several lanes: {listed}; split it into one PR per lane']
 
 
-def local_commits(root, merge_base, sha):
-    """The commits of merge_base..sha, oldest first, with message and parents, when the gated sha is not on the page."""
-    out = git(root, 'log', '--reverse', '--topo-order', '--format=%x00%H%x01%P%x01%B', f'{merge_base}..{sha}') if merge_base else None
-    if out is None:
-        return None
-    commits = []
-    for record in out.split('\0')[1:]:
-        head, _, rest = record.partition('\x01')
-        parents, _, message = rest.partition('\x01')
-        commits.append({'sha': head.strip(), 'message': message.strip('\n'), 'parents': parents.split()})
-    return commits
+def pr_errors(pr, root):
+    """(errors, warnings) of a PR as the gate's `pr metadata` stage judges its commits (D-322: these left the structure
+    check, a lower layer): the discipline of check(), the plan completeness of plan_verdict() and the lanes of
+    lane_errors() on the merge base. The plan and lane refusals stay under the `structure` lock they were born in."""
+    errors = check(pr, decisions(root))
+    plan, warnings = plan_verdict(pr.get('body', ''), pr.get('commits', []), pr.get('draft', False))
+    merge_base = (pr.get('base') or {}).get('merge_base')
+    lanes = lane_errors(root, merge_base, pr.get('files') or []) if merge_base else []
+    return errors + lift(plan + lanes, 'structure'), warnings
 
 
-def fetch(number, sha=None, root=None, head=None, observation=None):
-    """The PR's body, commits (with files), changed files, branch pushes, force pushes, comments and the head's standing
-    against its base through the forge port, judged on the gated sha (GX-14): sha, else the live head. A push while the gate
-    runs does not move what it judges. Commit and PR file names come from the local checkout (root) when it holds the
-    gated sha, so a PR costs six calls whatever its size; without it they fall back to one forge call per commit.
-    head is a checkout's HEAD (structure-check in the gate's checkout): it is the gated sha when it is a PR commit."""
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import forge_events
-    # PR-OBSERVATION: with an observation, what the live service read with the forge's key; else the forge, live
-    adapter = forge_events.adapter_of_observation(observation) if observation else forge_events.adapter_from_config()
-    port = forge_events.ForgeEvents(adapter, forge_events.clock_from_config(),
-                                    'commit-check', f'pr-{number}', consumer='scripts/lib/commit_check.py')
-    from concurrent.futures import ThreadPoolExecutor
-    # Independent reads belong to the same gated snapshot, but need not pay six network round trips in series.
-    with ThreadPoolExecutor() as reads:
-        pending_pull = reads.submit(lambda: port.pull(REPO, number))
-        pending_page = reads.submit(lambda: port.change_commits(REPO, number))
-        pending_comments = reads.submit(lambda: port.comments(REPO, number))
-        pull = pending_pull.result()
-        pending_pushes = reads.submit(lambda: port.pushes(REPO, pull['head_ref']))
-        pending_forced = reads.submit(lambda: port.force_pushes(REPO, pull['head_ref']))
-        page = pending_page.result()
-        live = pull['head_sha']
-        shas = [item['sha'] for item in page]
-        gated = sha or (head if head in shas else live)
-        base = pull['base_ref']
-        pending_compare = reads.submit(lambda: port.compare(REPO, base, gated))
-        compare = pending_compare.result()
-        pushes, forced, comments = pending_pushes.result(), pending_forced.result(), pending_comments.result()
-    merge_base = compare['merge_base']
-    if gated in shas:
-        commits = gated_commits(page, gated)
-    else:
-        commits = local_commits(root, merge_base, gated)
-        if commits is None:
-            raise RuntimeError(f'gated sha {gated} is neither on the PR commits page nor in the checkout {root}')
-    names = local_files(root, [commit['sha'] for commit in commits])
-    for commit in commits:
-        if names is not None:
-            commit['files'] = names[commit['sha']]
-        else:
-            commit['files'] = [entry['filename'] for entry in port.commit_files(REPO, commit['sha'])]
-    diff = git(root, 'diff', '--name-only', merge_base, gated) if merge_base and merge_base != gated else None
-    if diff is not None:
-        files = sorted(name for name in diff.splitlines() if name.strip())
-    else:  # no local tree, or a head the base already contains (a merged PR): the PR's own file list
-        files = [entry['filename'] for entry in port.change_files(REPO, number)]
-    return {'number': number, 'body': pull.get('body') or '', 'branch': pull['head_ref'], 'commits': commits,
-            'created_at': pull.get('created_at'), 'draft': bool(pull.get('draft')),  # D-083: plan completeness when ready
-            'files': files, 'comments': [{'body': item['body'], 'created_at': item['created_at']}
-                                       for item in comments], 'gated': {'sha': gated, 'live': live},
-            'pushes': [{'before': p.get('before'), 'after': p.get('after'), 'timestamp': p.get('timestamp')} for p in pushes],
-            'force_pushes': [{'before': p.get('before'), 'after': p.get('after'), 'timestamp': p.get('timestamp')} for p in forced],
-            'base': {'ref': base, 'behind_by': compare.get('behind_by'), 'merge_base': merge_base}}
+def body_errors(body, root, base=None):
+    """(errors, warnings) of a PR body file as `--pr-body` judges it: its commit plan (plan_errors), and with a base the
+    plan completeness against the commits of base..HEAD and the lanes of base...HEAD (GX-21), which the structure check
+    judged before D-322."""
+    errors, warnings = list(plan_errors(body)), []
+    if not base:
+        return errors, warnings
+    try:
+        errors += lift(plan_completeness_errors(body, plan_tick.commits_with_files(base, root)), 'structure')
+        merge_base = git(root, 'merge-base', base, 'HEAD')
+        if merge_base:
+            changed = (git(root, 'diff', '--name-only', f'{base}...HEAD') or '').split()
+            errors += lift(lane_errors(root, merge_base.strip(), changed), 'structure')
+    except subprocess.CalledProcessError as error:
+        warnings.append(f'plan: commits of {base}..HEAD not readable ({error.stderr.strip()})')
+    return errors, warnings
+
+
+def checkout_head(root):
+    """This checkout's HEAD, else None: the gated sha when it is a commit of the PR (GX-14, the gate's checkout)."""
+    head = (git(root, 'rev-parse', 'HEAD') or '').strip()
+    return head or None
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='scripts/commit-check', description=__doc__.splitlines()[0])
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument('--local', action='store_true', help='the fast local checks of local-checks.checks (no network)')
-    source.add_argument('--pr', type=int, help='PR number, read through the forge port')
-    parser.add_argument('--sha', help='--pr: the gated commit to judge (default: the live PR head)')
+    source.add_argument('--pr', type=int, help='PR number, read through the forge port, judged on the checkout\'s HEAD '
+                        'when it is a PR commit (the gated sha), else the live head')
+    parser.add_argument('--sha', help='--pr: the gated commit to judge instead')
     source.add_argument('--fixture', type=Path, help='JSON with body, commits, files, pushes, force_pushes, base and comments (tests)')
+    source.add_argument('--pr-body', type=Path, help='a PR body file: its commit plan; with --base, the plan completeness '
+                        'and the lanes of base...HEAD (GX-21)')
+    parser.add_argument('--base', help='--pr-body: the base whose commits tick the plan and whose diff names the lanes; '
+                        '--pr: accepted and unused (the PR names its base)')
+    parser.add_argument('--observation', type=Path,
+                        help='--pr: judge what the live service read of the PR (PR-OBSERVATION), not the forge')
     parser.add_argument('--root', type=Path, default=ROOT, help='checkout whose DECISIONS.md is cited (--local: the checkout checked)')
     parser.add_argument('--body-file', type=Path, help='--local: file with the PR body')
     parser.add_argument('--stdin-refs', action='store_true', help='--local: read the pre-push lines from stdin')
     parser.add_argument('--only', metavar='NAME', help='--local: run only the local check of that id (D-236)')
     args = parser.parse_args(argv)
+    root = args.root.resolve()
     if args.local:
         import local_checks  # not at import: local_checks reaches structure, which imports this module
-        return local_checks.main(args.root.resolve(), args.body_file, args.stdin_refs, only=args.only)
+        return local_checks.main(root, args.body_file, args.stdin_refs, only=args.only)
+    if args.pr_body:
+        errors, warnings = body_errors(args.pr_body.read_text(), root, args.base)
+        for line in errors:
+            print('FAIL ' + line)
+        for line in warnings:
+            print('WARN ' + line)
+        print(f'commit-check (body): {len(errors)} refusal(s)')
+        return 1 if errors else 0
     try:
-        pr = json.loads(args.fixture.read_text()) if args.fixture else fetch(args.pr, args.sha, args.root.resolve())
-    except RuntimeError as error:
-        print(f'FAIL commit-check: {error}')
+        if args.fixture:
+            pr = json.loads(args.fixture.read_text())
+        else:
+            observed = json.loads(args.observation.read_text()) if args.observation else None
+            pr = fetch(args.pr, args.sha, root, head=checkout_head(root), observation=observed)  # PR-OBSERVATION
+    except (RuntimeError, OSError, KeyError) as error:  # any forge read error: blind, never liftable (GC)
+        print(f'FAIL commit-check: PR #{args.pr} not readable ({error})')
         return 1
-    errors = check(pr, decisions(args.root.resolve()))
+    errors, warnings = pr_errors(pr, root) if not args.fixture else (check(pr, decisions(root)), [])
     for line in errors:
         print('FAIL ' + line)
+    for line in warnings:
+        print('WARN ' + line)
     print(f'commit-check: {len(pr.get("commits", []))} commit(s); {len(errors)} refusal(s)')
     return 1 if errors else 0
-
 
 if __name__ == '__main__':
     sys.exit(main())

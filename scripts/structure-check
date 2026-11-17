@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Usage: scripts/structure-check [--root DIR] [--today YYYY-MM-DD] [--base REF] [--pr-body FILE] [--pr N] [--metadata [--no-publish]] [--verbose]
 # Machine half of the structure rites (docs/process/STRUCTURE.md A4, A5, B5, C4, C5): capability files,
-# the decision register, relative doc links, the PR fit-review trailers and commit plan, the D-008 size warning,
-# and with --pr the D-025 commit-check of that PR (scripts/commit-check). --metadata runs only the PR-metadata part and
+# the decision register, relative doc links, the PR fit-review trailers and premises line, the D-008 size warning, and
+# with --pr that PR's body and files (the commit plan and discipline are commit-check's, D-322). --metadata runs only the PR-metadata part and
 # publishes pr.checked v1 (GX-15); the tree part is cached by content (structure.tree_cache_enabled).
 # Exit 1 on an error; warnings never fail. Runs in the local gate as the "structure check" and "pr metadata" stages.
 # VAZÃO F79: a run by hand prints the summary line on green (the warnings stay in the full log, its path printed) and

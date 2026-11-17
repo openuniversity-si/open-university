@@ -21,37 +21,15 @@ require their unit (unit manifests' `requires`), then by the oldest pr.ready, th
 is built in that order, so its prefixes, the proven prefix that merges on a refusal and the bisection follow the
 critical path. Which PRs enter a batch stays FIFO (the train takes the queue's first train.batch_size).
 """
-from collections import namedtuple
 from datetime import datetime, timezone
 import re
 
 import forge_events
 
-Entry = namedtuple('Entry', 'pr sha unit premises lane_id ready_at evidence')
-OUT_OF_QUEUE = ('pr.conflicted', 'pr.ejected', 'pr.merged', 'pr.refused')
+# The queue predicate and its entry live with the log they read (forge_events, D-322); re-exported for the train.
+Entry, OUT_OF_QUEUE, queue_entry = forge_events.QueueEntry, forge_events.OUT_OF_QUEUE, forge_events.queue_entry
 GATES = ('gate.passed', 'gate.failed')
 REVERDICT = 'r-'  # batch_id prefix of the pr.ejected of the train's own red re-verdict (train_verdict.judge_again)
-
-
-def queue_entry(events, head):
-    """The PR's queue entry from its own log and current head, or None when it is not waiting for the train."""
-    ready = [event for event in events if event['type'] == 'pr.ready']
-    if not ready:
-        return None
-    latest = ready[-1]
-    sha = latest['payload']['sha']
-    if sha != head:
-        return None  # pushed after pr.ready: it leaves the queue until a new pr.ready (pr.pushed)
-    if any(event['type'] in OUT_OF_QUEUE and event['payload']['sha'] == sha for event in events):
-        return None
-    evidence = latest['payload']['evidence']
-    if not any(event['type'] == 'gate.passed' and event['event_id'] == evidence and event['payload']['sha'] == sha
-               for event in events):
-        return None  # pr.ready must rest on a passed gate of this exact head on the same log
-    payload = latest['payload']
-    return Entry(payload['pr'], sha, payload['unit'], tuple(payload['premises']), payload['lane_id'],
-                 latest['occurred_at'], evidence)
-
 
 PREMISES = re.compile(r'^Premises:[ \t]*(.*)$', re.MULTILINE)
 

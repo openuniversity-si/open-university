@@ -297,7 +297,6 @@
       "consumers": [
         "scripts/lib/battery.py",
         "scripts/lib/budgets.py",
-        "scripts/lib/commit_check.py",
         "scripts/lib/config.py",
         "scripts/lib/coordinator_launch.py",
         "scripts/lib/decision_next.py",
@@ -307,6 +306,7 @@
         "scripts/lib/flow_metrics.py",
         "scripts/lib/forge_events.py",
         "scripts/lib/forge_origin.py",
+        "scripts/lib/forge_pr.py",
         "scripts/lib/gate_bypass.py",
         "scripts/lib/gate_carry.py",
         "scripts/lib/gate_explain.py",

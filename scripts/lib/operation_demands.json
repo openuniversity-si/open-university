@@ -75,7 +75,7 @@
       "change",
       "comments"
     ],
-    "scripts/lib/commit_check.py": [
+    "scripts/lib/forge_pr.py": [
       "comments",
       "pushes",
       "pull",

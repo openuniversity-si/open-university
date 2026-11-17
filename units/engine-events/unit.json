@@ -19,6 +19,7 @@
     "scripts/lib/forge_board.py",
     "scripts/lib/forge_control.py",
     "scripts/lib/forge_events.py",
+    "scripts/lib/forge_pr.py",
     "scripts/lib/forge_requirements.py",
     "scripts/lib/gate_digest.py",
     "scripts/lib/gate_verdicts.py",

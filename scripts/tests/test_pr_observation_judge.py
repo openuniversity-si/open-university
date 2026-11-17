@@ -39,7 +39,7 @@ class TheObservedAdapter(unittest.TestCase):
     def test_the_port_maps_the_observation_as_it_maps_origins_live_answers_and_refuses_what_it_does_not_hold(self):
         seen = observation('a' * 40, 'b' * 40, forced=True)
         port = forge_events.ForgeEvents(forge_events.adapter_of_observation(seen), forge_events.clock_from_config(),
-                                        'commit-check', 'pr-7', consumer='scripts/lib/commit_check.py')
+                                        'commit-check', 'pr-7', consumer='scripts/lib/forge_pr.py')
         self.assertEqual(port.pull(REPO, 7)['head_ref'], 'units/x')
         self.assertEqual(port.change_commits(REPO, 7), [{'sha': 'a' * 40, 'parents': ['b' * 40],
                                                          'message': 'unit: a change\n\nPlan: 1'}])
@@ -50,7 +50,7 @@ class TheObservedAdapter(unittest.TestCase):
         self.assertEqual(port.change_files(REPO, 7), [{'filename': 'b.txt'}])  # OBSERVATION-FILES: a merged PR's own list
         older = forge_events.ForgeEvents(forge_events.adapter_of_observation({k: v for k, v in seen.items() if k != 'files'}),
                                          forge_events.clock_from_config(), 'commit-check', 'pr-7',
-                                         consumer='scripts/lib/commit_check.py')
+                                         consumer='scripts/lib/forge_pr.py')
         for refused in (lambda: port.pull(REPO, 8), lambda: port.compare(REPO, 'mod/base', 'c' * 40),
                         lambda: older.change_files(REPO, 7), lambda: port.pushes(REPO, 'units/y')):
             with self.assertRaises(Exception):
@@ -106,7 +106,7 @@ class TheGatesAsk(unittest.TestCase):
         ok, _ = gate_infra.metadata_of(7, 'base', run=run, sleep=lambda _: None, port=port, head='a' * 40)
         self.assertTrue(ok)
         self.assertEqual(port.calls[0], ('POST', '/v1/pr-observation', {'pr': 7, 'head': 'a' * 40}))
-        self.assertEqual(run.observations, [seen, seen])  # D-322: structure-check and measurement_checks.py body
+        self.assertEqual(run.observations, [seen, seen, seen])  # D-322: structure-check, commit-check and measurement body
 
     def test_a_port_without_the_route_leaves_the_lanes_read_and_a_failed_read_is_a_forge_that_did_not_answer(self):
         run = Run()

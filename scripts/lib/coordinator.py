@@ -27,8 +27,8 @@ from pathlib import Path
 import sys
 
 import config
+import forge_events  # the queue predicate (queue_entry) lives with the log, below the train (D-322)
 import program as programs
-import train
 
 ROOT = programs.ROOT
 HOLD_ALL = 'all'  # the key of `holds` that holds every launch (design 4: LAUNCH-HOLD maps to a hold all)
@@ -122,7 +122,7 @@ def next(state, events, limit):
         elif row['stage'] == 'ready' and row['pr'] is not None:
             log = pr_events(events, row['pr'])
             heads = [event['payload']['sha'] for event in log if event['payload'].get('sha')]
-            entry = train.queue_entry(log, heads[-1]) if heads else None
+            entry = forge_events.queue_entry(log, heads[-1]) if heads else None
             if entry is not None:
                 found['enqueue'].append({'pr': entry.pr, 'sha': entry.sha, 'unit': unit['id']})
         elif row['stage'] in ('pending', 'failed') and row['blocked_by'] and spent & set(row['blocked_by']):

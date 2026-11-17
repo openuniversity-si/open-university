@@ -17,7 +17,6 @@ import fnmatch
 import re
 import subprocess
 
-import commit_check
 import config
 import forge_events
 import units
@@ -25,6 +24,7 @@ import units
 PATTERNS = 'config.monotonic_patterns'
 PRODUCER = 'structure-check'
 REASON = 'registry default edited in the PR, not through scripts/config set'
+DECISION = re.compile(r'\bD-\d{3}\b')
 LOOSENS = re.compile(r'^\s*Loosens:\s*([a-z][a-z0-9-]*\.[a-z][a-z0-9_]*)\b(.*)$', re.M)
 
 
@@ -64,7 +64,7 @@ def cited(text, known):
     """{name: decisions} of the `Loosens: <name> D-NNN` lines of a text, keeping only recorded decisions."""
     out = {}
     for match in LOOSENS.finditer(text or ''):
-        decisions = set(commit_check.DECISION.findall(match.group(2))) & known
+        decisions = set(DECISION.findall(match.group(2))) & known
         if decisions:
             out.setdefault(match.group(1), set()).update(decisions)
     return out
@@ -79,7 +79,7 @@ def messages(root, base):
 def check(root, base, body='', notes=()):
     if not base or not (root / 'config' / 'registry' / 'config.json').is_file():
         return []
-    known = commit_check.decisions(root)
+    known = units.decisions(root)  # the decision register (units, planning; D-322: not commit_check, delivery)
     in_body = cited(body, known)
     in_commits = {}
     for note in notes:

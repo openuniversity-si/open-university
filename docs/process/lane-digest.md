@@ -3,7 +3,7 @@
 1. `scripts/lane worktree <Fxx> --session <session>` in ~/the-tower (.toolchain; base mod/roadmap-integration not main; not PR #3, #41).
 2. Read only the row's files, by range (`rg -n`/`sed -n`); ~15k tokens a call: batch, `| tail -20`.
 3. Each commit green, pushed; no rebase/force. Trailers `Plan: N`, `Co-Authored-By: <model> <noreply@anthropic.com>`, `Claude-Session: <session>`.
-4. `export CLAUDE_SESSION_URL=<session>`; `scripts/pr-body --title --action --cost --requirement --cheaper` (all required, else refused); `scripts/structure-check --pr-body <file>`: checklist; `## Cheapest useful effort` (Action:, Cost:, Requirement: effort.owners/engine-lane, Cheaper rejected:); `Premises: P-NN|none`; D-NNN on gate change; `Fit-Review:` from pr-body.
+4. `export CLAUDE_SESSION_URL=<session>`; `scripts/pr-body --title --action --cost --requirement --cheaper` (all required, else refused); `scripts/commit-check --pr-body <file>`: checklist; `## Cheapest useful effort` (Action:, Cost:, Requirement: effort.owners/engine-lane, Cheaper rejected:); `Premises: P-NN|none`; D-NNN on gate change; `Fit-Review:` from pr-body.
 5. Title `<Fxx>: ...`; no `pr create`: `deliver --open` opens it.
 6. `scripts/test-suite --changed` once pre-deliver; iterate `scripts/run test <name>`.
 7. `scripts/deliver --open --branch units/<fxx> > ../<fxx>.log 2>&1` via `run_in_background` (never `&`), await exit. Red: fix by class, rerun; base red: friction+report.

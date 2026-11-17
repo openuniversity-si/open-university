@@ -9,6 +9,7 @@ check(root, base, body, files, branch) returns (errors, warnings) for one PR:
              structure.markup_line_pattern, so a logic-only change passes. Test paths (structure.test_file_pattern) never count.
 Without a PR (no changed files) nothing is judged.
 """
+import json
 from pathlib import Path
 import re
 import subprocess
@@ -44,21 +45,45 @@ def _diff_lines(root, base, path):
             if line[:1] in '+-' and not line.startswith(('+++', '---'))]
 
 
+def _git(root, *args):
+    done = subprocess.run(['git', '-C', str(root), *args], capture_output=True, text=True)
+    return done.stdout if done.returncode == 0 else ''
+
+
+def _manifests_at(root, commit):
+    """[(path, manifest)] of the unit manifests in the commit's tree, by path order (units.manifest_dir, manifest_file)."""
+    pattern = f'{units.setting("manifest_dir", root)}/*/{units.setting("manifest_file", root)}'
+    paths = sorted(path for path in _git(root, 'ls-tree', '-r', '--name-only', commit).splitlines()
+                   if units.match(pattern, path))
+    found = []
+    for path in paths:
+        try:
+            found.append((path, json.loads(_git(root, 'show', f'{commit}:{path}'))))
+        except ValueError:
+            continue
+    return found
+
+
 def _retired(root, base, files):
     """D-112: the changed files gone from the head whose unit at the base the change retires (its manifest is gone too):
-    removing a retired product renders nothing, so it is no visual edit."""
+    removing a retired product renders nothing, so it is no visual edit. The units at the merge base are read from its
+    tree with the units' own globs (D-322: no train module, a higher layer)."""
     gone = [path for path in files if not (Path(root) / path).exists()]
     if not base or not gone:
         return set()
-    import train_git
-    import train_ownership
-    workspace = train_git.GitWorkspace(root)
-    merge_base = workspace.git('merge-base', base, 'HEAD', check=False).stdout.strip()
+    merge_base = _git(root, 'merge-base', base, 'HEAD').strip()
     if not merge_base:
         return set()
-    ownership = train_ownership.UnitOwnership(workspace)
-    retired = ownership.retired(merge_base, files, 'HEAD')
-    return {path for path in gone if ownership.owner_of(merge_base, path)[0] in retired}
+    manifests = _manifests_at(root, merge_base)
+    at_head = set(_git(root, 'ls-tree', '-r', '--name-only', 'HEAD').splitlines())
+    retired = {manifest.get('id') for path, manifest in manifests if path in set(files) and path not in at_head}
+
+    def owner(path):
+        for _, manifest in manifests:
+            if any(units.match(glob, path) for glob in manifest.get('paths', [])):
+                return manifest.get('id')
+        return None
+    return {path for path in gone if owner(path) in retired - {None}}
 
 
 def visual_files(root, base, files):
