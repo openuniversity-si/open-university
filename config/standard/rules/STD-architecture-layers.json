@@ -1,0 +1,17 @@
+{
+  "id": "STD-architecture-layers",
+  "statement": "An architecture element depends only on its own layer or a lower one (config and events, then planning, knowledge and environment, then the gate, delivery, deploy and the site, then measurement and the model); a dependency that goes up is a defect to break, never accepted by declaring it.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "ARC"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/model.py:layer_errors"
+  },
+  "basis": [
+    "D-322"
+  ],
+  "note": "PADRAO-DEV F8c: the rule that decided the 29 reflexion divergences of 17/11 (12 accepted, 17 to break)."
+}
