@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-deliver-py-box-gate",
+  "site": "scripts/lib/deliver.py::box_gate",
+  "class": "dormant",
+  "reason": "The Origin-era box gate of scripts/deliver, not in the flow since D-314."
+}

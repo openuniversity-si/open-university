@@ -1,0 +1,7 @@
+{
+  "id": "POLL-scripts-lib-gate-isolation-sh-ou-gate-heavy-db-run",
+  "site": "scripts/lib/gate-isolation.sh::ou_gate_heavy_db_run",
+  "class": "state-wait",
+  "reason": "Tries the heavy database lock on an interval until it is free (gate-local).",
+  "replace_with": "a blocking flock with a timeout"
+}

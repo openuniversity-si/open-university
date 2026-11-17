@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-deliver-py-fetch",
+  "site": "scripts/lib/deliver.py::fetch",
+  "class": "backoff",
+  "reason": "Retries a fetch that lost the ref-lock race, with a growing pause."
+}

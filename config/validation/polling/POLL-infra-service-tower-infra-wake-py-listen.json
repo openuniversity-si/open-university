@@ -1,0 +1,6 @@
+{
+  "id": "POLL-infra-service-tower-infra-wake-py-listen",
+  "site": "infra/service/tower_infra/wake.py::listen",
+  "class": "backoff",
+  "reason": "Listens to the hub again after its connection fails, with a doubling pause."
+}

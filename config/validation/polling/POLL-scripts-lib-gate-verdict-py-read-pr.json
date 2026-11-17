@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-gate-verdict-py-read-pr",
+  "site": "scripts/lib/gate_verdict.py::read_pr",
+  "class": "backoff",
+  "reason": "Retries reading a pull request's identity after a pin error."
+}

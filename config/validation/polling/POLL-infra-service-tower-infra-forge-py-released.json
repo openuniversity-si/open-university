@@ -1,0 +1,6 @@
+{
+  "id": "POLL-infra-service-tower-infra-forge-py-released",
+  "site": "infra/service/tower_infra/forge.py::released",
+  "class": "dormant",
+  "reason": "The AWS gate's forge service, stopped (AGENTS.md: the AWS gate, its runner, queue and webhook)."
+}

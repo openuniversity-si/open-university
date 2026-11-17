@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-gate-infra-py-observed",
+  "site": "scripts/lib/gate_infra.py::observed",
+  "class": "dormant",
+  "reason": "The AWS gate's observer, stopped (AGENTS.md); nothing outside gate_infra.py calls it."
+}

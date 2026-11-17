@@ -711,7 +711,7 @@ def measured(body, found, root, today):
         missed = sum(1 for state in states if state == 'not-met')
         return (missed, True) if missed or all(state == 'met' for state in states) else (missed, False)
     if measure['kind'] == 'code-scan':
-        return len(polling_sites(root, measure['paths'], measure.get('exclude', []))), True
+        return len(polling_left(root, measure['paths'], measure.get('exclude', []))), True
     return None, False
 
 
@@ -734,12 +734,17 @@ SHELL_CLOSE = re.compile(r'\b(done)\b')
 
 
 def _python_sleeps(text):
-    """Lines of a sleep call inside a loop, from the module's syntax tree."""
+    """[(line, function)] of a sleep call inside a loop, from the module's syntax tree; the function is the innermost
+    one that holds the call, '<module>' outside any."""
     import ast
     try:
         tree = ast.parse(text)
     except SyntaxError:
         return []
+    functions = [node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    def holder(line):
+        inside = [node for node in functions if node.lineno <= line <= node.end_lineno]
+        return min(inside, key=lambda node: node.end_lineno - node.lineno).name if inside else '<module>'
     lines = set()
     for loop in ast.walk(tree):
         if not isinstance(loop, (ast.While, ast.For)):
@@ -749,36 +754,64 @@ def _python_sleeps(text):
                 name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, 'id', '')
                 if name == 'sleep':
                     lines.add(node.lineno)
-    return sorted(lines)
+    return [(line, holder(line)) for line in sorted(lines)]
+
+
+SHELL_FUNCTION = re.compile(r'^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(\)\s*\{?')
 
 
 def _shell_sleeps(text):
-    """Lines of a sleep inside a do ... done loop (a line count of the loop keywords, not a parser)."""
-    depth, lines = 0, []
+    """[(line, function)] of a sleep inside a do ... done loop (a line count of the loop keywords, not a parser); the
+    function is the last `name()` opened above it, '<script>' before any."""
+    depth, found, current = 0, [], '<script>'
     for number, line in enumerate(text.splitlines(), 1):
         code = line.split('#', 1)[0]
+        named = SHELL_FUNCTION.match(code)
+        if named:
+            current = named.group(1)
         depth += len(SHELL_OPEN.findall(code))
         if depth > 0 and SHELL_SLEEP.search(code):
-            lines.append(number)
+            found.append((number, current))
         depth = max(0, depth - len(SHELL_CLOSE.findall(code)))
-    return lines
+    return found
 
 
-def polling_sites(root, paths, exclude):
-    """['path:line'] of every sleep inside a loop in the code under `paths` (globs), less `exclude`: the
+def polling_candidates(root, paths, exclude):
+    """[(path, function, line)] of every sleep inside a loop in the code under `paths` (globs), less `exclude`: the
     candidates for polling a state on an interval (REQ-events-no-polling)."""
     root = Path(root)
     skipped = {path for pattern in exclude for path in root.glob(pattern)}
-    sites = []
+    found = set()
     for pattern in paths:
         for path in sorted(root.glob(pattern)):
             if path in skipped or not path.is_file() or '__pycache__' in path.parts:
                 continue
             text = path.read_text(errors='replace')
-            found = _python_sleeps(text) if path.suffix == '.py' else _shell_sleeps(text) if (
+            sleeps = _python_sleeps(text) if path.suffix == '.py' else _shell_sleeps(text) if (
                 path.suffix == '.sh' or text.startswith('#!/usr/bin/env bash') or text.startswith('#!/bin/bash')) else []
-            sites += [f'{path.relative_to(root)}:{line}' for line in found]
-    return sorted(set(sites))
+            found |= {(path.relative_to(root).as_posix(), function, line) for line, function in sleeps}
+    return sorted(found)
+
+
+def polling_sites(root, paths, exclude):
+    """['path:line'] of every candidate (polling_candidates)."""
+    return [f'{path}:{line}' for path, _, line in polling_candidates(root, paths, exclude)]
+
+
+POLLING_DECISIONS = 'config/validation/polling/POLL-*.json'
+NOT_POLLING = ('backoff', 'dormant', 'test-infra', 'measurement')
+
+
+def polling_decisions(root):
+    """{'path::function': decision} of config/validation/polling/ (contracts/model/polling.v1.json)."""
+    return {body['site']: body for body in (_read_json(path) for path in sorted(Path(root).glob(POLLING_DECISIONS)))}
+
+
+def polling_left(root, paths, exclude):
+    """The candidates that still count as polling: undecided, or decided external-wait (a real wait on a state)."""
+    decided = polling_decisions(root)
+    return [(path, function, line) for path, function, line in polling_candidates(root, paths, exclude)
+            if decided.get(f'{path}::{function}', {}).get('class') not in NOT_POLLING]
 
 
 def derive_validations(found, root, today=None):

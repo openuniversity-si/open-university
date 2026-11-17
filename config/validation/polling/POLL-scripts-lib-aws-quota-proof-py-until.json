@@ -1,0 +1,7 @@
+{
+  "id": "POLL-scripts-lib-aws-quota-proof-py-until",
+  "site": "scripts/lib/aws_quota_proof.py::until",
+  "class": "state-wait",
+  "reason": "Reads a quota job's state every second until it reaches the wanted state or the deadline.",
+  "replace_with": "the quota service's job-finished event"
+}

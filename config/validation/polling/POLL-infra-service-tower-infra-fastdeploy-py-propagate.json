@@ -1,0 +1,7 @@
+{
+  "id": "POLL-infra-service-tower-infra-fastdeploy-py-propagate",
+  "site": "infra/service/tower_infra/fastdeploy.py::propagate",
+  "class": "state-wait",
+  "reason": "Waits on an interval for the alias change to propagate.",
+  "replace_with": "an EventBridge event on the alias update"
+}

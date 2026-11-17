@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/polling.v1.json",
+  "title": "Polling decision v1",
+  "description": "config/validation/polling/<id>.json (PADRAO-DEV F8b): the decision on one candidate of the polling scan (a sleep inside a loop, VAL-events-no-polling), keyed by file and enclosing function so it survives line moves. backoff, dormant, test-infra and measurement are not polling; state-wait is a real wait on a state on an interval and stays counted until an event replaces it.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "site",
+    "class",
+    "reason"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^POLL-[a-z0-9][a-z0-9-]*$"
+    },
+    "site": {
+      "type": "string",
+      "pattern": "^[^:]+::[A-Za-z0-9_<>]+$"
+    },
+    "class": {
+      "enum": [
+        "backoff",
+        "dormant",
+        "test-infra",
+        "measurement",
+        "state-wait"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "replace_with": {
+      "type": "string",
+      "description": "For a state-wait: the event that would replace it."
+    }
+  }
+}

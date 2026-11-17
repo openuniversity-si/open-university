@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-config-latency-py-measure",
+  "site": "scripts/lib/config_latency.py::measure",
+  "class": "measurement",
+  "reason": "Samples the registry's read latency at an interval: the pause is the measure's sampling, not a wait on a state."
+}

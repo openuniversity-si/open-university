@@ -1,0 +1,7 @@
+{
+  "id": "POLL-infra-aws-deploy-sh-deploy-stacks",
+  "site": "infra/aws/deploy.sh::deploy_stacks",
+  "class": "state-wait",
+  "reason": "Reads the CloudFormation stack status on an interval while it is *_IN_PROGRESS.",
+  "replace_with": "aws cloudformation wait, or the stack's EventBridge events"
+}

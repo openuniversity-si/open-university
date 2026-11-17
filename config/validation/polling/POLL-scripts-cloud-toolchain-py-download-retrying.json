@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-cloud-toolchain-py-download-retrying",
+  "site": "scripts/cloud/toolchain.py::_download_retrying",
+  "class": "backoff",
+  "reason": "Retries a failed toolchain download with an exponential pause."
+}

@@ -1,0 +1,7 @@
+{
+  "id": "POLL-scripts-lib-gate-isolation-sh-ou-gate-slot-acquire",
+  "site": "scripts/lib/gate-isolation.sh::ou_gate_slot_acquire",
+  "class": "state-wait",
+  "reason": "Tries the gate slot locks on an interval until one is free (gate-local).",
+  "replace_with": "a blocking flock on the slot, which the kernel wakes when it frees"
+}
