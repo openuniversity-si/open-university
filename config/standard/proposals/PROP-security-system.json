@@ -1,0 +1,12 @@
+{
+  "id": "PROP-security-system",
+  "statement": "The standard's list of systems grows from 16 to 17 with Segurança, which manages RISK (a security or privacy risk with its treatment: mitigate, avoid, transfer or accept, and the residual its owner accepts), THREAT (the threat model of an architecture element: assets, trust boundaries, threats, mitigations; suspect when the element changes), VULN (a vulnerability of our own code, triaged by a recorded bug bar, with a deadline per severity) and CTRL (a control of a reference catalog, the SSDF first, applicable or not with the reason, implemented by a rule, a test or a requirement); the security posture becomes its own measure. ADV and CRED stay in Fornecimento. Operation gains REQUEST (a data subject's request under the LGPD). The method gains a rule: a dimension's objects are listed from its reference practice before the model is searched for them.",
+  "state": "decided",
+  "owner": "administration",
+  "changes": [
+    "VER-v9"
+  ],
+  "deadline": "2026-11-24",
+  "decided_by": "D-321",
+  "note": "Daniel's concern of 17/11 15:03 BRT, through the Torre: elite organizations keep their own security management systems. The research (docs/programs/padrao-dev/phases/F7.md#a-segurança-reexaminada-17-11-15-03-brt) found four objects of ISO/IEC 27001, Microsoft's SDL and NIST's SSDF that none of the 16 systems managed; D-320 had checked only the objects the model already had."
+}
