@@ -174,7 +174,9 @@ class BootstrapTests(unittest.TestCase):
     # path, the GitHub defaults, the doorbell's concurrency, alarm and dead letters, the dead log grant gone; and the
     # Torre's two deviations: CloudWatch alarms may publish to the topic, and the deploy log denied is the real
     # /tower/infra-deploy too. The file is the applied one (raw sha256 28402007...42ac).
-    APPLIED = 'fdd417083780c759e5b69eeb01e0bdcce3ca068fb8c9b16dfd2aa5a06eb8a335'
+    # AWS-REVIEW DLQ alarm (the Torre, 17/11/2026 17:50:22 UTC): change set req-dlq-alarm, UPDATE_COMPLETE, one resource
+    # added (EventsDeadLettersAlarm, tower-events-dlq-messages); raw sha256 a0d4e34e...be14.
+    APPLIED = 'ac6be32ed5be9fe950d861d996e832b3b572ade0361563df0781fe675432bc39'
 
     def test_the_file_is_the_template_the_account_has_applied(self):
         canonical = json.dumps(self.template, sort_keys=True, separators=(',', ':'))
@@ -233,6 +235,20 @@ class BootstrapTests(unittest.TestCase):
         [send] = self.resources['EventsDeadLetterQueuePolicy']['Properties']['PolicyDocument']['Statement']
         self.assertEqual((send['Principal'], send['Action']), ({'Service': 'events.amazonaws.com'}, 'sqs:SendMessage'))
         self.assertEqual(sorted(each['Fn::GetAtt'][0] for each in send['Condition']['ArnEquals']['aws:SourceArn']), rules)
+
+    def test_an_event_in_the_dead_letter_queue_alarms_the_topic(self):
+        # AWS-REVIEW: an event whose 10 retries ran out lands in tower-events-dlq; one message there pages the topic
+        alarm = self.resources['EventsDeadLettersAlarm']
+        self.assertEqual(alarm['Type'], 'AWS::CloudWatch::Alarm')
+        said = alarm['Properties']
+        self.assertEqual((said['AlarmName'], said['Namespace'], said['MetricName'], said['Statistic'], said['Period']),
+                         ('tower-events-dlq-messages', 'AWS/SQS', 'ApproximateNumberOfMessagesVisible', 'Maximum', 300))
+        self.assertEqual(said['Dimensions'], [{'Name': 'QueueName',
+                                               'Value': {'Fn::GetAtt': ['EventsDeadLetterQueue', 'QueueName']}}])
+        self.assertEqual((said['Threshold'], said['ComparisonOperator'], said['TreatMissingData']),
+                         (1, 'GreaterThanOrEqualToThreshold', 'notBreaching'))
+        self.assertEqual(said['AlarmActions'], [{'Ref': 'AlertsTopic'}])
+        self.assertEqual(self.resources['EventsDeadLetterQueue']['Properties']['QueueName'], 'tower-events-dlq')
 
     def test_the_deployer_reads_no_log_of_a_function_that_is_gone(self):
         # AWS-REVIEW: ReadTheConsumerLogForTheAckSmoke read /aws/lambda/tower-port-webhooks, deleted on 14/11
