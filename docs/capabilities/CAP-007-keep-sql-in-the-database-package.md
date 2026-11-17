@@ -3,7 +3,7 @@ requested: 2026-10-25T15:30-03:00
 requested-by: A Torre (modularity roadmap step 2, D-054)
 status: approved 2026-10-25
 visual: no
-condition: before-production open — the release host reaches PostgreSQL over TCP, since the Neon WebSocket transport is removed (D-056; queued by PR 2.3 in docs/process/host-swap-queue.md)
+condition: before-production open — the release host reaches PostgreSQL over TCP, since the serverless WebSocket transport is removed (D-056; queued by PR 2.3 in docs/process/host-swap-queue.md)
 
 ## Concepts
 No new visitor concept. Release, course, lesson, session, media and configuration stay as in
@@ -29,7 +29,7 @@ test database. Use cases and transaction boundaries above the port (step 3). Con
 ## PRs
 1. Audit, plan, D-056, this design.
 2. `L2.db-package` with a baseline that may only shrink.
-3. One driver: `pg` everywhere; the Neon transport and its preload are removed.
+3. One driver: `pg` everywhere; the serverless transport and its preload are removed.
 4. Config, then progress, rate limit and identity, then admin jobs, media, catalog: each context's SQL moves into its
    translator behind its port.
 5. Operations scripts and the tooling database go through translators.
