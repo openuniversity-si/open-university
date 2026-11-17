@@ -9,16 +9,21 @@
     "config/model/**",
     "config/requirements/**",
     "config/standard/**",
+    "config/supply/**",
     "config/validation/**",
     "contracts/model/*.json",
     "scripts/lib/model.py",
     "scripts/lib/padrao_metrics.py",
+    "scripts/lib/supply.py",
     "scripts/model",
     "scripts/padrao-metrics",
+    "scripts/supply",
     "scripts/tests/model.test.sh",
     "scripts/tests/padrao-metrics.test.sh",
+    "scripts/tests/supply.test.sh",
     "scripts/tests/test_model.py",
-    "scripts/tests/test_padrao_metrics.py"
+    "scripts/tests/test_padrao_metrics.py",
+    "scripts/tests/test_supply.py"
   ],
   "requires": {
     "engine-config": "^1",

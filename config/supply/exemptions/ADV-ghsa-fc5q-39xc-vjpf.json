@@ -1,0 +1,6 @@
+{
+  "id": "ADV-ghsa-fc5q-39xc-vjpf",
+  "reason": "No patched picomatch is published (patched: <0.0.0). The ReDoS needs an attacker-controlled extglob pattern; picomatch 2.3.2 and 4.0.7 reach apps/web only through build and test tooling (vite, vitest, tinyglobby, fdir, micromatch), which match the repository's own glob patterns, and the site never builds a glob from user input. Revisit when a fixed release exists or the deadline passes.",
+  "deadline": "2026-12-17",
+  "owner": "engine-lane"
+}

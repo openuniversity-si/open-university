@@ -1,0 +1,9 @@
+{
+  "id": "SUP-aws",
+  "name": "Amazon Web Services",
+  "state": "active",
+  "owner": "Daniel",
+  "kind": "account",
+  "budget": "REQ-aws-200",
+  "note": "The deploy, the site's data and the engine's services."
+}

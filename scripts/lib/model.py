@@ -997,8 +997,56 @@ def knowledge_measure(found, radius='high'):
     }
 
 
+def read_suppliers(root):
+    """Suppliers (SUP), one file each (config/supply/suppliers/, PADRAO-DEV F7c)."""
+    return _declared(Path(root), 'config/supply/suppliers/SUP-*.json', 'supplier.v1.json', 'SUP', lambda body: [])
+
+
+def read_dependencies(root):
+    """Third-party components (DEP), derived from the files that pin them (scripts/lib/supply.py): a lockfile, a pip
+    file, the toolchain manifest, a workflow. Supplied-by its supplier; state vulnerable while an advisory affects it."""
+    import supply
+    ecosystems, tools = supply.suppliers_of(root)
+    snapshot = supply.read_snapshot(root) or {'advisories': []}
+    granted, today = supply.exemptions(root), utc_today()
+    hit = {(advisory['package'], version) for advisory in snapshot['advisories']
+           if supply.advisory_state(advisory, granted.get(advisory['id']), today) == 'affecting'
+           for version in advisory['versions']}
+    found = []
+    for entry in supply.dependencies(root):
+        ident = supply.dep_id(entry['ecosystem'], entry['name'], entry['version'])
+        owner = supply.supplier(entry, ecosystems, tools)
+        state = 'vulnerable' if (entry['ecosystem'] == 'npm' and (entry['name'], entry['version']) in hit) else (
+            'in-use' if entry['pinned'] else 'unpinned')
+        item = _obj(ident, 'DEP', state, entry['sources'][0], json.dumps(entry, sort_keys=True),
+                    [{'type': 'supplied-by', 'target': owner}] if owner else [])
+        item['body'] = entry
+        found.append(item)
+    return found
+
+
+def read_advisories(root):
+    """Advisories (ADV) of the audit snapshot (config/supply/advisories.json): affecting, or exempted while an exemption
+    with a reason and a deadline holds; each affects the DEPs of its package and versions."""
+    import supply
+    snapshot = supply.read_snapshot(root)
+    if snapshot is None:
+        return []
+    granted, today = supply.exemptions(root), utc_today()
+    found = []
+    for advisory in snapshot['advisories']:
+        links = [{'type': 'affects', 'target': supply.dep_id('npm', advisory['package'], version)}
+                 for version in advisory['versions']]
+        item = _obj(advisory['id'], 'ADV', supply.advisory_state(advisory, granted.get(advisory['id']), today),
+                    supply.SNAPSHOT, json.dumps(advisory, sort_keys=True), links)
+        item['body'] = advisory
+        found.append(item)
+    return found
+
+
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
-           read_intent, read_requirements, read_premises, read_changes, read_architecture, read_adrs, read_validations)
+           read_intent, read_requirements, read_premises, read_changes, read_architecture, read_adrs, read_validations,
+           read_suppliers, read_dependencies, read_advisories)
 
 
 def objects(root=ROOT, readers=READERS):

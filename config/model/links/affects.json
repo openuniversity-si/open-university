@@ -1,15 +1,17 @@
 {
   "name": "affects",
   "from": [
-    "D"
+    "D",
+    "ADV"
   ],
   "to": [
     "REQ",
     "ARC",
     "UNIT",
     "CFG",
-    "STD"
+    "STD",
+    "DEP"
   ],
   "oslc": "oslc_rm:affectedBy",
-  "description": "A decision affects an object."
+  "description": "A decision affects an object; an advisory affects a component version (Fornecimento, D-320)."
 }

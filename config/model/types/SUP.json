@@ -1,0 +1,13 @@
+{
+  "id": "SUP",
+  "name": "supplier",
+  "system": "supply",
+  "states": [
+    "active",
+    "retired"
+  ],
+  "inactive_states": [
+    "retired"
+  ],
+  "description": "A supplier: an account the engine runs on or a source of components; never a credential value."
+}

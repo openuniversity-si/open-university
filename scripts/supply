@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/supply {audit|check|measure}
+# Fornecimento, the 16th system (D-320): `audit` refreshes the advisory snapshot of the lockfiles (pnpm audit, the only step that reaches the network); `check` judges the tree against it with no network; `measure` prints the system's measure.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/supply.py" "$@"

@@ -1,0 +1,10 @@
+{
+  "name": "supplied-by",
+  "from": [
+    "DEP"
+  ],
+  "to": [
+    "SUP"
+  ],
+  "description": "A component comes from a supplier (15288 acquisition)."
+}
