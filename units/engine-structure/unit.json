@@ -56,7 +56,6 @@
     "engine-hermetic-tests": "^1",
     "engine-literals": "^1",
     "engine-premises": "^1",
-    "engine-production": "^1",
     "engine-regime": "^1",
     "engine-train": "^1",
     "engine-train-admission": "^1",
