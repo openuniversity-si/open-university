@@ -1,0 +1,21 @@
+{
+  "script": "scripts/tests/supply.test.sh",
+  "covers": [
+    "scripts/tests/supply.test.sh",
+    "scripts/tests/test_supply.py",
+    "scripts/supply",
+    "scripts/lib/supply.py",
+    "scripts/lib/model.py",
+    "scripts/lib/config.py",
+    "scripts/lib/json_schema.py",
+    "contracts/model/*.json",
+    "config/model/**",
+    "config/supply/**",
+    "config/registry/supply/**",
+    "**/pnpm-lock.yaml",
+    "scripts/cloud/toolchain.json",
+    ".github/workflows/*.yml",
+    "services/runner/github/*.yml",
+    "infra/service/requirements*.txt"
+  ]
+}

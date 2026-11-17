@@ -1,0 +1,303 @@
+"""Fornecimento, the 16th system of the engineering model (PADRAO-DEV F7c, D-320): the third-party components the
+repository depends on, their suppliers and the advisories against them, read from the files that already pin them.
+
+  DEP  a third-party component, derived, never written: a package of a pnpm lockfile (npm), a pinned requirement of a
+       pip file (pypi), a tool of the engine's toolchain (scripts/cloud/toolchain.json), an action or an image a GitHub
+       workflow uses. Its origin is pinned when the file fixes its content (an integrity or a checksum, a commit, a
+       digest), not only a name that can move (a tag).
+  SUP  a supplier, one file each under config/supply/suppliers/ (contracts/model/supplier.v1.json).
+  ADV  an advisory against a DEP, from the audit snapshot config/supply/advisories.json (`scripts/supply audit`). It
+       is affecting until the snapshot no longer has it, or exempted by config/supply/exemptions/<ADV id>.json with a
+       reason and a deadline; past the deadline it is affecting again.
+
+`scripts/supply audit` refreshes the snapshot (it runs `pnpm audit --json` for each lockfile, the only step that reaches
+the network); `scripts/supply check` judges the tree with no network: the snapshot was taken on the lockfiles as they
+are, and no advisory of a severity in supply.blocking_severities is affecting.
+"""
+import argparse
+from datetime import date, datetime, timezone
+import hashlib
+import json
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import config  # noqa: E402
+
+SNAPSHOT = 'config/supply/advisories.json'
+SUPPLIERS = 'config/supply/suppliers/SUP-*.json'
+EXEMPTIONS = 'config/supply/exemptions'
+TOOLCHAIN = 'scripts/cloud/toolchain.json'
+WORKFLOWS = ('.github/workflows/*.yml', 'services/runner/github/*.yml')
+PIP_FILES = 'infra/service/requirements*.txt'
+LOCKFILES = '**/pnpm-lock.yaml'
+
+PACKAGE = re.compile(r"^  '?((?:@[^@/\s]+/)?[^@\s']+)@([^(:'\s]+)[^:]*'?:\s*$")
+INTEGRITY = re.compile(r'^\s+resolution: \{integrity: ')
+USES = re.compile(r'^\s*(?:-\s+)?uses:\s*([^@\s]+)@(\S+)')
+IMAGE = re.compile(r'^\s*image:\s*([^\s#]+)')
+PIP = re.compile(r'^([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?==([^\s;#]+)')
+COMMIT = re.compile(r'^[0-9a-f]{40}$')
+
+
+def setting(name, root=ROOT):
+    return config.get(name, root)
+
+
+def sha256(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def lockfiles(root):
+    root = Path(root)
+    return sorted(path.relative_to(root).as_posix() for path in root.glob(LOCKFILES) if 'node_modules' not in path.parts)
+
+
+def _dep(ecosystem, name, version, source, pinned):
+    return {'ecosystem': ecosystem, 'name': name, 'version': version, 'source': source, 'pinned': pinned}
+
+
+def lock_packages(text, source):
+    """The packages of a pnpm lockfile (v9): its `packages:` section, one `name@version:` entry each, pinned when the
+    entry carries its integrity."""
+    found, current, inside = [], None, False
+    for line in text.splitlines():
+        if line == 'packages:':
+            inside = True
+            continue
+        if inside and line and not line.startswith(' '):
+            break
+        if not inside:
+            continue
+        match = PACKAGE.match(line)
+        if match:
+            current = _dep('npm', match.group(1), match.group(2), source, False)
+            found.append(current)
+        elif current is not None and INTEGRITY.match(line):
+            current['pinned'] = True
+    return found
+
+
+def workflow_parts(text, source):
+    """The actions (`uses: owner/repo@ref`, pinned by a full commit) and the images (`image: name:tag`, pinned by a
+    digest) of a GitHub workflow."""
+    found = []
+    for line in text.splitlines():
+        used = USES.match(line)
+        if used and not used.group(1).startswith('./'):
+            found.append(_dep('action', used.group(1), used.group(2), source, bool(COMMIT.match(used.group(2)))))
+        image = IMAGE.match(line)
+        if image:
+            reference = image.group(1).strip('"\'')
+            name, _, digest = reference.partition('@')
+            base, _, tag = name.rpartition(':') if ':' in name.split('/')[-1] else (name, '', 'latest')
+            found.append(_dep('image', base, tag + (f'@{digest}' if digest else ''), source, digest.startswith('sha256:')))
+    return found
+
+
+def pip_parts(text, source):
+    """The `name==version` requirements of a pip file, pinned when the file carries `--hash=` for them."""
+    found = []
+    for line in text.splitlines():
+        match = PIP.match(line.strip())
+        if match:
+            found.append(_dep('pypi', match.group(1).lower(), match.group(2), source, '--hash=' in line))
+    return found
+
+
+def toolchain_parts(text, source):
+    """The tools of the engine's toolchain manifest, each version pinned by its per-architecture checksums."""
+    found = []
+    for tool, entry in sorted(json.loads(text).items()):
+        for version, digests in sorted(entry.get('sha256', {}).items()):
+            found.append(_dep('toolchain', tool, version, source, bool(digests)))
+    return found
+
+
+def dependencies(root):
+    """Every third-party component of the tree, one entry per (ecosystem, name, version), with every file naming it."""
+    root = Path(root)
+    parts = []
+    for name in lockfiles(root):
+        parts += lock_packages((root / name).read_text(), name)
+    for pattern in WORKFLOWS:
+        for path in sorted(root.glob(pattern)):
+            parts += workflow_parts(path.read_text(), path.relative_to(root).as_posix())
+    for path in sorted(root.glob(PIP_FILES)):
+        parts += pip_parts(path.read_text(), path.relative_to(root).as_posix())
+    if (root / TOOLCHAIN).exists():
+        parts += toolchain_parts((root / TOOLCHAIN).read_text(), TOOLCHAIN)
+    merged = {}
+    for part in parts:
+        key = (part['ecosystem'], part['name'], part['version'])
+        entry = merged.setdefault(key, {**part, 'sources': [], 'pinned': True})
+        entry['sources'].append(part['source'])
+        entry['pinned'] = entry['pinned'] and part['pinned']
+    return [{**entry, 'sources': sorted(set(entry['sources']))} for entry in merged.values()]
+
+
+def dep_id(ecosystem, name, version):
+    return f'DEP:{ecosystem}:{name}@{version}'
+
+
+def read_snapshot(root):
+    path = Path(root) / SNAPSHOT
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def exemptions(root):
+    """{advisory id: exemption} of config/supply/exemptions/."""
+    folder = Path(root) / EXEMPTIONS
+    return {path.stem: json.loads(path.read_text()) for path in sorted(folder.glob('ADV-*.json'))} if folder.is_dir() else {}
+
+
+def advisory_state(advisory, exempt, today):
+    """affecting, or exempted while its exemption's deadline has not passed."""
+    if exempt and exempt.get('deadline', '') >= today:
+        return 'exempted'
+    return 'affecting'
+
+
+def utc_today():
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def suppliers_of(root):
+    """({ecosystem: supplier id}, {toolchain tool: supplier id}) from the suppliers' `ecosystems` and `tools`."""
+    ecosystems, tools = {}, {}
+    for path in sorted(Path(root).glob(SUPPLIERS)):
+        body = json.loads(path.read_text())
+        for ecosystem in body.get('ecosystems', []):
+            ecosystems[ecosystem] = body['id']
+        for tool in body.get('tools', []):
+            tools[tool] = body['id']
+    return ecosystems, tools
+
+
+def supplier(entry, ecosystems, tools):
+    """The supplier id of one component: its tool's supplier, else its ecosystem's; None when no supplier names it."""
+    if entry['ecosystem'] == 'toolchain' and entry['name'] in tools:
+        return tools[entry['name']]
+    return ecosystems.get(entry['ecosystem'])
+
+
+def check(root, today=None):
+    """The supply check's refusals: a snapshot taken on other lockfiles, an advisory of a blocking severity affecting,
+    an exemption without a reason or a deadline, a component without a supplier."""
+    root, today = Path(root), today or utc_today()
+    errors = []
+    snapshot = read_snapshot(root)
+    present = {name: sha256(root / name) for name in lockfiles(root)}
+    if snapshot is None:
+        return [f'{SNAPSHOT}: no audit snapshot; run scripts/supply audit'] if present else []
+    if snapshot.get('lockfiles', {}) != present:
+        errors.append(f'{SNAPSHOT}: taken on other lockfiles than the tree has; run scripts/supply audit')
+    granted = exemptions(root)
+    import json_schema
+    schema = json.loads((ROOT / 'contracts/model/exemption.v1.json').read_text())
+    for name, body in granted.items():
+        problems = list(json_schema.validate(schema, body)) + ([] if body.get('id') == name else ['its id must equal the file name'])
+        errors += [f'{EXEMPTIONS}/{name}.json: {problem}' for problem in problems]
+    blocking = set(setting('supply.blocking_severities'))
+    for advisory in snapshot.get('advisories', []):
+        exempt = granted.get(advisory['id'])
+        if advisory['severity'] in blocking and advisory_state(advisory, exempt, today) == 'affecting':
+            errors.append(f'{advisory["id"]}: {advisory["severity"]} advisory on {advisory["package"]} '
+                          f'{", ".join(advisory["versions"])} is affecting (patched: {advisory["patched"]}); update the '
+                          f'package or exempt it with a reason and a deadline')
+    stray = sorted(set(granted) - {advisory['id'] for advisory in snapshot.get('advisories', [])})
+    errors += [f'{EXEMPTIONS}/{name}.json: exempts an advisory the snapshot does not have; remove it' for name in stray]
+    ecosystems, tools = suppliers_of(root)
+    missing = sorted({entry['ecosystem'] for entry in dependencies(root) if supplier(entry, ecosystems, tools) is None})
+    errors += [f'ecosystem {name}: no supplier in config/supply/suppliers names it' for name in missing]
+    return errors
+
+
+def advisory_id(ghsa):
+    return 'ADV-' + ghsa.lower()
+
+
+def from_audit(report, lockfile):
+    """The advisories of one `pnpm audit --json` report, each with the installed versions it affects."""
+    found = []
+    for advisory in report.get('advisories', {}).values():
+        ghsa = advisory.get('github_advisory_id') or f'npm-{advisory["id"]}'
+        versions = sorted({finding['version'] for finding in advisory.get('findings', [])})
+        found.append({'id': advisory_id(ghsa), 'ghsa': ghsa, 'package': advisory['module_name'], 'versions': versions,
+                      'vulnerable': advisory['vulnerable_versions'], 'patched': advisory['patched_versions'],
+                      'severity': advisory['severity'], 'title': advisory['title'], 'url': advisory.get('url', ''),
+                      'lockfiles': [lockfile]})
+    return found
+
+
+def audit(root, run=subprocess.run, now=None):
+    """The snapshot of every lockfile's advisories (pnpm audit --json, run in the lockfile's directory)."""
+    root = Path(root)
+    merged = {}
+    for name in lockfiles(root):
+        result = run(['pnpm', 'audit', '--json'], cwd=root / Path(name).parent, capture_output=True, text=True)
+        report = json.loads(result.stdout or '{}')
+        if 'advisories' not in report:
+            raise RuntimeError(f'{name}: pnpm audit gave no report ({result.stderr.strip()[:200]})')
+        for advisory in from_audit(report, name):
+            current = merged.setdefault(advisory['id'], advisory)
+            if current is not advisory:
+                current['versions'] = sorted(set(current['versions']) | set(advisory['versions']))
+                current['lockfiles'] = sorted(set(current['lockfiles']) | set(advisory['lockfiles']))
+    return {'generated_by': 'scripts/supply audit',
+            'at': now or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'lockfiles': {name: sha256(root / name) for name in lockfiles(root)},
+            'advisories': sorted(merged.values(), key=lambda item: item['id'])}
+
+
+def measure(root, today=None):
+    """The supply system's own measure: components by ecosystem and pinned origin, advisories by state and severity."""
+    today = today or utc_today()
+    deps = dependencies(root)
+    snapshot = read_snapshot(root) or {'advisories': []}
+    granted = exemptions(root)
+    by_state = {}
+    for advisory in snapshot['advisories']:
+        state = advisory_state(advisory, granted.get(advisory['id']), today)
+        key = f'{state}:{advisory["severity"]}'
+        by_state[key] = by_state.get(key, 0) + 1
+    ecosystems = {}
+    for entry in deps:
+        counted = ecosystems.setdefault(entry['ecosystem'], {'components': 0, 'pinned': 0})
+        counted['components'] += 1
+        counted['pinned'] += entry['pinned']
+    return {'components': len(deps), 'pinned': sum(entry['pinned'] for entry in deps),
+            'ecosystems': dict(sorted(ecosystems.items())), 'advisories': dict(sorted(by_state.items())),
+            'snapshot_at': (read_snapshot(root) or {}).get('at')}
+
+
+def main(argv=None, root=ROOT):
+    parser = argparse.ArgumentParser(prog='scripts/supply', description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    commands = parser.add_subparsers(dest='command', required=True)
+    commands.add_parser('audit', help='refresh the advisory snapshot (pnpm audit; reaches the network)')
+    commands.add_parser('check', help='judge the tree against the snapshot, with no network')
+    commands.add_parser('measure', help='the supply system measure')
+    args = parser.parse_args(argv)
+    if args.command == 'audit':
+        made = audit(root)
+        (Path(root) / SNAPSHOT).parent.mkdir(parents=True, exist_ok=True)
+        (Path(root) / SNAPSHOT).write_text(json.dumps(made, indent=1, ensure_ascii=False) + '\n')
+        print(f'supply audit: {len(made["advisories"])} advisory(ies) on {len(made["lockfiles"])} lockfile(s) -> {SNAPSHOT}')
+        return 0
+    if args.command == 'measure':
+        print(json.dumps(measure(root), indent=1))
+        return 0
+    errors = check(root)
+    for error in errors:
+        print(f'FAIL {error}')
+    print(f'supply check: {len(errors)} refusal(s)')
+    return 1 if errors else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

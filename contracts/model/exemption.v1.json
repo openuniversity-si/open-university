@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/exemption.v1.json",
+  "title": "Advisory exemption v1",
+  "description": "config/supply/exemptions/<ADV id>.json (PADRAO-DEV F7c, D-320): an advisory of the Fornecimento system accepted for a time: why it does not reach the repository's use of the package, or why no fix can be taken yet, until when, and who answers for it. Past its deadline the advisory is affecting again.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "reason",
+    "deadline",
+    "owner"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ADV-[a-z0-9-]+$"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "deadline": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

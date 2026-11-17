@@ -1,0 +1,27 @@
+{
+  "id": "DEP",
+  "name": "third-party component",
+  "system": "supply",
+  "states": [
+    "in-use",
+    "unpinned",
+    "vulnerable",
+    "removed"
+  ],
+  "derived_states": [
+    "in-use",
+    "unpinned",
+    "vulnerable"
+  ],
+  "inactive_states": [
+    "removed"
+  ],
+  "unconformant_states": [
+    "unpinned",
+    "vulnerable"
+  ],
+  "must_link": [
+    "supplied-by"
+  ],
+  "description": "A third-party component, derived from the file that pins it: a lockfile package, a pip requirement, a toolchain tool, a workflow's action or image. Unpinned while its origin can move (a tag, no hash); vulnerable while an advisory affects it."
+}

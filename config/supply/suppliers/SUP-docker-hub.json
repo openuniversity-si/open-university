@@ -1,0 +1,11 @@
+{
+  "id": "SUP-docker-hub",
+  "name": "Docker Hub",
+  "state": "active",
+  "owner": "engine-lane",
+  "kind": "registry",
+  "ecosystems": [
+    "image"
+  ],
+  "note": "The postgres image of the web check."
+}

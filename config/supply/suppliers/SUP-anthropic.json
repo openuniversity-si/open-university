@@ -1,0 +1,8 @@
+{
+  "id": "SUP-anthropic",
+  "name": "Anthropic",
+  "state": "active",
+  "owner": "Daniel",
+  "kind": "account",
+  "note": "The models every session runs on."
+}

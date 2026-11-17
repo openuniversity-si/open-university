@@ -1,0 +1,11 @@
+{
+  "id": "SUP-nodejs",
+  "name": "the Node.js project",
+  "state": "active",
+  "owner": "engine-lane",
+  "kind": "registry",
+  "tools": [
+    "node"
+  ],
+  "note": "The node of the engine's toolchain (nodejs.org/dist)."
+}

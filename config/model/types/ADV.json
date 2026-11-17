@@ -1,0 +1,20 @@
+{
+  "id": "ADV",
+  "name": "advisory",
+  "system": "supply",
+  "states": [
+    "affecting",
+    "exempted"
+  ],
+  "derived_states": [
+    "affecting",
+    "exempted"
+  ],
+  "unconformant_states": [
+    "affecting"
+  ],
+  "must_link": [
+    "affects"
+  ],
+  "description": "A security advisory against a component, from the audit snapshot; exempted while an exemption with a reason and a deadline holds."
+}

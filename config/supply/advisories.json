@@ -1,0 +1,106 @@
+{
+ "generated_by": "scripts/supply audit",
+ "at": "2026-11-17T17:55:26Z",
+ "lockfiles": {
+  "apps/web/pnpm-lock.yaml": "8862a03c2821fedd8a0abe3a3314ebac3188be9083828116bf9fbb8d38da7ac8"
+ },
+ "advisories": [
+  {
+   "id": "ADV-ghsa-333x-w4r6-6crp",
+   "ghsa": "GHSA-333x-w4r6-6crp",
+   "package": "fast-uri",
+   "versions": [
+    "3.1.8"
+   ],
+   "vulnerable": ">=3.0.0 <3.1.9",
+   "patched": ">=3.1.9",
+   "severity": "low",
+   "title": "fast-uri vulnerable to scheme injection via an unescaped first-segment colon in suffix references",
+   "url": "https://github.com/advisories/GHSA-333x-w4r6-6crp",
+   "lockfiles": [
+    "apps/web/pnpm-lock.yaml"
+   ]
+  },
+  {
+   "id": "ADV-ghsa-fc5q-39xc-vjpf",
+   "ghsa": "GHSA-fc5q-39xc-vjpf",
+   "package": "picomatch",
+   "versions": [
+    "2.3.2",
+    "4.0.7"
+   ],
+   "vulnerable": "<=4.0.7",
+   "patched": "<0.0.0",
+   "severity": "high",
+   "title": "picomatch vulnerable to ReDoS through single-branch repeated extglobs",
+   "url": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
+   "lockfiles": [
+    "apps/web/pnpm-lock.yaml"
+   ]
+  },
+  {
+   "id": "ADV-ghsa-g3hv-75wg-m249",
+   "ghsa": "GHSA-g3hv-75wg-m249",
+   "package": "minimatch",
+   "versions": [
+    "10.2.6"
+   ],
+   "vulnerable": ">=7.0.0 <11.0.1",
+   "patched": ">=11.0.1",
+   "severity": "moderate",
+   "title": "minimatch has potential denial of service via globparts amplification",
+   "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+   "lockfiles": [
+    "apps/web/pnpm-lock.yaml"
+   ]
+  },
+  {
+   "id": "ADV-ghsa-w74x-v6f9-j3xg",
+   "ghsa": "GHSA-w74x-v6f9-j3xg",
+   "package": "fast-uri",
+   "versions": [
+    "3.1.8"
+   ],
+   "vulnerable": ">=3.0.0 <3.1.9",
+   "patched": ">=3.1.9",
+   "severity": "moderate",
+   "title": "fast-uri vulnerable to URI scheme spoofing via percent-encoded scheme decoding",
+   "url": "https://github.com/advisories/GHSA-w74x-v6f9-j3xg",
+   "lockfiles": [
+    "apps/web/pnpm-lock.yaml"
+   ]
+  },
+  {
+   "id": "ADV-ghsa-wjr9-j795-jxcr",
+   "ghsa": "GHSA-wjr9-j795-jxcr",
+   "package": "fast-uri",
+   "versions": [
+    "3.1.8"
+   ],
+   "vulnerable": ">=3.1.3 <3.1.9",
+   "patched": ">=3.1.9",
+   "severity": "moderate",
+   "title": "fast-uri vulnerable to host confusion via unchecked WHATWG host canonicalization",
+   "url": "https://github.com/advisories/GHSA-wjr9-j795-jxcr",
+   "lockfiles": [
+    "apps/web/pnpm-lock.yaml"
+   ]
+  },
+  {
+   "id": "ADV-ghsa-xhq7-xmqj-769h",
+   "ghsa": "GHSA-xhq7-xmqj-769h",
+   "package": "fast-uri",
+   "versions": [
+    "3.1.8"
+   ],
+   "vulnerable": ">=3.0.0 <3.1.9",
+   "patched": ">=3.1.9",
+   "severity": "low",
+   "title": "fast-uri vulnerable to improper path equivalence in relative reference normalization",
+   "url": "https://github.com/advisories/GHSA-xhq7-xmqj-769h",
+   "lockfiles": [
+    "apps/web/pnpm-lock.yaml"
+   ]
+  }
+ ]
+}

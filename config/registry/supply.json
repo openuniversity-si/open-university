@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/supply.json",
+  "x-owner": "supply",
+  "x-schema-version": 1,
+  "description": "Fornecimento, the 16th system of the engineering model (PADRAO-DEV F7c, D-320): the third-party components, their suppliers and the advisories against them. Reader: scripts/lib/supply.py (scripts/supply).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "supply.blocking_severities": {
+      "type": "array",
+      "default": [
+        "high",
+        "critical"
+      ],
+      "x-unit": "list",
+      "description": "Advisory severities the supply check refuses while affecting (an update or an exemption with a reason and a deadline clears one); lower severities are measured, not refused.",
+      "x-readers": [
+        "scripts/lib/supply.py"
+      ],
+      "x-source": "D-320 (PADRAO-DEV F7c)"
+    }
+  }
+}

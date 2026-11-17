@@ -1,0 +1,12 @@
+{
+  "id": "SUP-github",
+  "name": "GitHub",
+  "state": "active",
+  "owner": "Daniel",
+  "kind": "platform",
+  "ecosystems": [
+    "action",
+    "toolchain"
+  ],
+  "note": "The repository, the merge queue, Actions and its actions; the release assets the toolchain downloads (python-build-standalone, gitleaks, ruff) are on GitHub too."
+}
