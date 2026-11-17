@@ -25,7 +25,7 @@ brief alone, without opening `fila.md`, `RETOMAR.md` or `DECISIONS.md`. Base `mo
    its tests, is green after it, and ends with the trailers `Plan: N`, `Co-Authored-By: <model> <noreply@anthropic.com>`
    and `Claude-Session: <session>`. Push every commit, one per push; merge commits only, never a rebase or force-push.
 4. **PR body** (`scripts/pr-body` builds it from the commits and takes the `Claude-Session:` trailer from
-   `export CLAUDE_SESSION_URL=<session>`, else `--session`; `scripts/structure-check --pr-body <file>` shows no
+   `export CLAUDE_SESSION_URL=<session>`, else `--session`; `scripts/commit-check --pr-body <file>` (the plan) and `measurement_checks.py body --pr-body <file>` (the effort, D-322) show no
    effort or plan warning): the commit plan; a `## Cheapest useful effort` block of four non-empty lines, `Action:` (the
    most expensive action), `Cost:`, `Requirement:` and `Cheaper rejected:` ([effort.md](../padrao/v4/effort.md)). The
    `Requirement:` names who needs the result with a word of `effort.owners` (`scripts/config get effort.owners`: Daniel,
@@ -74,7 +74,7 @@ copy is stale). Change it together with the contract.
 1. `scripts/lane worktree <Fxx> --session <session>` in ~/the-tower (.toolchain; base mod/roadmap-integration not main; not PR #3, #41).
 2. Read only the row's files, by range (`rg -n`/`sed -n`); ~15k tokens a call: batch, `| tail -20`.
 3. Each commit green, pushed; no rebase/force. Trailers `Plan: N`, `Co-Authored-By: <model> <noreply@anthropic.com>`, `Claude-Session: <session>`.
-4. `export CLAUDE_SESSION_URL=<session>`; `scripts/pr-body --title --action --cost --requirement --cheaper` (all required, else refused); `scripts/structure-check --pr-body <file>`: checklist; `## Cheapest useful effort` (Action:, Cost:, Requirement: effort.owners/engine-lane, Cheaper rejected:); `Premises: P-NN|none`; D-NNN on gate change; `Fit-Review:` from pr-body.
+4. `export CLAUDE_SESSION_URL=<session>`; `scripts/pr-body --title --action --cost --requirement --cheaper` (all required, else refused); `scripts/commit-check --pr-body <file>`: checklist; `## Cheapest useful effort` (Action:, Cost:, Requirement: effort.owners/engine-lane, Cheaper rejected:); `Premises: P-NN|none`; D-NNN on gate change; `Fit-Review:` from pr-body.
 5. Title `<Fxx>: ...`; no `pr create`: `deliver --open` opens it.
 6. `scripts/test-suite --changed` once pre-deliver; iterate `scripts/run test <name>`.
 7. `scripts/deliver --open --branch units/<fxx> > ../<fxx>.log 2>&1` via `run_in_background` (never `&`), await exit. Red: fix by class, rerun; base red: friction+report.
@@ -97,7 +97,7 @@ writes `config/registry/OWNER/OWNER.KEY.json` with its `x-readers` and the owner
 in, runs `scripts/gate-dev --pr N` on the exact head, judges again when the base moves during the gate, merges with
 `origin pr merge N --expect-head N=<head>` (a merge commit) and prints the PR/s line. With `--open` it first opens the PR
 when the branch has none, its body built from the commits (subject, prose, `Plan:` trailers), and opens nothing when
-`structure-check --pr-body` fails that body (lane 4, D-236). `lane-ship` and `lane-next` did this until VAZÃO F9.
+`structure-check`, `commit-check` or `measurement_checks.py body` fails that body (lane 4, D-236). `lane-ship` and `lane-next` did this until VAZÃO F9.
 
 ## The loop, per PR
 1. **Plan first**: the items in the PR body, as many as the content needs (D-307), each one a cohesive commit that carries its own `Plan: N`. A split of one
