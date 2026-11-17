@@ -79,6 +79,27 @@ class RetiredVendors(Repo):
         with self.assertRaises(RuntimeError):
             retired_vendors.main(['--root', str(plain)])
 
+    def test_d318_the_scan_needs_no_git_grep_so_a_git_without_pcre_still_proves_it(self):
+        # Q-13 step 5: the CodeBuild image's git had no PCRE and `git grep -P` stopped the build; only ls-files is asked.
+        self.write('scripts/lib/x.py', 'HOST = "api.acmecloud.com"\n')
+        real = retired_vendors._git
+
+        def no_grep(root, *args):
+            if args and args[0] == 'grep':
+                raise AssertionError('git grep asked')
+            return real(root, *args)
+        with mock.patch.object(retired_vendors, '_git', side_effect=no_grep):
+            self.assertEqual([(path, line) for path, line, _ in retired_vendors.references(self.root, TERMS, [])],
+                             [('scripts/lib/x.py', 1)])
+
+    def test_d318_a_symbolic_link_is_judged_by_its_path_only(self):
+        self.write('docs/target.md', 'plain\n')
+        (self.root / 'scripts').mkdir(exist_ok=True)
+        (self.root / 'scripts' / 'acmecloud-link').symlink_to('../docs/target.md')
+        subprocess.run(['git', '-C', str(self.root), 'add', '-A'], check=True)
+        self.assertEqual([(path, line) for path, line, _ in retired_vendors.references(self.root, TERMS, [])],
+                         [('scripts/acmecloud-link', None)])
+
     def test_d318_no_terms_judge_nothing(self):
         self.write('scripts/lib/x.py', 'acmecloud\n')
         self.values['structure.retired_vendor_terms'] = []

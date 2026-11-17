@@ -6,7 +6,8 @@ variable, CSP entry, operating instruction or deploy path. check(root) returns t
   mention   a line of a tracked text file that matches one;
 each outside structure.record_globs, the historical records that describe the past and are not rewritten (the same
 records retired_products keeps, D-113), which hold the patterns' own definition too. The patterns are registry entries
-(config/registry/structure/), case-insensitive and Perl-compatible; one `git grep -P` finds the mentions.
+(config/registry/structure/), case-insensitive regular expressions (Python's, which also read the lookbehind), matched
+against every tracked path and every line of every tracked text file.
 
     scripts/retired-vendors [--root DIR] [--no-records] [--records]
 
@@ -41,24 +42,34 @@ def kept(path, records):
     return any(glob_match(path, pattern) for pattern in records)
 
 
+def text_of(path):
+    """The text of a tracked file, or None for a binary one (a NUL in its first 8000 bytes, git's own test) or one
+    that is not a regular file (a symbolic link names a target, it holds no text of ours)."""
+    if path.is_symlink() or not path.is_file():
+        return None
+    data = path.read_bytes()
+    return None if b'\0' in data[:8000] else data.decode('utf-8', errors='replace')
+
+
 def references(root, terms, records):
     """[(path, line or None, text)]: every tracked path and every line of a tracked text file outside records that
-    matches a term; line None marks the path itself."""
+    matches a term; line None marks the path itself. Python's regular expressions, not `git grep -P`: the git of a
+    build image may lack PCRE (the CodeBuild image of Q-13 step 5 did), and the proof must run wherever it is asked."""
     root = Path(root)
     if not terms:
         return []
     names = re.compile('|'.join(f'(?:{term})' for term in terms), re.IGNORECASE)
-    found = [(path, None, path) for path in tracked(root) if names.search(path) and not kept(path, records)]
-    args = ['grep', '-P', '-i', '-I', '-n', '-z', '--full-name']
-    for term in terms:
-        args += ['-e', term]
-    done = _git(root, *args, '--', '.')
-    if done.returncode not in (0, 1):
-        raise RuntimeError(f'git grep: {done.stderr.decode().strip()}')
-    for record in done.stdout.decode(errors='replace').split('\n'):
-        parts = record.split('\0', 2)
-        if len(parts) == 3 and not kept(parts[0], records):
-            found.append((parts[0], int(parts[1]), parts[2].strip()[:SHOWN]))
+    found = []
+    for path in tracked(root):
+        if kept(path, records):
+            continue
+        if names.search(path):
+            found.append((path, None, path))
+        text = text_of(root / path)
+        if text is None or not names.search(text):
+            continue
+        found += [(path, number, line.strip()[:SHOWN])
+                  for number, line in enumerate(text.split('\n'), start=1) if names.search(line)]
     return sorted(found, key=lambda item: (item[0], item[1] or 0))
 
 
