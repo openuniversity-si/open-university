@@ -9,6 +9,7 @@
     "scripts/lib/gate-runner.sh",
     "config/registry/gate.json",
     "config/registry/forge-events.json",
-    "scripts/lib/forge_events.py"
+    "scripts/lib/forge_events.py",
+    "scripts/lib/gate_eta.py"
   ]
 }

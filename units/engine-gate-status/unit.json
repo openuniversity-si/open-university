@@ -5,6 +5,7 @@
   "owner": "engine-lane",
   "paths": [
     "docs/operations/gate-status.md",
+    "scripts/lib/gate_eta.py",
     "scripts/lib/gate_report.py",
     "scripts/lib/gate_status.py",
     "scripts/lib/gate_timing_report.py",
@@ -27,8 +28,7 @@
     "engine-gate-cache": "^1",
     "engine-gate-ops": "^1",
     "engine-gate-plan": "^1",
-    "engine-gate-report": "^1",
-    "engine-slo": "^1"
+    "engine-gate-report": "^1"
   },
   "realizes": [
     "ARC-gate"

@@ -10,6 +10,7 @@
     "scripts/lib/event_contracts.py",
     "scripts/lib/forge_events.py",
     "contracts/events/*.json",
-    "scripts/lib/gate_verdicts.py"
+    "scripts/lib/gate_verdicts.py",
+    "scripts/lib/gate_eta.py"
   ]
 }
