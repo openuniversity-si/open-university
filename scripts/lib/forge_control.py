@@ -85,11 +85,11 @@ class PortAdapter:
 
     def client(self):
         if self.port is None:
-            import gate_infra
+            import port_http  # D-322: the port's client is layer 0; the gate (gate_infra) re-exports it
             url, token = os.environ.get('TOWER_PORT_URL'), os.environ.get('TOWER_PORT_TOKEN')
             if not (url and token):
                 raise ControlError('no port: set TOWER_PORT_URL and TOWER_PORT_TOKEN')
-            self.port = gate_infra.Port(url, token)
+            self.port = port_http.Port(url, token)
         return self.port
 
     def check_run(self, repo, body):

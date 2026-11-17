@@ -10,6 +10,7 @@
     "scripts/lib/gate_proof.py",
     "scripts/lib/gate_adjudicate.py",
     "scripts/lib/gate_publish.py",
-    "scripts/lib/config.py"
+    "scripts/lib/config.py",
+    "scripts/lib/git_objects.py"
   ]
 }

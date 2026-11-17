@@ -17,9 +17,10 @@ Library (the ownership refusal of the train, M3, calls these; the CODEOWNERS tar
   home(manifest)       the unit's home: the deepest directory that holds every one of its paths
 Each takes an optional `root` (default: this checkout) and reads the manifests once per root.
 
-scripts/units owner <path>... | who <unit>... | list | check | propose | measure (scripts/lib/unit_map.py)
+A layer-0 reader (D-322, engine-config): it imports nothing of the engine but the registry, so a layer-0 tool (the
+literal census, the generator) asks who owns a path without importing the planning layer. Its command line,
+scripts/units owner <path>... | who <unit>... | list | check | propose | measure, is scripts/lib/units_cli.py.
 """
-import argparse
 from functools import lru_cache
 from itertools import takewhile
 from operator import eq
@@ -245,48 +246,15 @@ def home(manifest):
     return '/'.join(common or [])
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(prog='scripts/units', description=__doc__.splitlines()[0])
-    parser.add_argument('--root', type=Path, help='repository (default: this checkout)')
-    commands = parser.add_subparsers(dest='command', required=True)
-    owner = commands.add_parser('owner', help='the unit and owner of each path')
-    owner.add_argument('paths', nargs='+')
-    who = commands.add_parser('who', help='the owner of each unit')
-    who.add_argument('units', nargs='+')
-    commands.add_parser('list', help='every unit with its cell and owner')
-    check = commands.add_parser('check', help='validate every manifest')
-    check.add_argument('--fix-requires', action='store_true',
-                       help='rewrite each manifest\'s requires to the measured import graph, then check')
-    for name, text in (('propose', 'the generator\'s cut of the production files (scripts/lib/unit_map.py)'),
-                       ('measure', 'each manifest\'s lines, closure and cohesion against its budget')):
-        command = commands.add_parser(name, help=text)
-        command.add_argument('--json', action='store_true', help='print JSON rows')
-        if name == 'measure':
-            command.add_argument('--emit', action='store_true',
-                                 help='publish engine.step.measured and unit.oversize through the forge_events port')
-            command.add_argument('--pr', type=int, help='the change the events are about (default: the repository)')
-    args = parser.parse_args(argv)
-    root = args.root
-    if args.command in ('propose', 'measure'):
-        import unit_map  # the generator reads the git log; the lookups above never need it
-        return unit_map.main(args.command, args.json, root, getattr(args, 'pr', None), getattr(args, 'emit', False))
-    if args.command == 'check':
-        if args.fix_requires:
-            import unit_check  # reads the git tree and the import graph; plain validation never needs it
-            for line in unit_check.fix_requires(root or ROOT):
-                print('FIXED ' + line)
-        found, errors = read(root)
-        for line in errors:
-            print('FAIL ' + line)
-        print(f'units: {len(found)} valid manifest(s), {len(errors)} error(s)')
-        return 1 if errors else 0
+def lookup(command, names, root=None):
+    """The lookups of scripts/units (units_cli): owner <path>..., who <unit>..., list; the exit status."""
     try:
-        if args.command == 'owner':
-            for path in args.paths:
+        if command == 'owner':
+            for path in names:
                 unit = unit_of(path, root)
                 print(f'{path}\t{unit or "-"}\t{owner_of(unit, root) if unit else "-"}')
-        elif args.command == 'who':
-            for unit in args.units:
+        elif command == 'who':
+            for unit in names:
                 print(f'{unit}\t{owner_of(unit, root)}')
         else:
             for unit, manifest in sorted(manifests(root).items()):
@@ -298,7 +266,3 @@ def main(argv=None):
         print(f'units: {error}', file=sys.stderr)
         return 1
     return 0
-
-
-if __name__ == '__main__':
-    sys.exit(main())

@@ -12,6 +12,7 @@
     "scripts/lib/gate_proof.py",
     "scripts/lib/forge_events.py",
     "scripts/lib/gate_verdicts.py",
-    "config/registry/gate-carry.json"
+    "config/registry/gate-carry.json",
+    "scripts/lib/git_objects.py"
   ]
 }

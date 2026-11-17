@@ -23,6 +23,7 @@
     "scripts/tests/test_config_api.py",
     "scripts/tests/test_config_check.py",
     "scripts/lib/python_source.py",
-    "scripts/lib/source_facts.py"
+    "scripts/lib/source_facts.py",
+    "scripts/lib/globs.py"
   ]
 }

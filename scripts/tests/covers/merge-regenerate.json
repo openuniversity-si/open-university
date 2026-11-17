@@ -11,6 +11,8 @@
     "scripts/lib/config.py",
     "config/registry/generate.json",
     "config/registry/units.json",
-    ".gitattributes"
+    ".gitattributes",
+    "scripts/lib/git_objects.py",
+    "scripts/lib/globs.py"
   ]
 }

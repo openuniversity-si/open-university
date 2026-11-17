@@ -14,6 +14,7 @@
     "config/registry/toolchain.json",
     "config/registry/gate-proof.json",
     "scripts/lib/gate-hooks/proof.sh",
-    "scripts/lib/gate_incident.py"
+    "scripts/lib/gate_incident.py",
+    "scripts/lib/git_objects.py"
   ]
 }

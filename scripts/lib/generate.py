@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 import config
-from gate_areas import glob_match
+from globs import glob_match
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -60,13 +60,13 @@ def sources(root, target):
 
 def changed_paths(root, base):
     """The paths this checkout changes against `base`, as `scripts/test-suite --changed` reads them (VAZÃO F50): the
-    gate's diff `base...HEAD` (gate_policy.changed_paths) plus what is not committed yet (staged, unstaged, untracked).
+    gate's diff `base...HEAD` (git_objects.changed_paths) plus what is not committed yet (staged, unstaged, untracked).
     `--changed` used to read its paths from stdin only, so typed by hand it waited on stdin for good: a lane's
     `scripts/generate --changed` hung for more than 10 minutes on 03/11 while `scripts/generate registry` took seconds."""
-    import gate_policy  # the gate's own diff; loaded only for a --changed run that is not fed by the pre-commit stage
+    import git_objects  # the gate's own diff (D-322: layer 0, so generate imports nothing of the gate)
     git = ['git', '-C', str(root)]
     try:
-        committed = gate_policy.changed_paths(root, base, 'HEAD')
+        committed = git_objects.changed_paths(root, base, 'HEAD')
         pending = subprocess.run(git + ['diff', '--no-renames', '--name-only', '-z', 'HEAD'], capture_output=True,
                                  check=True).stdout.decode().split('\0')
         untracked = subprocess.run(git + ['ls-files', '--others', '--exclude-standard', '-z'], capture_output=True,

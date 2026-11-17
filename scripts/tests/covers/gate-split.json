@@ -7,6 +7,7 @@
     "scripts/lib/gate_noite.py",
     "scripts/lib/gate_report.py",
     "scripts/lib/gate-stages-baseline.json",
-    "scripts/tests/forge_doubles.py"
+    "scripts/tests/forge_doubles.py",
+    "scripts/lib/git_objects.py"
   ]
 }

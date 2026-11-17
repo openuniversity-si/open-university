@@ -9,14 +9,13 @@ Two halves over one registry list, production.forbidden_entrypoints:
            included.
 The host-side flow is unchanged: a shell with no marker passes both."""
 import argparse
-import fnmatch
 import os
 from pathlib import Path
-import re
 import subprocess
 import sys
 
 import config
+from entrypoint_mentions import mentions  # noqa: F401 - D-322: moved down to layer 0; re-exported
 
 
 def cloud_session(env=None, root=None):
@@ -32,36 +31,6 @@ def refusal(entrypoint, env=None, root=None):
     return (f'scripts/{entrypoint}: refused inside a cloud session ({markers[0]} is set). Production is changed only by '
             f'the host-side release pipeline (D-054, docs/process/RELEASES.md); a change production needs goes into '
             f'docs/process/host-swap-queue.md.', config.get('production.refusal_exit_code', root))
-
-
-def _names(entrypoints):
-    """name -> regexes of its mention: the scripts/ path, the quoted bare name, a command word, the lib module."""
-    patterns = {}
-    for name in entrypoints:
-        module = name.replace('-', '_') + '.py'
-        patterns[name] = re.compile(
-            rf'scripts/{re.escape(name)}(?![\w-])|scripts/lib/{re.escape(module)}'
-            rf'|["\']{re.escape(name)}["\']|(?:^|[;&|(`]\s*|\$\(\s*){re.escape(name)}(?![\w-])')
-    return patterns
-
-
-def _comment(line):
-    stripped = line.strip()
-    return stripped.startswith(('#', '//', '*', '/*'))
-
-
-def mentions(path, added, entrypoints, allowed):
-    """(path, entrypoint, line) for every added line of a scanned file that mentions an entrypoint."""
-    if any(fnmatch.fnmatch(path, glob) for glob in allowed):
-        return []
-    found = []
-    for line in added:
-        if _comment(line):
-            continue
-        for name, pattern in _names(entrypoints).items():
-            if pattern.search(line):
-                found.append((path, name, line.strip()))
-    return found
 
 
 def added_lines(root, base):

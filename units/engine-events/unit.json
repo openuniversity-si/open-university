@@ -31,14 +31,13 @@
     "scripts/tests/test_event_contracts.py",
     "scripts/tests/test_forge_events.py",
     "scripts/tests/test_no_rest_git_write.py",
-    "docs/units/engine-events/**"
+    "docs/units/engine-events/**",
+    "scripts/lib/port_http.py"
   ],
   "requires": {
     "engine-config": "^1",
     "engine-config-check": "^1",
-    "engine-git-ref": "^1",
-    "engine-operations": "^1",
-    "engine-gate-infra": "^1"
+    "engine-git-ref": "^1"
   },
   "realizes": [
     "ARC-events"

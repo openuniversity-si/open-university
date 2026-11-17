@@ -11,8 +11,7 @@
   "depends_on": [
     "ARC-config",
     "ARC-gate",
-    "ARC-knowledge",
-    "ARC-planning"
+    "ARC-knowledge"
   ],
   "basis": [
     "D-317",

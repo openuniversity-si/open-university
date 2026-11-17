@@ -9,6 +9,7 @@
     "infra/service/tower_infra/fastdeploy.py",
     "infra/service/tower_infra/http_port.py",
     "infra/service/tower_infra/port.py",
-    "scripts/lib/gate_infra.py"
+    "scripts/lib/gate_infra.py",
+    "scripts/lib/port_http.py"
   ]
 }

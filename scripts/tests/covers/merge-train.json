@@ -11,6 +11,7 @@
     "config/registry/delivery/**",
     "config/registry/gate-infra/**",
     "scripts/lib/deploy_classify.py",
-    "scripts/lib/lambda_package.py"
+    "scripts/lib/lambda_package.py",
+    "scripts/lib/port_http.py"
   ]
 }

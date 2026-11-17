@@ -13,6 +13,8 @@
     "scripts/lib/gate_policy.py",
     "scripts/lib/gate-areas.json",
     "config/registry/**",
-    "contracts/**"
+    "contracts/**",
+    "scripts/lib/git_objects.py",
+    "scripts/lib/globs.py"
   ]
 }

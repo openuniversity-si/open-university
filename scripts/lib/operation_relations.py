@@ -33,12 +33,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DECLARATION = 'scripts/lib/operation_relations.json'
-PORT = 'scripts/lib/forge_events.py'
-ADAPTER_MODULES = {
-    'origin': ('scripts/lib/forge_origin.py', 'OriginAdapter'),
-    'file': ('scripts/lib/forge_events.py', 'FileAdapter'),
-    'git-ref': ('scripts/lib/forge_git_ref.py', 'GitRefs'),
-}
+from operation_demands import ADAPTER_MODULES, PORT  # noqa: E402,F401 - D-322: the port's names are layer 0
 # The modules whose calls are the port's own implementation: a site is a consumer that calls the port, not the port itself.
 NOT_CONSUMERS = frozenset(module for module, _ in ADAPTER_MODULES.values()) | {'scripts/lib/forge_origin_client.py'}
 RECEIVERS = frozenset({'port', 'reader', 'publisher', 'events', 'adapter', 'adapter_from_config'})

@@ -30,7 +30,7 @@ A witness must resolve to a test of that operation; implementing a method alone 
 Tests must pass offline; the runtime resolves evidence by AST without importing or running test modules.
 This is local contract evidence, not proof of remote availability, credentials or unobserved semantics.
 
-Run `python3 scripts/lib/operation_demands.py` to inspect demands, evidence, implemented-but-unproven operations,
+Run `python3 scripts/lib/operation_demands_check.py` to inspect demands, evidence, implemented-but-unproven operations,
 refusals and differences against `operation_relations.sites`. A missing declaration is `undeclared-demand`;
 a declared consumer the extractor cannot reach is `unknown-demand`, retained and reported. Dynamic receivers,
 `getattr`, shell entrypoints and callers outside `scripts/lib` remain explicit unknowns. This is the existing

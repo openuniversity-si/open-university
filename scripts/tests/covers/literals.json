@@ -12,6 +12,7 @@
     "scripts/lib/config.py",
     "scripts/lib/structure.py",
     "scripts/structure-check",
-    "scripts/lib/source_facts.py"
+    "scripts/lib/source_facts.py",
+    "scripts/lib/entrypoint_mentions.py"
   ]
 }

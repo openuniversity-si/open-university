@@ -140,10 +140,12 @@ class CallerOrigins(unittest.TestCase):
 class Compatibility(unittest.TestCase):
     def setUp(self):
         import operation_demands
+        import operation_demands_check
         self.demands = operation_demands
+        self.check = operation_demands_check  # D-322: the confrontation with the tree left the events layer
 
     def test_declared_demands_and_proofs_match_the_tree(self):
-        self.assertEqual(self.demands.confront(), [])
+        self.assertEqual(self.check.confront(), [])
         document = self.demands.load()
         self.assertEqual(set(document['consumers']), EXPECTED_CONSUMERS)
         self.assertEqual({op for ops in document['consumers'].values() for op in ops}, EXPECTED_OPERATIONS)
@@ -260,7 +262,7 @@ class Compatibility(unittest.TestCase):
             document['consumers']['scripts/lib/dynamic.py'] = ['pushes']
             document['proofs'] = {}
             with mock.patch.object(self.demands, 'load', return_value=document):
-                findings = self.demands.confront(root)
+                findings = self.check.confront(root)
             self.assertIn(('undeclared-demand', 'scripts/lib/local_batch.py: pushes'), findings)
             self.assertIn(('unknown-demand', 'scripts/lib/dynamic.py: pushes; static extraction cannot confirm it'),
                           findings)
@@ -277,7 +279,7 @@ class Compatibility(unittest.TestCase):
         document = json.loads((ROOT / self.demands.DECLARATION).read_text())
         document['proofs']['origin']['pushes'] = document['proofs']['origin']['comment']
         with mock.patch.object(self.demands, 'load', return_value=document):
-            kinds = [kind for kind, _ in self.demands.confront()]
+            kinds = [kind for kind, _ in self.check.confront()]
         with mock.patch.object(self.demands, 'load', return_value=document):
             with self.assertRaisesRegex(self.demands.CompatibilityError, 'operation pushes, adapter origin'):
                 self.demands.require('origin', ['scripts/lib/stall_report.py'])
@@ -286,7 +288,7 @@ class Compatibility(unittest.TestCase):
         self.assertNotIn('unimplemented-proof', kinds)
         document['proofs']['origin']['no_such_operation'] = document['proofs']['origin']['comment']
         with mock.patch.object(self.demands, 'load', return_value=document):
-            kinds = [kind for kind, _ in self.demands.confront()]
+            kinds = [kind for kind, _ in self.check.confront()]
         self.assertIn('unimplemented-proof', kinds)
 
 

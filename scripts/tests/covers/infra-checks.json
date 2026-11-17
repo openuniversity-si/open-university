@@ -18,6 +18,7 @@
     "infra/service/tower_infra/container.py",
     "infra/service/tower_infra/forge.py",
     "infra/service/tower_infra/mechanisms.py",
-    "infra/service/tower_infra/runner.py"
+    "infra/service/tower_infra/runner.py",
+    "scripts/lib/port_http.py"
   ]
 }

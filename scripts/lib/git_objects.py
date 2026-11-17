@@ -7,6 +7,9 @@ path). A ref is resolved on every call and is never a key: only the sha is. Read
 
   files(root, commit, paths, timeout=None)   {path: text} of the paths that exist at the commit (a missing one is absent)
   forget()                                   drop everything held (tests)
+  changed_paths(root, base, head)            the paths of the diff base...head, renames on both sides (D-322: the
+                                             gate's diff, here so a layer-0 tool reads it without importing the gate;
+                                             gate_policy re-exports it)
 """
 from pathlib import Path
 import subprocess
@@ -57,3 +60,10 @@ def _objects(answer, count):
 
 def forget():
     _HELD.clear()
+
+
+def changed_paths(root, base, head):
+    if not base or not head:
+        raise RuntimeError('Missing diff identity; full battery required')
+    return subprocess.check_output(['git', '-C', str(root), 'diff', '--no-renames', '--name-only', '-z',
+                                    base + '...' + head], stderr=subprocess.DEVNULL).decode().strip('\0').split('\0')

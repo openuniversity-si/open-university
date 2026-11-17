@@ -20,6 +20,8 @@
     "config/registry/*.json",
     "docs/programs/fluxo-amplo/plan.md",
     "docs/process/briefs/fluxo-amplo/*.md",
-    "config/registry/generate.json"
+    "config/registry/generate.json",
+    "scripts/lib/git_objects.py",
+    "scripts/lib/globs.py"
   ]
 }

@@ -45,7 +45,8 @@
       "x-unit": "s",
       "description": "Base of the pause before a call to the port is tried again: the pause is a full jitter (random from 0 to the cap) of this base doubled at each try, unless the answer carries a Retry-After.",
       "x-readers": [
-        "scripts/lib/gate_infra.py"
+        "scripts/lib/gate_infra.py",
+        "scripts/lib/port_http.py"
       ],
       "x-source": "GATE-INFRA 2c (P5 F2), D-306"
     },
@@ -56,7 +57,8 @@
       "x-unit": "s",
       "description": "Seconds of pauses one call to the port may spend in retries (gate-infra.call_retries bounds the count): a Retry-After that would pass it, or a throttle that lasts, fails the call with the status and the tries made.",
       "x-readers": [
-        "scripts/lib/gate_infra.py"
+        "scripts/lib/gate_infra.py",
+        "scripts/lib/port_http.py"
       ],
       "x-source": "AWS5"
     },
@@ -67,7 +69,8 @@
       "x-unit": "calls",
       "description": "Times a call to the port is tried again after a transient answer (429 of the API Gateway's throttle, 502, 503, 504, a dropped connection): the port's Lambda starting cold answers 503 past the HTTP API's 30 s.",
       "x-readers": [
-        "scripts/lib/gate_infra.py"
+        "scripts/lib/gate_infra.py",
+        "scripts/lib/port_http.py"
       ],
       "x-source": "GATE-INFRA 2c (P5 F2), D-306"
     },
@@ -78,7 +81,8 @@
       "x-unit": "s",
       "description": "Seconds one call to the port may take.",
       "x-readers": [
-        "scripts/lib/gate_infra.py"
+        "scripts/lib/gate_infra.py",
+        "scripts/lib/port_http.py"
       ],
       "x-source": "GATE-INFRA 2 (P5 F2), D-306"
     },
@@ -272,7 +276,8 @@
       "x-unit": "characters",
       "description": "Characters of what a tool said (a plan that failed, a refusal of the port, pr metadata) that a verdict keeps, from its end.",
       "x-readers": [
-        "scripts/lib/gate_infra.py"
+        "scripts/lib/gate_infra.py",
+        "scripts/lib/port_http.py"
       ],
       "x-source": "GATE-INFRA 2 (P5 F2), D-306"
     },

@@ -6,6 +6,7 @@
     "scripts/lib/gate_infra.py",
     "scripts/lib/gate_status.py",
     "config/registry/gate/gate.check_run_required.json",
-    "config/registry/gate/gate.check_run_enabled.json"
+    "config/registry/gate/gate.check_run_enabled.json",
+    "scripts/lib/port_http.py"
   ]
 }

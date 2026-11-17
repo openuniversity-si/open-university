@@ -5,7 +5,8 @@
   "x-unit": "s",
   "description": "Seconds of pauses one call to the port may spend in retries (gate-infra.call_retries bounds the count): a Retry-After that would pass it, or a throttle that lasts, fails the call with the status and the tries made.",
   "x-readers": [
-    "scripts/lib/gate_infra.py"
+    "scripts/lib/gate_infra.py",
+    "scripts/lib/port_http.py"
   ],
   "x-source": "AWS5"
 }
