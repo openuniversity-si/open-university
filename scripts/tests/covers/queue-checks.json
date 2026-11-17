@@ -1,0 +1,14 @@
+{
+  "script": "scripts/tests/queue-checks.test.sh",
+  "covers": [
+    "scripts/tests/queue-checks.test.sh",
+    "scripts/tests/test_queue_checks.py",
+    "scripts/lib/queue_checks.py",
+    "scripts/lib/model.py",
+    "config/model/**",
+    "contracts/model/*.json",
+    ".github/workflows/*.yml",
+    "services/runner/github/*.yml",
+    ".github/rulesets/*.json"
+  ]
+}

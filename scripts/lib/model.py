@@ -1044,9 +1044,23 @@ def read_advisories(root):
     return found
 
 
+def read_checks(root):
+    """Checks the merge queue requires (CHK, the Configuration system), derived from the workflows and the rulesets
+    (scripts/lib/queue_checks.py): staged, installed or required."""
+    import queue_checks
+    found = []
+    for entry in queue_checks.checks(root):
+        source = (f'{queue_checks.INSTALLED}/{entry["workflow"]}' if entry['installed'] else
+                  f'{queue_checks.STAGED}/{entry["workflow"]}' if entry['workflow'] else entry['required_by'])
+        item = _obj(queue_checks.check_id(entry['name']), 'CHK', entry['state'], source, json.dumps(entry, sort_keys=True))
+        item['body'] = entry
+        found.append(item)
+    return found
+
+
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
            read_intent, read_requirements, read_premises, read_changes, read_architecture, read_adrs, read_validations,
-           read_suppliers, read_dependencies, read_advisories)
+           read_suppliers, read_dependencies, read_advisories, read_checks)
 
 
 def objects(root=ROOT, readers=READERS):
