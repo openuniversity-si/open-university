@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/runs record <workflow> < runs.json
+# Run durations as a validation source (PADRAO-DEV F8d): records a snapshot of a workflow's completed runs from GitHub's API answer, read by scripts/model's run-durations measure; the gate reads the snapshot, never the network.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/runs.py" "$@"
