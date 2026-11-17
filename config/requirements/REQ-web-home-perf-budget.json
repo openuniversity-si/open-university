@@ -1,0 +1,11 @@
+{
+  "id": "REQ-web-home-perf-budget",
+  "type": "quality",
+  "statement": "The site's Home transfers under 1 MiB in its first viewports, no image of 120 KiB or more and no font of 60 KiB or more, and its size does not grow with the catalog.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-quality"
+  ],
+  "source": "apps/web/scripts/lib/perf-budget.ts (PERF_BUDGET, D-319)"
+}

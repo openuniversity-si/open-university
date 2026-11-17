@@ -614,6 +614,12 @@ class Architecture(unittest.TestCase):
 
 
 class RealRepository(unittest.TestCase):
+    def test_a_site_test_counts_only_when_it_declares_what_it_verifies_and_a_typescript_comment_declares_it(self):
+        tests = {item['id']: item for item in model.read_tests(ROOT)}
+        perf = tests['TEST:apps/web/scripts/lib/perf-budget-home.test.ts']
+        self.assertEqual(perf['links'], [{'type': 'verifies', 'target': 'REQ-web-home-perf-budget'}])
+        self.assertFalse([name for name in tests if name.startswith('TEST:apps/web/') and not tests[name]['links']])
+
     def test_the_metamodel_of_this_checkout_is_valid_and_has_a_type_for_every_system(self):
         meta = model.metamodel(ROOT)
         self.assertEqual(meta['errors'], [])

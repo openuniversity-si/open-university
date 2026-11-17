@@ -1,0 +1,11 @@
+{
+  "id": "REQ-web-wcag-22-aa",
+  "type": "quality",
+  "statement": "Every page of Open University's site meets WCAG 2.2 at level AA: axe finds no violation of the wcag2a, wcag2aa, wcag21a, wcag21aa and wcag22aa rules on any page of the site's route list.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-quality"
+  ],
+  "source": "apps/web/e2e/a11y.spec.ts (D-319); W3C WCAG 2.2 and WCAG-EM 2.0"
+}
