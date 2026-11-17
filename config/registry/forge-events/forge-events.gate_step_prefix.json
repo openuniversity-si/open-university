@@ -6,7 +6,6 @@
   "x-readers": [
     "scripts/lib/gate_eta.py",
     "scripts/lib/gate_report.py",
-    "scripts/lib/gate_timing_report.py",
-    "scripts/lib/slo.py"
+    "scripts/lib/gate_timing_report.py"
   ]
 }
