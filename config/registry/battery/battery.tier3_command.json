@@ -11,7 +11,7 @@
     "minLength": 1
   },
   "x-unit": "argv",
-  "description": "Tier-3 command, relative to the repository root, run on an integration tip (its sha is appended): the full battery with a fresh build cache, never cached, Chromium only and no Neon (D-065 (5), V7: WebKit and gate-db run only at release).",
+  "description": "Tier-3 command, relative to the repository root, run on an integration tip (its sha is appended): the full battery with a fresh build cache, never cached, Chromium only and no per-PR database (D-065 (5), V7: WebKit and gate-db run only at release).",
   "x-readers": [
     "scripts/lib/battery.py"
   ],
