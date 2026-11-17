@@ -232,7 +232,9 @@ rastreio estruturado no sucesso de agentes; o de especificações em PRs ([Hill,
   os nomeou à parte. Ficam fora, com razão: aquisição e fornecimento (não há terceiros; os pins do toolchain são itens
   de configuração), segurança como sistema próprio (vira tipo de requisito e checagens), as áreas de fundamentos.
   **Revisto em 17/11 ([F7](phases/F7.md)):** a premissa de que não há terceiros (P-58) foi refutada por medida (654
-  pacotes no `apps/web`, 10 avisos de segurança), e aquisição e fornecimento viraram o 16º sistema (D-320).
+  pacotes no `apps/web`, 10 avisos de segurança), e aquisição e fornecimento viraram o 16º sistema (D-320). A segurança, deixada como tipo de requisito e checagens, virou o 17º sistema
+  na mesma data (D-321): a prática de referência (27001, SDL, SSDF) gere risco, modelo de ameaças, vulnerabilidade
+  própria e controle, e nenhum sistema os geria.
 - **Copiar:** o grafo tipado com ids estáveis e uma fonte autoritativa por objeto (o git é o servidor do modelo); o
   vocabulário de ligações do OSLC; a ligação suspeita por impressão digital do alvo; os estados derivados; a separação
   entre rastreio (o gate calcula) e consistência (um julgamento registrado, só para ligações novas ou suspeitas, onde
