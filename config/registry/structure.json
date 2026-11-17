@@ -255,19 +255,17 @@
     },
     "structure.retired_product_roots": {
       "type": "array",
-      "default": [
-        "apps/web"
-      ],
+      "default": [],
       "uniqueItems": true,
       "items": {
         "type": "string"
       },
       "x-unit": "count",
-      "description": "Path roots of retired products (D-112, D-113): no tracked path lies under one, and no acting file names one. Open University left at OU-DECOUPLE F4; its archive is commit 567176bb (D-110).",
+      "description": "Path roots of retired products (D-112, D-113): no tracked path lies under one, and no acting file names one. Empty since D-319: Open University's site, which left at OU-DECOUPLE F4 (archive 567176bb, D-110), returned under apps/web; a product retired later is named here.",
       "x-readers": [
         "scripts/lib/retired_products.py"
       ],
-      "x-source": "D-113 (OU-DECOUPLE F5)"
+      "x-source": "D-113 (OU-DECOUPLE F5); D-319"
     },
     "structure.retired_vendor_terms": {
       "type": "array",

@@ -93,7 +93,14 @@ class AreaPlans(unittest.TestCase):
         self.assertFalse({"deploy", "dbRequired", "nodeRequired"} & set(plan))
         self.assertEqual({area.id for area in AREAS.areas},
                          {"docs", "delivery", "engine-config", "engine-units", "engine-services", "engine-infra",
-                          "repo-config"})
+                          "repo-config", "web"})
+
+    def test_d319_the_site_is_an_area_of_its_own_that_runs_no_engine_script_test(self):
+        # D-319: apps/web is judged by its own commands in the Torre's workflow; the engine gate runs its always stages.
+        plan = stages(["apps/web/src/app/page.tsx"])
+        self.assertEqual(plan["stages"], SECRETS)
+        self.assertEqual(plan["areas"], ["web"])
+        self.assertFalse({"deploy", "dbRequired", "nodeRequired"} & set(plan))
 
     def test_the_always_stages_and_the_groups_name_every_ordered_stage_exactly_once(self):
         # T2: the case tables read their stage lists from the registry, so this is what keeps a stage from being dropped,

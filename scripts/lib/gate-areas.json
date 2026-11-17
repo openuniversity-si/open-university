@@ -114,6 +114,14 @@
       "groups": [
         "script-tests"
       ]
+    },
+    {
+      "id": "web",
+      "title": "Open University's site (apps/web, D-319): judged by its own commands in the Torre's workflow, never by the engine's script tests",
+      "paths": [
+        "apps/web/**"
+      ],
+      "groups": []
     }
   ]
 }
