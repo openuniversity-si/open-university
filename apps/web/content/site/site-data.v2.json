@@ -8,7 +8,7 @@
     "ogImageAlt": "Open University — great lecture courses, in order"
   },
   "legal": {
-    "updated": "11 October 2026",
+    "updated": "17 November 2026",
     "publicContactEmails": [
       "contact@openuniversity.si"
     ]
@@ -87,9 +87,17 @@
           ]
         },
         {
+          "h": "Why we may use it",
+          "p": [
+            "Your account (your name, your email address and the ID of your Google account) and your lecture progress are used to provide the service you ask for when you sign in: this is the performance of a contract, our terms of use (LGPD art. 7, V).",
+            "The IP address in the sign-in counters is used only to keep the site secure and prevent abuse: this is our legitimate interest in the site's security (LGPD art. 7, IX)."
+          ]
+        },
+        {
           "h": "How long we keep it",
           "p": [
-            "Your account and your progress stay until you ask us to delete them. Sign-in sessions expire after 30 days."
+            "Your account and your progress stay until you ask us to delete them; we delete them within 15 days of your request. Sign-in sessions expire after 30 days.",
+            "The counters that limit sign-in attempts include your IP address. They are short-lived and kept for at most 6 months."
           ]
         },
         {
