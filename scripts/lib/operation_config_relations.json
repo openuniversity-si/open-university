@@ -167,9 +167,9 @@
       "kind": "adjacent",
       "operations": [],
       "consumers": [
+        "scripts/lib/gate_eta.py",
         "scripts/lib/gate_report.py",
-        "scripts/lib/gate_timing_report.py",
-        "scripts/lib/slo.py"
+        "scripts/lib/gate_timing_report.py"
       ],
       "reason": "Gate timing consumers classify event step names."
     },

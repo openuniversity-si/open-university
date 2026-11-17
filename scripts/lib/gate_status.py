@@ -16,7 +16,7 @@ the judged head (pending, then the verdict) with no comment, no gate.started and
 GX-25: at the first begin it also publishes `gate.started` (gate-eta.started_enabled) with the ETA: per stage the
 gate-eta.eta_quantile of its newest gate-eta.eta_history_events `engine.step.measured` in the ledger, else the local report
 history, else gate-eta.fallback_stage_s; the wall is the critical path over gate-stages.json, never the sum. On a tier-1
-verdict `final` calls forge_events.gate_slow and slo.run (event-driven, P-32).
+verdict `final` calls forge_events.gate_slow (event-driven, P-32); the SLOs are evaluated by their consumer, scripts/slo (D-322).
 
 This module renders and publishes only. It never selects, classifies, caches or compares tests (KD1, GS1), and a failure
 to write the comment is reported on stderr and never changes the gate result.
@@ -132,15 +132,15 @@ def stage_needs():
 def expectation(record_dir, planned, publisher):
     """GX-25: {stage: seconds} for the planned stages, from the ledger, else the local history, else the fallback.
     Never empty for a planned stage, so the panel and gate.started never say 'no history'."""
-    import slo
+    import gate_eta
     events = []
     try:
-        events = slo.ledger_steps(publisher.events.adapter, publisher.repo)
+        events = gate_eta.ledger_steps(publisher.events.adapter, publisher.repo)
     except ForgeCompatibilityError:
         raise
     except Exception as error:  # noqa: BLE001 - an unreadable ledger leaves the local history and the fallback
         print(f'gate eta: ledger not read ({error})', file=sys.stderr)
-    found = slo.expected_seconds(events, planned, config.get('gate-eta.eta_quantile'), config.get('gate-eta.eta_history_events'),
+    found = gate_eta.expected_seconds(events, planned, config.get('gate-eta.eta_quantile'), config.get('gate-eta.eta_history_events'),
                                  config.get('gate-eta.fallback_stage_s'), local=history(record_dir, planned))
     return {name: row['seconds'] for name, row in found.items()}
 
@@ -179,23 +179,23 @@ def publish_started(publisher, state, expected):
 
 
 def verdict_hooks(publisher, verdict):
-    """GX-25: on a tier-1 verdict, forge_events.gate_slow and slo evaluate over the log, once, event-driven (P-32, no timer).
-    Never raises and never changes the result."""
+    """GX-25: on a tier-1 verdict, forge_events.gate_slow evaluates over the log, once, event-driven (P-32, no timer).
+    The SLOs are measurement's: slo reads the same verdict events from the log as their consumer (scripts/slo run), and
+    the gate no longer calls it (D-322: the gate may not depend on measurement). Never raises and never changes the result."""
     payload = (verdict or {}).get('payload') or {}
     if not config.get('gate-eta.started_enabled') or payload.get('tier') != 1:
         return
     try:
         import forge_events
+        import gate_eta
         import gate_verdicts
-        import slo
         port, repo = publisher.port, publisher.repo
-        events = slo.collect(port.adapter, repo, prs=(payload.get('pr'),) if payload.get('pr') else ())
-        verdicts = [event for event in gate_verdicts.accepted(slo.ordered(events)) if event['type'] in gate_verdicts.TYPES]
+        events = gate_eta.collect(port.adapter, repo, prs=(payload.get('pr'),) if payload.get('pr') else ())
+        verdicts = [event for event in gate_verdicts.accepted(gate_eta.ordered(events)) if event['type'] in gate_verdicts.TYPES]
         fields = forge_events.gate_slow(verdicts)
         if fields:
             forge_events.ForgeEvents(port.adapter, port.clock, port.producer, verdict['event_id']).emit(
                 'gate.slow', dict(forge_events.subject(repo, None, None), **fields))
-        slo.run(port.adapter, port.clock, repo, events=events)
     except ForgeCompatibilityError:
         raise
     except Exception as error:  # noqa: BLE001 - the verdict is already recorded; this only reports
@@ -541,7 +541,7 @@ HOOKS_FILE = 'verdict-hooks.json'
 
 
 def detach_hooks(logs, verdict):
-    """GATE-SPEED R4 (D-092): run verdict_hooks (gate.slow and the SLO evaluation, which read every PR channel the
+    """GATE-SPEED R4 (D-092): run verdict_hooks (gate.slow, which reads every PR channel the
     repository window names) in a process of its own session, after the verdict is published and recorded, so the gate
     does not wait for them. Its output goes to verdict_hooks.log in the run's logs. A process that cannot start runs
     the hooks here instead. Never raises."""

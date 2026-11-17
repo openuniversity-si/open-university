@@ -16,7 +16,7 @@ PLANNED = ("structure check", "script tests")  # the stages of the fixture plan 
 import config  # noqa: E402
 import forge_events  # noqa: E402
 import gate_status as status  # noqa: E402
-import slo  # noqa: E402
+import gate_eta  # noqa: E402
 
 
 class Started(Base):
@@ -66,27 +66,30 @@ class Started(Base):
         real = config.get
         with mock.patch.object(config, "get", side_effect=lambda name, *a: False if name == "gate-eta.started_enabled" else real(name, *a)):
             self.begin()
-            with mock.patch.object(slo, "run") as run, mock.patch.object(slo, "collect") as collect:
+            with mock.patch.dict(sys.modules, {"slo": mock.Mock()}) as modules, mock.patch.object(gate_eta, "collect") as collect:
+                run = modules["slo"].run
                 status.verdict_hooks(self.pub, dict(type="gate.passed", event_id="e", payload=dict(tier=1, pr=self.pr())))
         self.assertEqual(self.started(), [])
         run.assert_not_called()
         collect.assert_not_called()
         self.assertEqual([item["state"] for item in self.rest.statuses], ["pending"])  # the status of the run is untouched
 
-    def test_a_tier_1_verdict_calls_gate_slow_and_slo_evaluate_once_each(self):
+    def test_a_tier_1_verdict_calls_gate_slow_once_and_never_the_slo_evaluation(self):
+        # D-322: the gate may not depend on measurement; the SLOs are evaluated by their consumer (scripts/slo run).
         verdict = dict(type="gate.failed", event_id="e1", payload=dict(tier=1, pr=1, plan=MODE))
-        with mock.patch.object(slo, "collect", return_value=[]) as collect, mock.patch.object(slo, "run") as run, \
+        with mock.patch.object(gate_eta, "collect", return_value=[]) as collect, mock.patch.dict(sys.modules, {"slo": mock.Mock()}) as modules, \
                 mock.patch.object(forge_events, "gate_slow", return_value=DATA["slow"]) as slow, \
                 mock.patch.object(forge_events.ForgeEvents, "emit") as emit:
             status.verdict_hooks(self.pub, verdict)
+            run = modules["slo"].run
         collect.assert_called_once()
         slow.assert_called_once()
-        run.assert_called_once()
+        run.assert_not_called()
         self.assertEqual(emit.call_args.args[0], "gate.slow")
         self.assertEqual(emit.call_args.args[1]["median_ms"], DATA["slow"]["median_ms"])
 
     def test_only_tier_1_verdicts_trigger_the_hooks_and_failures_never_raise(self):
-        with mock.patch.object(slo, "collect", side_effect=RuntimeError("down")) as collect:
+        with mock.patch.object(gate_eta, "collect", side_effect=RuntimeError("down")) as collect:
             status.verdict_hooks(self.pub, dict(type="gate.passed", event_id="e", payload=dict(tier=DATA["other_tier"])))
             collect.assert_not_called()
             err = io.StringIO()

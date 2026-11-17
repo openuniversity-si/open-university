@@ -276,9 +276,9 @@
       "x-unit": "text",
       "description": "Prefix of the engine.step.measured step name for each gate stage (gate:<stage>).",
       "x-readers": [
+        "scripts/lib/gate_eta.py",
         "scripts/lib/gate_report.py",
-        "scripts/lib/gate_timing_report.py",
-        "scripts/lib/slo.py"
+        "scripts/lib/gate_timing_report.py"
       ]
     },
     "forge-events.git_ref_attempts": {
