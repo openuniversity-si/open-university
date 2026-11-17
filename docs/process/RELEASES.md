@@ -6,8 +6,9 @@ production and how a change reaches it. The reasons are in the step 1 audit
 
 This repository is the engine of A Torre (gate, train, events, registry, services). Production is Open University's
 site, served from AWS (the Lambda `open-university-web` behind CloudFront, its data in RDS `tower-data`) with its media
-on Cloudflare R2, and built from its own repository (D-318). Open University left this repository (D-111). Its
-archive is commit `567176bb` (D-110). The engine has no production deploy of its own. Pausing the Open University site
+on Cloudflare R2. Its source is `apps/web` of this repository (D-319), back from the archive of D-110 (`567176bb`)
+with a fresh history, and its image is built by the CodeBuild project `open-university-web` from a commit of `main`
+(`apps/web/deploy/build-image.sh`). The engine has no production deploy of its own. Pausing the Open University site
 is the last step of OU-DECOUPLE, and Daniel takes it (D-105).
 
 ## No production change by hand
