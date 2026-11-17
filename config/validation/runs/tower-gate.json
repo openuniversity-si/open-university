@@ -1,0 +1,147 @@
+{
+ "workflow": "tower-gate",
+ "source": "GitHub Actions API, workflow tower-gate",
+ "at": "2026-11-17T20:53:31Z",
+ "runs": [
+  {
+   "id": 44172971092,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-17T20:47:19Z",
+   "seconds": 33
+  },
+  {
+   "id": 44172184183,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-17T20:42:49Z",
+   "seconds": 46
+  },
+  {
+   "id": 44171521916,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-17T20:39:01Z",
+   "seconds": 46
+  },
+  {
+   "id": 44164970841,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-17T20:02:09Z",
+   "seconds": 34
+  },
+  {
+   "id": 44164759993,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-17T20:00:59Z",
+   "seconds": 45
+  },
+  {
+   "id": 44163590477,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-17T19:54:24Z",
+   "seconds": 40
+  },
+  {
+   "id": 44163404179,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-17T19:53:21Z",
+   "seconds": 41
+  },
+  {
+   "id": 44162336437,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-17T19:47:18Z",
+   "seconds": 52
+  },
+  {
+   "id": 44162140560,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-17T19:46:12Z",
+   "seconds": 46
+  },
+  {
+   "id": 44160356327,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-17T19:36:15Z",
+   "seconds": 36
+  },
+  {
+   "id": 44159288325,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-17T19:30:23Z",
+   "seconds": 41
+  },
+  {
+   "id": 44158469922,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-17T19:25:42Z",
+   "seconds": 34
+  },
+  {
+   "id": 44158233333,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-17T19:24:25Z",
+   "seconds": 49
+  },
+  {
+   "id": 44157465397,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-17T19:20:10Z",
+   "seconds": 37
+  },
+  {
+   "id": 44157244859,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-17T19:18:57Z",
+   "seconds": 48
+  },
+  {
+   "id": 44154035120,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-17T19:01:08Z",
+   "seconds": 33
+  },
+  {
+   "id": 44153857338,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-17T19:00:12Z",
+   "seconds": 34
+  },
+  {
+   "id": 44152355962,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-17T18:51:37Z",
+   "seconds": 34
+  },
+  {
+   "id": 44151861498,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-17T18:48:51Z",
+   "seconds": 36
+  },
+  {
+   "id": 44151674050,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-17T18:47:45Z",
+   "seconds": 33
+  }
+ ]
+}

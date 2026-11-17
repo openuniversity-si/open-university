@@ -1,13 +1,16 @@
 {
   "id": "VAL-gate-60s",
-  "statement": "The tower/gate check finishes within 60 s at the median and the 99th percentile of its runs on GitHub Actions.",
+  "statement": "The tower/gate check finishes within 60 s at the 99th percentile of its last completed runs on GitHub Actions (the median under it).",
   "validates": [
     "REQ-gate-60s"
   ],
   "owner": "capacity",
   "measure": {
-    "kind": "unwired",
-    "source": "the durations of the tower/gate runs (GitHub Actions); no reader is wired into scripts/model yet"
+    "kind": "run-durations",
+    "workflow": "tower-gate",
+    "percentile": 99,
+    "min_runs": 20,
+    "max_age_days": 7
   },
   "comparator": "lte",
   "threshold": 60
