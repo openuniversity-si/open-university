@@ -1,0 +1,11 @@
+{
+  "id": "REQ-web-lgpd-processing",
+  "type": "legal",
+  "statement": "Every data store that keeps personal data records the purpose, the legal basis and the retention of its processing (LGPD art. 37 and art. 7), and a data subject's request for access is answered in full within 15 days of its receipt (LGPD art. 19, II).",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-quality"
+  ],
+  "source": "Lei 13.709/2018 (LGPD), art. 7, 18, 19 and 37; docs/programs/padrao-dev/phases/F7.md"
+}

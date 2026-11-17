@@ -41,6 +41,7 @@ async function render(props: { featured: HomeCourse; rails: HomeRail[] }) {
   return html;
 }
 
+// Verifies: REQ-web-home-perf-budget
 describe("perf:budget on the rendered Home (P8)", () => {
   it.each([24, 50])("keeps %i courses within EAGER_* and under 1 MiB of images in the first two viewports", async (total) => {
     const audit = auditHomeImages(await render(homeAt(total)));
