@@ -1,0 +1,8 @@
+{
+  "id": "CTRL-ssdf-po.1",
+  "catalog": "SSDF-1.1",
+  "control": "PO.1",
+  "title": "Define security requirements for software development",
+  "applicable": true,
+  "reason": "The repository builds software for the engine and the site; no requirement of type security is recorded yet."
+}

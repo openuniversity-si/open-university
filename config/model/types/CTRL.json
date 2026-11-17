@@ -1,0 +1,22 @@
+{
+  "id": "CTRL",
+  "name": "security control",
+  "system": "security",
+  "states": [
+    "implemented",
+    "partial",
+    "gap",
+    "not-applicable"
+  ],
+  "derived_states": [
+    "implemented",
+    "partial",
+    "gap",
+    "not-applicable"
+  ],
+  "unconformant_states": [
+    "partial",
+    "gap"
+  ],
+  "description": "A control of a reference catalog with its applicability: implemented, partial, a gap, or not applicable with the reason."
+}

@@ -1,0 +1,8 @@
+{
+  "id": "CTRL-ssdf-pw.2",
+  "catalog": "SSDF-1.1",
+  "control": "PW.2",
+  "title": "Review the software design to verify compliance with security requirements and risk information",
+  "applicable": true,
+  "reason": "No design review against security requirements is recorded."
+}

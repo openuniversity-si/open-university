@@ -1,0 +1,16 @@
+{
+  "id": "THREAT",
+  "name": "threat model",
+  "system": "security",
+  "states": [
+    "reviewed",
+    "written"
+  ],
+  "must_link": [
+    "models"
+  ],
+  "unconformant_states": [
+    "written"
+  ],
+  "description": "The threat model of one architecture element; suspect when the element changes."
+}

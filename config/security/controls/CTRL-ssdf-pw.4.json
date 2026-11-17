@@ -1,0 +1,12 @@
+{
+  "id": "CTRL-ssdf-pw.4",
+  "catalog": "SSDF-1.1",
+  "control": "PW.4",
+  "title": "Reuse existing, well-secured software when feasible",
+  "applicable": true,
+  "reason": "Every third-party component is read from the files that pin it, and the gate refuses one with a high or critical advisory.",
+  "implemented_by": [
+    "TEST:scripts/tests/supply.test.sh"
+  ],
+  "coverage": "full"
+}

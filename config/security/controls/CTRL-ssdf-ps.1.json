@@ -1,0 +1,14 @@
+{
+  "id": "CTRL-ssdf-ps.1",
+  "catalog": "SSDF-1.1",
+  "control": "PS.1",
+  "title": "Protect all forms of code from unauthorized access and tampering",
+  "applicable": true,
+  "reason": "main changes only through the merge queue with required checks, and force pushes are refused.",
+  "implemented_by": [
+    "CHK-tower-gate",
+    "CHK-web",
+    "STD-commit-check-force-push-errors"
+  ],
+  "coverage": "full"
+}

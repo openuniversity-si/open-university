@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/vuln.v1.json",
+  "title": "Vulnerability v1",
+  "description": "config/security/vulns/<id>.json (PADRAO-DEV F7d, D-321): a vulnerability of the repository's own code (SDL, SSDF RV): where, its severity by the bug bar (security.vuln_deadline_days), when it was found, fixed and verified. The state is derived (open, overdue, fixed, verified, accepted). Never an exploit.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "statement",
+    "severity",
+    "found",
+    "in"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^VULN-[a-z0-9][a-z0-9-]*$"
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "severity": {
+      "enum": [
+        "critical",
+        "high",
+        "moderate",
+        "low"
+      ]
+    },
+    "found": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "in": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "fixed": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "verified_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "accepted_until": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "reason": {
+      "type": "string"
+    }
+  }
+}

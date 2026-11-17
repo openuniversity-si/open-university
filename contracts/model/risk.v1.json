@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/risk.v1.json",
+  "title": "Security risk v1",
+  "description": "config/security/risks/<id>.json (PADRAO-DEV F7d, D-321): a security or privacy risk of the Segurança system (ISO/IEC 27001 6.1.2, 6.1.3, 8.2, 8.3): what it threatens, how likely and how bad, the treatment chosen and who accepts the residual. The state is written by the risk process (identified, assessed, treated, accepted, closed): the owner's acceptance is a decision, never derived.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "statement",
+    "state",
+    "owner",
+    "assets",
+    "likelihood",
+    "impact"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^RISK-[a-z0-9][a-z0-9-]*$"
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state": {
+      "enum": [
+        "identified",
+        "assessed",
+        "treated",
+        "accepted",
+        "closed"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "The objects at risk (a DATA, an ARC, a SUP)."
+    },
+    "likelihood": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "impact": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "treatment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "option",
+        "plan"
+      ],
+      "properties": {
+        "option": {
+          "enum": [
+            "mitigate",
+            "avoid",
+            "transfer",
+            "accept"
+          ]
+        },
+        "plan": {
+          "type": "string",
+          "minLength": 1
+        },
+        "by": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "residual_accepted_by": {
+      "type": "string"
+    },
+    "review_by": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "source": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "CTRL-ssdf-pw.7",
+  "catalog": "SSDF-1.1",
+  "control": "PW.7",
+  "title": "Review and/or analyze human-readable code to identify vulnerabilities",
+  "applicable": true,
+  "reason": "Only secrets are scanned; no static analysis for vulnerabilities runs.",
+  "implemented_by": [
+    "STD-gate-secret-scan-tree"
+  ],
+  "coverage": "partial"
+}

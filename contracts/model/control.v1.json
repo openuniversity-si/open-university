@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/control.v1.json",
+  "title": "Security control v1",
+  "description": "config/security/controls/<id>.json (PADRAO-DEV F7d, D-321): one control of a reference catalog (NIST SP 800-218, the SSDF, first) and the repository's statement of its applicability (ISO/IEC 27001 Statement of Applicability): whether it applies and why, what implements it and how fully. The state is derived (implemented, partial, gap, not-applicable).",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "catalog",
+    "control",
+    "title",
+    "applicable",
+    "reason"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^CTRL-[a-z0-9][a-z0-9.-]*$"
+    },
+    "catalog": {
+      "enum": [
+        "SSDF-1.1"
+      ]
+    },
+    "control": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "applicable": {
+      "type": "boolean"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "implemented_by": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "The rules, tests, checks or records that implement it."
+    },
+    "coverage": {
+      "enum": [
+        "full",
+        "partial"
+      ],
+      "description": "Whether what implements it covers the whole control."
+    }
+  }
+}

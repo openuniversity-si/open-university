@@ -1,0 +1,8 @@
+{
+  "id": "CTRL-ssdf-ps.2",
+  "catalog": "SSDF-1.1",
+  "control": "PS.2",
+  "title": "Provide a mechanism for verifying software release integrity",
+  "applicable": true,
+  "reason": "No release is signed and no provenance is published."
+}

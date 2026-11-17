@@ -1,0 +1,20 @@
+{
+  "id": "RISK",
+  "name": "security risk",
+  "system": "security",
+  "states": [
+    "identified",
+    "assessed",
+    "treated",
+    "accepted",
+    "closed"
+  ],
+  "inactive_states": [
+    "closed"
+  ],
+  "unconformant_states": [
+    "identified",
+    "assessed"
+  ],
+  "description": "A security or privacy risk; conformant once treated or its residual accepted by its owner."
+}

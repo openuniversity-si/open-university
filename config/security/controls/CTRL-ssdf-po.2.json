@@ -1,0 +1,8 @@
+{
+  "id": "CTRL-ssdf-po.2",
+  "catalog": "SSDF-1.1",
+  "control": "PO.2",
+  "title": "Implement roles and responsibilities",
+  "applicable": true,
+  "reason": "Owners are recorded per unit, supplier and data store, but no one holds the security role."
+}

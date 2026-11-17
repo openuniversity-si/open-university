@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/threat.v1.json",
+  "title": "Threat model v1",
+  "description": "config/security/threats/<id>.json (PADRAO-DEV F7d, D-321): the threat model of one architecture element (SDL): its assets, trust boundaries, entry points and the threats (STRIDE) with their mitigations. It models an ARC and turns suspect when the ARC changes.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "models",
+    "assets",
+    "boundaries",
+    "threats"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^THREAT-[a-z0-9][a-z0-9-]*$"
+    },
+    "models": {
+      "type": "string",
+      "pattern": "^ARC-[a-z0-9][a-z0-9-]*$"
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "boundaries": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "threats": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stride",
+          "statement"
+        ],
+        "properties": {
+          "stride": {
+            "enum": [
+              "spoofing",
+              "tampering",
+              "repudiation",
+              "information-disclosure",
+              "denial-of-service",
+              "elevation-of-privilege"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mitigated_by": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "reviewed": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    }
+  }
+}

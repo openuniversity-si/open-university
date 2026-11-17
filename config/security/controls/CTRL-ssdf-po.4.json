@@ -1,0 +1,14 @@
+{
+  "id": "CTRL-ssdf-po.4",
+  "catalog": "SSDF-1.1",
+  "control": "PO.4",
+  "title": "Define and use criteria for software security checks",
+  "applicable": true,
+  "reason": "The gate refuses secrets in the tree and in history and high or critical advisories affecting a component.",
+  "implemented_by": [
+    "STD-gate-secret-scan-tree",
+    "STD-gate-secret-scan-history",
+    "TEST:scripts/tests/supply.test.sh"
+  ],
+  "coverage": "full"
+}

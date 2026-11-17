@@ -1,0 +1,14 @@
+{
+  "name": "implemented-by",
+  "from": [
+    "CTRL"
+  ],
+  "to": [
+    "STD",
+    "TEST",
+    "CHK",
+    "DATA",
+    "REQ"
+  ],
+  "description": "A control is implemented by a rule, a test, a required check, a data record or a requirement (the Statement of Applicability)."
+}

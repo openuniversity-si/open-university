@@ -1,0 +1,12 @@
+{
+  "id": "CTRL-ssdf-rv.1",
+  "catalog": "SSDF-1.1",
+  "control": "RV.1",
+  "title": "Identify and confirm vulnerabilities on an ongoing basis",
+  "applicable": true,
+  "reason": "Third-party advisories are audited into a snapshot; vulnerabilities of the repository's own code have a record (VULN) but no source that finds them.",
+  "implemented_by": [
+    "TEST:scripts/tests/supply.test.sh"
+  ],
+  "coverage": "partial"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "CTRL-ssdf-pw.6",
+  "catalog": "SSDF-1.1",
+  "control": "PW.6",
+  "title": "Configure the compilation, interpreter, and build processes to improve executable security",
+  "applicable": true,
+  "reason": "No build hardening is recorded for the engine or the site."
+}

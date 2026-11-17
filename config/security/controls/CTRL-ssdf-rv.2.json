@@ -1,0 +1,12 @@
+{
+  "id": "CTRL-ssdf-rv.2",
+  "catalog": "SSDF-1.1",
+  "control": "RV.2",
+  "title": "Assess, prioritize, and remediate vulnerabilities",
+  "applicable": true,
+  "reason": "High and critical advisories block until updated or exempted with a deadline, and the bug bar sets deadlines for the repository's own vulnerabilities; no vulnerability of our own code is recorded yet.",
+  "implemented_by": [
+    "TEST:scripts/tests/supply.test.sh"
+  ],
+  "coverage": "partial"
+}

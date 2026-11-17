@@ -1,0 +1,17 @@
+{
+  "id": "RISK-personal-data-unregistered",
+  "statement": "The site's database keeps personal data (e-mail, name, session IP and user agent, identity provider tokens, lesson progress) with no recorded purpose, legal basis or retention, so its processing cannot be shown lawful under the LGPD and nothing bounds how long it is kept.",
+  "state": "assessed",
+  "owner": "Daniel",
+  "assets": [
+    "DATA-tower-data"
+  ],
+  "likelihood": "medium",
+  "impact": "high",
+  "treatment": {
+    "option": "mitigate",
+    "plan": "The owner records the purpose, the legal basis (LGPD art. 7) and the retention of each personal field in DATA-tower-data, and the site's privacy notice states them."
+  },
+  "review_by": "2026-12-17",
+  "source": "docs/programs/padrao-dev/phases/F7.md (F7d)"
+}

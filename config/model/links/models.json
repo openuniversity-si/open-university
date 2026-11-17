@@ -1,0 +1,10 @@
+{
+  "name": "models",
+  "from": [
+    "THREAT"
+  ],
+  "to": [
+    "ARC"
+  ],
+  "description": "A threat model models an architecture element (SDL)."
+}

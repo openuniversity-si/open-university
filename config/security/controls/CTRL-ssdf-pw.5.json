@@ -1,0 +1,12 @@
+{
+  "id": "CTRL-ssdf-pw.5",
+  "catalog": "SSDF-1.1",
+  "control": "PW.5",
+  "title": "Create source code by adhering to secure coding practices",
+  "applicable": true,
+  "reason": "The lint ratchet keeps Python's bug rules from growing; nothing checks secure coding beyond it, and the site's code has its own lint only.",
+  "implemented_by": [
+    "STD-lint-ratchet"
+  ],
+  "coverage": "partial"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "CTRL-ssdf-pw.1",
+  "catalog": "SSDF-1.1",
+  "control": "PW.1",
+  "title": "Design software to meet security requirements and mitigate security risks",
+  "applicable": true,
+  "reason": "No architecture element has a threat model yet."
+}
