@@ -1,0 +1,66 @@
+/*
+ * §8.7 focus by role (FocusRing 293:14464). Keyboard focus only (`:focus-visible`); it adds to
+ * Selected/Current states. Default: 2 px silver outline with a 2 px offset.
+ */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+:focus-visible {
+  outline: var(--tower-focus-ring-width) solid var(--tower-focus-ring);
+  outline-offset: var(--tower-focus-ring-offset);
+}
+
+/* FocusRing Shape=Rounded (293:14464): a 4 px-radius ring 2 px outside elements whose own radius is 12. */
+.tower-focus-rounded {
+  position: relative;
+}
+
+.tower-focus-rounded:focus-visible {
+  outline: none;
+}
+
+.tower-focus-rounded:focus-visible::after {
+  position: absolute;
+  inset: calc(-1 * (var(--tower-focus-ring-width) + var(--tower-focus-ring-offset)));
+  border: var(--tower-focus-ring-width) solid var(--tower-focus-ring);
+  border-radius: var(--tower-focus-ring-radius);
+  content: "";
+  pointer-events: none;
+}
+
+/* Focused or scrolled-to targets never land under the fixed TopNav (56 / 72 + 8 px, as LecturesAnchor). */
+html {
+  scroll-padding-top: var(--tower-header-height-mobile);
+}
+
+@media (width >= 1024px) {
+  html {
+    scroll-padding-top: calc(var(--tower-header-height-desktop) + var(--tower-player-length-8));
+  }
+}
+
+/* Programmatic focus targets (the skip link's `main`) are not interactive. */
+[tabindex="-1"]:focus-visible {
+  outline: none;
+}
+
+/* D7: the skip link exists only for keyboard focus. */
+.tower-skip-link {
+  position: fixed;
+  top: var(--tower-skip-link-offset);
+  left: var(--tower-skip-link-offset);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  min-height: var(--tower-tap-min);
+  padding: 0 var(--tower-gap);
+  border-radius: var(--tower-radius);
+  background: var(--tower-surface-raised);
+  color: var(--tower-ink);
+  text-decoration: var(--tower-text-decoration-none);
+}
+
+.tower-skip-link:not(:focus-visible) {
+  clip-path: inset(50%);
+}

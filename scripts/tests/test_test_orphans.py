@@ -127,14 +127,14 @@ class Orphans(Repo):
 
 class Doubles(Repo):
     def test_a_test_two_wrappers_run_fails_and_names_both_globs(self):
-        self.add_test('test_neon_migrate.py')
-        wrappers = {'cloud-tail': 'python3 "$(dirname "$0")/test_neon_migrate.py"',
-                    'neon': 'for test in "$(dirname "$0")"/test_neon*.py; do python3 "$test"; done'}
+        self.add_test('test_db_migrate.py')
+        wrappers = {'cloud-tail': 'python3 "$(dirname "$0")/test_db_migrate.py"',
+                    'db': 'for test in "$(dirname "$0")"/test_db*.py; do python3 "$test"; done'}
         for name, line in wrappers.items():
             self.wrapper(name, line)
-        self.assertEqual(self.one_error(), f'scripts/tests/test_neon_migrate.py: run by {len(wrappers)} wrappers '
-                         '(scripts/tests/cloud-tail.test.sh:4 "test_neon_migrate.py", '
-                         'scripts/tests/neon.test.sh:4 "test_neon*.py"); '
+        self.assertEqual(self.one_error(), f'scripts/tests/test_db_migrate.py: run by {len(wrappers)} wrappers '
+                         '(scripts/tests/cloud-tail.test.sh:4 "test_db_migrate.py", '
+                         'scripts/tests/db.test.sh:4 "test_db*.py"); '
                          'narrow every glob but the one of the wrapper that owns it')
 
     def test_wrappers_that_each_run_a_shard_of_their_own_own_the_test_together(self):

@@ -17,7 +17,7 @@
 #
 # Records: <sha>.dev.pass, .pr.pass (legacy), .pass (full), .noite.pass (end of day), .tier3.pass.
 # OU-DECOUPLE F5 (D-113): the engine gate runs engine stages only (scripts/lib/gate_policy.py). Open University's web
-# stages (install, suites, builds, browsers), its DB gate (--db), the Neon PR stages and the factory bench left with it;
+# stages (install, suites, builds, browsers), its DB gate (--db), the per-PR database stages and the factory bench left with it;
 # so did the offline seed of their caches and its registry key (vazão F16).
 # Exit: 0 pass, 1 fail, 2 usage/setup error. Secrets are never printed.
 # Tooling is this script's checkout. --pr/--sha checks the head out only as the code under test.

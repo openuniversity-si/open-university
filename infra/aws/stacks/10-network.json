@@ -308,6 +308,15 @@
         "VpcId": {
           "Ref": "Vpc"
         },
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "icmp",
+            "FromPort": 252,
+            "ToPort": 86,
+            "CidrIp": "127.0.0.1/32",
+            "Description": "no outbound: the database opens no connection (a rule that matches nothing replaces the default allow-all)"
+          }
+        ],
         "Tags": [
           {
             "Key": "Name",

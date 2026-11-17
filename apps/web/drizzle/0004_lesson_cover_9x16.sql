@@ -1,0 +1,2 @@
+ALTER TABLE "lesson_assets" DROP CONSTRAINT "lesson_assets_kind";--> statement-breakpoint
+ALTER TABLE "lesson_assets" ADD CONSTRAINT "lesson_assets_kind" CHECK ("lesson_assets"."kind" in ('cover_16x9', 'cover_9x16', 'thumb'));

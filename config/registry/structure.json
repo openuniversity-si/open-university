@@ -196,17 +196,19 @@
     },
     "structure.raster_allowed": {
       "type": "array",
-      "default": [],
+      "default": [
+        "^apps/web/public/(brand|icons)/[a-z0-9-]+\\.(png|jpg|ico)$"
+      ],
       "uniqueItems": true,
       "items": {
         "type": "string"
       },
       "x-unit": "count",
-      "description": "Regular expressions of the tracked paths a raster image may have. Empty since Open University left (OU-DECOUPLE F4): no image is tracked.",
+      "description": "Regular expressions of the tracked paths a raster image may have: the site's brand marks and icons (D-319), which Next.js serves as static files from apps/web/public; every other image lives in object storage (R2), never in git.",
       "x-readers": [
         "scripts/lib/repo_hygiene.py"
       ],
-      "x-source": "D-105 (OU-DECOUPLE F2)"
+      "x-source": "D-105 (OU-DECOUPLE F2); D-319"
     },
     "structure.raster_pattern": {
       "type": "string",
@@ -234,8 +236,10 @@
         "docs/process/premises/**",
         "docs/process/spikes/**",
         "docs/domain/DECISIONS.md",
+        "docs/domain/decisions/**",
         "config/registry/structure.json",
         "config/registry/structure/structure.retired_product_roots.json",
+        "config/registry/structure/structure.retired_vendor_terms.json",
         "scripts/lib/generated/**",
         ".gitleaks.toml"
       ],
@@ -244,27 +248,44 @@
         "type": "string"
       },
       "x-unit": "count",
-      "description": "Globs of the historical records a retired product root may still be named in: they describe the past and are not rewritten (units, programs, ADRs, audits, the roadmap and process records, the decision register), plus the definition of the roots itself and its generated types; and .gitleaks.toml, whose allowlist must name paths of past commits because the secret scan judges the whole history.",
+      "description": "Globs of the historical records a retired product root (D-113) or a retired vendor (D-318) may still be named in: they describe the past and are not rewritten (units, programs, ADRs, audits, the frozen project, the roadmap and process records, the decision register and its records), plus the definitions of the roots and of the vendor terms themselves and their generated types; and .gitleaks.toml, whose allowlist must name paths of past commits because the secret scan judges the whole history.",
       "x-readers": [
-        "scripts/lib/retired_products.py"
+        "scripts/lib/retired_products.py",
+        "scripts/lib/retired_vendors.py"
       ],
-      "x-source": "D-113 (OU-DECOUPLE F5)"
+      "x-source": "D-113 (OU-DECOUPLE F5); D-318"
     },
     "structure.retired_product_roots": {
       "type": "array",
-      "default": [
-        "apps/web"
-      ],
+      "default": [],
       "uniqueItems": true,
       "items": {
         "type": "string"
       },
       "x-unit": "count",
-      "description": "Path roots of retired products (D-112, D-113): no tracked path lies under one, and no acting file names one. Open University left at OU-DECOUPLE F4; its archive is commit 567176bb (D-110).",
+      "description": "Path roots of retired products (D-112, D-113): no tracked path lies under one, and no acting file names one. Empty since D-319: Open University's site, which left at OU-DECOUPLE F4 (archive 567176bb, D-110), returned under apps/web; a product retired later is named here.",
       "x-readers": [
         "scripts/lib/retired_products.py"
       ],
-      "x-source": "D-113 (OU-DECOUPLE F5)"
+      "x-source": "D-113 (OU-DECOUPLE F5); D-319"
+    },
+    "structure.retired_vendor_terms": {
+      "type": "array",
+      "default": [
+        "vercel",
+        "(?<![a-z])neon"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "count",
+      "description": "Case-insensitive regular expressions (Python's re, matched by scripts/lib/retired_vendors.py, never by a git built without PCRE) of the vendors nothing of ours relates to any more (D-318): no tracked path matches one, and no line of an acting file does; only the records of structure.record_globs keep the past. The lookbehind keeps a word that merely contains the letters (MachineOnly) out. Each pattern also covers the vendor's packages, hosts and variables (@vendor/, its storage and database hosts, VENDOR_ names).",
+      "x-readers": [
+        "scripts/lib/retired_vendors.py"
+      ],
+      "x-source": "D-318"
     },
     "structure.test_file_pattern": {
       "type": "string",

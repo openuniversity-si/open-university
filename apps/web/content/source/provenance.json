@@ -1,0 +1,34 @@
+{
+  "legacyTag": "rewrite-base",
+  "legacyCommit": "134c1684a749f46e2ced80dc40e3b9a3fa62a483",
+  "selectionSha256": "453740bf7a894e969684696f3762208fa0ae3d04c79359b9d4f4a65c344e9612",
+  "editorialSha256": "80432976cf05a78ba91ffbb30dda8903ab59f8eef2262523feabbf60347a6404",
+  "sourceCsvSha256": "d83dd88fe321b9f89fff62a8dcdbe29ecb31908b51a82d617bd67977e5b07f10",
+  "dossiers": {
+    "course-1": {
+      "file": "01-biblical-series-genesis.md",
+      "sha256": "b35e3f132f01c0604c586235d22c2309ec901cd8862fab8cc1a59e9453f83694"
+    },
+    "course-2": {
+      "file": "02-maps-of-meaning-2017.md",
+      "sha256": "5fcf59d36b7ef0049b9c2b741e6abb62d9db21ad2ce6419f6992d593adf5b116"
+    },
+    "course-3": {
+      "file": "03-personality-and-its-transformations.md",
+      "sha256": "570e653cf260829a05cb0f3daf7361ce7cebb5d1e9fca7915c675e9030bbb7bc"
+    },
+    "course-4": {
+      "file": "04-awakening-from-the-meaning-crisis.md",
+      "sha256": "90271fafa5c9eb3d2202ff49a82081e6675b023b56daa46d5e8d7dbaa3798261"
+    },
+    "course-5": {
+      "file": "05-after-socrates.md",
+      "sha256": "64c81f3573292e799d86e2031deaf5a5fff540eaaba7234b3a627b14c1fc7587"
+    }
+  },
+  "youtubeManifestSourceSha256": "de8ae28d0f7448529c470ccabeec8f60959959d88edb89cb6e4a7db12948ab83",
+  "youtubeManifestSnapshotSha256": "b745a520085642dfc08d2979c189c2332ea339cae114aa630e277d083170352d",
+  "specAssetsSha256": "6ee025d4effa2876468be32fc298c3b51bcde3267c5cf975b85c2b59ba826b47",
+  "figmaVersion": "2407990552500694146",
+  "figmaLastModified": "2026-10-08T14:02:19Z"
+}

@@ -102,7 +102,11 @@ class GateCheck(unittest.TestCase):
             done = subprocess.run(['bash', str(CHECK), 'tests', names], cwd=ROOT, capture_output=True, text=True, check=False,
                                   env=dict(os.environ, TOWER_ANSWER_FILE=str(answer), GATE_TEST_CACHE_OFF='1'))
             self.assertEqual(done.returncode, 0, done.stdout + done.stderr[-2000:])
-            self.assertEqual(json.loads(answer.read_text()), {'tests': {name: 'PASS' for name in names.split(',')}})
+            answered = json.loads(answer.read_text())
+            self.assertEqual(answered['tests'], {name: 'PASS' for name in names.split(',')})
+            # GATE-PACE: and each one's wall in the batch, for verify-commit's pace line
+            self.assertEqual(sorted(answered['seconds']), sorted(names.split(',')))
+            self.assertTrue(all(isinstance(spent, float) for spent in answered['seconds'].values()))
         refused = subprocess.run(['bash', str(CHECK), 'tests', 'scripts/tests/checks.test.sh,../etc/x.sh'], cwd=ROOT,
                                  capture_output=True, text=True, check=False)
         self.assertEqual(refused.returncode, 1)

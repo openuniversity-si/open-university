@@ -65,6 +65,8 @@ class Log:
             prefix = params['prefix'].rstrip('%')
             return [(json.dumps(each['payload']),) for each in reversed(self.events)
                     if each['type'] == queue_deploy.PREPARED and each['id'].startswith(prefix)][:5]
+        if sql == queue_deploy.LIVE_CODE:
+            return [(getattr(self, 'live_code', ''),)]
         if sql == queue_deploy.OUTCOME_OF:
             return [(json.dumps(each['payload']),) for each in self.events
                     if each['type'] == queue_deploy.OUTCOME and each['id'] == params['id']]
@@ -326,6 +328,36 @@ class Prepared(unittest.TestCase):
             newest[each['digest']] = each['state']
         self.assertEqual(newest[old['sha256']], 'withdrawn')
 
+    def test_a_landing_with_nothing_to_deploy_withdraws_the_merged_wants_but_the_live_codes(self):
+        """MERGED-WANTS: a docs merge lands on main after two code-only merges whose wants stood; it carries nothing for
+        the fast path, and still withdraws the merged commits' wants, but never the bundle the live code is."""
+        first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        second = self.remote.queued({'infra/service/tower_infra/canary.py': 'LOOK = 3\n'}, 2)
+        self.remote.git('checkout', '-q', '-B', 'main', second)
+        docs = self.remote.queued({'docs/readme.md': 'b\n'}, 3)
+        found = {name: self.queue.prepare(self.log, sha) for name, sha in (('first', first), ('second', second))}
+        self.log.live_code = f"{found['second']['sha256']}@{second}"  # the second's heir is the live process
+        self.ssm[queue_deploy.LAST_SHA] = second  # and its build ended: the docs merge has nothing more to deploy
+        self.remote.git('push', '-q', str(self.remote.bare), f'{docs}:refs/heads/main')
+        said = self.queue.landed(self.log, docs, self.order)
+        self.assertEqual(said['state'], 'skipped')
+        self.assertIn('not code-only', said['why'])
+        newest = {}
+        for each in self.log.of(live_image.SUCCESSOR):
+            newest[each['digest']] = each['state']
+        self.assertEqual(newest[found['first']['sha256']], 'withdrawn')
+        self.assertEqual(newest[found['second']['sha256']], 'wanted')  # the live code's: never withdrawn here
+        self.assertEqual(self.orders, [])
+
+    def test_a_landing_not_on_main_settles_nothing(self):
+        first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        found = self.queue.prepare(self.log, first)
+        said = self.queue.landed(self.log, first, self.order)  # main is still the base
+        self.assertIn('not', said['why'])
+        self.assertEqual(self.log.of(live_image.SUCCESSOR)[-1]['state'], 'wanted')
+        self.assertEqual(self.log.of(live_image.SUCCESSOR)[-1]['digest'], found['sha256'])
+
     def test_a_landing_keeps_the_heirs_of_the_entries_still_in_the_queue(self):
         """BURST-HEIRS: the queue builds entries side by side. The first lands with no heir of its own ready (the task
         holds the newest want, the third's); the third is still on its merge-queue branch, so its want stands for the
@@ -370,6 +402,47 @@ class Prepared(unittest.TestCase):
         self.assertEqual((carried['carried_from'], carried['sha256'], carried['base']), (old, found['sha256'], first))
         builds = [each for each in self.log.of(queue_deploy.PREPARED) if each.get('sha') == second]
         self.assertEqual(len(builds), 2)  # the first prepare and the carry, no third
+
+    def test_a_queued_commit_behind_a_stack_merge_is_prepared_again_when_its_build_moves_the_base(self):
+        """PREPARE-ON-BASE-MOVE: #142 changed stacks; #145, queued behind it, was prepared on the base before it (not
+        code-only: the stack is in that diff). When #142's build ends green (last-sha moves; platform.deploy.ended wakes the
+        look), the look prepares #145 again on the new base: code-only, its heir wanted before its landing. Once per base."""
+        first = self.remote.queued({'infra/aws/stacks/30-service.json': '{}\n'})
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        second = self.remote.queued({'infra/service/tower_infra/canary.py': 'LOOK = 3\n'}, 2)
+        for sha in (first, second):
+            self.word('prepare', sha)
+        self.queue.look(self.log, self.order)
+        self.assertEqual([each['code_only'] for each in self.log.of(queue_deploy.PREPARED)], [False, False])
+        self.remote.land(first)
+        self.word('landed', first)
+        self.queue.look(self.log, self.order)  # its landing is the deploy build's: nothing ordered
+        self.assertEqual((self.orders, self.log.of(live_image.SUCCESSOR)), ([], []))
+        self.ssm[queue_deploy.LAST_SHA] = first  # its build ended green
+        self.queue.look(self.log, self.order)
+        again = self.queue.prepared(self.log, second, first)
+        self.assertEqual((again['code_only'], again['sha256']), (True, self.remote.digest_of(second)))
+        [want] = self.log.of(live_image.SUCCESSOR)
+        self.assertEqual((want['digest'], want['state'], want['sha']), (again['sha256'], 'wanted', second))
+        self.queue.look(self.log, self.order)  # the same base: nothing again
+        self.assertEqual(len(self.log.of(queue_deploy.PREPARED)), 3)
+        self.remote.land(second, 2)
+        self.log.beating.add(again['sha256'])  # its heir warmed while it waited
+        self.word('landed', second)
+        self.queue.look(self.log, self.order)
+        [_, said] = self.log.of(queue_deploy.OUTCOME)
+        self.assertEqual((said['state'], self.orders), ('swapped', []))
+
+    def test_a_commit_that_left_the_queue_is_not_prepared_again_when_the_base_moves(self):
+        first = self.remote.queued({'infra/aws/stacks/30-service.json': '{}\n'})
+        gone = self.remote.queued({'infra/service/tower_infra/canary.py': 'LOOK = 3\n'}, 2)
+        self.word('prepare', gone)
+        self.queue.look(self.log, self.order)
+        self.remote.git('push', '-q', str(self.remote.bare), f':refs/heads/gh-readonly-queue/main/pr-2-{self.remote.main}')
+        self.remote.land(first)
+        self.ssm[queue_deploy.LAST_SHA] = first
+        self.queue.look(self.log, self.order)
+        self.assertEqual(len(self.log.of(queue_deploy.PREPARED)), 1)
 
     def test_a_path_the_earlier_diff_did_not_have_is_prepared_again(self):
         """BASE-MOVED: the first entry changed a migration and the second put it back, so the diff from the old base has

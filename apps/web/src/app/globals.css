@@ -1,0 +1,67 @@
+@import url("../ui/tokens/tokens.css");
+@import url("../ui/tokens/shell.css");
+@import url("../ui/tokens/home.css");
+@import url("../ui/tokens/course.css");
+@import url("../ui/tokens/player.css");
+@import url("../ui/tokens/glass.css");
+@import url("../ui/tokens/auth.css");
+@import url("../ui/tokens/progress.css");
+@import url("../ui/tokens/edition.css");
+@import url("../ui/tokens/legal.css");
+@import url("../ui/tokens/universities.css");
+@import url("../ui/tokens/credits.css");
+@import url("../ui/tokens/not-found.css");
+@import url("../ui/typography.css");
+@import url("../ui/focus.css");
+@import url("../ui/glass.css");
+
+
+html,
+body {
+  margin: 0;
+  background: var(--tower-surface);
+  color: var(--tower-ink);
+  font-synthesis: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: var(--tower-viewport-dynamic);
+}
+
+body > main {
+  flex: 1;
+}
+
+/*
+ * Touch feedback is the design's Pressed/Selected state, not the browser's: Chrome on Android paints
+ * every tapped link/button (and the whole card around it) with a translucent blue highlight
+ * (`rgba(51, 181, 229, 0.4)`). The property inherits, so `html` covers every control.
+ */
+html {
+  color-scheme: var(--tower-el-color-scheme);
+  -webkit-tap-highlight-color: var(--tower-el-clear);
+}
+
+::selection {
+  background: var(--tower-selection);
+  color: var(--tower-selection-ink);
+}
+
+/* Touch surfaces (cards, playlist items, header/Player controls): no long-press selection, callout or drag. Reading text stays selectable. */
+a,
+button,
+label,
+summary,
+[role="button"],
+[role="menuitem"],
+[role="slider"] {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+a,
+img {
+  -webkit-user-drag: none;
+}

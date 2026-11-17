@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# tower-catalog: operate The Tower's dynamic catalog through the protected admin API (docs/catalog/cli.md).
+#   tower-catalog <command> … --target preview|staging|prod [--json] [--dry-run] [--yes]
+#   tower-catalog --help | <command> --help     # every command and its options (no secrets needed)
+#   tower-catalog install                       # writes ~/.local/bin/tower-catalog, a shim that runs this checkout
+# Reads one admin key per target, TOWER_ADMIN_SECRET_PROD and TOWER_ADMIN_SECRET_PREVIEW (staging uses the preview
+# key), with TOWER_ADMIN_MEDIA_SECRET as the key of every target only while neither exists; TOWER_MEDIA_URL_PREVIEW|
+# STAGING|PROD, from the environment. If ~/.config/the-tower/admin-media.env (or TOWER_ADMIN_MEDIA_ENV) is readable, it is
+# sourced first. The secret reaches scripts/tower-catalog.ts (next to tooling/) on file descriptor 3 (printf is a builtin):
+# never in argv, the environment, a file or the output.
+# This wrapper only does environment, target, the secret's transport and install; prompts and logic live in the .ts.
+set -euo pipefail
+
+die() { printf 'tower-catalog: %s\n' "$*" >&2; exit 2; }
+
+# Always this checkout: the wrapper and its Node half come from the same app tree (the directory above tooling/).
+self="$(readlink -f "${BASH_SOURCE[0]}")"
+repo="$(cd "$(dirname "$self")/.." && pwd)"
+entry="$repo/scripts/tower-catalog.ts"
+[ -f "$entry" ] || die "cannot find $entry; run tower-catalog from a full checkout of the app"
+
+if [ "${1:-}" = install ]; then
+  # The shim records this checkout and runs only it, only while it is on a branch with no uncommitted tracked change.
+  mkdir -p "$HOME/.local/bin"
+  tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
+  {
+    printf '#!/usr/bin/env bash\n# tower-catalog shim written by %q install: runs that checkout, never another one.\n' "$self"
+    printf 'set -euo pipefail\ncheckout=%q\n' "$repo"
+    cat <<'SHIM'
+die() { printf 'tower-catalog: %s\n' "$*" >&2; exit 2; }
+again="reinstall from a current checkout: <checkout>/tooling/tower-catalog install"
+[ -x "$checkout/tooling/tower-catalog" ] || die "the checkout this copy was installed from is missing ($checkout); $again"
+git -C "$checkout" rev-parse --git-dir >/dev/null 2>&1 || die "$checkout is not a git checkout; $again"
+git -C "$checkout" symbolic-ref -q HEAD >/dev/null || die "$checkout is on a detached HEAD; check out a branch there (git -C $checkout switch main) or $again"
+[ -z "$(git -C "$checkout" status --porcelain --untracked-files=no)" ] || die "$checkout has uncommitted changes; commit or stash them there, or run $checkout/tooling/tower-catalog directly"
+exec "$checkout/tooling/tower-catalog" "$@"
+SHIM
+  } >"$tmp"
+  install -m 0755 "$tmp" "$HOME/.local/bin/tower-catalog"
+  echo "installed ~/.local/bin/tower-catalog (runs $repo)"; exit 0
+fi
+
+# Node 22+: TOWER_NODE when set, otherwise the first node on PATH.
+node="${TOWER_NODE:-$(command -v node || true)}"
+if [ -z "$node" ] || [ ! -x "$node" ]; then die "node is not on PATH (Node 22+ is required; or set TOWER_NODE)"; fi
+node_major="$("$node" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+[ "$node_major" -ge 22 ] || die "$node is not Node 22+ (set TOWER_NODE to a Node 22 binary)"
+# Node 22 resolves an extensionless import only when the package declares it. next@16 ships
+# next/cache.js and no "exports" map, so the command dies before it can answer. The hook
+# appends .js only after that lookup fails. server-only's empty module is its react-server
+# condition; without it the same process throws before the command can answer. A copied
+# wrapper whose checkout has no hook (the wrapper tests) leaves Node alone. An existing
+# NODE_OPTIONS, such as a test preload, stays.
+hook="$repo/test/next-extension-register.mjs"
+if [ -f "$hook" ]; then
+  case " ${NODE_OPTIONS-} " in
+    *" --import $hook "*) ;;
+    *) NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--import $hook" ;;
+  esac
+  case " ${NODE_OPTIONS-} " in
+    *" --conditions=react-server "*|*" --conditions react-server "*) ;;
+    *) NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--conditions=react-server" ;;
+  esac
+  export NODE_OPTIONS
+fi
+# Help and usage errors need no secret.
+case "${1:-}" in ""|-h|--help|help) exec "$node" "$entry" "$@" ;; esac
+target="" to="" previous=""
+for arg in "$@"; do
+  [ "$previous" = --target ] && target="$arg"
+  [ "$previous" = --to ] && to="$arg"
+  case "$arg" in --target=*) target="${arg#--target=}" ;; --to=*) to="${arg#--to=}" ;; --help) exec "$node" "$entry" "$@" ;; esac
+  previous="$arg"
+done
+# `ship --to` implies the target (commands/ship.ts shipTarget refuses a conflicting --target); --to both runs as prod.
+if [ -z "$target" ] && [ "${1:-}" = ship ]; then
+  case "$to" in prod|both) target=prod ;; preview) target=preview ;; esac
+fi
+case "$target" in
+  prod|preview|staging) ;;
+  "") die "--target preview|staging|prod is required (there is no default)" ;;
+  *) die "unknown --target $target (preview|staging|prod)" ;;
+esac
+
+env_file="${TOWER_ADMIN_MEDIA_ENV:-$HOME/.config/the-tower/admin-media.env}"
+if [ -r "$env_file" ]; then
+  # A readable file is the whole credential set. Ambient values must not fill omissions.
+  unset TOWER_ADMIN_MEDIA_SECRET TOWER_ADMIN_SECRET_PROD TOWER_ADMIN_SECRET_PREVIEW TOWER_MEDIA_URL_PREVIEW TOWER_MEDIA_URL_STAGING TOWER_MEDIA_URL_PROD TOWER_MEDIA_PREVIEW_BYPASS
+  set -a
+  # shellcheck source=/dev/null
+  . "$env_file"
+  set +a
+fi
+if [ "$target" = preview ] && [ -n "${TOWER_MEDIA_PREVIEW_URL_OVERRIDE:-}" ]; then export TOWER_MEDIA_URL_PREVIEW="$TOWER_MEDIA_PREVIEW_URL_OVERRIDE"; fi
+url_var="TOWER_MEDIA_URL_$(printf '%s' "$target" | tr '[:lower:]' '[:upper:]')"
+if [ -z "${!url_var:-}" ]; then
+  if [ -r "$env_file" ]; then die "$url_var is not set in $env_file"; fi
+  die "$url_var is not set (export it, or provide $env_file)"
+fi
+where="(export it, or provide $env_file)"
+[ -r "$env_file" ] && where="in $env_file"
+# One key per target. The shared TOWER_ADMIN_MEDIA_SECRET is the fallback only while neither per-target key exists:
+# with one of them set, the other must be too, so no target ever receives another target's key.
+secret_prod="${TOWER_ADMIN_SECRET_PROD:-}"
+secret_preview="${TOWER_ADMIN_SECRET_PREVIEW:-}"
+if [ -z "$secret_prod" ] && [ -z "$secret_preview" ]; then
+  [ -n "${TOWER_ADMIN_MEDIA_SECRET:-}" ] || die "TOWER_ADMIN_SECRET_PROD and TOWER_ADMIN_SECRET_PREVIEW are not set $where (nor the fallback TOWER_ADMIN_MEDIA_SECRET)"
+  secret_prod="$TOWER_ADMIN_MEDIA_SECRET"
+  secret_preview="$TOWER_ADMIN_MEDIA_SECRET"
+elif [ -z "$secret_prod" ]; then
+  die "TOWER_ADMIN_SECRET_PROD is not set $where; set both per-target keys (TOWER_ADMIN_SECRET_PREVIEW is set)"
+elif [ -z "$secret_preview" ]; then
+  die "TOWER_ADMIN_SECRET_PREVIEW is not set $where; set both per-target keys (TOWER_ADMIN_SECRET_PROD is set)"
+fi
+unset TOWER_ADMIN_MEDIA_SECRET TOWER_ADMIN_SECRET_PROD TOWER_ADMIN_SECRET_PREVIEW TOWER_MEDIA_PREVIEW_BYPASS
+
+export TOWER_CATALOG_SECRET_FD=3
+exec "$node" "$entry" "$@" 3< <(printf 'secret.prod=%s\nsecret.preview=%s\n' "$secret_prod" "$secret_preview")

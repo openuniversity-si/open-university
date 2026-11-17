@@ -1997,14 +1997,16 @@ for _name in dir(DeployShTests):  # the rig is inherited; the tests of DeployShT
 
 
 
-# DEPLOY-TEST-SHARDS: this module in three checks, each on a slot of its own (DEPLOY_TEST_SHARD); without the variable (a
+# DEPLOY-TEST-SHARDS: this module in six checks, each on a slot of its own (DEPLOY_TEST_SHARD); without the variable (a
 # local run, a class or a test by name) nothing is left out
 SHARD = 'DEPLOY_TEST_SHARD'
-SHARDS = ('slow-a', 'slow-b', 'slow-c')
+SHARDS = ('slow-a', 'slow-b', 'slow-c', 'slow-d', 'slow-e', 'slow-f')
 # DEPLOY-SHARDS-BY-SECONDS: each test's seconds (a local run, 13/11), so the parts are filled longest first, each into the
 # lightest: every third by name gave #639's parts 190.5, 169.5 and 125.1 s on the runner. Three, not four (RECORD-ONE-JQ):
 # the tests are CPU-bound on the runner's two vCPUs, and four parts took ~200 s each in #640, with every other check
-# waiting for a slot until 201 s
+# waiting for a slot until 201 s. DEPLOY-SIX-SHARDS (16/11/2026, GitHub's gate): two jobs of 4 vCPUs judge a plan side by
+# side, 3-4 tests at once each, and the three parts took 97-106 s each on them (the full suite at f57d1eaa), the floor of
+# every queue gate of a stack or deploy change (#142: 157 s). Six parts of ~50 s fit one round of those slots.
 SECONDS = ROOT / 'scripts' / 'tests' / 'deploy_sh_seconds.json'
 
 SLOW = (DeployShTests, SlowPathShTests)

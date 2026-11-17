@@ -1,0 +1,52 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`tower-catalog review > prints the whole course in a stable layout 1`] = `
+"Course course-6 · /c/freud · status review · revision 7
+  title Freud · author author-3 · Lecture · English · published -
+Rights: license youtube-standard · source src-test · canonical https://example.org/freud
+  status cleared · checked by Daniel at 2026-10-11T12:00:00.000Z · notes Official channel · attribution -
+Home rows: picks
+
+Course texts:
+  displayTitle [publish] 5/40 approved sha256 2c5db8c914d7 manual/high
+    «Freud»
+  shelfTitle [publish] limit 40: MISSING
+  subtitle [publish] 9/64 draft sha256 878c6cc2f260 manual/high
+    «On dreams»
+  billboardDescription [publish] limit 240: MISSING
+  billboardDescriptionMobile [publish] limit 120: MISSING
+  description [publish] limit 240: MISSING
+  descriptionMobile [publish] limit 120: MISSING
+  about [review] limit 170: MISSING
+  level [publish] 12/16 draft sha256 531a35b88e1c manual/high
+    «Introductory»
+  format [publish] limit 28: MISSING
+
+Covers: poster_9x16 v2 · hero_desktop_16x9 MISSING · hero_present MISSING · hero_mobile_9x16 MISSING
+
+Editions (1; position 1 opens by default):
+  1 edition-6 fall-2025 · Fall 2025 · 3 lectures + 0 labs · 2/3 visible · revision 2
+
+Lessons (3, 2 visible):
+  fall-2025 01 lesson-211 lecture-1 · lectures · lecture · visible · 25:01 · youtube:vid00000001 ok · covers cover_16x9 v1 · revision 2
+     YouTube title: Lecture 1 | Freud
+     displayTitle [publish] 9/64 approved sha256 cc9971d7967a manual/high
+       «Lecture 1»
+     about [optional] limit 300: empty
+  fall-2025 02 lesson-212 lecture-2 · lectures · lecture · visible · 25:02 · youtube:vid00000002 ok · covers fallback · revision 2
+     YouTube title: Lecture 2 | Freud
+     displayTitle [publish] 9/64 draft sha256 bd251518a1f1 manual/high
+       «Lecture 2»
+     about [optional] limit 300: empty
+  fall-2025 03 lesson-213 lecture-3 · lectures · lecture · hidden · 25:03 · youtube:vid00000003 ok · covers fallback · revision 2
+     YouTube title: Lecture 3 | Freud
+     displayTitle [publish] 9/64 draft sha256 4eec53943f34 manual/high
+       «Lecture 3»
+     about [optional] limit 300: empty
+
+Preconditions for review: 1 unmet
+  - covers.active course:course-6: Cover hero_present is missing.
+Preconditions for publish: 2 unmet
+  - covers.active course:course-6: Cover hero_present is missing.
+  - texts.approved course:course-6: subtitle is not approved."
+`;

@@ -1,0 +1,36 @@
+.panel {
+  position: fixed;
+  top: var(--tower-signin-panel-top);
+  right: var(--tower-signin-panel-right);
+  font-family: var(--tower-font-ui);
+}
+
+.message {
+  min-width: var(--tower-signin-message-min-width);
+  height: var(--tower-signin-message-height);
+  margin: 0;
+  color: var(--tower-signin-message-color);
+  font-size: var(--tower-signin-message-font-size);
+  line-height: var(--tower-signin-message-line-height);
+}
+
+.panel[data-kind="cancelled"] .message {
+  min-width: var(--tower-signin-cancelled-message-width);
+}
+
+.retry {
+  text-decoration: var(--tower-text-underline);
+  min-width: var(--tower-signin-retry-min-width);
+  border: 0;
+  background: var(--tower-signin-retry-background);
+  color: var(--tower-signin-retry-color);
+  font: var(--tower-signin-retry-font);
+  cursor: pointer;
+}
+
+@media (width >= 768px) {
+  .panel {
+    top: var(--tower-signin-panel-top-2);
+    right: var(--tower-signin-panel-right-2);
+  }
+}

@@ -15,7 +15,7 @@ import config
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / 'scripts' / 'cloud' / 'toolchain.json'
-# The Vercel CLI and gh left (vazão F6): the engine runs neither (AGENTS.md, github_cli), and Vercel's production is
+# A hosting CLI and gh left (vazão F6): the engine runs neither (AGENTS.md, github_cli), and the site's production is
 # Open University's, which left the repository (D-105, D-111). pnpm left too (vazão F16, D-292): the engine has no
 # package to install, so no file of it runs pnpm. Node stays: control-plane.test.sh runs `node --test`.
 TOOLS = ('python', 'node', 'gitleaks', 'postgres', 'ruff')

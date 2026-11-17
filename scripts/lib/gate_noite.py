@@ -103,7 +103,7 @@ def main():
         state = record / 'last-noite-sha'
         since = args.since or (state.read_text().strip() if state.is_file() else None)
         changes = merges(head, since)
-        # OU-DECOUPLE F5 (D-113): no Neon acceptance any more, so the night needs no merged PR to borrow a branch from.
+        # OU-DECOUPLE F5 (D-113): no database acceptance any more, so the night needs no merged PR to borrow a branch from.
         # D-260: nothing the regime lifted is silent; the night lists every lock.lifted since it began.
         if args.events:
             print('\n'.join(regime_lifts.render(regime_lifts.lifted(read_events(args.events), args.regime_since), args.regime_since)))

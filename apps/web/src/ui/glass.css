@@ -1,0 +1,226 @@
+/* Exact glass CSS (project Adendo 2.10 §7 + §12), extracted 19:58 BRT. Figma background blur = 2x CSS blur;
+Figma does not render saturate(). */
+
+/* shared base */
+.tower-glass {
+  position: relative;
+  isolation: isolate;
+  transform: translateZ(0);
+}
+
+.tower-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: var(--tower-glass-after-padding);
+  pointer-events: none;
+  background: var(--rim);
+  -webkit-mask: var(--tower-glass-after-mask);
+  -webkit-mask-composite: xor;
+  mask: var(--tower-glass-after-mask);
+  mask-composite: exclude;
+}
+
+/* Liquid: header only */
+.tower-glass--liquid {
+  background: var(--tower-glass-liquid-background);
+  -webkit-backdrop-filter: var(--tower-glass-liquid-backdrop-filter);
+  backdrop-filter: var(--tower-glass-liquid-backdrop-filter);
+  box-shadow: var(--tower-glass-liquid-box-shadow);
+
+  --rim: var(--tower-glass-liquid-rim);
+}
+
+.tower-header-glass {
+  position: fixed;
+  top: var(--tower-header-glass-top);
+  left: var(--tower-header-glass-left);
+  right: var(--tower-header-glass-right);
+  height: var(--tower-header-glass-height);
+  border-radius: var(--tower-header-glass-border-radius);
+  z-index: 40;
+  pointer-events: none;
+}
+
+@media (width <= 767px) {
+  .tower-header-glass {
+    top: var(--tower-header-glass-top-2);
+    left: var(--tower-header-glass-left-2);
+    right: var(--tower-header-glass-right-2);
+    height: var(--tower-header-glass-height-2);
+    border-radius: var(--tower-header-glass-border-radius-2);
+  }
+
+}
+
+/* Clear: Player play button (F09) and PrimaryCTA Start/Resume (C1) */
+.tower-glass--clear {
+  background: var(--tower-glass-clear-background);
+  -webkit-backdrop-filter: var(--tower-glass-clear-backdrop-filter);
+  backdrop-filter: var(--tower-glass-clear-backdrop-filter);
+  box-shadow: var(--tower-glass-clear-box-shadow);
+
+  --rim: var(--tower-glass-clear-rim);
+}
+
+/* Player play button (F09): classes tower-glass tower-glass--clear tower-play */
+.tower-play {
+  width: var(--tower-player-length-40);
+  height: var(--tower-player-length-40);
+  border-radius: var(--tower-el-radius-round);
+  color: var(--tower-player-play-ink);
+}
+
+@media (width <= 767px) {
+  .tower-play {
+    width: var(--tower-player-length-24);
+    height: var(--tower-player-length-24);
+  }
+}
+
+/* 44 px target around the 24/40 px glass (-10 / -2 px). */
+.tower-play::before {
+  position: absolute;
+  inset: calc((100% - var(--tower-tap-min)) / 2);
+  content: "";
+}
+
+/* Media Chrome bar without background: the Player draws its controls on the scrim (F09). */
+media-controller {
+  --media-control-background: var(--tower-el-clear);
+  --media-control-hover-background: var(--tower-el-clear);
+}
+
+/* PrimaryCTA (Kind=Primary) — C1 Glass capsule;
+classes: tower-glass tower-glass--clear tower-cta */
+.tower-cta {
+  box-sizing: border-box;
+  border: var(--tower-cta-clear-border);  display: inline-flex;
+  align-items: center;
+  gap: var(--tower-cta-clear-gap);
+  height: var(--tower-cta-clear-height);
+  padding: var(--tower-cta-clear-padding);
+  border-radius: var(--tower-cta-clear-border-radius);
+  color: var(--tower-cta-clear-color);
+  font: var(--tower-cta-clear-font);
+  white-space: nowrap;
+}
+
+/* Compact, mobile */
+.tower-cta svg {
+  width: var(--tower-cta-clear-svg-width);
+  height: var(--tower-cta-clear-svg-height);
+  fill: currentcolor;
+}
+
+@media (width >= 768px) {
+  /* Desktop 48: desktop e Present */
+  .tower-cta {
+    height: var(--tower-cta-clear-height-2);
+    padding: var(--tower-cta-clear-padding-2);
+    border-radius: var(--tower-cta-clear-border-radius-2);
+    font-size: var(--tower-cta-clear-font-size);
+    line-height: var(--tower-cta-clear-line-height);
+  }
+
+  .tower-cta svg {
+    width: var(--tower-cta-clear-svg-width-2);
+    height: var(--tower-cta-clear-svg-height-2);
+  }
+
+}
+
+.tower-cta:hover {
+  color: var(--tower-cta-clear-hover-color);
+
+  /* tower-glass--clear-fill-hover + rim-hover */
+  background: var(--tower-cta-clear-hover-background);
+
+  --rim: var(--tower-cta-clear-hover-rim);
+}
+
+.tower-cta:active {
+  color: var(--tower-cta-clear-active-color);
+
+  /* tower-glass--clear-fill-pressed */
+  background: var(--tower-cta-clear-active-background);
+  box-shadow: var(--tower-cta-clear-active-box-shadow);
+}
+
+.tower-cta:focus-visible {
+  outline: none;
+
+  /* ring follows the pill radius */
+  box-shadow: var(--tower-cta-clear-focus-visible-box-shadow);
+}
+
+.tower-cta:disabled, .tower-cta[aria-disabled="true"] {
+  opacity: var(--tower-cta-disabled-opacity);
+  pointer-events: none;
+}
+
+/* Regular: AccountMenu and SignInFeedback */
+.tower-glass--regular {
+  background: var(--tower-glass-regular-background);
+  -webkit-backdrop-filter: var(--tower-glass-regular-backdrop-filter);
+  backdrop-filter: var(--tower-glass-regular-backdrop-filter);
+  box-shadow: var(--tower-glass-regular-box-shadow);
+
+  --rim: var(--tower-glass-regular-rim);
+}
+
+.tower-account-menu {
+  border-radius: var(--tower-account-menu-border-radius);
+  padding: var(--tower-account-menu-padding);
+  z-index: 60;
+}
+
+.tower-signin-feedback {
+  /* Locked alert node 258:3906 uses background blur without saturation. */
+  -webkit-backdrop-filter: var(--tower-signin-backdrop-filter);
+  backdrop-filter: var(--tower-signin-backdrop-filter);
+  border-radius: var(--tower-signin-feedback-border-radius);
+  z-index: 60;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--tower-signin-feedback-padding);
+  white-space: nowrap;
+}
+
+/* 138×76 / 151×76 */
+.tower-signin-feedback__retry {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-end;
+  min-height: var(--tower-signin-feedback-retry-min-height);
+  padding: 0;
+}
+
+/* right-aligned;
+44 px target */
+
+/* fallbacks */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tower-glass {
+    background: var(--tower-glass-background);
+  }
+
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .tower-glass {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--tower-glass-background-2);
+  }
+
+}
+
+@media (prefers-contrast: more) {
+  .tower-glass {
+    --rim: var(--tower-glass-rim);
+  }
+
+}

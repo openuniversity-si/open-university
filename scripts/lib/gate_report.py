@@ -130,7 +130,7 @@ def publish_status(logs, report, verdict):
         print(f'gate status: final not published ({error})', file=sys.stderr)
 
 
-def apply_coverage(report, logs, mode, with_neon, check_missing):
+def apply_coverage(report, logs, mode, check_missing):
     """Every expected stage must have passed. A stage a guard skipped (GK1, gate_skips.py) is reported with the failed
     dependency that skipped it, apart from a stage the run never had (missing). Either makes the result FAIL."""
     import gate_skips
@@ -144,8 +144,6 @@ def apply_coverage(report, logs, mode, with_neon, check_missing):
         report.setdefault('missingStages', [])
         return
     expected = expected_stages(mode, logs)
-    if not with_neon:
-        expected = [s for s in expected if not s.startswith('Neon PR')]
     passed = {s['name'] for s in report['stages'] if s['result'] == 'PASS'}
     report['missingStages'] = sorted(set(expected) - passed - set(skipped))
     if report['missingStages']:
@@ -225,7 +223,7 @@ def main(argv, port=None):
                 print(gate_classify.class_line(stage['name'], stage['class']))
     if mode:
         # An aborted run lists every expected stage it never passed (GX-01), as a complete run with a red stage does not.
-        apply_coverage(report, logs, mode, bool(pr), rc == 0 or aborted)
+        apply_coverage(report, logs, mode, rc == 0 or aborted)
     (logs / 'stages.json').write_text(json.dumps(report, indent=2))
     record_incident(report, logs, mode, pr)
     verdict = None

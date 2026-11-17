@@ -620,10 +620,12 @@ class StackTests(unittest.TestCase):
         # LAMBDA-PRUNE (the review's finding 26): a version is deleted by its qualified ARN only (never the function itself),
         # and only the packages under artifacts/lambda/ are listed and deleted
         listing, deleting, bucket, objects = statements[-6:-2]
-        self.assertEqual([item['Fn::Sub'].rsplit(':function:', 1)[1] for item in listing['Resource']],
-                         ['tower-port-api', 'tower-port-webhook-consumer', 'tower-port-ack-ingress'])
-        self.assertEqual([item['Fn::Sub'].rsplit(':function:', 1)[1] for item in deleting['Resource']],
-                         ['tower-port-api:*', 'tower-port-webhook-consumer:*', 'tower-port-ack-ingress:*'])
+        # TASKROLE-LEAST (AWS-REVIEW, 16/11): the ack-ingress and the webhook consumer left the port stack (GATE-SHUTDOWN):
+        # their names are granted to nobody, so a function made later under one of them is not the service's to replace
+        self.assertEqual([item['Fn::Sub'].rsplit(':function:', 1)[1] for item in listing['Resource']], ['tower-port-api'])
+        self.assertEqual([item['Fn::Sub'].rsplit(':function:', 1)[1] for item in deleting['Resource']], ['tower-port-api:*'])
+        self.assertNotIn('ack-ingress', json.dumps(statements))
+        self.assertNotIn('webhook-consumer', json.dumps(statements))
         self.assertEqual(bucket['Condition'], {'StringLike': {'s3:prefix': 'artifacts/lambda/*'}})
         self.assertTrue(objects['Resource']['Fn::Sub'].endswith('/artifacts/lambda/*'))
         # QUEUE-RELOAD: the service puts the code bundles it prepares, and nothing else of the bucket

@@ -105,6 +105,8 @@ ZERO_OK = ()
 # paths always rings: the build classifies by itself and a no-op costs about a minute.
 SLOW_PATHS = ('infra/aws/', 'infra/service/', 'infra/db/', 'infra/ingress/', 'services/runner/')
 NOT_SLOW = ('infra/aws/bootstrap.json', 'infra/aws/budget.json')
+# STAGED-WORKFLOWS-NONE (#135): the GitHub workflows staged for the owner to install are in no image and no stack
+NOT_SLOW_DIRS = ('services/runner/github/',)
 
 PUSHES = ("select occurred_at, payload #> '{delivery,event,payload,refUpdates}' from log.event "
           "where type = 'forge.repository.pushed' and occurred_at > %(since)s "
@@ -308,7 +310,7 @@ def month_start(now):
 def slow_path(path):
     """True when a change to this path can need the slow deploy (a stack, the image or the deployer)."""
     path = path.strip().lstrip('./')
-    return path.startswith(SLOW_PATHS) and path not in NOT_SLOW
+    return path.startswith(SLOW_PATHS) and path not in NOT_SLOW and not path.startswith(NOT_SLOW_DIRS)
 
 
 def coerce(name, value):
@@ -1386,7 +1388,10 @@ def read_ahead(scope):
         return WATCHERS[0].read_ahead(db)
 
 
-def start(scope, stop, wait=None, config=None, active=None, gate=None, make=None):
+LOOK_FAILURES_SAID, LOOK_BACKOFF_MAX_S = 3, 60.0  # AUTODEPLOY-LIVES: failures in a row before the alert; the longest pause
+
+
+def start(scope, stop, wait=None, config=None, active=None, gate=None, make=None, alert=None):
     """Start the loop in a daemon thread; answers the thread, or None when not configured. active (IMAGE-PREWARM-A: the
     service's live_image gate) answers False while this image stands by: no look, no ring, no swap; None looks always.
     gate (IMAGE-SWAP-RELOAD: that gate) counts a look as work in flight (engaged), which a reload of the task waits for (a
@@ -1416,17 +1421,34 @@ def start(scope, stop, wait=None, config=None, active=None, gate=None, make=None
                 return
         # DEP-EVENTS: the look is triggered by events (a push or a deploy-ended row of the log, via LISTEN/NOTIFY); the wait
         # below is only the safety timeout that detects a build that never ends or a lost notification, never a retry gate
+        # AUTODEPLOY-LIVES (AWS-REVIEW, the Torre 16/11/2026): step() never raises, but the wait, active() and engaged()
+        # could, and the thread then ended with a traceback on stderr while the task stayed healthy (the main tick keeps
+        # its health file fresh): no more deploys, and nothing said so. A pass that fails is logged and the look goes on
+        # after a pause that doubles up to LOOK_BACKOFF_MAX_S; LOOK_FAILURES_SAID failures in a row are published once.
+        failures = 0
         while not stop.is_set():
-            if wait is None:
-                if stop.wait(watcher.check_every_s):
+            try:
+                if wait is None:
+                    if stop.wait(watcher.check_every_s):
+                        break
+                else:
+                    wait(watcher.safety_s())
+                    if stop.is_set():
+                        break
+                with live_image.engaged(gate, 'autodeploy') as free:
+                    if free and (active is None or active()):
+                        watcher.step(force=True)
+            except Exception as error:  # noqa: BLE001 - the deploy's look never ends on an error
+                failures += 1
+                LOG.exception('autodeploy: the look failed (%d in a row); it goes on', failures)
+                if failures == LOOK_FAILURES_SAID:
+                    (alert or canary.alert)({'key': 'autodeploy', 'ok': False, 'line': (
+                        f'the deploy look failed {failures} times in a row: {type(error).__name__}: {error}')[:300]},
+                        subject='tower autodeploy failing')
+                if stop.wait(min(LOOK_BACKOFF_MAX_S, 2.0 ** failures)):
                     break
-            else:
-                wait(watcher.safety_s())
-                if stop.is_set():
-                    break
-            with live_image.engaged(gate, 'autodeploy') as free:
-                if free and (active is None or active()):
-                    watcher.step(force=True)
+                continue
+            failures = 0
     thread = threading.Thread(target=loop, name='autodeploy', daemon=True)
     thread.start()
     LOG.info('autodeploy: watching the pushes to the base, ringing %s', watcher.doorbell if watcher is not None

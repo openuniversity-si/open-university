@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Usage: scripts/retired-vendors [--root DIR] [--no-records] [--records]
+# The proof of D-318: every tracked path and line that names a retired vendor outside the historical
+# records (structure.record_globs), and a summary line; exit 1 when there is one. The structure check runs the same
+# module on every gate. --root judges another checkout (the site's repository: --no-records, it keeps no records).
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/retired_vendors.py" "$@"

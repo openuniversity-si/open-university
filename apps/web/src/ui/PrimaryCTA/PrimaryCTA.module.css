@@ -1,0 +1,69 @@
+.cta {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: var(--tower-text-decoration-none);
+  white-space: nowrap;
+}
+
+.icon {
+  flex: none;
+  width: var(--tower-cta-icon-width);
+  height: var(--tower-cta-icon-height);
+}
+
+.secondary {
+  gap: var(--tower-secondary-gap-compact);
+  height: var(--tower-cta-secondary-height);
+  padding-inline: var(--tower-secondary-padding-start-compact) var(--tower-secondary-padding-end-compact);
+  color: var(--tower-cta-secondary-color);
+  font: var(--tower-cta-secondary-font);
+}
+
+/* PrimaryCTA 21:114 Kind=Secondary, State=Hover: label and arrow turn white. */
+.secondary:hover {
+  color: var(--tower-cta-secondary-hover-color);
+}
+
+.arrow {
+  flex: none;
+  width: var(--tower-cta-arrow-width);
+  height: var(--tower-cta-arrow-height);
+}
+
+.label[data-label="Start"] {
+  width: var(--tower-cta-label-data-label-start-width);
+}
+
+.label[data-label="Course details"] {
+  width: var(--tower-cta-label-data-label-course-details-width);
+}
+
+@media (width >= 768px) {
+  .icon {
+  width: var(--tower-cta-icon-width-2);
+  height: var(--tower-cta-icon-height-2);
+}
+}
+
+@media (width >= 1024px) {
+  .secondary {
+    gap: var(--tower-secondary-gap-desktop);
+    height: var(--tower-cta-secondary-height-2);
+    padding-inline: var(--tower-secondary-padding-start-desktop) var(--tower-secondary-padding-end-desktop);
+    font-size: var(--tower-cta-secondary-font-size);
+    line-height: var(--tower-cta-secondary-line-height);
+  }
+
+  .arrow {
+  width: var(--tower-cta-arrow-width-2);
+  height: var(--tower-cta-arrow-height-2);
+}
+
+  .label[data-label="Start"] {
+  width: var(--tower-cta-label-data-label-start-width-2);
+}
+
+  .label[data-label="Course details"] {
+  width: var(--tower-cta-label-data-label-course-details-width-2);
+}
+}

@@ -1,0 +1,104 @@
+{
+  "nodeId": "289:11529",
+  "source": "Figma REST GET using the personal access token explicitly authorized by Daniel; original image-fill URLs and current node data.",
+  "assets": [
+    {
+      "courseId": "course-1",
+      "role": "poster",
+      "hash": "f635a6d104850bfea79edf20058b60b019cff3c8",
+      "width": 540,
+      "height": 960,
+      "nodeId": "289:11548"
+    },
+    {
+      "courseId": "course-1",
+      "role": "still",
+      "hash": "24465f8fcb3780830ddc6ffec8b0bf275e649375",
+      "width": 1920,
+      "height": 1080,
+      "nodeId": "289:11636"
+    },
+    {
+      "courseId": "course-2",
+      "role": "poster",
+      "hash": "a5fc28510b8028f25cda20dd1116bff9fbac102f",
+      "width": 540,
+      "height": 960,
+      "nodeId": "289:11559"
+    },
+    {
+      "courseId": "course-3",
+      "role": "poster",
+      "hash": "6ffd7faafbc7c7239958503fa1af5743dfd3ce7d",
+      "width": 540,
+      "height": 960,
+      "nodeId": "289:11581"
+    },
+    {
+      "courseId": "course-4",
+      "role": "poster",
+      "hash": "62e80c2b60471dc0eedd0af72a52aa023bd1d525",
+      "width": 540,
+      "height": 960,
+      "nodeId": "289:11570"
+    },
+    {
+      "courseId": "course-5",
+      "role": "poster",
+      "hash": "b4fc7cba5a6902118699e20e402ea4f7d57d507c",
+      "width": 540,
+      "height": 960,
+      "nodeId": "289:11592"
+    }
+  ],
+  "heroTransforms": {
+    "heroDesktop": {
+      "nodeId": "I24:4;23:31",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.2373046875,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroPresent": {
+      "nodeId": "I53:1431;23:31",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.33354684710502625,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroMobile": {
+      "nodeId": "I29:401;23:49",
+      "transform": [
+        [
+          0.7200000286102295,
+          0,
+          0
+        ],
+        [
+          0,
+          0.6438461542129517,
+          0.019999999552965164
+        ]
+      ]
+    }
+  },
+  "version": "2407990552500694146",
+  "lastModified": "2026-10-08T14:02:19Z",
+  "retrievedAt": "2026-10-08T14:13:08.586Z"
+}

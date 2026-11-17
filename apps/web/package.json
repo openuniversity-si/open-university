@@ -1,0 +1,106 @@
+{
+  "name": "the-tower-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "postinstall": "node scripts/catalog-bake.ts --from fixture --if-missing",
+    "build": "pnpm catalog:bake && next build && node scripts/static-home-check.ts",
+    "build:test": "pnpm media:cache --from snapshot && TOWER_BUILD_TARGET=test pnpm catalog:bake && TOWER_BUILD_TARGET=test next build && TOWER_BUILD_TARGET=test node scripts/static-home-check.ts",
+    "start": "next start",
+    "start:test": "TOWER_BUILD_TARGET=test next start",
+    "lint": "eslint . --max-warnings 0 && stylelint \"**/*.css\" --max-warnings 0",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run --project unit && vitest run --project unit src/progress/domain/rules.test.ts src/catalog/domain/slug.test.ts src/catalog/domain/slug-course.test.ts src/catalog/domain/lesson-slug.test.ts scripts/lib/slug-redirects.test.ts --coverage",
+    "test:int": "vitest run --project int",
+    "e2e": "playwright test --grep-invert @a11y",
+    "e2e:production": "playwright test --config playwright.production.config.ts",
+    "a11y": "playwright test --grep @a11y",
+    "fidelity": "node fidelity/references-fetch.ts && node fidelity/media-fetch.ts && TOWER_FIDELITY_CAPTURE=1 playwright test --grep @fidelity && node fidelity/run.ts",
+    "verify:no-video": "node scripts/verify-no-video.ts",
+    "bundle:check": "node scripts/bundle-check.ts",
+    "perf:budget": "node scripts/perf-budget.ts",
+    "audit": "pnpm audit --audit-level high",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check && node scripts/db-check.ts",
+    "db:migrate": "node scripts/db-migrate.ts",
+    "db:fingerprint": "node scripts/db-fingerprint.ts",
+    "db:seed": "node scripts/db-seed.ts",
+    "db:legacy-snapshot": "node scripts/db-legacy-snapshot.ts",
+    "catalog:bake": "node scripts/catalog-bake.ts",
+    "tokens:generate": "node scripts/tokens-generate.ts",
+    "tokens:check": "node scripts/tokens-generate.ts --check",
+    "schema:generate": "node scripts/schema-doc.ts",
+    "schema:check": "node scripts/schema-doc.ts --check",
+    "specimen:check": "node scripts/specimen-check.ts",
+    "fidelity:selftest": "node fidelity/selftest-run.ts",
+    "fidelity:summary": "node fidelity/summary.ts",
+    "figma:spec": "node scripts/figma-spec.ts",
+    "fidelity:references": "node fidelity/references-fetch.ts",
+    "fidelity:sync": "node scripts/fidelity-sync.ts",
+    "tooling:migrate": "node scripts/tooling-migrate.ts",
+    "media:put": "node scripts/media-put.ts",
+    "media:rollback": "node scripts/media-rollback.ts",
+    "media:check": "node scripts/media-check.ts",
+    "media:cache": "node scripts/media-cache.ts",
+    "media:migrate-r2": "node scripts/media-migrate-r2.ts",
+    "fidelity:migrate-r2": "node scripts/fidelity-migrate-r2.ts",
+    "repo:assets-check": "node scripts/repo-assets-check.ts",
+    "brand:icons": "node scripts/brand-icons.ts",
+    "brand:og": "node scripts/brand-og.ts",
+    "fonts:subset": "python3 -P scripts/font-subset.py"
+  },
+  "dependencies": {
+    "@mux/mux-video": "0.31.5",
+    "better-auth": "1.7.14",
+    "drizzle-orm": "0.45.4",
+    "media-chrome": "4.19.3",
+    "next": "16.4.3",
+    "pg": "8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "0.0.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.64.0",
+    "@types/node": "22.20.5",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitest/coverage-v8": "5.0.3",
+    "aws4fetch": "1.0.20",
+    "drizzle-kit": "0.31.11",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.3",
+    "pixelmatch": "8.0.0",
+    "sharp": "0.35.5",
+    "stylelint": "17.16.0",
+    "stylelint-config-standard": "40.0.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1",
+    "vitest": "5.0.3"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "unrs-resolver",
+      "esbuild"
+    ],
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-vfj7-8cjw-p6xm"
+      ]
+    },
+    "overrides": {
+      "esbuild@<0.25.0": "0.25.12"
+    }
+  }
+}

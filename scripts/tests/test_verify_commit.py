@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import sys
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
@@ -45,7 +46,8 @@ class Fake:
             return (1, f'FAIL {args[2]} alone: the traceback') if args[2] in self.red else (0, 'PASS')
         if args[:2] == ['scripts/gate-check', 'tests']:
             said = {test: 'FAIL' if test in self.red | self.crowded else 'PASS' for test in args[2].split(',')}
-            Path(env['TOWER_ANSWER_FILE']).write_text(json.dumps({'tests': said}))
+            took = {test: self.seconds[test] for test in said if test in getattr(self, 'seconds', {})}
+            Path(env['TOWER_ANSWER_FILE']).write_text(json.dumps({'tests': said, 'seconds': took}))
             return ((1, 'x' * 9000 + 'FAIL scripts/tests/y.test.sh: the traceback') if (self.red | self.crowded) & set(said)
                     else (0, 'quiet'))
         if args[:2] == ['gh', 'api'] and '-X' not in args:
@@ -215,6 +217,51 @@ class TheVerifier(unittest.TestCase):
         self.assertEqual(seen['alone'][:3], ([], ['scripts/tests/slow.test.sh'], 1))  # by itself, `gate-check test`
         self.assertEqual({tuple(each[3]) for each in seen.values()}, {tuple(plan['tests'])})  # the key's plan: whole
 
+    def test_the_main_part_runs_its_stages_beside_its_batch_and_says_the_pace(self):
+        """GATE-PACE: the stages of the main part run while its batch runs (one worker fewer), not before it; a red stage
+        is still named first, and the job log names what each one took."""
+        import threading as thread
+        started, stage_seen_batch = thread.Event(), []
+
+        class Beside(Fake):
+            def __call__(self, args, cwd=None, env=None):
+                if args[:2] == ['scripts/gate-check', 'tests']:
+                    started.set()
+                    self.workers = env.get(verify_commit.WORKERS)
+                if args[:2] == ['scripts/gate-check', 'stage']:
+                    stage_seen_batch.append(started.wait(5))  # the batch began while the stages run
+                return super().__call__(args, cwd, env)
+        plan = {'stages': PLAN['stages'], 'tests': ['scripts/tests/x.test.sh', 'scripts/tests/y.test.sh']}
+        fake, paces = Beside(plan=plan, red={'structure check', 'scripts/tests/y.test.sh'}), []
+        hints = {'scripts/tests/x.test.sh': 20, 'scripts/tests/y.test.sh': 20}.copy  # x to shard1, y to main
+        green, red, _, _ = verify_commit.judge(BASE, run=fake, part='main', hints=hints, isolated=list,
+                                               cpus=lambda: 4, paces=paces)
+        self.assertFalse(green)
+        self.assertEqual(red, ['structure check', 'scripts/tests/y.test.sh'])
+        self.assertEqual((stage_seen_batch, fake.workers), ([True, True], '3'))
+        self.assertEqual(sorted(name for name, _ in paces), ['secret scan (tree)', 'structure check', 'the batch of tests'])
+        unparted = Fake(plan=plan)
+        verify_commit.judge(BASE, run=unparted, isolated=list, cpus=lambda: 4)  # local and full-suite: in order
+        kinds = [call[1] for call in unparted.calls if call[0] == 'scripts/gate-check' and call[1] in ('stage', 'tests')]
+        self.assertEqual(kinds, ['stage', 'stage', 'tests'])
+
+    def test_the_pace_of_the_batch_names_its_three_slowest_tests(self):
+        fake, paces = Fake(plan={'stages': [], 'tests': [f'scripts/tests/t{n}.test.sh' for n in range(5)]}), []
+        fake.seconds = {f'scripts/tests/t{n}.test.sh': float(n * 10) for n in range(5)}
+        verify_commit.judge(BASE, run=fake, isolated=list, paces=paces)
+        [(name, _)] = paces
+        self.assertEqual(name, 'the batch of tests (t4 40.0 s, t3 30.0 s, t2 20.0 s)')
+
+    def test_the_job_log_names_the_pace_of_a_part(self):
+        import contextlib
+        import io
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), mock.patch.object(verify_commit, 'STAGES_S', 0):  # main gets a test
+            self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post', '--part', 'main'], run=Fake()), 0)
+        line = next(each for each in out.getvalue().splitlines() if each.startswith('verify-commit: pace: '))
+        for name in ('structure check', 'secret scan (tree)', 'the batch of tests'):
+            self.assertIn(name, line)
+
     def test_a_part_keeps_its_own_verdict_and_the_queue_reuses_only_one_run_that_kept_all_three(self):
         """GATE-PARTS: <name>-<part> per part; a run that kept two of the three is a miss, and so are parts of two runs."""
         import tempfile as temp
@@ -238,6 +285,24 @@ class TheVerifier(unittest.TestCase):
         self.assertIsNone(verify_commit.recorded('o/r', key, [HEAD_OF_PR], listing(both[:2]), verify_commit.PARTS))
         mixed = [('-main', 7), ('-shard1', 8), ('-alone', 7)]
         self.assertIsNone(verify_commit.recorded('o/r', key, [HEAD_OF_PR], listing(mixed), verify_commit.PARTS))
+
+    def test_a_queue_part_reuses_its_own_shares_verdict_whatever_the_other_parts_kept(self):
+        """GATE-PARTS-REUSE: a part's key holds its job's runner image, and one run's three jobs may land on different
+        images (#142, 16/11: alone's key was not main's), so a queue part asks for its own record only."""
+        asked = []
+
+        def run(args, cwd=None, env=None):
+            if args[:2] == ['gh', 'api'] and 'artifacts' in args[2]:
+                asked.append(args[2].split('name=')[1].split('&')[0])
+                return 0, json.dumps({'artifacts': [made(asked[-1])]})
+            return Fake()(args, cwd, env)
+        with mock.patch.object(verify_commit, 'judge', return_value=(True, [], {**PLAN, 'judged': 1}, 1.0)) as judged:
+            verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post', '--part', 'shard1', '--reuse'], run=run,
+                               environ=IMAGE)
+        reuse = judged.call_args.kwargs['reuse']
+        self.assertEqual(reuse(PLAN), 77)  # the run that kept this part's verdict
+        self.assertEqual(len(asked), 1)
+        self.assertTrue(asked[0].endswith('-shard1'))
 
     def test_the_staged_gate_is_three_parts_and_a_tower_gate_job_green_only_when_every_part_is(self):
         staged = (ROOT / 'services' / 'runner' / 'github' / 'tower-gate.yml').read_text(encoding='utf-8')
@@ -413,7 +478,7 @@ class TheVerifier(unittest.TestCase):
         # the Torre's choice (a), 14/11/2026: a GitHub-hosted job, free on a public repository, named as the check
         import config
         self.assertEqual(config.get('gate.allowed_workflows'), ['.github/workflows/tower-gate.yml', '.github/workflows/deploy-doorbell.yml',
-                          '.github/workflows/full-suite.yml'])
+                          '.github/workflows/full-suite.yml', '.github/workflows/web.yml'])  # web.yml: the site's checks (D-319)
         staged = (ROOT / 'services' / 'runner' / 'github' / 'tower-gate.yml').read_text(encoding='utf-8')
         for line in ('  pull_request:', '  merge_group:', '    name: tower/gate',
                      'scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post'):

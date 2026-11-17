@@ -33,7 +33,8 @@ comes from the future is a miss. The store is the storage port (providers.storag
 
 gate_test_cache.py suite [--changed [--base REF]]      every script test, or only the gate's selection for the diff
 gate_test_cache.py run <list-file> --root R --tool-root T --logs L [--source S]
-  writes L/script-tests.json: [{test, result, cached, key, source, tail}] and prints one PASS/FAIL line per test.
+  writes L/script-tests.json: [{test, result, cached, key, source, tail}, and seconds for a test that ran] and prints one
+  PASS/FAIL line per test.
 """
 import argparse
 import contextlib
@@ -410,6 +411,7 @@ def run(scripts, root, location, source, tool_root, concurrency=None, mapping=No
             record(location, keys[script], script, source, now)
             added[keys[script]] = {'key': keys[script], 'stored_at': moment, 'source': source, 'test': script}
         results.append({'test': script, 'result': 'PASS' if passed else 'FAIL', 'cached': False, 'key': keys[script],
+                        'seconds': round(took[script], 1),  # GATE-PACE: its wall in this batch (verify-commit's pace line)
                         'source': source, 'tail': [] if passed else item['output'].splitlines()[-keep:],
                         'failure': [] if passed else gate_graph.failure_lines(item['output'])})
     if measure:

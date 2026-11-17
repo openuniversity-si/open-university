@@ -370,7 +370,7 @@ class Command(unittest.TestCase):
 
     def test_the_real_tier3_runs_the_registry_command_with_a_fresh_cache(self):
         command = config.get('battery.tier3_command')
-        self.assertIn('--tier3', command, 'V7: the tier-3 gate mode, never the WebKit or Neon plan')
+        self.assertIn('--tier3', command, 'V7: the tier-3 gate mode, never the WebKit or per-PR database plan')
         prefix = config.get('gate.class_line_prefix')  # the gate's machine class line names the stage (GX-01, GX-02)
         gate = tier3_gate(self, '#!/usr/bin/env bash\necho "cache=$GATE_BUILD_CACHE_DIR args=$*"\n'
                                 f'[[ "${{@: -1}}" == good ]] || {{ echo "FAIL e2e + a11y"; '

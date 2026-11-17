@@ -1,0 +1,138 @@
+.item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--tower-card-gap-mobile);
+  min-width: 0;
+  min-height: var(--tower-course-row-height);
+  padding: var(--tower-gap-tight);
+  border-radius: var(--tower-radius);
+  color: var(--tower-ink);
+  text-decoration: var(--tower-text-decoration-none);
+}
+
+.thumb {
+  flex: none;
+  overflow: hidden;
+  width: var(--tower-course-thumb-width);
+  height: var(--tower-course-thumb-height);
+  border-radius: var(--tower-radius);
+  background: var(--tower-surface);
+}
+
+.thumb img,
+.thumb [data-media-placeholder] {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: var(--tower-el-object-fit-cover);
+}
+
+.copy {
+  align-self: flex-start;
+  margin-top: var(--tower-course-copy-top);
+  margin-bottom: var(--tower-course-copy-bottom);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--tower-course-copy-gap);
+  min-width: 0;
+  font-size: var(--tower-type-ui-playlist-meta-12-size);
+  font-weight: var(--tower-type-ui-playlist-meta-12-weight);
+  line-height: var(--tower-course-copy-line);
+}
+
+.meta {
+  color: var(--tower-muted);
+}
+
+/* 293:14604 C: two lines, then an ellipsis (the row's label keeps the full title). */
+.title {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.item[data-selected="true"] {
+  padding-left: var(--tower-course-selected-inset);
+  background: var(--tower-hairline);
+}
+
+.item[data-selected="true"] .meta {
+  color: var(--tower-billboard-meta-color);
+}
+
+.selected {
+  flex: none;
+  width: var(--tower-course-selected-icon);
+  height: var(--tower-course-selected-icon);
+  border-radius: var(--tower-course-selected-radius);
+  background: var(--tower-hairline);
+}
+
+.selected svg {
+  width: var(--tower-course-selected-icon);
+  height: var(--tower-course-selected-icon);
+}
+
+@media (hover: hover) {
+  .item:hover {
+    background: var(--tower-hairline);
+  }
+}
+
+.item[data-status="current"] .copy {
+  align-self: auto;
+  margin: 0;
+}
+
+/* Spec 06: Current and Watched rows end 12 px from the edge (copy, check); Current copy centres. */
+.item[data-status="current"],
+.item[data-status="watched"] {
+  padding-right: var(--tower-player-length-12);
+}
+
+.item[data-now-playing="true"],
+.item[data-status="current"] {
+  position: relative;
+  padding-left: var(--tower-player-length-11);
+  background: var(--tower-hairline);
+}
+
+.playing-edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--tower-player-length-12);
+  height: 100%;
+  pointer-events: none;
+}
+
+.item[data-now-playing="true"] .meta,
+.item[data-status="current"] .meta {
+  color: var(--tower-player-secondary);
+}
+
+.playing {
+  flex: none;
+  width: var(--tower-player-length-18);
+  height: var(--tower-player-length-18);
+  fill: currentcolor;
+}
+
+.item[data-status="watched"] .thumb {
+  opacity: var(--tower-el-opacity-dim);
+}
+
+.item[data-status="watched"] .title {
+  color: var(--tower-muted);
+}
+
+.status {
+  flex: none;
+  color: var(--tower-progress-check);
+  width: var(--tower-course-selected-icon);
+  height: var(--tower-course-selected-icon);
+}

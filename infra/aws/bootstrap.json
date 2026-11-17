@@ -4,11 +4,11 @@
   "Parameters": {
     "OriginRepoUrl": {
       "Type": "String",
-      "Default": "https://origin.cursor.com/openuniversity-si/open-university.git"
+      "Default": "https://github.com/openuniversity-si/open-university.git"
     },
     "BaseBranch": {
       "Type": "String",
-      "Default": "mod/roadmap-integration"
+      "Default": "main"
     },
     "DoorbellTokenSha256": {
       "Type": "String",
@@ -288,6 +288,58 @@
                   "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-deploy-doorbell"
                 }
               ]
+            },
+            {
+              "Sid": "TheAlertTopicIsOutOfReach",
+              "Effect": "Deny",
+              "Action": [
+                "sns:DeleteTopic",
+                "sns:SetTopicAttributes",
+                "sns:Subscribe",
+                "sns:Unsubscribe",
+                "sns:RemovePermission"
+              ],
+              "Resource": {
+                "Ref": "AlertsTopic"
+              }
+            },
+            {
+              "Sid": "TheTorreQueueIsOutOfReach",
+              "Effect": "Deny",
+              "Action": [
+                "sqs:DeleteQueue",
+                "sqs:SetQueueAttributes",
+                "sqs:PurgeQueue"
+              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AlertsToTorreQueue",
+                  "Arn"
+                ]
+              }
+            },
+            {
+              "Sid": "TheDeployLogIsOutOfReach",
+              "Effect": "Deny",
+              "Action": [
+                "logs:DeleteLogGroup",
+                "logs:PutRetentionPolicy",
+                "logs:DeleteRetentionPolicy"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/tower-infra-deploy"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/tower-infra-deploy:*"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/tower/infra-deploy"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/tower/infra-deploy:*"
+                }
+              ]
             }
           ]
         }
@@ -511,22 +563,6 @@
                   }
                 },
                 {
-                  "Sid": "ReadTheConsumerLogForTheAckSmoke",
-                  "Effect": "Allow",
-                  "Action": [
-                    "logs:FilterLogEvents",
-                    "logs:GetLogEvents"
-                  ],
-                  "Resource": [
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/tower-port-webhooks"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/tower-port-webhooks:*"
-                    }
-                  ]
-                },
-                {
                   "Sid": "ReadTheBootstrapStackForItsDrift",
                   "Effect": "Allow",
                   "Action": [
@@ -584,17 +620,14 @@
               "Sid": "OwnerAccount",
               "Effect": "Allow",
               "Principal": {
-                "AWS": "*"
+                "AWS": {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+                }
               },
               "Action": [
+                "SNS:Publish",
                 "SNS:GetTopicAttributes",
-                "SNS:SetTopicAttributes",
-                "SNS:AddPermission",
-                "SNS:RemovePermission",
-                "SNS:DeleteTopic",
-                "SNS:Subscribe",
-                "SNS:ListSubscriptionsByTopic",
-                "SNS:Publish"
+                "SNS:ListSubscriptionsByTopic"
               ],
               "Resource": {
                 "Ref": "AlertsTopic"
@@ -642,6 +675,29 @@
                       "EngineImpairedRule",
                       "Arn"
                     ]
+                  }
+                }
+              }
+            },
+            {
+              "Sid": "CloudWatchAlarmsOfTheAccountPublish",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudwatch.amazonaws.com"
+              },
+              "Action": "SNS:Publish",
+              "Resource": {
+                "Ref": "AlertsTopic"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*"
                   }
                 }
               }
@@ -942,7 +998,8 @@
         },
         "Code": {
           "ZipFile": "const crypto = require('crypto');\nconst { CodeBuildClient, StartBuildCommand } = require('@aws-sdk/client-codebuild');\nconst codebuild = new CodeBuildClient({});\nconst { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');\nconst lambda = new LambdaClient({});\n// The doorbell (D-303): a valid token only starts the deploy build; the build itself reads the base head from Origin,\n// so a caller can never choose what is deployed. The token is compared by its SHA-256, in constant time.\n// AUTO1: a DIRECT invocation (lambda:Invoke, no Function URL: the event has neither requestContext nor headers) is\n// authenticated by IAM, which only lets a principal granted lambda:InvokeFunction on this function ARN get here, so it\n// needs no token; a Function URL call always carries requestContext and keeps the token path unchanged. Both paths\n// then share the one-build-at-a-time start below (CodeBuild's concurrent limit of 1 answers 409).\nexports.handler = async (event) => {\n  const viaUrl = !!(event && (event.requestContext || event.headers));\n  if (viaUrl) {\n    const header = (event.headers && event.headers.authorization) || '';\n    const token = header.startsWith('Bearer ') ? header.slice(7) : '';\n    const want = Buffer.from(process.env.TOKEN_SHA256 || '', 'hex');\n    const got = crypto.createHash('sha256').update(token).digest();\n    if (!token || want.length !== got.length || !crypto.timingSafeEqual(got, want)) {\n      return { statusCode: 401, body: 'unauthorized' };\n    }\n  }\n  // QUEUE-RELOAD (tower_infra.queue_deploy): the merge queue's words {event: prepare|landed, sha} go to the port as a direct\n  // invocation (platform.deploy.queue); they start no build. The sha is a claim the service checks against the repository.\n  let said = {};\n  try {\n    const raw = event && event.body ? (event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body) : '';\n    said = raw ? JSON.parse(raw) : (event && event.queue) || {};\n  } catch (error) {\n    return { statusCode: 400, body: 'the body is not JSON' };\n  }\n  if (said && said.event !== undefined) {\n    if (!['prepare', 'landed'].includes(said.event) || !/^[0-9a-f]{40}$/.test(String(said.sha || ''))) {\n      return { statusCode: 400, body: 'event must be prepare or landed, with a 40-hex sha' };\n    }\n    try {\n      const out = await lambda.send(new InvokeCommand({ FunctionName: process.env.PORT, Payload: Buffer.from(JSON.stringify(\n        { source: 'tower.doorbell', 'detail-type': 'Merge Queue', detail: { event: said.event, sha: said.sha } })) }));\n      if (out.FunctionError) {\n        return { statusCode: 502, body: JSON.stringify({ error: out.FunctionError }) };\n      }\n      return { statusCode: 202, body: JSON.stringify({ queue: said.event, sha: said.sha }) };\n    } catch (error) {\n      return { statusCode: 502, body: JSON.stringify({ error: error.name }) };\n    }\n  }\n  try {\n    const out = await codebuild.send(new StartBuildCommand({ projectName: process.env.PROJECT }));\n    return { statusCode: 202, body: JSON.stringify({ build: out.build.id }) };\n  } catch (error) {\n    return { statusCode: 409, body: JSON.stringify({ error: error.name }) };\n  }\n};\n"
-        }
+        },
+        "ReservedConcurrentExecutions": 2
       }
     },
     "DoorbellUrl": {
@@ -1003,6 +1060,18 @@
             "Id": "tower-port-api-live",
             "Arn": {
               "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+            },
+            "RetryPolicy": {
+              "MaximumRetryAttempts": 10,
+              "MaximumEventAgeInSeconds": 3600
+            },
+            "DeadLetterConfig": {
+              "Arn": {
+                "Fn::GetAtt": [
+                  "EventsDeadLetterQueue",
+                  "Arn"
+                ]
+              }
             }
           }
         ]
@@ -1067,6 +1136,18 @@
             "Id": "tower-port-api-live",
             "Arn": {
               "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+            },
+            "RetryPolicy": {
+              "MaximumRetryAttempts": 10,
+              "MaximumEventAgeInSeconds": 3600
+            },
+            "DeadLetterConfig": {
+              "Arn": {
+                "Fn::GetAtt": [
+                  "EventsDeadLetterQueue",
+                  "Arn"
+                ]
+              }
             }
           }
         ]
@@ -1118,6 +1199,18 @@
             "Id": "tower-platform-events",
             "Arn": {
               "Ref": "AlertsTopic"
+            },
+            "RetryPolicy": {
+              "MaximumRetryAttempts": 10,
+              "MaximumEventAgeInSeconds": 3600
+            },
+            "DeadLetterConfig": {
+              "Arn": {
+                "Fn::GetAtt": [
+                  "EventsDeadLetterQueue",
+                  "Arn"
+                ]
+              }
             }
           }
         ]
@@ -1152,6 +1245,18 @@
             "Id": "tower-port-api-live",
             "Arn": {
               "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+            },
+            "RetryPolicy": {
+              "MaximumRetryAttempts": 10,
+              "MaximumEventAgeInSeconds": 3600
+            },
+            "DeadLetterConfig": {
+              "Arn": {
+                "Fn::GetAtt": [
+                  "EventsDeadLetterQueue",
+                  "Arn"
+                ]
+              }
             }
           }
         ]
@@ -1208,6 +1313,18 @@
             "Id": "tower-port-api-live",
             "Arn": {
               "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+            },
+            "RetryPolicy": {
+              "MaximumRetryAttempts": 10,
+              "MaximumEventAgeInSeconds": 3600
+            },
+            "DeadLetterConfig": {
+              "Arn": {
+                "Fn::GetAtt": [
+                  "EventsDeadLetterQueue",
+                  "Arn"
+                ]
+              }
             }
           }
         ]
@@ -1229,6 +1346,113 @@
         },
         "SourceAccount": {
           "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "DoorbellErrorsAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "tower-deploy-doorbell-errors",
+        "AlarmDescription": "The public doorbell failed at least once in 5 minutes",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "DoorbellFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertsTopic"
+          }
+        ]
+      }
+    },
+    "EventsDeadLetterQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "tower-events-dlq",
+        "MessageRetentionPeriod": 1209600,
+        "SqsManagedSseEnabled": true,
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "EventsDeadLetterQueuePolicy": {
+      "Type": "AWS::SQS::QueuePolicy",
+      "Properties": {
+        "Queues": [
+          {
+            "Ref": "EventsDeadLetterQueue"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "TheTowerRulesDeadLetterHere",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com"
+              },
+              "Action": "sqs:SendMessage",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "EventsDeadLetterQueue",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "ArnEquals": {
+                  "aws:SourceArn": [
+                    {
+                      "Fn::GetAtt": [
+                        "DeployStateRule",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "StackStateRule",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "EcsTaskStoppedRule",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "EcsServiceActionRule",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "EngineImpairedRule",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
         }
       }
     }

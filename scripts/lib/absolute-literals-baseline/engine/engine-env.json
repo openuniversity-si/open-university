@@ -47,8 +47,7 @@
       "url \"https://github.com/gitleaks/gitleaks/releases/download/v\"": 1,
       "url \"https://github.com/pnpm/pnpm/releases/download/v\"": 1,
       "url \"https://github.com/theseus-rs/postgresql-binaries/releases/download/\"": 1,
-      "url \"https://nodejs.org/dist/v\"": 1,
-      "url \"https://registry.npmjs.org/vercel/-/vercel-\"": 1
+      "url \"https://nodejs.org/dist/v\"": 1
     },
     "scripts/tests/test_env.py": {
       "duration \"1h\"": 1,

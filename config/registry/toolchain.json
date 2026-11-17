@@ -58,7 +58,7 @@
         "ruff"
       ],
       "x-unit": "names",
-      "description": "Tools whose installed version is observed into the attested toolchain_id (cache keys, v4 proof observed_versions). chromium (a Playwright browser) left with its probe (vazão F54): the engine drives none since OU-DECOUPLE F5 (D-113). gh and the Vercel CLI left the toolchain (vazão F6), pnpm too (vazão F16).",
+      "description": "Tools whose installed version is observed into the attested toolchain_id (cache keys, v4 proof observed_versions). chromium (a Playwright browser) left with its probe (vazão F54): the engine drives none since OU-DECOUPLE F5 (D-113). gh and the hosting CLI left the toolchain (vazão F6), pnpm too (vazão F16).",
       "x-readers": [
         "scripts/lib/toolchain_manifest.py"
       ]

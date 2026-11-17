@@ -122,6 +122,10 @@ SWAP = ("with w as (insert into work.config_value as v (tenant_id, key, value, a
 SWAP_OF = ("select 1 from log.event where type = 'platform.deploy.image_swap' and tenant_id is null "
            "and occurred_at > now() - interval '1 hour' and payload->>'swapped' = 'true' and payload->>'by' = 'queue' "
            "and payload->>'head' = %(head)s and payload->>'digest' = %(digest)s limit 1")
+# MERGED-WANTS: the bundle the live code is (deploy.live_code '<bundle>@<merge>'): a landing with nothing to deploy never
+# withdraws its want, whatever commit asked for it
+LIVE_CODE = ("select v.value #>> '{}' from work.config_value v join work.tenant t on t.id = v.tenant_id "
+             "where t.name = %(tenant)s and v.key = 'deploy.live_code'")
 # the head of the newest swap of the merge queue whose heir took the role over ({state: reloaded} of its bundle by the
 # service since the swap): what deploy.live_code names (AutoDeploy.live_code writes it once, guarded by the swap's time)
 ADOPTED = ("select s.payload->>'head' from (select payload, occurred_at from log.event "
@@ -188,6 +192,15 @@ class QueueReload:
 
     def heads(self):
         return set(self.git('for-each-ref', '--format=%(objectname)', 'refs/remotes/origin/').decode().split())
+
+    def queued(self):
+        """PREPARE-ON-BASE-MOVE: the heads of main and the merge-queue branches now (fetched once), or none when the
+        repository does not answer (then nothing is prepared again: the landing prepares it, as before)."""
+        try:
+            self.fetch()
+            return self.heads()
+        except (Refused, OSError, subprocess.SubprocessError):
+            return set()
 
     def ancestor(self, base, sha):
         """BURST-SWAP: refuses unless base is an ancestor of sha (git merge-base --is-ancestor)."""
@@ -324,6 +337,21 @@ class QueueReload:
                 continue
             self.want(db, digest, None, sha, state='withdrawn')
 
+    def settle(self, db, sha):
+        """MERGED-WANTS (the Torre, 16/11/2026): at a landing on main that the fast path does not carry (a merge of docs,
+        tests or the classifier), the wants of the commits in main's history are withdrawn but the live code's bundle
+        (deploy.live_code). Before, such a landing withdrew nothing, so a merged commit's want stood and, with two heirs
+        the oldest first, held a place a landing after it needed (#114's at 02:35, #132's landing at 03:41: reloaded).
+        Never raises."""
+        try:
+            said = db.rows(LIVE_CODE, {'tenant': self.tenant}) or []
+            live = str((said[0][0] if said else '') or '').split('@')[0]
+            for digest, wanted in db.rows(WANTED, {}) or []:
+                if digest and digest != live and wanted and (wanted == sha or self.merged(wanted, sha)):
+                    self.want(db, digest, None, sha, state='withdrawn')
+        except Exception:  # noqa: BLE001 - a want left standing is the next landing's to withdraw
+            LOG.exception('queue: the wants of %s were not settled', sha[:12])
+
     def merged(self, wanted, sha):
         """MERGED-WANTS: whether `wanted` is an ancestor of `sha` (in main's history once sha landed); unknown is not."""
         try:
@@ -364,10 +392,12 @@ class QueueReload:
         """The reload of a merge that landed, ordered once its claim is checked; answers the outcome recorded."""
         began = self.clock()
         outcome = {'sha': sha, 'state': 'skipped'}
+        on_main = False
         try:
             head = self.main_head()
             if head != sha:
                 raise Refused(f'main is {head[:12] or "unknown"}, not {sha[:12]}')
+            on_main = True
             found = self.prepare(db, sha)
             if not found.get('code_only'):
                 raise Refused(f"not code-only: {found.get('why')}")
@@ -386,6 +416,8 @@ class QueueReload:
             self.withdraw(db, sha, keep=found['sha256'] if swapped else None)
         except Refused as error:
             outcome['why'] = str(error)
+            if on_main:  # MERGED-WANTS: nothing for the fast path, but the merged commits' heirs are done
+                self.settle(db, sha)
         except (OSError, ValueError, subprocess.SubprocessError) as error:
             outcome['why'] = f'{type(error).__name__}: {str(error)[:200]}'
         outcome['s'] = round(self.clock() - began, 3)
@@ -394,17 +426,32 @@ class QueueReload:
         return outcome
 
     def look(self, db, order):
-        """Each word not handled yet: every prepare (newest last), then the newest landing only. A process that starts
+        """Each word not handled yet: every prepare (newest last), then the newest landing only. PREPARE-ON-BASE-MOVE (the
+        Torre's AWS review, 16/11/2026): a prepare is handled once per deployed base, so when the deploy build of a merge
+        that was not code-only (a stack) ends green and moves last-sha (its platform.deploy.ended wakes this look), each
+        commit still at the head of a merge-queue branch is prepared again on the new base, and its heir warms while it
+        waits. Before, it was prepared only at its landing, too late for a heir: #144 and #145, queued behind #142's stacks,
+        landed at 05:11:29, wanted at 05:11:30.432, ordered a reload 23 ms later (21.8 s) with the heir held 93 ms after it.
+        A process that starts
         mid-way (the reloaded one) finds the landing's outcome recorded and only follows the order: AutoDeploy.order
         answers it busy with this head, which makes it the order this look follows. Never raises."""
         try:
             words = [(event, sha) for event, sha, _ in db.rows(QUEUED, {}) or []
                      if event in EVENTS and SHA.fullmatch(str(sha or ''))]
             landings = [sha for event, sha in words if event == 'landed']
-            for event, sha in words:
-                if event == 'prepare' and ('prepare', sha) not in self.done and sha not in landings:
-                    self.done.add(('prepare', sha))
-                    self.prepare(db, sha)
+            waiting = list(dict.fromkeys(sha for event, sha in words if event == 'prepare' and sha not in landings))
+            base = str(self.ssm(LAST_SHA) or '').strip() if waiting else ''
+            queued = None
+            for sha in waiting:
+                if ('prepare', sha, base) in self.done:
+                    continue
+                again = ('prepare', sha) in self.done  # PREPARE-ON-BASE-MOVE: prepared before, on another base
+                self.done.update({('prepare', sha), ('prepare', sha, base)})
+                if again:
+                    queued = self.queued() if queued is None else queued
+                    if sha not in queued:
+                        continue
+                self.prepare(db, sha)
             if landings and ('landed', landings[-1]) not in self.done:
                 sha = landings[-1]
                 self.done.add(('landed', sha))

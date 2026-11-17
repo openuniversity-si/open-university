@@ -1,0 +1,182 @@
+{
+  "integrationOnly": ["uow.lock.exclusion", "media.object.remote", "progress.clock.sql", "media.image.bytes"],
+  "ports": [
+    {
+      "id": "CatalogStatePort",
+      "since": "3.2",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/catalog/testing/in-memory-catalog.ts", "symbol": "createInMemoryCatalog" },
+      "real": [{ "file": "apps/web/src/catalog/server/courses.ts", "symbol": "catalogCourseState" }],
+      "contract": { "file": "apps/web/src/catalog/testing/catalog-contract.ts", "cases": ["catalog.transition.review", "catalog.transition.preconditions", "catalog.transition.forbidden", "catalog.transition.published", "catalog.transition.revision", "catalog.transition.retry", "catalog.transition.effect-failure", "catalog.snapshot.isolated"] }
+    },
+    {
+      "id": "CatalogCommandsPort",
+      "since": "3.2",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/catalog/testing/in-memory-catalog.ts", "symbol": "createInMemoryCatalog" },
+      "real": [{ "file": "apps/web/src/catalog/server/courses.ts", "symbol": "setCourseStatus" }],
+      "contract": { "file": "apps/web/src/catalog/testing/catalog-contract.ts", "cases": ["catalog.transition.review", "catalog.transition.preconditions", "catalog.transition.forbidden", "catalog.transition.published", "catalog.transition.revision", "catalog.transition.retry", "catalog.transition.effect-failure"] }
+    },
+    {
+      "id": "CatalogOwnersPort",
+      "since": "2.1",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/catalog/testing/in-memory-catalog.ts", "symbol": "createInMemoryCatalog" },
+      "real": [{ "file": "apps/web/src/catalog/server/media-owners.ts", "symbol": "catalogOwners" }],
+      "contract": { "file": "apps/web/src/catalog/testing/catalog-contract.ts", "cases": ["catalog.owners.course", "catalog.owners.graph", "catalog.owners.inventory"] }
+    },
+    {
+      "id": "PublishedLessonLookup",
+      "since": "3.1",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/catalog/testing/in-memory-catalog.ts", "symbol": "createInMemoryCatalog" },
+      "real": [{ "file": "apps/web/src/app/api/progress/route.ts", "symbol": "resolvePublishedLesson" }],
+      "contract": { "file": "apps/web/src/catalog/testing/catalog-contract.ts", "cases": ["catalog.lookup.published", "catalog.lookup.missing"] }
+    },
+    {
+      "id": "MediaObjectStore",
+      "since": "3.2",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/media/testing/in-memory-media.ts", "symbol": "createInMemoryMedia" },
+      "real": [{ "file": "apps/web/src/media/server/fs-store.ts", "symbol": "createFsMediaStore" }],
+      "contract": { "file": "apps/web/src/media/testing/media-contract.ts", "cases": ["media.object.put-get", "media.object.overwrite", "media.object.delete", "media.object.copy", "media.object.isolated"] }
+    },
+    {
+      "id": "MediaCommandsPort",
+      "since": "2.1",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/media/testing/in-memory-media.ts", "symbol": "createInMemoryMedia" },
+      "real": [
+        { "file": "apps/web/src/media/server/pending-deletions.ts", "symbol": "drainPendingObjects" },
+        { "file": "apps/web/src/media/server/asset-reads.ts", "symbol": "validateObject" }
+      ],
+      "contract": { "file": "apps/web/src/media/testing/media-contract.ts", "cases": ["media.queue.rollback", "media.drain.failure", "media.drain.idempotent", "media.validate.known", "media.diagnose.pending"] }
+    },
+    {
+      "id": "ProgressRepositoryPort",
+      "since": "3.1",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/progress/testing/in-memory-progress.ts", "symbol": "createInMemoryProgress" },
+      "real": [{ "file": "apps/web/src/progress/server/repo.ts", "symbol": "progressRepository" }],
+      "contract": { "file": "apps/web/src/progress/testing/progress-contract.ts", "cases": ["progress.throttle.boundary", "progress.completion.preserves", "progress.completion.uncheck", "progress.users.isolated", "progress.save.rollback"] }
+    },
+    {
+      "id": "ProgressMaintenancePort",
+      "since": "3.1",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/progress/testing/in-memory-progress.ts", "symbol": "createInMemoryProgress" },
+      "real": [{ "file": "apps/web/src/progress/server/maintenance.ts", "symbol": "progressMaintenance" }],
+      "contract": { "file": "apps/web/src/progress/testing/progress-contract.ts", "cases": ["progress.maintenance.orphans"] }
+    },
+    {
+      "id": "IdentitySessionPort",
+      "since": "3.1",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/identity/testing/in-memory-identity.ts", "symbol": "createInMemoryIdentity" },
+      "real": [{ "file": "apps/web/src/identity/server/session.ts", "symbol": "identitySessions" }],
+      "contract": { "file": "apps/web/src/identity/testing/identity-contract.ts", "cases": ["identity.session.absent", "identity.session.expired", "identity.session.revoked", "identity.session.cached-revocation"] }
+    },
+    {
+      "id": "MailerPort",
+      "since": "3.1",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/identity/testing/in-memory-identity.ts", "symbol": "createInMemoryIdentity" },
+      "real": [{ "file": "apps/web/src/identity/server/mailer.ts", "symbol": "configuredMailer" }],
+      "contract": { "file": "apps/web/src/identity/testing/identity-contract.ts", "cases": ["identity.mail.outbox", "identity.mail.failure"] }
+    },
+    {
+      "id": "SessionDatabase",
+      "since": "3.1",
+      "kind": "infrastructure",
+      "real": [{ "file": "apps/web/src/platform/db/pool.ts", "symbol": "appPool" }]
+    },
+    {
+      "id": "SiteDataStorePort",
+      "since": "3.2",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/site/testing/in-memory-site.ts", "symbol": "createInMemorySiteData" },
+      "real": [{ "file": "apps/web/src/site/server/site-data.ts", "symbol": "siteDataStore" }],
+      "contract": { "file": "apps/web/src/site/testing/site-contract.ts", "cases": ["site.data.invalid", "site.data.upcast", "site.data.isolated"] }
+    },
+    {
+      "id": "PlaybackTransport",
+      "since": "3.1",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/playback/testing/in-memory-playback.ts", "symbol": "createInMemoryPlaybackTransport" },
+      "real": [{ "file": "apps/web/src/playback/client/youtube-engine.ts", "symbol": "YouTubeTransport" }],
+      "contract": { "file": "apps/web/src/playback/testing/transport-contract.ts", "cases": ["playback.transport.stale", "playback.transport.seek", "playback.transport.dispose"] }
+    },
+    {
+      "id": "PlaybackEngine",
+      "since": "3.1",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/playback/testing/in-memory-playback.ts", "symbol": "createInMemoryPlayback" },
+      "real": [{ "file": "apps/web/src/playback/domain/engine.ts", "symbol": "CorePlaybackEngine" }],
+      "contract": { "file": "apps/web/src/playback/testing/transport-contract.ts", "cases": ["playback.transport.stale", "playback.transport.seek", "playback.transport.dispose"] }
+    },
+    {
+      "id": "SourceDriver",
+      "since": "3.1",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/playback/testing/in-memory-playback.ts", "symbol": "playbackDrivers" },
+      "real": [{ "file": "apps/web/src/playback/domain/drivers/youtube.ts", "symbol": "youtubeSourceDriver" }],
+      "contract": { "file": "apps/web/src/playback/testing/transport-contract.ts", "cases": ["playback.driver.youtube", "playback.driver.institutional"] }
+    },
+    {
+      "id": "UnitOfWork",
+      "since": "1.2",
+      "kind": "infrastructure",
+      "memory": { "file": "apps/web/src/platform/db/testing/in-memory-uow.ts", "symbol": "createInMemoryUnitOfWork" },
+      "real": [{ "file": "apps/web/src/platform/db/uow.ts", "symbol": "withUnitOfWork" }],
+      "contract": { "file": "apps/web/src/platform/db/testing/uow-contract.ts", "cases": ["uow.commit.effects", "uow.rollback.skips-effects", "uow.effect.keeps-commit", "uow.query.refuses", "uow.participants.rollback", "uow.snapshot.copies"] }
+    },
+    {
+      "id": "Queryable",
+      "since": "1.2",
+      "kind": "infrastructure",
+      "real": [{ "file": "apps/web/src/platform/db/uow.ts", "symbol": "Queryable" }]
+    },
+    {
+      "id": "PooledClient",
+      "since": "1.2",
+      "kind": "infrastructure",
+      "real": [{ "file": "apps/web/src/platform/db/uow.ts", "symbol": "PooledClient" }]
+    },
+    {
+      "id": "DbPool",
+      "since": "1.2",
+      "kind": "infrastructure",
+      "real": [{ "file": "apps/web/src/platform/db/uow.ts", "symbol": "DbPool" }]
+    },
+    {
+      "id": "CatalogQueriesPort",
+      "since": "4.2",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/catalog/testing/in-memory-queries.ts", "symbol": "createInMemoryCatalogQueries" },
+      "real": [{ "file": "apps/web/src/catalog/server/queries.ts", "symbol": "createCatalogQueries" }],
+      "contract": { "file": "apps/web/src/catalog/testing/queries-contract.ts", "cases": ["catalog.query.empty", "catalog.query.missing", "catalog.query.release", "catalog.query.redirect", "catalog.query.draft", "catalog.query.page", "catalog.query.isolated", "catalog.query.preview"] }
+    },
+    {
+      "id": "OEmbedResolverPort",
+      "since": "4.3",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/playback/testing/fake-oembed.ts", "symbol": "createFakeOEmbedResolver" },
+      "real": [{ "file": "apps/web/src/playback/server/oembed-resolver.ts", "symbol": "createOEmbedResolver" }],
+      "contract": { "file": "apps/web/src/playback/testing/oembed-contract.ts", "cases": ["playback.oembed.pool", "playback.oembed.dedupe", "playback.oembed.timeout", "playback.oembed.fresh", "playback.oembed.expired", "playback.oembed.future"] }
+    },
+    {
+      "id": "JobStorePort",
+      "since": "4.4",
+      "kind": "port",
+      "memory": { "file": "apps/web/src/admin/testing/in-memory-jobs.ts", "symbol": "createInMemoryJobStore" },
+      "real": [{ "file": "apps/web/src/admin/server/jobs-repo.ts", "symbol": "createSqlJobStore" }],
+      "contract": { "file": "apps/web/src/admin/testing/jobs-contract.ts", "cases": ["admin.job.occupied", "admin.job.expired", "admin.job.heartbeat", "admin.job.fencing", "admin.job.hash", "admin.job.cas"] }
+    },
+    {
+      "id": "ProgressDatabase",
+      "since": "3.1",
+      "kind": "infrastructure",
+      "real": [{ "file": "apps/web/src/progress/server/repo.ts", "symbol": "ProgressDatabase" }]
+    }
+  ]
+}

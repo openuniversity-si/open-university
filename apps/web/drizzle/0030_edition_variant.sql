@@ -1,0 +1,4 @@
+ALTER TABLE "course_editions" ADD COLUMN "variant_kind" text;--> statement-breakpoint
+ALTER TABLE "course_editions" ADD COLUMN "variant_label" text;--> statement-breakpoint
+ALTER TABLE "course_editions" ADD CONSTRAINT "course_editions_course_year_variant" UNIQUE NULLS NOT DISTINCT("course_id","year","variant_kind","variant_label");--> statement-breakpoint
+ALTER TABLE "course_editions" ADD CONSTRAINT "course_editions_variant" CHECK ((("course_editions"."variant_kind" IS NULL) = ("course_editions"."variant_label" IS NULL)) AND ("course_editions"."variant_kind" IS NULL OR ("course_editions"."variant_kind" IN ('language', 'term', 'group') AND char_length(btrim("course_editions"."variant_label")) BETWEEN 1 AND 40)));

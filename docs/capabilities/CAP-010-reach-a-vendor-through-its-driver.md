@@ -11,7 +11,7 @@ structural words, defined in D-062:
   a `library` or a `tool`, and the retired vendors.
 - **driver**: the one module a vendor's package may be imported from (for example `aws4fetch` →
   `src/media/server/r2.ts`).
-- **retired vendor**: a package that may not be declared or imported (`@vercel/blob`, `@mux/*`, `media-chrome`).
+- **retired vendor**: a package that may not be declared or imported (the old blob client, `@mux/*`, `media-chrome`).
 
 ## Contract
 Input: a file that needs a hosted service, or a new dependency in Open University's `package.json` (archived at `567176bb`).
@@ -33,7 +33,7 @@ and is not a vendor use.
 1. Audit, plan, D-062, this design, the queue entries.
 2. Mux out of the app and its tests; Mux out of the schema.
 3. The media store on R2 only; one accepted media host.
-4. The fidelity references on R2 only; `@vercel/blob` removed.
+4. The fidelity references on R2 only; the old blob client removed.
 5. The vendor map and its three rules with no baseline; the incident rules they replace deleted; close.
 
 ## Target

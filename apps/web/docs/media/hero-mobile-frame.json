@@ -1,0 +1,11 @@
+{
+  "_doc": "Frame contract of the mobile course hero (hero_mobile_9x16). Read by the Design framing check (covers-novos/_tools/check_hero_framing.py). apps/web/src/ui/Billboard/hero-frame.test.ts fails when the Billboard CSS tokens stop matching these numbers, so the check can never go stale. All y values are CSS px from the top of the 390 px wide frame.",
+  "frameWidth": 390,
+  "frameHeight": 620,
+  "aspect": 0.629,
+  "appBarBottom": 56,
+  "scrimClearUntil": 150,
+  "scrimStrongAt": 338,
+  "scrimOpaqueAt": 423,
+  "subjectBand": { "top": 64, "bottom": 320, "centerMin": 110, "centerMax": 240, "minVisibleShare": 0.75 }
+}

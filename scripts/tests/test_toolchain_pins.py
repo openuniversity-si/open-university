@@ -40,7 +40,7 @@ class ToolchainPins(unittest.TestCase):
 
     def test_the_checksum_file_holds_no_version_list(self):
         raw = json.loads(manifest.MANIFEST.read_text())
-        # vazão F6 and F16: a tool that left TOOLS (gh, the Vercel CLI, pnpm) leaves no checksums behind.
+        # vazão F6 and F16: a tool that left TOOLS (gh, the hosting CLI, pnpm) leaves no checksums behind.
         self.assertEqual(set(raw) - {'environment'}, set(manifest.TOOLS))
         for tool in manifest.TOOLS:
             self.assertNotIn('version', raw[tool])

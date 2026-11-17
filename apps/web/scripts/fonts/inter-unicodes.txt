@@ -1,0 +1,26 @@
+# Unicode ranges kept in public/fonts/Inter.woff2 (scripts/font-subset.py). One range per line; `#` starts a comment.
+# src/ui/fonts.test.ts fails if static text in src/ or content/catalog uses a character the subset lacks.
+U+0020-007E   # Basic Latin
+U+00A0-00FF   # Latin-1 Supplement (no-break space, ©, ·, ×, accented letters)
+U+0131        # dotless i
+U+0152-0153   # Œ œ
+U+02C6        # ˆ
+U+02DA        # ˚
+U+02DC        # ˜
+U+2009-200A   # thin and hair spaces
+U+2010-2014   # hyphens, – —
+U+2018-201A   # ‘ ’ ‚
+U+201C-201E   # “ ” „
+U+2022        # •
+U+2026        # …
+U+2030        # ‰
+U+2032-2033   # ′ ″
+U+2039-203A   # ‹ ›
+U+2044        # ⁄
+U+20AC        # €
+U+2122        # ™
+U+2190-2193   # ← ↑ → ↓
+U+2212        # −
+U+2248        # ≈
+U+2260        # ≠
+U+2264-2265   # ≤ ≥

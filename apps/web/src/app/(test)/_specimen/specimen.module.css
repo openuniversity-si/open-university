@@ -1,0 +1,16 @@
+.specimen {
+  padding: var(--tower-layout-gutter-mobile);
+  overflow-wrap: anywhere;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tower-gap);
+}
+
+.swatch {
+  width: var(--tower-tap-min);
+  height: var(--tower-tap-min);
+  background: var(--tower-swatch-color);
+}

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+self="$(realpath "${BASH_SOURCE[0]}")"
+exec "$(dirname "$self")/tower-catalog" media "$@"

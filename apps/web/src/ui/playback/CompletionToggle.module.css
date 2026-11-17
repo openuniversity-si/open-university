@@ -1,0 +1,23 @@
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--tower-player-length-10);
+  width: 100%;
+  height: var(--tower-player-length-44);
+  padding: 0;
+  border: 0;
+  background: var(--tower-el-clear);
+  color: var(--tower-ink);
+  font: inherit;
+  font-size: var(--tower-player-length-14);
+  font-weight: var(--tower-player-weight-600);
+  line-height: var(--tower-player-length-17);
+  text-align: left;
+  opacity: var(--tower-el-opacity-quiet);
+}
+
+.toggle svg {
+  flex: none;
+  width: var(--tower-player-length-22);
+  height: var(--tower-player-length-22);
+}
