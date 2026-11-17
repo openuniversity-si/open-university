@@ -25,7 +25,8 @@ import gate_digest  # noqa: E402
 import gate_proof  # noqa: E402
 import gate_report  # noqa: E402
 import pr_ready  # noqa: E402
-import slo  # noqa: E402
+import gate_eta  # noqa: E402
+import gate_verdicts  # noqa: E402
 import toolchain_manifest  # noqa: E402
 from test_plan_tick import FIXED  # noqa: E402
 import test_gate_report_skips  # noqa: E402 - GX-39's v3 digest of its fixture (a module import: no TestCase rerun here)
@@ -213,8 +214,9 @@ class V4Producer(Fixture):
         session = forge_events.ForgeEvents(self.adapter, clock(), config.get('plan-tick.event_producer'), f'pr-{PR}')
         ready = pr_ready.emit_ready(session, REPO, PR, self.head, ['P-42'], 'dev', None)
         self.assertEqual(ready['payload']['evidence'], events[-1]['event_id'])
-        [tier1] = slo.fold(session.read(REPO, PR))['tier1']
-        self.assertEqual((tier1['event_id'], tier1['passed']), (events[-1]['event_id'], True))
+        accepted = [event for event in gate_verdicts.accepted(gate_eta.ordered(session.read(REPO, PR)))
+                    if event['type'] in gate_verdicts.TYPES and event['payload']['tier'] == 1]
+        self.assertEqual([(event['event_id'], event['type']) for event in accepted], [(events[-1]['event_id'], 'gate.passed')])
 
 
 class V3Unchanged(Fixture):

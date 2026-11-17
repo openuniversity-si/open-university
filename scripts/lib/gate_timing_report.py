@@ -133,9 +133,9 @@ def stage_needs(path=None):
 
 
 def ledger_events():
-    import slo
+    import gate_eta
     import forge_events
-    return slo.collect(forge_events.adapter_from_config(), config.get('forge-events.repo'))
+    return gate_eta.collect(forge_events.adapter_from_config(), config.get('forge-events.repo'))
 
 
 def main(argv=None):
