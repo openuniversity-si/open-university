@@ -1,7 +1,7 @@
 {
   "id": "RISK-restore-never-drilled",
   "statement": "tower-data's automated backups have never been restored: a restore that was never rehearsed may fail when it is needed.",
-  "state": "assessed",
+  "state": "closed",
   "owner": "Daniel",
   "assets": [
     "DATA-tower-data"
@@ -10,7 +10,10 @@
   "impact": "high",
   "treatment": {
     "option": "mitigate",
-    "plan": "The account's owner restores a backup into a temporary instance, python -m tower_infra restore-check compares it with production, and the date is recorded in DATA-tower-data."
+    "plan": "The restore was drilled on 2026-11-12 (docs/process/drills/2026-11-12-tower-data-restore.md); the risk's premise, that no restore had been rehearsed, was false. A drill every operation.restore_max_days (90) keeps DATA-tower-data protected; the next is due by 2027-02-10.",
+    "by": [
+      "DATA-tower-data"
+    ]
   },
   "review_by": "2026-12-17",
   "source": "docs/programs/padrao-dev/phases/F7.md (F7d)"
