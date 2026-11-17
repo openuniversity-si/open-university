@@ -11,4 +11,5 @@ RequirementV1 = TypedDict('RequirementV1', {
     'basis': NotRequired[list[str]],
     'retired_by': NotRequired[str],
     'source': Required[str],
+    'verification': NotRequired[Literal['test', 'validation']],
 }, total=False)

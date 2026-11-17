@@ -517,6 +517,21 @@ class Changes(unittest.TestCase):
         chain['VAL-1']['state'] = 'met'
         self.assertTrue(model.chain_verified(chain['REQ-1'], model.incoming(chain), chain))
 
+    def test_a_runtime_requirement_is_verified_by_its_own_validation_met_in_place_of_a_test(self):
+        chain = {'REQ-1': {'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],
+                           'body': {'verification': 'validation'}},
+                 'ARC-1': {'id': 'ARC-1', 'type': 'ARC', 'state': 'active', 'fingerprint': 'f',
+                           'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
+                 'UNIT:a': {'id': 'UNIT:a', 'type': 'UNIT', 'state': 'active', 'fingerprint': 'f',
+                            'links': [{'type': 'realizes', 'target': 'ARC-1'}]},
+                 'VAL-1': {'id': 'VAL-1', 'type': 'VAL', 'state': 'not-met', 'fingerprint': 'f',
+                           'links': [{'type': 'validates', 'target': 'REQ-1'}]}}
+        self.assertFalse(model.chain_verified(chain['REQ-1'], model.incoming(chain), chain))
+        chain['VAL-1']['state'] = 'met'
+        self.assertTrue(model.chain_verified(chain['REQ-1'], model.incoming(chain), chain))
+        del chain['REQ-1']['body']['verification']
+        self.assertFalse(model.chain_verified(chain['REQ-1'], model.incoming(chain), chain))
+
     def test_a_directory_that_is_not_a_repository_has_no_changes(self):
         other = Path(tempfile.mkdtemp(prefix='model-nogit-'))
         self.addCleanup(shutil.rmtree, other)
