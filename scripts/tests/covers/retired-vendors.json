@@ -4,6 +4,7 @@
     "scripts/tests/retired-vendors.test.sh",
     "scripts/tests/test_retired_vendors*.py",
     "scripts/lib/retired_vendors.py",
+    "scripts/lib/globs.py",
     "scripts/retired-vendors",
     "config/registry/structure.json",
     "config/registry/structure/**"

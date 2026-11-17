@@ -10,6 +10,7 @@
     "scripts/lib/config_cli.py",
     "scripts/lib/config_latency.py",
     "scripts/lib/generated/**",
+    "scripts/lib/globs.py",
     "scripts/lib/json_schema.py",
     "scripts/tests/config-port.test.sh",
     "scripts/tests/config.test.sh",

@@ -22,7 +22,7 @@ import subprocess
 import sys
 
 import config
-from gate_areas import glob_match
+from globs import glob_match
 
 SHOWN = 160  # characters of a matched line an error quotes
 

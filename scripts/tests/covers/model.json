@@ -22,6 +22,7 @@
     "scripts/lib/gate-stages.json",
     "scripts/lib/rule_registry.py",
     "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
     "scripts/lib/config.py",
     "config/registry/rules.json",
     "scripts/lib/premises.py",

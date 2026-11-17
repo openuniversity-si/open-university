@@ -8,6 +8,7 @@
     "scripts/lib/gate_script_tests.py",
     "scripts/lib/gate-script-tests.json",
     "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
     "scripts/lib/gate_policy.py",
     "scripts/lib/adapters/storage*.py",
     "config/registry/gate.json",

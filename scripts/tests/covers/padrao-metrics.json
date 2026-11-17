@@ -9,6 +9,7 @@
     "scripts/lib/event_contracts.py",
     "scripts/lib/forge_events.py",
     "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
     "scripts/lib/gate_script_tests.py",
     "scripts/lib/json_schema.py",
     "scripts/lib/registry_readers.py",

@@ -7,6 +7,7 @@
     "scripts/lib/gate-hooks/plan.sh",
     "scripts/lib/gate_policy.py",
     "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
     "scripts/lib/gate-areas.json",
     "scripts/lib/gate_proof.py",
     "scripts/lib/forge_events.py",
