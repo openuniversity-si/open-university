@@ -25,6 +25,7 @@ One batch per leadership: the leader does not drain the queue, so its lane's `de
 import json
 import re
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -50,6 +51,10 @@ def checks(root, pr, body):
         handle.flush()
         done = subprocess.run([str(root / 'scripts' / 'structure-check'), '--pr-body', handle.name], cwd=root,
                               capture_output=True, text=True)
+        problems += [line for line in done.stdout.splitlines() if line.startswith('FAIL')]
+        # D-322: the body's effort block is the measurement checks' part, which the structure check no longer imports
+        done = subprocess.run([sys.executable, str(root / 'scripts' / 'lib' / 'measurement_checks.py'), 'body',
+                               '--pr-body', handle.name], cwd=root, capture_output=True, text=True)
     problems += [line for line in done.stdout.splitlines() if line.startswith('FAIL')]
     return problems
 

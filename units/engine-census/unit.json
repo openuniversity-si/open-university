@@ -8,13 +8,20 @@
     "scripts/census",
     "scripts/lib/census.py",
     "scripts/lib/generate_census.py",
+    "scripts/lib/measurement_checks.py",
+    "scripts/lib/shared-literals.json",
     "scripts/tests/census.test.sh",
-    "scripts/tests/test_census.py"
+    "scripts/tests/measurement-checks.test.sh",
+    "scripts/tests/test_census.py",
+    "scripts/tests/test_measurement_checks.py"
   ],
   "requires": {
+    "engine-budgets": "^1",
     "engine-config": "^1",
+    "engine-effort": "^1",
     "engine-lessons": "^1",
     "engine-literals": "^1",
+    "engine-structure": "^1",
     "engine-units": "^1"
   },
   "realizes": [

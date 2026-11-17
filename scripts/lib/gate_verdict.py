@@ -179,9 +179,12 @@ def metadata(root, tool, head, base, pr):
     try:
         done = subprocess.run([str(Path(tool) / 'scripts/structure-check'), '--metadata', '--base', base,
                                '--pr', str(pr), '--no-publish'], cwd=checkout, capture_output=True, text=True)
+        # D-322: the PR body's measurement part (the effort block), which the structure check no longer imports
+        body = subprocess.run([sys.executable, str(Path(tool) / 'scripts/lib/measurement_checks.py'), 'body', '--base', base,
+                               '--pr', str(pr)], cwd=checkout, capture_output=True, text=True)
     finally:
         gate_pin.drop(root, throwaway)
-    return done.returncode, done.stdout + done.stderr
+    return max(done.returncode, body.returncode), done.stdout + done.stderr + body.stdout + body.stderr
 
 
 def gate(root, head, pr, logs):

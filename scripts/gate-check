@@ -62,6 +62,7 @@ case "$kind" in
       "structure check") OU_STRUCTURE_TREE_ONLY="$root" "$root/scripts/structure-check" ${base:+--base "$base"} ;;
       "production guard") "$py" "$root/scripts/lib/production_guard.py" check ${base:+--base "$base"} --root "$root" ;;  # D-054, D-322
       "gate maps") "$py" "$root/scripts/lib/gate_maps.py" check ${base:+--base "$base"} --root "$root" ;;  # D-106, TX25, H1, D-322
+      "measurement checks") "$py" "$root/scripts/lib/measurement_checks.py" check ${base:+--base "$base"} --root "$root" ;;  # D-064, D-069 item 14, D-322
       "generated drift") "$root/scripts/generate" --check ;;
       "schema compat") "$root/scripts/schema-compat" ${base:+--base "$base"} ;;
       "secret scan (history)")

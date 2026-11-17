@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/measurement-checks.test.sh",
+  "covers": [
+    "scripts/tests/measurement-checks.test.sh",
+    "scripts/tests/test_measurement_checks.py",
+    "scripts/lib/measurement_checks.py",
+    "scripts/lib/census.py",
+    "scripts/lib/budget_check.py",
+    "scripts/lib/effort.py",
+    "scripts/lib/shared-literals.json",
+    "scripts/lib/gate-hooks/prereq.sh",
+    "scripts/gate-check",
+    "config/registry/census.json",
+    "config/registry/effort.json",
+    "scripts/lib/config.py"
+  ]
+}

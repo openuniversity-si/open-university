@@ -32,7 +32,7 @@ class ShippedGraphTest(unittest.TestCase):
         # GATE-VERDICT-API (D-070): the declared, planned and displayed order puts the cheap checks before install and
         # the suites, `pr metadata` (about 5 s, the most frequent red) first; the three lists move together.
         cheap = ["pr metadata", "no GitHub Actions workflows", "secret scan (tree)", "structure check",
-                 "production guard", "gate maps", "generated drift", "schema compat", "secret scan (history)"]
+                 "production guard", "gate maps", "measurement checks", "generated drift", "schema compat", "secret scan (history)"]
         self.assertEqual(list(STAGES)[:len(cheap)], cheap)
         self.assertEqual(gate_policy.PREREQUISITES, cheap)
         self.assertEqual(gate_policy.DEV_STAGES[:len(cheap)], cheap)
