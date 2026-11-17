@@ -1044,6 +1044,52 @@ def read_advisories(root):
     return found
 
 
+def data_state(body, today, max_days):
+    """A data store's state: unregistered (personal data without purpose, legal basis and retention) first, then
+    unprotected (no backup), regenerable, unverified (no restore verified within max_days) or protected."""
+    from datetime import date
+    if body['personal'] and not all(body.get(field) for field in ('purpose', 'legal_basis', 'retention')):
+        return 'unregistered'
+    method = body['backup']['method']
+    if method == 'none':
+        return 'unprotected'
+    if method == 'regenerable':
+        return 'regenerable'
+    verified = body['backup'].get('last_restore_verified')
+    if not verified or (date.fromisoformat(today) - date.fromisoformat(verified)).days > max_days:
+        return 'unverified'
+    return 'protected'
+
+
+def read_data(root):
+    """Data stores (DATA, the Operation system), one file each (config/operation/data/); the state is derived."""
+    import config
+    found = _declared(Path(root), 'config/operation/data/DATA-*.json', 'data.v1.json', 'DATA',
+                      lambda body: [{'type': 'supplied-by', 'target': body['supplier']}] if body.get('supplier') else [])
+    today, max_days = utc_today(), config.get('operation.restore_max_days', ROOT)
+    for item in found:
+        if 'body' in item:
+            item['state'] = data_state(item['body'], today, max_days)
+    return found
+
+
+def request_state(body, today):
+    if body.get('answered'):
+        return 'answered' if body['answered'] <= body['due'] else 'answered-late'
+    return 'overdue' if today > body['due'] else 'open'
+
+
+def read_requests(root):
+    """Data subject requests (REQUEST, the Operation system), one file each (config/operation/requests/)."""
+    found = _declared(Path(root), 'config/operation/requests/REQUEST-*.json', 'request.v1.json', 'REQUEST',
+                      lambda body: [{'type': 'concerns', 'target': target} for target in body.get('data', [])])
+    today = utc_today()
+    for item in found:
+        if 'body' in item:
+            item['state'] = request_state(item['body'], today)
+    return found
+
+
 def read_checks(root):
     """Checks the merge queue requires (CHK, the Configuration system), derived from the workflows and the rulesets
     (scripts/lib/queue_checks.py): staged, installed or required."""
@@ -1060,7 +1106,7 @@ def read_checks(root):
 
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
            read_intent, read_requirements, read_premises, read_changes, read_architecture, read_adrs, read_validations,
-           read_suppliers, read_dependencies, read_advisories, read_checks)
+           read_suppliers, read_dependencies, read_advisories, read_checks, read_data, read_requests)
 
 
 def objects(root=ROOT, readers=READERS):

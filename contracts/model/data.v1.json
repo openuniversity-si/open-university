@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/data.v1.json",
+  "title": "Data store v1",
+  "description": "config/operation/data/<id>.json (PADRAO-DEV F7d, D-320, D-321): a data store of the Operation system (a DATA of the engineering model): where it lives, who answers for it, whether it keeps personal data (and then its purpose, legal basis and retention, LGPD art. 37), and how it is backed up and its restore proved. Its state is derived (scripts/model), never written.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "kind",
+    "location",
+    "owner",
+    "personal",
+    "backup"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^DATA-[a-z0-9][a-z0-9-]*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "enum": [
+        "database",
+        "bucket",
+        "repository"
+      ]
+    },
+    "location": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where it lives and the file that defines it."
+    },
+    "supplier": {
+      "type": "string",
+      "pattern": "^SUP-[a-z0-9][a-z0-9-]*$"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "personal": {
+      "type": "boolean"
+    },
+    "personal_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "legal_basis": {
+      "type": "string",
+      "description": "The LGPD art. 7 basis of the processing; recorded by its owner, never assumed."
+    },
+    "retention": {
+      "type": "string"
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "automated",
+            "replicated",
+            "none",
+            "regenerable"
+          ]
+        },
+        "retention_days": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "restore_proof": {
+          "type": "string",
+          "description": "The command or test that proves a restore."
+        },
+        "last_restore_verified": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "note": {
+      "type": "string"
+    }
+  }
+}

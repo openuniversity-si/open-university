@@ -1,0 +1,13 @@
+{
+  "id": "DATA-r2-media",
+  "name": "the site's media bucket",
+  "kind": "bucket",
+  "location": "Cloudflare R2, R2_MEDIA_BUCKET (apps/web/scripts/lib/r2.ts)",
+  "supplier": "SUP-cloudflare",
+  "owner": "Daniel",
+  "personal": false,
+  "backup": {
+    "method": "none",
+    "note": "No backup or second copy of the bucket is recorded in the repository."
+  }
+}

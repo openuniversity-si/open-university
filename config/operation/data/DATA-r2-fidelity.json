@@ -1,0 +1,13 @@
+{
+  "id": "DATA-r2-fidelity",
+  "name": "the fidelity references bucket",
+  "kind": "bucket",
+  "location": "Cloudflare R2, R2_FIDELITY_BUCKET (apps/web/fidelity/)",
+  "supplier": "SUP-cloudflare",
+  "owner": "engine-lane",
+  "personal": false,
+  "backup": {
+    "method": "regenerable",
+    "note": "Captured again by pnpm fidelity from the references (apps/web/fidelity/references-fetch.ts)."
+  }
+}

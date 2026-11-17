@@ -1,0 +1,10 @@
+{
+  "name": "concerns",
+  "from": [
+    "REQUEST"
+  ],
+  "to": [
+    "DATA"
+  ],
+  "description": "A data subject request concerns a data store."
+}

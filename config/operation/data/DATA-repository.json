@@ -1,0 +1,15 @@
+{
+  "id": "DATA-repository",
+  "name": "this repository",
+  "kind": "repository",
+  "location": "GitHub openuniversity-si/open-university (D-314)",
+  "supplier": "SUP-github",
+  "owner": "administration",
+  "personal": false,
+  "backup": {
+    "method": "replicated",
+    "restore_proof": "every cloud session clones it fresh; Origin keeps a one-way mirror of main (D-314)",
+    "last_restore_verified": "2026-11-17",
+    "note": "A fresh clone is a restore, verified at each session start."
+  }
+}
