@@ -84,7 +84,7 @@ class ClaudeSessionTests(unittest.TestCase):
     @classmethod
     def _child_env(cls, *, tokens=True):
         env = os.environ.copy()
-        for name in ('NEON_API_KEY', 'VERCEL_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN'):
+        for name in ('GH_TOKEN', 'GITHUB_TOKEN'):
             env.pop(name, None)
         env['OU_CREDENTIALS'] = 'network'
         env['OU_SHIM_GUARD'] = str(cls.guard)
@@ -104,7 +104,7 @@ class ClaudeSessionTests(unittest.TestCase):
     @classmethod
     def _setup(cls):
         env = os.environ.copy()
-        for name in ('NEON_API_KEY', 'VERCEL_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN'):
+        for name in ('GH_TOKEN', 'GITHUB_TOKEN'):
             env.pop(name, None)
         env['PATH'] = str(cls.shims) + os.pathsep + env.get('PATH', '')
         env['OU_CREDENTIALS'] = 'network'

@@ -2,7 +2,7 @@
 
 OU_CREDENTIALS=network trusts an egress proxy that injects Authorization for the forge. The forge's credential is the
 selected forge's (forge-events.adapter): each forge module answers its own gaps through forge_events.forge_gaps and asks
-cached_probe, whose stamp keeps a digest, never a secret. Open University's Neon and Vercel probes left with it (D-111);
+cached_probe, whose stamp keeps a digest, never a secret. Open University's database and hosting probes left with it (D-111);
 the registry keys they read left with the GitHub client (D-293).
 """
 import hashlib
