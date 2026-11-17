@@ -47,6 +47,7 @@ import premises
 import production_guard
 import repo_hygiene
 import retired_products
+import retired_vendors
 import train_git
 import train_ownership
 import unit_check
@@ -496,6 +497,7 @@ def tree_part(root, base, today):
     errors += gate_areas.coverage_errors(root)  # OU-DECOUPLE F1 (D-106): every tracked path has an area
     errors += repo_hygiene.tree_check(root) + hygiene_result[0]  # text is live; source diagnostics use exact inputs
     errors += retired_products.check(root)  # OU-DECOUPLE F5 (D-113): the engine names no retired product
+    errors += retired_vendors.check(root)  # D-318: nothing of ours relates to a retired vendor
     # vazão F16 (D-292): the lockfile checks (toolchain_check, supply_chain_check) left; they judged zero packages.
     vendor_errors, vendor_warnings = vendor_result
     errors += vendor_errors

@@ -236,6 +236,7 @@
         "docs/domain/DECISIONS.md",
         "config/registry/structure.json",
         "config/registry/structure/structure.retired_product_roots.json",
+        "config/registry/structure/structure.retired_vendor_terms.json",
         "scripts/lib/generated/**",
         ".gitleaks.toml"
       ],
@@ -244,11 +245,12 @@
         "type": "string"
       },
       "x-unit": "count",
-      "description": "Globs of the historical records a retired product root may still be named in: they describe the past and are not rewritten (units, programs, ADRs, audits, the roadmap and process records, the decision register), plus the definition of the roots itself and its generated types; and .gitleaks.toml, whose allowlist must name paths of past commits because the secret scan judges the whole history.",
+      "description": "Globs of the historical records a retired product root (D-113) or a retired vendor (D-318) may still be named in: they describe the past and are not rewritten (units, programs, ADRs, audits, the frozen project, the roadmap and process records, the decision register), plus the definitions of the roots and of the vendor terms themselves and their generated types; and .gitleaks.toml, whose allowlist must name paths of past commits because the secret scan judges the whole history.",
       "x-readers": [
-        "scripts/lib/retired_products.py"
+        "scripts/lib/retired_products.py",
+        "scripts/lib/retired_vendors.py"
       ],
-      "x-source": "D-113 (OU-DECOUPLE F5)"
+      "x-source": "D-113 (OU-DECOUPLE F5); D-318"
     },
     "structure.retired_product_roots": {
       "type": "array",
@@ -265,6 +267,24 @@
         "scripts/lib/retired_products.py"
       ],
       "x-source": "D-113 (OU-DECOUPLE F5)"
+    },
+    "structure.retired_vendor_terms": {
+      "type": "array",
+      "default": [
+        "vercel",
+        "(?<![a-z])neon"
+      ],
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-unit": "count",
+      "description": "Case-insensitive Perl-compatible patterns of the vendors nothing of ours relates to any more (D-318): no tracked path matches one, and no line of an acting file does; only the records of structure.record_globs keep the past. The lookbehind keeps a word that merely contains the letters (MachineOnly) out. Each pattern also covers the vendor's packages, hosts and variables (@vendor/, its storage and database hosts, VENDOR_ names).",
+      "x-readers": [
+        "scripts/lib/retired_vendors.py"
+      ],
+      "x-source": "D-318"
     },
     "structure.test_file_pattern": {
       "type": "string",
