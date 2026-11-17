@@ -1,10 +1,10 @@
 # AGENTS.md — The Tower (read this, not the project doc; Claude loads it via CLAUDE.md)
 
 This repository is the engine of A Torre: the gate, the merge train, the events, the contracts, the configuration
-registry, the script tests, `services/runner` and `services/control-plane`, and the docs. Open University (the course
-site that lived in this repository; it now runs on AWS with its media on R2, built from its own repository) left it
-(D-105, D-111, D-318). Its
-archive is commit `567176bb` (D-110). No product command remains here.
+registry, the script tests, `services/runner` and `services/control-plane`, and the docs. Open University's course site
+left it (D-105, D-111; archive `567176bb`, D-110) and came back under `apps/web` with a fresh history (D-319): it runs on
+AWS (the Lambda `open-university-web`, RDS `tower-data`) with its media on R2, and its image is built from this
+repository (`apps/web/deploy/`). Its commands run inside `apps/web` (pnpm), never from the engine's `scripts/`.
 
 **Where it lives.** GitHub `openuniversity-si/open-university` is the source of truth (public, Apache-2.0, fresh history since 14/11/2026). A change is a pull request against `main`; it lands through GitHub's merge queue, which requires the `tower/gate` commit status. The check is the GitHub Actions job `tower/gate` (`.github/workflows/tower-gate.yml`), which runs `scripts/verify-commit` on the pull request and on the queue's `gh-readonly-queue/main/...` commit; run it yourself with `scripts/verify-commit --sha <commit> --base <base> --no-post`. A merge into `main` rings the AWS deploy (`.github/workflows/deploy-doorbell.yml`; `scripts/deploy status` reads it). Origin is a one-way mirror of `main` in a repository of Open University only (D-314). The AWS gate (its runner, queue and webhook) is stopped: where a section below still names `mod/roadmap-integration`, `origin pr`, `scripts/deliver`, the train or the box, that is the Origin-era tooling, kept in the tree and not the flow.
 
@@ -24,6 +24,7 @@ current base (`main` on GitHub, D-314), prepare the environment, reconcile merge
 ## Layout
 - `scripts/`: the gate (`gate-dev`, `gate-quiet`, `gate-noite`, `gate-local`), the train (`train`), the services (`service`), the checks (`structure-check`, `commit-check`, `schema-compat`), the generators (`generate`) and their libraries in `scripts/lib/`. Script tests: `scripts/tests/<name>.test.sh`, each with its covers manifest in `scripts/tests/covers/`.
 - `config/registry/`: the configuration registry, one file per key (`<owner>/<key>.json`) and each owner's generated aggregate. `contracts/`: the JSON contracts and their generated types.
+- `apps/web/`: Open University's site (Next.js, its own lockfile; `apps/web/README.md`), judged by its own commands in the Torre's workflow and by the engine gate's always stages (gate area `web`, D-319); `apps/web/deploy/` builds its Lambda image.
 - `units/`: the engine's unit manifests. `services/runner` and `services/control-plane`: the runner and the control plane (services).
 
 ## Commands (run from the repository root)

@@ -1,0 +1,113 @@
+/* Footer 21:155: 40 px above, a 44 px bar, 8 px (mobile) / 12 px (desktop) clear below. */
+.footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tower-footer-bar-gap);
+  height: var(--tower-footer-height);
+  margin: var(--tower-footer-gap-above) 0 var(--tower-footer-clear-mobile);
+  padding: 0 var(--tower-footer-padding-end-mobile) 0 var(--tower-layout-gutter-mobile);
+  background: var(--tower-footer-fill);
+  color: var(--tower-muted);
+}
+
+.brand {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  color: var(--tower-ink);
+}
+
+.brand picture {
+  display: contents;
+}
+
+.mark {
+  display: block;
+  width: var(--tower-footer-mark-width);
+  height: var(--tower-footer-mark-height);
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: var(--tower-footer-links-gap);
+}
+
+.separator {
+  width: var(--tower-footer-separator-width);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-type-ui-label-12-medium-size);
+  font-weight: var(--tower-footer-separator-weight);
+  line-height: var(--tower-type-ui-label-12-medium-line-height);
+  text-align: center;
+}
+
+.link {
+  box-sizing: border-box;
+  padding: var(--tower-footer-link-padding-block) var(--tower-footer-link-padding-inline);
+  color: inherit;
+  text-decoration: var(--tower-text-decoration-none);
+}
+
+/* Figma rounds each hug label up to a whole pixel; Terms retains its 44 px target. */
+.link:nth-of-type(1) {
+  min-width: var(--tower-footer-privacy-width);
+}
+
+.link:nth-of-type(2) {
+  min-width: var(--tower-footer-terms-width);
+}
+
+.link:nth-of-type(3) {
+  min-width: var(--tower-footer-contact-width);
+}
+
+/* BottomFadeScrim (fixed): eased stops 0 → 0, 0.5 → 0.35, 0.8 → 0.8, 1 → 1. */
+.scrim {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 10;
+  height: var(--tower-bottom-fade-height-mobile);
+  background: var(--tower-bottom-fade);
+  pointer-events: none;
+}
+
+@media (width >= 768px) {
+  .footer {
+    margin-bottom: var(--tower-footer-clear-desktop);
+    padding: 0 var(--tower-footer-padding-end-tablet) 0 var(--tower-layout-gutter-tablet);
+  }
+
+  .scrim {
+    height: var(--tower-bottom-fade-height-desktop);
+  }
+}
+
+@media (width >= 1024px) {
+  .footer {
+    padding: 0 var(--tower-layout-gutter-desktop);
+  }
+}
+
+.footer[data-context="course"] {
+  margin-top: 0;
+  background: var(--tower-surface);
+}
+
+.footer[data-context="course"]::before {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: var(--tower-footer-gap-above);
+  background: var(--tower-course-footer-gradient);
+  content: "";
+}
+
+@media (width >= 1024px) {
+  .footer[data-context="course"]::before {
+    background: var(--tower-surface);
+  }
+}

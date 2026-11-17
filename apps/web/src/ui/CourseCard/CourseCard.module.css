@@ -1,0 +1,211 @@
+.card {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--tower-card-name-gap);
+  width: var(--tower-poster-portrait-card-mobile);
+  padding-top: var(--tower-card-padding-top);
+  border-radius: var(--tower-radius-md);
+  color: var(--tower-ink);
+  text-decoration: var(--tower-text-decoration-none);
+}
+
+.cover-frame {
+  position: relative;
+  height: var(--tower-card-cover-mobile);
+  border-radius: var(--tower-radius-md);
+  opacity: var(--tower-card-default-opacity);
+}
+
+.cover {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--tower-surface-raised);
+}
+
+.art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--tower-el-clear);
+  object-fit: var(--tower-el-object-fit-cover);
+}
+
+/* 443:46317 / 443:46875 / 443:46877: two-line row reserve, 8px below the poster. */
+.name {
+  height: var(--tower-card-name-height-mobile);
+  color: var(--tower-card-name-color);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-card-name-size-mobile);
+  font-weight: var(--tower-card-name-weight);
+  line-height: var(--tower-card-name-line-mobile);
+  letter-spacing: var(--tower-card-name-tracking);
+}
+
+/* 293:14604 C: long names end in an ellipsis on the second line; the full title is the label. */
+.name,
+.meta-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* The state border/shadow sits above glass, outside the clipped cover. */
+.ring {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border: var(--tower-card-border) solid var(--tower-hairline);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.card[data-selected="true"] .cover-frame {
+  box-shadow: var(--tower-card-card-data-selected-true-cover-frame-box-shadow);
+  opacity: var(--tower-el-opacity-full);
+}
+
+.card[data-selected="true"] .ring {
+  padding: var(--tower-card-selected-border);
+  border: 0;
+  background: var(--tower-accent);
+  mask: linear-gradient(var(--tower-scrim) 0 0) content-box, linear-gradient(var(--tower-scrim) 0 0);
+  mask-composite: exclude;
+}
+
+/* Type=Continue 22:39/22:69: scrim below glass, lesson progress above it, meta instead of the name. */
+.scrim {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--tower-continue-scrim-height);
+  background: var(--tower-continue-scrim);
+  pointer-events: none;
+}
+
+.track {
+  position: absolute;
+  right: var(--tower-continue-inset-mobile);
+  bottom: var(--tower-continue-inset-mobile);
+  left: var(--tower-continue-inset-mobile);
+  overflow: hidden;
+  height: var(--tower-progress-bar);
+  border-radius: var(--tower-progress-radius);
+  background: var(--tower-progress-track);
+}
+
+.fill {
+  display: block;
+  width: var(--tower-continue-progress);
+  height: 100%;
+  border-radius: var(--tower-progress-radius);
+  background: var(--tower-progress-fill);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-continue-meta-gap);
+  color: var(--tower-ink);
+  font-family: var(--tower-font-ui);
+  font-weight: var(--tower-progress-percent-weight);
+}
+
+.meta-title {
+  font-size: var(--tower-continue-title-size-mobile);
+  line-height: var(--tower-continue-title-line-mobile);
+}
+
+.meta-label {
+  font-size: var(--tower-continue-label-size-mobile);
+  line-height: var(--tower-continue-label-line-mobile);
+}
+
+.meta-left {
+  color: var(--tower-muted);
+  font-size: var(--tower-continue-left-size-mobile);
+  font-weight: var(--tower-card-name-weight);
+  line-height: var(--tower-continue-left-line-mobile);
+  letter-spacing: var(--tower-continue-left-tracking-mobile);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cover-frame {
+  transition: box-shadow var(--tower-card-transition) var(--tower-el-ease-out), opacity var(--tower-card-transition) var(--tower-el-ease-out);
+}
+
+  .card:not([data-selected="true"]):hover .cover-frame {
+    box-shadow: var(--tower-shadow-lift);
+    opacity: var(--tower-el-opacity-full);
+  }
+
+  .card:not([data-selected="true"]):hover .ring {
+    padding: var(--tower-card-border);
+    border: 0;
+    background: var(--tower-accent);
+    mask: linear-gradient(var(--tower-scrim) 0 0) content-box, linear-gradient(var(--tower-scrim) 0 0);
+    mask-composite: exclude;
+  }
+}
+
+@media (width >= 1024px) {
+  .card {
+    width: var(--tower-poster-portrait-card);
+  }
+
+  .name {
+    height: var(--tower-card-name-height-desktop);
+    font-size: var(--tower-card-name-size-desktop);
+    line-height: var(--tower-card-name-line-desktop);
+  }
+
+  .cover-frame {
+  height: var(--tower-card-cover-desktop);
+}
+
+  .card[data-selected="true"] .cover-frame {
+  box-shadow: var(--tower-card-card-data-selected-true-cover-frame-box-shadow-2);
+}
+
+  .card[data-type="continue"] {
+    gap: var(--tower-continue-inset);
+  }
+
+  .track {
+    right: var(--tower-continue-inset);
+    bottom: var(--tower-continue-inset);
+    left: var(--tower-continue-inset);
+  }
+
+  .meta-title {
+    font-size: var(--tower-continue-title-size);
+    line-height: var(--tower-continue-title-line);
+  }
+
+  .meta-label {
+    font-size: var(--tower-continue-label-size);
+    line-height: var(--tower-continue-label-line);
+  }
+
+  .meta-left {
+    font-size: var(--tower-continue-left-size);
+    line-height: var(--tower-continue-left-line);
+    letter-spacing: var(--tower-continue-left-tracking);
+  }
+
+  /* Desktop Selected has a 2 px OUTSIDE stroke; Mobile Selected is INSIDE (22:37 / 64:1500). */
+  .card[data-selected="true"] .ring {
+  inset: calc(-1 * var(--tower-card-selected-border));
+}
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover-frame {
+  transition: none;
+}
+}

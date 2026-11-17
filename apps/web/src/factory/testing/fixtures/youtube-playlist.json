@@ -1,0 +1,36 @@
+{
+  "playlistPages": [
+    {
+      "items": [
+        {
+          "snippet": { "title": "General Mechanics - Lecture 01", "position": 0 },
+          "contentDetails": { "videoId": "abcdefghijk" }
+        },
+        {
+          "snippet": { "title": "Premieres tomorrow", "position": 1 },
+          "contentDetails": { "videoId": "bcdefghijkl" }
+        }
+      ]
+    }
+  ],
+  "videos": {
+    "abcdefghijk": {
+      "id": "abcdefghijk",
+      "snippet": {
+        "title": "Mecânica Geral - Aula 01",
+        "publishedAt": "2021-03-02T12:00:00Z",
+        "liveBroadcastContent": "none"
+      },
+      "contentDetails": { "duration": "PT52M" }
+    },
+    "bcdefghijkl": {
+      "id": "bcdefghijkl",
+      "snippet": {
+        "title": "Mecânica Geral - em breve",
+        "publishedAt": "2026-11-01T12:00:00Z",
+        "liveBroadcastContent": "upcoming"
+      },
+      "contentDetails": { "duration": "PT0S" }
+    }
+  }
+}

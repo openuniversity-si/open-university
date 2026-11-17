@@ -1,0 +1,61 @@
+/* EditionSelector 575:2023 + the Edition bar below the course hero (576:2285 / 576:2792 / 576:3283). */
+.block {
+  /* Above the Billboard's art and scrims, as the course body. */
+  position: relative;
+  padding: var(--tower-edition-block-top-mobile) var(--tower-layout-gutter-mobile) var(--tower-edition-block-clear-mobile);
+  font-family: var(--tower-font-ui);
+}
+
+.bar {
+  display: flex;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 100%;
+  height: var(--tower-edition-bar-height);
+  padding: var(--tower-edition-bar-padding);
+  border-radius: var(--tower-edition-bar-radius);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab {
+  flex: 0 0 var(--tower-edition-tab-width);
+  height: var(--tower-edition-tab-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tower-edition-tab-radius);
+  background: var(--tower-el-clear);
+  color: var(--tower-edition-tab-color);
+  font: inherit;
+  font-size: var(--tower-edition-tab-size);
+  font-weight: var(--tower-edition-tab-weight);
+  line-height: var(--tower-edition-tab-line);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--tower-edition-tab-background-selected);
+  box-shadow: var(--tower-edition-tab-rim-selected);
+  color: var(--tower-edition-tab-color-selected);
+  font-weight: var(--tower-edition-tab-weight-selected);
+  cursor: default;
+}
+
+.summary {
+  margin: var(--tower-edition-summary-gap) 0 0;
+  color: var(--tower-edition-summary-color);
+  font-size: var(--tower-edition-summary-size-mobile);
+  font-weight: var(--tower-edition-summary-weight);
+  line-height: var(--tower-edition-summary-line);
+}
+
+@media (width >= 1024px) {
+  .block {
+    padding: var(--tower-edition-block-top-desktop) var(--tower-layout-gutter-desktop) var(--tower-edition-block-clear-desktop);
+  }
+
+  .summary {
+    font-size: var(--tower-edition-summary-size-desktop);
+  }
+}

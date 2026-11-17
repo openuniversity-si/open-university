@@ -1,0 +1,4 @@
+ALTER TABLE "course_editions" ADD COLUMN "language" text;--> statement-breakpoint
+UPDATE "course_editions" SET "language" = "variant_label" WHERE "variant_kind" = 'language' AND "language" IS NULL;--> statement-breakpoint
+ALTER TABLE "course_editions" ADD CONSTRAINT "course_editions_language" CHECK ("course_editions"."language" IS NULL OR char_length(btrim("course_editions"."language")) BETWEEN 1 AND 40);--> statement-breakpoint
+ALTER TABLE "course_editions" ADD CONSTRAINT "course_editions_language_variant" CHECK ("course_editions"."variant_kind" IS DISTINCT FROM 'language' OR ("course_editions"."language" IS NOT NULL AND "course_editions"."variant_label" = "course_editions"."language"));

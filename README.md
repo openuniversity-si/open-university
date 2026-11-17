@@ -7,8 +7,9 @@ commit, 14/11/2026); contributions follow [CONTRIBUTING.md](CONTRIBUTING.md), an
 This repository is the engine of A Torre: the gate that judges every pull request, the event log, the contracts, the
 configuration registry, and the services the engine deploys and runs. Agents start from [AGENTS.md](AGENTS.md).
 
-Open University, the course site that lived in this repository, left the repository (D-105, D-111). Its archive is commit
-`567176bb`, with full history (D-110). The site is no longer built or deployed from this repository.
+Open University, the course site, left this repository (D-105, D-111; archive `567176bb`, D-110) and came back under
+`apps/web` with a fresh history (D-319). It runs on AWS with its media on Cloudflare R2, and its Lambda image is built
+from this repository (`apps/web/deploy/`).
 
 ## Structure
 
@@ -17,6 +18,7 @@ Open University, the course site that lived in this repository, left the reposit
 | `scripts/` | The gate (`gate-dev`, `gate-quiet`, `gate-noite`), the train (`train`), the services (`service`), the checks and the generators; libraries in `scripts/lib/`, script tests in `scripts/tests/` |
 | `config/registry/` | The configuration registry: one file per key, and each owner's generated aggregate |
 | `contracts/` | JSON contracts of events, units and the registry, and their generated types |
+| `apps/web/` | Open University's site (D-319): its own Next.js app and lockfile, and `deploy/`, which builds its Lambda image ([apps/web/README.md](apps/web/README.md)) |
 | `units/` | The engine's unit manifests |
 | `services/runner/` | The Origin-era runner, kept in the tree and stopped (D-314); `services/runner/github/` stages the GitHub workflows |
 | `services/control-plane/` | The Origin-era control plane (a Cloudflare Worker), kept in the tree and not part of the GitHub flow |

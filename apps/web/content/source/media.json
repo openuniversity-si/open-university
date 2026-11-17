@@ -1,0 +1,402 @@
+{
+  "course-1": {
+    "poster": {
+      "src": "/media/biblical-series-genesis-poster.f635a6d104850bfea79edf20058b60b019cff3c8.jpg",
+      "hash": "f635a6d104850bfea79edf20058b60b019cff3c8",
+      "sha256": "9ee71c3c0afda086d3dae7f488a1fe68c0c152a4090a88ece87bc741c1329f95",
+      "width": 540,
+      "height": 960,
+      "fit": "fill",
+      "transform": null
+    },
+    "still": {
+      "src": "/media/biblical-series-genesis-still.24465f8fcb3780830ddc6ffec8b0bf275e649375.jpg",
+      "hash": "24465f8fcb3780830ddc6ffec8b0bf275e649375",
+      "sha256": "a9f39cca59497e9c224d1d82ac62e7c8e1c2d64bd59ce6a80dbcaf23f70399b1",
+      "width": 1920,
+      "height": 1080,
+      "fit": "fill",
+      "transform": null
+    },
+    "heroDesktop": {
+      "src": "/media/biblical-series-genesis-poster.f635a6d104850bfea79edf20058b60b019cff3c8.jpg",
+      "hash": "f635a6d104850bfea79edf20058b60b019cff3c8",
+      "sha256": "9ee71c3c0afda086d3dae7f488a1fe68c0c152a4090a88ece87bc741c1329f95",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.2373046875,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroPresent": {
+      "src": "/media/biblical-series-genesis-poster.f635a6d104850bfea79edf20058b60b019cff3c8.jpg",
+      "hash": "f635a6d104850bfea79edf20058b60b019cff3c8",
+      "sha256": "9ee71c3c0afda086d3dae7f488a1fe68c0c152a4090a88ece87bc741c1329f95",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.33354684710502625,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroMobile": {
+      "src": "/media/biblical-series-genesis-poster.f635a6d104850bfea79edf20058b60b019cff3c8.jpg",
+      "hash": "f635a6d104850bfea79edf20058b60b019cff3c8",
+      "sha256": "9ee71c3c0afda086d3dae7f488a1fe68c0c152a4090a88ece87bc741c1329f95",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          0.7200000286102295,
+          0,
+          0
+        ],
+        [
+          0,
+          0.6438461542129517,
+          0.019999999552965164
+        ]
+      ]
+    }
+  },
+  "course-2": {
+    "poster": {
+      "src": "/media/maps-of-meaning-poster.a5fc28510b8028f25cda20dd1116bff9fbac102f.jpg",
+      "hash": "a5fc28510b8028f25cda20dd1116bff9fbac102f",
+      "sha256": "08cd25e3edb585b5e32474b724996b50bd9200b8245bcd15ba46791ab94eed54",
+      "width": 540,
+      "height": 960,
+      "fit": "fill",
+      "transform": null
+    },
+    "still": {
+      "src": "/media/maps-of-meaning-still.df90be83d24443e18a8e28fd91e7deaa1e7e2e40.png",
+      "hash": "df90be83d24443e18a8e28fd91e7deaa1e7e2e40",
+      "sha256": "5acfafb29301f9de8cf669a6d6cb1747b4ef065b36b58f4cd84766b9c9cdfaac",
+      "width": 1280,
+      "height": 720,
+      "fit": "fill",
+      "transform": null
+    },
+    "heroDesktop": {
+      "src": "/media/maps-of-meaning-poster.a5fc28510b8028f25cda20dd1116bff9fbac102f.jpg",
+      "hash": "a5fc28510b8028f25cda20dd1116bff9fbac102f",
+      "sha256": "08cd25e3edb585b5e32474b724996b50bd9200b8245bcd15ba46791ab94eed54",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.2373046875,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroPresent": {
+      "src": "/media/maps-of-meaning-poster.a5fc28510b8028f25cda20dd1116bff9fbac102f.jpg",
+      "hash": "a5fc28510b8028f25cda20dd1116bff9fbac102f",
+      "sha256": "08cd25e3edb585b5e32474b724996b50bd9200b8245bcd15ba46791ab94eed54",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.33354684710502625,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroMobile": {
+      "src": "/media/maps-of-meaning-poster.a5fc28510b8028f25cda20dd1116bff9fbac102f.jpg",
+      "hash": "a5fc28510b8028f25cda20dd1116bff9fbac102f",
+      "sha256": "08cd25e3edb585b5e32474b724996b50bd9200b8245bcd15ba46791ab94eed54",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          0.7200000286102295,
+          0,
+          0
+        ],
+        [
+          0,
+          0.6438461542129517,
+          0.019999999552965164
+        ]
+      ]
+    }
+  },
+  "course-3": {
+    "poster": {
+      "src": "/media/personality-and-its-transformations-poster.6ffd7faafbc7c7239958503fa1af5743dfd3ce7d.jpg",
+      "hash": "6ffd7faafbc7c7239958503fa1af5743dfd3ce7d",
+      "sha256": "8859703369c49adb6167485783120d61872d35bb56ae325a12bac5f681ca3665",
+      "width": 540,
+      "height": 960,
+      "fit": "fill",
+      "transform": null
+    },
+    "still": {
+      "src": "/media/personality-and-its-transformations-still.0145629a609d01d137a33bcb91cfcb67e23bfaf3.png",
+      "hash": "0145629a609d01d137a33bcb91cfcb67e23bfaf3",
+      "sha256": "9271a85e4d66db45e124f3deaace6a8ade026df253a55ee5436688559b12ca42",
+      "width": 1280,
+      "height": 720,
+      "fit": "fill",
+      "transform": null
+    },
+    "heroDesktop": {
+      "src": "/media/personality-and-its-transformations-poster.6ffd7faafbc7c7239958503fa1af5743dfd3ce7d.jpg",
+      "hash": "6ffd7faafbc7c7239958503fa1af5743dfd3ce7d",
+      "sha256": "8859703369c49adb6167485783120d61872d35bb56ae325a12bac5f681ca3665",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.2373046875,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroPresent": {
+      "src": "/media/personality-and-its-transformations-poster.6ffd7faafbc7c7239958503fa1af5743dfd3ce7d.jpg",
+      "hash": "6ffd7faafbc7c7239958503fa1af5743dfd3ce7d",
+      "sha256": "8859703369c49adb6167485783120d61872d35bb56ae325a12bac5f681ca3665",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.33354684710502625,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroMobile": {
+      "src": "/media/personality-and-its-transformations-poster.6ffd7faafbc7c7239958503fa1af5743dfd3ce7d.jpg",
+      "hash": "6ffd7faafbc7c7239958503fa1af5743dfd3ce7d",
+      "sha256": "8859703369c49adb6167485783120d61872d35bb56ae325a12bac5f681ca3665",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          0.7200000286102295,
+          0,
+          0
+        ],
+        [
+          0,
+          0.6438461542129517,
+          0.019999999552965164
+        ]
+      ]
+    }
+  },
+  "course-4": {
+    "poster": {
+      "src": "/media/awakening-from-the-meaning-crisis-poster.62e80c2b60471dc0eedd0af72a52aa023bd1d525.jpg",
+      "hash": "62e80c2b60471dc0eedd0af72a52aa023bd1d525",
+      "sha256": "00bd610e69ae41c4c1935208e1d011046eb7dea9b742f5414a9234c8c5128d1b",
+      "width": 540,
+      "height": 960,
+      "fit": "fill",
+      "transform": null
+    },
+    "still": {
+      "src": "/media/awakening-from-the-meaning-crisis-still.91d189b571ecdbf1b6bbb356bf435332fc0df4bb.png",
+      "hash": "91d189b571ecdbf1b6bbb356bf435332fc0df4bb",
+      "sha256": "91361fee8bfa7cdeaca01606833e64ede8d3fcaa6f3eeb0939b775bb53e6a4aa",
+      "width": 1280,
+      "height": 720,
+      "fit": "fill",
+      "transform": null
+    },
+    "heroDesktop": {
+      "src": "/media/awakening-from-the-meaning-crisis-poster.62e80c2b60471dc0eedd0af72a52aa023bd1d525.jpg",
+      "hash": "62e80c2b60471dc0eedd0af72a52aa023bd1d525",
+      "sha256": "00bd610e69ae41c4c1935208e1d011046eb7dea9b742f5414a9234c8c5128d1b",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.2373046875,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroPresent": {
+      "src": "/media/awakening-from-the-meaning-crisis-poster.62e80c2b60471dc0eedd0af72a52aa023bd1d525.jpg",
+      "hash": "62e80c2b60471dc0eedd0af72a52aa023bd1d525",
+      "sha256": "00bd610e69ae41c4c1935208e1d011046eb7dea9b742f5414a9234c8c5128d1b",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.33354684710502625,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroMobile": {
+      "src": "/media/awakening-from-the-meaning-crisis-poster.62e80c2b60471dc0eedd0af72a52aa023bd1d525.jpg",
+      "hash": "62e80c2b60471dc0eedd0af72a52aa023bd1d525",
+      "sha256": "00bd610e69ae41c4c1935208e1d011046eb7dea9b742f5414a9234c8c5128d1b",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          0.7200000286102295,
+          0,
+          0
+        ],
+        [
+          0,
+          0.6438461542129517,
+          0.019999999552965164
+        ]
+      ]
+    }
+  },
+  "course-5": {
+    "poster": {
+      "src": "/media/after-socrates-poster.b4fc7cba5a6902118699e20e402ea4f7d57d507c.jpg",
+      "hash": "b4fc7cba5a6902118699e20e402ea4f7d57d507c",
+      "sha256": "c7bcdb352cdc77503f9d7842445196c14f867b6526419116867a139ab4ad7f55",
+      "width": 540,
+      "height": 960,
+      "fit": "fill",
+      "transform": null
+    },
+    "still": {
+      "src": "/media/after-socrates-still.b1e6ad5e10fe6986a563e6042d11074618af4ced.png",
+      "hash": "b1e6ad5e10fe6986a563e6042d11074618af4ced",
+      "sha256": "feb636b4312c6a124e3bcaaf49cddd991c9325be2967bb32ff9c1e8121db6f70",
+      "width": 1280,
+      "height": 720,
+      "fit": "fill",
+      "transform": null
+    },
+    "heroDesktop": {
+      "src": "/media/after-socrates-poster.b4fc7cba5a6902118699e20e402ea4f7d57d507c.jpg",
+      "hash": "b4fc7cba5a6902118699e20e402ea4f7d57d507c",
+      "sha256": "c7bcdb352cdc77503f9d7842445196c14f867b6526419116867a139ab4ad7f55",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.2373046875,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroPresent": {
+      "src": "/media/after-socrates-poster.b4fc7cba5a6902118699e20e402ea4f7d57d507c.jpg",
+      "hash": "b4fc7cba5a6902118699e20e402ea4f7d57d507c",
+      "sha256": "c7bcdb352cdc77503f9d7842445196c14f867b6526419116867a139ab4ad7f55",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0.33354684710502625,
+          0.019999999552965164
+        ]
+      ]
+    },
+    "heroMobile": {
+      "src": "/media/after-socrates-poster.b4fc7cba5a6902118699e20e402ea4f7d57d507c.jpg",
+      "hash": "b4fc7cba5a6902118699e20e402ea4f7d57d507c",
+      "sha256": "c7bcdb352cdc77503f9d7842445196c14f867b6526419116867a139ab4ad7f55",
+      "width": 540,
+      "height": 960,
+      "fit": "crop",
+      "transform": [
+        [
+          0.7200000286102295,
+          0,
+          0
+        ],
+        [
+          0,
+          0.6438461542129517,
+          0.019999999552965164
+        ]
+      ]
+    }
+  }
+}

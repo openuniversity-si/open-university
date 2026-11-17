@@ -1,0 +1,44 @@
+.course {
+  font-family: var(--tower-font-ui);
+  min-width: 0;
+}
+
+.body {
+  position: relative;
+}
+
+.about,
+.more {
+  display: none;
+}
+
+.gap {
+  height: var(--tower-footer-gap-above);
+}
+
+@media (width >= 1024px) {
+  .body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--tower-course-about-width);
+    align-items: start;
+    gap: var(--tower-course-column-gap);
+    padding: 0 var(--tower-layout-gutter-desktop) var(--tower-course-body-clear);
+  }
+
+  .body:not(:has(.about)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .about {
+    display: block;
+  }
+
+  .more {
+    display: block;
+  }
+}
+
+/* Course with editions: one lesson list per edition, one shown (ADR-21). */
+.lists {
+  min-width: 0;
+}

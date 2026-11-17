@@ -1,0 +1,87 @@
+/* One country of the Universities page (Figma CountryHeader 655:3545). Tokens: src/ui/tokens/universities.css. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-country-gap);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-country-header-gap);
+}
+
+/* Mobile: the count under the name; desktop: on the right of the same line. */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-country-row-gap);
+  align-items: flex-start;
+}
+
+.name {
+  display: flex;
+  gap: var(--tower-u-country-name-gap);
+  align-items: center;
+  margin: 0;
+  color: var(--tower-ink);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-type-display-rail-mobile-size);
+  font-weight: var(--tower-type-display-rail-mobile-weight);
+  line-height: var(--tower-type-display-rail-mobile-line-height);
+  letter-spacing: var(--tower-type-display-rail-mobile-tracking);
+}
+
+/* Height from the token, width from the flag's own ratio (aspect-ratio on the element): never stretched. */
+.flag {
+  display: block;
+  flex: none;
+  width: auto;
+  height: var(--tower-u-country-flag-height);
+}
+
+.meta {
+  margin: 0;
+  color: var(--tower-u-country-meta-color);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-u-country-meta-font-size);
+}
+
+.rule {
+  display: block;
+  height: var(--tower-u-country-rule-height);
+  background: var(--tower-u-country-rule);
+}
+
+@media (width >= 1024px) {
+  .section {
+    gap: var(--tower-u-country-gap-desktop);
+  }
+
+  .header {
+    gap: var(--tower-u-country-header-gap-desktop);
+  }
+
+  .row {
+    flex-direction: row;
+    gap: var(--tower-u-country-row-gap-desktop);
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .name {
+    gap: var(--tower-u-country-name-gap-desktop);
+    font-size: var(--tower-type-display-rail-size);
+    font-weight: var(--tower-type-display-rail-weight);
+    line-height: var(--tower-type-display-rail-line-height);
+    letter-spacing: var(--tower-type-display-rail-tracking);
+  }
+
+  .flag {
+    height: var(--tower-u-country-flag-height-desktop);
+  }
+
+  .meta {
+    font-size: var(--tower-u-country-meta-font-size-desktop);
+  }
+}

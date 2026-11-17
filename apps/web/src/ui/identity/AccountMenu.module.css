@@ -1,0 +1,71 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+
+.outside {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: var(--tower-account-outside-background);
+}
+
+.veil {
+  position: absolute;
+  inset: 0;
+  background: var(--tower-account-veil-background);
+  mask-image: var(--tower-account-veil-mask-image);
+  pointer-events: none;
+}
+
+.panel {
+  position: fixed;
+  top: var(--tower-account-panel-top);
+  right: var(--tower-account-panel-right);
+  box-sizing: border-box;
+  width: var(--tower-account-panel-width);
+  height: var(--tower-account-panel-height);
+  color: var(--tower-account-panel-color);
+  font-family: var(--tower-font-ui);
+}
+
+.name {
+  height: var(--tower-account-name-height);
+  margin: var(--tower-account-name-margin);
+  padding-inline: var(--tower-account-name-padding-inline);
+  color: var(--tower-account-name-color);
+  font-size: var(--tower-account-name-font-size);
+  line-height: var(--tower-account-name-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sign-out {
+  display: flex;
+  align-items: flex-start;
+  width: var(--tower-account-signout-width);
+  height: var(--tower-account-signout-height);
+  padding: var(--tower-account-signout-padding);
+  border: 0;
+  background: var(--tower-account-signout-background);
+  color: inherit;
+  font: var(--tower-account-signout-font);
+  cursor: pointer;
+}
+
+@media (width >= 768px) {
+  .panel {
+    top: var(--tower-account-panel-top-2);
+    right: var(--tower-account-panel-right-2);
+  }
+
+  .veil {
+    background: var(--tower-account-veil-background-2);
+    mask-image: var(--tower-account-veil-mask-image-2);
+  }
+}

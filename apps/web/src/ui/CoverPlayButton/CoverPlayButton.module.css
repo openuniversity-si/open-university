@@ -1,0 +1,51 @@
+/* Sits above CoverGlass and below the card ring and Continue progress; never intercepts input. */
+.slot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  transition: opacity var(--tower-card-transition) var(--tower-el-ease-out);
+
+  @starting-style {
+    opacity: var(--tower-el-opacity-off);
+  }
+}
+
+.button {
+  display: block;
+  width: var(--tower-cover-play-size-mobile);
+  height: var(--tower-cover-play-size-mobile);
+  border-radius: var(--tower-cover-play-radius-mobile);
+  color: var(--tower-cover-play-ink);
+}
+
+.icon {
+  position: absolute;
+  top: var(--tower-cover-play-icon-top-mobile);
+  left: var(--tower-cover-play-icon-left-mobile);
+  width: var(--tower-cover-play-icon-mobile);
+  height: var(--tower-cover-play-icon-mobile);
+}
+
+/* Same 1024 px switch as the CourseCard size. */
+@media (width >= 1024px) {
+  .button {
+    width: var(--tower-cover-play-size-desktop);
+    height: var(--tower-cover-play-size-desktop);
+    border-radius: var(--tower-cover-play-radius-desktop);
+  }
+
+  .icon {
+    top: var(--tower-cover-play-icon-top-desktop);
+    left: var(--tower-cover-play-icon-left-desktop);
+    width: var(--tower-cover-play-icon-desktop);
+    height: var(--tower-cover-play-icon-desktop);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot {
+    transition: none;
+  }
+}

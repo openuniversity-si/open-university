@@ -1,0 +1,37 @@
+/* stylelint-disable property-no-vendor-prefix -- Addendum 2.9 specifies these WebKit XOR masks alongside mask-composite: exclude. */
+.glass {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--tower-radius-md);
+  background: var(--tower-cover-glass-g3b-reflection);
+  background-color: var(--tower-cover-glass-g3b-base);
+  box-shadow: var(--tower-cover-glass-g3b-inset);
+  pointer-events: none;
+}
+
+.laminate {
+  position: absolute;
+  inset: var(--tower-cover-glass-laminate-start) var(--tower-cover-glass-laminate-end) var(--tower-cover-glass-laminate-end) var(--tower-cover-glass-laminate-start);
+  border-radius: var(--tower-radius-sm);
+  box-shadow: var(--tower-cover-glass-g3b-laminate-shade);
+}
+
+.glass::after,
+.laminate::after {
+  position: absolute;
+  inset: 0;
+  padding: var(--tower-card-border);
+  border-radius: inherit;
+  content: "";
+  -webkit-mask: linear-gradient(var(--tower-scrim) 0 0) content-box, linear-gradient(var(--tower-scrim) 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.glass::after {
+  background: var(--tower-cover-glass-g3b-edge);
+}
+
+.laminate::after {
+  background: var(--tower-cover-glass-g3b-laminate-edge);
+}

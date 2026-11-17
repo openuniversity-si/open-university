@@ -1,0 +1,312 @@
+/* Universities showcase (ADR-25; Figma 556:3). Same gutters, radii and selected ring as the Home cards. */
+.page {
+  position: relative;
+
+  --tower-u-gutter: var(--tower-layout-gutter-mobile);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-page-gap);
+  padding: var(--tower-u-page-padding-top) var(--tower-u-gutter) var(--tower-u-page-padding-bottom);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-heading-gap);
+}
+
+.title {
+  margin: 0;
+  color: var(--tower-ink);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-u-title-font-size);
+  font-weight: var(--tower-u-title-font-weight);
+  line-height: var(--tower-u-title-line-height);
+  letter-spacing: var(--tower-u-title-letter-spacing);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--tower-u-subtitle-color);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-u-subtitle-font-size);
+  line-height: var(--tower-u-subtitle-line-height);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--tower-u-grid-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The country sections stacked in rank order (CountrySection), each with the unchanged grid below. */
+.countries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-countries-gap);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-card-gap);
+  border-radius: var(--tower-radius-md);
+  color: var(--tower-ink);
+  text-decoration: var(--tower-text-decoration-none);
+}
+
+.cover-frame {
+  position: relative;
+  aspect-ratio: var(--tower-el-frame-tall);
+  border-radius: var(--tower-radius-md);
+  opacity: var(--tower-card-default-opacity);
+}
+
+.cover {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--tower-surface-raised);
+}
+
+.art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--tower-el-clear);
+  object-fit: var(--tower-el-object-fit-cover);
+}
+
+
+
+
+
+
+
+.ring {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border: var(--tower-card-border) solid var(--tower-hairline);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.card[data-selected="true"] .cover-frame {
+  box-shadow: var(--tower-card-card-data-selected-true-cover-frame-box-shadow);
+  opacity: var(--tower-el-opacity-full);
+}
+
+.card[data-selected="true"] .ring {
+  padding: var(--tower-card-selected-border);
+  border: 0;
+  background: var(--tower-accent);
+  mask: linear-gradient(var(--tower-scrim) 0 0) content-box, linear-gradient(var(--tower-scrim) 0 0);
+  mask-composite: exclude;
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-caption-gap);
+  font-family: var(--tower-font-ui);
+}
+
+.caption-title {
+  font-size: var(--tower-u-caption-title-font-size);
+  font-weight: var(--tower-u-caption-title-font-weight);
+}
+
+.caption-meta {
+  color: var(--tower-u-caption-meta-color);
+  font-size: var(--tower-u-caption-meta-font-size);
+}
+
+/* University and area pages */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tower-u-back-gap);
+  color: var(--tower-ink);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-u-back-font-size);
+  text-decoration: var(--tower-text-decoration-none);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tower-u-chips-gap);
+  align-items: center;
+  margin: 0;
+  padding: 0 var(--tower-u-gutter);
+  list-style: none;
+}
+
+.chips-label {
+  color: var(--tower-u-chips-label-color);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-u-chips-label-font-size);
+  font-weight: var(--tower-u-chips-label-font-weight);
+}
+
+.chip {
+  display: inline-flex;
+  padding: var(--tower-u-chip-padding);
+  border: var(--tower-u-chip-border);
+  border-radius: var(--tower-u-chip-border-radius);
+  background: var(--tower-u-chip-background);
+  color: var(--tower-ink);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-u-chip-font-size);
+  font-weight: var(--tower-u-chip-font-weight);
+  text-decoration: var(--tower-text-decoration-none);
+}
+
+.rails {
+  position: relative;
+
+  --tower-u-gutter: var(--tower-layout-gutter-mobile);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-rails-gap);
+  padding-bottom: var(--tower-u-rails-padding-bottom);
+}
+
+.rail-anchor h2 {
+  scroll-margin-top: var(--tower-u-rail-anchor-scroll-margin-top);
+}
+
+.see-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tower-card-name-gap);
+  flex: none;
+  color: var(--tower-ink);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-u-see-all-font-size);
+  font-weight: var(--tower-u-see-all-font-weight);
+  text-decoration: var(--tower-text-decoration-none);
+  white-space: nowrap;
+}
+
+.area {
+  --tower-u-gutter: var(--tower-layout-gutter-mobile);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-area-gap);
+  padding: var(--tower-u-area-padding-top) var(--tower-u-gutter) var(--tower-u-page-padding-bottom);
+}
+
+.area-title {
+  margin: 0;
+  color: var(--tower-ink);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-u-area-title-font-size);
+  font-weight: var(--tower-u-area-title-font-weight);
+  line-height: var(--tower-u-area-title-line-height);
+}
+
+.area-meta {
+  margin: var(--tower-u-area-meta-margin);
+  color: var(--tower-u-area-meta-color);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-u-area-meta-font-size);
+}
+
+.area-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-u-area-section-gap);
+  scroll-margin-top: var(--tower-u-rail-anchor-scroll-margin-top);
+}
+
+.area-section-title {
+  margin: 0;
+  color: var(--tower-ink);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-u-area-section-title-font-size);
+  font-weight: var(--tower-u-area-section-title-font-weight);
+  line-height: var(--tower-u-area-section-title-line-height);
+}
+
+.area-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tower-u-area-grid-gap);
+}
+
+@media (width >= 768px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1024px) {
+  .page,
+  .rails,
+  .area {
+    --tower-u-gutter: var(--tower-layout-gutter-desktop);
+  }
+
+  .page {
+    gap: var(--tower-u-page-gap-desktop);
+    padding-top: var(--tower-u-page-padding-top-desktop);
+  }
+
+  .title {
+    font-size: var(--tower-u-title-font-size-desktop);
+  }
+
+  .subtitle {
+    font-size: var(--tower-u-subtitle-font-size-desktop);
+  }
+
+  .countries {
+    gap: var(--tower-u-countries-gap-desktop);
+  }
+
+  .grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--tower-u-grid-gap-desktop);
+  }
+
+
+
+  .caption-title {
+    font-size: var(--tower-u-caption-title-font-size-desktop);
+  }
+
+  .caption-meta {
+    font-size: var(--tower-u-caption-meta-font-size-desktop);
+  }
+
+  .area {
+    padding-top: var(--tower-u-area-padding-top-desktop);
+  }
+
+  .area-title {
+    font-size: var(--tower-u-area-title-font-size-desktop);
+  }
+
+  .area-grid {
+    gap: var(--tower-u-area-grid-gap-desktop);
+  }
+
+  .area-section-title {
+    font-size: var(--tower-u-area-section-title-font-size-desktop);
+  }
+}
+
+.see-all svg {
+  width: var(--tower-u-see-all-icon);
+  height: var(--tower-u-see-all-icon);
+}

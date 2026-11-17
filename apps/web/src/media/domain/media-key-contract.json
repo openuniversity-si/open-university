@@ -1,0 +1,20 @@
+{
+  "sha64": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "sha40": "0123456789abcdef0123456789abcdef01234567",
+  "extensions": ["jpg", "png", "webp", "avif"],
+  "contentPath": "/m/{sha64}.{ext}",
+  "legacyPath": "/covers/course-1/poster_9x16/{sha40}.webp",
+  "rejectedPaths": [
+    "/m/{sha63}.webp",
+    "/m/{sha65}.webp",
+    "/m/{sha64upper}.webp",
+    "/m/{sha64}.jpeg",
+    "/m/{sha64}.svg",
+    "/m/{sha64}.webp/extra",
+    "/covers/course-1/poster_9x16/{sha40}.webp?download=1",
+    "/m/{sha64}.webp#frag"
+  ],
+  "sha63": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde",
+  "sha65": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0",
+  "note": "The app also accepts an explicit r2.dev bridge. The production hard check accepts only the canonical host."
+}

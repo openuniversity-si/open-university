@@ -1,0 +1,31 @@
+.percent {
+  position: absolute;
+  top: var(--tower-course-progress-percent-top);
+  right: 0;
+  color: var(--tower-ink);
+  font-size: var(--tower-progress-percent-size);
+  font-weight: var(--tower-progress-percent-weight);
+  line-height: var(--tower-progress-percent-line);
+}
+
+.track {
+  display: block;
+  height: var(--tower-progress-bar);
+  border-radius: var(--tower-progress-radius);
+  background: var(--tower-progress-track-raised);
+}
+
+/* A clip, not a width: Chrome snaps box widths to whole pixels; Figma anti-aliases the mobile 3/17 edge (61.8 px). */
+.fill {
+  display: block;
+  height: 100%;
+  clip-path: inset(0 calc(100% - var(--tower-course-progress)) 0 0 round var(--tower-progress-radius));
+  background: var(--tower-progress-fill);
+}
+
+/* Desktop fills are whole pixels in Figma (128 of 728, 226 of 1282). */
+@media (width >= 1024px) {
+  .fill {
+    clip-path: inset(0 calc(100% - round(var(--tower-course-progress), var(--tower-player-length-1))) 0 0 round var(--tower-progress-radius));
+  }
+}
