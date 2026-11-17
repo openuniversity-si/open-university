@@ -1,0 +1,94 @@
+# full-suite (FULL-SUITE-MAIN; the migration to GitHub, 14/11/2026): the safety net of the plan's section 2, the whole script
+# suite after each merge into main, as the AWS FULL-RUN was. tower/gate judges only the tests a diff touches; this job
+# judges every one (scripts/verify-commit --all: a test red in the batch runs again alone, VERIFY-ALONE). A red run opens an
+# issue and blocks nothing. Staged here and installed by the owner as .github/workflows/full-suite.yml (D-087).
+# CACHE-PGDATA: its run on main saves the toolchain cache the pull requests and the merge queue restore, so its cache step
+# is tower-gate.yml's, byte for byte (the paths are part of the cache's version): the binaries, never the test cluster.
+name: full-suite
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: full-suite
+  cancel-in-progress: false
+jobs:
+  suite:
+    name: full-suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .toolchain
+            !.toolchain/pgdata
+            !.toolchain/postgres.log
+            !.toolchain/pgsocket
+            !.toolchain/pghome
+          key: toolchain-bin-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
+      - name: toolchain
+        run: bash scripts/cloud/setup.sh
+      - name: suite
+        id: suite
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          base="$BEFORE"
+          git cat-file -e "${base}^{commit}" 2>/dev/null || base="$(git rev-parse HEAD~1)"
+          source scripts/cloud/env.sh
+          scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post --all
+      - name: open an issue when red
+        if: failure() && steps.suite.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "full-suite red on ${GITHUB_SHA::12}" \
+            --body "The whole script suite was red on main at $GITHUB_SHA: $RUN_URL. The job's log names each red test and the end of its output."
+  gate-snapshot:
+    # PADRAO-DEV F8d: refreshes config/validation/runs/tower-gate.json, the snapshot VAL-gate-60s reads (scripts/runs), when
+    # it is older than 3 days, and opens a pull request with it. The PR is opened with secrets.TOWER_SNAPSHOT_TOKEN (a token
+    # with contents and pull-requests write), never the job's GITHUB_TOKEN: a PR opened with GITHUB_TOKEN starts no
+    # workflow, so tower/gate and web would never judge it. The 3-day age bounds the loop: the snapshot PR's own merge
+    # runs this job again and finds the snapshot fresh.
+    name: gate-snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: refresh the snapshot when stale
+        id: refresh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          at="$(python3 -c "import json; print(json.load(open('config/validation/runs/tower-gate.json'))['at'])" 2>/dev/null || echo 1970-01-01T00:00:00Z)"
+          age=$(( ( $(date -u +%s) - $(date -u -d "$at" +%s) ) / 86400 ))
+          if [ "$age" -lt 3 ]; then echo "snapshot is $age day(s) old; nothing to do"; echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/tower-gate.yml/runs?status=completed&per_page=20" > "$RUNNER_TEMP/runs.json"
+          scripts/runs record tower-gate < "$RUNNER_TEMP/runs.json"
+          if git diff --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+      - name: open the snapshot pull request
+        if: steps.refresh.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TOWER_SNAPSHOT_TOKEN }}
+        run: |
+          branch="validation/gate-snapshot-$(date -u +%Y%m%d%H%M)"
+          git config user.name "tower-gate-snapshot"
+          git config user.email "tower-gate-snapshot@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add config/validation/runs/tower-gate.json
+          git commit -q -m "validation: the tower/gate run snapshot refreshed" -m "The last 20 completed runs of tower/gate, recorded by scripts/runs for VAL-gate-60s." -m "Plan: 1"
+          git push -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
+          body="$(printf '%s\n' "The snapshot of tower/gate's last 20 completed runs, refreshed for VAL-gate-60s (PADRAO-DEV F8d)." "" "## Plano de commits" "- [ ] 1. The refreshed config/validation/runs/tower-gate.json." "" "Premises: none" "Fit-Review: not reviewed (Daniel 2026-10-25: no review step)")"
+          number="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" --title "validation: the tower/gate run snapshot refreshed" --body "$body" | sed 's#.*/##')"
+          gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --auto --merge
