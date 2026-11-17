@@ -57,6 +57,6 @@ A canary is one `container` job through dispatch, take and run. Only the runner 
 | `fastdeploy` and the TaskRole drop the two removed Lambdas | `fastdeploy.py`, stack 30 | service PR, then stack PR |
 | The full build stops making the dead ingress image | `infra/ingress/Dockerfile` deleted (`deploy.sh` builds each `infra/*/Dockerfile`) | deployer PR |
 | Stack leftovers: the cluster's `FARGATE_SPOT`, the database group's default allow-all egress | stacks 10, 30 | one PR |
-| Topic policy, boundary denies for the alerting path, Origin defaults, doorbell concurrency and alarms, the dead log grant | bootstrap | applied by the Torre (16/11 06:20:44 UTC, change set req-aws-review), mirrored with its hash |
+| Topic policy, boundary denies for the alerting path, Origin defaults, doorbell concurrency and alarms, the dead log grant | bootstrap | applied by the Torre (16/11 06:20:44 UTC, change set req-aws-review; the DLQ alarm 17/11 17:50:22 UTC, req-dlq-alarm), mirrored with its hash |
 | Bedrock grants and `TOWER_API_MODELS` | stack 30 | for Daniel to decide (spend) |
 | The live `tower-runner` service, the webhook queue and its DLQ | production | to check with an AWS credential; `host-swap-queue.md` |

@@ -1455,6 +1455,37 @@
           ]
         }
       }
+    },
+    "EventsDeadLettersAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "tower-events-dlq-messages",
+        "AlarmDescription": "An EventBridge rule of the tower dead-lettered an event: tower-events-dlq holds at least one message",
+        "Namespace": "AWS/SQS",
+        "MetricName": "ApproximateNumberOfMessagesVisible",
+        "Dimensions": [
+          {
+            "Name": "QueueName",
+            "Value": {
+              "Fn::GetAtt": [
+                "EventsDeadLetterQueue",
+                "QueueName"
+              ]
+            }
+          }
+        ],
+        "Statistic": "Maximum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertsTopic"
+          }
+        ]
+      }
     }
   },
   "Outputs": {
