@@ -178,5 +178,38 @@ class DiffRefusal(unittest.TestCase):
             self.assertEqual(production_guard.check(repo.dir, 'HEAD'), ([], []))
 
 
+class StageCli(unittest.TestCase):
+    """D-322: the "production guard" gate stage is `production_guard.py check`, not a module of the structure check."""
+    GUARD = str(ROOT / 'scripts' / 'lib' / 'production_guard.py')
+
+    def run_check(self, repo, *args):
+        return subprocess.run([sys.executable, self.GUARD, 'check', '--root', str(repo.dir), *args],
+                              capture_output=True, text=True)
+
+    def test_an_added_invocation_fails_the_stage_with_a_fail_line(self):
+        with Repo() as repo:
+            repo.add('scripts/new-tool', '#!/usr/bin/env bash\nscripts/demo-deploy 1\n')
+            run = self.run_check(repo, '--base', 'HEAD')
+            self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+            fails = [line for line in run.stdout.splitlines() if line.startswith('FAIL ')]
+            self.assertEqual(len(fails), 1, run.stdout)
+            self.assertIn('scripts/demo-deploy', fails[0])
+            self.assertIn('1 error(s), 0 warning(s)', run.stdout.splitlines()[-1])
+
+    def test_a_clean_diff_and_no_base_pass(self):
+        with Repo() as repo:
+            repo.add('scripts/fine', 'echo ok\n')
+            for args in (('--base', 'HEAD'), ()):
+                run = self.run_check(repo, *args)
+                self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+                self.assertNotIn('FAIL ', run.stdout)
+                self.assertIn('0 error(s), 0 warning(s)', run.stdout.splitlines()[-1])
+
+    def test_an_unknown_subcommand_is_a_usage_error(self):
+        run = subprocess.run([sys.executable, self.GUARD, 'nope'], capture_output=True, text=True)
+        self.assertEqual(run.returncode, 2)
+        self.assertIn('check [--base SHA] [--root PATH]', run.stderr)
+
+
 if __name__ == '__main__':
     unittest.main()

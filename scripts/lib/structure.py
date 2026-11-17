@@ -44,7 +44,6 @@ import gate_areas
 import postmortem_check
 import plan_tick
 import premises
-import production_guard
 import repo_hygiene
 import retired_products
 import retired_vendors
@@ -502,9 +501,7 @@ def tree_part(root, base, today):
     vendor_errors, vendor_warnings = vendor_result
     errors += vendor_errors
     warnings += vendor_warnings
-    production_errors, production_warnings = production_guard.check(root, base)  # D-054, D-069 item 13, D-025
-    errors += production_errors
-    warnings += production_warnings
+    # D-322: the production guard (D-054, D-069 item 13) is its own gate stage, "production guard"; no import here.
     premise_errors, recorded = premises.check_register(root)
     errors += premise_errors
     errors += defects.check(root, base)[1]  # KD1: schema, audit chain, derived owner, append-only against the base

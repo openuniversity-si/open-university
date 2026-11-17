@@ -1,0 +1,17 @@
+{
+  "id": "STD-gate-production-guard",
+  "statement": "A change that runs production entrypoints is refused by the gate's production guard stage (D-054); nothing is deployed, promoted or rolled back by hand.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "gate-stage",
+    "ref": "production guard"
+  },
+  "basis": [
+    "D-054",
+    "D-322"
+  ]
+}

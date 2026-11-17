@@ -13,9 +13,9 @@ import config
 
 ROOT = Path(__file__).resolve().parents[2]
 # GATE-VERDICT-API (D-070): cheap stages first, `pr metadata` (about 5 s, the most frequent red) at the top. This is the
-# declared and displayed order (--list, --explain, status rows); gate-local starts the seven together (GK1, no early stop).
+# declared and displayed order (--list, --explain, status rows); gate-local starts the eight together (GK1, no early stop).
 PREREQUISITES = ['pr metadata', 'no GitHub Actions workflows', 'secret scan (tree)', 'structure check',
-                 'generated drift', 'schema compat', 'secret scan (history)']  # GX-15: pr metadata is launched by gate-hooks/prereq.sh
+                 'production guard', 'generated drift', 'schema compat', 'secret scan (history)']  # GX-15: pr metadata is launched by gate-hooks/prereq.sh
 # OU-DECOUPLE F5 (D-113): the engine gate runs only engine stages. Open University's web and database stages (install,
 # suites, lint, typecheck, builds, performance, browsers, the per-PR database stages, the DB gate and the factory bench) left
 # with it; the names stay, so a reader of the plans keeps its API. The dev plan adds the script tests its areas select.

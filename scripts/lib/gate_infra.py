@@ -62,7 +62,7 @@ COMMAND = ['scripts/gate-check']
 TOOL_OF = ('tool="$(mktemp)"; trap \'rm -f "$tool"\' EXIT; '
            'git show "$1:scripts/gate-check" > "$tool" || { echo "gate-check: no scripts/gate-check at $1" >&2; exit 2; }; '
            'shift; GATE_CHECK_ROOT="$PWD" bash "$tool" "$@"')
-READS_THE_BASE = ('secret scan (tree)', 'structure check', 'schema compat')
+READS_THE_BASE = ('secret scan (tree)', 'structure check', 'production guard', 'schema compat')
 READS_THE_HISTORY = ('secret scan (history)',)
 DATED = ('structure check',)
 ENDED = ('succeeded', 'failed', 'stopped', 'cancelled')
@@ -241,7 +241,7 @@ def _planned(port, spec, sleep, clock):
 
 # STAGE-RANK-BY-COST: a stage's seconds on the runner (the gates of #627 to #631, 13/11), so it takes its place among the
 # tests by what it costs: every stage first made a slot's first test wait behind it (10.7 and 12.9 s in #631)
-STAGE_COSTS = {'structure check': 12.0, 'secret scan (tree)': 7.0, 'secret scan (history)': 7.0, 'schema compat': 3.0,
+STAGE_COSTS = {'structure check': 12.0, 'production guard': 1.0, 'secret scan (tree)': 7.0, 'secret scan (history)': 7.0, 'schema compat': 3.0,
                'generated drift': 4.0, 'no GitHub Actions workflows': 2.0}
 STAGE_COST_UNKNOWN = 5.0
 # UNMEASURED-MIDDLE: a test with no cost hint is placed as a 10 s one, not last: #635's runner-env.test.sh (18.8 s on

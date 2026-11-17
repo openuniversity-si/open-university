@@ -5,6 +5,7 @@
     "no GitHub Actions workflows",
     "secret scan (tree)",
     "structure check",
+    "production guard",
     "generated drift",
     "schema compat",
     "secret scan (history)",
@@ -15,6 +16,7 @@
     "no GitHub Actions workflows",
     "secret scan (tree)",
     "structure check",
+    "production guard",
     "generated drift",
     "schema compat",
     "secret scan (history)"
