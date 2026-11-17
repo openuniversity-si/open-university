@@ -33,9 +33,9 @@
     },
     {
       "id": "always-stages",
-      "today": "as sete etapas sempre presentes (`pr metadata`, `no GitHub Actions workflows`, `secret scan (tree)`, `structure check`, `generated drift`, `schema compat`, `secret scan (history)`)",
+      "today": "as oito etapas sempre presentes (`pr metadata`, `no GitHub Actions workflows`, `secret scan (tree)`, `structure check`, `production guard`, `generated drift`, `schema compat`, `secret scan (history)`)",
       "infrastructure": "trabalhos de checagem no executor contêiner, com cache de resultado",
-      "management": "as sete, em todo head de PR",
+      "management": "as oito, em todo head de PR",
       "mechanism": "check",
       "job": {
         "selector": {

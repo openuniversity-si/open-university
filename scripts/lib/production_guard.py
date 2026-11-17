@@ -3,10 +3,12 @@
 Two halves over one registry list, production.forbidden_entrypoints:
   refuse   `production_guard.py refuse <entrypoint>` exits non-zero inside a cloud session (a marker of
            production.cloud_session_markers is set); every production script calls it first.
-  check    a module of scripts/structure-check: a diff that adds a mention of an entrypoint (or of its scripts/lib
+  check    the gate's always-run "production guard" stage (D-322: its own stage, so the structure check, a lower
+           layer, imports nothing of it), `production_guard.py check [--base SHA] [--root PATH]`: a diff that adds a mention of an entrypoint (or of its scripts/lib
            module, derived from the name) outside production.invocation_allowed_paths is refused, a new script
            included.
 The host-side flow is unchanged: a shell with no marker passes both."""
+import argparse
 import fnmatch
 import os
 from pathlib import Path
@@ -96,6 +98,22 @@ def check(root, base=None):
     return errors, []
 
 
+def run_check(args):
+    """The "production guard" stage: FAIL per error, WARN per warning, a summary line; exit 1 on an error."""
+    parser = argparse.ArgumentParser(prog='production_guard.py check')
+    parser.add_argument('--base')
+    parser.add_argument('--root', default=str(Path(__file__).resolve().parents[2]))
+    parsed = parser.parse_args(args)
+    errors, warnings = check(parsed.root, parsed.base)
+    for line in errors:
+        print('FAIL ' + line)
+    for line in warnings:
+        print('WARN ' + line)
+    scope = f'diff {parsed.base}...HEAD' if parsed.base else 'no base, nothing to diff'
+    print(f'production guard ({scope}): {len(errors)} error(s), {len(warnings)} warning(s)')
+    return 1 if errors else 0
+
+
 def main(argv):
     if len(argv) == 3 and argv[1] == 'refuse':
         refused = refusal(argv[2])
@@ -103,7 +121,9 @@ def main(argv):
             print(refused[0], file=sys.stderr)
             return refused[1]
         return 0
-    print('usage: production_guard.py refuse <entrypoint>', file=sys.stderr)
+    if len(argv) >= 2 and argv[1] == 'check':
+        return run_check(argv[2:])
+    print('usage: production_guard.py refuse <entrypoint> | check [--base SHA] [--root PATH]', file=sys.stderr)
     return 2
 
 

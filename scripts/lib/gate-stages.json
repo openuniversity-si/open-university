@@ -21,6 +21,11 @@
       "resources": [],
       "deterministic": false
     },
+    "production guard": {
+      "needs": [],
+      "resources": [],
+      "deterministic": false
+    },
     "generated drift": {
       "needs": [],
       "resources": [],

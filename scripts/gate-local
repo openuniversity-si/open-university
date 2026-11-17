@@ -354,6 +354,8 @@ launch step "secret scan (tree)" "$root" secret_tree "${base:-}" "$secret_scope"
 # ADR-24 as amended by ADR-41 (D-086): only the workflows gate.allowed_workflows names, never a dependency of the gate.
 launch step "no GitHub Actions workflows" "$root" "$py" "$tool_root/scripts/lib/gate_workflows.py" "$root"
 launch step "structure check" "$root" "$tool_root/scripts/structure-check" ${base:+--base "$base"} ${pr:+--pr "$pr"}
+# D-054, D-322: the production guard is its own stage (engine-production), so the structure check imports nothing of it.
+launch step "production guard" "$root" "$py" "$tool_root/scripts/lib/production_guard.py" check ${base:+--base "$base"} --root "$root"
 gate_hook prereq
 # D-069 items 1 and 2: every committed derived file equals its regeneration (scripts/generate, G1).
 launch step_cached_by_inputs "generated drift" "$root" "" "$tool_root/scripts/generate" --check
