@@ -7,18 +7,39 @@
   "owner": "Daniel",
   "personal": true,
   "personal_fields": [
-    "user.email",
     "user.name",
-    "session.ip_address",
-    "session.user_agent",
-    "account (identity provider tokens)",
-    "lesson_progress"
+    "user.email",
+    "account.account_id (the Google account's id)",
+    "lesson_progress",
+    "rate_limit.key (the client IP in the sign-in rate limit's key)"
   ],
   "backup": {
     "method": "automated",
     "retention_days": 7,
     "restore_proof": "python -m tower_infra restore-check (infra/service/tower_infra/restore_check.py), on an instance restored by the account's owner",
-    "note": "Automated backups with point-in-time recovery, deletion protection and encryption on; no restore drill is recorded as run."
+    "note": "Automated backups with point-in-time recovery, deletion protection and encryption on. Restore drilled on 2026-11-12 (docs/process/drills/2026-11-12-tower-data-restore.md): PITR into a temporary db.t4g.micro, restore-check counts identical to production; next drill due by 2027-02-10.",
+    "last_restore_verified": "2026-11-12"
   },
-  "note": "The purpose, legal basis and retention of the personal data are the owner's to record (LGPD art. 7 and 37); none is assumed here."
+  "note": "Decided by the owner on 2026-11-17 (Daniel, through the Torre, 17:36 BRT). The site stores no session IP or user agent and no identity-provider token: apps/web/src/identity/domain/privacy.ts nulls them before every write (minimizeSession, minimizeAccount), and the profile image too (minimizeUser).",
+  "processing": [
+    {
+      "fields": [
+        "user.name",
+        "user.email",
+        "account.account_id (the Google account's id)",
+        "lesson_progress"
+      ],
+      "purpose": "The learner's account and their progress in the lectures (Resume, Continue Watching, completion).",
+      "legal_basis": "Performance of a contract: the site's terms of use (LGPD art. 7, V).",
+      "retention": "While the account exists; deleted with it on the learner's request (answered within 15 days)."
+    },
+    {
+      "fields": [
+        "rate_limit.key (the client IP in the sign-in rate limit's key)"
+      ],
+      "purpose": "Security: limiting sign-in attempts to prevent abuse.",
+      "legal_basis": "Legitimate interest in the site's security (LGPD art. 7, IX).",
+      "retention": "At most 6 months, as the access records of the Marco Civil da Internet (Lei 12.965/2014, art. 15); the counters are short-lived."
+    }
+  ]
 }
