@@ -5,8 +5,9 @@
   ],
   "to": [
     "REQ",
-    "UNIT"
+    "UNIT",
+    "D"
   ],
   "oslc": "oslc_rm:implementedBy",
-  "description": "A change implements a requirement or changes a unit (trailer Implements:)."
+  "description": "A change implements a requirement or a decision, or changes a unit (trailer Implements:)."
 }
