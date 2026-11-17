@@ -44,7 +44,7 @@ LIVE = 1066  # open on 02/11
 
 
 def entry(pr, sha, when):
-    """One item of the control plane's GET /status queue (services/control-plane/src/core.js status())."""
+    """One item of the control plane's GET /status queue (the retired Worker's status(), D-323)."""
     return {'pr': pr, 'sha': sha, 'woken_at': at(when)}
 
 

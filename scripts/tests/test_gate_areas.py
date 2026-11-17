@@ -56,7 +56,7 @@ class AreaPlans(unittest.TestCase):
             ),
             "docs-only": (["docs/operations/local-gate.md"], picked(SECRETS)),  # GX-18: an uncovered doc
             "units": (["units/engine-gate-plan/unit.json"], picked(SECRETS, SCRIPTS)),
-            "services": (["services/control-plane/src/core.js"], picked(SECRETS, SCRIPTS)),
+            "services": (["services/runner/tower-runner.service.tmpl"], picked(SECRETS, SCRIPTS)),
             "repo-config": ([".githooks/pre-push"], picked(SECRETS, SCRIPTS)),
         }
         for name, (paths, expected) in cases.items():

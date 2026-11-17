@@ -51,6 +51,9 @@ HALTED = 'train: halted'
 REASON_CHARS = 300  # a result's reason is one line, bounded
 GATE, TRAIN, SWEEP, DEPLOY = 'gate', 'train', 'sweep', 'deploy'
 ORDER = (DEPLOY, TRAIN, GATE, SWEEP)
+# The control plane Worker is retired (D-323): a deploy job, still a kind of job.v2, fails and says why.
+RETIRED_DEPLOY = ("import sys; print('deploy: the control plane Worker is retired (D-323); nothing to deploy'); "
+                  "sys.exit(1)")
 
 
 def setting(name):
@@ -196,10 +199,9 @@ def refused(code):
 
 def absent(environ, kind):
     """The sentences of every secret this runner kind must hold and does not (service.token_holders), checked before
-    the first poll so a missing or renamed secret stops the runner by name. The deploy token is the deploy's own
-    question (Runner.deploy), and a GitHub token is not required where the egress proxy injects it
-    (OU_CREDENTIALS=network)."""
-    skip = {setting('service.deploy_token_env')}
+    the first poll so a missing or renamed secret stops the runner by name. A GitHub token is not required where the
+    egress proxy injects it (OU_CREDENTIALS=network)."""
+    skip = set()
     if environ.get('OU_CREDENTIALS') == 'network':
         skip |= {'GH_TOKEN', 'GITHUB_TOKEN'}
     items = [item for item in service_credentials.entries() if item['variable'] not in skip]
@@ -231,7 +233,7 @@ class Executor:
 
     def command(self, item):
         if item['kind'] == DEPLOY:
-            return [sys.executable, str(ROOT / 'scripts/lib/service_deploy.py'), '--root', str(self.root)]
+            return [sys.executable, '-c', RETIRED_DEPLOY]
         if item['kind'] == GATE:
             return [str(self.root / part) if index == 0 else part
                     for index, part in enumerate(setting('service.gate_command'))] + [str(item['pr'])]

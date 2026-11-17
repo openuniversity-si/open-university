@@ -1,7 +1,0 @@
-{
-  "script": "scripts/tests/control-plane.test.sh",
-  "covers": [
-    "scripts/tests/control-plane.test.sh",
-    "services/control-plane/**"
-  ]
-}

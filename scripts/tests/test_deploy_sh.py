@@ -382,7 +382,8 @@ class DeployShTests(unittest.TestCase):
         self.assertEqual(self.build()['failed'], ['record:last-sha'])
 
     def test_the_deployer_never_deploys_the_control_plane_worker(self):
-        """GATE-SHUTDOWN (D-314): the Worker forge-webhook served the AWS gate; it stays outside AWS, the deploy leaves it."""
+        """GATE-SHUTDOWN (D-314): the Worker that served the AWS gate (retired, D-323) never was the deployer's: a tree that
+        still carried it deploys nothing of it."""
         repo = self.tmp / 'repo'
         (repo / 'services/control-plane').mkdir(parents=True)
         (repo / 'services/control-plane/wrangler.toml').write_text('name = "forge-test"\n')

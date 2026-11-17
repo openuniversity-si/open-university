@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / 'scripts' / 'cloud' / 'toolchain.json'
 # A hosting CLI and gh left (vazão F6): the engine runs neither (AGENTS.md, github_cli), and the site's production is
 # Open University's, which left the repository (D-105, D-111). pnpm left too (vazão F16, D-292): the engine has no
-# package to install, so no file of it runs pnpm. Node stays: control-plane.test.sh runs `node --test`.
+# package to install, so no file of it runs pnpm. Node stays: apps/web builds with it (the control plane Worker and its `node --test` left, D-323).
 TOOLS = ('python', 'node', 'gitleaks', 'postgres', 'ruff')
 
 

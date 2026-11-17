@@ -4,7 +4,6 @@ A path maps to a list of targets, by the first matching rule of RULES (ordered, 
 docs/operations/aws.md, 'Deploy contínuo em dois caminhos'). Targets:
 
   fast:lambda-<x>      pointer swap of one Lambda alias (x: port, ingress, webhooks) or all of them (x: all)
-  fast:worker          the Cloudflare Worker forge-webhook (a new version, same pointer idea)
   slow:stack-<y>       a CloudFormation stack of infra/aws/stacks (y: network, data, service, port, runner), or all
   slow:service-image   the Fargate service/runner image (infra/service, infra/db)
   slow:deployer        the deployer itself (infra/aws/deploy.sh, order.json): every stack is a candidate
@@ -52,8 +51,6 @@ RULES = [
     (r'^infra/service/requirements-lambda\.txt$', ['slow:stack-port']),
     (r'^infra/service/tower_infra/', None),  # per module, see module_targets
     (r'^infra/service/', [SLOW_IMAGE]),
-    (r'^services/control-plane/(test/|.*\.test\.)', ['none']),
-    (r'^services/control-plane/', ['fast:worker']),
     # STAGED-WORKFLOWS-NONE (the Torre, 16/11/2026): the GitHub workflows staged for the owner to install (D-087) are in no
     # image and no stack; as an image path, #133's staged tower-gate.yml rolled the service's ECS task out at 03:49 and
     # #134, landing in the handover, lost its fast landing
@@ -132,7 +129,7 @@ def code_only(paths):
     ECS tasks, the network or the data, the deployer, the bootstrap; not BESIDE, the port stack: CODE-BESIDE-PORT); any other
     path of the image: Dockerfile, requirements.txt, infra/db (a migration is a real
     change of the database), infra/ingress, services/runner; and the package's files that run from the image (IMAGE_RUN). Paths without a slow target (docs, tests, scripts, a fast
-    Lambda's swap, the worker, data) do not count either way."""
+    Lambda's swap, data) do not count either way."""
     found = classify(paths)
     image = [row['path'] for row in found['paths'] if SLOW_IMAGE in row['targets']]
     if not image:

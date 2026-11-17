@@ -15,7 +15,6 @@
       "description": "Timeout of one control-plane HTTP request. The job deadline further bounds runner calls; a failed request is reported without selecting another transport.",
       "x-readers": [
         "scripts/lib/forge_control.py",
-        "scripts/lib/service_deploy.py",
         "scripts/lib/service_runner.py",
         "scripts/lib/service_status.py"
       ],
@@ -25,11 +24,10 @@
       "type": "string",
       "default": "https://forge-webhook.example.workers.dev",
       "x-unit": "url",
-      "description": "Base URL of the control plane (the Cloudflare Worker forge-webhook, services/control-plane): /status, /healthz, /readyz, /metrics, /events, the runner and admin calls.",
+      "description": "Base URL of the control plane (the Cloudflare Worker forge-webhook, retired with D-323: no implementation answers it today): /status, /healthz, /readyz, /metrics, /events, the runner and admin calls.",
       "x-readers": [
         "scripts/lib/forge_control.py",
         "scripts/lib/service.py",
-        "scripts/lib/service_deploy.py",
         "scripts/lib/service_runner.py",
         "scripts/lib/service_status.py"
       ],
@@ -71,60 +69,6 @@
       ],
       "x-source": "DB-VITALS"
     },
-    "service.deploy_api_url": {
-      "type": "string",
-      "default": "https://api.cloudflare.com/client/v4",
-      "x-unit": "url",
-      "description": "Base URL of the Cloudflare REST API the control-plane deploy uploads the Worker to (PUT <url>/accounts/<account_id>/workers/scripts/<name>, the account and the name of services/control-plane/wrangler.toml); no npx, no wrangler (D-291 (6)).",
-      "x-readers": [
-        "scripts/lib/service_deploy.py"
-      ],
-      "x-source": "D-291; docs/units/TRAIN-DEFINITIVE/audit.md (F16, R5); docs/operations/services.md"
-    },
-    "service.deploy_path": {
-      "type": "string",
-      "default": "services/control-plane",
-      "x-unit": "path",
-      "description": "The control plane's directory in the checkout (wrangler.toml and src/*.js): its git tree is what a deploy uploads and records as the Worker's DEPLOYED_TREE, and what drift compares with GET /status deployed_tree.",
-      "x-readers": [
-        "scripts/lib/service_deploy.py"
-      ],
-      "x-source": "D-291"
-    },
-    "service.deploy_timeout_s": {
-      "type": "integer",
-      "default": 8,
-      "minimum": 1,
-      "x-unit": "s",
-      "description": "Timeout of the control-plane deploy's one upload call: inside the job budget of D-291 (service.job_budget_s), leaving the report its time.",
-      "x-readers": [
-        "scripts/lib/service_deploy.py"
-      ],
-      "x-source": "D-291; docs/operations/services.md"
-    },
-    "service.deploy_token_env": {
-      "type": "string",
-      "default": "CLOUDFLARE_API_TOKEN",
-      "pattern": "^[A-Z][A-Z0-9_]*$",
-      "x-unit": "name",
-      "description": "The variable that holds the Cloudflare API token of the control-plane deploy (Workers Scripts:Edit on the account of services/control-plane/wrangler.toml; an entry of service.token_holders). Without it the deploy refuses with a sentence naming the variable and its holder; the value is never printed.",
-      "x-readers": [
-        "scripts/lib/service_deploy.py",
-        "scripts/lib/service_runner.py"
-      ],
-      "x-source": "D-291; docs/operations/services.md"
-    },
-    "service.deploy_tree_chars": {
-      "type": "integer",
-      "default": 12,
-      "minimum": 1,
-      "x-unit": "chars",
-      "description": "How many hex characters of the services/control-plane tree a deploy's sentence prints (the Worker's DEPLOYED_TREE holds the full tree).",
-      "x-readers": [
-        "scripts/lib/service_deploy.py"
-      ],
-      "x-source": "D-291"
-    },
     "service.dispatch_s": {
       "type": "number",
       "default": 1,
@@ -161,17 +105,6 @@
       ],
       "x-source": "Torre 14/11 (GitHub migration): the repository identity comes from configuration"
     },
-    "service.free_rows_read_day": {
-      "type": "integer",
-      "default": 5000000,
-      "minimum": 1,
-      "x-unit": "rows",
-      "description": "The Cloudflare Free plan's Durable Object rows read a day (the control plane, services/control-plane). On 03/11 the control plane passed it and answered 1101 on every route (I-5102f4e9). scripts/flow-metrics --guards reads the Worker's rows_read meter (GET /status) and warns at half of it, the margin SEMENTE section 4 asks of every free-plan limit.",
-      "x-readers": [
-        "scripts/lib/flow_metrics.py"
-      ],
-      "x-source": "VAZÃO F34 (docs/programs/vazao/fila.md), SEMENTE section 4"
-    },
     "service.gate_command": {
       "type": "array",
       "default": [
@@ -206,10 +139,9 @@
       "default": 300,
       "minimum": 1,
       "x-unit": "s",
-      "description": "The budget of one runner job from its claim to its result (D-291; Daniel 02/11 23:06 BRT: 180 s; 23:35 BRT: 300 s, the measured tier 2 of 162 s plus margin, I-ddaca17c). The one source of the budget: the runner reads it from its checkout's registry and service_deploy.py sends it to the control plane as the Worker var BUDGET_S, which leases a claimed job for exactly this long. The runner hands the job its deadline (TOWER_JOB_DEADLINE), sends TERM one second before it and KILL at it, and answers over_budget with the phase that was running; the train's lock expires at the same deadline, so a dead holder never blocks the next job past it.",
+      "description": "The budget of one runner job from its claim to its result (D-291; Daniel 02/11 23:06 BRT: 180 s; 23:35 BRT: 300 s, the measured tier 2 of 162 s plus margin, I-ddaca17c). The one source of the budget: the runner reads it from its checkout's registry (the control plane Worker that leased a claimed job for this long is retired, D-323). The runner hands the job its deadline (TOWER_JOB_DEADLINE), sends TERM one second before it and KILL at it, and answers over_budget with the phase that was running; the train's lock expires at the same deadline, so a dead holder never blocks the next job past it.",
       "x-readers": [
-        "scripts/lib/service_budget.py",
-        "scripts/lib/service_deploy.py"
+        "scripts/lib/service_budget.py"
       ],
       "x-source": "D-291; docs/units/TRAIN-DEFINITIVE/plan.md"
     },
@@ -460,15 +392,6 @@
           ],
           "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
           "used_for": "git and the GitHub REST client of the gate and the train"
-        },
-        {
-          "variable": "CLOUDFLARE_API_TOKEN",
-          "equals": "a Cloudflare API token with Workers Scripts:Edit on the account of services/control-plane/wrangler.toml",
-          "kinds": [
-            "vm"
-          ],
-          "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
-          "used_for": "the control-plane deploy (scripts/lib/service_deploy.py uploads the Worker through the Cloudflare API)"
         }
       ],
       "items": {
@@ -548,7 +471,6 @@
       "description": "The User-Agent every request of a runner to the control plane carries (claim, heartbeat, result), set in one place (ControlTransport.call). The edge in front of today's control plane answers 403 to urllib's default `Python-urllib/<version>`, so a runner without it fell back to git on every poll (GATE-SPEED, D-091). Generic: it names the client, never a vendor.",
       "x-readers": [
         "scripts/lib/forge_control.py",
-        "scripts/lib/service_deploy.py",
         "scripts/lib/service_runner.py",
         "scripts/lib/service_status.py"
       ],

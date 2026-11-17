@@ -3027,9 +3027,7 @@
    "scripts/lib/hermetic.py",
    "scripts/lib/operation_demands.py",
    "scripts/lib/operation_relations.py",
-   "scripts/lib/python_source.py",
-   "services/control-plane/src/core.js",
-   "services/control-plane/src/index.js"
+   "scripts/lib/python_source.py"
   ],
   "scripts/tests/shared-results.test.sh": [
    "scripts/lib/adapters/__init__.py",
