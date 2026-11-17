@@ -29,15 +29,12 @@ import python_source
 
 import commit_check
 import config
-import budget_check
-import census
 import config_check
 import literal_census
 import text_check
 import threshold_check
 import decision_premises
 import defects
-import effort
 import postmortem_check
 import plan_tick
 import premises
@@ -250,87 +247,6 @@ def check_decisions(root, today, now=None):
     return errors, warnings, count
 
 
-ABSOLUTE_BASELINE = 'scripts/lib/absolute-literals-baseline'  # D-064 (a): where scripts/generate census renders an area
-
-
-def baseline_files(root, base=None):
-    """The absolute exception list, {path: {value: count}}: every unit's census record and, until migrated, the old
-    per-area files (scripts/lib/census.py, CENSO-NO-MANIFESTO), in the checkout or in `base`; None if it holds none."""
-    try:
-        return census.entries(root, census.BASELINE, base) or None
-    except census.CensusError:
-        return None
-
-
-def check_absolute_baseline(root, base=None):
-    """D-063, D-064 (a): the absolute exception list only shrinks, per census area and value. Against the base, no
-    area allows a value more times in all its files together; a literal may move with its file inside its area, and a
-    value removed from one area does not pay for the same value added to another."""
-    after = baseline_files(root)
-    before = baseline_files(root, base) if base else None
-    if after is None or before is None:
-        return []
-
-    def totals(files):
-        counts = {}
-        for path, values in files.items():
-            for value, count in values.items():
-                key = (census_area(path), value)
-                counts[key] = counts.get(key, 0) + count
-        return counts
-
-    before, after = totals(before), totals(after)
-    return [f'{ABSOLUTE_BASELINE}/{area}.json: {value} allowed {before.get((area, value), 0)} times in {base}, {count} here; '
-            f'the list only shrinks per area (D-063, D-064 a): read the value from a catalog'
-            for (area, value), count in sorted(after.items()) if count > before.get((area, value), 0)]
-
-
-SHARED_LITERALS = 'scripts/lib/shared-literals.json'
-TRIVIAL_LITERALS = frozenset({'number "0"', 'number "1"', 'boolean "true"', 'string ""'})  # D-063: the remainder domain
-
-
-def census_area(path):
-    """The census area of a path (scripts/lib/census.py: the name of the folder that holds it)."""
-    return census.area(path)
-
-
-def shared_values(files):
-    """Each non-trivial listed value present in two or more census areas, with its areas."""
-    areas = {}
-    for path, values in files.items():
-        for value in values:
-            areas.setdefault(value, set()).add(census_area(path))
-    return {value: sorted(found) for value, found in areas.items() if len(found) > 1 and value not in TRIVIAL_LITERALS}
-
-
-def check_shared_literals(root, base=None):
-    """D-064 (c): a value present in two or more areas is born in the common catalog (a catalog entry of the census).
-    The census list (equal to the census, D-063) shows every literal still written in a production file; one in 2+ areas fails
-    unless the registered list names it with a documented reason. The registered list only shrinks against the base;
-    an entry that no longer spans 2+ areas is a warning, so a front that fixes a value need not edit the list (D-064 a)."""
-    files = baseline_files(root)
-    if files is None:
-        return [], []
-    shared = shared_values(files)
-    listed = root / SHARED_LITERALS
-    data = json.loads(listed.read_text()) if listed.is_file() else {'reasons': {}, 'values': {}}
-    reasons, registered = data.get('reasons', {}), data.get('values', {})
-    errors = [f'{SHARED_LITERALS}: {value} names the unknown reason "{reason}"'
-              for value, reason in sorted(registered.items()) if reason not in reasons]
-    errors += [f'{value} is written in {len(areas)} areas ({", ".join(areas)}) and is not in the common catalog: '
-               f'a value of 2+ areas is born in a common catalog (scripts/census add --catalog; D-064 c)'
-               for value, areas in sorted(shared.items()) if value not in registered]
-    if base:
-        shown = subprocess.run(['git', '-C', str(root), 'show', f'{base}:{SHARED_LITERALS}'], capture_output=True, text=True)
-        before = json.loads(shown.stdout).get('values', {}) if shown.returncode == 0 else None
-        if before is not None:
-            errors += [f'{SHARED_LITERALS}: {value} is not registered in {base}; the list only shrinks (D-064 c): '
-                       'put the value in the common catalog' for value in sorted(registered) if value not in before]
-    warnings = [f'{SHARED_LITERALS}: {value} no longer spans 2+ areas; integration drops it (D-064 c)'
-                for value in sorted(registered) if value not in shared]
-    return errors, warnings
-
-
 def slug(heading):
     text = re.sub(r'[`*_]|\[([^\]]*)\]\([^)]*\)', r'\1', heading.strip().lower())
     return re.sub(r'[^\w\- ]', '', text).replace(' ', '-')
@@ -471,17 +387,11 @@ def tree_part(root, base, today):
     dec_errors, warnings, decisions = check_decisions(root, today)
     link_errors, links = check_links(root)
     errors = cap_errors + dec_errors + link_errors  # OU-DECOUPLE F5 (D-113): the Drizzle checks left with OU
-    errors += check_absolute_baseline(root, base)
-    errors += census.check(root, base)  # CENSO-NO-MANIFESTO: each unit's record, written only by scripts/census
-    shared_errors, shared_warnings = check_shared_literals(root, base)
-    errors += shared_errors
-    warnings += shared_warnings
+    # D-322: the census checks (absolute baseline D-064 a, census records, shared literals D-064 c) and the budgets
+    # (D-069 item 14) are the gate's stage "measurement checks" (scripts/lib/measurement_checks.py); no import here.
     config_errors, config_warnings = config_result
     errors += config_errors
     warnings += config_warnings
-    budget_errors, budget_warnings = budget_check.check(root, base)  # D-069 item 14, D-025
-    errors += budget_errors
-    warnings += budget_warnings
     literal_errors, literal_warnings = literal_result  # LT1, D-069 item 3, D-025
     errors += literal_errors
     warnings += literal_warnings
@@ -671,7 +581,7 @@ def metadata_part(root, args):
     if args.pr_body:
         body = args.pr_body.read_text()
         body_errors, body_warnings = fit_review(body, root)
-        errors += body_errors + commit_check.plan_errors(body) + effort.body_errors(body, root)  # EFFORT-STEP
+        errors += body_errors + commit_check.plan_errors(body)  # EFFORT-STEP: measurement_checks.py body (D-322)
         warnings += body_warnings
         if args.base and not args.pr:
             try:
@@ -703,9 +613,7 @@ def metadata_part(root, args):
             plan_errors, plan_warnings = plan_verdict(pr.get('body', ''), pr.get('commits', []), pr.get('draft', False))
             errors += plan_errors
             warnings += plan_warnings
-            errors += effort.body_errors(pr.get('body', ''), root,  # EFFORT-STEP, D-069 items 4, 8, 9, D-025
-                                          base=(pr.get('base') or {}).get('merge_base'),
-                                          created=pr.get('created_at'))
+            # EFFORT-STEP (D-069 items 4, 8, 9): the body's effort block is `measurement_checks.py body`, run beside (D-322)
             if (pr.get('base') or {}).get('merge_base'):
                 errors += lane_errors(root, pr['base']['merge_base'], pr.get('files') or [])
             guard_errors, guard_warnings = visual_guard.check(root, args.base, pr.get('body', ''), pr.get('files') or [],

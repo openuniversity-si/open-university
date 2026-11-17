@@ -7,6 +7,7 @@
     "structure check",
     "production guard",
     "gate maps",
+    "measurement checks",
     "generated drift",
     "schema compat",
     "secret scan (history)",
@@ -19,6 +20,7 @@
     "structure check",
     "production guard",
     "gate maps",
+    "measurement checks",
     "generated drift",
     "schema compat",
     "secret scan (history)"

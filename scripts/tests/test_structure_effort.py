@@ -188,8 +188,9 @@ class Bodies(unittest.TestCase):
 
 
 class Stage(unittest.TestCase):
-    """The `pr metadata` stage (structure-check --metadata) refuses a body without the block, through --pr-body and
-    through --pr; the `structure check` stage (the tree part) refuses a plan without it."""
+    """The `pr metadata` stage runs the PR body's measurement part (measurement_checks.py body, D-322) beside
+    structure-check --metadata: it refuses a body without the block, through --pr-body and through --pr; the structure
+    check itself no longer judges the block."""
 
     BODY = 'Summary.\n\nPremises: none\nFit-Review: not reviewed (Daniel 2026-10-25: no review step)\n'
 
@@ -197,12 +198,14 @@ class Stage(unittest.TestCase):
         self.dir = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.dir, True)
 
-    def metadata(self, body):
+    def body_file(self, body):
         path = self.dir / 'body.md'
         path.write_text(body)
-        env = {name: value for name, value in os.environ.items() if name != structure.TREE_ONLY_ENV}
-        result = subprocess.run(['bash', str(ROOT / 'scripts/structure-check'), '--metadata', '--pr-body', str(path)],
-                                capture_output=True, text=True, env=env, cwd=ROOT)
+        return path
+
+    def metadata(self, body):
+        result = subprocess.run([sys.executable, str(ROOT / 'scripts/lib/measurement_checks.py'), 'body',
+                                 '--pr-body', str(self.body_file(body))], capture_output=True, text=True, cwd=ROOT)
         return result.returncode, result.stdout + result.stderr
 
     def test_the_stage_refuses_a_real_body_without_the_block_and_accepts_it_with(self):
@@ -219,15 +222,25 @@ class Stage(unittest.TestCase):
         self.assertIn('`Cheaper rejected:` is missing', out)
 
     def test_the_pr_branch_judges_the_fetched_body(self):
-        args = argparse.Namespace(pr_body=None, pr='N', sha=None, review=None, base=None)
+        import measurement_checks
         pr = {'body': self.BODY, 'commits': [], 'files': [], 'branch': 'mod/x', 'base': {}}
-        with patch.object(structure, 'gated_fetch', return_value=pr), \
-                patch.object(structure.commit_check, 'check', return_value=[]):
-            errors, _, _ = structure.metadata_part(ROOT, args)
-            self.assertTrue([error for error in errors if error.startswith('effort: the PR body has no')], errors)
-            pr['body'] = block() + '\n' + self.BODY
-            errors, _, _ = structure.metadata_part(ROOT, args)
-            self.assertFalse([error for error in errors if error.startswith('effort:')], errors)
+        fetch = lambda root, number, sha=None, observation=None: pr  # noqa: E731
+
+        def run():
+            with patch('sys.stdout', new_callable=lambda: __import__('io').StringIO()) as out:
+                code = measurement_checks.main(['body', '--pr', '7', '--root', str(ROOT)], fetch=fetch)
+            return code, out.getvalue()
+        code, out = run()
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL effort: the PR body has no', out)
+        pr['body'] = block() + '\n' + self.BODY
+        code, out = run()
+        self.assertEqual((code, 'effort:' in out), (0, False), out)
+
+    def test_the_structure_check_no_longer_judges_the_block(self):
+        args = argparse.Namespace(pr_body=self.body_file(self.BODY), pr=None, sha=None, review=None, base=None)
+        errors, _, _ = structure.metadata_part(ROOT, args)
+        self.assertFalse([error for error in errors if str(error).startswith('effort:')], errors)
 
 
 class Repository(unittest.TestCase):

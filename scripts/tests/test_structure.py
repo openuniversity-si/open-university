@@ -156,69 +156,6 @@ class StructureCheck(unittest.TestCase):
                        env=dict(os.environ, GIT_AUTHOR_NAME='t', GIT_AUTHOR_EMAIL='t@x', GIT_COMMITTER_NAME='t',
                                 GIT_COMMITTER_EMAIL='t@x', GIT_CONFIG_NOSYSTEM='1', HOME=str(self.root)))
 
-    def baseline(self, files):
-        entries = [{'category': 'doc', 'paths': ['docs/**'], 'protects': ['D-001'], 'retire': 'never: the constitution'},
-                   {'category': 'script', 'paths': ['scripts/lib/absolute-literals-baseline/*.json'], 'protects': ['D-001'], 'retire': 'never: x'}]
-        folder = self.root / 'scripts/lib/absolute-literals-baseline'
-        for stale in folder.glob('*.json') if folder.is_dir() else []:
-            stale.unlink()
-        areas = {}
-        for path, values in files.items():
-            areas.setdefault(structure.census_area(path), {})[path] = values
-        write(self.root, {**{f'scripts/lib/absolute-literals-baseline/{area}.json': json.dumps({'description': 'd', 'files': found})
-                             for area, found in areas.items()},
-                          'docs/structure/assets.json': json.dumps({'version': 1, 'entries': entries})})
-
-    def test_d063_refuses_an_absolute_exception_list_that_grows_against_the_base(self):
-        self.baseline({'products/demo/src/x/a.ts': {'number "0"': 2, 'string "x"': 1}})
-        self.git('init', '-q'); self.git('add', '.'); self.git('commit', '-qm', 'base'); self.git('tag', 'base')
-        self.baseline({'products/demo/src/x/a.ts': {'number "0"': 3, 'string "x"': 1}})
-        self.assert_fails('number "0" allowed 2 times in base, 3 here; the list only shrinks per area (D-063, D-064 a)', '--base', 'base')
-        self.baseline({'products/demo/src/x/a.ts': {'number "0"': 2, 'string "x"': 1, 'boolean "true"': 1}})
-        self.assert_fails('boolean "true" allowed 0 times in base, 1 here', '--base', 'base')
-        self.baseline({'products/demo/src/x/a.ts': {'number "0"': 1}, 'products/demo/src/x/moved.ts': {'number "0"': 1}})
-        code, out = self.check('--base', 'base')
-        self.assertEqual(code, 0, out)
-
-    def test_d064a_the_exception_list_shrinks_per_area_and_value(self):
-        self.baseline({'products/demo/src/admin/a.ts': {'boolean "true"': 1}, 'products/demo/scripts/b.ts': {'boolean "true"': 1}})
-        self.git('init', '-q'); self.git('add', '.'); self.git('commit', '-qm', 'base'); self.git('tag', 'base')
-        self.baseline({'products/demo/src/admin/a.ts': {'boolean "true"': 2}})
-        self.assert_fails('absolute-literals-baseline/admin.json: boolean "true" allowed 1 times in base, 2 here; '
-                          'the list only shrinks per area (D-063, D-064 a)', '--base', 'base')
-        self.baseline({'products/demo/src/admin/moved.ts': {'boolean "true"': 1}})
-        code, out = self.check('--base', 'base')
-        self.assertEqual(code, 0, out)
-
-    def shared(self, values, reasons=('two-areas',)):
-        assets = json.loads((self.root / 'docs/structure/assets.json').read_text())
-        if 'scripts/lib/*.json' not in assets['entries'][1]['paths']:
-            assets['entries'][1]['paths'].append('scripts/lib/*.json')
-        write(self.root, {'docs/structure/assets.json': json.dumps(assets), 'scripts/lib/shared-literals.json': json.dumps(
-            {'description': 'd', 'reasons': {reason: 'why' for reason in reasons}, 'values': values})})
-
-    def test_d064_refuses_a_value_of_two_areas_outside_the_common_catalog(self):
-        self.baseline({'products/demo/src/admin/a.ts': {'string "lesson"': 1, 'number "0"': 1},
-                       'products/demo/scripts/b.ts': {'string "lesson"': 1, 'number "0"': 1}, 'products/demo/src/admin/c.ts': {'string "x"': 1}})
-        self.assert_fails('string "lesson" is written in 2 areas (admin, scripts) and is not in the common catalog')
-        self.shared({'string "lesson"': 'unknown'})
-        self.assert_fails('string "lesson" names the unknown reason "unknown"')
-        self.shared({'string "lesson"': 'two-areas'})
-        code, out = self.check()
-        self.assertEqual(code, 0, out)
-
-    def test_d064_the_registered_list_only_shrinks_and_a_fixed_value_only_warns(self):
-        self.baseline({'products/demo/src/admin/a.ts': {'string "lesson"': 1}, 'products/demo/scripts/b.ts': {'string "lesson"': 1}})
-        self.shared({'string "lesson"': 'two-areas'})
-        self.git('init', '-q'); self.git('add', '.'); self.git('commit', '-qm', 'base'); self.git('tag', 'base')
-        self.shared({'string "lesson"': 'two-areas', 'string "course"': 'two-areas'})
-        self.assert_fails('string "course" is not registered in base; the list only shrinks (D-064 c)', '--base', 'base')
-        self.baseline({'products/demo/src/admin/a.ts': {'string "lesson"': 1}})
-        self.shared({'string "lesson"': 'two-areas'})
-        code, out = self.check('--base', 'base')
-        self.assertEqual(code, 0, out)
-        self.assertIn('string "lesson" no longer spans 2+ areas', out)
-
     def test_rejects_a_capability_without_requested(self):
         write(self.root, {'docs/capabilities/CAP-003-ship-any-university.md': CAP.replace('requested: 2026-10-22T10:00-03:00\n', '')})
         self.assert_fails('CAP-003-ship-any-university.md: no "requested:" line')

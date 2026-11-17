@@ -960,10 +960,15 @@ class TheMetadataOfAForgeThatIsAway(unittest.TestCase):
              'structure-check (metadata, PR #7): 1 error(s), 0 warning(s)\n')
     GREEN = 'structure-check (metadata, PR #7): 0 error(s), 0 warning(s)\n'
 
-    def answers(self, *said):
-        left, self.commands, self.pauses = list(said), [], []
+    BODY = 'measurement checks (body, PR #7): 0 error(s), 0 warning(s)\n'
+
+    def answers(self, *said, body=BODY):
+        left, self.commands, self.pauses, self.bodies = list(said), [], [], []
 
         def run(command, **_):
+            if 'measurement_checks.py' in ' '.join(command):  # D-322: the PR body's measurement part, beside
+                self.bodies.append(command)
+                return mock.Mock(returncode=0 if body == self.BODY else 1, stdout=body, stderr='')
             self.commands.append(command)
             text = left.pop(0) if len(left) > 1 else left[0]
             return mock.Mock(returncode=0 if text == self.GREEN else 1, stdout=text, stderr='')
@@ -993,6 +998,18 @@ class TheMetadataOfAForgeThatIsAway(unittest.TestCase):
         (green, _), _ = self.answers(mixed)
         self.assertEqual((green, len(self.commands)), (False, 1))  # a refusal about the PR: no retry makes it right
         self.assertFalse(gate_infra.blind(self.GREEN))
+
+    def test_the_pr_bodys_measurement_part_runs_beside_and_its_refusal_is_red(self):
+        # D-322: the effort block is measurement_checks.py body, judged once the structure check judged the PR
+        (green, said), _ = self.answers(self.GREEN)
+        self.assertTrue(green)
+        self.assertEqual([command[2:5] for command in self.bodies], [['body', '--pr', '7']])
+        refused = 'FAIL effort: the PR body has no `## Cheapest useful effort` block\n'
+        (green, said), _ = self.answers(self.GREEN, body=refused)
+        self.assertFalse(green)
+        self.assertIn('Cheapest useful effort', said)
+        self.answers(self.BLIND)
+        self.assertEqual(self.bodies, [])  # a PR that was not read is not judged by either part
 
     def test_a_forge_that_stays_away_is_red_by_its_name_within_the_wait_it_is_given(self):
         (green, said), _ = self.answers(self.BLIND)

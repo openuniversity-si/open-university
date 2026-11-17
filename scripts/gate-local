@@ -358,6 +358,8 @@ launch step "structure check" "$root" "$tool_root/scripts/structure-check" ${bas
 launch step "production guard" "$root" "$py" "$tool_root/scripts/lib/production_guard.py" check ${base:+--base "$base"} --root "$root"
 # D-322: the checks of the gate's own maps (area coverage, test orphans, hermetic tests) are the gate's stage, not structure's.
 launch step "gate maps" "$root" "$py" "$tool_root/scripts/lib/gate_maps.py" check ${base:+--base "$base"} --root "$root"
+# D-322: the measurement checks (census, absolute baseline, shared literals, budgets) are measurement's stage, not structure's.
+launch step "measurement checks" "$root" "$py" "$tool_root/scripts/lib/measurement_checks.py" check ${base:+--base "$base"} --root "$root"
 gate_hook prereq
 # D-069 items 1 and 2: every committed derived file equals its regeneration (scripts/generate, G1).
 launch step_cached_by_inputs "generated drift" "$root" "" "$tool_root/scripts/generate" --check

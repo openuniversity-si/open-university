@@ -5,6 +5,7 @@
     "scripts/tests/test_structure_effort.py",
     "scripts/lib/effort.py",
     "scripts/lib/structure.py",
+    "scripts/lib/measurement_checks.py",
     "scripts/lib/config.py",
     "config/registry/effort.json",
     "config/registry/units.json",
