@@ -1100,11 +1100,20 @@ def read_advisories(root):
     return found
 
 
+def registered(body):
+    """Whether a store of personal data records its processing: every personal field in a `processing` entry (each
+    with purpose, legal basis and retention), or one purpose, legal basis and retention for the whole store."""
+    if body.get('processing'):
+        covered = {field for entry in body['processing'] for field in entry['fields']}
+        return set(body.get('personal_fields', [])) <= covered
+    return all(body.get(field) for field in ('purpose', 'legal_basis', 'retention'))
+
+
 def data_state(body, today, max_days):
     """A data store's state: unregistered (personal data without purpose, legal basis and retention) first, then
     unprotected (no backup), regenerable, unverified (no restore verified within max_days) or protected."""
     from datetime import date
-    if body['personal'] and not all(body.get(field) for field in ('purpose', 'legal_basis', 'retention')):
+    if body['personal'] and not registered(body):
         return 'unregistered'
     method = body['backup']['method']
     if method == 'none':

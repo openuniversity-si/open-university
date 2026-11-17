@@ -98,6 +98,42 @@
     },
     "note": {
       "type": "string"
+    },
+    "processing": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The processing of the personal fields, one entry per group of fields with the same purpose, legal basis and retention (LGPD art. 7 and 37); every personal field is in one entry.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fields",
+          "purpose",
+          "legal_basis",
+          "retention"
+        ],
+        "properties": {
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "legal_basis": {
+            "type": "string",
+            "minLength": 1
+          },
+          "retention": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     }
   }
 }

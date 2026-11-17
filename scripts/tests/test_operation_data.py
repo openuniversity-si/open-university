@@ -26,6 +26,13 @@ class DataState(unittest.TestCase):
         complete = store(personal=True, verified='2026-11-17', purpose='p', legal_basis='b', retention='r')
         self.assertEqual(model.data_state(complete, '2026-11-17', 90), 'protected')
 
+    def test_per_field_processing_registers_a_store_only_when_it_covers_every_personal_field(self):
+        entry = {'fields': ['user.email'], 'purpose': 'p', 'legal_basis': 'b', 'retention': 'r'}
+        partial = store(personal=True, verified='2026-11-17', personal_fields=['user.email', 'session.ip'], processing=[entry])
+        self.assertEqual(model.data_state(partial, '2026-11-17', 90), 'unregistered')
+        whole = {**partial, 'processing': [entry, {**entry, 'fields': ['session.ip']}]}
+        self.assertEqual(model.data_state(whole, '2026-11-17', 90), 'protected')
+
     def test_a_backup_counts_only_with_a_restore_verified_within_the_window(self):
         self.assertEqual(model.data_state(store(), '2026-11-17', 90), 'unverified')
         self.assertEqual(model.data_state(store(verified='2026-08-01'), '2026-11-17', 90), 'unverified')
