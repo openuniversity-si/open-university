@@ -15,4 +15,5 @@ DataV1 = TypedDict('DataV1', {
     'retention': NotRequired[str],
     'backup': Required[dict[str, Any]],
     'note': NotRequired[str],
+    'processing': NotRequired[list[dict[str, Any]]],
 }, total=False)

@@ -8,7 +8,7 @@ const PRIVACY_PAGE = pages.privacy, TERMS_PAGE = pages.terms, CONTACT_PAGE = pag
 describe("kernel slugify", () => {
   it("preserves all current legal anchors", () => {
     const headings = [PRIVACY_PAGE, TERMS_PAGE, CONTACT_PAGE].flatMap((page) => (page.sections ?? []).map((section) => section.h));
-    expect(headings).toHaveLength(21);
+    expect(headings).toHaveLength(22);
     const old = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     for (const heading of headings) expect(slugify(heading, { fallback: "" })).toBe(old(heading));
   });
