@@ -37,6 +37,9 @@
         "required_status_checks": [
           {
             "context": "tower/gate"
+          },
+          {
+            "context": "web"
           }
         ]
       }
