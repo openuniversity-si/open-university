@@ -74,6 +74,11 @@
         "type": "string",
         "pattern": "^D-[0-9]+$"
       }
+    },
+    "layer": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The element's layer (PADRAO-DEV F8c, D-322): a dependency may go to the same or a lower layer; one that goes up is a defect to break."
     }
   }
 }

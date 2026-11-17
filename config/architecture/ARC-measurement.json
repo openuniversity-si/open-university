@@ -6,10 +6,16 @@
   "state": "active",
   "owner": "administration",
   "depends_on": [
+    "ARC-config",
+    "ARC-deploy",
     "ARC-events",
-    "ARC-config"
+    "ARC-gate",
+    "ARC-knowledge",
+    "ARC-planning"
   ],
   "basis": [
-    "D-317"
-  ]
+    "D-317",
+    "D-322"
+  ],
+  "layer": 5
 }
