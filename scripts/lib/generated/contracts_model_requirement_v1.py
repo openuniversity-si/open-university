@@ -3,7 +3,7 @@ from typing import Any, Literal, NotRequired, Required, TypedDict  # noqa: F401
 
 RequirementV1 = TypedDict('RequirementV1', {
     'id': Required[str],
-    'type': Required[Literal['product', 'operation', 'quality', 'constraint', 'interface']],
+    'type': Required[Literal['product', 'operation', 'quality', 'constraint', 'interface', 'legal']],
     'statement': Required[str],
     'state': Required[Literal['draft', 'approved', 'superseded', 'obsolete']],
     'owner': Required[str],

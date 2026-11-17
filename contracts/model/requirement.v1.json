@@ -26,9 +26,10 @@
         "operation",
         "quality",
         "constraint",
-        "interface"
+        "interface",
+        "legal"
       ],
-      "description": "ISO/IEC/IEEE 29148: what kind of requirement."
+      "description": "ISO/IEC/IEEE 29148: what kind of requirement. legal: an obligation from law or a licence (LGPD, content licences), D-321."
     },
     "statement": {
       "type": "string",

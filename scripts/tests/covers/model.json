@@ -51,6 +51,10 @@
     "config/operation/**",
     "config/registry/operation/**",
     "config/security/**",
-    "config/registry/security/**"
+    "config/registry/security/**",
+    "apps/web/src/**/*.test.ts",
+    "apps/web/scripts/**/*.test.ts",
+    "apps/web/test/**/*.test.ts",
+    "apps/web/e2e/**/*.spec.ts"
   ]
 }

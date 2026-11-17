@@ -172,7 +172,9 @@ def read_units(root):
     return objects
 
 
-VERIFIES = re.compile(r'^\s*(?:#\s*)?Verifies:\s*(.+)$', re.MULTILINE)
+VERIFIES = re.compile(r'^\s*(?:(?:#|//|\*)\s*)?Verifies:\s*(.+)$', re.MULTILINE)
+SITE_TESTS = ('apps/web/src/**/*.test.ts', 'apps/web/scripts/**/*.test.ts', 'apps/web/test/**/*.test.ts',
+              'apps/web/e2e/**/*.spec.ts')
 
 
 def read_tests(root):
@@ -190,6 +192,14 @@ def read_tests(root):
         targets = [target.strip() for listed in VERIFIES.findall(text) for target in listed.split(',') if target.strip()]
         found.append(_obj(f'TEST:{path.relative_to(root).as_posix()}', 'TEST', 'active', path.relative_to(root).as_posix(),
                           text, [{'type': 'verifies', 'target': target} for target in dict.fromkeys(targets)]))
+    # The site's tests count only when they declare what they verify: the site keeps its own suite (D-319).
+    for pattern in SITE_TESTS:
+        for path in sorted(root.glob(pattern)):
+            text = path.read_text(errors='replace')
+            targets = [target.strip() for listed in VERIFIES.findall(text) for target in listed.split(',') if target.strip()]
+            if targets:
+                found.append(_obj(f'TEST:{path.relative_to(root).as_posix()}', 'TEST', 'active', path.relative_to(root).as_posix(),
+                                  text, [{'type': 'verifies', 'target': target} for target in dict.fromkeys(targets)]))
     covered = covered_units(root)
     by_id = {item['id']: item for item in found}
     for script, unit_ids in covered.items():
