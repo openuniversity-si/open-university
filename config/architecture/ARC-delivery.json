@@ -13,12 +13,16 @@
     "REQ-slo-budgets-budgets-pr-commits-max"
   ],
   "depends_on": [
-    "ARC-gate",
     "ARC-config",
+    "ARC-environment",
     "ARC-events",
-    "ARC-environment"
+    "ARC-gate",
+    "ARC-knowledge",
+    "ARC-planning"
   ],
   "basis": [
-    "D-317"
-  ]
+    "D-317",
+    "D-322"
+  ],
+  "layer": 3
 }

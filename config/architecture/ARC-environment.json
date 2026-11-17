@@ -9,9 +9,12 @@
     "REQ-origin-dormant"
   ],
   "depends_on": [
-    "ARC-config"
+    "ARC-config",
+    "ARC-events"
   ],
   "basis": [
-    "D-317"
-  ]
+    "D-317",
+    "D-322"
+  ],
+  "layer": 1
 }

@@ -943,6 +943,17 @@ def read_adrs(root):
     return found
 
 
+def layer_errors(found):
+    """An architecture element may declare a dependency on its own layer or a lower one (D-322); one that goes up is
+    a defect to break, never accepted by declaring it."""
+    layers = {id: item['body'].get('layer') for id, item in found.items() if item['type'] == 'ARC' and 'body' in item}
+    return [f'{id}: depends on {link["target"]} of a higher layer ({layers[link["target"]]} > {layers[id]}); break the '
+            f'dependency instead of declaring it (D-322)'
+            for id in sorted(layers) for link in found[id]['links']
+            if link['type'] == 'depends-on' and layers[id] is not None and layers.get(link['target']) is not None
+            and layers[link['target']] > layers[id]]
+
+
 def reflexion(found):
     """The reflexion model (Murphy, Notkin, Sullivan 1995) of the architecture: the dependencies the elements declare
     (depends-on between ARC) against those extracted from the units (a unit of A depends on a unit of B, A and B the
@@ -1249,6 +1260,7 @@ def check(meta, found, root=None, today=None):
         managed_errors, managed_warnings = management_findings(found, today or utc_today())
         errors += managed_errors
         warnings += managed_warnings
+    errors += layer_errors(found)
     for id, item in sorted(found.items()):
         kind = meta['types'].get(item['type'])
         if kind is None:

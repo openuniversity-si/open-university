@@ -628,6 +628,18 @@ class Architecture(unittest.TestCase):
         self.assertIn({'type': 'verifies', 'target': 'UNIT:engine-model'}, found['TEST:scripts/tests/model.test.sh']['links'])
 
 
+class Layers(unittest.TestCase):
+    def test_a_dependency_on_a_higher_layer_is_refused_and_one_on_the_same_or_lower_is_not(self):
+        def arc(id, layer, *targets):
+            return {'id': id, 'type': 'ARC', 'state': 'active', 'fingerprint': 'f', 'body': {'layer': layer},
+                    'links': [{'type': 'depends-on', 'target': target} for target in targets]}
+        found = {item['id']: item for item in (arc('ARC-low', 0), arc('ARC-mid', 1, 'ARC-low', 'ARC-same'),
+                                               arc('ARC-same', 1), arc('ARC-up', 0, 'ARC-mid'))}
+        errors = model.layer_errors(found)
+        self.assertEqual(len(errors), 1)
+        self.assertIn('ARC-up: depends on ARC-mid of a higher layer', errors[0])
+
+
 class RealRepository(unittest.TestCase):
     def test_a_site_test_counts_only_when_it_declares_what_it_verifies_and_a_typescript_comment_declares_it(self):
         tests = {item['id']: item for item in model.read_tests(ROOT)}

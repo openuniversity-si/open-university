@@ -11,4 +11,5 @@ ArchitectureV1 = TypedDict('ArchitectureV1', {
     'satisfies': NotRequired[list[str]],
     'depends_on': NotRequired[list[str]],
     'basis': NotRequired[list[str]],
+    'layer': NotRequired[int],
 }, total=False)

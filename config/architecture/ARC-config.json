@@ -9,9 +9,11 @@
     "REQ-slo-budgets-budgets-tighten-only"
   ],
   "depends_on": [
-    "ARC-environment"
+    "ARC-events"
   ],
   "basis": [
-    "D-317"
-  ]
+    "D-317",
+    "D-322"
+  ],
+  "layer": 0
 }
