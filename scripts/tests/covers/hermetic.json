@@ -6,7 +6,7 @@
     "scripts/lib/hermetic.py",
     "scripts/lib/hermetic/**",
     "scripts/lib/hermetic_check.py",
-    "scripts/lib/structure.py",
+    "scripts/lib/gate_maps.py",
     "config/registry/tests.json",
     "scripts/gate-local",
     "contracts/config/registry.v1.json",

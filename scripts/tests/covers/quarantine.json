@@ -8,6 +8,7 @@
     "scripts/lib/train_ownership.py",
     "scripts/lib/train_git.py",
     "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
     "scripts/lib/forge_events.py",
     "scripts/lib/event_contracts.py",
     "scripts/lib/config.py",

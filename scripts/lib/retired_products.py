@@ -10,7 +10,7 @@ from pathlib import Path
 import subprocess
 
 import config
-from gate_areas import glob_match
+from globs import glob_match
 
 
 def check(root):

@@ -26,6 +26,11 @@
       "resources": [],
       "deterministic": false
     },
+    "gate maps": {
+      "needs": [],
+      "resources": [],
+      "deterministic": false
+    },
     "generated drift": {
       "needs": [],
       "resources": [],

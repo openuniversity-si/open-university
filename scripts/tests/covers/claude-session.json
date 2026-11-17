@@ -37,6 +37,7 @@
     "scripts/lib/gate-hooks/tier.sh",
     "scripts/lib/gate-isolation.sh",
     "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
     "scripts/lib/gate_carry.py",
     "scripts/lib/gate_classify.py",
     "scripts/lib/gate_policy.py",

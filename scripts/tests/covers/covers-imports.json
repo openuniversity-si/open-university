@@ -7,6 +7,7 @@
     "scripts/tests/*.test.sh",
     "scripts/tests/*.py",
     "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
     "infra/service/tower_infra/*.py"
   ]
 }

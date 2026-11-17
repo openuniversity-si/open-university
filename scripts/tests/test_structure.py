@@ -594,7 +594,7 @@ class TreeCache(unittest.TestCase):
             self.assertEqual(structure.source_analysis_inputs(self.root, files), set(files) - {'docs/prose.md'})
 
     def test_source_diagnostics_reuse_retains_all_errors(self):
-        failing = [[['source error'], []] for _ in ('config', 'literals', 'units', 'vendors', 'hermetic', 'hygiene')]
+        failing = [[['source error'], []] for _ in ('config', 'literals', 'units', 'vendors', 'hygiene')]
         with patch.object(structure, 'source_analysis_key', return_value='source-key'), \
                 patch.object(structure.python_source, 'checks', return_value=failing) as checks:
             first = structure.source_checks(self.root, 'HEAD', [])

@@ -6,11 +6,13 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 import config  # noqa: E402
 import test_orphans  # noqa: E402
+import gate_maps  # noqa: E402
 
 COPIED = ('contracts/config/registry.v1.json', 'contracts/events/config.changed.v1.json', 'config/registry/config.json',
           'config/registry/test-orphans.json')
@@ -177,6 +179,37 @@ class Cli(unittest.TestCase):
                 (root / 'scripts/tests/test_lost.py').write_text('')
                 self.assertEqual(test_orphans.main(['--root', str(root)]), 1)
             self.assertIn('ERROR scripts/tests/test_lost.py: run by no wrapper', out.getvalue())
+
+
+class GateMaps(unittest.TestCase):
+    """D-322: the gate's "gate maps" stage runs area coverage, test orphans and the hermetic check, not the structure check."""
+
+    def patched(self, areas=(), orphans=(), hermetic=((), ())):
+        return (patch.object(gate_maps.gate_areas, 'coverage_errors', return_value=list(areas)),
+                patch.object(gate_maps.test_orphans, 'check', return_value=list(orphans)),
+                patch.object(gate_maps.hermetic_check, 'check', return_value=hermetic))
+
+    def test_check_joins_the_three_checks_and_passes_the_base_to_the_hermetic_one(self):
+        areas, orphans, hermetic = self.patched(['a: no area'], ['t: run by no wrapper'], (['h: wall_clock'], ['w']))
+        with areas, orphans, hermetic as judged:
+            self.assertEqual(gate_maps.check('/repo', 'BASE'),
+                             (['a: no area', 't: run by no wrapper', 'h: wall_clock'], ['w']))
+        judged.assert_called_once_with('/repo', 'BASE')
+
+    def test_the_cli_prints_fail_lines_and_exits_on_an_error(self):
+        for found, code in ((['a: no area'], 1), ([], 0)):
+            areas, orphans, hermetic = self.patched(found)
+            out = io.StringIO()
+            with areas, orphans, hermetic, contextlib.redirect_stdout(out):
+                self.assertEqual(gate_maps.main(['check', '--root', '/repo', '--base', 'B']), code)
+            self.assertEqual([line for line in out.getvalue().splitlines() if line.startswith('FAIL ')],
+                             ['FAIL ' + line for line in found])
+            self.assertIn(f'gate maps (against B): {len(found)} error(s), 0 warning(s)', out.getvalue())
+
+    def test_the_structure_check_runs_none_of_them(self):
+        source = (ROOT / 'scripts/lib/structure.py').read_text()
+        for name in ('gate_areas', 'test_orphans', 'hermetic_check'):
+            self.assertNotIn(f'import {name}', source)
 
 
 if __name__ == '__main__':

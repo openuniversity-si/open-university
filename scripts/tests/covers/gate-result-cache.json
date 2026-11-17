@@ -12,6 +12,7 @@
     "config/registry/toolchain.json",
     "scripts/lib/adapters/storage*.py",
     "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
     "scripts/lib/gate_keys.py",
     "scripts/lib/toolchain_manifest.py",
     "scripts/tests/test_toolchain_pins.py",

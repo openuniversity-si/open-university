@@ -6,6 +6,7 @@
     "secret scan (tree)",
     "structure check",
     "production guard",
+    "gate maps",
     "generated drift",
     "schema compat",
     "secret scan (history)",
@@ -17,6 +18,7 @@
     "secret scan (tree)",
     "structure check",
     "production guard",
+    "gate maps",
     "generated drift",
     "schema compat",
     "secret scan (history)"

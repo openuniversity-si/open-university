@@ -1,0 +1,17 @@
+{
+  "id": "STD-gate-maps",
+  "statement": "Every tracked path belongs to an area of the gate's map (D-106), every Python test is run by exactly one wrapper (TX25) and no test reads the wall clock, an unseeded random source or a host (H1): the gate's gate maps stage refuses a change that breaks one.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "gate-stage",
+    "ref": "gate maps"
+  },
+  "basis": [
+    "D-106",
+    "D-322"
+  ]
+}

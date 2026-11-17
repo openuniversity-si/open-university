@@ -17,6 +17,6 @@
     "engine-events": "^1"
   },
   "realizes": [
-    "ARC-gate"
+    "ARC-config"
   ]
 }

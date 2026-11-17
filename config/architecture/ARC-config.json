@@ -2,7 +2,7 @@
   "id": "ARC-config",
   "kind": "component",
   "name": "Configuration",
-  "statement": "The configuration registry (one file per key, its readers checked), its generator and types, the literal census and the vendor ports.",
+  "statement": "The configuration registry (one file per key, its readers checked), its generator and types, the literal census, the vendor ports and the exception regime (its recorded state and the question every lock asks, D-260).",
   "state": "active",
   "owner": "administration",
   "satisfies": [

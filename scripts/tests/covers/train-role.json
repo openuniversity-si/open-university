@@ -15,6 +15,7 @@
     "contracts/events/*.json",
     "scripts/lib/train_ownership.py",
     "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
     "scripts/lib/quarantine.py",
     "config/registry/quarantine.json",
     "scripts/lib/train_queue.py",

@@ -4,6 +4,7 @@
     "scripts/tests/retired-products.test.sh",
     "scripts/tests/test_retired_products*.py",
     "scripts/lib/retired_products.py",
+    "scripts/lib/globs.py",
     "config/registry/structure.json",
     "config/registry/structure/**"
   ]

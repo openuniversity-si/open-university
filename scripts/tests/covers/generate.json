@@ -15,6 +15,7 @@
     "scripts/lib/units.py",
     "scripts/lib/generate_registry.py",
     "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
     "docs/programs/fluxo-amplo/plan.md",
     "docs/process/briefs/fluxo-amplo/*.md",
     "docs/process/lane.md",
