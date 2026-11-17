@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-gate-infra-py-metadata-of",
+  "site": "scripts/lib/gate_infra.py::metadata_of",
+  "class": "dormant",
+  "reason": "The AWS gate's metadata reader, stopped (AGENTS.md); nothing outside gate_infra.py calls it."
+}

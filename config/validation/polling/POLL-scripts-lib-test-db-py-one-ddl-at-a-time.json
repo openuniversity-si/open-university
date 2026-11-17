@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-test-db-py-one-ddl-at-a-time",
+  "site": "scripts/lib/test_db.py::_one_ddl_at_a_time",
+  "class": "test-infra",
+  "reason": "The test database's DDL lock between parallel tests; the engine in operation never runs it."
+}

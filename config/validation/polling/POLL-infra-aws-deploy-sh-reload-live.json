@@ -1,0 +1,7 @@
+{
+  "id": "POLL-infra-aws-deploy-sh-reload-live",
+  "site": "infra/aws/deploy.sh::reload_live",
+  "class": "state-wait",
+  "reason": "Reads the live service's reload on an interval.",
+  "replace_with": "aws ecs wait services-stable"
+}

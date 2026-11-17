@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-gate-infra-py-http",
+  "site": "scripts/lib/gate_infra.py::http",
+  "class": "dormant",
+  "reason": "The AWS gate's client port, stopped (AGENTS.md); used only by the gate_infra functions above."
+}

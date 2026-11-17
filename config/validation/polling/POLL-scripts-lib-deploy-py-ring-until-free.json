@@ -1,0 +1,7 @@
+{
+  "id": "POLL-scripts-lib-deploy-py-ring-until-free",
+  "site": "scripts/lib/deploy.py::ring_until_free",
+  "class": "state-wait",
+  "reason": "On a 409 from the deploy's doorbell, rings again every interval until a build starts (deploy-doorbell.yml, deploy.py ring).",
+  "replace_with": "the deploy service queueing the ring and answering when the build starts"
+}

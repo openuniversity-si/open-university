@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-forge-git-ref-py-append",
+  "site": "scripts/lib/forge_git_ref.py::append",
+  "class": "backoff",
+  "reason": "Retries an append that lost a compare-and-swap race, with a backoff."
+}

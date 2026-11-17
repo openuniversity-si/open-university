@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-gate-infra-py-judge",
+  "site": "scripts/lib/gate_infra.py::judge",
+  "class": "dormant",
+  "reason": "The AWS gate's judging client, stopped (AGENTS.md); nothing outside gate_infra.py calls it."
+}

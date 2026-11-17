@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-merge-train-py-ready",
+  "site": "scripts/lib/merge_train.py::ready",
+  "class": "dormant",
+  "reason": "The merge train, stopped until the VM is resized (AGENTS.md, delivery flow)."
+}

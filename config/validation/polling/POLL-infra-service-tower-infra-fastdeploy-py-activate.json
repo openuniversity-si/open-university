@@ -1,0 +1,7 @@
+{
+  "id": "POLL-infra-service-tower-infra-fastdeploy-py-activate",
+  "site": "infra/service/tower_infra/fastdeploy.py::activate",
+  "class": "state-wait",
+  "reason": "Waits on an interval for the Lambda's new version to become active.",
+  "replace_with": "the Lambda waiter or an EventBridge event on the function's state"
+}

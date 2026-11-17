@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-forge-control-py-check-run",
+  "site": "scripts/lib/forge_control.py::check_run",
+  "class": "dormant",
+  "reason": "The Origin forge's check run, not reached by verify-commit or the deploy (D-314)."
+}

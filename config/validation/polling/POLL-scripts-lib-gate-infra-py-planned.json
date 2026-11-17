@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-gate-infra-py-planned",
+  "site": "scripts/lib/gate_infra.py::_planned",
+  "class": "dormant",
+  "reason": "The AWS gate's client, stopped (AGENTS.md); nothing outside gate_infra.py calls it."
+}

@@ -1,0 +1,7 @@
+{
+  "id": "POLL-scripts-deploy-smoke-check",
+  "site": "scripts/deploy-smoke::check",
+  "class": "state-wait",
+  "reason": "Retries a deployed endpoint until it answers as expected or the tries end: a wait on the service's readiness.",
+  "replace_with": "the deploy's own health signal once the service is ready"
+}

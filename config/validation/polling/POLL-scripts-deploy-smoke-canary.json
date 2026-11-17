@@ -1,0 +1,7 @@
+{
+  "id": "POLL-scripts-deploy-smoke-canary",
+  "site": "scripts/deploy-smoke::canary",
+  "class": "state-wait",
+  "reason": "Retries the canary request on an interval until it passes or the tries end.",
+  "replace_with": "the deploy's own health signal once the service is ready"
+}

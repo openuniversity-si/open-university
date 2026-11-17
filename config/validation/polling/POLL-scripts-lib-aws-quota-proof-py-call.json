@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-aws-quota-proof-py-call",
+  "site": "scripts/lib/aws_quota_proof.py::call",
+  "class": "backoff",
+  "reason": "Retries a failed call with an exponential pause."
+}

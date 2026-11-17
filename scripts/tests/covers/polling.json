@@ -1,0 +1,17 @@
+{
+  "script": "scripts/tests/polling.test.sh",
+  "covers": [
+    "scripts/tests/polling.test.sh",
+    "scripts/tests/test_polling.py",
+    "scripts/lib/model.py",
+    "scripts/lib/json_schema.py",
+    "contracts/model/polling.v1.json",
+    "config/validation/**",
+    "scripts/**/*.py",
+    "scripts/**/*.sh",
+    "scripts/*",
+    "infra/**/*.py",
+    "infra/**/*.sh",
+    "services/**/*.py"
+  ]
+}

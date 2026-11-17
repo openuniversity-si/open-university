@@ -1,0 +1,7 @@
+{
+  "id": "POLL-scripts-lib-deploy-py-queue",
+  "site": "scripts/lib/deploy.py::queue",
+  "class": "state-wait",
+  "reason": "The doorbell workflow's merge_group job rings prepare and waits for main to move before ringing landed (deploy-doorbell.yml runs it on every queue entry).",
+  "replace_with": "the push event on main, a second workflow job on push instead of a wait"
+}

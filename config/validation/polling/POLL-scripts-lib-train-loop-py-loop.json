@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-train-loop-py-loop",
+  "site": "scripts/lib/train_loop.py::loop",
+  "class": "dormant",
+  "reason": "The merge train's loop, stopped (AGENTS.md, delivery flow)."
+}

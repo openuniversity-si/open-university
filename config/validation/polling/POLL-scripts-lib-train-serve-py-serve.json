@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-train-serve-py-serve",
+  "site": "scripts/lib/train_serve.py::serve",
+  "class": "dormant",
+  "reason": "The merge train's service, stopped (AGENTS.md, delivery flow)."
+}

@@ -1,0 +1,7 @@
+{
+  "id": "POLL-scripts-lib-fork-server-py-started",
+  "site": "scripts/lib/fork_server.py::started",
+  "class": "state-wait",
+  "reason": "Waits on an interval for the fork server's READY file after starting it (the gate's test cache, gate_test_cache.py).",
+  "replace_with": "the server writing READY on a pipe the starter blocks on"
+}

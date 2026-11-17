@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-deliver-py-merged-by-service",
+  "site": "scripts/lib/deliver.py::_merged_by_service",
+  "class": "dormant",
+  "reason": "The Origin-era delivery (scripts/deliver), not in the flow since D-314; verify-commit and the deploy do not reach it."
+}

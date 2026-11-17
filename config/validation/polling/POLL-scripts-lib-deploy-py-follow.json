@@ -1,0 +1,7 @@
+{
+  "id": "POLL-scripts-lib-deploy-py-follow",
+  "site": "scripts/lib/deploy.py::follow",
+  "class": "state-wait",
+  "reason": "scripts/deploy status --follow reads the deploy's status on an interval until it ends.",
+  "replace_with": "a stream of the deploy's events, or the deploy notifying the session"
+}

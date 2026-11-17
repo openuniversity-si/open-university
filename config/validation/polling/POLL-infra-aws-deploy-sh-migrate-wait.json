@@ -1,0 +1,7 @@
+{
+  "id": "POLL-infra-aws-deploy-sh-migrate-wait",
+  "site": "infra/aws/deploy.sh::migrate_wait",
+  "class": "state-wait",
+  "reason": "Reads the migration task's state on an interval.",
+  "replace_with": "aws ecs wait tasks-stopped, or the task's state-change event"
+}

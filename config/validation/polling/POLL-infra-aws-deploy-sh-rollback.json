@@ -1,0 +1,7 @@
+{
+  "id": "POLL-infra-aws-deploy-sh-rollback",
+  "site": "infra/aws/deploy.sh::rollback",
+  "class": "state-wait",
+  "reason": "Reads the rollback's progress on an interval.",
+  "replace_with": "aws cloudformation wait, or the stack's EventBridge events"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-deliver-read-key",
+  "site": "scripts/deliver::read_key",
+  "class": "backoff",
+  "reason": "Retries a fetch that lost the ref-lock race to another lane, up to four times."
+}
