@@ -706,6 +706,15 @@ def measured(body, found, root, today):
         start = (date.fromisoformat(today) - timedelta(days=window['size'])).isoformat()
         dates = [day for _, day in _merges(root)]
         return (len(incidents(root, measure['incident'], start, today)), bool(dates) and min(dates) <= start)
+    if measure['kind'] == 'run-durations':
+        import runs
+        from datetime import date
+        recorded = runs.read(root, measure['workflow'])
+        if not recorded or not recorded['runs']:
+            return None, False
+        fresh = (date.fromisoformat(today) - date.fromisoformat(recorded['at'][:len('2026-01-01')])).days <= measure['max_age_days']
+        values = [run['seconds'] for run in recorded['runs']]
+        return runs.percentile(values, measure['percentile']), fresh and len(values) >= measure['min_runs']
     if measure['kind'] == 'all-met':
         states = [found.get(ident, {}).get('state', 'defined') for ident in measure['of']]
         missed = sum(1 for state in states if state == 'not-met')

@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/runs.test.sh",
+  "covers": [
+    "scripts/tests/runs.test.sh",
+    "scripts/tests/test_runs.py",
+    "scripts/runs",
+    "scripts/lib/runs.py",
+    "scripts/lib/model.py",
+    "config/validation/**",
+    "contracts/model/validation.v1.json"
+  ]
+}
