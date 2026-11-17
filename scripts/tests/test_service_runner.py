@@ -205,8 +205,10 @@ class Jobs(Fixture):
         self.assertFalse(hasattr(self.runner, 'deploy'))
         command = service_runner.Executor(self.root, self.clock, {'name': 'vm', 'kind': 'vm'}).command(
             {'kind': service_runner.DEPLOY})
-        self.assertEqual(command, [sys.executable, str(service_runner.ROOT / 'scripts/lib/service_deploy.py'),
-                                   '--root', str(self.root)])
+        self.assertEqual(command, [sys.executable, '-c', service_runner.RETIRED_DEPLOY])
+        done = subprocess.run(command, capture_output=True, text=True)
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn('retired (D-323)', done.stdout)
 
     def test_a_runner_that_starts_with_a_current_job_reports_it_died_before_it_claims(self):
         head = self.head(PR, HEAD_A)
@@ -326,10 +328,10 @@ class Route(unittest.TestCase):
             self.assertIn(f'{variable}', str(raised.exception))
             self.assertIn('service.token_holders', str(raised.exception))
 
-    def test_the_deploy_token_and_a_proxied_github_token_do_not_block_the_start(self):
+    def test_a_proxied_github_token_does_not_block_the_start(self):
         environ = {key: value for key, value in HELD.items() if key != 'GH_TOKEN'}
         self.assertEqual(service_runner.absent(dict(environ, OU_CREDENTIALS='network'), 'vm'), [])
-        self.assertEqual(service_runner.absent(HELD, 'vm'), [])  # no CLOUDFLARE_API_TOKEN: the deploy says so itself
+        self.assertEqual(service_runner.absent(HELD, 'vm'), [])
 
     def test_a_refused_token_names_the_secret_it_must_equal_and_its_holder(self):
         sentence = service_runner.refused(401)

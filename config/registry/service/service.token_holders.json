@@ -22,13 +22,6 @@
       "kinds": ["vm", "box", "actions", "session", "other"],
       "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
       "used_for": "git and the GitHub REST client of the gate and the train"
-    },
-    {
-      "variable": "CLOUDFLARE_API_TOKEN",
-      "equals": "a Cloudflare API token with Workers Scripts:Edit on the account of services/control-plane/wrangler.toml",
-      "kinds": ["vm"],
-      "holder": "~/.config/tower/runner.env on the runner (EnvironmentFile of tower-runner.service)",
-      "used_for": "the control-plane deploy (scripts/lib/service_deploy.py uploads the Worker through the Cloudflare API)"
     }
   ],
   "items": {

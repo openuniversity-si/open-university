@@ -93,7 +93,7 @@ class Upload(unittest.TestCase):
 
     def test_the_gate_builds_only_for_a_fast_lambda_diff(self):
         self.assertFalse(lp.gate(ROOT, 'a', 'b', FakeStore(), paths=['docs/x.md', 'scripts/y.py'])['built'])
-        self.assertFalse(lp.gate(ROOT, 'a', 'b', FakeStore(), paths=['services/control-plane/src/worker.js'])['built'])
+        self.assertFalse(lp.gate(ROOT, 'a', 'b', FakeStore(), paths=['infra/service/tower_infra/webhooks.py'])['built'])
         store = FakeStore()
         done = lp.gate(ROOT, 'a', 'b', store, paths=['infra/service/tower_infra/ingress.py'])
         self.assertTrue(done['built'] and done['published'])

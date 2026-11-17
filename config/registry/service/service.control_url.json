@@ -2,11 +2,10 @@
   "type": "string",
   "default": "https://forge-webhook.example.workers.dev",
   "x-unit": "url",
-  "description": "Base URL of the control plane (the Cloudflare Worker forge-webhook, services/control-plane): /status, /healthz, /readyz, /metrics, /events, the runner and admin calls.",
+  "description": "Base URL of the control plane (the Cloudflare Worker forge-webhook, retired with D-323: no implementation answers it today): /status, /healthz, /readyz, /metrics, /events, the runner and admin calls.",
   "x-readers": [
     "scripts/lib/forge_control.py",
     "scripts/lib/service.py",
-    "scripts/lib/service_deploy.py",
     "scripts/lib/service_runner.py",
     "scripts/lib/service_status.py"
   ],

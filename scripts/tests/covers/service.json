@@ -22,7 +22,6 @@
     "scripts/lib/config_cli.py",
     "scripts/lib/gate_workflows.py",
     "services/runner/**",
-    "config/registry/gate.json",
-    "services/control-plane/wrangler.toml"
+    "config/registry/gate.json"
   ]
 }

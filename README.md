@@ -20,8 +20,7 @@ from this repository (`apps/web/deploy/`).
 | `contracts/` | JSON contracts of events, units and the registry, and their generated types |
 | `apps/web/` | Open University's site (D-319): its own Next.js app and lockfile, and `deploy/`, which builds its Lambda image ([apps/web/README.md](apps/web/README.md)) |
 | `units/` | The engine's unit manifests |
-| `services/runner/` | The Origin-era runner, kept in the tree and stopped (D-314); `services/runner/github/` stages the GitHub workflows |
-| `services/control-plane/` | The Origin-era control plane (a Cloudflare Worker), kept in the tree and not part of the GitHub flow |
+| `services/runner/` | The Origin-era runner, kept in the tree and stopped (D-314); its control plane, a Cloudflare Worker, was retired (D-323); `services/runner/github/` stages the GitHub workflows |
 | `docs/` | Decisions, process, architecture, operations, and the units' records |
 
 ## Local setup

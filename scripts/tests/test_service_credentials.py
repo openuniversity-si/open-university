@@ -31,7 +31,6 @@ class Inventory(unittest.TestCase):
         names = {item['variable'] for item in self.entries}
         self.assertIn(config.get('service.runner_token_env'), names)
         self.assertIn(config.get('forge-events.control_token_env'), names)
-        self.assertIn(config.get('service.deploy_token_env'), names)
         self.assertIn('GH_TOKEN', names)
         self.assertIn('GITHUB_TOKEN', service_credentials.entry('GH_TOKEN')['aliases'])
 
@@ -45,9 +44,6 @@ class Inventory(unittest.TestCase):
         self.assertIn('tower/runner.env', runner['holder'])
         events = service_credentials.entry(config.get('forge-events.control_token_env'))
         self.assertIn('EVENTS_TOKEN', events['equals'])
-
-    def test_only_a_vm_needs_the_deploy_token(self):
-        self.assertEqual(service_credentials.entry(config.get('service.deploy_token_env'))['kinds'], ['vm'])
 
     def test_the_unit_reads_the_holder_the_inventory_names(self):
         unit = (ROOT / 'services' / 'runner' / 'tower-runner.service.tmpl').read_text()
@@ -92,11 +88,12 @@ class Missing(unittest.TestCase):
         self.assertEqual(service_credentials.missing(environ, 'vm'), [])
 
     def test_a_kind_is_judged_on_its_own_entries_only(self):
-        deploy = config.get('service.deploy_token_env')
+        only_vm = {'variable': 'VM_ONLY_TOKEN', 'equals': 'a secret only a VM holds', 'kinds': ['vm'],
+                   'holder': 'the VM', 'used_for': 'a test'}
+        items = self.entries + [only_vm]
         box = full(self.entries, 'box')
-        self.assertNotIn(deploy, box)
-        self.assertEqual(service_credentials.missing(box, 'box'), [])
-        self.assertTrue(any(deploy in sentence for sentence in service_credentials.missing(box, 'vm')))
+        self.assertEqual(service_credentials.missing(box, 'box', items), [])
+        self.assertTrue(any('VM_ONLY_TOKEN' in sentence for sentence in service_credentials.missing(box, 'vm', items)))
 
     def test_injected_entries_replace_the_registry(self):
         entries = [{'variable': 'ONLY_ONE', 'equals': 'a thing', 'kinds': ['vm'], 'holder': 'a file', 'used_for': 'x'}]

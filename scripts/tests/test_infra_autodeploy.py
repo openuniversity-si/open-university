@@ -640,7 +640,7 @@ class SlowPathTests(unittest.TestCase):
         return rig
 
     def test_a_merge_with_only_fast_targets_does_not_ring_and_stays_pending(self):
-        rig = self.rig_with((NEXT, ['services/control-plane/src/core.js', 'docs/x.md']))
+        rig = self.rig_with((NEXT, ['services/runner/github/tower-gate.yml', 'docs/x.md']))
         self.assertEqual(rig.look()[0], 'skip')
         self.assertEqual(rig.rings, [])
         self.assertEqual([kind for kind, _ in rig.db.inserted], [autodeploy.PENDING])

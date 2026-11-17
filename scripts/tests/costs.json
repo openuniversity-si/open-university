@@ -16,7 +16,6 @@
  "scripts/tests/config-port.test.sh": 0.2,
  "scripts/tests/config-readers.test.sh": 0.2,
  "scripts/tests/config.test.sh": 2.5,
- "scripts/tests/control-plane.test.sh": 0.5,
  "scripts/tests/coordinator.test.sh": 2.0,
  "scripts/tests/covers-cost.test.sh": 0.2,
  "scripts/tests/covers-imports.test.sh": 1.9,

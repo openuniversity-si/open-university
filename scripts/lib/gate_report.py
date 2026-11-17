@@ -114,10 +114,6 @@ def ready_hook(verdict, mode, pr, sha, root=None, adapter=None, clock=None, base
     except Exception as error:  # noqa: BLE001 - pr.ready is announced after the gate, never part of its result
         print(f'pr.ready: not emitted ({error})')
         return None
-    if event:
-        # POST /v1/events consumes pr.ready and queues this exact train job before acknowledging the append.
-        # A second git wake or detached train is redundant work and a second job path (D-290/D-291).
-        print('train: pr.ready is the control-plane queue trigger')
     return event
 
 

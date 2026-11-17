@@ -309,10 +309,9 @@ class GateReportHook(Fixture):
         verdict = self.gate.emit('gate.passed', verdict_payload(sha))
         event, printed = run_hook(verdict, 'dev', PR, sha, root=self.root, adapter=self.adapter, clock=FixedClock(),
                                   base='base-ref')
-        self.assertEqual(printed.splitlines(), [f'pr.ready: emitted #{PR} head={pr_ready.short(sha)}',
-                                                'train: pr.ready is the control-plane queue trigger'])
+        self.assertEqual(printed.splitlines(), [f'pr.ready: emitted #{PR} head={pr_ready.short(sha)}'])
         self.assertEqual(event['payload']['evidence'], verdict['event_id'])
-        self.assertEqual(self.started, [], 'the acknowledged journal append already triggers the control-plane job')
+        self.assertEqual(self.started, [], 'pr.ready starts no train: no job path follows it (D-290/D-291)')
 
     def test_a_failed_verdict_is_not_announced(self):
         sha = self.head()

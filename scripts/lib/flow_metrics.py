@@ -53,7 +53,6 @@ LADDER_FACTOR = 10
 GUARD_WINDOW = 5  # merged PRs after a PR in which a rewrite of its lines counts as its rework (--guards)
 CACHE_TTL_S = 60  # F91: how long a window's gate runs, read from the forge, are reused by the next call (lanes and the coordinator call --constraint several times)
 GATE_RUNS_WINDOW = 10  # merged PRs whose gate runs --guards reads when neither --gate-runs nor --prs names a window
-FREE_MARGIN = 0.5  # SEMENTE section 4: the engine's infrastructure uses at most half of each free-plan daily limit
 QUOTA_WINDOW = 10  # merged lanes whose quota per PR --guards reads from the ledger when --quota names no window (F59)
 PR_NUMBER = re.compile(r'^Merge pull request #(\d+)\b|\(#(\d+)\)\s*$')
 
@@ -694,57 +693,6 @@ def read_gate_runs(merges, port, repo, sizes):
         return {'prs': [pr for pr, _sha in merges], 'error': f'{type(error).__name__}: {str(error)[:200]}'}
 
 
-def rows_read(document, limit):
-    """The free-plan guard (VAZÃO F34, SEMENTE section 4): the control plane's storage rows read (its `rows_read`
-    metric, per UTC day, hour and the hour before) against the Free plan's `limit` a day. It warns at FREE_MARGIN of
-    the limit, or when the previous hour's pace over a day would reach it. {'error'} when the meter is absent."""
-    found = {labels.get('window'): (labels, value)
-             for labels, value in ((document or {}).get('metrics') or {}).get('rows_read') or []}
-    if 'day' not in found:
-        return {'error': 'the control plane exposes no rows_read: its Worker predates F34'}
-    day, today = found['day']
-    hour, this_hour = found.get('hour', ({}, 0))
-    previous, previous_hour = found.get('previous_hour', ({}, 0))
-    threshold = limit * FREE_MARGIN
-    pace = previous_hour * round(DAY_S / HOUR_S)
-    warning = None
-    if today >= threshold:
-        warning = 'over half the daily limit'
-    elif pace >= threshold:
-        warning = "the previous hour's pace reaches half the daily limit"
-    since = day.get('since') or ''
-    return {'day': day.get('at'), 'today': today, 'hour': hour.get('at'), 'this_hour': this_hour,
-            'previous_hour': previous_hour, 'pace': pace, 'limit': limit, 'threshold': threshold,
-            'share': today / limit if limit else 0.0, 'warning': warning,
-            'partial_since': since if since[:10] == day.get('at') and not since.endswith('T00') else None}
-
-
-def measured_rows_read(read=None, limit=None):
-    """`rows_read` of the control plane's public GET /status; {'error'} when it cannot be read (down, the quota spent,
-    no network), so the other guards still print."""
-    try:
-        if limit is None:
-            import config
-            limit = config.get('service.free_rows_read_day')
-        if read is None:
-            import service_status
-            read = service_status.Sources(ROOT).control
-        return rows_read(read(), limit)
-    except Exception as error:  # noqa: BLE001 - a measure that cannot be read is reported, never a crash of the guards
-        return {'error': f'{type(error).__name__}: {str(error)[:200]}'}
-
-
-def render_rows_read(row):
-    """The guard's one line."""
-    if 'error' in row:
-        return f"rows read on the control plane: not measured ({row['error']})"
-    since = f", metered since {row['partial_since']}" if row['partial_since'] else ''
-    verdict = f"WARNING: {row['warning']}" if row['warning'] else 'ok'
-    return (f"rows read on the control plane today (UTC {row['day']}{since}): {row['today']:,} of {row['limit']:,} "
-            f"({row['share']:.1%}); this hour {row['this_hour']:,}, previous hour {row['previous_hour']:,} "
-            f"({row['pace']:,} a day at that pace); guard at half the limit ({row['threshold']:,.0f}): {verdict}")
-
-
 def durability(root, base, since, window, zone=ZONE):
     """Share of the integrated commits since `since` rewritten within `window` later integrated commits."""
     shas = [sha for _day, _at, _lane, shas in reversed(envelopes(root, base, since, zone)) for sha in shas]
@@ -923,8 +871,6 @@ def render(data):
         lines.extend(render_gate_runs(data['gate_runs']))
     if 'constraint' not in data and render_batches(data.get('batches')):
         lines.append(render_batches(data['batches']))
-    if 'rows_read' in data:
-        lines.append(render_rows_read(data['rows_read']))
     if 'quota' in data:
         lines.append(render_quota(data['quota']))
     if 'incidents' in data:
@@ -996,7 +942,6 @@ def main(argv=None):
         data['batches'] = batch_log(lock_rows(config.get('delivery.gate_lock_log')))
         data['gate_runs'] = measured_gate_runs(ROOT, args.base, args.since, args.gate_runs or args.prs or GATE_RUNS_WINDOW,
                                                args.tz, sizes=data['batches']['sizes'])
-        data['rows_read'] = measured_rows_read()
     if args.guards or args.quota:
         import config
         data['quota'] = quota(read_ledger(config.get('flow.lanes_ledger')), args.quota or QUOTA_WINDOW)

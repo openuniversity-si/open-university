@@ -1,7 +1,7 @@
 # AGENTS.md — The Tower (read this, not the project doc; Claude loads it via CLAUDE.md)
 
 This repository is the engine of A Torre: the gate, the merge train, the events, the contracts, the configuration
-registry, the script tests, `services/runner` and `services/control-plane`, and the docs. Open University's course site
+registry, the script tests, `services/runner` (its control plane, the Cloudflare Worker, was retired, D-323), and the docs. Open University's course site
 left it (D-105, D-111; archive `567176bb`, D-110) and came back under `apps/web` with a fresh history (D-319): it runs on
 AWS (the Lambda `open-university-web`, RDS `tower-data`) with its media on R2, and its image is built from this
 repository (`apps/web/deploy/`). Its commands run inside `apps/web` (pnpm), never from the engine's `scripts/`.
@@ -25,7 +25,7 @@ current base (`main` on GitHub, D-314), prepare the environment, reconcile merge
 - `scripts/`: the gate (`gate-dev`, `gate-quiet`, `gate-noite`, `gate-local`), the train (`train`), the services (`service`), the checks (`structure-check`, `commit-check`, `schema-compat`), the generators (`generate`) and their libraries in `scripts/lib/`. Script tests: `scripts/tests/<name>.test.sh`, each with its covers manifest in `scripts/tests/covers/`.
 - `config/registry/`: the configuration registry, one file per key (`<owner>/<key>.json`) and each owner's generated aggregate. `contracts/`: the JSON contracts and their generated types.
 - `apps/web/`: Open University's site (Next.js, its own lockfile; `apps/web/README.md`), judged by its own commands in the Torre's workflow and by the engine gate's always stages (gate area `web`, D-319); `apps/web/deploy/` builds its Lambda image.
-- `units/`: the engine's unit manifests. `services/runner` and `services/control-plane`: the runner and the control plane (services).
+- `units/`: the engine's unit manifests. `services/runner`: the runner (services); the control plane Worker was retired (D-323).
 
 ## Commands (run from the repository root)
 - `source scripts/cloud/env.sh` when a command needs the local test database. That file sets non-secret defaults only (`TEST_DATABASE_URL`, `APP_DATABASE_URL_CONTAINER_UNPOOLED`) and `pgtools_start`. It does not read credential files.

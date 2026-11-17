@@ -86,7 +86,7 @@ class TheAwsGateIsGone(unittest.TestCase):
 
     def test_the_origin_era_code_stays_in_the_tree(self):
         for path in ('scripts/lib/forge_origin.py', 'scripts/deliver', 'scripts/train', 'scripts/service',
-                     'services/runner', 'services/control-plane'):
+                     'services/runner'):
             self.assertTrue((ROOT / path).exists(), path)
 
 

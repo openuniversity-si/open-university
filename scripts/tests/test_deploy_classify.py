@@ -59,11 +59,6 @@ class ClassifyPath(unittest.TestCase):
                 held.setdefault(module, set()).add(names[function])
         self.assertEqual({module: set(lambdas) for module, lambdas in dc.LAMBDA_MODULES.items()}, held)
 
-    def test_worker(self):
-        self.assertEqual(t('services/control-plane/src/core.js'), ['fast:worker'])
-        self.assertEqual(t('services/control-plane/wrangler.toml'), ['fast:worker'])
-        self.assertEqual(t('services/control-plane/test/core.test.mjs'), ['none'])
-
     def test_data_and_none(self):
         self.assertEqual(t('config/registry/deploy/deploy.auto.json'), ['data-only'])
         for path in ('docs/operations/aws.md', 'scripts/deliver', 'scripts/tests/x.py', 'units/a.md', 'README.md'):
@@ -78,7 +73,6 @@ class Classify(unittest.TestCase):
     def test_routes(self):
         self.assertEqual(dc.classify(['docs/a.md'])['route'], 'none')
         self.assertEqual(dc.classify(['config/registry/gate.json', 'docs/a.md'])['route'], 'data-only')
-        self.assertEqual(dc.classify(['services/control-plane/src/core.js'])['route'], 'fast')
         self.assertEqual(dc.classify(['infra/aws/stacks/50-runner.json'])['route'], 'slow')
         self.assertEqual(dc.classify(['infra/service/tower_infra/ingress.py'])['route'], 'both')
 
@@ -109,7 +103,7 @@ class CodeOnly(unittest.TestCase):
                       ['infra/service/tower_infra/runner.py', 'infra/service/tower_infra/port.py', 'docs/x.md',
                        'scripts/tests/test_x.py', 'config/registry/deploy/deploy.auto.json'],
                       ['infra/service/tower_infra/sub/data.json'],  # the bundle carries the whole package
-                      ['infra/service/tower_infra/ingress.py', 'services/control-plane/src/core.js']):  # fast swaps too
+                      ['infra/service/tower_infra/ingress.py', 'infra/service/tower_infra/port.py']):  # fast swaps too
             self.assertTrue(dc.code_only(paths)[0], paths)
 
     def test_the_port_stack_may_change_beside_the_code(self):
@@ -165,7 +159,7 @@ class CodeOnly(unittest.TestCase):
         self.assertEqual(dc.IMAGE_RUN, tuple(dc.CODE_ONLY + name for name in ('dbinit.py', 'supervisor.py', 'restore_check.py', 'pooler.py')))
 
     def test_a_head_without_an_image_target_has_nothing_to_prewarm(self):
-        for paths in ([], ['docs/x.md'], ['services/control-plane/src/core.js'], ['config/registry/x/y.json']):
+        for paths in ([], ['docs/x.md'], ['services/runner/github/tower-gate.yml'], ['config/registry/x/y.json']):
             self.assertEqual(dc.code_only(paths), (False, 'no service/runner image target'), paths)
 
     def test_the_rule_names_what_the_bundle_carries(self):
