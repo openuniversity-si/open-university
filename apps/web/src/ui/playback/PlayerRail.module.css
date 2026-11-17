@@ -1,0 +1,184 @@
+.panel {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--tower-player-length-24) var(--tower-player-length-19) 0;
+  border: var(--tower-player-length-1) solid var(--tower-hairline);
+  border-bottom: 0;
+  border-radius: 0;
+  background: var(--tower-surface-raised);
+}
+
+.header {
+  position: relative;
+}
+
+.mobile-bar {
+  margin-top: var(--tower-player-length-12);
+}
+
+.progress {
+  display: none;
+}
+
+.header h2 {
+  margin: 0;
+  height: var(--tower-player-length-23);
+  font-size: var(--tower-player-length-22);
+  font-weight: var(--tower-player-weight-700);
+  line-height: var(--tower-player-length-23-1);
+  letter-spacing: var(--tower-player-length-negative-0-11);
+}
+
+.header p,
+.section p {
+  margin: var(--tower-player-length-2) 0 0;
+  color: var(--tower-muted);
+  font-size: var(--tower-player-length-12);
+  font-weight: var(--tower-player-weight-500);
+  height: var(--tower-player-length-16);
+  line-height: var(--tower-player-length-15-6);
+  letter-spacing: var(--tower-player-length-0-24);
+}
+
+.desktop,
+.section {
+  display: none;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-player-length-4);
+  margin-top: var(--tower-player-length-12);
+}
+
+@media (width >= 1024px) {
+  .panel {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    right: var(--tower-player-length-32);
+    bottom: var(--tower-player-length-8);
+    width: var(--tower-player-length-380);
+    min-height: 0;
+    padding: var(--tower-player-length-20) var(--tower-player-length-16) var(--tower-player-length-8);
+    border-bottom: var(--tower-player-length-1) solid var(--tower-hairline);
+    border-radius: var(--tower-player-length-12);
+  }
+
+  .desktop,
+  .section {
+    display: block;
+  }
+
+  .section p {
+    margin-top: var(--tower-player-length-4);
+  }
+
+  /* Signed in (53:1518): Course progress row, 4 px bar, then the divider moves below it. */
+  .progress {
+    position: relative;
+    display: block;
+    margin-top: var(--tower-player-length-14);
+  }
+
+  .progress p {
+    display: flex;
+    justify-content: space-between;
+    margin: 0;
+    color: var(--tower-muted);
+    font-size: var(--tower-player-length-12);
+    font-weight: var(--tower-player-weight-500);
+    line-height: var(--tower-player-length-16);
+    letter-spacing: var(--tower-player-length-0-24);
+  }
+
+  .progress p span:last-child {
+    color: var(--tower-ink);
+    white-space: pre;
+  }
+
+  .progress .bar {
+    margin-top: var(--tower-player-length-8);
+  }
+
+  .progress::after,
+  .header::after {
+    position: absolute;
+    right: 0;
+    bottom: var(--tower-player-length-negative-15);
+    left: 0;
+    height: var(--tower-player-length-1);
+    background: var(--tower-hairline);
+    content: "";
+  }
+
+  .panel:has(.progress) .header::after {
+    content: none;
+  }
+
+  .panel .mobile-bar {
+    display: none;
+  }
+
+  .mobile {
+    display: none;
+  }
+
+  .header {
+    position: relative;
+  }
+
+  .header p {
+    margin-top: var(--tower-player-length-4);
+  }
+
+  .section {
+    margin-top: var(--tower-player-length-29);
+  }
+
+  .section h3 {
+    margin: 0;
+    font-size: var(--tower-player-length-16);
+    font-weight: var(--tower-player-weight-600);
+    line-height: var(--tower-player-length-21);
+  }
+
+  /* Room for the rows' focus ring inside the scroller; rows and the visible bottom edge stay put. */
+  .list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: calc(var(--tower-player-length-14) - var(--tower-focus-ring-outset)) calc(-1 * var(--tower-focus-ring-outset)) 0;
+    padding: var(--tower-focus-ring-outset);
+    scroll-padding-block: var(--tower-focus-ring-outset);
+    scrollbar-width: none;
+  }
+}
+
+/* Player rows. The same declarations the lesson list used for its player context, now owned by the rail. */
+.player-row {
+  padding-right: var(--tower-player-length-12);
+}
+
+.player-row-selected {
+  box-shadow: var(--tower-el-inset-ring) var(--tower-player-length-1) var(--tower-ink);
+}
+
+.player-copy {
+  align-self: auto;
+  margin: 0;
+}
+
+.player-meta {
+  white-space: pre-wrap;
+}
+
+.player-preceding-thumb {
+  opacity: var(--tower-el-opacity-dim);
+}
+
+.player-preceding-title {
+  color: var(--tower-muted);
+}

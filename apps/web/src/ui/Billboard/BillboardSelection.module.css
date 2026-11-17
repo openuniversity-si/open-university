@@ -1,0 +1,15 @@
+.rails {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-rail-stack-gap-mobile);
+  padding-top: var(--tower-home-section-gap);
+}
+
+@media (width >= 1024px) {
+  .rails {
+    gap: var(--tower-rail-stack-gap-desktop);
+    padding-top: 0;
+    padding-bottom: var(--tower-gap-tight);
+  }
+}

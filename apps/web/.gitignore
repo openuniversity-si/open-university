@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js / build output
+.next/
+.next-test/
+.next-production/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Test output
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.reports/
+fidelity/report/
+.fidelity-cache/
+
+# Env files (never commit secrets)
+.env*
+!.env.example
+
+# OS / editor
+.DS_Store
+*.log
+
+# Media lives in R2. Only brand assets and UI icons may be committed.
+*.[pP][nN][gG]
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[gG][iI][fF]
+*.[wW][eE][bB][pP]
+*.[aA][vV][iI][fF]
+*.[bB][mM][pP]
+*.[tT][iI][fF]
+*.[tT][iI][fF][fF]
+*.[iI][cC][oO]
+!/public/brand/logo.*
+!/public/brand/wordmark.*
+!/public/brand/og.*
+!/public/icons/**
+.media-migration/
+
+# Local Python helpers and per-machine records (site-health reports)
+__pycache__/
+.gate/

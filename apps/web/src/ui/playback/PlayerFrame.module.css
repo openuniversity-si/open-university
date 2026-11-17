@@ -1,0 +1,179 @@
+.frame {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: var(--tower-el-frame-wide);
+  height: round(nearest, calc(100cqw * var(--tower-el-frame-tall)), var(--tower-player-length-1));
+  background: var(--tower-surface-raised);
+  color: var(--tower-ink);
+  border-radius: var(--tower-player-length-2);
+}
+
+.poster {
+  position: absolute;
+  inset: 0;
+}
+
+.poster img,
+.poster [data-media-placeholder] {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: var(--tower-el-object-fit-cover);
+}
+
+/*
+ * The opaque poster is the picture until the embed starts (it played, or the play was handed to YouTube's
+ * controls), so YouTube's own idle/loading screen never shows; from then on the embed and its controls are.
+ */
+.media {
+  position: absolute;
+  inset: 0;
+}
+
+.frame:not([data-started="true"]) .media,
+.frame[data-started="true"] .poster {
+  visibility: hidden;
+}
+
+.media iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/*
+ * Play in the centre of the poster. The anchor does the positioning so the glass keeps its own
+ * `position: relative` (glass.css); it lets taps through everywhere but on the button.
+ */
+.anchor {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.play {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  pointer-events: auto;
+  border: 0;
+  cursor: pointer;
+}
+
+.play svg {
+  position: relative;
+  width: var(--tower-player-length-10-4);
+  height: var(--tower-player-length-10-4);
+}
+
+/* Icon/Play sits right of centre in the glass (optical centring: +0.8 px mobile, +1.35 px desktop). */
+.play .nudge {
+  left: var(--tower-player-length-0-8);
+}
+
+/* Icon/Play follows the .tower-play size switch (glass.css). */
+@media (width >= 768px) {
+  .play svg {
+    width: var(--tower-player-length-17-3);
+    height: var(--tower-player-length-17-3);
+  }
+
+  .play .nudge {
+    left: var(--tower-player-length-1-35);
+  }
+}
+
+.loading,
+.error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+}
+
+.loading svg {
+  width: var(--tower-player-length-32);
+  height: var(--tower-player-length-32);
+  overflow: visible;
+  fill: none;
+  stroke-width: var(--tower-player-length-2);
+}
+
+.ring {
+  stroke: var(--tower-hairline);
+}
+
+.arc {
+  stroke: var(--tower-accent);
+  stroke-dasharray: var(--tower-el-spinner-dash);
+  stroke-linecap: round;
+  transform-origin: center;
+  animation: spin var(--tower-el-spinner-duration) var(--tower-el-spinner-timing) infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arc {
+    animation: none;
+  }
+}
+
+.error {
+  background: var(--tower-veil-panel);
+  color: var(--tower-ink);
+}
+
+.error p {
+  margin: 0;
+  font-size: var(--tower-player-length-13);
+  font-weight: var(--tower-player-weight-400);
+  line-height: var(--tower-player-length-18-85);
+}
+
+.error button {
+  height: var(--tower-player-length-44);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tower-player-retry-ink);
+  font: inherit;
+  font-size: var(--tower-player-length-14);
+  font-weight: var(--tower-player-weight-500);
+  line-height: var(--tower-player-length-20);
+  cursor: pointer;
+}
+
+@media (width >= 1024px) {
+  .frame {
+    border-radius: var(--tower-player-length-12);
+  }
+
+  .frame::after {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: var(--tower-el-inset-ring) var(--tower-player-length-1) var(--tower-hairline);
+    pointer-events: none;
+    content: "";
+  }
+
+  .loading svg {
+    width: var(--tower-player-length-40);
+    height: var(--tower-player-length-40);
+  }
+
+  .error p {
+    font-size: var(--tower-player-length-14);
+    line-height: var(--tower-player-length-20-3);
+  }
+}

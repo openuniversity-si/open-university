@@ -1,0 +1,26 @@
+.about {
+  display: none;
+}
+
+@media (width >= 1024px) {
+  .about {
+    display: block;
+    margin-top: var(--tower-player-length-20);
+  }
+
+  .about h2 {
+    margin: 0;
+    color: var(--tower-ink);
+    font-size: var(--tower-player-length-16);
+    font-weight: var(--tower-player-weight-600);
+    line-height: var(--tower-player-length-21);
+  }
+
+  .about p {
+    max-width: var(--tower-player-length-720);
+    margin: var(--tower-player-length-8) 0 0;
+    color: var(--tower-muted);
+    font-size: var(--tower-player-length-15);
+    line-height: var(--tower-player-length-21-75);
+  }
+}

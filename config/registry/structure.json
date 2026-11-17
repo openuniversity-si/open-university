@@ -196,17 +196,19 @@
     },
     "structure.raster_allowed": {
       "type": "array",
-      "default": [],
+      "default": [
+        "^apps/web/public/(brand|icons)/[a-z0-9-]+\\.(png|jpg|ico)$"
+      ],
       "uniqueItems": true,
       "items": {
         "type": "string"
       },
       "x-unit": "count",
-      "description": "Regular expressions of the tracked paths a raster image may have. Empty since Open University left (OU-DECOUPLE F4): no image is tracked.",
+      "description": "Regular expressions of the tracked paths a raster image may have: the site's brand marks and icons (D-319), which Next.js serves as static files from apps/web/public; every other image lives in object storage (R2), never in git.",
       "x-readers": [
         "scripts/lib/repo_hygiene.py"
       ],
-      "x-source": "D-105 (OU-DECOUPLE F2)"
+      "x-source": "D-105 (OU-DECOUPLE F2); D-319"
     },
     "structure.raster_pattern": {
       "type": "string",

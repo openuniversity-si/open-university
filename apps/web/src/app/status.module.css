@@ -1,0 +1,26 @@
+/* 404/500 (D6) and the loading state sit below the fixed TopNav, inside the layout gutters. */
+.page {
+  padding: calc(var(--tower-header-height-mobile) + var(--tower-gap-loose)) var(--tower-layout-gutter-mobile) 0;
+}
+
+.rail {
+  display: flex;
+  gap: var(--tower-card-gap-mobile);
+  overflow: hidden;
+}
+
+@media (width >= 768px) {
+  .page {
+    padding-inline: var(--tower-layout-gutter-tablet);
+  }
+}
+
+@media (width >= 1024px) {
+  .page {
+    padding: calc(var(--tower-header-height-desktop) + var(--tower-gap-loose)) var(--tower-layout-gutter-desktop) 0;
+  }
+
+  .rail {
+    gap: var(--tower-home-rail-gap);
+  }
+}

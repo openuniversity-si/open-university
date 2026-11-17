@@ -1,0 +1,67 @@
+.rail {
+  --tower-rail-gutter: var(--tower-layout-gutter-mobile);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-card-gap-mobile);
+  width: 100%;
+}
+
+.header {
+  padding-inline: var(--tower-rail-gutter);
+}
+
+.row {
+  overflow: auto hidden;
+  padding: var(--tower-rail-padding-top-mobile) 0 var(--tower-rail-padding-bottom-mobile) var(--tower-rail-gutter);
+  scrollbar-width: none;
+}
+
+.row::-webkit-scrollbar {
+  display: none;
+}
+
+.cards {
+  display: flex;
+  gap: var(--tower-card-gap-mobile);
+  width: max-content;
+  padding-right: var(--tower-rail-gutter);
+}
+
+@media (width >= 768px) {
+  .rail {
+    --tower-rail-gutter: var(--tower-layout-gutter-tablet);
+  }
+}
+
+@media (width >= 1024px) {
+  .rail {
+    --tower-rail-gutter: var(--tower-layout-gutter-desktop);
+
+    gap: var(--tower-gap);
+  }
+
+  .row {
+    padding-top: var(--tower-rail-padding-top-desktop);
+    padding-bottom: var(--tower-rail-padding-bottom-desktop);
+  }
+
+  .cards {
+    gap: var(--tower-home-rail-gap);
+  }
+}
+
+.rail[data-context="course"] .row {
+  padding-bottom: var(--tower-gap-tight);
+}
+
+.rail[data-context="course"] .header [data-title="More from Jordan B. Peterson"] span {
+  width: var(--tower-course-more-title-width);
+}
+
+.header[data-action="true"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tower-card-gap-mobile);
+}

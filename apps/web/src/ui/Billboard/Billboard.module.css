@@ -1,0 +1,264 @@
+.billboard {
+  --tower-billboard-gutter: var(--tower-layout-gutter-mobile);
+
+  position: relative;
+  height: var(--tower-billboard-height-mobile);
+  isolation: isolate;
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  height: var(--tower-billboard-height-mobile);
+  pointer-events: none;
+}
+
+.image[data-cover-placeholder] {
+  background: var(--tower-surface-raised);
+}
+
+.art {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--tower-hero-art-width-mobile);
+  height: auto;
+  transform: translate(var(--tower-hero-art-x-mobile), var(--tower-hero-art-y-mobile));
+}
+
+.scrim-left {
+  display: none;
+}
+
+.scrim-bottom {
+  position: absolute;
+  inset: var(--tower-billboard-scrim-top-mobile) 0 0;
+  background: var(--tower-billboard-scrim-mobile);
+}
+
+.billboard[data-selected="true"] .scrim-bottom,
+.billboard[data-context="course"] .scrim-bottom {
+  background: var(--tower-billboard-scrim-mobile-strong);
+}
+
+.content {
+  position: absolute;
+  top: var(--tower-billboard-content-top-mobile);
+  left: var(--tower-billboard-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-card-gap-mobile);
+  width: calc(100% - 2 * var(--tower-billboard-gutter));
+}
+
+.kicker,
+.title,
+.meta,
+.description {
+  margin: 0;
+}
+
+.kicker {
+  min-height: var(--tower-billboard-kicker-height-mobile);
+  color: var(--tower-billboard-kicker-color);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-type-display-kicker-mobile-size);
+  font-weight: var(--tower-billboard-kicker-font-weight);
+  line-height: var(--tower-billboard-kicker-height-mobile);
+  letter-spacing: var(--tower-type-display-kicker-mobile-tracking);
+  text-transform: var(--tower-label-transform);
+}
+
+.title {
+  align-self: flex-start;
+  min-height: var(--tower-billboard-title-height-mobile);
+  color: var(--tower-billboard-title-color);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-type-display-hero-mobile-size);
+  font-weight: var(--tower-billboard-title-font-weight);
+  line-height: var(--tower-billboard-title-height-mobile);
+  letter-spacing: var(--tower-type-display-hero-mobile-tracking);
+}
+
+.meta {
+  min-height: var(--tower-billboard-meta-height-mobile);
+  color: var(--tower-billboard-meta-color);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-type-ui-meta-13-size);
+  font-weight: var(--tower-type-ui-meta-13-weight);
+  line-height: var(--tower-billboard-meta-height-mobile);
+  letter-spacing: var(--tower-type-ui-meta-13-tracking);
+  white-space: pre-wrap;
+}
+
+/* Spec 06: the signed-in mobile meta box is 238 px wide, so "· Lecture 4" wraps to a second line. */
+.billboard[data-resume="true"] .meta {
+  max-width: var(--tower-billboard-meta-resume-width-mobile);
+}
+
+.description {
+  position: relative;
+  top: var(--tower-billboard-description-baseline-mobile);
+  min-height: var(--tower-billboard-description-min-mobile);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-type-ui-body-billboard-mobile-size);
+  font-weight: var(--tower-type-ui-body-billboard-mobile-weight);
+  line-height: var(--tower-type-ui-body-billboard-mobile-line-height);
+  letter-spacing: var(--tower-type-ui-body-billboard-mobile-tracking);
+}
+
+.actions {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: var(--tower-billboard-actions-height);
+  gap: var(--tower-gap-tight);
+  padding-top: var(--tower-billboard-actions-top-mobile);
+}
+
+.desktop {
+  display: none;
+}
+
+@media (width >= 768px) {
+  .billboard {
+  --tower-billboard-gutter: var(--tower-layout-gutter-tablet);
+}
+}
+
+@media (width >= 1024px) {
+  .billboard {
+    --tower-billboard-gutter: var(--tower-layout-gutter-desktop);
+
+    height: var(--tower-billboard-height-desktop);
+  }
+
+  .image {
+  height: var(--tower-billboard-image-desktop);
+}
+
+  .art {
+    width: var(--tower-hero-art-width-desktop);
+    transform: translate(var(--tower-hero-art-x), var(--tower-hero-art-y));
+  }
+
+  .scrim-left {
+    position: absolute;
+    inset: 0 auto 0 0;
+    display: block;
+    width: var(--tower-el-scrim-span);
+    background: var(--tower-hero-scrim-left);
+  }
+
+  .scrim-bottom,
+  .billboard[data-selected="true"] .scrim-bottom,
+  .billboard[data-context="course"] .scrim-bottom {
+    top: var(--tower-billboard-scrim-top-desktop);
+    background: var(--tower-billboard-scrim-desktop);
+  }
+
+  .content {
+    top: var(--tower-billboard-content-top-desktop);
+    gap: var(--tower-gap);
+    width: var(--tower-billboard-description-width-desktop);
+  }
+
+  .kicker {
+    min-height: var(--tower-billboard-kicker-height-desktop);
+    font-size: var(--tower-type-display-kicker-desktop-size);
+    font-weight: var(--tower-billboard-kicker-font-weight);
+    line-height: var(--tower-billboard-kicker-height-desktop);
+    letter-spacing: var(--tower-type-display-kicker-desktop-tracking);
+  }
+
+  .title {
+    min-height: var(--tower-billboard-title-height-desktop);
+    font-size: var(--tower-type-display-hero-desktop-size);
+    font-weight: var(--tower-billboard-title-font-weight);
+    line-height: var(--tower-billboard-title-height-desktop);
+    letter-spacing: var(--tower-type-display-hero-desktop-tracking);
+  }
+
+  .meta,
+  .billboard[data-resume="true"] .meta {
+    max-width: none;
+    min-height: var(--tower-billboard-meta-height-desktop);
+    font-size: var(--tower-type-ui-meta-14-size);
+    line-height: var(--tower-billboard-meta-height-desktop);
+  }
+
+  .description {
+    top: 0;
+    min-height: var(--tower-billboard-description-min-desktop);
+    font-size: var(--tower-type-ui-body-size);
+    line-height: var(--tower-type-ui-body-line-height);
+  }
+
+  .actions {
+  padding-top: var(--tower-billboard-actions-top-desktop);
+}
+
+  .mobile {
+  display: none;
+}
+
+  .desktop {
+  display: inline;
+}
+}
+
+@media (width >= 1024px) {
+  .actions {
+  height: var(--tower-billboard-actions-height-2);
+}
+}
+
+/* Course descriptions are longer than the Home summary; let long titles grow the hero. */
+.billboard[data-context="course"] {
+  --tower-billboard-description-min-mobile: var(--tower-course-description-height-mobile);
+  --tower-billboard-description-min-desktop: var(--tower-course-description-height-desktop);
+
+  display: flow-root;
+  height: auto;
+  min-height: var(--tower-billboard-height-mobile);
+}
+
+.billboard[data-context="course"] .content {
+  position: relative;
+  top: auto;
+  margin-top: var(--tower-billboard-content-top-mobile);
+  margin-bottom: var(--tower-course-hero-clear-mobile);
+}
+
+/* Spec 06: the wrapped "· Lecture 4" line comes out of the bottom clearance; the hero stays 620 px. */
+.billboard[data-context="course"][data-resume="true"] .content {
+  margin-bottom: calc(var(--tower-course-hero-clear-mobile) - var(--tower-billboard-meta-height-mobile));
+}
+
+@media (width >= 1024px) {
+  .billboard[data-context="course"] {
+    min-height: var(--tower-billboard-height-desktop);
+  }
+
+  .billboard[data-context="course"] .content,
+  .billboard[data-context="course"][data-resume="true"] .content {
+    margin-top: var(--tower-billboard-content-top-desktop);
+    margin-bottom: var(--tower-course-hero-clear-desktop);
+  }
+}
+
+/* Universities (ADR-25): "‹ Universities" above the hero text, below the floating TopNav. */
+.back {
+  position: absolute;
+  top: var(--tower-topnav-fade-height-mobile);
+  left: var(--tower-billboard-gutter);
+  z-index: 1;
+}
+
+@media (width >= 1024px) {
+  .back {
+    top: var(--tower-topnav-fade-height-desktop);
+  }
+}

@@ -1,0 +1,64 @@
+/* ContinuingGoogleOverlay 503:8397: dimmed veil, account-menu shade, Liquid Glass capsule. */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: var(--tower-auth-continuing-fill);
+  animation: fade-in var(--tower-auth-continuing-fade) var(--tower-el-ease-out);
+}
+
+.shade {
+  position: absolute;
+  inset: 0;
+  background: var(--tower-account-veil-background);
+  mask-image: var(--tower-account-veil-mask-image);
+  pointer-events: none;
+}
+
+/* Positioning lives on the anchor so .tower-glass keeps its own position: relative. */
+.anchor {
+  position: absolute;
+  top: 50%;
+  left: calc(50% + var(--tower-auth-continuing-nudge));
+  transform: translate(-50%, -50%);
+}
+
+.capsule {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  height: var(--tower-auth-continuing-height-mobile);
+  margin: 0;
+  padding: 0 var(--tower-auth-continuing-padding-mobile);
+  border-radius: var(--tower-auth-continuing-radius-mobile);
+  color: var(--tower-ink);
+  font: var(--tower-auth-continuing-font-mobile);
+  white-space: nowrap;
+}
+
+@media (width >= 768px) {
+  .shade {
+    background: var(--tower-account-veil-background-2);
+    mask-image: var(--tower-account-veil-mask-image-2);
+  }
+
+  .capsule {
+    height: var(--tower-auth-continuing-height-desktop);
+    padding: 0 var(--tower-auth-continuing-padding-desktop);
+    border-radius: var(--tower-auth-continuing-radius-desktop);
+    font: var(--tower-auth-continuing-font-desktop);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .veil {
+    animation: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: var(--tower-el-opacity-off);
+  }
+}

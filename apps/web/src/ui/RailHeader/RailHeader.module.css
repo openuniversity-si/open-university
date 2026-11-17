@@ -1,0 +1,63 @@
+.header {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tower-gap-tight);
+  height: var(--tower-rail-header-height-mobile);
+  margin: 0;
+  color: var(--tower-ink);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-type-display-rail-mobile-size);
+  font-weight: var(--tower-rail-header-font-weight);
+  line-height: var(--tower-type-display-rail-mobile-line-height);
+  letter-spacing: var(--tower-type-display-rail-mobile-tracking);
+}
+
+/*
+ * Approved chevrons sit on a half pixel (centered 18/20 px in 25/33 px). Chromium snaps an SVG box to
+ * whole pixels, so the box starts half a pixel early and an unsnapped translate restores the center.
+ */
+.icon {
+  align-self: flex-start;
+  width: var(--tower-rail-header-icon-mobile);
+  height: var(--tower-rail-header-icon-mobile);
+  margin-top: calc((var(--tower-rail-header-height-mobile) - var(--tower-rail-header-icon-mobile)) / 2 - var(--tower-rail-header-icon-half-pixel));
+  color: var(--tower-muted);
+  translate: 0 var(--tower-rail-header-icon-half-pixel);
+}
+
+.header > span {
+  display: block;
+  transform: translateY(var(--tower-rail-header-baseline));
+}
+
+.header[data-title="Jordan B. Peterson"] > span {
+  width: var(--tower-rail-title-peterson-mobile);
+}
+
+.header[data-title="John Vervaeke"] > span {
+  width: var(--tower-rail-title-vervaeke-mobile);
+}
+
+@media (width >= 1024px) {
+  .header {
+    height: var(--tower-rail-header-height-desktop);
+    font-size: var(--tower-type-display-rail-size);
+    font-weight: var(--tower-rail-header-font-weight);
+    line-height: var(--tower-type-display-rail-line-height);
+    letter-spacing: var(--tower-type-display-rail-tracking);
+  }
+
+  .icon {
+    width: var(--tower-rail-header-icon-desktop);
+    height: var(--tower-rail-header-icon-desktop);
+    margin-top: calc((var(--tower-rail-header-height-desktop) - var(--tower-rail-header-icon-desktop)) / 2 - var(--tower-rail-header-icon-half-pixel));
+  }
+
+  .header[data-title="Jordan B. Peterson"] > span {
+  width: var(--tower-rail-title-peterson-desktop);
+}
+
+  .header[data-title="John Vervaeke"] > span {
+  width: var(--tower-rail-title-vervaeke-desktop);
+}
+}

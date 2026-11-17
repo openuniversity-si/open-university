@@ -1,0 +1,813 @@
+{
+  "schemaVersion": 2,
+  "metadata": {
+    "siteName": "Open University",
+    "defaultTitle": "Open University — Great lecture courses, in order",
+    "titleTemplate": "%s · Open University",
+    "defaultDescription": "Great lectures, arranged in order and made to be a pleasure to enter. Universal, Free & Luxurious.",
+    "ogImageAlt": "Open University — great lecture courses, in order"
+  },
+  "legal": {
+    "updated": "11 October 2026",
+    "publicContactEmails": [
+      "contact@openuniversity.si"
+    ]
+  },
+  "homeIntro": {
+    "text": "Great lectures, in order. Universal, Free & Luxurious.",
+    "link": "About Open University",
+    "href": "/about"
+  },
+  "pages": {
+    "about": {
+      "slug": "about",
+      "kicker": "ABOUT",
+      "title": "Open University",
+      "metaTitle": "About",
+      "description": "Open University is the free initiative of The Tower: full university courses in one ordered library. No ads, no paywall, free permanently.",
+      "lead": "The lectures worth remembering.\nThe world's great universities, in one big, beautiful library.",
+      "body": [
+        "Universities publish extraordinary teaching, and it is scattered across channels, playlists and semesters, easy to lose and hard to follow in order. Open University gathers full courses from institutions such as MIT, Yale, Harvard, Stanford and Carnegie Mellon and arranges each one as it was taught: lecture by lecture, edition by edition, with your progress kept if you choose to sign in.",
+        "It is made as a companion to formal study, not a replacement for it: a second explanation of a hard topic, another professor on the same subject, a course to follow beside the one you are enrolled in, or one you never had the chance to take. Every lecture stays on its original channel and is credited to its author and institution. There is no affiliation with, and no endorsement from, any of them.",
+        "No short videos, no ads, no infinite scroll. A sober, focused room for serious study, where nothing asks for your attention beyond the lecture itself."
+      ],
+      "wink": "One library to rule them all.",
+      "closing": "Open University is the free initiative of The Tower. Our commitment: it is free, permanently. No ads, no paywall, no charge to watch. That will not change.",
+      "cta": {
+        "label": "Enter",
+        "href": "/"
+      }
+    },
+    "privacy": {
+      "slug": "privacy",
+      "kicker": "LEGAL",
+      "title": "Privacy",
+      "description": "What Open University collects and why: your Google name and email, lecture progress, and one sign-in cookie. No tracking, and no sale of data.",
+      "lead": "This page explains, in plain language, what Open University collects, why, and how you can have it deleted.",
+      "sections": [
+        {
+          "h": "Who is responsible",
+          "p": [
+            "Open University is responsible for the data described here. For anything about your data, write to contact@openuniversity.si."
+          ]
+        },
+        {
+          "h": "What we collect",
+          "p": [
+            "You can browse Open University without an account. If you sign in with Google, we receive and store your name, your email address and the ID of your Google account.",
+            "We ask Google only for basic identity (openid, email and profile). We do not store your Google profile picture, and we never get access to your contacts, calendar, Drive or any other Google data.",
+            "While you watch with an account, we save for each lecture:"
+          ],
+          "ul": [
+            "your playback position and the length of the lecture;",
+            "whether and when you marked it complete."
+          ],
+          "after": [
+            "This powers Resume, Continue Watching and your progress.",
+            "Like any web server, our hosting provider receives technical data such as your IP address and browser type whenever a page loads. We use it only to deliver the site and keep it secure, and we do not add it to your account. Sign-in attempts are rate-limited with short-lived counters to prevent abuse."
+          ]
+        },
+        {
+          "h": "Cookies and storage",
+          "p": [
+            "Open University itself uses only strictly necessary cookies: a small session cookie, prefixed “open-university”, that keeps you signed in for up to 30 days and is removed when you sign out. Your browser’s session storage may briefly remember where to send you back after signing in.",
+            "We set no advertising, analytics or tracking cookies of our own. The embedded YouTube player, however, may set YouTube cookies in your browser (see “YouTube videos” below)."
+          ]
+        },
+        {
+          "h": "YouTube videos",
+          "p": [
+            "Lectures play through YouTube’s embedded player, which may set YouTube cookies in your browser. When a video loads or plays, YouTube and Google may also collect data, such as your IP address and viewing activity, under their own policies. We do not control that and do not receive those cookies. See the Google Privacy Policy (https://policies.google.com/privacy) and the YouTube Terms of Service (https://www.youtube.com/t/terms)."
+          ]
+        },
+        {
+          "h": "Who else handles data",
+          "p": [
+            "We do not sell your data and do not share it for marketing. Open University shows no advertising and has committed never to. The only parties that process data for us are the services that run the site: Google (sign-in), Amazon Web Services (hosting and database) and Cloudflare (images)."
+          ]
+        },
+        {
+          "h": "How long we keep it",
+          "p": [
+            "Your account and your progress stay until you ask us to delete them. Sign-in sessions expire after 30 days."
+          ]
+        },
+        {
+          "h": "Your rights",
+          "p": [
+            "Under Brazil’s data protection law (LGPD) you can ask us to confirm, access, correct or delete your data, or to give you a copy.",
+            "To delete your account and all your progress, email contact@openuniversity.si from the address you signed in with. We reply within 15 days."
+          ]
+        },
+        {
+          "h": "Children",
+          "p": [
+            "Open University is not directed at children, and we do not knowingly collect their data."
+          ]
+        },
+        {
+          "h": "Changes",
+          "p": [
+            "If this page changes in a meaningful way, we will update the date above."
+          ]
+        }
+      ]
+    },
+    "terms": {
+      "slug": "terms",
+      "kicker": "LEGAL",
+      "title": "Terms",
+      "description": "The rules for using Open University: lectures belong to their authors and stream from YouTube; free to use, permanently; no warranty.",
+      "lead": "These terms cover your use of Open University at openuniversity.si. By using the site, you agree to them.",
+      "sections": [
+        {
+          "h": "What Open University is",
+          "p": [
+            "Open University is the free initiative of The Tower, the organization behind it. It organizes lecture courses into an easy-to-follow library, with optional sign-in to save your progress."
+          ]
+        },
+        {
+          "h": "Free, permanently",
+          "p": [
+            "Open University is free to use, permanently. We will not show ads, put lectures behind a paywall or charge anyone to watch. This is a commitment about cost and access; it is not a promise that every lecture will stay online (see No warranty)."
+          ]
+        },
+        {
+          "h": "Name and affiliation",
+          "p": [
+            "Open University is the name of an initiative, not of an educational institution. It does not grant degrees or academic credit. Lectures keep their authors and sources, are credited to them, and play through the original embedded player.",
+            "Open University is not affiliated with, or endorsed by, The Open University (United Kingdom) or any other university or institution whose lectures appear here."
+          ]
+        },
+        {
+          "h": "The lectures belong to their authors",
+          "p": [
+            "Each lecture belongs to its author and rights holders. Every lecture is streamed from its original source on YouTube through YouTube’s embedded player. We do not host, copy or re-upload any video.",
+            "Open University is not affiliated with, or endorsed by, the authors, YouTube or Google."
+          ]
+        },
+        {
+          "h": "YouTube",
+          "p": [
+            "Playback is subject to the YouTube Terms of Service (https://www.youtube.com/t/terms) and the Google Privacy Policy (https://policies.google.com/privacy). If an owner removes or restricts a video, it will stop working here."
+          ]
+        },
+        {
+          "h": "Your use",
+          "p": [
+            "You may use Open University for your own learning. Please do not resell or redistribute it, scrape it, overload it, probe it for vulnerabilities, or try to get around sign-in or other protections."
+          ]
+        },
+        {
+          "h": "Your account",
+          "p": [
+            "Signing in is optional and happens through Google. You are responsible for what happens under your account. You can ask us to delete it at any time (see Privacy)."
+          ]
+        },
+        {
+          "h": "Removal requests",
+          "p": [
+            "If you are an author or rights holder and want a lecture or reference removed, write to contact@openuniversity.si and we will act promptly."
+          ]
+        },
+        {
+          "h": "No warranty",
+          "p": [
+            "Open University is provided “as is”, with no promise that it will always be available or error-free, or that any lecture will stay online. Course descriptions are our own editorial summaries. To the extent the law allows, we are not liable for losses arising from using the site."
+          ]
+        },
+        {
+          "h": "Changes",
+          "p": [
+            "We may update these terms. The date above shows the latest version, and continuing to use the site means you accept the changes."
+          ]
+        },
+        {
+          "h": "Governing law",
+          "p": [
+            "These terms are governed by the laws of Brazil, and any dispute will be brought before the Brazilian courts, without prejudice to mandatory consumer-protection rules."
+          ]
+        }
+      ]
+    },
+    "contact": {
+      "slug": "contact",
+      "kicker": "CONTACT",
+      "title": "Contact",
+      "description": "Write to Open University: questions, feedback, broken lectures, rights-holder requests, or deleting your account and data.",
+      "lead": "Questions, feedback, or a request about your data? Write to us.",
+      "cardLabel": "Email",
+      "cta": "Email us",
+      "sections": [
+        {
+          "h": "What to write about",
+          "ul": [
+            "Deleting your account and data: write from the address you signed in with.",
+            "A lecture that is broken or missing.",
+            "Authors and rights holders: removal requests.",
+            "Feedback and ideas.",
+            "Questions about Open University, an initiative of The Tower."
+          ],
+          "after": [
+            "We read everything and usually reply within a few days."
+          ]
+        }
+      ]
+    },
+    "credits": {
+      "slug": "credits",
+      "kicker": "LEGAL",
+      "title": "Image credits",
+      "description": "Photographers, sources and licenses of the university and author cover images on Open University.",
+      "lead": ""
+    }
+  },
+  "footer": {
+    "links": [
+      {
+        "label": "Privacy",
+        "href": "/privacy"
+      },
+      {
+        "label": "Terms",
+        "href": "/terms"
+      },
+      {
+        "label": "Contact",
+        "href": "/contact"
+      },
+      {
+        "label": "Credits",
+        "href": "/credits"
+      }
+    ]
+  },
+  "topNav": {
+    "back": {
+      "home": "Back to Home",
+      "course": "Back to course"
+    }
+  },
+  "countries": [
+    {
+      "id": "us",
+      "name": "United States",
+      "rank": 1,
+      "placeEndings": [
+        "AL",
+        "AK",
+        "AZ",
+        "AR",
+        "CA",
+        "CO",
+        "CT",
+        "DE",
+        "DC",
+        "FL",
+        "GA",
+        "HI",
+        "ID",
+        "IL",
+        "IN",
+        "IA",
+        "KS",
+        "KY",
+        "LA",
+        "ME",
+        "MD",
+        "MA",
+        "MI",
+        "MN",
+        "MS",
+        "MO",
+        "MT",
+        "NE",
+        "NV",
+        "NH",
+        "NJ",
+        "NM",
+        "NY",
+        "NC",
+        "ND",
+        "OH",
+        "OK",
+        "OR",
+        "PA",
+        "RI",
+        "SC",
+        "SD",
+        "TN",
+        "TX",
+        "UT",
+        "VT",
+        "VA",
+        "WA",
+        "WV",
+        "WI",
+        "WY",
+        "PR",
+        "USA",
+        "United States"
+      ]
+    },
+    {
+      "id": "fr",
+      "name": "France",
+      "rank": 2,
+      "placeEndings": [
+        "France"
+      ]
+    },
+    {
+      "id": "it",
+      "name": "Italy",
+      "rank": 3,
+      "placeEndings": [
+        "Italy"
+      ]
+    },
+    {
+      "id": "de",
+      "name": "Germany",
+      "rank": 4,
+      "placeEndings": [
+        "Germany"
+      ]
+    },
+    {
+      "id": "es",
+      "name": "Spain",
+      "rank": 5,
+      "placeEndings": [
+        "Spain"
+      ]
+    },
+    {
+      "id": "ch",
+      "name": "Switzerland",
+      "rank": 6,
+      "placeEndings": [
+        "Switzerland"
+      ]
+    },
+    {
+      "id": "gb",
+      "name": "United Kingdom",
+      "rank": 7,
+      "placeEndings": [
+        "United Kingdom",
+        "UK",
+        "England",
+        "Scotland",
+        "Wales"
+      ]
+    },
+    {
+      "id": "in",
+      "name": "India",
+      "rank": 8,
+      "placeEndings": [
+        "India"
+      ]
+    },
+    {
+      "id": "br",
+      "name": "Brazil",
+      "rank": 9,
+      "placeEndings": [
+        "Brazil",
+        "Brasil"
+      ]
+    }
+  ],
+  "flags": {
+    "us": {
+      "width": 121.6,
+      "height": 64,
+      "shapes": [
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#B22234"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 4.923,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 9.846,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#B22234"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 14.769,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 19.692,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#B22234"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 24.615,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 29.538,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#B22234"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 34.462,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 39.385,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#B22234"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 44.308,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 49.231,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#B22234"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 54.154,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 59.077,
+          "width": 121.6,
+          "height": 4.923,
+          "fill": "#B22234"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 48.64,
+          "height": 34.462,
+          "fill": "#3C3B6E"
+        },
+        {
+          "kind": "path",
+          "d": "M4.032,1.485 L4.475,2.847 L5.907,2.847 L4.748,3.689 L5.191,5.051 L4.032,4.209 L2.873,5.051 L3.316,3.689 L2.157,2.847 L3.589,2.847 Z M12.096,1.485 L12.539,2.847 L13.971,2.847 L12.812,3.689 L13.255,5.051 L12.096,4.209 L10.937,5.051 L11.38,3.689 L10.221,2.847 L11.653,2.847 Z M20.16,1.485 L20.603,2.847 L22.035,2.847 L20.876,3.689 L21.319,5.051 L20.16,4.209 L19.001,5.051 L19.444,3.689 L18.285,2.847 L19.717,2.847 Z M28.224,1.485 L28.667,2.847 L30.099,2.847 L28.94,3.689 L29.383,5.051 L28.224,4.209 L27.065,5.051 L27.508,3.689 L26.349,2.847 L27.781,2.847 Z M36.288,1.485 L36.731,2.847 L38.163,2.847 L37.004,3.689 L37.447,5.051 L36.288,4.209 L35.129,5.051 L35.572,3.689 L34.413,2.847 L35.845,2.847 Z M44.352,1.485 L44.795,2.847 L46.227,2.847 L45.068,3.689 L45.511,5.051 L44.352,4.209 L43.193,5.051 L43.636,3.689 L42.477,2.847 L43.909,2.847 Z M8.064,4.941 L8.507,6.303 L9.939,6.303 L8.78,7.145 L9.223,8.507 L8.064,7.665 L6.905,8.507 L7.348,7.145 L6.189,6.303 L7.621,6.303 Z M16.128,4.941 L16.571,6.303 L18.003,6.303 L16.844,7.145 L17.287,8.507 L16.128,7.665 L14.969,8.507 L15.412,7.145 L14.253,6.303 L15.685,6.303 Z M24.192,4.941 L24.635,6.303 L26.067,6.303 L24.908,7.145 L25.351,8.507 L24.192,7.665 L23.033,8.507 L23.476,7.145 L22.317,6.303 L23.749,6.303 Z M32.256,4.941 L32.699,6.303 L34.131,6.303 L32.972,7.145 L33.415,8.507 L32.256,7.665 L31.097,8.507 L31.54,7.145 L30.381,6.303 L31.813,6.303 Z M40.32,4.941 L40.763,6.303 L42.195,6.303 L41.036,7.145 L41.479,8.507 L40.32,7.665 L39.161,8.507 L39.604,7.145 L38.445,6.303 L39.877,6.303 Z M4.032,8.397 L4.475,9.759 L5.907,9.759 L4.748,10.601 L5.191,11.963 L4.032,11.121 L2.873,11.963 L3.316,10.601 L2.157,9.759 L3.589,9.759 Z M12.096,8.397 L12.539,9.759 L13.971,9.759 L12.812,10.601 L13.255,11.963 L12.096,11.121 L10.937,11.963 L11.38,10.601 L10.221,9.759 L11.653,9.759 Z M20.16,8.397 L20.603,9.759 L22.035,9.759 L20.876,10.601 L21.319,11.963 L20.16,11.121 L19.001,11.963 L19.444,10.601 L18.285,9.759 L19.717,9.759 Z M28.224,8.397 L28.667,9.759 L30.099,9.759 L28.94,10.601 L29.383,11.963 L28.224,11.121 L27.065,11.963 L27.508,10.601 L26.349,9.759 L27.781,9.759 Z M36.288,8.397 L36.731,9.759 L38.163,9.759 L37.004,10.601 L37.447,11.963 L36.288,11.121 L35.129,11.963 L35.572,10.601 L34.413,9.759 L35.845,9.759 Z M44.352,8.397 L44.795,9.759 L46.227,9.759 L45.068,10.601 L45.511,11.963 L44.352,11.121 L43.193,11.963 L43.636,10.601 L42.477,9.759 L43.909,9.759 Z M8.064,11.853 L8.507,13.215 L9.939,13.215 L8.78,14.057 L9.223,15.419 L8.064,14.577 L6.905,15.419 L7.348,14.057 L6.189,13.215 L7.621,13.215 Z M16.128,11.853 L16.571,13.215 L18.003,13.215 L16.844,14.057 L17.287,15.419 L16.128,14.577 L14.969,15.419 L15.412,14.057 L14.253,13.215 L15.685,13.215 Z M24.192,11.853 L24.635,13.215 L26.067,13.215 L24.908,14.057 L25.351,15.419 L24.192,14.577 L23.033,15.419 L23.476,14.057 L22.317,13.215 L23.749,13.215 Z M32.256,11.853 L32.699,13.215 L34.131,13.215 L32.972,14.057 L33.415,15.419 L32.256,14.577 L31.097,15.419 L31.54,14.057 L30.381,13.215 L31.813,13.215 Z M40.32,11.853 L40.763,13.215 L42.195,13.215 L41.036,14.057 L41.479,15.419 L40.32,14.577 L39.161,15.419 L39.604,14.057 L38.445,13.215 L39.877,13.215 Z M4.032,15.309 L4.475,16.671 L5.907,16.671 L4.748,17.513 L5.191,18.875 L4.032,18.033 L2.873,18.875 L3.316,17.513 L2.157,16.671 L3.589,16.671 Z M12.096,15.309 L12.539,16.671 L13.971,16.671 L12.812,17.513 L13.255,18.875 L12.096,18.033 L10.937,18.875 L11.38,17.513 L10.221,16.671 L11.653,16.671 Z M20.16,15.309 L20.603,16.671 L22.035,16.671 L20.876,17.513 L21.319,18.875 L20.16,18.033 L19.001,18.875 L19.444,17.513 L18.285,16.671 L19.717,16.671 Z M28.224,15.309 L28.667,16.671 L30.099,16.671 L28.94,17.513 L29.383,18.875 L28.224,18.033 L27.065,18.875 L27.508,17.513 L26.349,16.671 L27.781,16.671 Z M36.288,15.309 L36.731,16.671 L38.163,16.671 L37.004,17.513 L37.447,18.875 L36.288,18.033 L35.129,18.875 L35.572,17.513 L34.413,16.671 L35.845,16.671 Z M44.352,15.309 L44.795,16.671 L46.227,16.671 L45.068,17.513 L45.511,18.875 L44.352,18.033 L43.193,18.875 L43.636,17.513 L42.477,16.671 L43.909,16.671 Z M8.064,18.765 L8.507,20.127 L9.939,20.127 L8.78,20.969 L9.223,22.331 L8.064,21.489 L6.905,22.331 L7.348,20.969 L6.189,20.127 L7.621,20.127 Z M16.128,18.765 L16.571,20.127 L18.003,20.127 L16.844,20.969 L17.287,22.331 L16.128,21.489 L14.969,22.331 L15.412,20.969 L14.253,20.127 L15.685,20.127 Z M24.192,18.765 L24.635,20.127 L26.067,20.127 L24.908,20.969 L25.351,22.331 L24.192,21.489 L23.033,22.331 L23.476,20.969 L22.317,20.127 L23.749,20.127 Z M32.256,18.765 L32.699,20.127 L34.131,20.127 L32.972,20.969 L33.415,22.331 L32.256,21.489 L31.097,22.331 L31.54,20.969 L30.381,20.127 L31.813,20.127 Z M40.32,18.765 L40.763,20.127 L42.195,20.127 L41.036,20.969 L41.479,22.331 L40.32,21.489 L39.161,22.331 L39.604,20.969 L38.445,20.127 L39.877,20.127 Z M4.032,22.221 L4.475,23.583 L5.907,23.583 L4.748,24.425 L5.191,25.787 L4.032,24.945 L2.873,25.787 L3.316,24.425 L2.157,23.583 L3.589,23.583 Z M12.096,22.221 L12.539,23.583 L13.971,23.583 L12.812,24.425 L13.255,25.787 L12.096,24.945 L10.937,25.787 L11.38,24.425 L10.221,23.583 L11.653,23.583 Z M20.16,22.221 L20.603,23.583 L22.035,23.583 L20.876,24.425 L21.319,25.787 L20.16,24.945 L19.001,25.787 L19.444,24.425 L18.285,23.583 L19.717,23.583 Z M28.224,22.221 L28.667,23.583 L30.099,23.583 L28.94,24.425 L29.383,25.787 L28.224,24.945 L27.065,25.787 L27.508,24.425 L26.349,23.583 L27.781,23.583 Z M36.288,22.221 L36.731,23.583 L38.163,23.583 L37.004,24.425 L37.447,25.787 L36.288,24.945 L35.129,25.787 L35.572,24.425 L34.413,23.583 L35.845,23.583 Z M44.352,22.221 L44.795,23.583 L46.227,23.583 L45.068,24.425 L45.511,25.787 L44.352,24.945 L43.193,25.787 L43.636,24.425 L42.477,23.583 L43.909,23.583 Z M8.064,25.677 L8.507,27.039 L9.939,27.039 L8.78,27.881 L9.223,29.243 L8.064,28.401 L6.905,29.243 L7.348,27.881 L6.189,27.039 L7.621,27.039 Z M16.128,25.677 L16.571,27.039 L18.003,27.039 L16.844,27.881 L17.287,29.243 L16.128,28.401 L14.969,29.243 L15.412,27.881 L14.253,27.039 L15.685,27.039 Z M24.192,25.677 L24.635,27.039 L26.067,27.039 L24.908,27.881 L25.351,29.243 L24.192,28.401 L23.033,29.243 L23.476,27.881 L22.317,27.039 L23.749,27.039 Z M32.256,25.677 L32.699,27.039 L34.131,27.039 L32.972,27.881 L33.415,29.243 L32.256,28.401 L31.097,29.243 L31.54,27.881 L30.381,27.039 L31.813,27.039 Z M40.32,25.677 L40.763,27.039 L42.195,27.039 L41.036,27.881 L41.479,29.243 L40.32,28.401 L39.161,29.243 L39.604,27.881 L38.445,27.039 L39.877,27.039 Z M4.032,29.133 L4.475,30.495 L5.907,30.495 L4.748,31.337 L5.191,32.699 L4.032,31.857 L2.873,32.699 L3.316,31.337 L2.157,30.495 L3.589,30.495 Z M12.096,29.133 L12.539,30.495 L13.971,30.495 L12.812,31.337 L13.255,32.699 L12.096,31.857 L10.937,32.699 L11.38,31.337 L10.221,30.495 L11.653,30.495 Z M20.16,29.133 L20.603,30.495 L22.035,30.495 L20.876,31.337 L21.319,32.699 L20.16,31.857 L19.001,32.699 L19.444,31.337 L18.285,30.495 L19.717,30.495 Z M28.224,29.133 L28.667,30.495 L30.099,30.495 L28.94,31.337 L29.383,32.699 L28.224,31.857 L27.065,32.699 L27.508,31.337 L26.349,30.495 L27.781,30.495 Z M36.288,29.133 L36.731,30.495 L38.163,30.495 L37.004,31.337 L37.447,32.699 L36.288,31.857 L35.129,32.699 L35.572,31.337 L34.413,30.495 L35.845,30.495 Z M44.352,29.133 L44.795,30.495 L46.227,30.495 L45.068,31.337 L45.511,32.699 L44.352,31.857 L43.193,32.699 L43.636,31.337 L42.477,30.495 L43.909,30.495 Z",
+          "fill": "#FFFFFF"
+        }
+      ]
+    },
+    "fr": {
+      "width": 96,
+      "height": 64,
+      "shapes": [
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 64,
+          "fill": "#002654"
+        },
+        {
+          "kind": "rect",
+          "x": 32,
+          "y": 0,
+          "width": 32,
+          "height": 64,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 64,
+          "y": 0,
+          "width": 32,
+          "height": 64,
+          "fill": "#CE1126"
+        }
+      ]
+    },
+    "it": {
+      "width": 96,
+      "height": 64,
+      "shapes": [
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 64,
+          "fill": "#009246"
+        },
+        {
+          "kind": "rect",
+          "x": 32,
+          "y": 0,
+          "width": 32,
+          "height": 64,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 64,
+          "y": 0,
+          "width": 32,
+          "height": 64,
+          "fill": "#CE2B37"
+        }
+      ]
+    },
+    "de": {
+      "width": 106.667,
+      "height": 64,
+      "shapes": [
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 106.667,
+          "height": 21.333,
+          "fill": "#000000"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 21.333,
+          "width": 106.667,
+          "height": 21.333,
+          "fill": "#DD0000"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 42.667,
+          "width": 106.667,
+          "height": 21.333,
+          "fill": "#FFCE00"
+        }
+      ]
+    },
+    "es": {
+      "width": 96,
+      "height": 64,
+      "shapes": [
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 96,
+          "height": 16,
+          "fill": "#AA151B"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 16,
+          "width": 96,
+          "height": 32,
+          "fill": "#F1BF00"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 48,
+          "width": 96,
+          "height": 16,
+          "fill": "#AA151B"
+        }
+      ]
+    },
+    "ch": {
+      "width": 64,
+      "height": 64,
+      "shapes": [
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 64,
+          "height": 64,
+          "fill": "#DA291C"
+        },
+        {
+          "kind": "rect",
+          "x": 26,
+          "y": 12,
+          "width": 12,
+          "height": 40,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 12,
+          "y": 26,
+          "width": 40,
+          "height": 12,
+          "fill": "#FFFFFF"
+        }
+      ]
+    },
+    "gb": {
+      "width": 128,
+      "height": 64,
+      "shapes": [
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 128,
+          "height": 64,
+          "fill": "#012169"
+        },
+        {
+          "kind": "path",
+          "d": "M-8.587 -11.449L143.662 64.676L137.938 76.124L-14.311 0L-8.587 -11.449Z",
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "path",
+          "d": "M142.311 0L-9.938 76.124L-15.662 64.676L136.587 -11.449L142.311 0Z",
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "path",
+          "d": "M-11.449 -5.724L64 32L62.092 35.816L-13.357 -1.908L-11.449 -5.724Z",
+          "fill": "#C8102E"
+        },
+        {
+          "kind": "path",
+          "d": "M139.449 -5.724L64 32L62.092 28.184L137.541 -9.541L139.449 -5.724Z",
+          "fill": "#C8102E"
+        },
+        {
+          "kind": "path",
+          "d": "M139.449 69.724L64 32L65.908 28.184L141.357 65.908L139.449 69.724Z",
+          "fill": "#C8102E"
+        },
+        {
+          "kind": "path",
+          "d": "M-11.449 69.724L64 32L65.908 35.816L-9.541 73.541L-11.449 69.724Z",
+          "fill": "#C8102E"
+        },
+        {
+          "kind": "rect",
+          "x": 53.333,
+          "y": 0,
+          "width": 21.333,
+          "height": 64,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 21.333,
+          "width": 128,
+          "height": 21.333,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 57.6,
+          "y": 0,
+          "width": 12.8,
+          "height": 64,
+          "fill": "#C8102E"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 25.6,
+          "width": 128,
+          "height": 12.8,
+          "fill": "#C8102E"
+        }
+      ]
+    },
+    "in": {
+      "width": 96,
+      "height": 64,
+      "shapes": [
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 96,
+          "height": 21.333,
+          "fill": "#FF9933"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 21.333,
+          "width": 96,
+          "height": 21.333,
+          "fill": "#FFFFFF"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 42.667,
+          "width": 96,
+          "height": 21.333,
+          "fill": "#138808"
+        },
+        {
+          "kind": "circle",
+          "cx": 48,
+          "cy": 32,
+          "r": 7.68,
+          "fill": "none",
+          "stroke": "#000080",
+          "strokeWidth": 0.64
+        },
+        {
+          "kind": "circle",
+          "cx": 48,
+          "cy": 32,
+          "r": 1.36,
+          "fill": "#000080"
+        },
+        {
+          "kind": "path",
+          "d": "M48,32 L55.36,32 M48,32 L55.109,33.905 M48,32 L54.374,35.68 M48,32 L53.204,37.204 M48,32 L51.68,38.374 M48,32 L49.905,39.109 M48,32 L48,39.36 M48,32 L46.095,39.109 M48,32 L44.32,38.374 M48,32 L42.796,37.204 M48,32 L41.626,35.68 M48,32 L40.891,33.905 M48,32 L40.64,32 M48,32 L40.891,30.095 M48,32 L41.626,28.32 M48,32 L42.796,26.796 M48,32 L44.32,25.626 M48,32 L46.095,24.891 M48,32 L48,24.64 M48,32 L49.905,24.891 M48,32 L51.68,25.626 M48,32 L53.204,26.796 M48,32 L54.374,28.32 M48,32 L55.109,30.095",
+          "fill": "none",
+          "stroke": "#000080",
+          "strokeWidth": 0.32
+        }
+      ]
+    },
+    "br": {
+      "width": 91.429,
+      "height": 64,
+      "shapes": [
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 91.429,
+          "height": 64,
+          "fill": "#009739"
+        },
+        {
+          "kind": "path",
+          "d": "M7.771,32 L45.714,7.771 L83.657,32 L45.714,56.229 Z",
+          "fill": "#FEDD00"
+        },
+        {
+          "kind": "circle",
+          "cx": 45.714,
+          "cy": 32,
+          "r": 16,
+          "fill": "#012169"
+        }
+      ]
+    }
+  }
+}

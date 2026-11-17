@@ -1,0 +1,198 @@
+/* TopNav 21:61: mobile composition below 1024 px (gutter 20, 32 from 768), desktop from 1024 (Spec 01). */
+.root {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--tower-header-height-mobile);
+  padding: 0 var(--tower-layout-gutter-mobile);
+  color: var(--tower-ink);
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: var(--tower-topnav-left-gap-mobile);
+}
+
+.back,
+.brand,
+.item,
+.session {
+  position: relative;
+  display: flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: var(--tower-text-decoration-none);
+  z-index: 41;
+}
+
+.back {
+  justify-content: center;
+  width: var(--tower-tap-min);
+  height: var(--tower-tap-min);
+  border-radius: var(--tower-radius-sm);
+}
+
+.chevron {
+  width: var(--tower-topnav-back-icon);
+  height: var(--tower-topnav-back-icon);
+}
+
+.brand picture {
+  display: contents;
+}
+
+.mark {
+  display: block;
+  width: var(--tower-topnav-mark-width-mobile);
+  height: var(--tower-topnav-mark-height-mobile);
+}
+
+/* Hit-44 rectangles of the Figma variants, centred on the visible element. */
+.brand::after,
+.item::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--tower-tap-min);
+  height: var(--tower-tap-min);
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+/* Mobile: the tabs show in the Home context only (Course keeps Back + mark), in UI/Nav Item 14 with 20 px gaps. */
+.nav {
+  display: flex;
+  gap: var(--tower-topnav-nav-gap-mobile);
+  margin-left: calc(var(--tower-topnav-nav-gap-mobile) - var(--tower-topnav-left-gap-mobile));
+}
+
+.nav[data-context="course"] {
+  display: none;
+}
+
+@media (width < 1024px) {
+  .nav .item {
+    min-width: 0;
+    font-size: var(--tower-type-ui-nav-item-14-size);
+    font-weight: var(--tower-type-ui-nav-item-14-weight);
+    line-height: var(--tower-type-ui-nav-item-14-line-height);
+    letter-spacing: var(--tower-type-ui-nav-item-14-tracking);
+  }
+}
+
+.item {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--tower-topnav-nav-item-gap);
+  min-width: var(--tower-topnav-home-width);
+  padding-top: var(--tower-topnav-nav-item-padding-top);
+}
+
+.item:not([aria-current="page"]) {
+  color: var(--tower-muted);
+}
+
+.underline {
+  align-self: stretch;
+  height: var(--tower-topnav-underline-height);
+  border-radius: var(--tower-radius);
+  background: var(--tower-accent);
+}
+
+.item:not([aria-current="page"]) .underline {
+  opacity: var(--tower-el-opacity-off);
+}
+
+.session {
+  box-sizing: border-box;
+  min-width: var(--tower-topnav-sign-in-width);
+  height: var(--tower-topnav-sign-in-height);
+  padding: 0 var(--tower-topnav-sign-in-padding);
+  border: 0;
+  background: var(--tower-el-clear);
+  cursor: pointer;
+}
+
+.avatar {
+  position: relative;
+  z-index: 41;
+  display: grid;
+  place-items: center;
+  width: var(--tower-tap-min);
+  height: var(--tower-tap-min);
+  margin-right: var(--tower-auth-avatar-hit-offset-mobile);
+  padding: 0;
+  border: 0;
+  background: var(--tower-el-clear);
+  color: var(--tower-ink);
+  cursor: pointer;
+}
+
+.avatar span {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: var(--tower-auth-avatar-size-mobile);
+  height: var(--tower-auth-avatar-size-mobile);
+  border: var(--tower-auth-avatar-border);
+  border-radius: var(--tower-auth-avatar-radius);
+  background: var(--tower-auth-avatar-background);
+  font: var(--tower-auth-avatar-font);
+}
+
+.session::after {
+  position: absolute;
+  inset: 50% 0 auto;
+  height: var(--tower-tap-min);
+  content: "";
+  transform: translateY(-50%);
+}
+
+@media (width >= 768px) {
+  .root {
+    padding: 0 var(--tower-layout-gutter-tablet);
+  }
+}
+
+@media (width >= 1024px) {
+  .avatar {
+    margin-right: var(--tower-auth-avatar-hit-offset-desktop);
+  }
+
+  .avatar span {
+    width: var(--tower-auth-avatar-size-desktop);
+    height: var(--tower-auth-avatar-size-desktop);
+  }
+
+  .root {
+    height: var(--tower-header-height-desktop);
+    padding: 0 var(--tower-layout-gutter-desktop);
+  }
+
+
+  .left {
+    gap: var(--tower-topnav-left-gap-desktop);
+  }
+
+  .mark {
+    width: var(--tower-topnav-mark-width-desktop);
+    height: var(--tower-topnav-mark-height-desktop);
+  }
+
+  .nav,
+  .nav[data-context="course"] {
+    display: flex;
+    gap: var(--tower-topnav-nav-gap-desktop);
+    margin-left: 0;
+  }
+}
+
+/* Mobile Course: the 12 px gap after Back is narrower than the hit area; start it at the mark so targets never overlap. */
+.back + .brand::after {
+  left: 0;
+  transform: translateY(-50%);
+}

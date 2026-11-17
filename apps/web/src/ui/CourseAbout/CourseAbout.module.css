@@ -1,0 +1,89 @@
+.panel {
+  box-sizing: border-box;
+  padding: var(--tower-course-about-padding);
+  border: var(--tower-card-border) solid var(--tower-hairline);
+  border-radius: var(--tower-radius);
+  background: var(--tower-surface-raised);
+}
+
+.panel h2 {
+  text-transform: var(--tower-label-transform);
+  margin: 0 0 var(--tower-gap-loose);
+  color: var(--tower-muted);
+  font-size: var(--tower-type-ui-quiet-size);
+  font-weight: var(--tower-type-ui-quiet-weight);
+  line-height: var(--tower-course-header-line);
+  letter-spacing: var(--tower-course-header-tracking);
+}
+
+.author {
+  display: flex;
+  align-items: center;
+  gap: var(--tower-course-author-gap);
+  margin-bottom: var(--tower-gap-loose);
+}
+
+.monogram {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--tower-course-avatar-size);
+  height: var(--tower-course-avatar-size);
+  border: var(--tower-card-border) solid var(--tower-ink);
+  border-radius: var(--tower-el-radius-round);
+  background: var(--tower-surface);
+  color: var(--tower-card-name-color);
+  font-size: var(--tower-course-description-size);
+  font-weight: var(--tower-type-ui-title-17-weight);
+  line-height: var(--tower-course-monogram-line);
+  letter-spacing: var(--tower-course-monogram-tracking);
+}
+
+.name {
+  margin: 0 0 var(--tower-course-copy-gap);
+  font-size: var(--tower-type-ui-title-17-size);
+  font-weight: var(--tower-type-ui-title-17-weight);
+  line-height: var(--tower-course-name-line);
+}
+
+.role {
+  margin: 0;
+  color: var(--tower-muted);
+  font-size: var(--tower-type-ui-meta-14-size);
+  line-height: var(--tower-course-role-line);
+}
+
+.description {
+  min-height: var(--tower-course-about-description-height);
+  margin: 0 0 var(--tower-gap-loose);
+  font-size: var(--tower-course-description-size);
+  line-height: var(--tower-course-description-line);
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-card-gap-mobile);
+  margin: 0;
+  padding-top: var(--tower-gap);
+  border-top: var(--tower-card-border) solid var(--tower-hairline);
+  font-size: var(--tower-type-ui-meta-14-size);
+  line-height: var(--tower-course-fact-line);
+}
+
+.facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--tower-card-gap-mobile);
+}
+
+.facts dt {
+  color: var(--tower-muted);
+}
+
+.facts dd {
+  margin: 0;
+  text-align: right;
+}

@@ -2,11 +2,6 @@
 useDefault = true
 
 [[allowlists]]
-description = "The approved public Figma file identifier is design provenance, not an API credential."
-regexTarget = "secret"
-regexes = ['''^t1sPlxRI6pcEk9LRxotS4w$''']
-
-[[allowlists]]
 description = "SHA-256 digests of saved Figma responses in the token snapshot are integrity evidence, not credentials."
 condition = "AND"
 paths = ['''^apps/web/design/figma-tokens\.snapshot\.json$''']

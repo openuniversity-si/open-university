@@ -1,0 +1,34 @@
+[
+  {
+    "family": "inter",
+    "file": "Inter.woff2",
+    "source": "https://raw.githubusercontent.com/rsms/inter/5fa70f6e8c0ecad97544e19aba2d5062aa8c3e7a/docs/font-files/Inter-roman.var.ttf",
+    "repositoryCommit": "5fa70f6e8c0ecad97544e19aba2d5062aa8c3e7a",
+    "sha256": "c24885b91677f1fbdfee1ea13dbf4abacb270a85c10ced5426e2220182341133",
+    "version": "Version 3.019;git-0a5106e0b",
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100.0,
+        "max": 900.0
+      }
+    ],
+    "sourceSha256": "459fb40d1d555bc6cbc944de94a8c400fdb5126fc325753dfa027d5555583bbd",
+    "subset": "scripts/fonts/inter-unicodes.txt"
+  },
+  {
+    "family": "librecaslontext",
+    "file": "LibreCaslonText.ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/ea37b132420c876be7220094ea6374be0efb23e3/ofl/librecaslontext/LibreCaslonText%5Bwght%5D.ttf",
+    "repositoryCommit": "ea37b132420c876be7220094ea6374be0efb23e3",
+    "sha256": "c11809dbfd5445886293d89b32bfc2584075c80e77750cf1c284113e36b8b3f4",
+    "version": "Version 2.000",
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400.0,
+        "max": 700.0
+      }
+    ]
+  }
+]

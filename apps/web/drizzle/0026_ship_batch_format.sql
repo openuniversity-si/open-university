@@ -1,0 +1,2 @@
+ALTER TABLE "catalog_ship_batches" ADD COLUMN "format" text DEFAULT 'bundles-v1' NOT NULL;--> statement-breakpoint
+ALTER TABLE "catalog_ship_batches" ADD CONSTRAINT "catalog_ship_batches_format" CHECK ("catalog_ship_batches"."format" IN ('bundles-v1', 'catalog-v2'));

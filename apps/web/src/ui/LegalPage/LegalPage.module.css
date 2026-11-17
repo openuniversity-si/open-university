@@ -1,0 +1,245 @@
+.page {
+  box-sizing: border-box;
+  max-width: calc(var(--tower-legal-column-max) + 2 * var(--tower-layout-gutter-mobile));
+  padding: calc(var(--tower-header-height-mobile) + var(--tower-legal-top-mobile)) var(--tower-layout-gutter-mobile) 0;
+  color: var(--tower-legal-label-strong);
+  font-family: var(--tower-font-ui);
+  font-size: var(--tower-type-ui-body-small-size);
+  font-weight: var(--tower-type-ui-body-small-weight);
+  line-height: var(--tower-type-ui-body-small-line-height);
+  letter-spacing: var(--tower-type-ui-body-small-tracking);
+  overflow-wrap: break-word;
+
+  --tower-legal-section: var(--tower-legal-section-gap);
+}
+
+.page[data-variant="contact"] {
+  --tower-legal-section: var(--tower-legal-section-gap-contact);
+}
+
+.page p,
+.page ul,
+.page h1,
+.page h2 {
+  margin: 0;
+}
+
+.kicker {
+  color: var(--tower-muted);
+  font-size: var(--tower-type-display-kicker-mobile-size);
+  font-weight: var(--tower-type-display-kicker-mobile-weight);
+  line-height: var(--tower-type-display-kicker-mobile-line-height);
+  letter-spacing: var(--tower-type-display-kicker-mobile-tracking);
+  text-transform: var(--tower-label-transform);
+}
+
+.page .title {
+  margin-top: var(--tower-legal-kicker-gap);
+  color: var(--tower-ink);
+  font-size: var(--tower-type-display-hero-mobile-size);
+  font-weight: var(--tower-type-display-hero-mobile-weight);
+  line-height: var(--tower-type-display-hero-mobile-line-height);
+  letter-spacing: var(--tower-type-display-hero-mobile-tracking);
+}
+
+.page .updated {
+  margin-top: var(--tower-legal-title-gap);
+  color: var(--tower-muted);
+  font-size: var(--tower-type-ui-meta-13-size);
+  font-weight: var(--tower-type-ui-meta-13-weight);
+  line-height: var(--tower-type-ui-meta-13-line-height);
+  letter-spacing: var(--tower-type-ui-meta-13-tracking);
+}
+
+.page .lead {
+  margin-top: var(--tower-legal-lead-gap);
+  font-size: var(--tower-type-ui-body-billboard-mobile-size);
+  font-weight: var(--tower-type-ui-body-billboard-mobile-weight);
+  line-height: var(--tower-type-ui-body-billboard-mobile-line-height);
+  letter-spacing: var(--tower-type-ui-body-billboard-mobile-tracking);
+}
+
+.page[data-variant="about"] .lead {
+  white-space: pre-line;
+  color: var(--tower-ink);
+  font-size: var(--tower-type-display-rail-size);
+  font-weight: var(--tower-type-display-rail-weight);
+  line-height: var(--tower-type-display-rail-line-height);
+  letter-spacing: var(--tower-type-display-rail-tracking);
+}
+
+.page .body {
+  margin-top: var(--tower-legal-lead-gap);
+}
+
+.page[data-variant="about"] .body {
+  font-size: var(--tower-type-ui-body-size);
+  font-weight: var(--tower-type-ui-body-weight);
+  line-height: var(--tower-type-ui-body-line-height);
+  letter-spacing: var(--tower-type-ui-body-tracking);
+}
+
+/* About: the wink line (lead typography, one step smaller) and the permanent-free commitment (body size, semibold). */
+.page .wink,
+.page .closing {
+  margin-top: var(--tower-legal-lead-gap);
+  color: var(--tower-ink);
+}
+
+.page .wink {
+  font-size: var(--tower-type-display-rail-mobile-size);
+  font-weight: var(--tower-type-display-rail-mobile-weight);
+  line-height: var(--tower-type-display-rail-mobile-line-height);
+  letter-spacing: var(--tower-type-display-rail-mobile-tracking);
+}
+
+.page .closing {
+  font-size: var(--tower-type-ui-body-size);
+  font-weight: var(--tower-type-display-rail-weight);
+  line-height: var(--tower-type-ui-body-line-height);
+  letter-spacing: var(--tower-type-ui-body-tracking);
+}
+
+.action {
+  display: flex;
+  margin-top: var(--tower-legal-action-gap);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-legal-paragraph-gap);
+  margin-top: var(--tower-legal-section);
+}
+
+.page .heading {
+  margin-bottom: calc(var(--tower-legal-heading-gap) - var(--tower-legal-paragraph-gap));
+  color: var(--tower-ink);
+  font-size: var(--tower-type-ui-title-17-size);
+  font-weight: var(--tower-type-ui-title-17-weight);
+  line-height: var(--tower-type-ui-title-17-line-height);
+  letter-spacing: var(--tower-type-ui-title-17-tracking);
+}
+
+.page ul {
+  padding-left: var(--tower-legal-list-indent);
+}
+
+.link {
+  color: var(--tower-ink);
+  text-decoration: var(--tower-text-underline);
+}
+
+.card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tower-legal-card-stack);
+  align-items: flex-start;
+  margin-top: var(--tower-legal-card-gap);
+  padding: var(--tower-legal-card-padding-mobile);
+  border: var(--tower-legal-card-border);
+  border-radius: var(--tower-legal-card-radius);
+  background: var(--tower-surface-raised);
+}
+
+.email {
+  max-width: 100%;
+  color: var(--tower-ink);
+  font-size: var(--tower-type-display-rail-mobile-size);
+  font-weight: var(--tower-type-display-rail-mobile-weight);
+  line-height: var(--tower-type-display-rail-mobile-line-height);
+  letter-spacing: var(--tower-type-display-rail-mobile-tracking);
+  text-decoration: var(--tower-text-underline);
+}
+
+@media (width >= 768px) {
+  .page {
+    max-width: calc(var(--tower-legal-column-max) + 2 * var(--tower-layout-gutter-tablet));
+    padding-inline: var(--tower-layout-gutter-tablet);
+  }
+}
+
+@media (width >= 1024px) {
+  .page {
+    max-width: calc(var(--tower-legal-column-max) + 2 * var(--tower-layout-gutter-desktop));
+    padding: calc(var(--tower-header-height-desktop) + var(--tower-legal-top-desktop)) var(--tower-layout-gutter-desktop) 0;
+    font-size: var(--tower-type-ui-body-size);
+    font-weight: var(--tower-type-ui-body-weight);
+    line-height: var(--tower-type-ui-body-line-height);
+    letter-spacing: var(--tower-type-ui-body-tracking);
+  }
+
+  .kicker {
+    font-size: var(--tower-type-display-kicker-desktop-size);
+    font-weight: var(--tower-type-display-kicker-desktop-weight);
+    line-height: var(--tower-type-display-kicker-desktop-line-height);
+    letter-spacing: var(--tower-type-display-kicker-desktop-tracking);
+  }
+
+  .page .title {
+    font-size: var(--tower-type-display-hero-size);
+    font-weight: var(--tower-type-display-hero-weight);
+    line-height: var(--tower-type-display-hero-line-height);
+    letter-spacing: var(--tower-type-display-hero-tracking);
+  }
+
+  .page .updated {
+    font-size: var(--tower-type-ui-meta-14-size);
+    font-weight: var(--tower-type-ui-meta-14-weight);
+    line-height: var(--tower-type-ui-meta-14-line-height);
+    letter-spacing: var(--tower-type-ui-meta-14-tracking);
+  }
+
+  .page .lead {
+    font-size: var(--tower-type-ui-body-size);
+    font-weight: var(--tower-type-ui-body-weight);
+    line-height: var(--tower-type-ui-body-line-height);
+    letter-spacing: var(--tower-type-ui-body-tracking);
+  }
+
+  .page .heading {
+    font-size: var(--tower-type-display-rail-mobile-size);
+    font-weight: var(--tower-type-display-rail-mobile-weight);
+    line-height: var(--tower-type-display-rail-mobile-line-height);
+    letter-spacing: var(--tower-type-display-rail-mobile-tracking);
+  }
+
+  .page[data-variant="about"] .lead {
+    font-size: var(--tower-type-display-title-size);
+    font-weight: var(--tower-type-display-title-weight);
+    line-height: var(--tower-type-display-title-line-height);
+    letter-spacing: var(--tower-type-display-title-tracking);
+  }
+
+  .page[data-variant="about"] .body {
+    font-size: var(--tower-type-ui-body-large-size);
+    font-weight: var(--tower-type-ui-body-large-weight);
+    line-height: var(--tower-type-ui-body-large-line-height);
+    letter-spacing: var(--tower-type-ui-body-large-tracking);
+  }
+
+  .page .wink {
+    font-size: var(--tower-type-display-rail-size);
+    font-weight: var(--tower-type-display-rail-weight);
+    line-height: var(--tower-type-display-rail-line-height);
+    letter-spacing: var(--tower-type-display-rail-tracking);
+  }
+
+  .page .closing {
+    font-size: var(--tower-type-ui-body-large-size);
+    line-height: var(--tower-type-ui-body-large-line-height);
+    letter-spacing: var(--tower-type-ui-body-large-tracking);
+  }
+
+  .card {
+    padding: var(--tower-legal-card-padding-desktop);
+  }
+
+  .email {
+    font-size: var(--tower-type-display-rail-size);
+    font-weight: var(--tower-type-display-rail-weight);
+    line-height: var(--tower-type-display-rail-line-height);
+    letter-spacing: var(--tower-type-display-rail-tracking);
+  }
+}

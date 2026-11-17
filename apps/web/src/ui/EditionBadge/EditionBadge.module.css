@@ -1,0 +1,16 @@
+.badge {
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  height: var(--tower-edition-badge-height);
+  margin-inline-start: var(--tower-edition-badge-gap);
+  padding: var(--tower-edition-badge-padding);
+  border: var(--tower-edition-badge-border);
+  border-radius: var(--tower-edition-badge-radius);
+  color: var(--tower-edition-badge-color);
+  font-size: var(--tower-edition-badge-size);
+  font-weight: var(--tower-edition-badge-weight);
+  line-height: var(--tower-edition-badge-line);
+  vertical-align: middle;
+  white-space: nowrap;
+}

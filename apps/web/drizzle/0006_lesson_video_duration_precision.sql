@@ -1,0 +1,1 @@
+ALTER TABLE "lesson_videos" ALTER COLUMN "duration_seconds" SET DATA TYPE numeric(12, 6);
