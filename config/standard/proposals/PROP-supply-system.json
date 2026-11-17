@@ -1,0 +1,12 @@
+{
+  "id": "PROP-supply-system",
+  "statement": "The standard's list of systems grows from 15 to 16 with Fornecimento (supply: ISO/IEC/IEEE 15288 acquisition and supply, 6.1.1 and 6.1.2), whose objects are DEP (a third-party component: a lockfile package, a toolchain pin, an image, an action, a model), ADV (an advisory against a DEP), SUP (a supplier account: AWS, Cloudflare, GitHub, Anthropic, the npm registry), CRED (a credential a SUP issues, never its value) and ASSET (a bought good that expires: a domain, a certificate). Configuration gains CHK (a check the merge queue requires), Operation gains DATA (a data store with its backup and restore proof), Requirements gains the legal type, and Measurement gains the security posture across ADV, CRED, security REQs and the secret scan. Security, cost, accessibility and performance do not become systems: their objects already have one.",
+  "state": "decided",
+  "owner": "administration",
+  "changes": [
+    "VER-v9"
+  ],
+  "deadline": "2026-11-24",
+  "note": "Refutes P-58 (no-third-party-components), the premise of pesquisa.md that left acquisition and supply out: 654 third-party packages in apps/web/pnpm-lock.yaml and 10 advisories (3 high) that no system saw, measured on 38aa4bd (docs/programs/padrao-dev/phases/F7.md). Daniel's case of 17/11 14:40 BRT, through the Torre.",
+  "decided_by": "D-320"
+}

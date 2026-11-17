@@ -83,7 +83,8 @@ em vez de ler documentos) e `measure` (a métrica principal, a medida e a confor
 gerado).
 
 ## Os sistemas
-Quinze sistemas: os 30 processos da 15288 e da 12207 agrupados pelo objeto que gerem (a [pesquisa](pesquisa.md), §10),
+Dezesseis sistemas (eram quinze até 17/11: o Fornecimento entrou pela [F7](phases/F7.md), D-320): os 30 processos da
+15288 e da 12207 agrupados pelo objeto que gerem (a [pesquisa](pesquisa.md), §10),
 com padrão e gestão do padrão separados. Todo sistema tem dono (o domínio Administração da AGENTS.md, salvo onde a
 tabela diz outro), registro como dado (um arquivo por objeto, o agregado gerado), ligações com os vizinhos (o modelo
 acima), uma medida própria e a conformidade calculada (ver o modelo, item 6).
@@ -105,8 +106,12 @@ acima), uma medida própria e a conformidade calculada (ver o modelo, item 6).
 | Padrão | modelo de ciclo de vida; SWEBOK 10, 11 | STD: regra com id, fundamento, `applies-to`, checagem, testes da checagem, modo | rascunho → em aviso (com prazo) → em bloqueio → substituída | novo, um arquivo por regra; o METODO, o v8, D-069 e as 49 recusas importados | regras com checagem; regras em aviso fora do prazo | 1 de 49 recusas registradas; dois modos de relatório sem prazo |
 | Gestão do padrão | gestão do modelo de ciclo de vida (estabelecer, avaliar, melhorar); CMMI OPD/OPF | PROP (proposta de mudança), VER (versão), TAIL (isenção) | proposta: aberta → em aviso → decidida → aplicada / rejeitada | novo; as lições, as contestações de regra e `docs/padrao/v*` importados | propostas decididas no prazo; isenções vigentes; conformidade do próprio padrão | 0 de 32 lições propostas; 7 contestações sem ciclo |
 | Conhecimento | gestão do conhecimento e de riscos; SWEBOK 14 | P (premissa e risco), lição, fricção, instrução de agente | premissa: inferida → a validar → confirmada / refutada; fricção: aberta → unidade → fechada | `docs/process/premises`, `lessons`, fricções, `repeats` | premissas de raio alto sem confirmação; ações manuais repetidas | 58 premissas, 32 vencidas pelo `rule check` |
+| Fornecimento (desde 17/11, D-320) | aquisição e fornecimento (15288 6.1.1, 6.1.2) | DEP (componente de terceiro: pacote do lockfile, pin do toolchain, imagem, action, modelo), ADV (aviso de segurança), SUP (conta de fornecedor), CRED (credencial, nunca o valor), ASSET (bem comprado que vence: domínio, certificado) | DEP: em uso → vulnerável / defasada → atualizada → removida; ADV: publicado → afetando → corrigido / isento com prazo → fechado; CRED: emitida → ativa → rotacionada → revogada | os lockfiles, `scripts/cloud/toolchain.json`, os workflows e as imagens; as contas como objetos | avisos abertos por gravidade e dias de exposição; defasagem; licença permitida; origem fixada (commit, digest, checksum) | 654 pacotes, 10 avisos (3 altos) vistos por nenhum sistema; 4 actions e 1 imagem por etiqueta |
 
-Ficam fora, com a razão na pesquisa: aquisição e fornecimento, segurança como sistema próprio, as áreas de
+Depois da F7 (17/11), a decisão de cada dimensão está na [F7](phases/F7.md#as-dimensões-decididas): o Fornecimento é
+sistema; a Configuração ganha CHK (verificação exigida pela fila), a Operação ganha DATA (armazém com backup e
+restauração), os Requisitos ganham o tipo legal, e a Medição ganha a postura de segurança. Ficam fora, com a razão: a
+segurança como sistema próprio (os seus objetos já têm sistema), pessoas e treinamento, as áreas de
 fundamentos. A lista é ela mesma um objeto do sistema Gestão do padrão: mudá-la é uma proposta.
 
 **Regras para toda mudança**, que o padrão impõe desde a primeira fase:
@@ -130,12 +135,12 @@ A ordem põe primeiro o que configura os outros (o modelo e o padrão), depois a
 | F4 Construção e entrega | todo arquivo de código em uma unidade; achados de construção nunca sobem | os 368 arquivos atribuídos; `ruff` e `pyright` fixados, catraca nos arquivos mudados dentro dos 60 s; CHG como objeto, com estados derivados dos eventos da fila e do deploy; o escape atribuído ao sistema que o deixou passar | 0 arquivos sem unidade; catraca em bloqueio | 6–8 PRs |
 | F5 Verificação | todo REQ com teste; seleção completa; adequação medida | TEST como objeto com nível e nível de integridade; `Verifies:`; a seleção derivada da execução (a rastreação, o rascunho de `padrao-metrics selection`) unida à declarada; contagem de casos por teste; cobertura do diff e mutação do diff pós-merge; quarentena de instáveis com dono e prazo | 0 pares sem seleção; adequação no painel | 7–9 PRs |
 | F6 Validação | toda NEED com VAL; o teste de validação final existe | VAL para a escada da intenção (1.000 → 10.000 → 100.000 PRs/dia), as guardas da semente e os SLOs; o teste de validação final que mede, numa janela, se o sistema atende à necessidade; canário e SLO como validação contínua quando o motor tiver produção própria | toda NEED com VAL medida | 4–6 PRs |
-| F7 Os sistemas de apoio | configuração, operação, medição, conhecimento e trabalho no modelo, cada um com medida | MEAS com o metadado da 15939; INC ligado a REQ/VAL e à mudança que conserta; premissas, lições e fricções como objetos; itens de trabalho ligados a REQ e ARC | conformidade L ou F nos cinco | 5–7 PRs |
+| F7 Os sistemas de apoio e o fornecimento | o Fornecimento como 16º sistema; configuração, operação, medição, conhecimento e trabalho no modelo, cada um com medida | DEP, ADV, SUP, CRED e ASSET, com checagem no gate para dependência nova com aviso alto; CHK, DATA, o REQ legal e a postura de segurança; MEAS com o metadado da 15939; INC ligado a REQ/VAL e à mudança que conserta; premissas, lições e fricções como objetos; itens de trabalho ligados a REQ e ARC | conformidade L ou F nos cinco | 5–7 PRs |
 | F8 Tudo nasce no modelo | a cadeia verificada em 100 % do inventário ativo; conformidade F em todos os sistemas | os geradores (`scripts/scaffold`) criam o objeto, as ligações e o teste juntos; o AGENTS.md vira um mapa curto gerado do modelo; as regras em aviso promovidas pela medida; o modelo aplicado a todo sistema novo que construirmos | critério de parada do programa | 4–6 PRs |
 
 ## Critério de parada
 O programa para quando a cadeia verificada de ponta a ponta cobre 100 % do inventário de requisitos ativos (Daniel,
-15/11 21:12 BRT, ao aprovar a revisão 2: era 95 %), todos os 15 sistemas estão em conformidade F, a taxa de escape está abaixo de 1 % numa janela de pelo menos 1.000 PRs
+15/11 21:12 BRT, ao aprovar a revisão 2: era 95 %), todos os sistemas da lista (16 desde a D-320) estão em conformidade F, a taxa de escape está abaixo de 1 % numa janela de pelo menos 1.000 PRs
 mergeadas, e nenhuma guarda piorou em relação à linha de base; ou quando um limite físico medido impede (por exemplo,
 os 60 s do gate contra a checagem do modelo). O critério é registrado como decisão D-NNN na primeira PR da F1, com a
 prova (o teste de `scripts/model measure`); custo-benefício e ruído de medida não param o programa. Com 100 %, um

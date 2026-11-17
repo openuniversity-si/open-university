@@ -1,0 +1,32 @@
+# Premise record (D-066, contracts/premises/premise.v1.json). Change it with scripts/premises; dependents are sealed.
+id: "P-58"
+slug: "no-third-party-components"
+statement: "The engine has no third-party components to acquire or supply: the toolchain pins are configuration items, so the acquisition and supply processes (ISO/IEC/IEEE 15288 6.1.1, 6.1.2) need no system of their own."
+kind: "vendor"
+scope: "global"
+source:
+  who: "agent:padrao-dev"
+  where: "docs/programs/padrao-dev/pesquisa.md#encaixe-em-nós-revisão-2"
+  quote: "aquisição e fornecimento (não há terceiros; os pins do toolchain são itens de configuração)"
+  at: null
+status: "refuted"
+radius: "high"
+blast:
+  reasons: ["decision:D-317"]
+  if_wrong: "Third-party components go unmanaged: vulnerabilities, staleness, licenses and provenance are seen by nobody; the standard needs a supply system."
+validate:
+  kind: "measurement"
+  how: "count the third-party packages of the lockfiles and the advisories against them (pnpm audit)"
+answer:
+  by: "measurement:pnpm-audit-2026-11-17"
+  at: "2026-11-17T17:43:21Z"
+  value: "refuted"
+  quote: null
+  where: "docs/programs/padrao-dev/phases/F7.md#auditoria"
+  evidence: "apps/web/pnpm-lock.yaml on 38aa4bd: 654 third-party packages; pnpm audit: 10 advisories (3 high, 5 moderate, 2 low) in next 16.4.3, zod, picomatch, fast-uri, minimatch, seen by no system; 4 GitHub Actions pinned by tag and the postgres:18 image by tag"
+  translation: null
+dependents:
+  plans: []
+  prs: []
+  digest: "befb1d18bd2d4507d532bb7051b3e0fa6c2a0942af1318358895481ef61e82cd"
+supersedes: []
