@@ -16,6 +16,9 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm build
 pnpm test:int            # against PostgreSQL: TEST_DATABASE_URL (source ../../scripts/cloud/env.sh && pgtools_start)
 ```
 
+On a pull request or a merge-queue entry that touches `apps/web`, the `web` check
+(`.github/workflows/web.yml`) runs these same commands against a PostgreSQL service.
+
 The environment it reads in production: `SITE_ENV=production` (indexable site, admin acts on production), `SITE_URL`,
 `AUTH_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `APP_DATABASE_URL`, the R2 keys (`R2_ACCOUNT_ID`,
 `R2_ACCESS_KEY_ID_RO`, `R2_SECRET_ACCESS_KEY_RO`, and the RW pair for the admin media writes), `TOWER_ADMIN_MEDIA_SECRET`
