@@ -1,0 +1,25 @@
+{
+  "id": "REQUEST",
+  "name": "data subject request",
+  "system": "operation",
+  "states": [
+    "open",
+    "overdue",
+    "answered",
+    "answered-late"
+  ],
+  "derived_states": [
+    "open",
+    "overdue",
+    "answered",
+    "answered-late"
+  ],
+  "unconformant_states": [
+    "overdue",
+    "answered-late"
+  ],
+  "must_link": [
+    "concerns"
+  ],
+  "description": "A data subject's request under the LGPD (art. 18), with its legal deadline; overdue when unanswered past it."
+}

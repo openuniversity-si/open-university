@@ -47,6 +47,8 @@
     "scripts/lib/queue_checks.py",
     ".github/rulesets/*.json",
     ".github/workflows/*.yml",
-    "services/runner/github/*.yml"
+    "services/runner/github/*.yml",
+    "config/operation/**",
+    "config/registry/operation/**"
   ]
 }

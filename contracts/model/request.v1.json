@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/request.v1.json",
+  "title": "Data subject request v1",
+  "description": "config/operation/requests/<id>.json (PADRAO-DEV F7d, D-321): a request of a data subject under the LGPD (art. 18): what was asked, when, its legal deadline and when it was answered. Its state is derived (open, overdue, answered, answered-late), never written. Never the subject's personal data: a reference to where the request is kept.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "received",
+    "due",
+    "reference"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^REQUEST-[a-z0-9][a-z0-9-]*$"
+    },
+    "kind": {
+      "enum": [
+        "confirmation",
+        "access",
+        "correction",
+        "anonymization",
+        "portability",
+        "deletion",
+        "information",
+        "revocation"
+      ]
+    },
+    "received": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "due": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "answered": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "reference": {
+      "type": "string",
+      "minLength": 1
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^DATA-[a-z0-9][a-z0-9-]*$"
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "DATA",
+  "name": "data store",
+  "system": "operation",
+  "states": [
+    "protected",
+    "regenerable",
+    "unverified",
+    "unprotected",
+    "unregistered",
+    "retired"
+  ],
+  "derived_states": [
+    "protected",
+    "regenerable",
+    "unverified",
+    "unprotected",
+    "unregistered"
+  ],
+  "inactive_states": [
+    "retired"
+  ],
+  "unconformant_states": [
+    "unverified",
+    "unprotected",
+    "unregistered"
+  ],
+  "description": "A data store: protected when a backup exists and its restore was verified within operation.restore_max_days; regenerable when rebuilt from its sources; unverified when backed up with no recent restore; unprotected with no backup; unregistered when it keeps personal data without purpose, legal basis and retention."
+}

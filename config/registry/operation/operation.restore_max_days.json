@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 90,
+  "x-unit": "days",
+  "description": "Longest a data store's last verified restore may lie in the past for it to count as protected (a quarterly restore drill); past it the store is unverified. A ceiling: raising it loosens the Operation system.",
+  "x-readers": [
+    "scripts/lib/model.py"
+  ],
+  "x-source": "D-321 (PADRAO-DEV F7d)"
+}

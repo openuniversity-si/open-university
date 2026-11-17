@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/operation.json",
+  "x-owner": "operation",
+  "x-schema-version": 1,
+  "description": "The Operation system of the engineering model (PADRAO-DEV F7d, D-320, D-321): the data stores and the data subject requests. Reader: scripts/lib/model.py.",
+  "type": "object",
+  "additionalProperties": false
+}

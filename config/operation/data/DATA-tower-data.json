@@ -1,0 +1,24 @@
+{
+  "id": "DATA-tower-data",
+  "name": "tower-data, the site's PostgreSQL database",
+  "kind": "database",
+  "location": "AWS RDS instance tower-data (infra/aws/stacks/20-data.json; the schema in apps/web/src/platform/db/schema.ts)",
+  "supplier": "SUP-aws",
+  "owner": "Daniel",
+  "personal": true,
+  "personal_fields": [
+    "user.email",
+    "user.name",
+    "session.ip_address",
+    "session.user_agent",
+    "account (identity provider tokens)",
+    "lesson_progress"
+  ],
+  "backup": {
+    "method": "automated",
+    "retention_days": 7,
+    "restore_proof": "python -m tower_infra restore-check (infra/service/tower_infra/restore_check.py), on an instance restored by the account's owner",
+    "note": "Automated backups with point-in-time recovery, deletion protection and encryption on; no restore drill is recorded as run."
+  },
+  "note": "The purpose, legal basis and retention of the personal data are the owner's to record (LGPD art. 7 and 37); none is assumed here."
+}
