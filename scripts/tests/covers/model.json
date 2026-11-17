@@ -43,6 +43,10 @@
     "config/validation/**",
     "config/supply/**",
     "scripts/lib/supply.py",
-    "**/pnpm-lock.yaml"
+    "**/pnpm-lock.yaml",
+    "scripts/lib/queue_checks.py",
+    ".github/rulesets/*.json",
+    ".github/workflows/*.yml",
+    "services/runner/github/*.yml"
   ]
 }

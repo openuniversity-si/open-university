@@ -1,0 +1,20 @@
+{
+  "id": "CHK",
+  "name": "required check",
+  "system": "configuration",
+  "states": [
+    "staged",
+    "installed",
+    "required",
+    "retired"
+  ],
+  "derived_states": [
+    "staged",
+    "installed",
+    "required"
+  ],
+  "inactive_states": [
+    "retired"
+  ],
+  "description": "A check of the merge queue: one job of a GitHub workflow, staged in services/runner/github/ (a session writes it), installed in .github/workflows/ (the owner, D-087), required when a ruleset of .github/rulesets/ lists it (PADRAO-DEV F7d, D-320)."
+}
