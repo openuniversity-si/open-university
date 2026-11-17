@@ -1,0 +1,79 @@
+# web (D-319): Open University's site's own checks, the commands of apps/web/README.md. The engine's tower/gate runs only
+# its always stages on apps/web (gate area web); this job runs the site's lint, typecheck, unit tests, build and
+# integration tests against a PostgreSQL service. It runs on every pull request and merge-queue entry so that it can be
+# a required check, and passes at once when the diff leaves apps/web untouched. Staged here and installed by the owner
+# as .github/workflows/web.yml (D-087: sessions may not write .github/workflows). The job's name is the check's name.
+name: web
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+permissions:
+  contents: read
+concurrency:
+  group: web-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+jobs:
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ou_web_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/ou_web_test
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: changed
+        id: changed
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- apps/web; then
+            echo "apps/web is untouched by $BASE..HEAD"; echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.changed.outputs.run == 'true'
+        with:
+          node-version-file: apps/web/.node-version
+      - name: pnpm
+        if: steps.changed.outputs.run == 'true'
+        run: corepack enable && corepack prepare "$(node -p "require('./apps/web/package.json').packageManager")" --activate
+      - name: install
+        if: steps.changed.outputs.run == 'true'
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
+      - name: lint
+        if: steps.changed.outputs.run == 'true'
+        working-directory: apps/web
+        run: pnpm lint
+      - name: typecheck
+        if: steps.changed.outputs.run == 'true'
+        working-directory: apps/web
+        run: pnpm typecheck
+      - name: unit tests
+        if: steps.changed.outputs.run == 'true'
+        working-directory: apps/web
+        run: pnpm test
+      - name: build
+        if: steps.changed.outputs.run == 'true'
+        working-directory: apps/web
+        # One build is the verdict: the retry for Next's security notice left with Next 16.4.6 (PADRAO-DEV F7, D-320).
+        run: pnpm build
+      - name: integration tests
+        if: steps.changed.outputs.run == 'true'
+        working-directory: apps/web
+        run: pnpm test:int
