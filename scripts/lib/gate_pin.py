@@ -37,7 +37,7 @@ TOOLCHAIN = '.toolchain'
 USE_SUFFIX = '.use'
 HEADS = 'heads'
 REPORT_ONLY_DIR = '.gate/report-only'
-NEON_FREE_MODES = ('dev', 'tier3', 'pr-sha')
+REPORT_ONLY_MODES = ('dev', 'tier3', 'pr-sha')  # the modes that reach no outside database
 # The pinned tooling's hermetic sitecustomize may have imported its own config module into this process first; the code
 # under test reads its own checkout's registry (GX-01 retro), so every key names this checkout's root.
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -380,8 +380,8 @@ def report(root, args, opts, base, head, pinned_rc, environ, call, post, out):
     files = gate_changed(root, base, head)
     if not files:
         return None
-    if opts['mode'] not in NEON_FREE_MODES:
-        out(f'gate: advisory skipped (mode {opts["mode"]} reaches Neon; the report-only run never does)')
+    if opts['mode'] not in REPORT_ONLY_MODES:
+        out(f'gate: advisory skipped (mode {opts["mode"]} reaches an outside database; the report-only run never does)')
         return None
     if git(root, 'merge-base', '--is-ancestor', base, head, check=False) is None:
         # GX-FIX-forge-rate-2 (D-070): a head behind the base tip carries older tooling than the base's (it may predate

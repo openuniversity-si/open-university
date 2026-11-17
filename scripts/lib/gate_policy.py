@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PREREQUISITES = ['pr metadata', 'no GitHub Actions workflows', 'secret scan (tree)', 'structure check',
                  'generated drift', 'schema compat', 'secret scan (history)']  # GX-15: pr metadata is launched by gate-hooks/prereq.sh
 # OU-DECOUPLE F5 (D-113): the engine gate runs only engine stages. Open University's web and database stages (install,
-# suites, lint, typecheck, builds, performance, browsers, the Neon PR stages, the DB gate and the factory bench) left
+# suites, lint, typecheck, builds, performance, browsers, the per-PR database stages, the DB gate and the factory bench) left
 # with it; the names stay, so a reader of the plans keeps its API. The dev plan adds the script tests its areas select.
 DEVELOPMENT = []
 FULL_ONLY = ['shellcheck', 'script tests']
