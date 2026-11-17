@@ -71,6 +71,14 @@ class RetiredVendors(Repo):
         (self.root / 'notes.txt').write_text('acmecloud\n')
         self.assertEqual(retired_vendors.check(self.root), [])
 
+    def test_d318_a_tree_that_is_not_a_checkout_has_nothing_to_judge_but_the_command_says_so(self):
+        plain = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, plain)
+        (plain / 'x.py').write_text('acmecloud\n')
+        self.assertEqual(retired_vendors.check(plain), [])
+        with self.assertRaises(RuntimeError):
+            retired_vendors.main(['--root', str(plain)])
+
     def test_d318_no_terms_judge_nothing(self):
         self.write('scripts/lib/x.py', 'acmecloud\n')
         self.values['structure.retired_vendor_terms'] = []

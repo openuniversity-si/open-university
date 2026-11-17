@@ -63,10 +63,14 @@ def references(root, terms, records):
 
 
 def check(root):
-    """The structure check's errors: one per reference outside the records."""
+    """The structure check's errors: one per reference outside the records. A directory that is not a git checkout
+    (a fixture tree of the structure tests) has no tracked file to judge, as in retired_products."""
     errors = []
-    for path, line, text in references(root, config.get('structure.retired_vendor_terms'),
-                                       config.get('structure.record_globs')):
+    try:
+        found = references(root, config.get('structure.retired_vendor_terms'), config.get('structure.record_globs'))
+    except RuntimeError:
+        return []
+    for path, line, text in found:
         where = path if line is None else f'{path}:{line}'
         what = 'its path names' if line is None else f'"{text}" names'
         errors.append(f'{where}: {what} a retired vendor (structure.retired_vendor_terms); nothing of ours relates to '
