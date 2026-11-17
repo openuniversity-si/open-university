@@ -12,7 +12,14 @@ web="$(cd "$(dirname "$0")/.." && pwd)"
 ctx="$(mktemp -d)"
 trap 'rm -rf "$ctx"' EXIT
 export NEXT_PRIVATE_STANDALONE=true NEXT_TELEMETRY_DISABLED=1
-(cd "$web" && node -v && pnpm install --frozen-lockfile && pnpm build)
+(cd "$web" && node -v && pnpm install --frozen-lockfile)
+# Next stops its first build on a known-vulnerability notice and asks for the same command again; only that stop is
+# retried, once (the upgrade of Next is a change of its own). Any other failure ends the build.
+log="$ctx/build.log"
+if ! (cd "$web" && pnpm build 2>&1 | tee "$log"); then  # pipefail: the status is the build's
+  grep -q 'SecurityFatalError' "$log" || exit 1
+  (cd "$web" && pnpm build)
+fi
 mkdir -p "$ctx/out"
 cp -a "$web/.next/standalone" "$ctx/out/standalone"
 cp -a "$web/.next/static" "$ctx/out/static"
