@@ -61,6 +61,7 @@ case "$kind" in
       "secret scan (tree)") scope="$(leak_scope)"; secret_tree "$base" "$scope" ;;  # an assignment: set -e stops on a failed read
       "structure check") OU_STRUCTURE_TREE_ONLY="$root" "$root/scripts/structure-check" ${base:+--base "$base"} ;;
       "production guard") "$py" "$root/scripts/lib/production_guard.py" check ${base:+--base "$base"} --root "$root" ;;  # D-054, D-322
+      "gate maps") "$py" "$root/scripts/lib/gate_maps.py" check ${base:+--base "$base"} --root "$root" ;;  # D-106, TX25, H1, D-322
       "generated drift") "$root/scripts/generate" --check ;;
       "schema compat") "$root/scripts/schema-compat" ${base:+--base "$base"} ;;
       "secret scan (history)")

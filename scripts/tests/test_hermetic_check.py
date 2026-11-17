@@ -1,4 +1,4 @@
-"""The hermetic-tests check (plan v3 H1, D-069 item 5): each refusal, the shrink-only allowlist and the structure-check
+"""The hermetic-tests check (plan v3 H1, D-069 item 5): each refusal, the shrink-only allowlist and the gate maps
 wiring. Fixture files in a temporary git repository with a copy of the registry; no network, no clock, no random source.
 """
 import json
@@ -180,8 +180,9 @@ class Allowlist(Fixture):
 
 
 class Wiring(unittest.TestCase):
-    def test_the_check_is_a_structure_check_module(self):
-        self.assertIn('hermetic_check.check', (ROOT / 'scripts/lib/structure.py').read_text())
+    def test_the_check_is_a_gate_maps_module(self):
+        # D-322: the gate's "gate maps" stage runs it; the structure check (planning) imports nothing of the gate
+        self.assertIn('hermetic_check.check', (ROOT / 'scripts/lib/gate_maps.py').read_text())
 
     def test_the_registry_entries_are_registered(self):
         for name in ('tests.random_seed', 'tests.script_timeout_ms', 'tests.network_allowed', 'tests.clock_start'):

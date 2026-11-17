@@ -33,14 +33,11 @@ import budget_check
 import census
 import config_check
 import literal_census
-import hermetic_check
-import test_orphans
 import text_check
 import threshold_check
 import decision_premises
 import defects
 import effort
-import gate_areas
 import postmortem_check
 import plan_tick
 import premises
@@ -469,7 +466,7 @@ def tree_part(root, base, today):
     {errors, warnings, counts}. threshold_check is not here: it reads the PR body and commit messages (metadata)."""
     listed = commit_check.git(root, 'ls-files', '--', 'scripts') or ''
     paths = [Path(root) / name for name in listed.splitlines() if name.endswith('.py') and '/generated/' not in name]
-    config_result, literal_result, unit_result, vendor_result, hermetic_result, hygiene_result = source_checks(root, base, paths)
+    config_result, literal_result, unit_result, vendor_result, hygiene_result = source_checks(root, base, paths)
     cap_errors, caps = check_capabilities(root)
     dec_errors, warnings, decisions = check_decisions(root, today)
     link_errors, links = check_links(root)
@@ -488,12 +485,8 @@ def tree_part(root, base, today):
     literal_errors, literal_warnings = literal_result  # LT1, D-069 item 3, D-025
     errors += literal_errors
     warnings += literal_warnings
-    hermetic_errors, hermetic_warnings = hermetic_result
-    errors += hermetic_errors
-    warnings += hermetic_warnings
     errors += text_check.check(root)
-    errors += test_orphans.check(root)  # TX25: every test_*.py is run by exactly one wrapper
-    errors += gate_areas.coverage_errors(root)  # OU-DECOUPLE F1 (D-106): every tracked path has an area
+    # D-322: the gate's map checks (area coverage D-106, test orphans TX25, hermetic tests H1) are its stage "gate maps".
     errors += repo_hygiene.tree_check(root) + hygiene_result[0]  # text is live; source diagnostics use exact inputs
     errors += retired_products.check(root)  # OU-DECOUPLE F5 (D-113): the engine names no retired product
     errors += retired_vendors.check(root)  # D-318: nothing of ours relates to a retired vendor
@@ -620,7 +613,7 @@ def source_checks(root, base, paths):
         try:
             held = json.loads(tree_store().get(f'source/{key}') or 'null')
             if (isinstance(held, dict) and held.get('key') == key and isinstance(held.get('result'), list)
-                    and len(held['result']) == len(('config', 'literals', 'units', 'vendors', 'hermetic', 'hygiene'))
+                    and len(held['result']) == len(('config', 'literals', 'units', 'vendors', 'hygiene'))
                     and all(isinstance(row, list) and len(row) == len(('errors', 'warnings'))
                             and all(isinstance(lines, list) and all(isinstance(line, str) for line in lines)
                                     for lines in row) for row in held['result'])):
@@ -630,7 +623,7 @@ def source_checks(root, base, paths):
     result = python_source.checks(
         [(config_check.check, (root, base)), (literal_census.check, (root, base)),
          (unit_check.check, (root,)), (vendor_check.check, (root, base)),
-         (hermetic_check.check, (root, base)), (repo_hygiene.source_check, (root,))], paths,
+         (repo_hygiene.source_check, (root,))], paths,
         config.get('structure.tree_workers'), config.get('structure.parallel_min_files'))
     if key:
         try:

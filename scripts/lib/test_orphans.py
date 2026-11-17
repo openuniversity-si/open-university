@@ -1,4 +1,4 @@
-"""Every Python test runs, exactly once (TX25, D-070; T1/T10): a derived check of scripts/structure-check.
+"""Every Python test runs, exactly once (TX25, D-070; T1/T10): a check of the gate's "gate maps" stage (D-322).
 
 A test is <test-orphans.tests_dir>/<test_glob>, or <tests_dir>/<module>/<test_glob> (the TX24 directory form); the
 test-orphans.skip_dirs hold fixtures, not tests. A wrapper is a <tests_dir>/*.test.sh (gate_script_tests.discover, the

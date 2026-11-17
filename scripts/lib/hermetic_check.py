@@ -1,4 +1,4 @@
-"""The hermetic-tests check (plan v3 H1, D-069 item 5), a module of scripts/structure-check.
+"""The hermetic-tests check (plan v3 H1, D-069 item 5), a module of the gate's "gate maps" stage (gate_maps.py, D-322).
 
 check(root, base) returns (errors, warnings). A unit or script test (a file under tests.check_roots named test_*.py,
 *_test.py, *.test.ts or *.test.mjs; integration, performance and heavy files are judged by their own stage) must not:
@@ -14,7 +14,7 @@ Python files are read with ast (a string that spells a call is not a call); Type
 skip comment lines. A file that predates the rules is listed in tests.unhermetic_sites as path:RULE; against the base that
 list only shrinks (a gained site is admitted only when the base file already offended that rule: disclosed debt, never new
 debt), and a listed site that no longer offends is an error (remove it): a stale site hid that F51 moved the uid-0
-probe's harness site to another file. warnings is kept for the structure check's interface and is empty.
+probe's harness site to another file. warnings is kept for the stage's (errors, warnings) interface and is empty.
 """
 import ast
 import python_source

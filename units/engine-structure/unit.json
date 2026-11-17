@@ -4,7 +4,6 @@
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
-    "config/registry/test-orphans.json",
     "scripts/lib/absolute-literals-baseline/**",
     "scripts/lib/postmortem_check.py",
     "scripts/lib/repo_hygiene.py",
@@ -12,7 +11,6 @@
     "scripts/lib/retired_vendors.py",
     "scripts/lib/shared-literals.json",
     "scripts/lib/structure.py",
-    "scripts/lib/test_orphans.py",
     "scripts/lib/threshold_check.py",
     "scripts/lib/visual_guard.py",
     "scripts/retired-vendors",
@@ -25,7 +23,6 @@
     "scripts/tests/retired-vendors.test.sh",
     "scripts/tests/structure-check.test.sh",
     "scripts/tests/structure-wiring.test.sh",
-    "scripts/tests/test-orphans.test.sh",
     "scripts/tests/test_postmortem_check.py",
     "scripts/tests/test_pr_creation_path.py",
     "scripts/tests/test_repo_hygiene.py",
@@ -33,7 +30,6 @@
     "scripts/tests/test_retired_vendors.py",
     "scripts/tests/test_structure.py",
     "scripts/tests/test_structure_wiring.py",
-    "scripts/tests/test_test_orphans.py",
     "scripts/tests/test_threshold_check.py",
     "scripts/tests/test_visual_guard.py",
     "scripts/tests/threshold-check.test.sh",
@@ -41,6 +37,9 @@
   ],
   "shared": [
     "scripts/lib/absolute-literals-baseline/**"
+  ],
+  "realizes": [
+    "ARC-planning"
   ],
   "requires": {
     "engine-budgets": "^1",
@@ -51,9 +50,6 @@
     "engine-defects": "^1",
     "engine-effort": "^1",
     "engine-events": "^1",
-    "engine-gate-plan": "^1",
-    "engine-gate-tests": "^1",
-    "engine-hermetic-tests": "^1",
     "engine-literals": "^1",
     "engine-premises": "^1",
     "engine-regime": "^1",
@@ -61,8 +57,5 @@
     "engine-train-admission": "^1",
     "engine-units": "^1",
     "engine-vendors": "^1"
-  },
-  "realizes": [
-    "ARC-planning"
-  ]
+  }
 }

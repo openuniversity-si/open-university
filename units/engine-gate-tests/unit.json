@@ -5,20 +5,26 @@
   "owner": "engine-lane",
   "paths": [
     "config/registry/gate-tests.json",
+    "config/registry/test-orphans.json",
     "scripts/covers-cost",
     "scripts/lib/covers_cost.py",
+    "scripts/lib/gate_maps.py",
     "scripts/lib/gate_script_tests.py",
+    "scripts/lib/test_orphans.py",
     "scripts/tests/covers-cost.test.sh",
     "scripts/tests/gate-script-tests-covers.test.sh",
     "scripts/tests/gate-script-tests.test.sh",
+    "scripts/tests/test-orphans.test.sh",
     "scripts/tests/test_covers_cost.py",
     "scripts/tests/test_gate_script_tests.py",
-    "scripts/tests/test_gate_script_tests_covers.py"
+    "scripts/tests/test_gate_script_tests_covers.py",
+    "scripts/tests/test_test_orphans.py"
   ],
   "requires": {
     "engine-config": "^1",
     "engine-config-check": "^1",
-    "engine-gate-plan": "^1"
+    "engine-gate-plan": "^1",
+    "engine-hermetic-tests": "^1"
   },
   "realizes": [
     "ARC-gate"

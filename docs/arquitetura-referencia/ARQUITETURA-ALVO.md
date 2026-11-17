@@ -195,7 +195,7 @@ confere que nenhuma falta e que cada mecanismo existe na infraestrutura:
 | Regra de hoje | Mecanismo da infraestrutura | Configuração padrão da nossa gestão |
 |---|---|---|
 | as checagens locais antes do push (`.githooks/pre-push`, `commit-check --local`, ~5 s) | nenhum: rodam no ambiente do executor | o brief de todo trabalho de código manda rodá-las antes de empurrar, como o hook faz hoje |
-| as oito etapas sempre presentes (`pr metadata`, `no GitHub Actions workflows`, `secret scan (tree)`, `structure check`, `production guard`, `generated drift`, `schema compat`, `secret scan (history)`) | trabalhos de checagem no executor contêiner, com cache de resultado | as oito, em todo head de PR |
+| as nove etapas sempre presentes (`pr metadata`, `no GitHub Actions workflows`, `secret scan (tree)`, `structure check`, `production guard`, `gate maps`, `generated drift`, `schema compat`, `secret scan (history)`) | trabalhos de checagem no executor contêiner, com cache de resultado | as nove, em todo head de PR |
 | os testes de script escolhidos pelo mapa de áreas (`scripts/lib/gate-areas.json`) e pelos covers (`scripts/tests/covers/`) | um trabalho por teste escolhido, com a saída reaproveitada pelo digest das entradas | o mapa e os covers de hoje, sem mudança |
 | a verificação no head exato (`gate-dev --pr`) | a entrada do trabalho é a árvore exata, e a chave do cache vem dela | uma PR fica pronta quando toda checagem exigida passou no head dela |
 | juntar a base no ramo antes do gate, só com merge commit, nunca rebase | o adaptador do forge junta a base no ramo; o método de merge é parâmetro do pouso | merge commit, nunca rebase |
