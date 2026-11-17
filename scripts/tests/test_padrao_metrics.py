@@ -91,6 +91,17 @@ class Selection(unittest.TestCase):
         found = self.measure(traces, select=lambda path: set())
         self.assertEqual((found['scanners'], found['tests_skipped'], found['plain_tests_skipped']), (1, 1, 0))
 
+    def test_the_traced_map_keeps_the_skips_of_the_tests_that_are_not_scanners(self):
+        traces = {'scripts/tests/a.test.sh': opened('scripts/lib/a.py', 'scripts/lib/b.py'),
+                  'scripts/tests/b.test.sh': opened('scripts/lib/a.py')}
+        made = padrao_metrics.traced_map(self.measure(traces, select=lambda path: set()), 'abc')
+        self.assertEqual(made['tests'], {'scripts/tests/b.test.sh': ['scripts/lib/a.py']})
+        self.assertEqual(made['base'], 'abc')
+
+    def test_a_new_traced_map_is_measured_against_the_declared_covers_alone(self):
+        mapping = {**MAPPING, 'tests': tuple({**test, 'traced': ('scripts/lib/b.py',)} for test in MAPPING['tests'])}
+        self.assertTrue(all(test['traced'] == () for test in padrao_metrics.declared(mapping)['tests']))
+
     def test_a_trace_of_a_test_with_no_covers_manifest_is_left_out(self):
         self.assertEqual(self.measure({'scripts/tests/zzz.test.sh': opened('scripts/lib/a.py')})['tests'], 0)
 
