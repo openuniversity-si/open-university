@@ -17,6 +17,7 @@
     "config/registry/gate-infra.json",
     "config/registry/gate-infra/**",
     "units/engine-gate-infra/unit.json",
-    "scripts/tests/test_deploy_sh.py"
+    "scripts/tests/test_deploy_sh.py",
+    "scripts/lib/port_http.py"
   ]
 }

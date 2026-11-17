@@ -7,8 +7,7 @@
   "owner": "administration",
   "depends_on": [
     "ARC-config",
-    "ARC-events",
-    "ARC-planning"
+    "ARC-events"
   ],
   "basis": [
     "D-317",

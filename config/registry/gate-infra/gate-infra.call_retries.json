@@ -5,7 +5,8 @@
   "x-unit": "calls",
   "description": "Times a call to the port is tried again after a transient answer (429 of the API Gateway's throttle, 502, 503, 504, a dropped connection): the port's Lambda starting cold answers 503 past the HTTP API's 30 s.",
   "x-readers": [
-    "scripts/lib/gate_infra.py"
+    "scripts/lib/gate_infra.py",
+    "scripts/lib/port_http.py"
   ],
   "x-source": "GATE-INFRA 2c (P5 F2), D-306"
 }

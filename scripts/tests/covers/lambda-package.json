@@ -12,6 +12,7 @@
     "infra/aws/stacks/50-runner.json",
     "infra/service/requirements-lambda.txt",
     "infra/service/tower_infra/**",
-    "infra/ingress/__init__.py"
+    "infra/ingress/__init__.py",
+    "scripts/lib/port_http.py"
   ]
 }

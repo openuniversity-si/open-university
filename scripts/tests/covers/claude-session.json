@@ -61,6 +61,8 @@
     "scripts/release-policy.json",
     "scripts/tests/machine_premise.py",
     "scripts/tests/rest_fake.py",
-    "scripts/tests/rest_fake/**"
+    "scripts/tests/rest_fake/**",
+    "scripts/lib/port_http.py",
+    "scripts/lib/git_objects.py"
   ]
 }

@@ -34,6 +34,8 @@
     "scripts/lib/operation_config_relations.json",
     "scripts/lib/operation_demands.py",
     "scripts/lib/operation_demands.json",
-    "scripts/lib/forge_requirements.py"
+    "scripts/lib/forge_requirements.py",
+    "scripts/lib/port_http.py",
+    "scripts/lib/operation_demands_check.py"
   ]
 }

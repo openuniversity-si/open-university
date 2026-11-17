@@ -8,6 +8,7 @@
     "scripts/lib/gate_policy.py",
     "scripts/lib/gate-areas.json",
     "scripts/gate-local",
-    "config/registry/gate.json"
+    "config/registry/gate.json",
+    "scripts/lib/git_objects.py"
   ]
 }

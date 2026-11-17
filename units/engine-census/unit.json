@@ -21,8 +21,7 @@
     "engine-effort": "^1",
     "engine-lessons": "^1",
     "engine-literals": "^1",
-    "engine-structure": "^1",
-    "engine-units": "^1"
+    "engine-structure": "^1"
   },
   "realizes": [
     "ARC-measurement"

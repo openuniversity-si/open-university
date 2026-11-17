@@ -28,7 +28,7 @@
     "engine-delivery": "^1",
     "engine-events": "^1",
     "engine-gate-tests": "^1",
-    "engine-units": "^1"
+    "engine-git-ref": "^1"
   },
   "realizes": [
     "ARC-gate"

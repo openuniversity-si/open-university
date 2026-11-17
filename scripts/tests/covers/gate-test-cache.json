@@ -21,6 +21,7 @@
     "scripts/lib/test_metrics.py",
     "scripts/lib/hermetic/sitecustomize.py",
     "scripts/test-suite",
-    "scripts/lib/fork_server.py"
+    "scripts/lib/fork_server.py",
+    "scripts/lib/git_objects.py"
   ]
 }

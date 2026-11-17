@@ -30,6 +30,7 @@
     "infra/service/tower_infra/container.py",
     "infra/service/tower_infra/forge.py",
     "scripts/tests/test_infra_swap_tighten.py",
-    "config/registry/deploy/deploy.canary_slot.json"
+    "config/registry/deploy/deploy.canary_slot.json",
+    "scripts/lib/port_http.py"
   ]
 }

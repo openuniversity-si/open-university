@@ -7,6 +7,7 @@
     "scripts/lib/gate_policy.py",
     "scripts/lib/gate-runner.sh",
     "scripts/gate-local",
-    "scripts/lib/gate-hooks/*.sh"
+    "scripts/lib/gate-hooks/*.sh",
+    "scripts/lib/git_objects.py"
   ]
 }

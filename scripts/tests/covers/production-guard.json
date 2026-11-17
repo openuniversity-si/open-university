@@ -7,6 +7,7 @@
     "config/registry/production.json",
     "scripts/lib/config.py",
     "scripts/lib/hermetic.py",
-    "scripts/tests/fixture_copy.py"
+    "scripts/tests/fixture_copy.py",
+    "scripts/lib/entrypoint_mentions.py"
   ]
 }

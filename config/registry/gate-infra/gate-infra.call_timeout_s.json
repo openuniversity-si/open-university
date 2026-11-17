@@ -5,7 +5,8 @@
   "x-unit": "s",
   "description": "Seconds one call to the port may take.",
   "x-readers": [
-    "scripts/lib/gate_infra.py"
+    "scripts/lib/gate_infra.py",
+    "scripts/lib/port_http.py"
   ],
   "x-source": "GATE-INFRA 2 (P5 F2), D-306"
 }

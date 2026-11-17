@@ -13,6 +13,7 @@
     "scripts/lib/gate_infra.py",
     "scripts/lib/config.py",
     "config/registry/forge-events.json",
-    "config/registry/forge-events/**"
+    "config/registry/forge-events/**",
+    "scripts/lib/port_http.py"
   ]
 }

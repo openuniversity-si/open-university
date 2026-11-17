@@ -17,7 +17,7 @@ registry fix. A checkout that cannot read its base fails closed. Plain, the modu
 `--base REF` names another.
 
 A file the production guard forbids naming (D-054: its path mentions an entrypoint of production.forbidden_entrypoints,
-production_guard.mentions) is not judged: its literals would be named in the errors, and widening the guard's
+entrypoint_mentions.mentions) is not judged: its literals would be named in the errors, and widening the guard's
 allowlist is not this check's to do. When the release pipeline of roadmap step 8 owns those frozen files (D-054,
 docs/process/RELEASES.md), it brings them into the census.
 
@@ -39,7 +39,7 @@ import sys
 
 import config
 import config_check
-import production_guard
+import entrypoint_mentions
 import units
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -176,7 +176,7 @@ def _unlistable(root):
         entrypoints = config.get('production.forbidden_entrypoints', root)
     except config.ConfigError:
         return lambda path: False
-    return lambda path: bool(production_guard.mentions(path, [json.dumps(path)], entrypoints, []))
+    return lambda path: bool(entrypoint_mentions.mentions(path, [json.dumps(path)], entrypoints, []))
 
 
 def _hits(text, kind, rules, store=None):

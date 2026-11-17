@@ -255,6 +255,7 @@ def operation_check(root, adapter, consumers=None):
     import operation_relations
     import operation_config
     import operation_demands
+    import operation_demands_check
 
     root = Path(root)
     findings, refused = [], []
@@ -280,7 +281,7 @@ def operation_check(root, adapter, consumers=None):
         collect('configuration', [('invalid-declaration', str(error))], {'invalid-declaration'})
     try:
         document = operation_demands.load(root)
-        collect('compatibility', operation_demands.confront(root),
+        collect('compatibility', operation_demands_check.confront(root),
                 {'undeclared-demand', 'unimplemented-proof', 'unknown-proof'})
         scope = list(document['consumers']) if consumers is None else list(consumers)
         collect('compatibility', [('unknown-consumer', name) for name in scope

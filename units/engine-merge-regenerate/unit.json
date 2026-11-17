@@ -11,8 +11,7 @@
   ],
   "requires": {
     "engine-config": "^1",
-    "engine-generate": "^1",
-    "engine-units": "^1"
+    "engine-generate": "^1"
   },
   "realizes": [
     "ARC-delivery"

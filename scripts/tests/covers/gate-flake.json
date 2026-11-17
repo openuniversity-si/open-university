@@ -26,6 +26,7 @@
     "scripts/defects",
     "scripts/units",
     "contracts/defects/*.json",
-    "units/*/unit.json"
+    "units/*/unit.json",
+    "scripts/lib/units_cli.py"
   ]
 }

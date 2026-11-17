@@ -23,6 +23,8 @@
     "scripts/lib/test_db.py",
     "config/registry/test-db.json",
     "scripts/lib/gate_test_cache.py",
-    "scripts/lib/merge_train.py"
+    "scripts/lib/merge_train.py",
+    "scripts/lib/port_http.py",
+    "scripts/lib/git_objects.py"
   ]
 }

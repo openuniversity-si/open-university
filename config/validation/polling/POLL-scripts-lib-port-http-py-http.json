@@ -1,0 +1,6 @@
+{
+  "id": "POLL-scripts-lib-port-http-py-http",
+  "site": "scripts/lib/port_http.py::http",
+  "class": "dormant",
+  "reason": "The AWS gate's client port, stopped (AGENTS.md); used only by the gate_infra functions and forge_control's PortAdapter (moved from gate_infra.py, D-322)."
+}

@@ -26,8 +26,7 @@
     "engine-quarantine": "^1",
     "engine-regime": "^1",
     "engine-role": "^1",
-    "engine-train-admission": "^1",
-    "engine-units": "^1"
+    "engine-train-admission": "^1"
   },
   "realizes": [
     "ARC-delivery"

@@ -14,9 +14,7 @@
   ],
   "requires": {
     "engine-config": "^1",
-    "engine-config-check": "^1",
-    "engine-production": "^1",
-    "engine-units": "^1"
+    "engine-config-check": "^1"
   },
   "realizes": [
     "ARC-config"

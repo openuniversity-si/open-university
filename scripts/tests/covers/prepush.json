@@ -18,6 +18,10 @@
     "scripts/lib/registry_readers.py",
     "scripts/lib/commit_check.py",
     "scripts/lib/local_checks.py",
-    "scripts/tests/fixture_copy.py"
+    "scripts/tests/fixture_copy.py",
+    "scripts/lib/entrypoint_mentions.py",
+    "scripts/lib/git_objects.py",
+    "scripts/lib/globs.py",
+    "scripts/lib/operation_demands_check.py"
   ]
 }

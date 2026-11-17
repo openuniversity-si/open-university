@@ -2,9 +2,10 @@
 
 Declarations are not inferred from implementations. The AST confrontation exposes
 missing/stale consumers and evidence; runtime checks never import or execute tests.
-The static floor and unknowns are those of operation_relations, not a call graph.
+The static floor and unknowns are those of operation_relations, not a call graph. The confrontation with the
+tree (confront, report, the command line) reads operation_relations, a module of the planning layer, so it is
+scripts/lib/operation_demands_check.py (D-322); this module keeps the runtime refusal the events port calls.
 """
-import argparse
 import ast
 import python_source
 from functools import cache
@@ -15,14 +16,20 @@ import sys
 import os
 import weakref
 
-import operation_relations
-
-ROOT = operation_relations.ROOT
+ROOT = Path(__file__).resolve().parent.parent.parent
 DECLARATION = 'scripts/lib/operation_demands.json'
+# The port and its adapters by name (D-322: here, in the events layer, so the runtime refusal imports nothing of the
+# planning layer; operation_relations re-exports them for its census).
+PORT = 'scripts/lib/forge_events.py'
+ADAPTER_MODULES = {
+    'origin': ('scripts/lib/forge_origin.py', 'OriginAdapter'),
+    'file': ('scripts/lib/forge_events.py', 'FileAdapter'),
+    'git-ref': ('scripts/lib/forge_git_ref.py', 'GitRefs'),
+}
 _INTERNAL_FILES = frozenset((Path(__file__).resolve(), Path(__file__).with_name('forge_events.py').resolve()))
 _origins = {}  # code identity -> (weak code reference, canonical origin); unloaded code retains no entry
 _ADAPTER_NAMES = {(Path(module).stem, holder): name
-                  for name, (module, holder) in operation_relations.ADAPTER_MODULES.items()}
+                  for name, (module, holder) in ADAPTER_MODULES.items()}
 _ADAPTER_NAMES.update({('forge_events', 'MemoryAdapter'): 'memory', ('forge_git_ref', 'GitRefAdapter'): 'git-ref'})
 _ADAPTER_NAMES[('forge_origin', 'ObservedAdapter')] = 'origin'  # PR-OBSERVATION: Origin's own answers, replayed
 
@@ -93,7 +100,7 @@ def callers(root=None):
             except ValueError:
                 found.append(f'unknown consumer: {path}')
                 break
-            if (relative and relative not in (DECLARATION, operation_relations.PORT, 'scripts/lib/operation_demands.py')
+            if (relative and relative not in (DECLARATION, PORT, 'scripts/lib/operation_demands.py')
                     and relative not in found):
                 found.append(relative)
                 if relative not in load(base)['consumers']:
@@ -166,60 +173,3 @@ def _evidence(base, reference, operation):
     return (method.startswith('test_') and test is not None
             and any(isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                     and node.func.attr == operation for node in python_source.walk(test)))
-
-
-def confront(root=None):
-    """Differences against independently extracted call sites, methods and test references."""
-    base = Path(root) if root is not None else ROOT
-    document, actual, found = load(base), {}, []
-    for site in operation_relations.sites(base):
-        actual.setdefault(site['file'], set()).add(site['operation'])
-    declared = document['consumers']
-    for consumer in sorted(set(actual) | set(declared)):
-        demand, seen = set(declared.get(consumer, [])), actual.get(consumer, set())
-        for operation in sorted(seen - demand):
-            found.append(('undeclared-demand', f'{consumer}: {operation}'))
-        for operation in sorted(demand - seen):
-            found.append(('unknown-demand', f'{consumer}: {operation}; static extraction cannot confirm it'))
-    methods = operation_relations.adapters(base)
-    methods['memory'] = operation_relations.public_methods(base, operation_relations.PORT, 'MemoryAdapter') or []
-    surface = operation_relations.surface(base)
-    for adapter, proofs in document['proofs'].items():
-        for operation, reference in proofs.items():
-            if operation not in surface or operation not in methods.get(adapter, []):
-                found.append(('unimplemented-proof', f'{adapter}: {operation}'))
-            if not _evidence(base, reference, operation):
-                found.append(('unknown-proof', f'{adapter}: {operation}: {reference}'))
-    return found
-
-
-def report(root=None):
-    base = Path(root) if root is not None else ROOT
-    document = load(base)
-    operations = set(operation_relations.surface(base))
-    methods = operation_relations.adapters(base)
-    methods['memory'] = operation_relations.public_methods(base, operation_relations.PORT, 'MemoryAdapter') or []
-    lines = [f'demands: {len(set(op for ops in document["consumers"].values() for op in ops))} operations; '
-             f'{len(document["consumers"])} consumers']
-    for adapter, proofs in document['proofs'].items():
-        unproven = sorted((set(methods.get(adapter, [])) & operations) - set(proofs))
-        lines.append(f'{adapter}: {len(proofs)} proven; implemented without proof: {unproven}')
-        lines += [f'  refuses {operation}: {consumer}' for consumer, operation in
-                  refusals(adapter, document['consumers'], document, base)]
-    lines += [f'unknown {row["id"]}: {row["what"]}' for row in document.get('unknowns', [])]
-    findings = confront(base)
-    lines.append(f'confrontation: {len(findings)} finding(s)')
-    lines += [f'  {kind}: {detail}' for kind, detail in findings]
-    return '\n'.join(lines)
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--root', type=Path)
-    args = parser.parse_args()
-    print(report(args.root))
-    return bool(confront(args.root))
-
-
-if __name__ == '__main__':
-    sys.exit(main())

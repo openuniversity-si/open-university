@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 import config  # noqa: E402
 import units  # noqa: E402
+import units_cli  # noqa: E402
 
 COPIED = ('contracts/units/unit.v1.json', 'contracts/config/registry.v1.json', 'config/registry/units.json',
           'config/registry/config.json', 'config/registry/forge-events.json')
@@ -153,12 +154,12 @@ class Lookups(Fixture):
     def test_d067_the_cli_prints_unit_and_owner(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            code = units.main(['--root', str(self.root), 'owner', 'products/demo/src/progress/a.ts', 'README.md'])
+            code = units_cli.main(['--root', str(self.root), 'owner', 'products/demo/src/progress/a.ts', 'README.md'])
         self.assertEqual(code, 0)
         self.assertEqual(out.getvalue().splitlines(), [f'products/demo/src/progress/a.ts\tprogress\t{OWNER}', 'README.md\t-\t-'])
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            self.assertEqual(units.main(['--root', str(self.root), 'who', 'missing']), 2)
-            self.assertEqual(units.main(['--root', str(self.root), 'check']), 0)
+            self.assertEqual(units_cli.main(['--root', str(self.root), 'who', 'missing']), 2)
+            self.assertEqual(units_cli.main(['--root', str(self.root), 'check']), 0)
 
 
 class Home(unittest.TestCase):

@@ -20,6 +20,7 @@
     "contracts/events/engine.step.measured.v1.json",
     "contracts/events/envelope.v1.json",
     "contracts/events/unit.oversize.v1.json",
-    "scripts/lib/source_facts.py"
+    "scripts/lib/source_facts.py",
+    "scripts/lib/operation_demands_check.py"
   ]
 }

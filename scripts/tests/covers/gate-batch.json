@@ -13,6 +13,7 @@
     "scripts/lib/gate_policy.py",
     "scripts/lib/units.py",
     "config/registry/gate.json",
-    "scripts/tests/fixture_copy.py"
+    "scripts/tests/fixture_copy.py",
+    "scripts/lib/git_objects.py"
   ]
 }

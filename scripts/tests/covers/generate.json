@@ -21,6 +21,7 @@
     "docs/process/lane.md",
     "docs/process/lane-digest.md",
     "config/registry/generate.json",
-    ".gitattributes"
+    ".gitattributes",
+    "scripts/lib/git_objects.py"
   ]
 }

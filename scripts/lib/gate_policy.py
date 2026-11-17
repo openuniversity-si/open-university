@@ -10,6 +10,7 @@ import gate_carry
 import gate_select
 import forge_events
 import config
+from git_objects import changed_paths  # noqa: F401 - D-322: moved down to layer 0; re-exported for the gate's callers
 
 ROOT = Path(__file__).resolve().parents[2]
 # GATE-VERDICT-API (D-070): cheap stages first, `pr metadata` (about 5 s, the most frequent red) at the top. This is the
@@ -45,13 +46,6 @@ def select_dev_plan(paths, base, head, root=ROOT):
         plan = plan_for(paths)
     plan.update(base=base or '', head=head or '', policyVersion=POLICY_VERSION)
     return plan
-
-
-def changed_paths(root, base, head):
-    if not base or not head:
-        raise RuntimeError('Missing diff identity; full battery required')
-    return subprocess.check_output(['git', '-C', str(root), 'diff', '--no-renames', '--name-only', '-z',
-                                    base + '...' + head], stderr=subprocess.DEVNULL).decode().strip('\0').split('\0')
 
 
 def selection_for(paths, root):
