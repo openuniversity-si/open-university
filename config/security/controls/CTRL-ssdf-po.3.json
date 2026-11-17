@@ -1,0 +1,13 @@
+{
+  "id": "CTRL-ssdf-po.3",
+  "catalog": "SSDF-1.1",
+  "control": "PO.3",
+  "title": "Implement supporting toolchains",
+  "applicable": true,
+  "reason": "The engine's toolchain is pinned by checksum per architecture and checked.",
+  "implemented_by": [
+    "STD-env-manifest-toolchain-errors",
+    "TEST:scripts/tests/toolchain-pins.test.sh"
+  ],
+  "coverage": "full"
+}

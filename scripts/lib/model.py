@@ -1090,6 +1090,71 @@ def read_requests(root):
     return found
 
 
+def read_risks(root):
+    """Security risks (RISK, the Segurança system), one file each (config/security/risks/); the state is the risk
+    process's own record: an owner's acceptance is a decision, never derived."""
+    return _declared(Path(root), 'config/security/risks/RISK-*.json', 'risk.v1.json', 'RISK',
+                     lambda body: [{'type': 'threatens', 'target': asset} for asset in body['assets']])
+
+
+def control_state(body, found_ids):
+    """not-applicable with its reason; gap while nothing that exists implements it; partial or implemented by coverage."""
+    if not body['applicable']:
+        return 'not-applicable'
+    if not [target for target in body.get('implemented_by', []) if target in found_ids]:
+        return 'gap'
+    return 'implemented' if body.get('coverage', 'full') == 'full' else 'partial'
+
+
+def read_controls(root):
+    """Security controls (CTRL), one file each (config/security/controls/), with their applicability; the state is
+    derived once every object is known (derive_controls)."""
+    return _declared(Path(root), 'config/security/controls/CTRL-*.json', 'control.v1.json', 'CTRL',
+                     lambda body: [{'type': 'implemented-by', 'target': target} for target in body.get('implemented_by', [])])
+
+
+def derive_controls(found):
+    ids = set(found)
+    for item in found.values():
+        if item['type'] == 'CTRL' and 'body' in item:
+            item['state'] = control_state(item['body'], ids)
+
+
+def vuln_state(body, today, deadlines):
+    """verified, fixed, accepted while its acceptance holds, overdue past the bug bar's deadline, else open."""
+    from datetime import date, timedelta
+    if body.get('fixed'):
+        return 'verified' if body.get('verified_by') else 'fixed'
+    if body.get('accepted_until') and body['accepted_until'] >= today:
+        return 'accepted'
+    due = date.fromisoformat(body['found']) + timedelta(days=deadlines[body['severity']])
+    return 'overdue' if date.fromisoformat(today) > due else 'open'
+
+
+def read_vulns(root):
+    """Vulnerabilities of the repository's own code (VULN), one file each (config/security/vulns/)."""
+    import config
+    found = _declared(Path(root), 'config/security/vulns/VULN-*.json', 'vuln.v1.json', 'VULN',
+                      lambda body: [{'type': 'threatens', 'target': target} for target in body['in']])
+    today = utc_today()
+    deadlines = {'critical': config.get('security.vuln_critical_days', ROOT), 'high': config.get('security.vuln_high_days', ROOT),
+                 'moderate': config.get('security.vuln_moderate_days', ROOT), 'low': config.get('security.vuln_low_days', ROOT)}
+    for item in found:
+        if 'body' in item:
+            item['state'] = vuln_state(item['body'], today, deadlines)
+    return found
+
+
+def read_threats(root):
+    """Threat models (THREAT), one file each (config/security/threats/): reviewed once a review date is recorded."""
+    found = _declared(Path(root), 'config/security/threats/THREAT-*.json', 'threat.v1.json', 'THREAT',
+                      lambda body: [{'type': 'models', 'target': body['models']}])
+    for item in found:
+        if 'body' in item:
+            item['state'] = 'reviewed' if item['body'].get('reviewed') else 'written'
+    return found
+
+
 def read_checks(root):
     """Checks the merge queue requires (CHK, the Configuration system), derived from the workflows and the rulesets
     (scripts/lib/queue_checks.py): staged, installed or required."""
@@ -1106,7 +1171,8 @@ def read_checks(root):
 
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
            read_intent, read_requirements, read_premises, read_changes, read_architecture, read_adrs, read_validations,
-           read_suppliers, read_dependencies, read_advisories, read_checks, read_data, read_requests)
+           read_suppliers, read_dependencies, read_advisories, read_checks, read_data, read_requests,
+           read_risks, read_controls, read_vulns, read_threats)
 
 
 def objects(root=ROOT, readers=READERS):
@@ -1124,6 +1190,8 @@ def objects(root=ROOT, readers=READERS):
                 current['links'] += item['links']
     if read_validations in readers:
         derive_validations(found, root)
+    if read_controls in readers:
+        derive_controls(found)
     return found
 
 

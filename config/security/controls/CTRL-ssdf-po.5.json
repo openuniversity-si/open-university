@@ -1,0 +1,8 @@
+{
+  "id": "CTRL-ssdf-po.5",
+  "catalog": "SSDF-1.1",
+  "control": "PO.5",
+  "title": "Implement and maintain secure environments for software development",
+  "applicable": true,
+  "reason": "Sessions run in isolated cloud containers, but no record describes or checks that environment."
+}

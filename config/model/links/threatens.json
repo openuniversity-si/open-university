@@ -1,0 +1,14 @@
+{
+  "name": "threatens",
+  "from": [
+    "RISK",
+    "VULN"
+  ],
+  "to": [
+    "DATA",
+    "ARC",
+    "SUP",
+    "UNIT"
+  ],
+  "description": "A risk or a vulnerability threatens an object."
+}

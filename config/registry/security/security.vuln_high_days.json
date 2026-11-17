@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 30,
+  "x-unit": "days",
+  "description": "The bug bar: days from finding a high vulnerability of the repository's own code to its fix; past it the vulnerability is overdue. A ceiling: raising it loosens the Segurança system.",
+  "x-readers": [
+    "scripts/lib/model.py"
+  ],
+  "x-source": "D-321 (PADRAO-DEV F7d)"
+}

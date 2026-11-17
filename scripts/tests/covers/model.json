@@ -49,6 +49,8 @@
     ".github/workflows/*.yml",
     "services/runner/github/*.yml",
     "config/operation/**",
-    "config/registry/operation/**"
+    "config/registry/operation/**",
+    "config/security/**",
+    "config/registry/security/**"
   ]
 }

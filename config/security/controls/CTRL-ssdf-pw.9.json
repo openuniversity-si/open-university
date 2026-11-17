@@ -1,0 +1,8 @@
+{
+  "id": "CTRL-ssdf-pw.9",
+  "catalog": "SSDF-1.1",
+  "control": "PW.9",
+  "title": "Configure software to have secure settings by default",
+  "applicable": true,
+  "reason": "No secure-default baseline is recorded for the site or the services."
+}

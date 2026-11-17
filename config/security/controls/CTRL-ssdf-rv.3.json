@@ -1,0 +1,8 @@
+{
+  "id": "CTRL-ssdf-rv.3",
+  "catalog": "SSDF-1.1",
+  "control": "RV.3",
+  "title": "Analyze vulnerabilities to identify their root causes",
+  "applicable": true,
+  "reason": "Incidents record case, class and design, but no vulnerability has gone through that analysis."
+}

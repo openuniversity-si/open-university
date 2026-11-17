@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/security.json",
+  "x-owner": "security",
+  "x-schema-version": 1,
+  "description": "Seguran\u00e7a, the 17th system of the engineering model (PADRAO-DEV F7d, D-321): risks, threat models, vulnerabilities of the repository's own code and controls. Reader: scripts/lib/model.py.",
+  "type": "object",
+  "additionalProperties": false
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/security.json",
+  "x-owner": "security",
+  "x-schema-version": 1,
+  "description": "Segurança, the 17th system of the engineering model (PADRAO-DEV F7d, D-321): risks, threat models, vulnerabilities of the repository's own code and controls. Reader: scripts/lib/model.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "security.vuln_critical_days": {
+      "type": "integer",
+      "default": 7,
+      "x-unit": "days",
+      "description": "The bug bar: days from finding a critical vulnerability of the repository's own code to its fix; past it the vulnerability is overdue. A ceiling: raising it loosens the Segurança system.",
+      "x-readers": [
+        "scripts/lib/model.py"
+      ],
+      "x-source": "D-321 (PADRAO-DEV F7d)"
+    },
+    "security.vuln_high_days": {
+      "type": "integer",
+      "default": 30,
+      "x-unit": "days",
+      "description": "The bug bar: days from finding a high vulnerability of the repository's own code to its fix; past it the vulnerability is overdue. A ceiling: raising it loosens the Segurança system.",
+      "x-readers": [
+        "scripts/lib/model.py"
+      ],
+      "x-source": "D-321 (PADRAO-DEV F7d)"
+    },
+    "security.vuln_low_days": {
+      "type": "integer",
+      "default": 180,
+      "x-unit": "days",
+      "description": "The bug bar: days from finding a low vulnerability of the repository's own code to its fix; past it the vulnerability is overdue. A ceiling: raising it loosens the Segurança system.",
+      "x-readers": [
+        "scripts/lib/model.py"
+      ],
+      "x-source": "D-321 (PADRAO-DEV F7d)"
+    },
+    "security.vuln_moderate_days": {
+      "type": "integer",
+      "default": 90,
+      "x-unit": "days",
+      "description": "The bug bar: days from finding a moderate vulnerability of the repository's own code to its fix; past it the vulnerability is overdue. A ceiling: raising it loosens the Segurança system.",
+      "x-readers": [
+        "scripts/lib/model.py"
+      ],
+      "x-source": "D-321 (PADRAO-DEV F7d)"
+    }
+  }
+}

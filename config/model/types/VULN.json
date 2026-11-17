@@ -1,0 +1,23 @@
+{
+  "id": "VULN",
+  "name": "vulnerability",
+  "system": "security",
+  "states": [
+    "open",
+    "overdue",
+    "fixed",
+    "verified",
+    "accepted"
+  ],
+  "derived_states": [
+    "open",
+    "overdue",
+    "fixed",
+    "verified",
+    "accepted"
+  ],
+  "unconformant_states": [
+    "overdue"
+  ],
+  "description": "A vulnerability of the repository's own code, with its deadline from the bug bar."
+}

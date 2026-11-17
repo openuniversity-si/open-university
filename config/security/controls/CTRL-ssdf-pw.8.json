@@ -1,0 +1,8 @@
+{
+  "id": "CTRL-ssdf-pw.8",
+  "catalog": "SSDF-1.1",
+  "control": "PW.8",
+  "title": "Test executable code to identify vulnerabilities",
+  "applicable": true,
+  "reason": "No dynamic security test or fuzzing runs."
+}

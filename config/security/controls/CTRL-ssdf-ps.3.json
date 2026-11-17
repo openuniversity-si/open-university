@@ -1,0 +1,12 @@
+{
+  "id": "CTRL-ssdf-ps.3",
+  "catalog": "SSDF-1.1",
+  "control": "PS.3",
+  "title": "Archive and protect each software release",
+  "applicable": true,
+  "reason": "Every merge of main is kept in git on GitHub and mirrored one way to Origin.",
+  "implemented_by": [
+    "DATA-repository"
+  ],
+  "coverage": "full"
+}

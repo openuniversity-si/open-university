@@ -1,0 +1,14 @@
+{
+  "script": "scripts/tests/security.test.sh",
+  "covers": [
+    "scripts/tests/security.test.sh",
+    "scripts/tests/test_security.py",
+    "scripts/lib/model.py",
+    "scripts/lib/config.py",
+    "scripts/lib/json_schema.py",
+    "contracts/model/*.json",
+    "config/model/**",
+    "config/security/**",
+    "config/registry/security/**"
+  ]
+}

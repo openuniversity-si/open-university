@@ -1,0 +1,18 @@
+{
+  "id": "RISK-media-no-backup",
+  "statement": "The site's media bucket on R2 has no backup or second copy: a deletion, a provider failure or a compromised write key loses the course media.",
+  "state": "assessed",
+  "owner": "Daniel",
+  "assets": [
+    "DATA-r2-media",
+    "SUP-cloudflare"
+  ],
+  "likelihood": "low",
+  "impact": "high",
+  "treatment": {
+    "option": "mitigate",
+    "plan": "A second copy of the bucket in another account or provider, or the owner's acceptance of the residual with the media's sources recorded."
+  },
+  "review_by": "2026-12-17",
+  "source": "docs/programs/padrao-dev/phases/F7.md (F7d)"
+}
