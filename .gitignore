@@ -1,4 +1,4 @@
-# Dependencies (OU-DECOUPLE F5, D-113: the Next.js, Playwright, fidelity and Vercel outputs left with Open University)
+# Dependencies (OU-DECOUPLE F5, D-113: the Next.js, Playwright, fidelity and hosting outputs left with Open University)
 node_modules/
 .pnpm-store/
 

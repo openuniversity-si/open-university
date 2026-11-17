@@ -26,19 +26,19 @@ class ReleasePolicy(unittest.TestCase):
 
     def test_d054_a_frozen_policy_refuses_the_real_host_and_names_the_queue(self):
         with self.assertRaises(policy.Refused) as refused:
-            policy.refuse_frozen('neon-migrate prod', 'https://console.neon.tech', self.frozen)
+            policy.refuse_frozen('deploy prod', REAL, self.frozen)
         self.assertIn('production is frozen', str(refused.exception))
         self.assertIn(self.frozen['queue'], str(refused.exception))
 
     def test_d054_a_loopback_fake_is_not_production(self):
-        policy.refuse_frozen('neon-migrate prod', FAKE, self.frozen)
-        policy.refuse_frozen('neon-migrate prod', 'http://localhost:1', self.frozen)
+        policy.refuse_frozen('deploy prod', FAKE, self.frozen)
+        policy.refuse_frozen('deploy prod', 'http://localhost:1', self.frozen)
         for origin in ('', 'https://127.0.0.1:9', 'http://127.0.0.1.example.com', 'http://evil.test'):
             with self.subTest(origin=origin), self.assertRaises(policy.Refused):
                 policy.refuse_frozen('x', origin, self.frozen)
 
     def test_d054_an_open_policy_allows_the_real_host(self):
-        policy.refuse_frozen('neon-migrate prod', REAL, self.open)
+        policy.refuse_frozen('deploy prod', REAL, self.open)
 
     def test_d054_a_merge_into_main_must_come_from_the_release_branch(self):
         for state in (self.frozen, self.open):

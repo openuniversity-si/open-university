@@ -2,7 +2,8 @@
 
 This repository is the engine of A Torre: the gate, the merge train, the events, the contracts, the configuration
 registry, the script tests, `services/runner` and `services/control-plane`, and the docs. Open University (the course
-site that lived in this repository, with its Vercel production, Neon database and R2 covers) left it (D-105, D-111). Its
+site that lived in this repository; it now runs on AWS with its media on R2, built from its own repository) left it
+(D-105, D-111, D-318). Its
 archive is commit `567176bb` (D-110). No product command remains here.
 
 **Where it lives.** GitHub `openuniversity-si/open-university` is the source of truth (public, Apache-2.0, fresh history since 14/11/2026). A change is a pull request against `main`; it lands through GitHub's merge queue, which requires the `tower/gate` commit status. The check is the GitHub Actions job `tower/gate` (`.github/workflows/tower-gate.yml`), which runs `scripts/verify-commit` on the pull request and on the queue's `gh-readonly-queue/main/...` commit; run it yourself with `scripts/verify-commit --sha <commit> --base <base> --no-post`. A merge into `main` rings the AWS deploy (`.github/workflows/deploy-doorbell.yml`; `scripts/deploy status` reads it). Origin is a one-way mirror of `main` in a repository of Open University only (D-314). The AWS gate (its runner, queue and webhook) is stopped: where a section below still names `mod/roadmap-integration`, `origin pr`, `scripts/deliver`, the train or the box, that is the Origin-era tooling, kept in the tree and not the flow.
@@ -67,4 +68,4 @@ current base (`main` on GitHub, D-314), prepare the environment, reconcile merge
 ## Cloud setup
 Cloud setup: `bash scripts/cloud/setup.sh` is the only, idempotent machine bootstrap (SessionStart hook in Claude Code) and `scripts/cloud/preflight` prints every gap and exits 2; the toolchain manifest and the variables each cloud agent needs are there.
 
-Do not send `VERCEL_AUTOMATION_BYPASS_SECRET`, Neon or Vercel tokens, database URLs, R2 keys, `AUTH_*` / `OU_GOOGLE_*`, Mux, Figma or blob tokens to a cloud agent: the engine reads none of them.
+Do not send the site's hosting or database tokens, database URLs, R2 keys, `AUTH_*` / `OU_GOOGLE_*`, Mux, Figma or blob tokens to a cloud agent: the engine reads none of them. Nothing here relates to a retired vendor (D-318): `scripts/retired-vendors` proves it, and the structure check refuses a new mention outside the historical records.

@@ -1,7 +1,7 @@
 """Production freeze and release unit (D-054, docs/process/RELEASES.md).
 
-scripts/release-policy.json is the only switch. While it says frozen, every write that would reach the real GitHub,
-Neon or Vercel host for production is refused. A loopback origin (the hermetic tests' fakes) is not production. A
+scripts/release-policy.json is the only switch. While it says frozen, every write that would reach the real GitHub or
+production host is refused. A loopback origin (the hermetic tests' fakes) is not production. A
 merge into the production branch is refused unless its head is the release branch, frozen or not.
 """
 import json

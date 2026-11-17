@@ -180,11 +180,11 @@
     {
       "name": "a shell url",
       "suffix": ".sh",
-      "source": "curl -s https://console.neon.tech/api\n",
+      "source": "curl -s https://api.example.com/api\n",
       "found": [
         [
           "url",
-          "https://console.neon.tech/api"
+          "https://api.example.com/api"
         ]
       ]
     },
@@ -202,11 +202,11 @@
     {
       "name": "a javascript url",
       "suffix": ".mjs",
-      "source": "const api = 'https://api.vercel.com';\n",
+      "source": "const api = 'https://api.example.org';\n",
       "found": [
         [
           "url",
-          "https://api.vercel.com"
+          "https://api.example.org"
         ]
       ]
     }

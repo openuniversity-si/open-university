@@ -24,7 +24,7 @@ Invariants: D-025 (no skipped or quarantined test hides a failure), D-065 (event
 threshold is a registry entry), D-069 items 4, 8 and 9.
 
 ## Out of scope
-Fixing the defects (their owners' fix units). Production and Vercel. Browser and vitest base re-runs (a failure in a
+Fixing the defects (their owners' fix units). Production and its host. Browser and vitest base re-runs (a failure in a
 stage outside `defects.stages` is always the PR's own).
 
 ## PRs

@@ -22,8 +22,7 @@
       "url \"http://evil.test\"": 1,
       "url \"http://localhost:1\"": 1,
       "url \"https://127.0.0.1:9\"": 1,
-      "url \"https://api.github.com\"": 1,
-      "url \"https://console.neon.tech\"": 1
+      "url \"https://api.github.com\"": 1
     }
   }
 }

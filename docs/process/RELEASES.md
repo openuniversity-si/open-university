@@ -4,8 +4,9 @@ Status: D-054 (2026-10-25), amended by OU-DECOUPLE (D-105, D-110, D-111). This f
 production and how a change reaches it. The reasons are in the step 1 audit
 ([F3–F6](roadmap/STEP-01-audit.md#f3-migration-0033-is-not-waiting-it-is-already-in-production)).
 
-This repository is the engine of A Torre (gate, train, events, registry, services). Production was Open University's
-site: Vercel builds `main`, with its Neon database and R2 covers. Open University left the repository (D-111). Its
+This repository is the engine of A Torre (gate, train, events, registry, services). Production is Open University's
+site, served from AWS (the Lambda `open-university-web` behind CloudFront, its data in RDS `tower-data`) with its media
+on Cloudflare R2, and built from its own repository (D-318). Open University left this repository (D-111). Its
 archive is commit `567176bb` (D-110). The engine has no production deploy of its own. Pausing the Open University site
 is the last step of OU-DECOUPLE, and Daniel takes it (D-105).
 
@@ -14,9 +15,9 @@ is the last step of OU-DECOUPLE, and Daniel takes it (D-105).
 No agent session, human or coding agent, deploys, promotes, rolls back, or writes production data by hand. A
 production change is any of:
 
-- a merge into `main`: Vercel deploys `main` on every merge while the Open University project is linked;
-- a deploy, a promote or a rollback on the Vercel project, or a change to its settings;
-- a write to Open University's Neon database or R2 bucket. D-105 keeps that data: nothing deletes or modifies it, and
+- a merge into `main`: it rings the engine's AWS deploy (`.github/workflows/deploy-doorbell.yml`, D-314);
+- a build, deploy or rollback of the site's Lambda image, or a change to its settings or secrets;
+- a write to Open University's RDS database or R2 bucket. D-105 keeps that data: nothing deletes or modifies it, and
   Cloudflare is not changed;
 - a merge commit on `main` made in any other way, such as a GitHub merge.
 
@@ -28,7 +29,8 @@ refuses a PR diff that adds a mention of one outside `production.invocation_allo
 
 Until Daniel pauses the site:
 
-- **Production is frozen.** Nothing above is done. The Vercel account is blocked, and the database is not touched.
+- **Production is frozen.** Nothing above is done by a session; the Torre makes the site's changes, and the database
+  is not touched.
 - A change production would need is written down in the host swap queue, in
   order, with the check that proves it.
 - Local work stays local. Engine tests use only the local PostgreSQL (`scripts/cloud/env.sh`), and no preview is built.

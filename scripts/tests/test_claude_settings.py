@@ -8,7 +8,7 @@ SETTINGS = json.loads((ROOT / '.claude' / 'settings.json').read_text())
 PERMS = SETTINGS.get('permissions', {})
 CORE = ['Bash', 'Edit', 'Write', 'Read', 'Glob', 'Grep', 'WebFetch', 'Task', 'TodoWrite']
 SCHEDULING = ['CronCreate', 'CronDelete', 'mcp__claude-code-remote']
-PROD = ['ship-tail', 'neon-migrate', 'ship-verify', 'merge-phase', 'preview-deploy', 'production-check', 'neon-pr']
+PROD = ['ship-tail', 'ship-verify', 'merge-phase', 'preview-deploy', 'production-check']
 FORMS = ['scripts/', './scripts/', 'bash scripts/', 'bash ./scripts/']
 
 

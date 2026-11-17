@@ -189,6 +189,7 @@
  "scripts/tests/repo-hygiene.test.sh": 1.0,
  "scripts/tests/rest-fake-ready.test.sh": 0.8,
  "scripts/tests/retired-products.test.sh": 0.2,
+ "scripts/tests/retired-vendors.test.sh": 0.3,
  "scripts/tests/retro.test.sh": 6.7,
  "scripts/tests/root-identity.test.sh": 0.3,
  "scripts/tests/rule-challenges.test.sh": 0.1,

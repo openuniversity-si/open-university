@@ -43,7 +43,9 @@ class Classification(unittest.TestCase):
 
     def test_real_catalog_has_distinct_reasons_and_unchanged_baseline(self):
         before = json.loads((BASELINE / Path(CATALOG_PATH).name).read_text())
-        for old, new in zip(before['vendors'], CATALOG['vendors']):
+        old_by_name = {vendor['name']: vendor for vendor in before['vendors']}  # a retired vendor leaves both (D-318)
+        for new in CATALOG['vendors']:
+            old = old_by_name.get(new['name'], {'baseline': []})
             self.assertLessEqual(set(new['baseline']), set(old['baseline']),
                                  f"{new['name']} baseline gained a site since abdf8f623")
         self.assertEqual(vendor_check.catalog_errors(ROOT, CATALOG), [])

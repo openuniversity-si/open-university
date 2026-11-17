@@ -29,7 +29,7 @@ def run(logs, mode='full'):
     report = {'sha': 'x', 'result': 'PASS', 'stages': gate_report.stage_results(logs)}
     err = io.StringIO()
     with contextlib.redirect_stderr(err):
-        gate_report.apply_coverage(report, logs, mode, False, True)
+        gate_report.apply_coverage(report, logs, mode, True)
     return report, err.getvalue()
 
 
@@ -53,7 +53,7 @@ class SkipReport(unittest.TestCase):
             write_stage(self.logs, name)
         write_stage(self.logs, 'script tests', 'FAIL')
         report = {'sha': 'x', 'result': 'PASS', 'stages': [dict(s, result='PASS') for s in gate_report.stage_results(self.logs)]}
-        gate_report.apply_coverage(report, self.logs, 'full', False, True)
+        gate_report.apply_coverage(report, self.logs, 'full', True)
         self.assertEqual((report['result'], report['missingStages']), ('PASS', []))
 
     def test_guard_skip_is_named_apart_from_missing(self):

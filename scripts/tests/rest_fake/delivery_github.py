@@ -1,4 +1,4 @@
-"""rest_fake routes of GitHub for the delivery tail (ship-tail, neon-migrate D-035, merge-phase): user, pulls, merge."""
+"""rest_fake routes of GitHub for the delivery tail (ship-tail, the migration step of D-035, merge-phase): user, pulls, merge."""
 import json
 
 

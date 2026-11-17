@@ -7,7 +7,7 @@ tests reused from the cache, one-line verdict) with the machine events collapsed
 
 GX-17: the same module also sets the commit status `forge-events.status_context_gate` (tower/gate) of the head through the
 forge port: pending at begin, success or failure from the verdict. A refusal (403: the identity lacks statuses:write) is
-printed once per run as `status: unavailable (403)` and the run goes on; nothing here touches Vercel.
+printed once per run as `status: unavailable (403)` and the run goes on; nothing here touches the site's host.
 
 F37 (D-299): the check run is its own switch. gate.check_run_enabled alone creates the run's state and writes tower/gate on
 the judged head (pending, then the verdict) with no comment, no gate.started and no verdict hooks: those stay the panel's

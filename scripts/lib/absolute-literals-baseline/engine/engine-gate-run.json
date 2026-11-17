@@ -92,18 +92,6 @@
     },
     "scripts/tests/test_gate_batch.py": {
       "number 2": 1
-    },
-    "scripts/tests/test_gate_db.py": {
-      "absolute_path \"/bin\"": 1,
-      "absolute_path \"/tmp\"": 1,
-      "number 16": 1,
-      "number 17": 2,
-      "number 2": 2,
-      "number 4": 1,
-      "number 7": 6,
-      "number 700": 1,
-      "number 701": 1,
-      "url \"postgresql://tower_v1_app:s3cr3t-pass@ep-fake-123.us-east-1.aws.neon.tech/tower_v1?sslmode=require\"": 1
     }
   }
 }

@@ -124,46 +124,6 @@
       "note": "Documented slot of the agent port (adapters/agent.py SLOTS); no adapter yet."
     },
     {
-      "name": "neon",
-      "kind": "database",
-      "status": "slot",
-      "endpoints": [
-        "console.neon.tech"
-      ],
-      "clis": [
-        "neonctl"
-      ],
-      "modules": [
-        "@neondatabase/serverless"
-      ],
-      "adapters": [],
-      "selectors": [],
-      "baseline": [],
-      "note": "No engine caller: the production tail that called it left the repository (OU-DECOUPLE F4, D-111). A database port would be an adapter of its own."
-    },
-    {
-      "name": "vercel",
-      "kind": "hosting",
-      "status": "slot",
-      "endpoints": [
-        "api.vercel.com",
-        "vercel.com",
-        "vercel.app"
-      ],
-      "clis": [
-        "vercel"
-      ],
-      "modules": [
-        "@vercel/sdk"
-      ],
-      "adapters": [],
-      "selectors": [],
-      "baseline": [
-        "scripts/cloud/setup.sh:vercel"
-      ],
-      "note": "No engine caller: the production tail that called it left the repository (OU-DECOUPLE F4, D-111). The one site is the cloud setup's version line of the pinned CLI."
-    },
-    {
       "name": "cloudflare-r2",
       "kind": "storage",
       "status": "slot",

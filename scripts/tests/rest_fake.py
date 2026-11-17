@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Loopback stand-in for GitHub REST, Neon and Vercel.
+"""Loopback stand-in for GitHub REST.
 
 GraphQL always fails. Authorization values are never logged or written to disk.
 Routes live in rest_fake/*.py, one module per owning unit, loaded by sorted glob (TX24): each exports ROUTES, a tuple of

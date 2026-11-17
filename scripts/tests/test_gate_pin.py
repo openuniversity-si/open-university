@@ -304,7 +304,7 @@ class Run(Fixture):
         _, calls, _, _ = self.drive(["--dev", "--sha", self.head])
         self.assertEqual(len(calls), 1)
 
-    def test_a_mode_that_reaches_neon_gets_no_report_only_run(self):
+    def test_a_mode_that_reaches_an_outside_database_gets_no_report_only_run(self):
         _, calls, lines, _ = self.drive(["--db", "--pr", "9"])
         self.assertEqual(len(calls), 1)
         self.assertTrue(any(line.startswith("gate: advisory skipped (mode db") for line in lines))

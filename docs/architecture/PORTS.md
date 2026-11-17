@@ -134,8 +134,9 @@ payload, unchanged) carries the provider, the model that served it and the token
 endpoints, CLIs and client modules, its adapters, the ports that may load them, and the baseline of calls outside them
 that predate the check. A new call outside an adapter fails; the baseline only shrinks; a new adapter lives in
 `providers.adapter_dir`; GitHub Actions is forbidden with no adapter and no baseline. The archived GitHub forge has no adapter;
-its slot keeps detectors and one classified artifact-download baseline. The vendors the engine no longer calls (Neon, Vercel, R2, Figma) stay slots with their detectors, so a new engine call
-to one fails until its port exists (OU-DECOUPLE F5, D-113).
+its slot keeps detectors and one classified artifact-download baseline. The vendors the engine no longer calls (R2, Figma) stay slots with their detectors, so a new engine call
+to one fails until its port exists (OU-DECOUPLE F5, D-113). The retired vendors of D-318 have no slot: nothing of ours
+may name them at all (`scripts/lib/retired_vendors.py`, in the same structure check).
 
 The catalog does not yet catalog the implemented Origin adapter/client separately. Its Cursor agent slot describes a different port. This catalog diverges from the forge
 implementation above; reconciling it belongs to the proposed follow-up ARQ-FORGE-CAPABILITIES, not this documentation fix.

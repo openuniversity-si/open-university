@@ -23,6 +23,6 @@
   "loopback_scheme": "http://",
   "posts_per_run": 1,
   "comment_store": "comments-",
-  "planted_comment_reader": "#!/usr/bin/env bash\ncheck \"each stage measured\" grep -q 'gate:Neon PR migrations' \"$work/api/comments-7.json\"\ncheck \"none\" bash -c '! grep -q engine.step.measured \"$1/api/comments-7.json\"' _ x\n",
+  "planted_comment_reader": "#!/usr/bin/env bash\ncheck \"each stage measured\" grep -q 'gate:PR migrations' \"$work/api/comments-7.json\"\ncheck \"none\" bash -c '! grep -q engine.step.measured \"$1/api/comments-7.json\"' _ x\n",
   "planted_line": 2
 }

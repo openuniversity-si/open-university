@@ -65,7 +65,7 @@ class SplitTests(unittest.TestCase):
 
     def test_the_full_battery_keeps_every_engine_stage_of_the_pre_split_nightly(self):
         # OU-DECOUPLE F5 (D-113): the baseline lists the engine's stages of the pre-split nightly; the smoke manifest,
-        # the browser arguments, the Neon PR stages, the DB gate and the factory bench left with Open University.
+        # the browser arguments, the per-PR database stages, the DB gate and the factory bench left with Open University.
         original = json.loads((ROOT / 'scripts/lib/gate-stages-baseline.json').read_text())
         self.assertFalse(set(original) - set(policy.FULL_STAGES))
         self.assertEqual(policy.PLANS['noite'], policy.FULL_STAGES)
@@ -124,7 +124,7 @@ class SplitTests(unittest.TestCase):
                         self.assertIn('--noite', command)
                         self.assertIn('--sha', command)
                         self.assertIn('head', command)
-                        self.assertNotIn('--pr', command)  # OU-DECOUPLE F5 (D-113): no Neon branch to borrow
+                        self.assertNotIn('--pr', command)  # OU-DECOUPLE F5 (D-113): no database branch to borrow
                         self.assertNotIn('--merge', command)
                         self.assertNotIn('ship-verify', command)
                         logs.mkdir(parents=True, exist_ok=True)

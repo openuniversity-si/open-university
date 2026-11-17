@@ -16,10 +16,10 @@ import hermetic
 import preflight
 import toolchain_manifest as manifest
 
-# Open University's providers (Neon, Vercel) left the engine (D-105, D-111); preflight never asks for them.
-OPEN_UNIVERSITY_NAMES = ('NEON_API_KEY', 'VERCEL_TOKEN', 'TOWER_NEON_PROJECT_ID', 'TOWER_NEON_PRODUCTION_BRANCH',
-                         'VERCEL_PROJECT_ID', 'VERCEL_ORG_ID')
-SENTINEL = 'sentinel-neon-secret'
+# Open University's providers left the engine (D-105, D-111) and the tree names none of them (D-318, retired_vendors);
+# preflight asks only for the forge's credential. An unrelated credential in the environment is never named or printed.
+OTHER_CREDENTIAL = 'OTHER_PROVIDER_API_KEY'
+SENTINEL = 'sentinel-provider-secret'
 
 
 def stamp_tools(root):
@@ -68,18 +68,16 @@ class PreflightTests(unittest.TestCase):
     def test_env_mode_names_every_gap_and_does_not_probe_or_print_a_secret(self):
         self.enterContext(self.selected('origin'))  # D-293: the one forge's gaps and identity probe
         names = origin_credential_names()
-        env = {**hermetic.store_env(), 'OU_TOOLCHAIN_DIR': str(self.root), 'NEON_API_KEY': SENTINEL}
+        env = {**hermetic.store_env(), 'OU_TOOLCHAIN_DIR': str(self.root), OTHER_CREDENTIAL: SENTINEL}
         with patch.dict(os.environ, env, clear=True), \
                 self.origin_forge(identity=AssertionError('identity probed')) as client:
             found = preflight.problems()
         client.identity.assert_not_called()
         text = '\n'.join(found)
         self.assertIn(f'missing {" or ".join(names)}', text)
-        for name in OPEN_UNIVERSITY_NAMES:
-            self.assertNotIn(name, text)
+        self.assertNotIn(OTHER_CREDENTIAL, text)
         self.assertIn('missing toolchain: python', text)
         self.assertNotIn(SENTINEL, text)
-        self.assertNotIn('missing NEON_API_KEY', text)
 
     def test_invalid_mode_is_named_without_its_value(self):
         env = dict(self.env, OU_CREDENTIALS='not-a-mode-sentinel')
@@ -102,24 +100,20 @@ class PreflightTests(unittest.TestCase):
         self.assertNotIn(SENTINEL, stamp)
         self.assertNotIn('Bearer', stamp)
         self.assertNotIn('fixture-project', stamp)
-        self.assertNotIn('console.neon', stamp)
         json.loads(stamp)
 
     def test_no_open_university_credential_is_asked_or_probed(self):
-        # Only the forge's credential is a gap: with the forge ready, no Neon or Vercel name appears, and the
-        # credentials module has no provider probe left to ask (OU-DECOUPLE F4, D-111; D-293)
+        # Only the forge's credential is a gap: with the forge ready, nothing is missing, and the credentials module
+        # has no provider probe left to ask (OU-DECOUPLE F4, D-111; D-293)
         import forge_events
         source = Path(credentials.__file__).read_text()
-        for name in ('NEON', 'VERCEL', 'probe_json'):
-            self.assertNotIn(name, source)
+        self.assertNotIn('probe_json', source)
         for selected in ('env', 'network'):
             env = dict(self.env, OU_CREDENTIALS=selected)
             with patch.dict(os.environ, env, clear=True), \
                     patch.object(forge_events, 'forge_gaps', return_value=[]):
                 found = preflight.problems()
-            text = '\n'.join(found)
-            for name in OPEN_UNIVERSITY_NAMES:
-                self.assertNotIn(name, text)
+            self.assertEqual([line for line in found if 'API_KEY' in line or 'TOKEN' in line], [], selected)
 
     def selected(self, adapter):
         """forge-events.adapter as an operator's switch would set it; every other key keeps its value."""
@@ -233,12 +227,14 @@ class PreflightTests(unittest.TestCase):
                 patch.object(preflight, 'observed_version', side_effect=lambda tool, _root: stale[tool]):
             self.assertEqual(preflight.missing_tools(), ['node'])
 
-    def test_vazao_f6_neither_gh_nor_vercel_is_a_toolchain_gap(self):
-        # The engine runs neither CLI (github_cli is REST only; Vercel's production left with Open University, D-111).
-        self.assertFalse({'gh', 'vercel'} & set(manifest.TOOLS))
-        self.assertFalse({'gh', 'vercel'} & set(manifest.load()))
+    def test_vazao_f6_neither_gh_nor_a_hosting_cli_is_a_toolchain_gap(self):
+        # The engine runs no gh (github_cli is REST only) and no hosting CLI: the site's production left with Open
+        # University (D-111), so the pinned tools are the engine's own five.
+        self.assertNotIn('gh', manifest.TOOLS)
+        self.assertNotIn('gh', manifest.load())
+        self.assertEqual(set(manifest.TOOLS), {'python', 'node', 'gitleaks', 'postgres', 'ruff'})
         stamp_tools(self.root)
-        self.assertFalse((self.root / 'bin' / 'gh').exists() or (self.root / 'bin' / 'vercel').exists())
+        self.assertFalse((self.root / 'bin' / 'gh').exists())
         with patch.dict(os.environ, self.env, clear=True), \
                 patch.object(preflight, 'observed_version', side_effect=pinned_probe):
             self.assertEqual(preflight.missing_tools(), [])

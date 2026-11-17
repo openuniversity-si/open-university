@@ -50,7 +50,7 @@ ENV_STAGES = DRIVER_STAGES
 ENV = re.compile(r"Text file busy|No module named 'encodings'|SecurityFatalError|security upgrade|ENOTFOUND|"
                  r"EAI_AGAIN|ECONNRESET|ETIMEDOUT|error while loading shared libraries|Executable doesn't exist|"
                  r"Host system is missing|No space left on device|GLIBC_|env-check:|toolchain: |missing GH_TOKEN|"
-                 r"Neon API failed|npm audit|command not found|local postgres did not start|"
+                 r"npm audit|command not found|local postgres did not start|"
                  r"could not (?:create|reset) the local test database|missing TEST_DATABASE_URL|FAIL env: |"
                  r"\(rate-limited\)|runuser: failed to execute \S+: Permission denied", re.I)  # NANO-UNBLOCK: a GitHub limit (github_api, forge_rate) is never the PR's code
 # A failure the code under test produced. When one is in the log, the stage is code even if an env line is also there

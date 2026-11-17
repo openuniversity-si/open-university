@@ -17,7 +17,7 @@ A route outside the SITE-HEALTH ceilings is not a working page (D-038). The ceil
 Invariants: G-6 (a page read does not walk the catalog one course at a time). D-037, D-038.
 
 ## Out of scope
-Visual changes. Home and course pages keep their signed-in twin, because they render per-viewer progress. Vercel
+Visual changes. Home and course pages keep their signed-in twin, because they render per-viewer progress. Hosting
 config, environment variables, and GitHub Actions.
 
 ## PRs
