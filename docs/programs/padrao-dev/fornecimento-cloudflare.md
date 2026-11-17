@@ -44,3 +44,41 @@ Decisões do dono antes de qualquer passo:
 - o custo das mídias com o tamanho e o tráfego reais;
 - a revogação das credenciais da Cloudflare;
 - o domínio.
+
+## A decisão e a execução (17/11, D-323)
+O dono aprovou a recomendação inteira às 18:20 BRT: sair de tudo da Cloudflare e ficar só na AWS (D-323).
+
+**Os números reais**, lidos pela Torre sem mudar nada:
+
+| Bucket | Objetos | Tamanho | Domínio |
+|---|---|---|---|
+| `open-university-media` | 31.026 | 3,388 GB | `media.openuniversity.si` |
+| `the-tower-fidelity` | 1.178 | 1,212 GB | — |
+| `the-tower-media` (legado) | 1.329 | 0,180 GB | nenhum |
+
+- **Total:** 4,78 GB.
+- **Leitura na origem em 30 dias:** 21.373 GetObject (2,459 GB) e 81.462 HeadObject.
+- **DNS:** a zona `openuniversity.si` está na Cloudflare. O `media` é um CNAME com proxy para o R2, e o apex e o `www` já apontam, sem proxy, para o CloudFront.
+- **Domínio:** o registrador é a OpusDNS, revenda da Hostinger, e o registro expira em 11/10/2027. O `.si` não se registra nem se transfere no Route 53, então só o DNS muda: uma zona no Route 53, e a troca dos NS no registrador.
+
+**O custo na AWS**, com esse tráfego:
+- **S3:** 4,78 GB, cerca de US$ 0,11 por mês.
+- **CloudFront:** dentro do 1 TB grátis.
+- **Route 53:** US$ 0,50 por mês pela zona, mais as consultas.
+- **Total:** cerca de **US$ 0,65 por mês**, contra US$ 0 hoje, porque o R2 ainda cabe nos 10 GB grátis.
+
+**Os passos:**
+1. **O Worker, aposentado** (esta PR):
+   - saíram o código, a unidade, o teste, o `service_deploy.py` e as chaves que só ele lia;
+   - o executor da era Origin continua dormente, e o job `DEPLOY` dele falha com o motivo da D-323;
+   - na conta não há o que apagar, porque o Worker e o Durable Object já não existiam.
+2. **As mídias para o S3:**
+   - uma stack com o bucket (versionamento ligado), o CloudFront e o certificado do ACM;
+   - a cópia do bucket, com o R2 só para leitura como segunda cópia durante a troca;
+   - a troca do host público;
+   - o R2 apagado depois de 30 dias sem leitura (passo da Torre).
+3. **O DNS:**
+   - o domínio registrado como ASSET;
+   - a zona no Route 53, replicando todos os registros atuais, inclusive e-mail, verificações e o CNAME novo das mídias;
+   - a troca dos NS no registrador (passo da Torre).
+4. **No fim, todas as credenciais da Cloudflare revogadas** (passo da Torre).
