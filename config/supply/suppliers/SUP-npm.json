@@ -1,0 +1,11 @@
+{
+  "id": "SUP-npm",
+  "name": "the npm registry",
+  "state": "active",
+  "owner": "engine-lane",
+  "kind": "registry",
+  "ecosystems": [
+    "npm"
+  ],
+  "note": "apps/web's 654 packages (pnpm-lock.yaml) come from it."
+}

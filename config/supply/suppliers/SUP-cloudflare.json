@@ -1,0 +1,8 @@
+{
+  "id": "SUP-cloudflare",
+  "name": "Cloudflare",
+  "state": "active",
+  "owner": "Daniel",
+  "kind": "account",
+  "note": "The DNS, the domains and the control plane's Worker."
+}

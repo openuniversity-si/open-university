@@ -1,0 +1,11 @@
+{
+  "id": "supply",
+  "name": "Fornecimento",
+  "processes": [
+    "15288/12207 acquisition",
+    "15288/12207 supply"
+  ],
+  "owner": "administration",
+  "measure": "Advisories affecting by severity and the days they stay open; the share of components whose origin is pinned (an integrity, a checksum, a commit, a digest); components without a supplier.",
+  "description": "The third-party components the repository depends on (DEP), the advisories against them (ADV) and their suppliers (SUP), decided by D-320 (PADRAO-DEV F7)."
+}

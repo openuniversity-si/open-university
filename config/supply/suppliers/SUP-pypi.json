@@ -1,0 +1,11 @@
+{
+  "id": "SUP-pypi",
+  "name": "the Python Package Index",
+  "state": "active",
+  "owner": "engine-lane",
+  "kind": "registry",
+  "ecosystems": [
+    "pypi"
+  ],
+  "note": "The requirements of infra/service."
+}

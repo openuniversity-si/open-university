@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/supplier.v1.json",
+  "title": "Supplier v1",
+  "description": "config/supply/suppliers/<id>.json (PADRAO-DEV F7c, D-320): a supplier of the Fornecimento system (a SUP of the engineering model): an account or a source of third-party components, its owner, the ecosystems of components it supplies and the budget requirement its spend is measured against. Never a credential value.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "state",
+    "owner",
+    "kind"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^SUP-[a-z0-9][a-z0-9-]*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state": {
+      "enum": [
+        "active",
+        "retired"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who answers for the account: Daniel for a paid account or a login, a domain of AGENTS.md otherwise."
+    },
+    "kind": {
+      "enum": [
+        "account",
+        "registry",
+        "platform"
+      ],
+      "description": "account: a paid or logged-in service the engine runs on; registry: a source of packages; platform: both."
+    },
+    "ecosystems": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "npm",
+          "pypi",
+          "toolchain",
+          "action",
+          "image"
+        ]
+      },
+      "description": "The DEP ecosystems whose components it supplies."
+    },
+    "budget": {
+      "type": "string",
+      "pattern": "^REQ-[a-z0-9][a-z0-9.-]*$",
+      "description": "The requirement its spend is measured against."
+    },
+    "note": {
+      "type": "string"
+    },
+    "tools": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Toolchain tools it supplies, where they differ from the toolchain ecosystem's supplier."
+    }
+  }
+}
