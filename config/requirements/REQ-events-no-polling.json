@@ -8,5 +8,6 @@
     "NEED-throughput",
     "NEED-cost"
   ],
-  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido",
+  "verification": "validation"
 }

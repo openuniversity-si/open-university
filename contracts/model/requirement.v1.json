@@ -72,6 +72,13 @@
     "source": {
       "type": "string",
       "minLength": 1
+    },
+    "verification": {
+      "enum": [
+        "test",
+        "validation"
+      ],
+      "description": "How the requirement is verified: by a test (the default), or, for a runtime property no unit test proves (a duration, a rate, the absence of polling), by its own validation met in use (PADRAO-DEV F8a, as F5 planned)."
     }
   }
 }

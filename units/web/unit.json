@@ -1,0 +1,12 @@
+{
+  "id": "web",
+  "purpose": "Open University's site (D-319): the Next.js application in apps/web, its schema, content, tests and the Lambda image of apps/web/deploy/, judged by its own commands in the web check.",
+  "cell": "web",
+  "owner": "site-lane",
+  "paths": [
+    "apps/web/**"
+  ],
+  "realizes": [
+    "ARC-web"
+  ]
+}

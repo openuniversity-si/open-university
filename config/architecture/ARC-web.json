@@ -1,0 +1,19 @@
+{
+  "id": "ARC-web",
+  "kind": "component",
+  "name": "Open University's site",
+  "statement": "The course site (apps/web): its pages, its accounts and progress on tower-data, its media on R2, its own suite in the web check, and its Lambda image.",
+  "state": "active",
+  "owner": "Daniel",
+  "satisfies": [
+    "REQ-web-wcag-22-aa",
+    "REQ-web-home-perf-budget",
+    "REQ-web-lgpd-processing"
+  ],
+  "depends_on": [
+    "ARC-deploy"
+  ],
+  "basis": [
+    "D-319"
+  ]
+}

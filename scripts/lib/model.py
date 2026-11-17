@@ -700,7 +700,7 @@ def measured(body, found, root, today):
         if measure['name'] == 'reflexion':
             return reflexion_share(found)['share'], True
         counted = requirements_measure(found)
-        return (counted['with_test'] / counted['active'] if counted['active'] else 0), True
+        return (counted['with_verification'] / counted['active'] if counted['active'] else 0), True
     if measure['kind'] == 'incident-count':
         from datetime import date, timedelta
         start = (date.fromisoformat(today) - timedelta(days=window['size'])).isoformat()
@@ -846,6 +846,8 @@ def requirements_measure(found):
         'verified': sum(1 for state in states.values() if state == 'verified'),
         'with_element': sum(1 for item in active if has(item, 'satisfies', 'ARC')),
         'with_test': sum(1 for item in active if has(item, 'verifies', 'TEST')),
+        'with_verification': sum(1 for item in active if has(item, 'verifies', 'TEST') or (
+            item.get('body', {}).get('verification') == 'validation' and has(item, 'validates', 'VAL'))),
     }
 
 
@@ -1277,7 +1279,9 @@ def chain_verified(item, into, found):
         return [source for name, source in into.get(target, []) if name == link and found.get(source, {}).get('type') == kind]
     elements = sources(item['id'], 'satisfies', 'ARC')
     realized = any(sources(element, 'realizes', 'UNIT') for element in elements)
-    tested = bool(sources(item['id'], 'verifies', 'TEST'))
+    tested = bool(sources(item['id'], 'verifies', 'TEST')) or (
+        item.get('body', {}).get('verification') == 'validation' and
+        any(found[source]['state'] == 'met' for source in sources(item['id'], 'validates', 'VAL')))
     needs = [link['target'] for link in item['links'] if link['type'] == 'derives-from']
     validated = any(found[source]['state'] == 'met' for target in [item['id'], *needs]
                     for source in sources(target, 'validates', 'VAL'))
