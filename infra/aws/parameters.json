@@ -20,7 +20,8 @@
   },
   "mail": {
     "Mail": "on",
-    "MapParameter": "/tower/mail/forward-map"
+    "MapParameter": "/tower/mail/forward-map",
+    "TestDomain": "mailtest.openuniversity.si"
   },
   "redirect": {
     "Redirect": "on",

@@ -1708,7 +1708,7 @@ class MailStackTests(unittest.TestCase):
     def test_mail_off_is_the_default_and_creates_nothing_that_bills(self):
         self.assertEqual({name: spec['Default'] for name, spec in self.template['Parameters'].items()},
                          {'Mail': 'off', 'MapParameter': '', 'Domain': 'openuniversity.si', 'SenderLocalPart': 'forward',
-                          'SenderName': 'Open University'})
+                          'SenderName': 'Open University', 'TestDomain': ''})
         # The Torre re-applied the bootstrap with ses:* (req-d323-ses, 18/11 21:11:50Z, the APPLIED hash above), so the live
         # parameters may turn Mail on; until the map's name is set it only stores (test_mail_on_with_an_empty_map...)
         self.assertIn(self.parameters.get('Mail', 'off'), ('off', 'on'))
@@ -1720,6 +1720,20 @@ class MailStackTests(unittest.TestCase):
             self.assertEqual({name: item['Type'] for name, item in off['Resources'].items()},
                              {'Pending': 'AWS::CloudFormation::WaitConditionHandle'}, values)
             self.assertEqual(off['Outputs'], {}, values)
+
+    def test_a_test_domain_is_a_second_recipient_of_both_rules_and_nothing_else(self):
+        # 18/11: the Torre's host cannot reach inbound-smtp:25, so SES receiving is tested on a subdomain whose own MX
+        # points at SES while the domain's MX stays on Cloudflare; empty, the rules accept the domain alone
+        rules = [name for name, item in self.template['Resources'].items() if item['Type'] == 'AWS::SES::ReceiptRule']
+        on = self.created(Mail='on', MapParameter='/tower/mail/forward-map', TestDomain='mailtest.openuniversity.si')
+        off = self.created(Mail='on', MapParameter='/tower/mail/forward-map')
+        for name in rules:
+            if name in on['Resources']:
+                self.assertEqual(on['Resources'][name]['Properties']['Rule']['Recipients'],
+                                 [{'Ref': 'Domain'}, {'Ref': 'TestDomain'}])
+            if name in off['Resources']:
+                self.assertEqual(off['Resources'][name]['Properties']['Rule']['Recipients'], [{'Ref': 'Domain'}])
+        self.assertRegex('mailtest.openuniversity.si', self.template['Parameters']['TestDomain']['AllowedPattern'])
 
     def test_mail_on_with_an_empty_map_stores_and_never_sends(self):
         on = self.created(Mail='on')
