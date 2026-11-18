@@ -23,6 +23,7 @@
     "MapParameter": "/tower/mail/forward-map"
   },
   "redirect": {
-    "Redirect": "on"
+    "Redirect": "on",
+    "CertificateArn": "arn:aws:acm:us-east-1:994763873392:certificate/302c7003-4f55-4694-bbd7-19afaa41ab33"
   }
 }
