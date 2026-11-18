@@ -159,8 +159,8 @@ ou_node_env_proxy_exports() {
   done
 }
 
-# shellcheck source=scripts/lib/gate-isolation.sh
-source "$_ou_root/scripts/lib/gate-isolation.sh"
+# shellcheck source=scripts/cloud/test-db.sh
+source "$_ou_root/scripts/cloud/test-db.sh"
 # D-064 (b): one local test database per checkout, so concurrent gates in different worktrees never
 # reset each other's schema. Created on demand by ou_test_db_ensure (gate-local, setup.sh).
 if [[ -z "${TEST_DATABASE_URL:-}" ]]; then

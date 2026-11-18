@@ -9,6 +9,7 @@
     "scripts/lib/config.py",
     "scripts/lib/config_cli.py",
     "scripts/lib/config_latency.py",
+    "scripts/lib/effort_owners.py",
     "scripts/lib/entrypoint_mentions.py",
     "scripts/lib/generated/**",
     "scripts/lib/globs.py",

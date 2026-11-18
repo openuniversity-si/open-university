@@ -35,7 +35,12 @@
     "scripts/tests/verify-commit.test.sh",
     "scripts/tests/test_verify_commit.py",
     "scripts/tests/covers/verify-commit.json",
-    "docs/process/gate-github-speed.md"
+    "docs/process/gate-github-speed.md",
+    "scripts/deploy-classify",
+    "scripts/lib/deploy_classify.py",
+    "scripts/tests/deploy-classify.test.sh",
+    "scripts/tests/test_deploy_classify.py",
+    "scripts/tests/covers/deploy-classify.json"
   ],
   "battery": {
     "command": "scripts/unit-battery engine-gate-infra"
@@ -44,6 +49,9 @@
     "D-306"
   ],
   "premises": [],
+  "realizes": [
+    "ARC-gate"
+  ],
   "requires": {
     "engine-cloud": "^1",
     "engine-config": "^1",
@@ -53,10 +61,6 @@
     "engine-gate-plan": "^1",
     "engine-gate-run": "^1",
     "engine-gate-status": "^1",
-    "engine-gate-tests": "^1",
-    "engine-infra-aws": "^1"
-  },
-  "realizes": [
-    "ARC-gate"
-  ]
+    "engine-gate-tests": "^1"
+  }
 }

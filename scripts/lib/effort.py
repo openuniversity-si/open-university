@@ -16,20 +16,10 @@ from pathlib import Path
 import re
 import subprocess
 
-import config
+# The settings and the word match live under the configuration, for the PR body too (D-322); re-exported here.
+from effort_owners import NAMES, settings, names as _names  # noqa: F401
 
 REGISTRY = 'config/registry/effort.json'
-
-
-NAMES = ('effort.heading', 'effort.fields', 'effort.requirement_field', 'effort.placeholders', 'effort.owners',
-         'effort.owner_registry', 'effort.machine_words', 'effort.rule_doc')
-
-
-def settings(root=None):
-    """Every effort.* value, read once per check (a plan check judges every plan with one read of the registry)."""
-    values = {name: config.get(name, root) for name in NAMES}
-    values['owners'] = list(values['effort.owners']) + list(config.get(values['effort.owner_registry'], root))
-    return values
 
 
 def section(text, values):
@@ -79,10 +69,6 @@ def fields(text, values):
 
 def _bare(value):
     return value.strip().strip('`*_.').strip().lower()
-
-
-def _names(value, words):
-    return [word for word in words if re.search(r'(?<![\w-])' + re.escape(word) + r'(?![\w-])', value, re.IGNORECASE)]
 
 
 def errors(text, where, root=None, values=None):

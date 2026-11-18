@@ -295,6 +295,35 @@
       "x-readers": [
         "scripts/cloud/setup.sh"
       ]
+    },
+    "cloud.test_db_hosts": {
+      "type": "array",
+      "default": [
+        "127.0.0.1",
+        "localhost"
+      ],
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "x-unit": "host",
+      "description": "Hosts of the local PostgreSQL in which ou_test_db_ensure may create a checkout's test database (D-064 (b)); a TEST_DATABASE_URL on any other server is refused. Moved from scripts/lib/gate-isolation.sh with the function (D-322).",
+      "x-readers": [
+        "scripts/cloud/test-db.sh"
+      ],
+      "x-source": "D-064; D-322"
+    },
+    "cloud.test_db_refused_status": {
+      "type": "integer",
+      "default": 2,
+      "minimum": 2,
+      "maximum": 255,
+      "x-unit": "code",
+      "description": "Exit status of ou_test_db_ensure when TEST_DATABASE_URL is not a local PostgreSQL database of cloud.test_db_hosts (D-064 (b)); distinct from 1, a database that could not be created. Moved from scripts/lib/gate-isolation.sh with the function (D-322).",
+      "x-readers": [
+        "scripts/cloud/test-db.sh"
+      ],
+      "x-source": "D-064; D-322"
     }
   }
 }

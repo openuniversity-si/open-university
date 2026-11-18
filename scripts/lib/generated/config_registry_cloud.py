@@ -27,6 +27,8 @@ Name = Literal[
     'cloud.setup_lock_path',
     'cloud.setup_log_path',
     'cloud.setup_log_tail_lines',
+    'cloud.test_db_hosts',
+    'cloud.test_db_refused_status',
 ]
 
 Values = TypedDict('Values', {
@@ -55,4 +57,6 @@ Values = TypedDict('Values', {
     'cloud.setup_lock_path': str,
     'cloud.setup_log_path': str,
     'cloud.setup_log_tail_lines': int,
+    'cloud.test_db_hosts': list[str],
+    'cloud.test_db_refused_status': int,
 })

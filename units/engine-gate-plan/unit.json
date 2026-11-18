@@ -21,16 +21,16 @@
     "scripts/tests/test_gate_areas.py",
     "scripts/tests/test_gate_carry.py",
     "scripts/tests/test_gate_graph.py",
-    "scripts/tests/test_gate_select.py"
+    "scripts/tests/test_gate_select.py",
+    "scripts/lib/delivery.py"
+  ],
+  "realizes": [
+    "ARC-gate"
   ],
   "requires": {
     "engine-config": "^1",
-    "engine-delivery": "^1",
     "engine-events": "^1",
     "engine-gate-tests": "^1",
     "engine-git-ref": "^1"
-  },
-  "realizes": [
-    "ARC-gate"
-  ]
+  }
 }

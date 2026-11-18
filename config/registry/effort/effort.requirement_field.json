@@ -4,6 +4,7 @@
   "x-unit": "text",
   "description": "The field that must name an owner (effort.owners or a lane of effort.owner_registry), never only a machine.",
   "x-readers": [
-    "scripts/lib/effort.py"
+    "scripts/lib/effort.py",
+    "scripts/lib/effort_owners.py"
   ]
 }

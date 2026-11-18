@@ -14,6 +14,7 @@
     "type": "string"
   },
   "x-readers": [
-    "scripts/lib/effort.py"
+    "scripts/lib/effort.py",
+    "scripts/lib/effort_owners.py"
   ]
 }

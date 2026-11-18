@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import plan_tick  # noqa: E402
 
 import config  # noqa: E402
-import effort  # noqa: E402
+import effort_owners  # noqa: E402
 
 SESSION_ENV = 'CLAUDE_SESSION_URL'
 # D-055: there is no review step, so the author's trailer is the one the lane contract names (docs/process/lane.md 4).
@@ -60,8 +60,8 @@ def requirement_problem(requirement, values=None, root=None):
     """None when the requirement names an owner the gate accepts (scripts/lib/effort.py: a word of effort.owners or a
     lane of the effort.owner_registry list); otherwise the refusal, with the valid owners and concrete requirements
     listed (VAZÃO F75). A registered unit name is not accepted, as the gate refuses it too: the refusal names its owner lane."""
-    values = values or effort.settings(root)
-    if effort._names(requirement, values['owners']):
+    values = values or effort_owners.settings(root)
+    if effort_owners.names(requirement, values['owners']):
         return None
     lanes = [owner for owner in values['owners'] if owner not in values['effort.owners']]
     lane = 'engine-lane' if 'engine-lane' in lanes else (lanes[0] if lanes else 'engine-lane')

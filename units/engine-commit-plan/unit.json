@@ -20,11 +20,18 @@
     "scripts/tests/test_plan_tick.py",
     "scripts/tests/test_pr_ready.py"
   ],
+  "realizes": [
+    "ARC-delivery"
+  ],
+  "battery": {
+    "command": "scripts/unit-battery engine-commit-plan"
+  },
   "requires": {
     "engine-config": "^1",
     "engine-config-check": "^1",
     "engine-events": "^1",
     "engine-gate-plan": "^1",
+    "engine-gate-verdict": "^1",
     "engine-premises": "^1",
     "engine-push-guard": "^1",
     "engine-records": "^1",
@@ -33,11 +40,5 @@
     "engine-structure": "^1",
     "engine-train": "^1",
     "engine-train-admission": "^1"
-  },
-  "realizes": [
-    "ARC-delivery"
-  ],
-  "battery": {
-    "command": "scripts/unit-battery engine-commit-plan"
   }
 }

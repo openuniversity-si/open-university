@@ -5,6 +5,7 @@
   "description": "Heading of the effort block a plan and a PR body carry (EFFORT-STEP, docs/padrao/v4/effort.md).",
   "x-readers": [
     "scripts/lib/effort.py",
+    "scripts/lib/effort_owners.py",
     "scripts/lib/intake_templates.py"
   ]
 }
