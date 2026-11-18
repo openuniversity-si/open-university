@@ -1017,6 +1017,14 @@ class CloudFormationLimitTests(unittest.TestCase):
             report.append(f'{path.name}: {len(raw)} bytes, headroom {51200 - len(raw)}')
         print('\n' + '\n'.join(report))
 
+    def test_no_parameter_shares_its_name_with_a_resource(self):
+        # The deploy of #213 failed at CreateChangeSet: "all resources and parameters must have unique names.
+        # Common name(s):[Zone]" (70-dns had a Zone parameter and a Zone hosted zone).
+        for path in self.paths:
+            template = json.loads(path.read_bytes())
+            shared = set(template.get('Parameters', {})) & set(template['Resources'])
+            self.assertEqual(shared, set(), f'{path.name}: parameter and resource named {sorted(shared)}')
+
     def test_logical_ids_are_alphanumeric_and_export_names_unique(self):
         exports = []
         for path in self.paths:
@@ -1358,19 +1366,19 @@ class DnsStackTests(unittest.TestCase):
 
     def test_zone_on_is_the_retained_zone_and_one_record_set_per_name_and_type(self):
         on = self.created(Zone='on', SiteDistribution='d111111abcdef8.cloudfront.net')
-        zone = on['Resources']['Zone']
+        zone = on['Resources']['HostedZone']
         self.assertEqual(zone['Type'], 'AWS::Route53::HostedZone')
         self.assertEqual((zone['DeletionPolicy'], zone['UpdateReplacePolicy']), ('Retain', 'Retain'))
         self.assertEqual(zone['Properties']['Name'], 'openuniversity.si.')
         self.assertNotIn('VPCs', zone['Properties'])
         self.assertNotIn('QueryLoggingConfig', zone['Properties'])
-        sets = [item['Properties'] for name, item in on['Resources'].items() if name != 'Zone']
+        sets = [item['Properties'] for name, item in on['Resources'].items() if name != 'HostedZone']
         self.assertEqual(len(sets), len({(item['Name'], item['Type']) for item in sets}))
-        self.assertTrue(all(item['HostedZoneId'] == {'Ref': 'Zone'} for item in sets))
+        self.assertTrue(all(item['HostedZoneId'] == {'Ref': 'HostedZone'} for item in sets))
         self.assertEqual({kind['Type'] for kind in on['Resources'].values()},
                          {'AWS::Route53::HostedZone'} | ({'AWS::Route53::RecordSet'} if sets else set()))
         self.assertEqual(on['Outputs']['NameServers']['Value'],
-                         {'Fn::Join': [',', {'Fn::GetAtt': ['Zone', 'NameServers']}]})
+                         {'Fn::Join': [',', {'Fn::GetAtt': ['HostedZone', 'NameServers']}]})
         self.assertEqual(len(sets), len(self.records['records'])
                          + sum(1 for item in self.records['records'] if item.get('route53', '').startswith('alias')))
 
