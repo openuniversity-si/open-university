@@ -65,7 +65,7 @@
       "Condition": "ZoneOff",
       "Properties": {}
     },
-    "Zone": {
+    "HostedZone": {
       "Type": "AWS::Route53::HostedZone",
       "Condition": "ZoneOn",
       "DeletionPolicy": "Retain",
@@ -82,7 +82,7 @@
     "ZoneId": {
       "Condition": "ZoneOn",
       "Value": {
-        "Ref": "Zone"
+        "Ref": "HostedZone"
       }
     },
     "NameServers": {
@@ -93,7 +93,7 @@
           ",",
           {
             "Fn::GetAtt": [
-              "Zone",
+              "HostedZone",
               "NameServers"
             ]
           }

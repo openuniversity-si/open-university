@@ -362,7 +362,7 @@ def template(data):
     zone = data['zone']
     resources = {
         'Pending': {'Type': 'AWS::CloudFormation::WaitConditionHandle', 'Condition': 'ZoneOff', 'Properties': {}},
-        'Zone': {
+        'HostedZone': {
             'Type': 'AWS::Route53::HostedZone', 'Condition': 'ZoneOn',
             'DeletionPolicy': 'Retain', 'UpdateReplacePolicy': 'Retain',
             'Properties': {'Name': zone, 'HostedZoneConfig': {
@@ -375,13 +375,13 @@ def template(data):
             for rtype in ('A', 'AAAA'):
                 resources[logical_id({**item, 'type': rtype}, zone, taken)] = {
                     'Type': 'AWS::Route53::RecordSet', 'Condition': 'SiteKnown',
-                    'Properties': {'HostedZoneId': {'Ref': 'Zone'}, 'Name': item['name'], 'Type': rtype,
+                    'Properties': {'HostedZoneId': {'Ref': 'HostedZone'}, 'Name': item['name'], 'Type': rtype,
                                    'AliasTarget': {'DNSName': {'Ref': 'SiteDistribution'},
                                                    'HostedZoneId': CLOUDFRONT_ZONE_ID, 'EvaluateTargetHealth': False}}}
             continue
         resources[logical_id(item, zone, taken)] = {
             'Type': 'AWS::Route53::RecordSet', 'Condition': 'ZoneOn',
-            'Properties': {'HostedZoneId': {'Ref': 'Zone'}, 'Name': item['name'], 'Type': item['type'],
+            'Properties': {'HostedZoneId': {'Ref': 'HostedZone'}, 'Name': item['name'], 'Type': item['type'],
                            'TTL': str(item['ttl']), 'ResourceRecords': route53_values(item)}}
     off = {'Fn::Equals': [{'Ref': 'Zone'}, 'off']}
     return {
@@ -403,9 +403,9 @@ def template(data):
         },
         'Resources': resources,
         'Outputs': {
-            'ZoneId': {'Condition': 'ZoneOn', 'Value': {'Ref': 'Zone'}},
+            'ZoneId': {'Condition': 'ZoneOn', 'Value': {'Ref': 'HostedZone'}},
             'NameServers': {'Condition': 'ZoneOn', 'Description': 'the four name servers the registrar gets',
-                            'Value': {'Fn::Join': [',', {'Fn::GetAtt': ['Zone', 'NameServers']}]}},
+                            'Value': {'Fn::Join': [',', {'Fn::GetAtt': ['HostedZone', 'NameServers']}]}},
         },
     }
 

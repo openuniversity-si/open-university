@@ -144,7 +144,7 @@ class TemplateTests(unittest.TestCase):
         expected = {(item['name'], item['type']) for item in self.data['records']} - {(ZONE, 'CNAME')}
         self.assertEqual(set(keys), expected | {(ZONE, 'A'), (ZONE, 'AAAA')})
         for item in sets:
-            self.assertEqual(item['HostedZoneId'], {'Ref': 'Zone'})
+            self.assertEqual(item['HostedZoneId'], {'Ref': 'HostedZone'})
             if item['Name'] == ZONE and item['Type'] in ('A', 'AAAA'):
                 self.assertEqual(item['AliasTarget'], {'DNSName': {'Ref': 'SiteDistribution'},
                                                        'HostedZoneId': 'Z2FDTNDATAQYW2', 'EvaluateTargetHealth': False})
@@ -194,10 +194,10 @@ class TemplateTests(unittest.TestCase):
     def test_an_empty_record_list_is_the_zone_alone_or_nothing_that_bills(self):
         empty = json.loads(dns_zone.render({'zone': ZONE, 'records': [], 'needs_target': []}))
         on, outputs = created(empty, Zone='on')
-        self.assertEqual(list(on), ['Zone'])
-        self.assertEqual(on['Zone']['Properties']['Name'], ZONE)
+        self.assertEqual(list(on), ['HostedZone'])
+        self.assertEqual(on['HostedZone']['Properties']['Name'], ZONE)
         self.assertEqual(sorted(outputs), ['NameServers', 'ZoneId'])
-        self.assertEqual(outputs['NameServers']['Value'], {'Fn::Join': [',', {'Fn::GetAtt': ['Zone', 'NameServers']}]})
+        self.assertEqual(outputs['NameServers']['Value'], {'Fn::Join': [',', {'Fn::GetAtt': ['HostedZone', 'NameServers']}]})
         off, outputs = created(empty)
         self.assertEqual({name: item['Type'] for name, item in off.items()},
                          {'Pending': 'AWS::CloudFormation::WaitConditionHandle'})
