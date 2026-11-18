@@ -227,7 +227,7 @@ A Torre exportou a zona e conferiu o DNSSEC (desligado, sem DS). A exportação 
 1. **O e-mail de `openuniversity.si` passa pelo Cloudflare Email Routing.**
    - Os registros são os MX `route1/2/3.mx.cloudflare.net`, o DKIM `cf2024-1._domainkey` e o SPF `include:_spf.mx.cloudflare.net`.
    - O roteamento só funciona com a zona ativa na Cloudflare. Copiar esses registros para o Route 53 mantém os nomes, mas a troca de NS desativa a zona lá e, com ela, o roteamento. Apagar a zona no passo 4 também o desliga.
-   - **Antes da troca de NS, o e-mail precisa de um substituto.** O caminho que fica na AWS é o recebimento do SES (MX `inbound-smtp.us-east-1.amazonaws.com`), uma regra que encaminha para o destino de hoje e o DKIM e o SPF do SES.
+   - **Antes da troca de NS, o e-mail precisa de um substituto.** O caminho que fica na AWS é o recebimento do SES (MX `inbound-smtp.us-east-1.amazonaws.com`), uma regra que encaminha para o destino de hoje e o DKIM e o SPF do SES. Ele está pronto, desligado: ver [E-mail: o substituto na AWS](#e-mail-o-substituto-na-aws).
    - Isso é infraestrutura nova, que entra pelas stacks. O destino atual de cada endereço é configuração da conta Cloudflare, que só a Torre lê, e o encaminhamento envolve o e-mail de pessoas. Por isso a Torre informa os endereços e os destinos e o dono confirma o substituto antes do corte.
 2. **As outras zonas da conta, `thetower.si`, `atorre.digital` e `theopenuniversity.si`, dependem do proxy e de Page Rules da Cloudflare.**
    - Cada uma faz um redirecionamento 301 para `openuniversity.si`.
@@ -241,3 +241,49 @@ A Torre exportou a zona e conferiu o DNSSEC (desligado, sem DS). A exportação 
 - a troca do cliente do site para o S3.
 
 **Nota sobre a chave R2 só de leitura (`R2_ACCESS_KEY_ID_RO`):** ela recebe 403 no `ListObjectsV2` do `open-university-media`. A Torre copiou pela API da Cloudflare e pelo host público. O cliente do site deixa o R2 no corte, então esse acesso some com ele.
+
+## E-mail: o substituto na AWS
+**O que já está no repositório, desligado.** A stack `tower-app-mail` (`infra/aws/stacks/65-mail.json`) substitui o Cloudflare Email Routing pelo recebimento do SES. Com `mail.Mail=off` (o `parameters.json` de hoje), ela é só um `WaitConditionHandle`: o merge não muda nada e não cobra nada.
+- **Com `Mail=on`**, a stack cria:
+  - a identidade de domínio do SES para `openuniversity.si` (parâmetro `Domain`), com Easy DKIM de 2048 bits. Os três tokens saem como exportações `tower-mail-dkim-name-<n>` e `tower-mail-dkim-value-<n>`;
+  - um bucket S3 privado (acesso público bloqueado, dono imposto, SSE-S3, só TLS), retido. O SES grava ali cada mensagem bruta em `inbox/<id da mensagem>`, e só as regras do conjunto `tower-mail` desta conta podem gravar. O ciclo de vida apaga cada mensagem em **30 dias**. O bucket é a rede de segurança: guarda o que chegou enquanto o mapa está vazio, quando o encaminhamento falha ou quando o spam é barrado. Trinta dias cobrem uma falha notada na revisão semanal, as 72 horas que o SES leva para achar o DKIM e a janela do corte. Mais que isso seria guardar e-mail de pessoas sem uso, e a cópia que fica é a do destino;
+  - o conjunto de regras `tower-mail`, com uma regra para todo destinatário do domínio, com TLS opcional e verificação de spam e vírus ligada. **O CloudFormation não consegue tornar um conjunto de regras ativo** (o `AWS::SES::ReceiptRuleSet` só tem o nome), então ativar o conjunto é passo da Torre.
+- **Sem mapa** (`MapParameter` vazio, o padrão), a regra é `tower-mail-store`: ela só grava no bucket e nada é enviado. Não existe Lambda, papel nem permissão de envio.
+- **Com mapa** (`MapParameter` é o nome de um parâmetro SSM, por exemplo `/tower/mail/forward-map`), a regra vira `tower-mail-forward`: ela grava primeiro e depois chama a Lambda `tower-mail-forwarder`, de forma assíncrona. A Lambda:
+  - lê o mapa no SSM a cada mensagem. O mapa é um JSON `{"<endereço ou parte local>": "<destino>" | ["<destino 1>", "<destino 2>"]}`;
+  - descarta a mensagem que o SES marcou como spam ou vírus (ela fica no bucket);
+  - troca o `From` por `"<nome> via openuniversity.si" <forward@…>` (parâmetro `SenderLocalPart`, no domínio verificado) e põe o `From` original no `Reply-To`, a não ser que já exista um. Também tira `Return-Path`, `Sender`, `Message-ID` e `DKIM-Signature`, como no encaminhador padrão do SES;
+  - envia pelo SES v2 só com esse remetente, porque o papel `tower-app-mail-forwarder` só pode enviar com `ses:FromAddress` igual a ele. Um destinatário fora do mapa não recebe nada. O log registra o id da mensagem e quantos destinos teve, nunca um endereço.
+- **Os endereços nunca entram no repositório.** O mapa é configuração do dono. A Torre o grava no SSM, e o repositório só tem o nome do parâmetro. O teste `test_no_address_of_anyone_is_in_the_tree` confere `infra/aws`, `scripts/lib/dns_zone.py` e este documento.
+- **Por que `65` e não `80`.** No corte, a stack `dns` importa os tokens de DKIM da `mail`. O `order.json` exige que uma stack venha antes da que a importa, também pela numeração dos arquivos. Por isso a `mail` vem antes da `dns` (`"mail": []`).
+- **O DKIM.** Os tokens do Easy DKIM só existem depois que a identidade é criada, então não dá para escrevê-los na lista. Eles também não são copiados à mão: no corte, a stack `dns` ganha três CNAME cujo nome e valor são o `Fn::ImportValue` das exportações da `mail`. Só a `dns` escreve na zona, como antes. Enquanto a Cloudflare ainda for a autoritativa, a Torre copia esses três CNAME para lá (passo 4 abaixo). Assim o domínio é verificado antes do corte.
+- **A fronteira.** O `tower-bootstrap` ganhou `ses:*` na declaração por região (`WorkloadServicesInTheStackRegion`). Para caber, duas negações viraram padrões que negam o mesmo ou mais: `iam:CreatePolicy*` e `iam:*LoginProfile`. O arquivo tem 51.104 bytes, 96 abaixo do limite de 51.200.
+- **O custo.** Com Mail off, zero. Com Mail on, o teto declarado é de **US$ 3,20 por mês** para 10.000 mensagens de até 256 KB. São US$ 1,00 do recebimento (US$ 0,10 por mil), US$ 0,90 dos blocos de 256 KB (US$ 0,09 por mil), US$ 1,00 do envio (US$ 0,10 por mil), mais US$ 0,12 por GB, menos de US$ 0,10 de S3, e a Lambda fica no nível gratuito. Isso é cerca de 2% do orçamento de US$ 150 (o teste `MailStackTests` confere).
+
+**O corte em uma PR.** O `scripts/dns-zone build infra/aws/dns/openuniversity.si.zone --mail ses` reescreve a lista e a stack `70-dns.json` com:
+- o MX do apex `10 inbound-smtp.us-east-1.amazonaws.com`, escrito como `Fn::Sub` de `${AWS::Region}` (o recebimento do SES existe em `us-east-1`, a região das stacks);
+- o SPF `v=spf1 include:amazonses.com ~all`. Só o `include` da Cloudflare é trocado; outros mecanismos ficam;
+- sem o DKIM `cf2024-1._domainkey` da Cloudflare;
+- o DMARC `_dmarc` `v=DMARC1; p=none`, só se não houver um. O `p=none` só observa, e o DKIM do SES alinha o `From` reescrito;
+- os três CNAME do DKIM, importados.
+
+A mesma PR passa o `order.json` para `"dns": ["media", "mail"]`, e o `build` avisa disso. O `compare` continua valendo, porque aplica a mesma troca à exportação. Para reverter, a PR roda o mesmo `build` sem `--mail` (o padrão é `cloudflare`).
+
+**O que o dono decide.**
+- Os endereços de `openuniversity.si` e o destino de cada um. Hoje eles estão no Cloudflare Email Routing, que só a Torre lê. A Torre os informa e o dono confirma.
+- O remetente do encaminhamento (a parte local `forward` no domínio é o padrão de `SenderLocalPart`) e os 30 dias de guarda.
+
+**Os passos da Torre**, nesta ordem:
+1. **Reaplicar o `tower-bootstrap`** com o modelo do `main` (change set, `UsePreviousValue` nos parâmetros) e informar o hash canônico. O `APPLIED` do `test_infra_aws.py` já tem o desta PR: `f3b82e30…e5d5`.
+2. **Pedir o acesso de produção do SES** em `us-east-1` (console ou `aws sesv2 put-account-details`). No sandbox, o SES só envia para endereços verificados, até 200 por dia, então o encaminhamento para destinos de pessoas não funciona. Só a Torre faz esse pedido.
+3. Depois da PR que liga `mail.Mail=on`, **ler as saídas** da `tower-app-mail` (`InboxBucket`, `RuleSetName`, `DkimName1..3` e `DkimValue1..3`).
+4. **Verificar o domínio.** Pôr os três CNAME do DKIM na zona da Cloudflare, sem proxy, e esperar a identidade ficar `SUCCESS` (`aws sesv2 get-email-identity --email-identity openuniversity.si`).
+5. **Ativar o conjunto de regras.** Primeiro `aws ses describe-active-receipt-rule-set`: se houver outro ativo, parar e informar. Depois `aws ses set-active-receipt-rule-set --rule-set-name tower-mail`. Sem o MX, nada chega por ele.
+6. **Gravar o mapa** com os endereços e destinos que o dono confirmou: `aws ssm put-parameter --name /tower/mail/forward-map --type SecureString --value '<o JSON>'`. Depois, uma PR põe `mail.MapParameter` com esse nome.
+7. **Testar de ponta a ponta antes do MX.** Enviar uma mensagem para um endereço do mapa direto ao `inbound-smtp.us-east-1.amazonaws.com` (por exemplo, `swaks --server`). Conferir quatro coisas: o objeto em `inbox/` no bucket, a linha `"forwarded": 1` no log `/aws/lambda/tower-mail-forwarder`, a chegada ao destino com `From` "… via openuniversity.si" e o `Reply-To` do remetente, e o DKIM `pass` com `d=openuniversity.si`.
+8. **O corte do MX com a troca de NS.** A PR do corte (`--mail ses` e o `order.json`) entra logo antes da troca de NS do passo 3 (b). Durante a propagação, o MX da Cloudflare e o do SES entregam nos mesmos destinos.
+
+**Para reverter.**
+- **Só o encaminhamento:** a Torre grava `{}` no mapa, o que vale na hora e sem deploy. Ou uma PR esvazia `MapParameter`, e a regra volta a só gravar.
+- **Antes do corte:** a Torre desativa o conjunto (`aws ses set-active-receipt-rule-set`, sem nome), porque o CloudFormation não apaga um conjunto ativo. Depois, uma PR põe `Mail=off`. A identidade sai com ela, e o bucket fica retido e se esvazia em 30 dias.
+- **Depois do corte:** primeiro a PR de reversão do corte (`build` sem `--mail` e `"dns": ["media"]`), porque a `mail` não pode tirar as exportações enquanto a `dns` as importa. Com o NS já no Route 53, o Email Routing da Cloudflare não volta sozinho. Voltar o e-mail para a Cloudflare é voltar o NS (a reversão do passo 3).

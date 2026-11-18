@@ -17,5 +17,8 @@
   "dns": {
     "Zone": "on",
     "SiteDistribution": "dns1rg162g0y7.cloudfront.net"
+  },
+  "mail": {
+    "Mail": "off"
   }
 }

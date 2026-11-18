@@ -343,5 +343,92 @@ class CommandTests(unittest.TestCase):
         self.assertIn('$INCLUDE is not read here', out)
 
 
+class MailSwitchTests(unittest.TestCase):
+    """--mail ses (D-323, the Cloudflare exit): the e-mail cut in one PR. The committed list mirrors Cloudflare until the NS
+    switch; the switch makes the apex MX SES receiving's endpoint, the SPF SES's, drops Cloudflare's DKIM, adds a DMARC
+    record when there is none and imports the mail stack's three Easy DKIM tokens."""
+    EXPORT = ROOT / 'infra/aws/dns/openuniversity.si.zone'
+    CLOUDFLARE_MAIL = (
+        '$ORIGIN openuniversity.si.\n'
+        'openuniversity.si.\t1\tIN\tMX\t22 route1.mx.cloudflare.net.\n'
+        'openuniversity.si.\t1\tIN\tMX\t91 route2.mx.cloudflare.net.\n'
+        'openuniversity.si.\t1\tIN\tTXT\t"v=spf1 include:_spf.mx.cloudflare.net ~all"\n'
+        'openuniversity.si.\t1\tIN\tTXT\t"google-site-verification=abc"\n'
+        'cf2024-1._domainkey.openuniversity.si.\t1\tIN\tTXT\t"v=DKIM1; h=sha256; k=rsa; p=MIIB"\n'
+        'www.openuniversity.si.\t1\tIN\tCNAME\td111111abcdef8.cloudfront.net.\n')
+
+    def ses(self, text):
+        return dns_zone.record_list(text, 'x.zone', ZONE, (), {}, 'ses')
+
+    def test_the_committed_list_still_mirrors_cloudflare(self):
+        data = json.loads(dns_zone.default_list().read_text(encoding='utf-8'))
+        self.assertNotIn('mail', data)
+        mx = next(item for item in data['records'] if (item['name'], item['type']) == (ZONE, 'MX'))
+        self.assertTrue(all(value.split()[1].endswith('.mx.cloudflare.net.') for value in mx['values']))
+        self.assertNotIn('Fn::ImportValue": "tower-mail', dns_zone.STACK.read_text(encoding='utf-8'))
+
+    def test_the_switch_gives_ses_receiving_spf_dmarc_and_drops_cloudflare_s_dkim(self):
+        data = self.ses(self.CLOUDFLARE_MAIL)
+        by = {(item['name'], item['type']): item for item in data['records']}
+        self.assertEqual(data['mail'], 'ses')
+        self.assertEqual(by[(ZONE, 'MX')]['values'], ['10 inbound-smtp.${AWS::Region}.amazonaws.com.'])
+        self.assertEqual(by[(ZONE, 'TXT')]['values'], ['google-site-verification=abc', 'v=spf1 include:amazonses.com ~all'])
+        self.assertEqual(by[('_dmarc.' + ZONE, 'TXT')]['values'], ['v=DMARC1; p=none'])
+        self.assertNotIn(('cf2024-1._domainkey.' + ZONE, 'TXT'), by)
+        self.assertEqual(by[('www.' + ZONE, 'CNAME')]['values'], ['d111111abcdef8.cloudfront.net.'])
+        self.assertNotIn('cloudflare', json.dumps(data['records']))
+
+    def test_the_stack_writes_the_region_by_sub_and_imports_the_three_dkim_tokens(self):
+        template = json.loads(dns_zone.render(self.ses(self.CLOUDFLARE_MAIL)))
+        resources = template['Resources']
+        self.assertEqual(resources['RecordApexMx']['Properties']['ResourceRecords'],
+                         [{'Fn::Sub': '10 inbound-smtp.${AWS::Region}.amazonaws.com.'}])
+        self.assertIsNone(re.search(r'\b(us|eu|ap|sa)-[a-z]+-\d\b', json.dumps(template)))
+        mail = json.loads((ROOT / 'infra/aws/stacks/65-mail.json').read_text(encoding='utf-8'))
+        exported = {output['Export']['Name'] for output in mail['Outputs'].values() if 'Export' in output}
+        for n in (1, 2, 3):
+            item = resources[f'RecordSesDkim{n}Cname']
+            self.assertEqual(item['Condition'], 'ZoneOn')
+            props = item['Properties']
+            self.assertEqual((props['Type'], props['HostedZoneId']), ('CNAME', {'Ref': 'HostedZone'}))
+            self.assertEqual(props['Name'], {'Fn::ImportValue': f'tower-mail-dkim-name-{n}'})
+            self.assertEqual(props['ResourceRecords'], [{'Fn::ImportValue': f'tower-mail-dkim-value-{n}'}])
+            self.assertLessEqual({f'tower-mail-dkim-name-{n}', f'tower-mail-dkim-value-{n}'}, exported)
+
+    def test_an_existing_dmarc_and_other_spf_mechanisms_are_kept(self):
+        text = (self.CLOUDFLARE_MAIL.replace('include:_spf.mx.cloudflare.net ~all', 'include:_spf.example.org include:_spf.mx.cloudflare.net -all')
+                + '_dmarc.openuniversity.si.\t1\tIN\tTXT\t"v=DMARC1; p=reject"\n')
+        by = {(item['name'], item['type']): item for item in self.ses(text)['records']}
+        self.assertIn('v=spf1 include:_spf.example.org include:amazonses.com -all', by[(ZONE, 'TXT')]['values'])
+        self.assertEqual(by[('_dmarc.' + ZONE, 'TXT')]['values'], ['v=DMARC1; p=reject'])
+        self.assertEqual(dns_zone.ses_spf('v=spf1 a ~all'), 'v=spf1 a include:amazonses.com ~all')
+        self.assertEqual(dns_zone.ses_spf('v=spf1 include:amazonses.com ~all'), 'v=spf1 include:amazonses.com ~all')
+        no_txt = '\n'.join(line for line in self.CLOUDFLARE_MAIL.splitlines() if '\tTXT\t' not in line) + '\n'
+        by = {(item['name'], item['type']): item for item in self.ses(no_txt)['records']}
+        self.assertEqual(by[(ZONE, 'TXT')]['values'], ['v=spf1 include:amazonses.com ~all'])
+
+    def test_the_cut_and_its_revert_are_one_command_and_compare_still_holds(self):
+        tmp = Path(tempfile.mkdtemp())
+        files = ['--list', str(tmp / 'list.json'), '--stack', str(tmp / 'stack.json')]
+        code, out = run('build', str(self.EXPORT), '--mail', 'ses', *files)
+        self.assertEqual(code, 0, out)
+        self.assertIn('order.json gives dns the edge "mail"', out)
+        self.assertEqual(run('compare', str(self.EXPORT), *files)[0], 0)
+        code, out = run('dig-plan', *files[:2])
+        self.assertIn('MX +short  # expect ttl 300: 10 inbound-smtp.us-east-1.amazonaws.com.', out)
+        self.assertIn('the export tower-mail-dkim-value-3 holds (SES Easy DKIM)', out)
+        listed = json.loads((tmp / 'list.json').read_text(encoding='utf-8'))
+        self.assertEqual(listed['mail'], 'ses')
+        # the revert: the default rebuild is the committed stack again
+        code, out = run('build', str(self.EXPORT), *files)
+        self.assertEqual(code, 0, out)
+        self.assertEqual((tmp / 'stack.json').read_text(encoding='utf-8'), dns_zone.STACK.read_text(encoding='utf-8'))
+        with self.assertRaises(SystemExit) as refused, contextlib.redirect_stderr(io.StringIO()):
+            dns_zone.main(['build', str(self.EXPORT), '--mail', 'smtp', *files])
+        self.assertEqual(refused.exception.code, 2)
+        with self.assertRaises(dns_zone.ZoneError):
+            dns_zone.mail_records([], ZONE, 'smtp')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=1)
