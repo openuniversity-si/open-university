@@ -344,9 +344,9 @@ class CommandTests(unittest.TestCase):
 
 
 class MailSwitchTests(unittest.TestCase):
-    """--mail ses (D-323, the Cloudflare exit): the e-mail cut in one PR. The committed list mirrors Cloudflare until the NS
-    switch; the switch makes the apex MX SES receiving's endpoint, the SPF SES's, drops Cloudflare's DKIM, adds a DMARC
-    record when there is none and imports the mail stack's three Easy DKIM tokens."""
+    """--mail ses (D-323, the Cloudflare exit): the e-mail cut in one PR. The committed list is the cut since 18/11 (it was the
+    Cloudflare mirror before); the cut makes the apex MX SES receiving's endpoint, the SPF SES's, drops Cloudflare's DKIM,
+    adds a DMARC record when there is none and imports the mail stack's three Easy DKIM tokens."""
     EXPORT = ROOT / 'infra/aws/dns/openuniversity.si.zone'
     CLOUDFLARE_MAIL = (
         '$ORIGIN openuniversity.si.\n'
@@ -360,12 +360,20 @@ class MailSwitchTests(unittest.TestCase):
     def ses(self, text):
         return dns_zone.record_list(text, 'x.zone', ZONE, (), {}, 'ses')
 
-    def test_the_committed_list_still_mirrors_cloudflare(self):
-        data = json.loads(dns_zone.default_list().read_text(encoding='utf-8'))
-        self.assertNotIn('mail', data)
-        mx = next(item for item in data['records'] if (item['name'], item['type']) == (ZONE, 'MX'))
-        self.assertTrue(all(value.split()[1].endswith('.mx.cloudflare.net.') for value in mx['values']))
-        self.assertNotIn('Fn::ImportValue": "tower-mail', dns_zone.STACK.read_text(encoding='utf-8'))
+    def test_the_committed_list_is_the_cut_built_from_the_committed_export(self):
+        # The cut happened (D-323, 18/11): the committed list and stack are exactly `build --mail ses` of the committed
+        # export, and the Route 53 zone serves them once the Torre switches openuniversity.si's name servers.
+        committed = json.loads(dns_zone.default_list().read_text(encoding='utf-8'))
+        built = dns_zone.record_list(self.EXPORT.read_text(encoding='utf-8'), self.EXPORT.name, ZONE,
+                                     dns_zone.proxy_networks(dns_zone.PROXY_IPS),
+                                     dns_zone.load_targets(dns_zone.default_targets()), 'ses')
+        self.assertEqual(dns_zone.dump(built), dns_zone.default_list().read_text(encoding='utf-8'))
+        self.assertEqual(dns_zone.render(built), dns_zone.STACK.read_text(encoding='utf-8'))
+        self.assertEqual(committed['mail'], 'ses')
+        mx = next(item for item in committed['records'] if (item['name'], item['type']) == (ZONE, 'MX'))
+        self.assertEqual(mx['values'], ['10 inbound-smtp.${AWS::Region}.amazonaws.com.'])
+        self.assertNotIn('cloudflare', json.dumps(committed['records']))
+        self.assertIn('Fn::ImportValue": "tower-mail-dkim-name-1', dns_zone.STACK.read_text(encoding='utf-8'))
 
     def test_the_switch_gives_ses_receiving_spf_dmarc_and_drops_cloudflare_s_dkim(self):
         data = self.ses(self.CLOUDFLARE_MAIL)
@@ -408,21 +416,30 @@ class MailSwitchTests(unittest.TestCase):
         self.assertEqual(by[(ZONE, 'TXT')]['values'], ['v=spf1 include:amazonses.com ~all'])
 
     def test_the_cut_and_its_revert_are_one_command_and_compare_still_holds(self):
+        # compare takes the mail mode from the list it reads (its "mail" key), so it needs no --mail of its own
+        self.assertEqual(run('compare', str(self.EXPORT))[0], 0, 'compare holds for the committed (cut) list')
         tmp = Path(tempfile.mkdtemp())
         files = ['--list', str(tmp / 'list.json'), '--stack', str(tmp / 'stack.json')]
+        # the revert: the default build mirrors Cloudflare's mail again, and compare holds for that list too
+        code, out = run('build', str(self.EXPORT), *files)
+        self.assertEqual(code, 0, out)
+        reverted = json.loads((tmp / 'list.json').read_text(encoding='utf-8'))
+        self.assertNotIn('mail', reverted)
+        mx = next(item for item in reverted['records'] if (item['name'], item['type']) == (ZONE, 'MX'))
+        self.assertTrue(all(value.split()[1].endswith('.mx.cloudflare.net.') for value in mx['values']))
+        self.assertNotIn('Fn::ImportValue": "tower-mail', (tmp / 'stack.json').read_text(encoding='utf-8'))
+        self.assertNotEqual((tmp / 'stack.json').read_text(encoding='utf-8'), dns_zone.STACK.read_text(encoding='utf-8'))
+        self.assertEqual(run('compare', str(self.EXPORT), *files)[0], 0)
+        # the cut again: --mail ses gives the committed list and stack byte for byte
         code, out = run('build', str(self.EXPORT), '--mail', 'ses', *files)
         self.assertEqual(code, 0, out)
         self.assertIn('order.json gives dns the edge "mail"', out)
+        self.assertEqual((tmp / 'list.json').read_text(encoding='utf-8'), dns_zone.default_list().read_text(encoding='utf-8'))
+        self.assertEqual((tmp / 'stack.json').read_text(encoding='utf-8'), dns_zone.STACK.read_text(encoding='utf-8'))
         self.assertEqual(run('compare', str(self.EXPORT), *files)[0], 0)
         code, out = run('dig-plan', *files[:2])
         self.assertIn('MX +short  # expect ttl 300: 10 inbound-smtp.us-east-1.amazonaws.com.', out)
         self.assertIn('the export tower-mail-dkim-value-3 holds (SES Easy DKIM)', out)
-        listed = json.loads((tmp / 'list.json').read_text(encoding='utf-8'))
-        self.assertEqual(listed['mail'], 'ses')
-        # the revert: the default rebuild is the committed stack again
-        code, out = run('build', str(self.EXPORT), *files)
-        self.assertEqual(code, 0, out)
-        self.assertEqual((tmp / 'stack.json').read_text(encoding='utf-8'), dns_zone.STACK.read_text(encoding='utf-8'))
         with self.assertRaises(SystemExit) as refused, contextlib.redirect_stderr(io.StringIO()):
             dns_zone.main(['build', str(self.EXPORT), '--mail', 'smtp', *files])
         self.assertEqual(refused.exception.code, 2)
