@@ -535,6 +535,70 @@ class StateLongPolls(unittest.TestCase):
                              (False, held[port.LONG_POLL]['seen']))
         self.assertEqual(asked, [(wake.STATUS, wake.DEPLOY)] * 3)
 
+    def test_a_listener_that_cannot_open_still_holds_the_read_and_marks_it(self):
+        # LONG-POLL-HOLDS: the database refused the LISTEN's connection: no 500, wake.Wake.wait waits the span out and
+        # the answer read after it is marked, so the client never needs a pause of its own
+        def refused():
+            raise OSError('too many connections')
+        slept, at = [], [0.0]
+        listener = wake.Wake(refused, wake.STATUS, sleep=lambda s: slept.append(s) or at.__setitem__(0, at[0] + s))
+        read, _ = self.reads({'state': 'queued'})
+        seen = port.long_poll(read, {'wait_s': '1'}, Heard([]))[port.LONG_POLL]['seen']
+        read, said = self.reads({'state': 'queued'})
+        got = port.long_poll(read, {'wait_s': '15', 'seen': seen}, listener, clock=lambda: at[0])
+        self.assertEqual((got[port.LONG_POLL]['changed'], got[port.LONG_POLL]['waited_s'], slept, len(said)),
+                         (False, 15.0, [15.0], 2))
+        read, _ = self.reads({'state': 'running'})
+        got = port.long_poll(read, {'wait_s': '15', 'seen': seen}, wake.Wake(refused, wake.STATUS, sleep=self.fail))
+        self.assertTrue(got[port.LONG_POLL]['changed'])  # changed already: at once, marked, no wait
+
+    def test_the_deployed_ports_database_always_has_a_wake(self):
+        self.assertIsNotNone(http_port.wake_of(http_port.lazy_database(), wake.STATUS))  # the Lambda's: never None
+
+    def health(self, db, query=None):
+        event = {'rawPath': '/v1/health', 'requestContext': {'http': {'method': 'GET'}}}
+        if query:
+            event['queryStringParameters'] = query
+        said = http_port.handle(event, db, 'x')
+        return said['statusCode'], json.loads(said['body'])
+
+    def test_health_with_wait_s_is_held_until_the_database_answers(self):
+        # PORT-HEALTH-WAIT: refused logins tried again with a doubling pause, within the span; marked
+        tries, slept, at = [], [], [0.0]
+
+        def rows(sql, params=None):
+            tries.append(sql)
+            if len(tries) < 4:
+                raise http_port.Unreachable('OperationalError: too many connections')
+            return [(1,)]
+        db = mock.Mock(rows=rows)
+        with mock.patch.object(http_port.time, 'sleep', lambda s: slept.append(s) or at.__setitem__(0, at[0] + s)), \
+                mock.patch.object(http_port.time, 'monotonic', lambda: at[0]):
+            code, said = self.health(db, {'wait_s': '25'})
+        self.assertEqual((code, said['ok'], said[port.LONG_POLL]), (200, True, {'waited_s': 1.75, 'ready': True}))
+        self.assertEqual(slept, [0.25, 0.5, 1.0])
+
+    def test_health_whose_wait_runs_out_is_503_marked_and_bounded(self):
+        slept, at = [], [0.0]
+
+        def rows(sql, params=None):
+            raise http_port.Unreachable('OperationalError: too many connections')
+        with mock.patch.object(http_port.time, 'sleep', lambda s: slept.append(s) or at.__setitem__(0, at[0] + s)), \
+                mock.patch.object(http_port.time, 'monotonic', lambda: at[0]):
+            code, said = self.health(mock.Mock(rows=rows), {'wait_s': '500'})
+        self.assertEqual((code, said['error'], said[port.LONG_POLL]['ready']), (503, 'unavailable', False))
+        self.assertEqual(sum(slept), canary.WAIT_MAX_S)  # the long poll's bound, never the 500 asked
+        self.assertLessEqual(max(slept), http_port.HEALTH_RETRY_S[1])
+
+    def test_health_without_wait_s_is_todays_answer_and_a_bad_wait_is_400(self):
+        db = mock.Mock(rows=lambda sql, params=None: [(1,)])
+        code, said = self.health(db)
+        self.assertEqual((code, said['ok'], port.LONG_POLL in said), (200, True, False))
+        down = mock.Mock(rows=mock.Mock(side_effect=http_port.Unreachable('away')))
+        with self.assertRaises(http_port.Unreachable):  # answered(): tried again once, then 503, as before
+            self.health(down)
+        self.assertEqual(self.health(db, {'wait_s': 'soon'}), (400, {'error': 'wait_s is a number of seconds'}))
+
 
 STACK = ROOT / 'infra/aws/stacks/40-port.json'
 

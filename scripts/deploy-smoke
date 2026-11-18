@@ -4,6 +4,8 @@
 # deployer (CodeBuild); red (exit 1) rolls back the stacks that build changed. Three checks, each retried
 # (DEPLOY_SMOKE_TRIES, default 6, DEPLOY_SMOKE_SLEEP seconds apart, default 5) because a stack that just rolled out answers late:
 #   1. GET /v1/health          200 and "ok":true: the port's Lambda is up and the database answers.
+#                              PORT-HEALTH-WAIT: asked with ?wait_s, held by the port until it is ready (no pause between
+#                              tries unless the port did not hold it: one older than the wait)
 #   2. GET /v1/deploy/status   the route is alive: 200 with a token, 401/403 without one.
 #   3. a registry read         with a token, that status answers source "registry" (read from the log); without, skipped.
 # and, with a token, the canary (DEPLOY-CANARY, docs/operations/aws.md 22.3): the three above are all served by the port's
@@ -39,20 +41,35 @@ token="${DEPLOY_SMOKE_TOKEN:-}"
 [[ -z "$token" ]] && token="$(aws ssm get-parameter --name /tower/deploy/smoke-token --with-decryption --query Parameter.Value --output text 2>/dev/null || true)"
 [[ "$token" = None ]] && token=""
 
-# get <path> [auth]: prints "<status> <body>" of one GET, empty status on a transport failure.
+# get <path> [auth] [max seconds, 10]: prints "<status> <body>" of one GET, empty status on a transport failure.
 get() {
-  local args=(-sS -m 10 -o "$body" -w '%{http_code}')
+  local args=(-sS -m "${3:-10}" -o "$body" -w '%{http_code}')
   [[ -n "${2:-}" && -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
   curl "${args[@]}" "$url$1" 2>/dev/null || true
 }
 body="$(mktemp)"; trap 'rm -f "$body"' EXIT
 
-# check <name> <path> <auth?> <ok-status-regex> <body-regex>: retried until it passes or the tries end.
+# check <name> <path> <auth?> <ok-status-regex> <body-regex> [hold]: retried until it passes or the tries end.
+# PORT-HEALTH-WAIT (hold): asked with ?wait_s=<what is left of the window>, (tries - 1) x pause (25 s by default), the
+# port holds the call until its database answers and marks the answer (long_poll); a held answer that is not ok yet is
+# asked again at once while the window lasts, and red when it is over. The pause between tries is kept only for an answer
+# the port did not hold (no long_poll: a port older than PORT-HEALTH-WAIT, a transport failure, or an answer in under 1 s).
 check() {
-  local name="$1" path="$2" auth="$3" want="$4" shape="$5" code="" i
+  local name="$1" path="$2" auth="$3" want="$4" shape="$5" hold="${6:-}" code="" i asked left began=$SECONDS
+  local window=$(( (tries - 1) * pause ))
   for ((i = 1; i <= tries; i++)); do
-    code="$(get "$path" "$auth")"
+    asked=$SECONDS
+    if [[ -n "$hold" ]]; then
+      left=$(( window - (SECONDS - began) )); (( left > 0 )) || left=0
+      code="$(get "$path?wait_s=$left" "$auth" $(( left + 10 )))"
+    else
+      code="$(get "$path" "$auth")"
+    fi
     if [[ "$code" =~ ^($want)$ ]] && { [[ -z "$shape" ]] || grep -Eq "$shape" "$body"; }; then echo "smoke ok: $name ($code)"; return 0; fi
+    if [[ -n "$hold" ]] && jq -e 'has("long_poll")' "$body" >/dev/null 2>&1 && (( SECONDS - asked >= 1 )); then
+      (( SECONDS - began <= window )) || break  # SECONDS counts whole seconds: never before the window
+      (( i-- )); continue  # the port held it: ask again at once, within the window
+    fi
     (( i < tries )) && sleep "$pause"
   done
   echo "smoke RED: $name answered '${code:-no answer}' (wanted $want${shape:+ with $shape}): $(head -c 200 "$body" | tr -d '\000-\037')"
@@ -131,7 +148,7 @@ runner() {
 }
 
 red=0
-check "GET /v1/health" /v1/health "" 200 '"ok": *true' || red=1
+check "GET /v1/health" /v1/health "" 200 '"ok": *true' hold || red=1
 if [[ -n "$token" ]]; then
   if check "registry read: GET /v1/deploy/status" /v1/deploy/status auth 200 '"source": *"registry"'; then :; else red=1; fi
   if runner; then canary || red=1; fi

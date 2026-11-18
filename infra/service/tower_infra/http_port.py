@@ -21,6 +21,7 @@ Routes (the bearer token names the caller; a tenant sees only its own):
   POST /v1/jobs/{id}/resume              {content}
   GET  /v1/jobs/{id}                     ?wait_s=N[&seen=D]                 PORT-LONG-POLL: a long poll until it is not the answer D
   GET  /v1/health                                                           no token: the database answers (the deploy smoke)
+                                         ?wait_s=N                          PORT-HEALTH-WAIT: held until the database answers (N s at most)
   POST /v1/deploy/landed                 {merge_sha, base_before, pr, pr_head, functions, manifest_key, paths, code}  platform.deploy.landed (+ the image swap, IMAGE-SWAP-TIGHTEN)
   GET  /v1/deploy/status                                                    last-sha and last-build, as the service observed them (DEP3)
                                          ?landings=N                        STATUS-LANDINGS: with the swaps of its newest N landings (10 with none)
@@ -130,7 +131,9 @@ ROUTES = [
 
 def wake_of(db, channel=wake.TRAIN):
     """The LISTEN of tower_train (DEPLOY-CANARY: or of `channel`) on a connection of its own, when the database can open
-    one (the Lambda's Lazy can). DB-LISTEN-ONE: one per long poll, for its invocation, named `wait`."""
+    one (the Lambda's Lazy can). DB-LISTEN-ONE: one per long poll, for its invocation, named `wait`. None only for a
+    database with no connect (the tests' stand-ins): on the port's Lambda (answered: lazy_database) it never is, and a
+    listener that cannot open still holds the read (port.long_poll, LONG-POLL-HOLDS)."""
     connect = getattr(db, 'connect', None)
     return wake.Wake(lambda: connect(purpose='wait'), channel) if connect else None
 
@@ -294,6 +297,43 @@ def ecs_state(event, db):
     return {'event_id': ident}
 
 
+# PORT-HEALTH-WAIT: GET /v1/health?wait_s=N, the deploy smoke's readiness wait (scripts/deploy-smoke::check) held by the
+# port: the port is ready when its database answers (the Lazy's connection opened: the init's warm or the call's own
+# login, which the call already waits for). With wait_s (canary.WAIT_MAX_S at most, the long poll's bound, under the
+# API's 30 s) a login the database refused (Unreachable: at its connections' limit, or away) is tried again within the
+# wait, each pause doubling from HEALTH_RETRY_S[0] to HEALTH_RETRY_S[1] (a backoff on a failed login, never a read of a
+# state), and the answer carries LONG_POLL {waited_s, ready}: 200 ok:true once it answers, 503 when the wait ran out.
+# Without wait_s the answer is today's (one read, 503 after answered()'s second attempt), unmarked.
+HEALTH_RETRY_S = (0.25, 4.0)
+LONG_POLL = port.LONG_POLL
+
+
+def health_span(event):
+    """The wait GET /v1/health asked for, bounded (canary.WAIT_MAX_S), or None: PortError(400) for one that is no number."""
+    asked = (event.get('queryStringParameters') or {}).get('wait_s')
+    if asked is None:
+        return None
+    try:
+        return min(max(float(asked), 0.0), canary.WAIT_MAX_S)
+    except (TypeError, ValueError):
+        raise port.PortError(400, 'wait_s is a number of seconds') from None
+
+
+def ready(db, span, clock=None, sleep=None):
+    """PORT-HEALTH-WAIT: db.rows('select 1') once the database answers, within span seconds; Unreachable when it ran out."""
+    clock, sleep = clock or time.monotonic, sleep or time.sleep
+    until, pause = clock() + span, HEALTH_RETRY_S[0]
+    while True:
+        try:
+            return db.rows('select 1')
+        except Unreachable:
+            left = until - clock()
+            if left <= 0:
+                raise
+            sleep(min(pause, left))
+            pause = min(pause * 2, HEALTH_RETRY_S[1])
+
+
 def handle(event, db, installation_sha256, now=None):
     if 'requestContext' not in event and event.get('source') == 'tower.doorbell':  # QUEUE-RELOAD
         return queue_state(event, db)
@@ -314,11 +354,25 @@ def handle(event, db, installation_sha256, now=None):
         status, said = forge_webhooks.accept(db, headers, raw, now)
         return answer(status, said)
     if method == 'GET' and path == '/v1/health':  # DEP7: the deploy smoke's door; no token, one read of the database
+        try:
+            span = health_span(event)
+        except port.PortError as error:
+            return answer(error.status, {'error': str(error)})
+        began = time.monotonic()
+        try:
+            ok = bool(ready(db, span) if span is not None else db.rows('select 1'))
+        except Unreachable as error:
+            if span is None:
+                raise  # answered(): tried again once, then 503 (PORT-503-NO-DATABASE), as before PORT-HEALTH-WAIT
+            return answer(503, {'error': 'unavailable', 'detail': f'the database could not be reached: {error}',
+                                LONG_POLL: {'waited_s': round(time.monotonic() - began, 3), 'ready': False}})
         # FAST-SWAP-PROBE: the Lambda version serving the call, so a pointer swap (DEP8b) is visible from outside.
-        said = {'ok': bool(db.rows('select 1')), 'service': 'tower-port',
+        said = {'ok': ok, 'service': 'tower-port',
                 'version': os.environ.get('AWS_LAMBDA_FUNCTION_VERSION', 'local'), 'probe': 18}
         if 'migration' in (event.get('rawQueryString') or ''):  # SLOW-PATH-NO-ROLLOUT-WAIT: only when asked (deploy.sh)
             said['migration'] = db.rows(MIGRATION)[0][0]
+        if span is not None:
+            said[LONG_POLL] = {'waited_s': round(time.monotonic() - began, 3), 'ready': ok}
         return answer(200, said)
     token = headers.get('authorization', '').removeprefix('Bearer ').strip()
     try:

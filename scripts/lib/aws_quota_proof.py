@@ -196,7 +196,8 @@ class Proof:
     def until(self, name, states, what):
         """PORT-LONG-POLL: each read is the port's long poll (?wait_s: what is left of the wait, which the port bounds; seen:
         the digest its previous answer's mark gave), answered when the job is not as it was or the wait passes, and asked
-        again at once; an answer the port did not hold (an old port, or one with no wake) keeps the 1 s pause."""
+        again at once. LONG-POLL-ONLY: the live port holds every read (LONG-POLL-HOLDS), so an answer it did not hold is a
+        port older than PORT-LONG-POLL: NotProven, said, never a pause on an interval."""
         deadline, seen = self.clock() + self.wait_s, None
         while True:
             query = {'wait_s': max(deadline - self.clock(), 0.0), **({'seen': seen} if seen else {})}
@@ -204,12 +205,12 @@ class Proof:
             if got['state'] in states:
                 return got
             mark = got.get(LONG_POLL)
-            held = isinstance(mark, dict)
-            seen = mark.get('seen') if held else None
+            if not isinstance(mark, dict):
+                raise NotProven(f'job {name}: the port answered without holding the read (no long_poll: a port older than '
+                                f'PORT-LONG-POLL; it is {got["state"]})')
+            seen = mark.get('seen')
             if self.clock() > deadline:
                 raise NotProven(f'job {name} did not {what} in {self.wait_s} s (it is {got["state"]})')
-            if not held:
-                self.sleep(1)
 
     def report(self):
         for name, job in self.jobs.items():
