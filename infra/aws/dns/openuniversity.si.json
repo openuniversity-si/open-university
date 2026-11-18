@@ -3,7 +3,7 @@
   "generated_by": "scripts/dns-zone build (do not edit by hand: rebuild from the export)",
   "export": {
     "file": "openuniversity.si.zone",
-    "sha256": "97dd98f3b9eaf2d91e8a6917c5680fbacbd3d09d1e27075431eb62c7329d478f"
+    "sha256": "372bd2302f0d2ddd85e18d346fbab92d3f24c91c29aa0015ea5bef9323425222"
   },
   "ttl_note": "Cloudflare exports its automatic TTL as 1; it is 300 s here",
   "records": [
@@ -32,12 +32,13 @@
       ]
     },
     {
-      "name": "cf2024-1._domainkey.openuniversity.si.",
+      "name": "_dmarc.openuniversity.si.",
       "type": "TXT",
       "ttl": 300,
       "values": [
-        "v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiweykoi+o48IOGuP7GR3X0MOExCUDY/BCRHoWBnh3rChl7WhdyCxW3jgq1daEjPPqoi7sJvdg5hEQVsgVRQP4DcnQDVjGMbASQtrY4WmB1VebF+RPJB2ECPsEDTpeiI5ZyUAwJaVX7r6bznU67g7LvFq35yIo4sdlmtZGV+i0H4cpYH9+3JJ78km4KXwaf9xUJCWF6nxeD+qG6Fyruw1Qlbds2r85U9dkNDVAS3gioCvELryh1TxKGiVTkg4wqHTyHfWsp7KD3WQHYJn0RyfJJu6YEmL77zonn7p2SRMvTMP3ZEXibnC9gz3nnhR6wcYL8Q7zXypKTMD58bTixDSJwIDAQAB"
-      ]
+        "v=DMARC1; p=none"
+      ],
+      "mail": "ses"
     },
     {
       "name": "media.openuniversity.si.",
@@ -62,18 +63,20 @@
       "type": "MX",
       "ttl": 300,
       "values": [
-        "22 route1.mx.cloudflare.net.",
-        "74 route3.mx.cloudflare.net.",
-        "91 route2.mx.cloudflare.net."
-      ]
+        "10 inbound-smtp.${AWS::Region}.amazonaws.com."
+      ],
+      "mail": "ses",
+      "sub": true,
+      "route53": "SES receiving's endpoint in the stack's region (Fn::Sub ${AWS::Region})"
     },
     {
       "name": "openuniversity.si.",
       "type": "TXT",
       "ttl": 300,
       "values": [
-        "v=spf1 include:_spf.mx.cloudflare.net ~all"
-      ]
+        "v=spf1 include:amazonses.com ~all"
+      ],
+      "mail": "ses"
     },
     {
       "name": "www.openuniversity.si.",
@@ -88,5 +91,6 @@
   "dropped": [
     "openuniversity.si. NS",
     "openuniversity.si. SOA"
-  ]
+  ],
+  "mail": "ses"
 }

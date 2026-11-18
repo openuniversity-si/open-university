@@ -122,18 +122,18 @@
         ]
       }
     },
-    "RecordCf20241DomainkeyTxt": {
+    "RecordDmarcTxt": {
       "Type": "AWS::Route53::RecordSet",
       "Condition": "ZoneOn",
       "Properties": {
         "HostedZoneId": {
           "Ref": "HostedZone"
         },
-        "Name": "cf2024-1._domainkey.openuniversity.si.",
+        "Name": "_dmarc.openuniversity.si.",
         "Type": "TXT",
         "TTL": "300",
         "ResourceRecords": [
-          "\"v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiweykoi+o48IOGuP7GR3X0MOExCUDY/BCRHoWBnh3rChl7WhdyCxW3jgq1daEjPPqoi7sJvdg5hEQVsgVRQP4DcnQDVjGMbASQtrY4WmB1VebF+RPJB2ECPsEDTpeiI5ZyUAwJaVX7r6bznU67g7LvFq35yIo4sdlmtZGV+i0H4cpYH9+3JJ78k\" \"m4KXwaf9xUJCWF6nxeD+qG6Fyruw1Qlbds2r85U9dkNDVAS3gioCvELryh1TxKGiVTkg4wqHTyHfWsp7KD3WQHYJn0RyfJJu6YEmL77zonn7p2SRMvTMP3ZEXibnC9gz3nnhR6wcYL8Q7zXypKTMD58bTixDSJwIDAQAB\""
+          "\"v=DMARC1; p=none\""
         ]
       }
     },
@@ -220,9 +220,9 @@
         "Type": "MX",
         "TTL": "300",
         "ResourceRecords": [
-          "22 route1.mx.cloudflare.net.",
-          "74 route3.mx.cloudflare.net.",
-          "91 route2.mx.cloudflare.net."
+          {
+            "Fn::Sub": "10 inbound-smtp.${AWS::Region}.amazonaws.com."
+          }
         ]
       }
     },
@@ -237,7 +237,7 @@
         "Type": "TXT",
         "TTL": "300",
         "ResourceRecords": [
-          "\"v=spf1 include:_spf.mx.cloudflare.net ~all\""
+          "\"v=spf1 include:amazonses.com ~all\""
         ]
       }
     },
@@ -253,6 +253,63 @@
         "TTL": "300",
         "ResourceRecords": [
           "dns1rg162g0y7.cloudfront.net."
+        ]
+      }
+    },
+    "RecordSesDkim1Cname": {
+      "Type": "AWS::Route53::RecordSet",
+      "Condition": "ZoneOn",
+      "Properties": {
+        "HostedZoneId": {
+          "Ref": "HostedZone"
+        },
+        "Name": {
+          "Fn::ImportValue": "tower-mail-dkim-name-1"
+        },
+        "Type": "CNAME",
+        "TTL": "300",
+        "ResourceRecords": [
+          {
+            "Fn::ImportValue": "tower-mail-dkim-value-1"
+          }
+        ]
+      }
+    },
+    "RecordSesDkim2Cname": {
+      "Type": "AWS::Route53::RecordSet",
+      "Condition": "ZoneOn",
+      "Properties": {
+        "HostedZoneId": {
+          "Ref": "HostedZone"
+        },
+        "Name": {
+          "Fn::ImportValue": "tower-mail-dkim-name-2"
+        },
+        "Type": "CNAME",
+        "TTL": "300",
+        "ResourceRecords": [
+          {
+            "Fn::ImportValue": "tower-mail-dkim-value-2"
+          }
+        ]
+      }
+    },
+    "RecordSesDkim3Cname": {
+      "Type": "AWS::Route53::RecordSet",
+      "Condition": "ZoneOn",
+      "Properties": {
+        "HostedZoneId": {
+          "Ref": "HostedZone"
+        },
+        "Name": {
+          "Fn::ImportValue": "tower-mail-dkim-name-3"
+        },
+        "Type": "CNAME",
+        "TTL": "300",
+        "ResourceRecords": [
+          {
+            "Fn::ImportValue": "tower-mail-dkim-value-3"
+          }
         ]
       }
     }
