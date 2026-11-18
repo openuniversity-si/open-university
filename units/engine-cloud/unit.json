@@ -34,7 +34,6 @@
   ],
   "requires": {
     "engine-config": "^1",
-    "engine-env": "^1",
-    "engine-gate-run": "^1"
+    "engine-env": "^1"
   }
 }

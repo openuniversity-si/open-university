@@ -107,6 +107,11 @@ def classify(paths):
 
 
 CODE_ONLY = 'infra/service/tower_infra/'  # IMAGE-PREWARM-B2: what a code bundle carries (lambda_package.build_code)
+MIGRATIONS = 'infra/db/migrations'
+REQUIREMENTS = 'infra/service/requirements.txt'
+# IMAGE-PREWARM-C: every path build_code reads (gate_infra.landed_code, merge_train, deploy.sh); lambda_package's
+# CODE_INPUTS are these, as paths (D-322: the gate and the train read them here, not from the deploy unit)
+CODE_INPUTS = (CODE_ONLY.rstrip('/'), MIGRATIONS, REQUIREMENTS)
 # CODE-BESIDE-PORT: a slow target that no ECS task runs on: the port stack (the HTTP API, its Lambdas, the webhook queue). A head
 # whose image changes only in code may change it too: the code still goes live by the swap or in place, and the build applies
 # that stack alone (live 11/11, #509: one property of the port stack took the code to the image build and two rollouts, 8 min)

@@ -29,6 +29,7 @@ LIB = Path(__file__).resolve().parent
 ROOT = LIB.parent.parent
 sys.path.insert(0, str(LIB))
 from adapters import storage  # noqa: E402
+import deploy_classify  # noqa: E402
 
 PACKAGE = 'tower_infra'
 SOURCE = Path('infra/service') / PACKAGE
@@ -51,9 +52,9 @@ LAYER_REQUIREMENTS = Path('infra/service/requirements-lambda.txt')
 LAYER_PLATFORMS = ('--platform', 'manylinux2014_aarch64', '--platform', 'manylinux_2_28_aarch64')
 DATE = (1980, 1, 1, 0, 0, 0)
 CODE = 'tower-code'  # IMAGE-PREWARM-B1: the service/runner code bundle, artifacts/lambda/tower-code/<sha256>.zip
-MIGRATIONS = Path('infra/db/migrations')
-REQUIREMENTS = Path('infra/service/requirements.txt')
-CODE_INPUTS = (SOURCE, MIGRATIONS, REQUIREMENTS)  # IMAGE-PREWARM-C: every path build_code reads (gate_infra.landed_code, deploy.sh)
+MIGRATIONS = Path(deploy_classify.MIGRATIONS)
+REQUIREMENTS = Path(deploy_classify.REQUIREMENTS)
+CODE_INPUTS = (SOURCE, MIGRATIONS, REQUIREMENTS)  # IMAGE-PREWARM-C: deploy_classify.CODE_INPUTS, as paths (deploy.sh)
 
 
 def key_of(function, digest):

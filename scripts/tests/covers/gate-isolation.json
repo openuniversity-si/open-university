@@ -4,6 +4,7 @@
     "scripts/tests/gate-isolation.test.sh",
     "scripts/lib/gate-isolation.sh",
     "scripts/cloud/env.sh",
+    "scripts/cloud/test-db.sh",
     "scripts/gate-local",
     "scripts/lib/hooks_path.py"
   ]

@@ -9,12 +9,7 @@
     "scripts/tests/infra-aws.test.sh",
     "scripts/tests/test_infra_aws.py",
     "scripts/tests/covers/infra-aws.json",
-    "scripts/deploy-classify",
     "scripts/deploy-smoke",
-    "scripts/lib/deploy_classify.py",
-    "scripts/tests/deploy-classify.test.sh",
-    "scripts/tests/test_deploy_classify.py",
-    "scripts/tests/covers/deploy-classify.json",
     "scripts/tests/infra-fastdeploy.test.sh",
     "scripts/tests/test_infra_fastdeploy.py",
     "scripts/tests/covers/infra-fastdeploy.json",
@@ -39,5 +34,8 @@
   ],
   "realizes": [
     "ARC-deploy"
-  ]
+  ],
+  "requires": {
+    "engine-gate-infra": "^1"
+  }
 }

@@ -124,7 +124,7 @@ class FailedRegistryReadTests(unittest.TestCase):
         stub = STUB.format(values={name: config.entry(name)['default']}, reason=REASON)
         cls.env_tree, cls.setup_tree = Path(tmp.name, 'env'), Path(tmp.name, 'setup')
         for tree, copies in ((cls.env_tree, ('scripts/cloud/env.sh', 'scripts/cloud/root-session.sh',
-                                             'scripts/lib/gate-isolation.sh')),
+                                             'scripts/cloud/test-db.sh')),
                              (cls.setup_tree, ('scripts/cloud/setup.sh', 'scripts/cloud/root-session.sh'))):
             for folder in ('scripts/cloud', 'scripts/lib'):
                 (tree / folder).mkdir(parents=True)

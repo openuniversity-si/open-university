@@ -23,7 +23,8 @@
         "type": "string"
       },
       "x-readers": [
-        "scripts/lib/effort.py"
+        "scripts/lib/effort.py",
+        "scripts/lib/effort_owners.py"
       ]
     },
     "effort.heading": {
@@ -33,6 +34,7 @@
       "description": "Heading of the effort block a plan and a PR body carry (EFFORT-STEP, docs/padrao/v4/effort.md).",
       "x-readers": [
         "scripts/lib/effort.py",
+        "scripts/lib/effort_owners.py",
         "scripts/lib/intake_templates.py"
       ]
     },
@@ -59,7 +61,8 @@
         "type": "string"
       },
       "x-readers": [
-        "scripts/lib/effort.py"
+        "scripts/lib/effort.py",
+        "scripts/lib/effort_owners.py"
       ]
     },
     "effort.owner_registry": {
@@ -69,6 +72,7 @@
       "description": "Registry list whose entries (the unit lanes, D-067 (2), D-069 item 8) also count as owners.",
       "x-readers": [
         "scripts/lib/effort.py",
+        "scripts/lib/effort_owners.py",
         "scripts/lib/pr_body.py"
       ]
     },
@@ -100,6 +104,7 @@
       },
       "x-readers": [
         "scripts/lib/effort.py",
+        "scripts/lib/effort_owners.py",
         "scripts/lib/pr_body.py"
       ]
     },
@@ -122,7 +127,8 @@
         "type": "string"
       },
       "x-readers": [
-        "scripts/lib/effort.py"
+        "scripts/lib/effort.py",
+        "scripts/lib/effort_owners.py"
       ]
     },
     "effort.requirement_field": {
@@ -131,7 +137,8 @@
       "x-unit": "text",
       "description": "The field that must name an owner (effort.owners or a lane of effort.owner_registry), never only a machine.",
       "x-readers": [
-        "scripts/lib/effort.py"
+        "scripts/lib/effort.py",
+        "scripts/lib/effort_owners.py"
       ]
     },
     "effort.rule_doc": {
@@ -141,6 +148,7 @@
       "description": "The rule a refusal cites: what the block is and why.",
       "x-readers": [
         "scripts/lib/effort.py",
+        "scripts/lib/effort_owners.py",
         "scripts/lib/pr_body.py"
       ]
     }

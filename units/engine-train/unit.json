@@ -14,6 +14,9 @@
     "scripts/tests/train/**",
     "scripts/train"
   ],
+  "realizes": [
+    "ARC-delivery"
+  ],
   "requires": {
     "engine-config": "^1",
     "engine-delivery": "^1",
@@ -27,8 +30,5 @@
     "engine-regime": "^1",
     "engine-role": "^1",
     "engine-train-admission": "^1"
-  },
-  "realizes": [
-    "ARC-delivery"
-  ]
+  }
 }

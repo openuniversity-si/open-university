@@ -24,7 +24,6 @@ import fnmatch
 import time
 
 import deploy_classify
-import lambda_package
 
 # Files every check reads: a change to the gate itself reaches every delivery, whatever it touches.
 GATE_FILES = ('scripts/gate*', 'scripts/lib/gate_*', 'scripts/lib/structure*', 'config/management/*',
@@ -55,7 +54,7 @@ def stale(changed, files, depends=GATE_FILES):
     gate = [name for name in changed if any(fnmatch.fnmatch(name, pattern) for pattern in depends)]
     if gate:
         return f"the base changed files its checks depend on: {', '.join(gate[:5])}"
-    inputs = tuple(map(str, lambda_package.CODE_INPUTS))
+    inputs = tuple(map(str, deploy_classify.CODE_INPUTS))
     bundle = [name for name in changed if any(name == each or name.startswith(each + '/') for each in inputs)]
     if bundle and deploy_classify.code_only(sorted(own))[0]:
         return (f"the base changed the code bundle's inputs ({', '.join(bundle[:5])}): this head's bundle would not be "

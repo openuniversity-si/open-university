@@ -1,37 +1,12 @@
 #!/usr/bin/env bash
-# D-064 (b): gate isolation per worktree. Sourced by scripts/cloud/env.sh and scripts/gate-local.
-# - ou_test_db_name: the local test database is derived from the checkout path, so one gate's
-#   schema reset, migrate and seed never touch another worktree's database.
-# - ou_test_db_ensure: creates that database on demand in the shared local PostgreSQL.
+# D-064 (b): gate isolation per worktree. Sourced by scripts/gate-local and scripts/gate-check.
+# - ou_test_db_name, ou_test_db_ensure: the checkout's local test database, from scripts/cloud/test-db.sh (D-322).
 # - ou_gate_slot_acquire: a global semaphore of GATE_SLOTS (default 3) concurrent gates.
 # - ou_gate_checkout_dir: the fixed per-slot path of a --pr/--sha checkout (warm lint/tsc caches).
 # shellcheck shell=bash
 
-# tower_test_<10 hex of sha256(checkout path)>. Hex never starts with "g", so it cannot match the
-# integration databases (tower_test_g<random>) that test/int-teardown.ts creates and drops.
-ou_test_db_name() {
-  local path="${1:?checkout path}" digest
-  digest="$(printf '%s' "$path" | sha256sum)" || return
-  printf 'tower_test_%s\n' "${digest:0:10}"
-}
-
-# Creates the database named in TEST_DATABASE_URL when it is missing. Local PostgreSQL only.
-ou_test_db_ensure() {
-  local url="${1:-${TEST_DATABASE_URL:-}}" name admin
-  [[ "$url" =~ ^postgres(ql)?://[^/]*@(127\.0\.0\.1|localhost)(:[0-9]+)?/([A-Za-z0-9_]+)$ ]] || {
-    echo "ou_test_db_ensure: TEST_DATABASE_URL is not a local PostgreSQL database" >&2
-    return 2
-  }
-  name="${BASH_REMATCH[4]}"
-  admin="${url%/*}/postgres"
-  [[ "$(psql "$admin" -qtAc "select 1 from pg_database where datname = '$name'" 2>/dev/null)" == 1 ]] && return 0
-  # A concurrent creator of the same name loses with "already exists"; the re-check below accepts it.
-  psql "$admin" -qtAc "create database \"$name\"" >/dev/null 2>&1 || true
-  [[ "$(psql "$admin" -qtAc "select 1 from pg_database where datname = '$name'" 2>/dev/null)" == 1 ]] || {
-    echo "ou_test_db_ensure: could not create local test database $name" >&2
-    return 1
-  }
-}
+# shellcheck source=scripts/cloud/test-db.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../cloud/test-db.sh"
 
 # ou_config_value NAME: the registry value of NAME (config/registry, D-068), printed bare. config.py prints JSON, so a
 # string comes back quoted; this strips the quotes, which is right for the paths and numbers the gate reads.

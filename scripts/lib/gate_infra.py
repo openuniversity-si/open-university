@@ -657,13 +657,12 @@ def landed_event(root, pr, head, base, merge_sha):
 def landed_code(root, head, base, paths):
     """IMAGE-PREWARM-C: whether the merge runs the PR head's code bundle, so the autodeploy may swap to the head's standbys.
     code_only of the PR's paths (deploy_classify, as the prewarm's job judged them) and bundle_same: the base changed none
-    of the bundle's inputs (lambda_package.CODE_INPUTS) since the PR left it (head...base), so the clean merge's inputs are
+    of the bundle's inputs (deploy_classify.CODE_INPUTS) since the PR left it (head...base), so the clean merge's inputs are
     the head's, file by file, and build_code gives the same bytes. Local git only: no call to the forge."""
     import deploy_classify
-    import lambda_package
     ok, why = deploy_classify.code_only(paths)
     moved = [each for each in git(root, 'diff', '--no-renames', '--name-only', f'{head}...{base}', '--',
-                                  *map(str, lambda_package.CODE_INPUTS)).split('\n') if each]
+                                  *map(str, deploy_classify.CODE_INPUTS)).split('\n') if each]
     return {'code_only': ok, 'why': why, 'bundle_same': not moved, **({'moved': moved[:5]} if moved else {})}
 
 

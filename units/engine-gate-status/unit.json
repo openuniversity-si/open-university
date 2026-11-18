@@ -21,6 +21,9 @@
     "scripts/tests/test_gate_status.py",
     "scripts/tests/test_gate_timing_report.py"
   ],
+  "realizes": [
+    "ARC-gate"
+  ],
   "requires": {
     "engine-commit-plan": "^1",
     "engine-config": "^1",
@@ -29,8 +32,5 @@
     "engine-gate-ops": "^1",
     "engine-gate-plan": "^1",
     "engine-gate-report": "^1"
-  },
-  "realizes": [
-    "ARC-gate"
-  ]
+  }
 }

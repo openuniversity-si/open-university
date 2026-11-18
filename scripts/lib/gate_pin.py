@@ -11,7 +11,7 @@
   3. prints `gate: pinned to <base sha>` and `gate: version <gate_version>` first, then runs that tool root's
      scripts/gate-local with the same arguments, OU_GATE_PINNED=<base sha> and the invoking checkout as record root
      (OU_GATE_RECORD_ROOT, GATE_RECORD_DIR, GATE_LOCK_FILE). Its verdict, events, status and record are the gate's;
-  4. when the diff base...head touches the gate (commit_check.GATE_FILE), runs the head's own tooling with
+  4. when the diff base...head touches the gate (GATE_FILE), runs the head's own tooling with
      --report-only (no events, record, status or pr.ready), prints its verdict as advisory and, for --pr, posts it as
      its own advisory comment. The exit code is always the pinned run's.
 
@@ -42,6 +42,9 @@ REPORT_ONLY_MODES = ('dev', 'tier3', 'pr-sha')  # the modes that reach no outsid
 # under test reads its own checkout's registry (GX-01 retro), so every key names this checkout's root.
 ROOT = Path(__file__).resolve().parent.parent.parent
 SHA = re.compile(r'[0-9a-f]{40}')
+# The gate's own files (D-025): a change to one needs an approved D-NNN (commit_check) and runs the head's tooling as
+# advisory here (gate_changed). Moved from commit_check, which re-exports it (D-322: the gate reads no delivery module).
+GATE_FILE = re.compile(r'^scripts/(gate-[^/]+|lib/gate[^/]*|structure-check|lib/structure\.py|commit-check|lib/commit_check\.py)$')
 REF = re.compile(r'(?!-)[A-Za-z0-9._/-]+')
 CONSUMER = 'scripts/lib/gate_pin.py'  # this module's demand on the forge port (operation_demands.json)
 PRODUCER = 'gate-pin'
@@ -168,10 +171,9 @@ def gate_version(root, sha):
 
 
 def gate_changed(root, base, head):
-    """The gate files (commit_check.GATE_FILE) the diff base...head touches."""
-    import commit_check
+    """The gate files (GATE_FILE) the diff base...head touches."""
     names = git(root, 'diff', '--name-only', f'{base}...{head}') or ''
-    return [name for name in names.splitlines() if commit_check.GATE_FILE.match(name)]
+    return [name for name in names.splitlines() if GATE_FILE.match(name)]
 
 
 def clean_at(root, sha):

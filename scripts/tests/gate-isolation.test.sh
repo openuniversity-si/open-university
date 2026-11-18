@@ -108,8 +108,9 @@ check "more vCPUs never get fewer slots" test "$(slots_for $((two * two * two)))
 check "GATE_SLOTS wins over the vCPUs" test "$(GATE_SLOTS="$two" GATE_VCPUS=1 bash -c 'source "$1/scripts/lib/gate-isolation.sh"; ou_gate_slot_count' _ "$root")" = "$two"
 check "the registry holds the /tmp slot directory" test "$(ou_config_value gate.slot_dir)" = /tmp
 check "the registry holds a one-second poll" test "$(ou_config_value gate.slot_poll_s)" = 1
-mkdir -p "$work/alt/scripts/lib" "$work/alt/config" "$work/altslots"
+mkdir -p "$work/alt/scripts/lib" "$work/alt/scripts/cloud" "$work/alt/config" "$work/altslots"
 cp "$root"/scripts/lib/*.py "$root"/scripts/lib/*.json "$root/scripts/lib/gate-isolation.sh" "$work/alt/scripts/lib/"
+cp "$root/scripts/cloud/test-db.sh" "$work/alt/scripts/cloud/"
 cp -R "$root/config/registry" "$work/alt/config/"
 cp -R "$root/contracts" "$work/alt/"
 sed -i -e '/"gate.slots": {/,/"default"/ s/"default": 0,/"default": 2,/' -e "s|\"default\": \"/tmp\"|\"default\": \"$work/altslots\"|" "$work/alt/config/registry/gate.json"

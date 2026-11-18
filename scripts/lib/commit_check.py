@@ -40,6 +40,7 @@ except ImportError:
     regime = None
 
 import plan_tick
+from gate_pin import GATE_FILE  # noqa: F401 - the gate's files live with the gate (D-322); re-exported for its callers
 # The PR reading lives under planning and delivery both (forge_pr, the events layer, D-322); re-exported for its callers.
 from forge_pr import REPO, fetch, gated_commits, git, local_commits, local_files  # noqa: F401
 
@@ -48,7 +49,6 @@ PLAN_ITEM = re.compile(r'^\s*[-*] \[[ xX]\] \d+\.\s+\S', re.M)
 PLAN_MIN, PLAN_MAX = config.get('budgets.pr_commits_min'), config.get('budgets.pr_commits_max')
 FIXUP_PREFIX = re.compile(r'^(fixup|squash|amend)! ')
 FIXUP_SUBJECT = re.compile(r'^(fix|fixes|fixed|fixup)\b.*\b(tests?|ids?|lint|typos?|types?|build|imports?|snapshots?)\b', re.I)
-GATE_FILE = re.compile(r'^scripts/(gate-[^/]+|lib/gate[^/]*|structure-check|lib/structure\.py|commit-check|lib/commit_check\.py)$')
 DECISION = re.compile(r'\bD-\d{3}\b')
 
 

@@ -12,7 +12,8 @@
   "depends_on": [
     "ARC-config",
     "ARC-events",
-    "ARC-environment"
+    "ARC-environment",
+    "ARC-gate"
   ],
   "basis": [
     "D-317"
