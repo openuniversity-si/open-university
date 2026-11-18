@@ -64,6 +64,20 @@ class Checks(unittest.TestCase):
         write(self.root, '.github/workflows/web.yml', WEB.replace('steps: []', 'steps: [x]'))
         self.assertIn('differs from its staged copy', queue_checks.check(self.root)[0])
 
+    def test_only_a_job_of_a_workflow_that_runs_on_pull_request_is_a_check(self):
+        doorbell = 'on:\n  push:\n    branches: [main]\n  merge_group:\n    types: [checks_requested]\njobs:\n  ring:\n    name: deploy-prepare\n'
+        suite = 'on:\n  push:\n    branches: [main]\n  workflow_dispatch:\njobs:\n  suite:\n    name: full-suite\n'
+        gate = 'on:\n  pull_request:\n    branches: [main]\n  merge_group:\njobs:\n  gate:\n    name: tower/gate\n'
+        self.assertEqual(queue_checks.triggers(doorbell), {'push', 'merge_group'})
+        self.assertEqual(queue_checks.triggers(WEB), {'pull_request'})
+        for name, text in (('deploy-doorbell.yml', doorbell), ('full-suite.yml', suite), ('tower-gate.yml', gate)):
+            write(self.root, f'.github/workflows/{name}', text)
+            write(self.root, f'services/runner/github/{name}', text)
+        self.assertEqual(self.states(), {'tower/gate': 'installed'})
+        write(self.root, '.github/rulesets/main.json', ruleset('tower/gate', 'deploy-prepare'))
+        self.assertEqual(queue_checks.check(self.root),
+                         ['check deploy-prepare: required by .github/rulesets/main.json but no installed workflow runs it'])
+
     def test_the_model_reads_each_check_as_a_chk_of_its_state(self):
         write(self.root, '.github/workflows/tower-gate.yml', GATE)
         write(self.root, '.github/rulesets/main.json', ruleset('tower/gate'))
