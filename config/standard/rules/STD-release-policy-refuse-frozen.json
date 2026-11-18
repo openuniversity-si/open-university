@@ -8,7 +8,7 @@
   ],
   "check": {
     "kind": "function",
-    "ref": "scripts/lib/release_policy.py:refuse_frozen"
+    "ref": "scripts/lib/release_rules.py:refuse_frozen"
   },
   "basis": [],
   "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."

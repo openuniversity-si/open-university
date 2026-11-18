@@ -24,6 +24,7 @@
     "scripts/lib/config.py",
     "config/registry/lessons.json",
     "contracts/lessons/*.json",
-    "scripts/tests/forge_doubles.py"
+    "scripts/tests/forge_doubles.py",
+    "scripts/lib/globs.py"
   ]
 }

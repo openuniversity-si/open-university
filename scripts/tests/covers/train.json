@@ -35,6 +35,7 @@
     "scripts/lib/regime.py",
     "scripts/lib/train_base_gate.py",
     "config/registry/train/*.json",
-    "scripts/lib/service_budget.py"
+    "scripts/lib/service_budget.py",
+    "scripts/lib/stage_classes.py"
   ]
 }

@@ -15,6 +15,8 @@
     "units/*/unit.json",
     "scripts/lib/registry_readers.py",
     "scripts/tests/forge_doubles.py",
-    "scripts/tests/test_defects.py"
+    "scripts/tests/test_defects.py",
+    "scripts/lib/script_covers.py",
+    "scripts/lib/globs.py"
   ]
 }

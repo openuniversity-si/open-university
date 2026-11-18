@@ -294,7 +294,7 @@ class Touched(unittest.TestCase):
         self.assertEqual(self.runner.calls, [])
 
     def test_a_change_to_its_declared_covers_or_its_manifest_is_touching_it(self):
-        manifest = defect_detect.gate_script_tests.manifest_path(self.TEST, ROOT).relative_to(ROOT).as_posix()
+        manifest = defect_detect.script_covers.manifest_path(self.TEST, ROOT).relative_to(ROOT).as_posix()
         for changed in (['scripts/lib/ab.py'], [manifest], None):
             self.assertEqual(len(self.judge(changed)['own']), 1, changed)
         self.assertEqual(self.runner.calls, [])

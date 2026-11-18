@@ -42,8 +42,8 @@ import tempfile
 
 import config
 import forge_events
-import gate_classify
 import service_budget
+import stage_classes  # D-322: the class rule is layer 0; gate_classify (the gate's report) re-exports it
 
 ROOT = Path(__file__).resolve().parents[2]
 FAILED_LINE = re.compile(r'^.*(?:\bFAIL\b|[×✗✘]).*$', re.M)
@@ -74,7 +74,7 @@ def setting(name):
 def failed_stage(output):
     """(stage, class) of the first red stage the gate's machine class line names, or None when the output has none."""
     prefix = re.escape(setting('gate.class_line_prefix'))
-    classes = '|'.join(map(re.escape, gate_classify.ACTIONS))
+    classes = '|'.join(map(re.escape, stage_classes.ACTIONS))
     found = re.search(rf'^{prefix} (.+)\t({classes})\s*$', output, re.M)
     return found.groups() if found else None
 
@@ -231,7 +231,7 @@ class CommandGate:
     (5)), or, with `cache` 'box', with the caches the command finds on this machine (the box content cache of gate-dev,
     F19; D-076 (a) allows it, D-297 (c)), and reports (ok, first failed stage, output tail, failing test files, class). `timeout_name` is the registry
     entry of `timeout`; a timeout is class env (the machine, never a member). A red run without a class line (a timeout, a gate older than GX-01) is classified once over its
-    whole output with gate_classify, never over the tail, and its stage is the command."""
+    whole output with stage_classes (gate_classify's rule), never over the tail, and its stage is the command."""
 
     CACHES = ('fresh', 'box')
 
@@ -264,5 +264,5 @@ class CommandGate:
         tail = output[-self.log_chars:] if self.log_chars else ''
         if done.returncode == 0:
             return GateResult(True, None, tail)
-        stage, kind = failed_stage(output) or (self.command[0], gate_classify.classify(self.command[0], output))
+        stage, kind = failed_stage(output) or (self.command[0], stage_classes.classify(self.command[0], output))
         return GateResult(False, stage, tail, failing_test_files(output), kind)

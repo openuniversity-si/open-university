@@ -7,6 +7,7 @@
     "scripts/lib/fork-shim.c",
     "scripts/lib/hermetic/**",
     "config/registry/gate.json",
-    "scripts/cloud/env.sh"
+    "scripts/cloud/env.sh",
+    "scripts/lib/hooks_path.py"
   ]
 }

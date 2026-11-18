@@ -25,6 +25,7 @@
     "scripts/lib/gate_test_cache.py",
     "scripts/lib/merge_train.py",
     "scripts/lib/port_http.py",
-    "scripts/lib/git_objects.py"
+    "scripts/lib/git_objects.py",
+    "scripts/lib/script_covers.py"
   ]
 }

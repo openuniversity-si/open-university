@@ -13,6 +13,7 @@
     "scripts/lib/generated/**",
     "scripts/lib/globs.py",
     "scripts/lib/json_schema.py",
+    "scripts/lib/script_covers.py",
     "scripts/lib/units.py",
     "scripts/tests/config-port.test.sh",
     "scripts/tests/config.test.sh",

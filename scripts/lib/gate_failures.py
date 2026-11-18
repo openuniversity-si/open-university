@@ -13,48 +13,9 @@ stages (F46, D-113).
 A signature is the last error line with colour codes, absolute paths, digits and runs of space removed, capped at
 gate.failing_signature_chars. At most gate.failing_tests_max tests are listed, by id; the total is kept.
 """
-import json
-import re
-from pathlib import Path
-
 import config
-
-ANSI = re.compile(r'\x1b\[[0-9;]*[A-Za-z]')
-PATH = re.compile(r'(?<![\w.@+-])(?:/[\w.@+-]+){2,}/([\w.@+-]+)')
-ERROR = re.compile(r'^\s*(?:[A-Za-z_.]*(?:Error|Exception)\b|FAIL\b|FAILED\b|not ok\b|Traceback)')
-
-
-def normalize(text):
-    """One comparable line: no colour codes, absolute paths reduced to the file name, digits to N, spaces collapsed."""
-    text = ANSI.sub('', text or '')
-    line = next((line.strip() for line in text.splitlines() if line.strip()), '')
-    line = PATH.sub(r'\1', line)
-    line = re.sub(r'(?<![A-Za-z_])\d+(?:\.\d+)?(?![A-Za-z_])', 'N', line)
-    line = re.sub(r'\s+', ' ', line)
-    return line[:config.get('gate.failing_signature_chars')]
-
-
-def last_error(lines):
-    """The last error-looking line (a unittest report ends with the assertion); the last non-empty line otherwise."""
-    lines = [ANSI.sub('', line) for line in lines]
-    return next((line for line in reversed(lines) if ERROR.match(line) and not line.startswith(('FAILED', 'Traceback'))),
-                next((line for line in reversed(lines) if line.strip()), ''))
-
-
-def script_failures(records):
-    return [{'id': item['test'], 'stage': 'script tests', 'signature': normalize(last_error(item.get('tail') or []))}
-            for item in records if item['result'] == 'FAIL']
-
-
-def _records(logs):
-    path = Path(logs) / 'script-tests.json'
-    if not path.is_file():
-        return []
-    try:
-        records = json.loads(path.read_text())
-        return records if isinstance(records, list) else []
-    except ValueError:
-        return []
+# D-322: the signature is layer 0 (failure_signatures, engine-events); the gate's callers keep these names.
+from failure_signatures import ANSI, ERROR, PATH, last_error, normalize, records as _records, script_failures  # noqa: F401
 
 
 def cached_tests(logs):

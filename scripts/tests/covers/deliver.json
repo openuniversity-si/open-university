@@ -8,6 +8,7 @@
     "scripts/lib/box_queue.py",
     "config/registry/delivery.json",
     "scripts/lib/gate_classify.py",
-    "scripts/lib/merge_train.py"
+    "scripts/lib/merge_train.py",
+    "scripts/lib/stage_classes.py"
   ]
 }

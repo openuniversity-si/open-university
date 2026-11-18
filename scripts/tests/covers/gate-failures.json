@@ -13,6 +13,7 @@
     "contracts/events/*.json",
     "config/registry/gate.json",
     "config/registry/forge-events.json",
-    "scripts/lib/git_objects.py"
+    "scripts/lib/git_objects.py",
+    "scripts/lib/failure_signatures.py"
   ]
 }

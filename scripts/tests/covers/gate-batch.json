@@ -14,6 +14,7 @@
     "scripts/lib/units.py",
     "config/registry/gate.json",
     "scripts/tests/fixture_copy.py",
-    "scripts/lib/git_objects.py"
+    "scripts/lib/git_objects.py",
+    "scripts/lib/failure_signatures.py"
   ]
 }

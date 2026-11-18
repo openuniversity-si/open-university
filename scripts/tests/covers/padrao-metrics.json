@@ -14,6 +14,7 @@
     "scripts/lib/json_schema.py",
     "scripts/lib/registry_readers.py",
     "config/registry/rules/rules.metrics_scanner_files.json",
-    "config/registry/rules/rules.metrics_trace_timeout_s.json"
+    "config/registry/rules/rules.metrics_trace_timeout_s.json",
+    "scripts/lib/script_covers.py"
   ]
 }

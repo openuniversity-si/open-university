@@ -7,6 +7,7 @@
     "scripts/lib/gate_maps.py",
     "scripts/lib/gate_script_tests.py",
     "config/registry/test-orphans.json",
-    "scripts/lib/registry_readers.py"
+    "scripts/lib/registry_readers.py",
+    "scripts/lib/script_covers.py"
   ]
 }

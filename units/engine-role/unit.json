@@ -11,13 +11,12 @@
     "scripts/tests/test_train_role.py",
     "scripts/tests/train-role.test.sh"
   ],
+  "realizes": [
+    "ARC-environment"
+  ],
   "requires": {
     "engine-config": "^1",
     "engine-events": "^1",
-    "engine-gate-report": "^1",
     "engine-git-ref": "^1"
-  },
-  "realizes": [
-    "ARC-environment"
-  ]
+  }
 }

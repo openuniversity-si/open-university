@@ -22,7 +22,7 @@ class Lifecycle(Fixture):
         # must never rediscover or replace those inputs.
         self.port.adapter.open_changes = mock.Mock(side_effect=AssertionError('route must use the supplied queue'))
         for target, name, stand_in in ((defect_router, 'dependents', lambda unit, root: []),
-                                       (defect_router.gate_script_tests, 'load', lambda root=None: {'tests': []})):
+                                       (defect_router.script_covers, 'load', lambda root=None: {'tests': []})):
             patch = mock.patch.object(target, name, new=stand_in)
             patch.start()
             self.addCleanup(patch.stop)

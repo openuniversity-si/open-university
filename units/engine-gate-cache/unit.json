@@ -11,6 +11,7 @@
     "scripts/lib/gate_result_cache.py",
     "scripts/lib/gate_test_cache.py",
     "scripts/lib/shared_results.py",
+    "scripts/test-suite",
     "scripts/tests/covers/shared-results.json",
     "scripts/tests/gate-publish.test.sh",
     "scripts/tests/gate-result-cache.test.sh",
@@ -23,7 +24,11 @@
     "scripts/tests/test_gate_test_cache_env.py",
     "scripts/tests/test_shared_results.py"
   ],
+  "realizes": [
+    "ARC-gate"
+  ],
   "requires": {
+    "engine-cloud": "^1",
     "engine-commit-plan": "^1",
     "engine-config": "^1",
     "engine-env": "^1",
@@ -34,8 +39,5 @@
     "engine-gate-tests": "^1",
     "engine-git-ref": "^1",
     "engine-hermetic-tests": "^1"
-  },
-  "realizes": [
-    "ARC-gate"
-  ]
+  }
 }

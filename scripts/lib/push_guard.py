@@ -19,7 +19,7 @@ forge_events port, on push-guard.heartbeat_adapter (by default a file log in the
 
   push_guard.py hook post-commit|post-merge   the hooks; always exit 0
   push_guard.py push [--dir DIR]              push what is pending by hand; exit 1 when a push fails
-  push_guard.py install [--root DIR]          set core.hooksPath when the checkout has none (scripts/cloud/env.sh)
+  push_guard.py install [--root DIR]          set core.hooksPath when the checkout has none (hooks_path.py's rule)
 """
 import argparse
 from collections import namedtuple
@@ -33,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import config  # noqa: E402
 import forge_events  # noqa: E402
+import hooks_path  # noqa: E402 - D-322: the install step is the bootstrap's (engine-cloud)
 
 ROOT = Path(__file__).resolve().parents[2]
 KEYS = ('enabled', 'remote', 'protected_branches', 'work_branch_patterns', 'push_timeout_s', 'hooks_path')
@@ -197,18 +198,9 @@ def heartbeat(result, cwd, port=None):
 
 
 def install(root, options):
-    """Point core.hooksPath at the versioned hooks unless the checkout already has its own hooks path."""
-    current = git(root, 'config', '--get', 'core.hooksPath').stdout.strip()
-    if current == options['hooks_path']:
-        return 'installed'
-    if current:
-        print(f'push-guard: core.hooksPath is {current}, not {options["hooks_path"]}; the auto-push hook is not active',
-              file=sys.stderr)
-        return 'kept'
-    if not (Path(root) / options['hooks_path']).is_dir():
-        return 'absent'
-    git(root, 'config', 'core.hooksPath', options['hooks_path'])
-    return 'installed'
+    """Point core.hooksPath at the versioned hooks unless the checkout already has its own hooks path (hooks_path, the
+    machine bootstrap's step, D-322)."""
+    return hooks_path.install(root, options['hooks_path'])
 
 
 def main(argv=None):

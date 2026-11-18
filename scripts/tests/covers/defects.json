@@ -15,6 +15,7 @@
     "contracts/defects/*.json",
     "contracts/events/*.json",
     "units/*/unit.json",
-    "scripts/tests/forge_doubles.py"
+    "scripts/tests/forge_doubles.py",
+    "scripts/lib/globs.py"
   ]
 }

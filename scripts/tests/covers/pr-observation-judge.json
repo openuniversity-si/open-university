@@ -14,6 +14,7 @@
     "scripts/lib/config.py",
     "config/registry/forge-events.json",
     "config/registry/forge-events/**",
-    "scripts/lib/port_http.py"
+    "scripts/lib/port_http.py",
+    "scripts/lib/release_rules.py"
   ]
 }

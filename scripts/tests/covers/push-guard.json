@@ -22,6 +22,7 @@
     "config/registry/local-checks.json",
     ".githooks/pre-commit",
     "scripts/lib/generate_stage.sh",
-    "scripts/cloud/root-session.sh"
+    "scripts/cloud/root-session.sh",
+    "scripts/lib/hooks_path.py"
   ]
 }

@@ -63,6 +63,10 @@
     "scripts/tests/rest_fake.py",
     "scripts/tests/rest_fake/**",
     "scripts/lib/port_http.py",
-    "scripts/lib/git_objects.py"
+    "scripts/lib/git_objects.py",
+    "scripts/lib/stage_classes.py",
+    "scripts/lib/script_covers.py",
+    "scripts/lib/release_rules.py",
+    "scripts/lib/hooks_path.py"
   ]
 }

@@ -5,6 +5,7 @@
     "scripts/tests/test_release_policy.py",
     "scripts/release-policy.json",
     "scripts/lib/release_policy.py",
-    "config/registry/release.json"
+    "config/registry/release.json",
+    "scripts/lib/release_rules.py"
   ]
 }

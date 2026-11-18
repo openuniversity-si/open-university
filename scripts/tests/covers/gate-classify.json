@@ -8,6 +8,7 @@
     "scripts/lib/gate-runner.sh",
     "scripts/gate-local",
     "scripts/lib/gate-hooks/*.sh",
-    "scripts/lib/git_objects.py"
+    "scripts/lib/git_objects.py",
+    "scripts/lib/stage_classes.py"
   ]
 }
