@@ -84,9 +84,11 @@ def sharded(runs):
     return all(shards) and len(set(shards)) == len(shards)
 
 
-def check(root):
+def read(root):
+    """(tests_dir, {(module or None, file name): [(wrapper, line, glob, shard)]}, [(wrapper, line, module, glob)],
+    errors of the wrapper globs that match no test) of the repository; None without the registry key."""
     if 'test-orphans.tests_dir' not in config._load(root):
-        return []  # a repository without the registry key has no test layout to check
+        return None  # a repository without the registry key has no test layout to check
     tests_dir, glob, skip, token = settings(root)
     found = tests(root, tests_dir, glob, skip)
     runs = {test: [] for test in found}
@@ -102,7 +104,26 @@ def check(root):
             for test in matched:
                 if wrapper not in [run[0] for run in runs[test]]:
                     runs[test].append((wrapper, line, name, shard))
-    for test in sorted(found, key=lambda item: label(*item)):
+    return tests_dir, runs, globs, errors
+
+
+def runners(root):
+    """{test file path: [wrappers that run it]} of every test, [] for a test no wrapper runs; {} without the registry
+    key. The same lexical reading the check makes: the engineering model folds a test file into the wrapper(s) that
+    run it (model.read_tests), since a wrapper is what the gate selects and reports."""
+    layout = read(root)
+    if layout is None:
+        return {}
+    tests_dir, runs, _, _ = layout
+    return {f'{tests_dir}/{label(*test)}': [run[0] for run in found] for test, found in runs.items()}
+
+
+def check(root):
+    layout = read(root)
+    if layout is None:
+        return []
+    tests_dir, runs, globs, errors = layout
+    for test in sorted(runs, key=lambda item: label(*item)):
         path = f'{tests_dir}/{label(*test)}'
         if not runs[test]:
             errors.append(f'{path}: run by no wrapper; {fix_for(*test, tests_dir, globs)}')
