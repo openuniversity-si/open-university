@@ -3,12 +3,10 @@
   "default": [
     {
       "id": "R-rule-record-complete",
-      "statement": "Every rule that can stop a flow (refuse, fail a gate, block a merge) has an active record in rules.catalog with every field, and scripts/rule check counts as numbers the records with gaps, past their review date or end condition, with an unanswered question, never measured or without a root cause, or resting on an unsettled or missing premise, and the stopping functions rules.stop_patterns finds that no record lists; while rules.check_mode is report it refuses nothing.",
+      "statement": "Every rule that can stop a flow (refuse, fail a gate, block a merge) has an active record in rules.catalog with every field, and scripts/rule check counts as numbers the records with gaps, past their review date or end condition, with an unanswered question, never measured or without a root cause, or resting on an unsettled or missing premise, and the stopping functions rules.stop_patterns finds that no record lists; it refuses nothing (its refuse mode left with D-328).",
       "where": [
         "scripts/lib/rule_registry.py:record_gaps",
-        "scripts/lib/rule_registry.py:unregistered",
-        "scripts/lib/rule_registry.py:refusals",
-        "config/registry/rules.json#rules.check_mode"
+        "scripts/lib/rule_registry.py:unregistered"
       ],
       "owner": "Daniel 2026-10-28",
       "created": {
@@ -17,10 +15,8 @@
       },
       "review_by": "2027-01-26",
       "ends_when": {
-        "kind": "registry_equals",
-        "key": "rules.check_mode",
-        "equals": "refuse",
-        "text": "Report mode ends when an approved decision flips rules.check_mode to refuse: this non-stopping record is then retired (retired.by names that decision) and replaced by a stopping record (stops true) that carries damage_if_passed and impact_of_removal."
+        "kind": "manual",
+        "text": "D-328 retired the refuse mode and made the standard's catalog of rules (D-317) the one register; this record ends when the phase folds the RULE-AUDIT fields into the standard (PADRAO-DEV F1c)."
       },
       "stops": false,
       "damage_if_passed": "A rule that can stop a flow runs with no justification, owner, review date or end condition, or outlives its reason or its premise, and nothing counts it.",

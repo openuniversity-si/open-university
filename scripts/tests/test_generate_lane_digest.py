@@ -12,11 +12,10 @@ import generate  # noqa: E402
 import generate_lane_digest as digest  # noqa: E402
 
 LANE = '# The lane\n\n## The delivery contract\nx\n\n## Rules digest (F78)\nWhy.\n\n```digest\n1. rule\n```\n\n## Other\n'
-# One phrase per rule a lane cannot deliver without (F78): worktree and toolchain, trailers and plan, pr-body and the
-# effort block, test-suite once, deliver, no fila.md edits, the token budget.
+# One phrase per rule a lane cannot deliver without (F78): worktree and toolchain, trailers and plan, pr-body (its effort
+# block left with D-328), test-suite once, deliver, no fila.md edits, the token budget.
 RULES = ('scripts/lane worktree', '.toolchain', 'mod/roadmap-integration', 'Plan: N', 'Co-Authored-By:',
-         'Claude-Session: <session>', 'scripts/pr-body --title --action --cost --requirement --cheaper', 'commit-check --pr-body', 'Cheapest useful effort',
-         'Action:', 'Cost:', 'Requirement:', 'Cheaper rejected:', 'Premises:', 'Fit-Review:',
+         'Claude-Session: <session>', 'scripts/pr-body --title', 'commit-check --pr-body', 'Premises:', 'Fit-Review:',
          'test-suite --changed` once', 'scripts/deliver --open --branch', 'Never edit fila.md', 'tokens a call', 'tail -20',
          'config/registry/<area>/', 'One unit per lane', 'frictions.jsonl')
 

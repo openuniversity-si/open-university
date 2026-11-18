@@ -106,7 +106,7 @@ class TheGatesAsk(unittest.TestCase):
         ok, _ = gate_infra.metadata_of(7, 'base', run=run, sleep=lambda _: None, port=port, head='a' * 40)
         self.assertTrue(ok)
         self.assertEqual(port.calls[0], ('POST', '/v1/pr-observation', {'pr': 7, 'head': 'a' * 40}))
-        self.assertEqual(run.observations, [seen, seen, seen])  # D-322: structure-check, commit-check and measurement body
+        self.assertEqual(run.observations, [seen, seen])  # D-322: structure-check and commit-check (the effort body left, D-328)
 
     def test_a_port_without_the_route_leaves_the_lanes_read_and_a_failed_read_is_a_forge_that_did_not_answer(self):
         run = Run()

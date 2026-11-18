@@ -179,16 +179,13 @@ def metadata(root, tool, head, base, pr):
     try:
         done = subprocess.run([str(Path(tool) / 'scripts/structure-check'), '--metadata', '--base', base,
                                '--pr', str(pr), '--no-publish'], cwd=checkout, capture_output=True, text=True)
-        # D-322: the PR's commit part (commit discipline, plan completeness, lanes) and the PR body's measurement part (the
-        # effort block), which the structure check no longer imports
+        # D-322: the PR's commit part (commit discipline, plan completeness, lanes), which the structure check no longer
+        # imports (the PR body's effort block left with D-328)
         commits = subprocess.run([str(Path(tool) / 'scripts/commit-check'), '--pr', str(pr), '--root', str(checkout)],
                                  cwd=checkout, capture_output=True, text=True)
-        body = subprocess.run([sys.executable, str(Path(tool) / 'scripts/lib/measurement_checks.py'), 'body', '--base', base,
-                               '--pr', str(pr)], cwd=checkout, capture_output=True, text=True)
     finally:
         gate_pin.drop(root, throwaway)
-    return (max(done.returncode, commits.returncode, body.returncode),
-            done.stdout + done.stderr + commits.stdout + commits.stderr + body.stdout + body.stderr)
+    return max(done.returncode, commits.returncode), done.stdout + done.stderr + commits.stdout + commits.stderr
 
 
 def gate(root, head, pr, logs):

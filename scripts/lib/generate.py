@@ -87,7 +87,7 @@ def affected(paths, root=None):
     return [
         name
         for name, target in targets(root).items()
-        if target['committed'] and blocked(root, target) is None
+        if target['committed'] and skip_reason(root, target) is None
         and any(glob_match(path, pattern) for path in changed for pattern in target['sources'])
     ]
 
@@ -99,7 +99,7 @@ def renderer(name):
         raise GenerateError(f'{name}: no renderer scripts/lib/generate_{name.replace("-", "_")}.py') from error
 
 
-def blocked(root, target):
+def skip_reason(root, target):
     """Why a target cannot run now, else None."""
     if not target['enabled']:
         until = f' until {target["requires"]} exists' if 'requires' in target else ''
@@ -122,7 +122,7 @@ def drift(root=None, names=None):
     for name, target in targets(root).items():
         if names is not None and name not in names:
             continue
-        if not target['committed'] or blocked(root, target):
+        if not target['committed'] or skip_reason(root, target):
             continue
         want = expected(root, name, target)
         for path, text in want.items():
@@ -199,7 +199,7 @@ def main(argv=None):
     if args.list:
         for name in chosen:
             target = declared[name]
-            state = blocked(root, target) or 'enabled'
+            state = skip_reason(root, target) or 'enabled'
             print(f'{name}\t{"committed" if target["committed"] else "on demand"}\t{state}\t{target["description"]}')
         return 0
     if args.check:
@@ -207,13 +207,13 @@ def main(argv=None):
         for line in problems:
             print('FAIL ' + line)
         for name in chosen:
-            reason = blocked(root, declared[name])
+            reason = skip_reason(root, declared[name])
             if reason:
                 print(f'skip {name}: {reason}')
         return 1 if problems else 0
     for name in chosen:
         target = declared[name]
-        reason = blocked(root, target)
+        reason = skip_reason(root, target)
         if reason:
             print(f'skip {name}: {reason}')
             continue

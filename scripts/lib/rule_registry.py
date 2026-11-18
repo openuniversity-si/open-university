@@ -18,8 +18,7 @@ shape; this module counts what the shape cannot say:
   unanswered(world)           active records whose standing question has no answer
   premise_findings(world)     active records citing no premise, or a refuted, unsettled or undated one
   stale(world)                every refuted, unsettled or undated premise with the rules that cite it
-  refusals(report)            what refuse mode would refuse; report mode (rules.check_mode) refuses nothing
-  check(world, mode, base)    the whole report with its counts
+  check(world, base)          the whole report with its counts; it refuses nothing (its refuse mode left with D-328)
 
 The functions take a World (records, settings, premises, decisions, `today`, `root`), so a test injects each value;
 load(root, today) reads them from local files only. main() pins the configuration store to the checkout's local log,
@@ -27,7 +26,7 @@ so no value is read from the forge: the rule system makes no network call. The o
 which appends an answer to rules.json in the checkout.
 
 scripts/rule list | show <id> | due | retired | stale | question <id|group> [--answer TEXT --by WHO [--on DATE]]
-| check [--mode report|refuse] [--base REF] [--json]; every subcommand takes --root DIR and --today YYYY-MM-DD and
+| check [--base REF] [--json]; every subcommand takes --root DIR and --today YYYY-MM-DD and
 ends with a count line. A usage error exits through argparse.
 """
 import argparse
@@ -44,7 +43,7 @@ import premises
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 OWNER = 'rules'
-NAMES = ('catalog', 'check_mode', 'max_review_days', 'stop_patterns', 'decision_register', 'census_file', 'groups_file')
+NAMES = ('catalog', 'max_review_days', 'stop_patterns', 'decision_register', 'census_file', 'groups_file')
 DATE = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}')
 DECISION = re.compile(r'D-[0-9]{3}')
 DECISION_ROW = re.compile(r'^\| (D-[0-9]{3}) \|', re.M)
@@ -60,7 +59,6 @@ END_FIELDS = {'manual': (), 'date': ('on',), 'path_exists': ('path',), 'path_abs
 GROUP_ROWS = ('rows', 'row_ids', 'members', 'ids')
 CENSUS_FIELDS = ('kind', 'where', 'what', 'owner', 'fired', 'stops_flow')
 ACTIVE, RETIRED = 'active', 'retired'
-REPORT, REFUSE = 'report', 'refuse'
 PENDING_DECISION = '<D-NNN required>'
 
 
@@ -526,26 +524,9 @@ def base_ids(root, ref, registry):
     return sorted(record['id'] for record in catalog if isinstance(record, dict) and 'id' in record)
 
 
-def refusals(report):
-    """What refuse mode refuses: a stopping record with a gap, an unanswered question, no measurement or no root cause;
-    a stop without a question (no record); a retirement without its recorded decision; a record that left the catalog
-    without a retirement."""
-    stopping, retired = set(report['stopping_ids']), set(report['retired_ids'])
-    found = [f'{ident} can stop a flow and has {len(gaps)} gap(s)' for ident, gaps in report['gaps'].items()
-             if ident in stopping and gaps]
-    found += [f'{ident} is retired without a recorded decision' for ident, gaps in report['gaps'].items()
-              if ident in retired and gaps]
-    found += [f'{ident} can stop a flow and its question has no answer' for ident in report['unanswered']
-              if ident in stopping]
-    found += [f'{row["id"]} {row["finding"]}' for row in report['accidents']]
-    found += [f'{ref} can stop a flow without a question (no active record lists it)' for ref in report['unregistered']]
-    found += [f'{ident} left rules.catalog without a retirement' for ident in report['deleted']]
-    return found
-
-
-def check(world, mode=None, base=None):
-    """The report: every finding and its counts; `exit` is 1 only in refuse mode with something to refuse."""
-    mode = mode or world.settings['check_mode']
+def check(world, base=None):
+    """The report: every finding and its counts. It refuses nothing: the refuse mode left with D-328, and the standard's
+    catalog of rules (D-317) is the one register."""
     gaps, seen = {}, set()
     for index, record in enumerate(world.records):
         ident = record.get('id') or f'record #{index}'
@@ -560,7 +541,7 @@ def check(world, mode=None, base=None):
     rows = stale(world)
     deleted = sorted(set(base) - seen) if base is not None else []
     report = {
-        'today': world.today.isoformat(), 'mode': mode, 'registry': world.registry, 'gaps': gaps,
+        'today': world.today.isoformat(), 'registry': world.registry, 'gaps': gaps,
         'due': [{'id': record.get('id'), 'review_by': record.get('review_by'), 'days': days} for record, days in due(world)],
         'ending': ending(world), 'discovered': found, 'unregistered': missing, 'accidents': accidents(world),
         'unanswered': [record.get('id') for record in unanswered(world)], 'premise_findings': findings, 'stale': rows,
@@ -568,7 +549,6 @@ def check(world, mode=None, base=None):
         'stopping_ids': sorted(record.get('id') for record in live if is_stopping(record)),
         'retired_ids': sorted(record.get('id') for record in world.records if not is_active(record)),
     }
-    report['refusals'] = refusals(report)
     report['counts'] = {
         'records': len(world.records), 'active': len(live), 'retired': len(world.records) - len(live),
         'stopping': len(report['stopping_ids']), 'gaps': sum(len(items) for items in gaps.values()),
@@ -581,9 +561,8 @@ def check(world, mode=None, base=None):
         'on_stale_premise': len({row['id'] for row in findings if row['premise']}),
         'stopping_on_stale_premise': len({row['id'] for row in findings if row['premise'] and row['stops']}),
         'stale_premises': len(rows), 'premise_register_errors': len(world.premise_errors),
-        'deleted_without_retirement': len(deleted), 'refusals': len(report['refusals']),
+        'deleted_without_retirement': len(deleted),
     }
-    report['exit'] = int(mode == REFUSE and bool(report['refusals']))
     return report
 
 
@@ -757,7 +736,7 @@ def print_stale(world, out):
 
 def print_check(report, world, out):
     counts = report['counts']
-    print(f'rules check: mode {report["mode"]}, today {report["today"]}, registry {report["registry"]}', file=out)
+    print(f'rules check: today {report["today"]}, registry {report["registry"]}', file=out)
     for ident, gaps in sorted(report['gaps'].items()):
         for gap in gaps:
             print(f'GAP {ident}: {gap}', file=out)
@@ -791,11 +770,9 @@ def print_check(report, world, out):
           file=out)
     print('deleted without retirement: ' + (str(counts['deleted_without_retirement']) if report['base_given']
                                             else 'not judged (no --base)'), file=out)
-    print(f'{"refuses" if report["mode"] == REFUSE else "refuse mode would refuse"}: {counts["refusals"]}', file=out)
     print(f'rules check: {counts["records"]} record(s), {counts["gaps"]} gap(s), {counts["due"]} due, {counts["ending"]} '
           f'ending, {counts["unanswered"]} unanswered, {counts["unregistered_stops"]} stop(s) without a question, '
-          f'{counts["on_stale_premise"]} on stale premises, {counts["stale_premises"]} stale premise(s); exit '
-          f'{report["exit"]}', file=out)
+          f'{counts["on_stale_premise"]} on stale premises, {counts["stale_premises"]} stale premise(s)', file=out)
 
 
 def day_arg(text):
@@ -823,7 +800,6 @@ def parser():
     asked.add_argument('--by', help='who answers (with --answer)')
     asked.add_argument('--on', type=day_arg, help='the answer date (with --answer; default: --today)')
     run = commands.add_parser('check', parents=[common], help='the whole report with its counts')
-    run.add_argument('--mode', choices=(REPORT, REFUSE), help=f'default: {OWNER}.check_mode')
     run.add_argument('--base', help='a git ref: records present there and absent here left without a retirement')
     run.add_argument('--json', action='store_true', help='print the report as JSON')
     return found
@@ -873,12 +849,11 @@ def main(argv=None, out=sys.stdout):
             base = base_ids(world.root, args.base, world.registry) if args.base else None
         except ValueError as error:
             command.error(str(error))
-        report = check(world, args.mode, base)
+        report = check(world, base)
         if args.json:
             print(json.dumps(report, indent=1, sort_keys=True, ensure_ascii=False), file=out)
         else:
             print_check(report, world, out)
-        return report['exit']
     return 0
 
 

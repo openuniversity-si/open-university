@@ -1,9 +1,5 @@
 {
   "title": "FLUXO-AMPLO: teste do corpo",
-  "action": "one body from the commits",
-  "cost": "no state",
-  "requirement": "engine-lane needs one body per PR",
-  "cheaper": "typing each body",
   "session": "https://claude.ai/code/session_01FixtureFixtureFixture",
   "commits": [
     "first thing\n\nPlan: 1\n",

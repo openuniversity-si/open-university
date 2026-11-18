@@ -1,6 +1,6 @@
 {
   "id": "STD-measurement-checks",
-  "statement": "The absolute exception list and the shared-literals list only shrink (D-064 a, c), every unit's census record keeps its shape and chain, the budgets are never loosened without a decision (D-069 item 14) and a PR body carries the cheapest-useful-effort block (EFFORT-STEP): the gate's measurement checks stage, and its PR-body part in pr metadata, refuse a change that breaks one.",
+  "statement": "The absolute exception list and the shared-literals list only shrink (D-064 a, c), every unit's census record keeps its shape and chain, the budgets are never loosened without a decision (D-069 item 14): the gate's measurement checks stage refuses a change that breaks one (the PR body's effort block left with D-328).",
   "state": "blocking",
   "owner": "administration",
   "applies_to": [

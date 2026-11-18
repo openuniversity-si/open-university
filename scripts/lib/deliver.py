@@ -874,14 +874,12 @@ def pr_body(commits, footer=''):
 
 
 def body_problems(body_file, root=ROOT, run=subprocess.run):
-    """The FAIL lines of `scripts/structure-check --pr-body FILE`, of `scripts/commit-check --pr-body FILE` (the commit
-    plan) and of `measurement_checks.py body --pr-body FILE` (the effort block), the parts D-322 split, so a PR is never
+    """The FAIL lines of `scripts/structure-check --pr-body FILE` and of `scripts/commit-check --pr-body FILE` (the commit
+    plan), the parts D-322 split (the effort block left with D-328), so a PR is never
     opened with a body the gate would refuse (lane 4, D-236; the guard lane-ship carried until F9)."""
     _, said, _ = output(run, [str(Path(root) / 'scripts' / 'structure-check'), '--pr-body', str(body_file)], root)
     _, planned, _ = output(run, [str(Path(root) / 'scripts' / 'commit-check'), '--pr-body', str(body_file)], root)
-    _, measured, _ = output(run, [sys.executable, str(Path(root) / 'scripts' / 'lib' / 'measurement_checks.py'), 'body',
-                                  '--pr-body', str(body_file)], root)
-    return [line for line in f'{said}\n{planned}\n{measured}'.splitlines() if line.startswith('FAIL')]
+    return [line for line in f'{said}\n{planned}'.splitlines() if line.startswith('FAIL')]
 
 
 def open_pr(branch, root=ROOT, run=subprocess.run, out=print, footer='', create=True):

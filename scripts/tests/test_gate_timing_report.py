@@ -61,15 +61,15 @@ class Quantiles(unittest.TestCase):
 class EtaError(unittest.TestCase):
     def test_error_is_wall_minus_expected_for_the_newest_gates(self):
         events = [event for gate in DATA['eta']['gates'] for event in gate_events(gate)]  # the last gate has no verdict: no row
-        rows = timing.eta_errors(events, len(DATA['eta']['gates']))
+        rows = timing.eta_misses(events, len(DATA['eta']['gates']))
         self.assertEqual([[row['pr'], row['error_s']] for row in rows], DATA['eta']['errors'])
-        self.assertEqual([row['pr'] for row in timing.eta_errors(events, len(DATA['eta']['newest_only']))], DATA['eta']['newest_only'])
+        self.assertEqual([row['pr'] for row in timing.eta_misses(events, len(DATA['eta']['newest_only']))], DATA['eta']['newest_only'])
 
     def test_report_summarises_stage_quantiles_and_the_error(self):
         case = DATA['report']
         events = [step(index, 'lint', seconds) for index, seconds in enumerate(case['lint_s'])]
         events += [step(len(events), 'unit', case['unit_s'])] + gate_events(case['gate'])
-        data = timing.report(timing.stage_samples(events), timing.eta_errors(events, len(events)), {'unit': ['lint']})
+        data = timing.report(timing.stage_samples(events), timing.eta_misses(events, len(events)), {'unit': ['lint']})
         self.assertEqual([data['stages']['lint']['p50'], data['stages']['lint']['p90']], case['lint'])
         self.assertEqual((data['critical_path'], data['critical_path_s']), (case['path'], case['path_s']))
         self.assertEqual(data['eta']['mean_abs_error_s'], case['mean_abs_error_s'])

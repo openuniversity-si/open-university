@@ -546,8 +546,8 @@ def metadata_part(root, args):
     if args.pr_body:
         body = args.pr_body.read_text()
         body_errors, body_warnings = fit_review(body, root)
-        # D-322: the commit plan, its completeness and the lanes are commit-check's (`--pr-body`, delivery), and the
-        # effort block is measurement_checks.py body; both run beside this check wherever it ran
+        # D-322: the commit plan, its completeness and the lanes are commit-check's (`--pr-body`, delivery), run beside
+        # this check wherever it ran
         errors += body_errors
         warnings += body_warnings
         line_errors, line_warnings = check_premises_line(root, body, changed_files(root, args.base))
@@ -568,8 +568,7 @@ def metadata_part(root, args):
             errors.append(Blind(f'commit-check: PR #{args.pr} not readable ({error})'))
         else:
             fetched = pr
-            # D-322: the commit discipline, the plan completeness and the lanes are `commit-check --pr` (delivery), and
-            # EFFORT-STEP (D-069 items 4, 8, 9) the effort block is `measurement_checks.py body`, both run beside
+            # D-322: the commit discipline, the plan completeness and the lanes are `commit-check --pr` (delivery), run beside this check
             guard_errors, guard_warnings = visual_guard.check(root, args.base, pr.get('body', ''), pr.get('files') or [],
                                                               pr.get('branch'))  # D-006, SG1
             errors += guard_errors

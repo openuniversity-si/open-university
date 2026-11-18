@@ -23,8 +23,7 @@
   "x-unit": "enum",
   "description": "Lanes a manifest may name as owner (D-065 (4), D-069 item 8); a lane exclusively owns its units.",
   "x-readers": [
-    "scripts/lib/units.py",
-    "scripts/lib/effort.py"
+    "scripts/lib/units.py"
   ],
   "x-source": "D-067; plan v3 §4.5 cells and §9.2 A2 lanes",
   "items": {

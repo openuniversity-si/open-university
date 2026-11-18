@@ -58,7 +58,7 @@ class Tenant:
         except Refused as error:
             return None, error.status
 
-    def refusal(self, method, path, body, job):
+    def attempt(self, method, path, body, job):
         """(status, the refusal's text with `job` masked), or (200, None) when the port answered."""
         try:
             self.port.call(method, path, body)
@@ -118,9 +118,9 @@ class Proof:
 
     def cancel(self, who, victim, job):
         """A cross-tenant cancel is refused: 404, or a refusal identical (id masked) to the one for a nonexistent id."""
-        status, text = who.refusal('POST', f'/v1/jobs/{job}/cancel', {}, job)
+        status, text = who.attempt('POST', f'/v1/jobs/{job}/cancel', {}, job)
         control = str(uuid.uuid4())
-        c_status, c_text = who.refusal('POST', f'/v1/jobs/{control}/cancel', {}, control)
+        c_status, c_text = who.attempt('POST', f'/v1/jobs/{control}/cancel', {}, control)
         ok = status == 404 or (status != 200 and (status, text) == (c_status, c_text))
         self.check(f'{who.label} cancels {victim.label} job', ok,
                    f'POST cancel {job} -> {status}; nonexistent id -> {c_status}' + (' (same answer: no existence oracle)' if ok and status != 404 else ''))
