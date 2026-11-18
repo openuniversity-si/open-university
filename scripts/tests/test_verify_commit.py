@@ -187,13 +187,15 @@ class TheVerifier(unittest.TestCase):
         hints = {'scripts/tests/a.test.sh': 50, 'scripts/tests/b.test.sh': 30, 'scripts/tests/c.test.sh': 25,
                  'scripts/tests/d.test.sh': 4, 'scripts/tests/slow.test.sh': 37}
         parts = verify_commit.split(tests, {'scripts/tests/slow.test.sh'}, hints)
-        # main starts STAGES_S (15) heavier: a 50 -> shard1 50; b 30 -> main 45; c 25 -> main 70; d 4 -> shard1 54
-        self.assertEqual(parts, {'main': ['scripts/tests/b.test.sh', 'scripts/tests/c.test.sh'],
-                                 'shard1': ['scripts/tests/a.test.sh', 'scripts/tests/d.test.sh'],
+        # GATE-PER-WORKER: main starts STAGES_S (15) heavier and has 3 workers, shard1 4; each test goes where it leaves the
+        # lighter load per worker: a 50 -> shard1 (12.5 against 21.7); b 30 -> main (15 against 20); c 25 -> shard1 (18.75
+        # against 23.3); d 4 -> main (16.3 against 19.75)
+        self.assertEqual(parts, {'main': ['scripts/tests/b.test.sh', 'scripts/tests/d.test.sh'],
+                                 'shard1': ['scripts/tests/a.test.sh', 'scripts/tests/c.test.sh'],
                                  'alone': ['scripts/tests/slow.test.sh']})
         unhinted = verify_commit.split(['scripts/tests/e.test.sh', 'scripts/tests/f.test.sh', 'scripts/tests/g.test.sh'],
                                        set(), {'scripts/tests/a.test.sh': 10})  # no hint weighs the median, never 0
-        self.assertEqual((len(unhinted['main']), len(unhinted['shard1'])), (1, 2))
+        self.assertEqual((len(unhinted['main']), len(unhinted['shard1'])), (0, 3))  # 10 each: shard1's 4 workers hold the three
         self.assertEqual(parts, verify_commit.split(list(reversed(tests)), {'scripts/tests/slow.test.sh'}, hints))
         self.assertEqual(sorted(sum(parts.values(), [])), sorted(tests))
 
@@ -233,7 +235,7 @@ class TheVerifier(unittest.TestCase):
                 return super().__call__(args, cwd, env)
         plan = {'stages': PLAN['stages'], 'tests': ['scripts/tests/x.test.sh', 'scripts/tests/y.test.sh']}
         fake, paces = Beside(plan=plan, red={'structure check', 'scripts/tests/y.test.sh'}), []
-        hints = {'scripts/tests/x.test.sh': 20, 'scripts/tests/y.test.sh': 20}.copy  # x to shard1, y to main
+        hints = {'scripts/tests/x.test.sh': 40, 'scripts/tests/y.test.sh': 20}.copy  # x to shard1, y to main (GATE-PER-WORKER)
         green, red, _, _ = verify_commit.judge(BASE, run=fake, part='main', hints=hints, isolated=list,
                                                cpus=lambda: 4, paces=paces)
         self.assertFalse(green)
