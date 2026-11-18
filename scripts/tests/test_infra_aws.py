@@ -2,12 +2,13 @@
 templates under infra/aws as JSON and checks Daniel's decision and the guardrails; no AWS call, no network.
 """
 # Verifies: REQ-aws-200
-from fnmatch import fnmatchcase
 import hashlib
 import json
 import os
 import re
+import shutil
 import unittest
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -577,19 +578,27 @@ class BootstrapTests(unittest.TestCase):
         self.assertLess(spec.index('docker push'), spec.rindex('  deploy_stacks\n'))
 
 
-DEPLOY_STUBS = '''
-aws() {
-  echo "aws $1 $2" >> "$CALLS_FILE"
+# STUBS-ON-PATH (the Torre, 18/11/2026): the stubs are executables on PATH as well as exported functions. deploy.sh runs
+# some calls through `timeout 60 aws ...`, and timeout executes the aws on PATH, not a shell function: on GitHub's runner
+# that was the real AWS CLI (installed there, absent here), 77 calls of a run that waited on its credential lookup
+# (infra-aws: 35.8 s in #215's gate, 56.4 s in #158's, 4 s locally), and a run with credentials would have reached AWS.
+AWS_BODY = """  echo "aws $1 $2" >> "$CALLS_FILE"
   case "$1 $2" in
     "ecr describe-images") [ -n "$IMAGE_EXISTS" ] ;;
     "ecr get-login-password") echo token ;;
     "ssm get-parameter") echo "$LAST" ;;
-    "cloudformation describe-stack-events") printf '%s\tService\tUPDATE_FAILED\tthe reason\n' "$(date -u +%Y-%m-%dT%H:%M:%S.000000+00:00)" ;;
-    "cloudformation deploy") case " $* " in *" --stack-name $FAIL_STACK "*) return 1 ;; esac ;;
+    "cloudformation describe-stack-events") printf '%s\\tService\\tUPDATE_FAILED\\tthe reason\\n' "$(date -u +%Y-%m-%dT%H:%M:%S.000000+00:00)" ;;
+    "cloudformation deploy") case " $* " in *" --stack-name $FAIL_STACK "*) return 1 2>/dev/null || exit 1 ;; esac ;;
     "ssm put-parameter") echo "put $4" >> "$CALLS_FILE" ;;
   esac
-}
-docker() { echo "docker $1" >> "$CALLS_FILE"; }
+"""
+DOCKER_BODY = """  echo "docker $1" >> "$CALLS_FILE"
+"""
+DEPLOY_STUBS = f'''
+aws() {{
+{AWS_BODY}}}
+docker() {{
+{DOCKER_BODY}}}
 export -f aws docker
 '''
 
@@ -615,10 +624,16 @@ class DeployScriptTests(unittest.TestCase):
             sha = subprocess.run(['git', '-C', str(repo), 'rev-parse', 'HEAD'], capture_output=True, text=True,
                                  check=True).stdout.strip()
             calls = Path(tmp) / 'calls'
+            bin_dir = Path(tmp) / 'bin'  # STUBS-ON-PATH: what `timeout aws` finds, never the real CLI
+            bin_dir.mkdir()
+            for name, body in (('aws', AWS_BODY), ('docker', DOCKER_BODY)):
+                (bin_dir / name).write_text('#!' + (shutil.which('bash') or '/bin/bash') + '\n' + body)
+                (bin_dir / name).chmod(0o755)
             script = DEPLOY_STUBS + f'bash {INFRA / "deploy.sh"}\n'
             env = {**os.environ, 'IMAGE_REGISTRY': 'registry', 'CFN_EXEC_ROLE_ARN': 'role', 'DEPLOY_REPO': str(repo),
                    'LAST': sha if head == last else 'H1', 'FAIL_STACK': fail_stack or 'none',
-                   'IMAGE_EXISTS': image_exists, 'CALLS_FILE': str(calls), 'DEPLOY_LAMBDA_PACKAGE_CMD': "echo '{}'"}
+                   'IMAGE_EXISTS': image_exists, 'CALLS_FILE': str(calls), 'DEPLOY_LAMBDA_PACKAGE_CMD': "echo '{}'",
+                   'PATH': f'{bin_dir}:{os.environ["PATH"]}'}
             done = subprocess.run(['bash', '-c', script], cwd=tmp, capture_output=True, text=True, check=False, env=env)
             self.stdout = done.stdout
             return str(done.returncode), calls.read_text().splitlines()
@@ -649,7 +664,9 @@ class DeployScriptTests(unittest.TestCase):
     def test_the_head_already_deployed_deploys_nothing(self):
         status, calls = self.run_deploy(head='H1', last='H1')
         self.assertEqual(status, '0')
-        self.assertNotIn('aws cloudformation', ' '.join(calls))
+        # STUBS-ON-PATH: the one CloudFormation call is the read of the bootstrap's template (BOOTSTRAP-DRIFT, every build);
+        # before, it went through `timeout` to the real CLI and was not seen here. No stack is read, changed or deployed.
+        self.assertEqual([call for call in calls if call.startswith('aws cloudformation')], ['aws cloudformation get-template'])
 
 
 IAM_PREFIX = {'ApiGatewayV2': 'apigateway', 'ApplicationAutoScaling': 'application-autoscaling'}
