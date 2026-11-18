@@ -32,6 +32,7 @@
  "scripts/tests/defects.test.sh": 0.3,
  "scripts/tests/deliver.test.sh": 3.3,
  "scripts/tests/deploy-classify.test.sh": 0.2,
+ "scripts/tests/deploy-files.test.sh": 0.2,
  "scripts/tests/deploy-slow-a.test.sh": 58.6,
  "scripts/tests/deploy-slow-b.test.sh": 52.9,
  "scripts/tests/deploy-slow-c.test.sh": 57.0,

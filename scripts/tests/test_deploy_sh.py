@@ -121,6 +121,10 @@ LAMBDA_KEYS = json.dumps({'tower-port-api': 'artifacts/lambda/tower-port-api/aa.
 
 RIG_ORDER = {'network': [], 'data': ['network'], 'service': ['data', 'network'], 'port': ['data', 'network'],
              'runner': ['data', 'network', 'service']}  # the graph the rig's templates stand for
+# DEPLOY-FILES: the parameters a run of the rig is given, shaped as infra/aws/parameters.json (no port entry; the runner at
+# 0); the real file is test_deploy_files.py's, so the six slow parts do not read it
+DEPLOY_PARAMETERS = {'data': {'InstanceClass': 'db.t4g.medium'}, 'service': {'Cpu': '512', 'Memory': '1024'},
+                     'runner': {'DesiredCount': '0'}}
 
 
 class DeployShTests(unittest.TestCase):
@@ -549,22 +553,10 @@ class DeployShTests(unittest.TestCase):
         """GATE-SHUTDOWN: the AWS gate is stopped; AWS keeps the deploy and the site data. The port stack has no webhook
         route, no queue, no ingress and no consumer, and the deployer passes it PortCode and DepsKey only (whatever else the
         publisher prints), no AckPath, and runs no ACK smoke."""
-        port = json.loads((ROOT / 'infra/aws/stacks/40-port.json').read_text())
-        resources = port['Resources']
-        self.assertEqual([r['Properties']['RouteKey'] for r in resources.values() if r['Type'] == 'AWS::ApiGatewayV2::Route'], ['$default'])
-        self.assertEqual([r['Properties']['FunctionName'] for r in resources.values() if r['Type'] == 'AWS::Lambda::Function'],
-                         ['tower-port-api'])
-        self.assertFalse([n for n, r in resources.items() if r['Type'].startswith('AWS::SQS') or r['Type'] == 'AWS::Lambda::EventSourceMapping'])
-        self.assertFalse([n for n in resources if n.startswith(('Webhook', 'Ingress', 'Ack'))])
-        self.assertEqual(sorted(port['Outputs']), ['PortUrl'])
-        self.assertEqual(port['Outputs']['PortUrl']['Export'], {'Name': 'tower-port-url'})
-        self.assertFalse({'AckPath', 'IngressCode', 'WebhookCode', 'ForgeKeys', 'IngressMemory', 'IngressAckLimitS'} & set(port['Parameters']))
-        self.assertNotIn('AckBySqs', port.get('Conditions', {}))
-        text = json.dumps(port)
-        for name in re.findall(r'"(?:Ref|DependsOn)": "(\w+)"', text) + re.findall(r'"Fn::GetAtt": \["(\w+)"', text):
-            self.assertIn(name, set(resources) | set(port['Parameters']), name)  # nothing names what left
-        self.assertNotIn('port', json.loads((ROOT / 'infra/aws/parameters.json').read_text()))
-        (self.tmp / 'repo/infra/aws/parameters.json').write_text((ROOT / 'infra/aws/parameters.json').read_text())
+        # DEPLOY-FILES (16/11/2026): the real templates and parameters are test_deploy_files.py's (deploy-files.test.sh, a
+        # second), so a change of a template alone selects it, not the six slow parts; this run takes parameters with no
+        # port entry, as the real file has (that file's test pins it)
+        (self.tmp / 'repo/infra/aws/parameters.json').write_text(json.dumps(DEPLOY_PARAMETERS) + '\n')
         done = self.run_deploy(STUB_LAST='old', DEPLOY_ACK_SMOKE_CMD='echo ran >> "$STUB_DIR/smoke"')
         self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
         (call,) = self.port_calls()
@@ -589,7 +581,6 @@ class DeployShTests(unittest.TestCase):
         data = [c for c in (self.state / 'calls').read_text().splitlines() if 'cloudformation deploy' in c and 'tower-app-data' in c]
         self.assertTrue(data, done.stdout[-2000:])
         self.assertIn('--parameter-overrides InstanceClass=db.t4g.medium', data[0])
-        self.assertEqual(json.loads((ROOT / 'infra/aws/parameters.json').read_text())['data'], {'InstanceClass': 'db.t4g.medium'})
 
     def test_a_stacks_values_in_the_file_go_beside_its_own_overrides(self):
         # SERVICE-MEMORY: the service's memory from infra/aws/parameters.json, beside LiveCode and LiveSeen
@@ -608,12 +599,10 @@ class DeployShTests(unittest.TestCase):
         """RUNNER-OFF (the migration to GitHub, 14/11): the gate left AWS. A stack keeps a parameter's previous value when it
         is not given, and the runner stack's default was 1: the first deploy from GitHub brought tower-runner back to 1/1
         (8 GiB) after the Torre had set it to 0. infra/aws/parameters.json passes DesiredCount=0 on every apply."""
-        self.assertEqual(json.loads((ROOT / 'infra/aws/parameters.json').read_text())['runner'], {'DesiredCount': '0'})
-        runner = json.loads((ROOT / 'infra/aws/stacks/50-runner.json').read_text())
-        self.assertEqual(runner['Parameters']['DesiredCount']['Default'], 0)
+        # DEPLOY-FILES: that the real parameters say DesiredCount 0 and the real template defaults to 0 is test_deploy_files.py's
         self.five_stacks()
         repo = self.tmp / 'repo'
-        (repo / 'infra/aws/parameters.json').write_text((ROOT / 'infra/aws/parameters.json').read_text())
+        (repo / 'infra/aws/parameters.json').write_text(json.dumps(DEPLOY_PARAMETERS) + '\n')
         done = self.run_deploy(STUB_LAST='old')
         self.assertEqual(done.returncode, 0, done.stderr)
         calls = [c for c in (self.state / 'calls').read_text().splitlines() if 'cloudformation deploy' in c and 'tower-app-runner' in c]
@@ -667,13 +656,7 @@ class DeployShTests(unittest.TestCase):
             self.assertIn(f'--parameter-overrides LiveCode= LiveSeen={want} --tags', self.stack_calls('runner')[-1])
 
     def test_the_task_definitions_carry_the_datum_their_deploy_saw_and_it_is_not_in_the_stacks_hash(self):
-        for path, container in (('30-service.json', 'service'),):  # GATE-SHUTDOWN: the runner's task definition is gone
-            template = json.loads((ROOT / 'infra/aws/stacks' / path).read_text())
-            self.assertEqual(template['Parameters']['LiveSeen']['Default'], '')
-            found = next(c for c in template['Resources']['TaskDefinition']['Properties']['ContainerDefinitions'] if c['Name'] == container)
-            self.assertIn({'Name': 'TOWER_CODE_SEEN', 'Value': {'Ref': 'LiveSeen'}}, found['Environment'])
-        # (the standby's definition is the service's without its init container, so it carries the stamp too; a prewarm
-        # standby never follows the datum: its RunTask sets TOWER_STANDBY, test_infra_code_bundle.LiveCode)
+        # DEPLOY-FILES: that the service's task definition carries TOWER_CODE_SEEN = LiveSeen is test_deploy_files.py's
         text = (ROOT / 'infra/aws/deploy.sh').read_text()
         hashed = text[text.index('stack_hash() {'):text.index('# DEP7-PORT-FAST-OWNED: port_fast_owned')]
         self.assertNotIn('liveseen', hashed)  # a landing changes the datum: it must not dirty the two stacks
@@ -997,14 +980,6 @@ class SlowPathShTests(DeployShTests):
         self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
         self.assertNotIn('migrate', self.build())
         self.assertNotIn('migrate', ' '.join(step['n'] for step in self.build()['steps']))
-
-    def test_the_templates_name_the_image_they_read_so_its_change_is_in_their_hash(self):
-        for template in sorted((ROOT / 'infra/aws/stacks').glob('*.json')):
-            resources = json.loads(template.read_text()).get('Resources', {}).values()
-            images = [c.get('Image') for r in resources if r.get('Type') == 'AWS::ECS::TaskDefinition'
-                      for c in r['Properties']['ContainerDefinitions']]
-            if images:
-                self.assertIn('/tower/deploy/image/', template.read_text(), template.name)
 
     # --- DEP7-PORT-FAST-OWNED: the port stack is not redeployed for code the fast path already put live ---------------------
     D = {name: hashlib.sha256(name.encode()).hexdigest() for name in ('api0', 'api1', 'ing0', 'web0', 'web1', 'deps0', 'deps1')}
@@ -1984,12 +1959,6 @@ else echo '{{"live_code": "", "image_reload": []}}'; fi
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertRegex(json.loads(done.stdout.strip().splitlines()[-1])['sha256'], '^[0-9a-f]{64}$')
 
-    def test_the_real_templates_that_carry_an_ecs_service_are_the_service_and_the_runner(self):
-        found = sorted(path.stem.split('-', 1)[1] for path in (ROOT / 'infra/aws/stacks').glob('*.json')
-                       if '"AWS::ECS::Service"' in path.read_text())
-        # what deploy.sh's grep finds: the stacks whose rollout is not waited; GATE-SHUTDOWN (D-314): the runner's ECS service is
-        # gone, so its stack (the outputs bucket alone) is applied and waited like any other
-        self.assertEqual(found, ['service'])
 
 
 for _name in dir(DeployShTests):  # the rig is inherited; the tests of DeployShTests are not run twice
