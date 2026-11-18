@@ -6,6 +6,11 @@ workflow is one check, named by its `name:`, and its state is derived from the f
   installed  the job is in a workflow of .github/workflows/, and no ruleset requires it
   required   a ruleset of .github/rulesets/ lists its name among its required status checks
 
+Only a job of a workflow that runs on `pull_request` is a check: a check judges a pull request. A workflow that runs
+only on push to main (the full suite, the deploy doorbell) or only acts in the merge queue (the doorbell's prepare
+ring) does work after or around the judgement, so the queue must never wait for it (requiring the doorbell would block
+every merge on the deploy service).
+
 `check` refuses a required check that no installed job produces (the queue would wait for it forever) and an installed
 workflow that differs from its staged copy (the copy the owner installs is the one a session reviewed).
 """
@@ -19,6 +24,31 @@ RULESETS = '.github/rulesets'
 
 JOB = re.compile(r'^  ([A-Za-z0-9_-]+):\s*$')
 NAME = re.compile(r'^    name:\s*(.+?)\s*$')
+
+
+TRIGGER = re.compile(r'^  ([a-z_]+):')
+
+
+def triggers(text):
+    """The events a workflow runs on: the keys under its top-level `on:` (a list or a scalar `on:` is read too)."""
+    found, inside = set(), False
+    for line in text.splitlines():
+        if line.startswith('on:'):
+            rest = line[3:].strip()
+            if rest:
+                return set(re.findall(r'[a-z_]+', rest))
+            inside = True
+            continue
+        if inside and line and not line.startswith(' ') and not line.startswith('#'):
+            break
+        matched = TRIGGER.match(line) if inside else None
+        if matched:
+            found.add(matched.group(1))
+    return found
+
+
+def judges_pull_requests(text):
+    return 'pull_request' in triggers(text)
 
 
 def job_names(text):
@@ -72,7 +102,10 @@ def checks(root):
     found = {}
     for kind, files in (('staged', staged), ('installed', installed)):
         for name, path in files.items():
-            for check in job_names(path.read_text()):
+            text = path.read_text()
+            if not judges_pull_requests(text):
+                continue
+            for check in job_names(text):
                 entry = found.setdefault(check, {'name': check, 'workflow': name, 'staged': False, 'installed': False})
                 entry[kind] = True
     for check, ruleset in wanted.items():
