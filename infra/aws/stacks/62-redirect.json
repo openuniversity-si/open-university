@@ -1,0 +1,300 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The redirect of theopenuniversity.si to openuniversity.si on AWS (D-323, the Cloudflare exit; it replaces the Page Rule). Redirect off (the default): a wait-condition handle alone. Redirect on: a CloudFront Function (viewer-request) that answers every request with a 301 to https://openuniversity.si with the path and the query kept, so the distribution never reaches its origin; the distribution, on its default domain until CertificateArn (issued and validated by the Torre in CloudFront's region for the apex and www) is set, then aliased to both; and the hosted zone, retained, its name servers an output, with alias A and AAAA of the apex and www to the distribution once the certificate is set. No mail. Cost: US$ 0.50 a month for the zone plus US$ 0.40 per million queries (alias queries to CloudFront are free), US$ 0.10 per million function invocations, CloudFront's requests inside its free 10M and 1 TB; bound 1 million requests and 1 million queries a month: at most US$ 1.00 a month.",
+  "Parameters": {
+    "Redirect": {
+      "Type": "String",
+      "Default": "off",
+      "AllowedValues": [
+        "off",
+        "on"
+      ],
+      "Description": "on creates the function, the distribution and the zone; off creates nothing that bills"
+    },
+    "CertificateArn": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^arn:aws:acm:[a-z0-9-]+:[0-9]{12}:certificate/[0-9a-f-]{36}$",
+      "Description": "an issued ACM certificate for theopenuniversity.si and www.theopenuniversity.si, in the region CloudFront reads; empty: the distribution's default domain and no alias record"
+    }
+  },
+  "Conditions": {
+    "RedirectOff": {
+      "Fn::Equals": [
+        {
+          "Ref": "Redirect"
+        },
+        "off"
+      ]
+    },
+    "RedirectOn": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "Redirect"
+            },
+            "off"
+          ]
+        }
+      ]
+    },
+    "HasAlias": {
+      "Fn::And": [
+        {
+          "Condition": "RedirectOn"
+        },
+        {
+          "Fn::Not": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "CertificateArn"
+                },
+                ""
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "Pending": {
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+      "Condition": "RedirectOff"
+    },
+    "ToTheApex": {
+      "Type": "AWS::CloudFront::Function",
+      "Condition": "RedirectOn",
+      "Properties": {
+        "Name": "tower-redirect-theopenuniversity",
+        "AutoPublish": true,
+        "FunctionConfig": {
+          "Comment": "301 to https://openuniversity.si, path and query kept",
+          "Runtime": "cloudfront-js-2.0"
+        },
+        "FunctionCode": "function handler(event) {\n  var request = event.request, query = [], name, item, values, i;\n  for (name in request.querystring) {\n    item = request.querystring[name];\n    values = item.multiValue ? item.multiValue : [item];\n    for (i = 0; i < values.length; i++) {\n      query.push(values[i].value === '' ? name : name + '=' + values[i].value);\n    }\n  }\n  return {\n    statusCode: 301,\n    statusDescription: 'Moved Permanently',\n    headers: {\n      location: {value: 'https://openuniversity.si' + request.uri + (query.length ? '?' + query.join('&') : '')},\n      'cache-control': {value: 'max-age=3600'}\n    }\n  };\n}\n"
+      }
+    },
+    "Distribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Condition": "RedirectOn",
+      "Properties": {
+        "DistributionConfig": {
+          "Comment": "tower redirect theopenuniversity.si",
+          "Enabled": true,
+          "HttpVersion": "http2and3",
+          "IPV6Enabled": true,
+          "PriceClass": "PriceClass_100",
+          "Aliases": {
+            "Fn::If": [
+              "HasAlias",
+              [
+                "theopenuniversity.si",
+                "www.theopenuniversity.si"
+              ],
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          },
+          "ViewerCertificate": {
+            "Fn::If": [
+              "HasAlias",
+              {
+                "AcmCertificateArn": {
+                  "Ref": "CertificateArn"
+                },
+                "SslSupportMethod": "sni-only",
+                "MinimumProtocolVersion": "TLSv1.2_2021"
+              },
+              {
+                "CloudFrontDefaultCertificate": true
+              }
+            ]
+          },
+          "Origins": [
+            {
+              "Id": "never-reached",
+              "DomainName": "openuniversity.si",
+              "CustomOriginConfig": {
+                "OriginProtocolPolicy": "https-only",
+                "HTTPSPort": 443,
+                "HTTPPort": 80,
+                "OriginSSLProtocols": [
+                  "TLSv1.2"
+                ]
+              }
+            }
+          ],
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "never-reached",
+            "ViewerProtocolPolicy": "allow-all",
+            "AllowedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "CachedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "Compress": false,
+            "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+            "FunctionAssociations": [
+              {
+                "EventType": "viewer-request",
+                "FunctionARN": {
+                  "Fn::GetAtt": [
+                    "ToTheApex",
+                    "FunctionARN"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "HostedZone": {
+      "Type": "AWS::Route53::HostedZone",
+      "Condition": "RedirectOn",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Name": "theopenuniversity.si.",
+        "HostedZoneConfig": {
+          "Comment": "theopenuniversity.si, a 301 to openuniversity.si (D-323)"
+        }
+      }
+    },
+    "RecordApexA": {
+      "Type": "AWS::Route53::RecordSet",
+      "Condition": "HasAlias",
+      "Properties": {
+        "HostedZoneId": {
+          "Ref": "HostedZone"
+        },
+        "Name": "theopenuniversity.si.",
+        "Type": "A",
+        "AliasTarget": {
+          "DNSName": {
+            "Fn::GetAtt": [
+              "Distribution",
+              "DomainName"
+            ]
+          },
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "EvaluateTargetHealth": false
+        }
+      }
+    },
+    "RecordApexAaaa": {
+      "Type": "AWS::Route53::RecordSet",
+      "Condition": "HasAlias",
+      "Properties": {
+        "HostedZoneId": {
+          "Ref": "HostedZone"
+        },
+        "Name": "theopenuniversity.si.",
+        "Type": "AAAA",
+        "AliasTarget": {
+          "DNSName": {
+            "Fn::GetAtt": [
+              "Distribution",
+              "DomainName"
+            ]
+          },
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "EvaluateTargetHealth": false
+        }
+      }
+    },
+    "RecordWwwA": {
+      "Type": "AWS::Route53::RecordSet",
+      "Condition": "HasAlias",
+      "Properties": {
+        "HostedZoneId": {
+          "Ref": "HostedZone"
+        },
+        "Name": "www.theopenuniversity.si.",
+        "Type": "A",
+        "AliasTarget": {
+          "DNSName": {
+            "Fn::GetAtt": [
+              "Distribution",
+              "DomainName"
+            ]
+          },
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "EvaluateTargetHealth": false
+        }
+      }
+    },
+    "RecordWwwAaaa": {
+      "Type": "AWS::Route53::RecordSet",
+      "Condition": "HasAlias",
+      "Properties": {
+        "HostedZoneId": {
+          "Ref": "HostedZone"
+        },
+        "Name": "www.theopenuniversity.si.",
+        "Type": "AAAA",
+        "AliasTarget": {
+          "DNSName": {
+            "Fn::GetAtt": [
+              "Distribution",
+              "DomainName"
+            ]
+          },
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "EvaluateTargetHealth": false
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "DistributionId": {
+      "Condition": "RedirectOn",
+      "Value": {
+        "Ref": "Distribution"
+      }
+    },
+    "DistributionDomain": {
+      "Condition": "RedirectOn",
+      "Value": {
+        "Fn::GetAtt": [
+          "Distribution",
+          "DomainName"
+        ]
+      }
+    },
+    "ZoneId": {
+      "Condition": "RedirectOn",
+      "Value": {
+        "Ref": "HostedZone"
+      }
+    },
+    "NameServers": {
+      "Condition": "RedirectOn",
+      "Description": "the four name servers the registrar of theopenuniversity.si gets",
+      "Value": {
+        "Fn::Join": [
+          ",",
+          {
+            "Fn::GetAtt": [
+              "HostedZone",
+              "NameServers"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

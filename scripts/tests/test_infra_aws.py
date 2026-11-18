@@ -1253,7 +1253,7 @@ class MediaStackTests(unittest.TestCase):
         for path in sorted((INFRA / 'stacks').glob('*.json')):
             kinds = {resource['Type'] for resource in load(path)['Resources'].values()}
             self.assertEqual({kind for kind in kinds if kind.startswith('AWS::CertificateManager::')}, set(), path.name)
-            if path.name != '70-dns.json':
+            if path.name not in ('70-dns.json', '62-redirect.json'):  # REDIRECT-TOU: the zone of theopenuniversity.si
                 self.assertEqual({kind for kind in kinds if kind.startswith('AWS::Route53')}, set(), path.name)
         boundary = load(INFRA / 'bootstrap.json')['Resources']['Boundary']['Properties']['PolicyDocument']['Statement']
         workload = next(item for item in boundary if item['Sid'] == 'WorkloadServicesInTheStackRegion')
@@ -1470,6 +1470,209 @@ class DnsStackTests(unittest.TestCase):
             self.assertIn(number, self.template['Description'])
 
 
+REDIRECT_HARNESS = r"""
+const fs = require('fs'), vm = require('vm');
+const scope = {};
+vm.createContext(scope);
+vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), scope);
+console.log(JSON.stringify(JSON.parse(process.argv[3]).map(event => scope.handler(event))));
+"""
+
+
+class RedirectStackTests(unittest.TestCase):
+    """REDIRECT-TOU (D-323, the Cloudflare exit; Daniel 18/11 17:42 BRT): theopenuniversity.si keeps its 301 to
+    openuniversity.si, now on AWS, in place of the Cloudflare Page Rule. A merge deploys every stack, so Redirect off (the
+    default) creates nothing that bills; Redirect on is a CloudFront Function that answers every request, its distribution
+    (default domain until the Torre's certificate) and the retained zone, whose alias records come with the certificate."""
+    PATH = INFRA / 'stacks/62-redirect.json'
+    ALIASES = ['theopenuniversity.si', 'www.theopenuniversity.si']
+
+    def setUp(self):
+        self.template = load(self.PATH)
+        self.parameters = load(INFRA / 'parameters.json').get('redirect', {})
+
+    def created(self, **values):
+        resolved = resolve(self.template, values)
+        names = set(resolved['Resources']) | set(resolved['Parameters']) | PSEUDO
+        for section in ('Resources', 'Outputs'):
+            for name, item in resolved[section].items():
+                self.assertEqual(references(item) - names, set(), f'{section} {name} points at what this deploy does not create')
+        return resolved
+
+    def config(self, **values):
+        return self.created(**values)['Resources']['Distribution']['Properties']['DistributionConfig']
+
+    @staticmethod
+    def arn():
+        return 'arn:aws:acm:us-east-1:123456789012:certificate/0123abcd-0123-4567-89ab-0123456789ab'
+
+    def test_it_is_in_the_order_needs_no_stack_and_exports_nothing(self):
+        self.assertEqual(load(INFRA / 'order.json')['redirect'], [])
+        text = json.dumps(self.template)
+        self.assertNotIn('Fn::ImportValue', text)
+        self.assertNotIn('Export', text)
+        names = [re.sub(r'^\d+-', '', path.stem) for path in sorted((INFRA / 'stacks').glob('*.json'))]
+        self.assertLess(names.index('media'), names.index('redirect'))
+        self.assertLess(names.index('redirect'), names.index('mail'))
+
+    def test_redirect_off_is_the_default_and_creates_nothing_that_bills(self):
+        self.assertEqual({name: spec['Default'] for name, spec in self.template['Parameters'].items()},
+                         {'Redirect': 'off', 'CertificateArn': ''})
+        self.assertIn(self.parameters.get('Redirect', 'off'), ('off', 'on'))
+        for values in ({}, {'CertificateArn': self.arn()}, self.parameters if self.parameters.get('Redirect', 'off') == 'off' else {}):
+            off = self.created(**values)
+            self.assertEqual({name: item['Type'] for name, item in off['Resources'].items()},
+                             {'Pending': 'AWS::CloudFormation::WaitConditionHandle'}, values)
+            self.assertEqual(off['Outputs'], {}, values)
+
+    def test_parameters_json_turns_on_only_what_the_account_can_take(self):
+        self.created(**self.parameters)
+        arn = self.parameters.get('CertificateArn', '')
+        if arn:  # CloudFront reads its certificate in us-east-1, and an ARN means Redirect is on
+            self.assertEqual(self.parameters.get('Redirect'), 'on')
+            self.assertRegex(arn, r'^arn:aws:acm:us-east-1:\d{12}:certificate/[0-9a-f-]{36}$')
+
+    def test_redirect_on_without_a_certificate_is_the_default_domain_the_zone_and_no_record(self):
+        on = self.created(Redirect='on')
+        self.assertEqual({name: item['Type'] for name, item in on['Resources'].items()},
+                         {'ToTheApex': 'AWS::CloudFront::Function', 'Distribution': 'AWS::CloudFront::Distribution',
+                          'HostedZone': 'AWS::Route53::HostedZone'})
+        config = on['Resources']['Distribution']['Properties']['DistributionConfig']
+        self.assertNotIn('Aliases', config)
+        self.assertEqual(config['ViewerCertificate'], {'CloudFrontDefaultCertificate': True})
+        self.assertEqual(sorted(on['Outputs']), ['DistributionDomain', 'DistributionId', 'NameServers', 'ZoneId'])
+        self.assertEqual(on['Outputs']['NameServers']['Value'], {'Fn::Join': [',', {'Fn::GetAtt': ['HostedZone', 'NameServers']}]})
+
+    def test_a_certificate_gives_both_aliases_over_sni_and_their_alias_records(self):
+        on = self.created(Redirect='on', CertificateArn=self.arn())['Resources']
+        config = on['Distribution']['Properties']['DistributionConfig']
+        self.assertEqual(config['Aliases'], self.ALIASES)
+        self.assertEqual(config['ViewerCertificate'], {'AcmCertificateArn': {'Ref': 'CertificateArn'},
+                                                       'SslSupportMethod': 'sni-only', 'MinimumProtocolVersion': 'TLSv1.2_2021'})
+        records = [item['Properties'] for item in on.values() if item['Type'] == 'AWS::Route53::RecordSet']
+        self.assertEqual(sorted((item['Name'], item['Type']) for item in records),
+                         sorted((f'{name}.', kind) for name in self.ALIASES for kind in ('A', 'AAAA')))
+        for item in records:
+            self.assertEqual(item['HostedZoneId'], {'Ref': 'HostedZone'})
+            self.assertEqual(item['AliasTarget'], {'DNSName': {'Fn::GetAtt': ['Distribution', 'DomainName']},
+                                                   'HostedZoneId': 'Z2FDTNDATAQYW2', 'EvaluateTargetHealth': False})
+        self.assertTrue(config['IPV6Enabled'])  # the AAAA aliases have addresses to give
+        pattern = re.compile(self.template['Parameters']['CertificateArn']['AllowedPattern'])
+        self.assertTrue(pattern.fullmatch('') and pattern.fullmatch(self.arn()))
+        self.assertIsNone(pattern.fullmatch('arn:aws:iam::123456789012:server-certificate/redirect'))
+
+    def test_the_zone_is_retained_public_and_has_no_mail(self):
+        zone = self.template['Resources']['HostedZone']
+        self.assertEqual((zone['DeletionPolicy'], zone['UpdateReplacePolicy']), ('Retain', 'Retain'))
+        self.assertEqual(zone['Properties']['Name'], 'theopenuniversity.si.')
+        self.assertNotIn('VPCs', zone['Properties'])
+        self.assertNotIn('QueryLoggingConfig', zone['Properties'])
+        # the Torre's export of the zone (18/11): the placeholder and the Page Rule alone, so no MX, TXT or anything but aliases
+        kinds = {item['Properties']['Type'] for item in self.template['Resources'].values()
+                 if item['Type'] == 'AWS::Route53::RecordSet'}
+        self.assertEqual(kinds, {'A', 'AAAA'})
+
+    def test_no_certificate_resource_and_unique_names(self):
+        kinds = {item['Type'] for item in self.template['Resources'].values()}
+        self.assertEqual({kind for kind in kinds if kind.startswith('AWS::CertificateManager::')}, set())
+        self.assertEqual(set(self.template['Parameters']) & set(self.template['Resources']), set())
+        self.assertEqual(set(self.template['Outputs']) & set(self.template['Resources']), set())
+        for name in list(self.template['Resources']) + list(self.template['Parameters']) + list(self.template['Outputs']):
+            self.assertRegex(name, r'^[A-Za-z0-9]+$')
+        # the function's name is account-wide in CloudFront: no other stack names it
+        name = self.template['Resources']['ToTheApex']['Properties']['Name']
+        for path in sorted((INFRA / 'stacks').glob('*.json')):
+            if path != self.PATH:
+                self.assertNotIn(f'"{name}"', path.read_text(encoding='utf-8'), path.name)
+
+    def test_the_function_answers_every_request_so_the_origin_is_never_reached(self):
+        on = self.created(Redirect='on')['Resources']
+        function = on['ToTheApex']['Properties']
+        self.assertEqual((function['AutoPublish'], function['FunctionConfig']['Runtime']), (True, 'cloudfront-js-2.0'))
+        self.assertLess(len(function['FunctionCode'].encode('utf-8')), 10240)  # CloudFront Functions' code limit
+        config = on['Distribution']['Properties']['DistributionConfig']
+        behavior = config['DefaultCacheBehavior']
+        self.assertEqual(behavior['FunctionAssociations'],
+                         [{'EventType': 'viewer-request', 'FunctionARN': {'Fn::GetAtt': ['ToTheApex', 'FunctionARN']}}])
+        self.assertEqual(behavior['ViewerProtocolPolicy'], 'allow-all')  # http:// goes to https://openuniversity.si in one hop
+        self.assertEqual(behavior['AllowedMethods'], ['GET', 'HEAD'])
+        self.assertEqual(behavior['CachePolicyId'], '4135ea2d-6df8-44a3-9df3-4b5a84be39ad')  # managed CachingDisabled
+        [origin] = config['Origins']
+        self.assertEqual((origin['Id'], behavior['TargetOriginId'], origin['DomainName']),
+                         ('never-reached', 'never-reached', 'openuniversity.si'))
+        self.assertEqual(origin['CustomOriginConfig']['OriginProtocolPolicy'], 'https-only')
+        self.assertEqual(config['PriceClass'], 'PriceClass_100')
+        for key in ('Logging', 'WebACLId', 'OriginGroups', 'CacheBehaviors', 'ContinuousDeploymentPolicyId', 'CustomErrorResponses'):
+            self.assertNotIn(key, config)
+        for key in ('LambdaFunctionAssociations', 'RealtimeLogConfigArn', 'OriginRequestPolicyId'):
+            self.assertNotIn(key, behavior)
+        self.assertNotIn('OriginShield', origin)
+
+    def test_the_boundary_allows_the_function_the_distribution_and_the_second_zone(self):
+        boundary = load(INFRA / 'bootstrap.json')['Resources']['Boundary']['Properties']['PolicyDocument']['Statement']
+        workload = next(item for item in boundary if item['Sid'] == 'WorkloadServicesInTheStackRegion')
+        dns = next(item for item in boundary if item['Sid'] == 'TheSiteZoneOnRoute53')
+        allows = lambda statement, action: any(fnmatchcase(action, pattern) for pattern in as_list(statement['Action']))
+        for needed in ('CreateFunction', 'DescribeFunction', 'PublishFunction', 'UpdateFunction', 'DeleteFunction',
+                       'CreateDistribution', 'UpdateDistribution', 'GetDistribution', 'TagResource'):
+            self.assertTrue(allows(workload, f'cloudfront:{needed}'), needed)
+        self.assertEqual(dns['Resource'], '*')  # not scoped to one zone: a second zone needs no change of the boundary
+        for needed in ('CreateHostedZone', 'GetHostedZone', 'ChangeResourceRecordSets', 'ListResourceRecordSets', 'GetChange',
+                       'ChangeTagsForResource'):
+            self.assertTrue(allows(dns, f'route53:{needed}'), needed)
+        self.assertNotIn('Condition', dns)
+
+    def test_the_cost_it_declares_is_under_the_budget(self):
+        # US$ 0.50 a hosted zone a month and US$ 0.40 per million queries (alias queries to CloudFront are free); CloudFront
+        # Functions US$ 0.10 per million invocations; the 301s are inside CloudFront's free 10M requests and 1 TB. A
+        # redirect of a retired name is low traffic: the bound is 1 million requests and 1 million queries a month.
+        bound = 0.50 + 1 * 0.40 + 1 * 0.10
+        declared = float(re.search(r'at most US\$ ([\d.]+) a month', self.template['Description']).group(1))
+        self.assertGreaterEqual(declared, round(bound, 2))
+        self.assertLess(declared, 0.01 * load(INFRA / 'budget.json')['limit']['amount'])
+        for number in ('US$ 0.50 a month', 'US$ 0.40 per million', 'US$ 0.10 per million', '1 million requests'):
+            self.assertIn(number, self.template['Description'])
+
+    # --- the function's code, run under node against fake viewer-request events -----------------------------------------
+
+    def run_function(self, *requests):
+        import subprocess
+        import tempfile
+        code = self.template['Resources']['ToTheApex']['Properties']['FunctionCode']
+        toolchain = ROOT / '.toolchain' / 'bin' / 'node'
+        node = str(toolchain) if toolchain.exists() else (shutil.which('node') or 'node')
+        events = [{'version': '1.0', 'context': {'eventType': 'viewer-request'}, 'viewer': {'ip': '192.0.2.1'},
+                   'request': {'method': 'GET', 'headers': {'host': {'value': 'www.theopenuniversity.si'}}, 'cookies': {},
+                               **request}} for request in requests]
+        with tempfile.TemporaryDirectory() as directory:
+            source, harness = Path(directory, 'index.js'), Path(directory, 'run.js')
+            source.write_text(code, encoding='utf-8')
+            harness.write_text(REDIRECT_HARNESS, encoding='utf-8')
+            done = subprocess.run([node, str(harness), str(source), json.dumps(events)], capture_output=True, text=True,
+                                  timeout=30, check=True)
+        return json.loads(done.stdout)
+
+    def test_the_function_answers_301_to_the_apex_keeping_the_path_and_the_query(self):
+        cases = [
+            ({'uri': '/', 'querystring': {}}, 'https://openuniversity.si/'),
+            ({'uri': '/courses/intro', 'querystring': {}}, 'https://openuniversity.si/courses/intro'),
+            ({'uri': '/a/b.html', 'querystring': {'q': {'value': 'a%20b'}, 'flag': {'value': ''},
+                                                  'tag': {'value': 'x', 'multiValue': [{'value': 'x'}, {'value': 'y'}]}}},
+             'https://openuniversity.si/a/b.html?q=a%20b&flag&tag=x&tag=y'),
+        ]
+        answers = self.run_function(*(request for request, _ in cases))
+        for (request, location), answer in zip(cases, answers):
+            self.assertEqual((answer['statusCode'], answer['statusDescription']), (301, 'Moved Permanently'), request)
+            self.assertEqual(answer['headers']['location'], {'value': location}, request)
+            self.assertEqual(answer['headers']['cache-control'], {'value': 'max-age=3600'})
+            self.assertNotIn('body', answer)
+        # a HEAD, an http:// viewer or another host gets the same answer: the function never hands the request on
+        [head] = self.run_function({'method': 'HEAD', 'uri': '/x', 'querystring': {},
+                                    'headers': {'host': {'value': 'theopenuniversity.si'}}})
+        self.assertEqual((head['statusCode'], head['headers']['location']['value']), (301, 'https://openuniversity.si/x'))
+        self.assertNotIn('return request', self.template['Resources']['ToTheApex']['Properties']['FunctionCode'])
+
+
 ADDRESS = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b')  # an e-mail address literal
 RESERVED = re.compile(r'@(?:[a-z0-9-]+\.)*(?:example\.(?:org|com|net)|invalid)$')  # RFC 2606 names, for fake addresses
 
@@ -1504,7 +1707,8 @@ class MailStackTests(unittest.TestCase):
 
     def test_mail_off_is_the_default_and_creates_nothing_that_bills(self):
         self.assertEqual({name: spec['Default'] for name, spec in self.template['Parameters'].items()},
-                         {'Mail': 'off', 'MapParameter': '', 'Domain': 'openuniversity.si', 'SenderLocalPart': 'forward'})
+                         {'Mail': 'off', 'MapParameter': '', 'Domain': 'openuniversity.si', 'SenderLocalPart': 'forward',
+                          'SenderName': 'Open University'})
         self.assertEqual(self.parameters.get('Mail'), 'off')
         self.assertNotIn('MapParameter', self.parameters)  # the map's name comes with Mail on, its content never to the tree
         for values in ({}, self.parameters, {'MapParameter': '/tower/mail/forward-map'}):
@@ -1545,6 +1749,7 @@ class MailStackTests(unittest.TestCase):
         env = resources['Forwarder']['Properties']['Environment']['Variables']
         self.assertEqual(env['MAP'], {'Ref': 'MapParameter'})
         self.assertEqual(env['SENDER'], {'Fn::Sub': '${SenderLocalPart}@${Domain}'})
+        self.assertEqual(env['SENDER_NAME'], {'Ref': 'SenderName'})  # MAIL-SENDER-NAME: the Torre, 18/11
 
     def test_the_bucket_is_private_encrypted_written_only_by_this_rule_set_and_emptied_after_30_days(self):
         props = self.template['Resources']['Inbox']['Properties']
@@ -1616,7 +1821,7 @@ class MailStackTests(unittest.TestCase):
 
     # --- the forwarder's code, run offline against stubs of boto3 ----------------------------------------------------------
 
-    def run_forwarder(self, table, recipients, raw, verdict='PASS'):
+    def run_forwarder(self, table, recipients, raw, verdict='PASS', name=None):
         import sys
         import types
         calls = []
@@ -1646,7 +1851,8 @@ class MailStackTests(unittest.TestCase):
             event = {'Records': [{'ses': {'mail': {'messageId': 'm1'}, 'receipt': {
                 'recipients': recipients, 'spamVerdict': {'status': verdict}, 'virusVerdict': {'status': 'PASS'}}}}]}
             env = {'MAP': '/tower/mail/forward-map', 'BUCKET': 'inbox', 'PREFIX': 'inbox/',
-                   'SENDER': 'forward' + '@' + 'example.org', 'DOMAIN': 'example.org'}
+                   'SENDER': 'forward' + '@' + 'example.org',
+                   'SENDER_NAME': name or self.template['Parameters']['SenderName']['Default']}
             saved_env = dict(os.environ)
             os.environ.update(env)
             try:
@@ -1693,13 +1899,30 @@ class MailStackTests(unittest.TestCase):
         self.assertEqual(sent['FromEmailAddress'], 'forward' + '@' + 'example.org')
         data = sent['Content']['Raw']['Data']
         head = data.split(b'\r\n\r\n')[0].split(b'\r\n')
-        self.assertEqual(head[0], b'From: "Ana Q via example.org" <forward' + b'@example.org>')
+        self.assertEqual(head[0], b'From: Open University <forward' + b'@example.org>')  # MAIL-SENDER-NAME
         self.assertEqual(head[1], b'Reply-To: "Ana Q" <ana' + b'@sender.example.net>')
         for gone in (b'Return-Path', b'DKIM-Signature', b' b=abc', b'Message-ID'):
             self.assertFalse(any(line.startswith(gone) for line in head), gone)
         self.assertIn(b'Subject: hi', head)
         self.assertTrue(data.endswith(b'\r\n\r\nbody\r\n'))
         self.assertIn('"forwarded": 2', out)
+
+    def test_the_display_name_is_the_parameter_and_the_sender_s_name_is_not_in_the_from(self):
+        # MAIL-SENDER-NAME (the Torre, 18/11): the forwarded From reads "Open University", never "<name> via <domain>"
+        spec = self.template['Parameters']['SenderName']
+        self.assertEqual(spec['Default'], 'Open University')
+        pattern = re.compile(spec['AllowedPattern'])
+        self.assertTrue(pattern.fullmatch('Open University') and pattern.fullmatch('The Tower'))
+        for bad in ('', ' x', 'a\r\nBcc: x', 'a"b', 'a<b>'):
+            self.assertIsNone(pattern.fullmatch(bad), bad)
+        for name, want in (('Open University', b'From: Open University <forward' + b'@example.org>'),
+                           ('O. U.', b'From: "O. U." <forward' + b'@example.org>')):
+            calls, _ = self.run_forwarder({'info': 'dest' + '@' + 'example.com'}, ['info' + '@' + 'example.org'], self.RAW, name=name)
+            head = calls[2][1]['Content']['Raw']['Data'].split(b'\r\n\r\n')[0].split(b'\r\n')
+            self.assertEqual(head[0], want)
+            self.assertNotIn(b'Ana Q', head[0])
+            self.assertNotIn(b' via ', head[0])
+        self.assertNotIn(' via ', self.code())
 
     def test_an_existing_reply_to_is_kept(self):
         raw = self.RAW.replace(b'Subject: hi', b'Reply-To: list' + b'@sender.example.net\r\nSubject: hi')
