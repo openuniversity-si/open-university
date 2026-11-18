@@ -5,5 +5,5 @@
   "port": ["data", "network"],
   "runner": [],
   "media": [],
-  "dns": []
+  "dns": ["media"]
 }

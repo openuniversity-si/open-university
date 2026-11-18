@@ -1,9 +1,92 @@
 {
   "zone": "openuniversity.si.",
   "generated_by": "scripts/dns-zone build (do not edit by hand: rebuild from the export)",
-  "export": null,
+  "export": {
+    "file": "openuniversity.si.zone",
+    "sha256": "97dd98f3b9eaf2d91e8a6917c5680fbacbd3d09d1e27075431eb62c7329d478f"
+  },
   "ttl_note": "Cloudflare exports its automatic TTL as 1; it is 300 s here",
-  "records": [],
+  "records": [
+    {
+      "name": "_0caf1ede61e0b4e7b1479112fab2d9e5.media.openuniversity.si.",
+      "type": "CNAME",
+      "ttl": 300,
+      "values": [
+        "_2a2acb8ca9f7ebcd81013c22c8d243a0.wzccmgtwzk.acm-validations.aws."
+      ]
+    },
+    {
+      "name": "_35fea2b741d03cbfbbf7de1c69feed6b.www.openuniversity.si.",
+      "type": "CNAME",
+      "ttl": 300,
+      "values": [
+        "_7b07c4af832e201447a4b39423c4f4ab.wzccmgtwzk.acm-validations.aws."
+      ]
+    },
+    {
+      "name": "_39debf49a94bd92f1530716d49f40aed.openuniversity.si.",
+      "type": "CNAME",
+      "ttl": 300,
+      "values": [
+        "_a6da2254b6f7095da747cb27f18a46b8.wzccmgtwzk.acm-validations.aws."
+      ]
+    },
+    {
+      "name": "cf2024-1._domainkey.openuniversity.si.",
+      "type": "TXT",
+      "ttl": 300,
+      "values": [
+        "v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiweykoi+o48IOGuP7GR3X0MOExCUDY/BCRHoWBnh3rChl7WhdyCxW3jgq1daEjPPqoi7sJvdg5hEQVsgVRQP4DcnQDVjGMbASQtrY4WmB1VebF+RPJB2ECPsEDTpeiI5ZyUAwJaVX7r6bznU67g7LvFq35yIo4sdlmtZGV+i0H4cpYH9+3JJ78km4KXwaf9xUJCWF6nxeD+qG6Fyruw1Qlbds2r85U9dkNDVAS3gioCvELryh1TxKGiVTkg4wqHTyHfWsp7KD3WQHYJn0RyfJJu6YEmL77zonn7p2SRMvTMP3ZEXibnC9gz3nnhR6wcYL8Q7zXypKTMD58bTixDSJwIDAQAB"
+      ]
+    },
+    {
+      "name": "media.openuniversity.si.",
+      "type": "ALIAS",
+      "ttl": 300,
+      "values": [],
+      "alias_import": "tower-media-distribution-domain",
+      "route53": "alias A and AAAA to the CloudFront domain the export tower-media-distribution-domain holds (Fn::ImportValue)",
+      "replaces": "media.openuniversity.si. CNAME (proxied by Cloudflare (cf-proxied:true): what it fronts is not a target to copy)"
+    },
+    {
+      "name": "openuniversity.si.",
+      "type": "CNAME",
+      "ttl": 300,
+      "values": [
+        "dns1rg162g0y7.cloudfront.net."
+      ],
+      "route53": "alias A and AAAA to the CloudFront distribution SiteDistribution"
+    },
+    {
+      "name": "openuniversity.si.",
+      "type": "MX",
+      "ttl": 300,
+      "values": [
+        "22 route1.mx.cloudflare.net.",
+        "74 route3.mx.cloudflare.net.",
+        "91 route2.mx.cloudflare.net."
+      ]
+    },
+    {
+      "name": "openuniversity.si.",
+      "type": "TXT",
+      "ttl": 300,
+      "values": [
+        "v=spf1 include:_spf.mx.cloudflare.net ~all"
+      ]
+    },
+    {
+      "name": "www.openuniversity.si.",
+      "type": "CNAME",
+      "ttl": 300,
+      "values": [
+        "dns1rg162g0y7.cloudfront.net."
+      ]
+    }
+  ],
   "needs_target": [],
-  "dropped": []
+  "dropped": [
+    "openuniversity.si. NS",
+    "openuniversity.si. SOA"
+  ]
 }
