@@ -1,0 +1,6 @@
+{
+  "id": "POLL-infra-service-tower-infra-http-port-py-ready",
+  "site": "infra/service/tower_infra/http_port.py::ready",
+  "class": "backoff",
+  "reason": "PORT-HEALTH-WAIT: GET /v1/health?wait_s=N waits until the port's database answers; the wait itself is the call's own login (the Lazy's connect, which blocks until it opens or refuses). The sleep runs only after a login the database refused (Unreachable: at its connections' limit, or away), with a pause doubling from HEALTH_RETRY_S[0] (0.25 s) to HEALTH_RETRY_S[1] (4 s), bounded by the asked wait and canary.WAIT_MAX_S: a backoff on a failed login, never a read of a state on an interval."
+}

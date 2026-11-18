@@ -217,7 +217,7 @@ LONG_POLL = 'long_poll'  # PORT-LONG-POLL: the mark of an answer the port held (
 def read_status(port, wait_s=None, seen=None):
     """GET /v1/deploy/status; with wait_s, the port's long poll (PORT-LONG-POLL): it answers when the status is not the
     one `seen` names (the digest its previous answer's mark gave) or when wait_s passes. A port without the long poll
-    ignores the query and answers at once, unmarked."""
+    ignores the query and answers at once, unmarked (follow says so and stops)."""
     if wait_s is None:
         return port.call('GET', '/v1/deploy/status')
     query = {'wait_s': max(wait_s, 0.0), **({'seen': seen} if seen else {})}
@@ -301,10 +301,13 @@ def follow(port, target=None, build_id=None, since=None, sleep=time.sleep, clock
     seen = None
     while True:
         # PORT-LONG-POLL: each read waits at the port for a change, `first` seconds at most (never longer than the
-        # shortest pause, so nothing is seen later than the pauses would have seen it); an answer the port did not hold
-        # (an old port, or one with no wake) keeps the pauses below
+        # pauses of before the long poll, so nothing is seen later), and is asked again at once. LONG-POLL-ONLY: the
+        # live port holds every read (its wake is never None on the Lambda, LONG-POLL-HOLDS), so an answer it did not
+        # hold is a port older than PORT-LONG-POLL: said, exit 2, never a pause on an interval. A read that failed is
+        # tried again after a pause that grows as before (first, by 1.5, to deploy_poll_max_s) and starts over at the
+        # next answer: a backoff on a failure, no later than the pauses of before.
         try:
-            state = read_status(port, min(first, deadline - clock()), seen)
+            state = read_status(port, min(first, max(deadline - clock(), 0.0)), seen)
         except gate_infra.Refused as error:
             print(f'deploy: the status could not be read ({error})', file=sys.stderr)
             state = None
@@ -325,12 +328,18 @@ def follow(port, target=None, build_id=None, since=None, sleep=time.sleep, clock
                   f'{STALE_S} s); last reading:', file=sys.stderr)
             describe(state, sys.stderr)
             return 2
-        if (clock() >= deadline) if held else (clock() + pause > deadline):
+        if state and not held:
+            print('deploy: the port answered without holding the read (no long_poll: a port older than PORT-LONG-POLL); '
+                  'last reading:', file=sys.stderr)
+            describe(state, sys.stderr)
+            return 2
+        if (clock() >= deadline) if state else (clock() + pause > deadline):
             print('deploy: the wait ran out; the build may still be running, last reading:', file=sys.stderr)
             if state:
                 describe(state, sys.stderr)
             return 2
-        if held:
+        if state:
+            pause = first
             continue  # the port waited: ask again at once
         sleep(pause)
         pause = min(longest, pause * 1.5)

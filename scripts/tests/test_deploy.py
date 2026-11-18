@@ -44,10 +44,12 @@ class SmokeTests(unittest.TestCase):
 
     GREEN = {'ok': True, 'stage': 'ended', 'line': 'canary job dispatched in 0.4 s, taken in 0.1 s, ended in 0.7 s'}
 
-    def serve(self, health=200, status=200, source='registry', canary=(GREEN,), created=200):
+    def serve(self, health=200, status=200, source='registry', canary=(GREEN,), created=200, held=None):
         """canary (DEPLOY-CANARY): what each GET /v1/deploy/canary/<id> answers, in order (the last one repeats); created:
-        the status of POST /v1/deploy/canary (404: a port older than the route)."""
-        outer, readings = self, list(canary)
+        the status of POST /v1/deploy/canary (404: a port older than the route). held (PORT-HEALTH-WAIT): the health
+        answers of a port that holds GET /v1/health?wait_s, in order (the last one repeats): (seconds held, status);
+        None: a port older than the wait, which ignores the query."""
+        outer, readings, holds = self, list(canary), list(held or [])
 
         class Handler(BaseHTTPRequestHandler):
             def say(self, code, body):
@@ -59,8 +61,13 @@ class SmokeTests(unittest.TestCase):
                 outer.seen.append((self.path, self.headers.get('Authorization')))
                 if self.path.startswith('/v1/deploy/canary/'):
                     return self.say(200, {'id': 'job-1', **(readings.pop(0) if len(readings) > 1 else readings[0])})
+                path, _, query = self.path.partition('?')
+                if path == '/v1/health' and holds and 'wait_s=' in query:
+                    seconds, code = holds.pop(0) if len(holds) > 1 else holds[0]
+                    time.sleep(seconds)
+                    return self.say(code, {'ok': code == 200, 'long_poll': {'waited_s': seconds, 'ready': code == 200}})
                 self.say(*{'/v1/health': (health, {'ok': health == 200}),
-                           '/v1/deploy/status': (status, {'source': source})}.get(self.path, (404, {})))
+                           '/v1/deploy/status': (status, {'source': source})}.get(path, (404, {})))
 
             def do_POST(self):
                 sent = json.loads(self.rfile.read(int(self.headers.get('Content-Length') or 0)) or b'{}')
@@ -101,6 +108,23 @@ class SmokeTests(unittest.TestCase):
         done = self.run_smoke(self.serve(health=500), DEPLOY_SMOKE_TOKEN='t' * 12)
         self.assertEqual(done.returncode, 1)
         self.assertIn('smoke RED: GET /v1/health', done.stdout)
+        self.assertIn(('/v1/health?wait_s=0', None), self.seen)  # PORT-HEALTH-WAIT: asked, and ignored by an old port
+
+    def test_a_port_that_holds_the_health_is_asked_again_at_once_within_the_window(self):
+        # PORT-HEALTH-WAIT: held 1 s and not ready, then ready: green with no pause between (a 600 s pause would run
+        # past run_smoke's 60 s timeout)
+        done = self.run_smoke(self.serve(held=[(1.1, 503), (0, 200)], status=401), DEPLOY_SMOKE_SLEEP='600')
+        self.assertEqual(done.returncode, 0, done.stdout)
+        asked = [path for path, *_ in self.seen if path.startswith('/v1/health')]
+        self.assertEqual(len(asked), 2)
+        self.assertTrue(asked[0].startswith('/v1/health?wait_s=600'), asked)
+
+    def test_a_held_health_that_never_gets_ready_is_red_when_the_window_ends(self):
+        done = self.run_smoke(self.serve(held=[(1.1, 503)], status=401), DEPLOY_SMOKE_SLEEP='2')
+        self.assertEqual(done.returncode, 1, done.stdout)
+        self.assertIn("smoke RED: GET /v1/health answered '503'", done.stdout)
+        # never before the window ((tries - 1) x pause, 2 s): held 1.1 s each, so asked at least twice
+        self.assertGreaterEqual(len([path for path, *_ in self.seen if path.startswith('/v1/health')]), 2)
 
     def test_a_status_that_does_not_come_from_the_registry_is_red(self):
         done = self.run_smoke(self.serve(source='ssm'), DEPLOY_SMOKE_TOKEN='t' * 12)
@@ -539,10 +563,22 @@ class CliTests(unittest.TestCase):
             self.assertIn(text, out)
         self.assertEqual(self.server.asked[0], ('/v1/deploy/status', 'Bearer port-token-of-the-test'))
 
-    def follow(self, states, **kwargs):
-        sleeps, clock = [], [0.0]
+    def follow(self, states, held=True, **kwargs):
+        """follow against a fake port; held (PORT-LONG-POLL, the live port): each answer after the first waited 15 s on
+        the test's clock and is marked; not held: an old port, unmarked at once. An Exception in states is raised."""
+        sleeps, clock, calls = [], [0.0], []
+
+        def call(method, path):
+            calls.append(path)
+            state = states.pop(0) if len(states) > 1 else states[0]
+            if isinstance(state, Exception):
+                raise state
+            if not held:
+                return state
+            clock[0] += 15.0 if len(calls) > 1 else 0.0
+            return dict(state, long_poll={'seen': json.dumps(state, sort_keys=True), 'waited_s': 15.0, 'changed': True})
         port = mock.Mock()
-        port.call.side_effect = lambda method, path: states.pop(0) if len(states) > 1 else states[0]
+        port.call.side_effect = call
 
         def sleep(seconds):
             sleeps.append(seconds)
@@ -556,7 +592,7 @@ class CliTests(unittest.TestCase):
     def test_follow_succeeds_when_last_sha_reaches_the_target(self):
         code, _, sleeps = self.follow([{'last_sha': 'old', 'last_build': None}, {'last_sha': 'new', 'last_build': None}],
                                       target='new')
-        self.assertEqual((code, len(sleeps)), (0, 1))
+        self.assertEqual((code, sleeps), (0, []))
 
     def test_follow_backs_off_and_reports_a_failed_build_newer_than_the_ring(self):
         old = {'last_sha': 'a', 'last_build': {'status': 'failed', 'started': 10, 'failed': ['old'], 'build_id': 'p:old'}}
@@ -567,7 +603,7 @@ class CliTests(unittest.TestCase):
         self.assertIn('tower-app-port', out)
         self.assertIn('the reason', out)
         self.assertNotIn('old', out.replace('old_', ''))
-        self.assertEqual(sleeps, [15, 22.5])
+        self.assertEqual(sleeps, [])  # LONG-POLL-ONLY: the port held each read; no pause
 
     def test_follow_tells_no_observation_yet_from_a_failed_build(self):
         none = {'last_sha': None, 'last_build': None, 'observed_at': None, 'ring': None, 'head': None, 'pending': None,
@@ -626,6 +662,10 @@ class CliTests(unittest.TestCase):
 
     def test_follow_times_out_with_2_after_the_bounded_wait(self):
         code, out, sleeps = self.follow([{'last_sha': 'a', 'last_build': None}], target='b')
+        self.assertEqual((code, sleeps), (2, []))
+        self.assertIn('ran out', out)
+        # a port that cannot be read: the pauses of before (a backoff on the failure), within the same bounded wait
+        code, out, sleeps = self.follow([gate_infra.Refused(503, 'unavailable')], target='b')
         self.assertEqual(code, 2)
         self.assertLessEqual(sum(sleeps), 2400)
         self.assertGreater(sum(sleeps), 2300)
@@ -664,11 +704,21 @@ class CliTests(unittest.TestCase):
         self.assertIn('ran out', out)
         self.assertEqual(len(paths), 2400 // 15 + 1)  # one read each 15 s at most: never later than the pauses
 
-    def test_follow_against_an_old_port_keeps_todays_pauses(self):
-        # an old port ignores the query and answers at once, unmarked: the pauses of before the long poll
-        code, _, sleeps = self.follow([{'last_sha': 'a', 'last_build': None}] * 4 + [{'last_sha': 'b', 'last_build': None}],
-                                      target='b')
-        self.assertEqual((code, sleeps), (0, [15, 22.5, 33.75, 50.625]))
+    def test_follow_against_an_old_port_says_so_and_never_pauses_on_an_interval(self):
+        # LONG-POLL-ONLY: an old port ignores the query and answers at once, unmarked: said, exit 2, no pause
+        code, out, sleeps = self.follow([{'last_sha': 'a', 'last_build': None}, {'last_sha': 'b', 'last_build': None}],
+                                        held=False, target='b')
+        self.assertEqual((code, sleeps), (2, []))
+        self.assertIn('without holding the read (no long_poll: a port older than PORT-LONG-POLL)', out)
+        # its verdict, when the first answer already has it, is still the verdict
+        self.assertEqual(self.follow([{'last_sha': 'b', 'last_build': None}], held=False, target='b')[0], 0)
+
+    def test_follow_backs_off_on_a_failed_read_and_starts_over_at_the_next_answer(self):
+        refused, quiet = gate_infra.Refused(503, 'unavailable'), {'last_sha': 'a', 'last_build': None}
+        code, out, sleeps = self.follow([refused, refused, quiet, refused, {'last_sha': 'b', 'last_build': None}],
+                                        target='b')
+        self.assertEqual((code, sleeps), (0, [15, 22.5, 15]))
+        self.assertIn('the status could not be read', out)
 
     def test_follow_through_the_real_client_reads_the_fake_port(self):
         self.server.states = [{'last_sha': 'new', 'last_build': None}]

@@ -394,8 +394,11 @@ def long_poll(read, body, wake=None, clock=time.monotonic):
     With wait_s and a wake, the LISTEN starts before the first read, so no change falls between the read and the wait; the
     answer comes at once when it is not the one the client saw (`seen`, the digest of its previous answer; none: at once),
     else after the first wake that changed it, or when wait_s passes (canary.WAIT_MAX_S at most, under the API's 30 s), and
-    it carries LONG_POLL {seen, waited_s, changed}. Without a wake there is nothing to wait on: answered now, unmarked, so
-    the client knows to keep its own pause."""
+    it carries LONG_POLL {seen, waited_s, changed}. Without a wake there is nothing to wait on: answered now, unmarked (a
+    database with no connection of its own, as the tests' are: http_port.wake_of is never None on the port's Lambda,
+    whose Lazy always has one). LONG-POLL-HOLDS: a listener that cannot open (the database at its connections' limit)
+    does not fail the read: wake.wait tries it again and, if it cannot either, waits the span out (wake.Wake.wait), and
+    the answer read after it is marked as any other, never later than the span."""
     from . import canary  # the bound and the wakes are the canary route's (canary imports this module)
     body = body if isinstance(body, dict) else {}
     try:
@@ -408,7 +411,10 @@ def long_poll(read, body, wake=None, clock=time.monotonic):
         return read()
     seen = None if body.get('seen') is None else str(body['seen'])
     began = clock()
-    wake.listening()
+    try:
+        wake.listening()
+    except Exception:  # noqa: BLE001 - LONG-POLL-HOLDS: wake.wait listens again (and logs) or waits the span out
+        pass
     try:
         said = read()
         changed = seen_of(said) != seen

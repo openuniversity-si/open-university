@@ -1,7 +1,0 @@
-{
-  "id": "POLL-scripts-lib-aws-quota-proof-py-until",
-  "site": "scripts/lib/aws_quota_proof.py::until",
-  "class": "state-wait",
-  "reason": "until() now asks GET /v1/jobs/<id>?wait_s=<what is left of wait_s>[&seen=<digest>], the port's long poll (port.long_poll, PORT-LONG-POLL, the canary's mechanism and bound, canary.WAIT_MAX_S): the port holds the read on the LISTEN of tower_jobs (migration 0023: an update of a job's state or version, so run.waiting's hold and run.running notify too), tower_work and tower_runs until the job is not as the client saw it or the wait passes, and marks the answer (long_poll); a marked answer is asked again at once, with no sleep, within wait_s and with the same NotProven message. The sleep the scan finds is the fallback kept for a port that answers unmarked (one deployed before the long poll, or with no wake: http_port.wake_of None): there it is today's 1 s pause, still a wait on a state on an interval until every port the client meets holds the read. Live only after a port and service deploy (D-054).",
-  "replace_with": "the port's long poll holding every read (the port deployed with PORT-LONG-POLL and migration 0023, http_port.wake_of never None), so the fallback pause never runs and can go"
-}
