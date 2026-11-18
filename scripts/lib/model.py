@@ -24,8 +24,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
 
 A requirement's chain is verified when an architecture element satisfies it, a unit realizes that element, a test
 verifies the requirement, and a validation validates it or the need it derives from. An object is conformant when a
-rule judges it (a rule of its type, or the findings of its system), it breaks no check and every coverage rule of its
-type (`covered_by`) holds; an object no rule judges is known, not judged, and is not conformant. A system's conformance
+rule judges it (a rule of its type, or the findings of its system), it breaks no check, every coverage rule of its
+type (`covered_by`) holds and it is in no state or condition its type calls unconformant; an object no rule judges is known, not judged, and is not conformant. A system's conformance
 is the share of its objects that are conformant, rated on the scale; a system with a significant weakness (a dependency
 an advisory affects) is rated below F whatever its share.
 """
@@ -112,6 +112,12 @@ def cross_check(meta):
             extra = sorted(set(item.get(field, [])) - states)
             if extra:
                 errors.append(f'type {name}: {field} {", ".join(extra)} are not states of the type')
+        for condition in item.get('unconformant_when', []):
+            if not condition:
+                errors.append(f'type {name}: an unconformant_when condition names no field')
+            extra = sorted(set(condition.get('state', [])) - states)
+            if extra:
+                errors.append(f'type {name}: unconformant_when state {", ".join(extra)} are not states of the type')
         for link_name in item.get('must_link', []):
             if link_name not in links:
                 errors.append(f'type {name}: must_link {link_name} does not exist')
@@ -813,14 +819,24 @@ def requirement_findings(found):
 
 def read_premises(root):
     """Premises (P), read where they are through the register's own loader (scripts/lib/premises.py, D-066): the id,
-    the status as the state, the radius and the record's path as the source id the inventory counts."""
+    the status as the state, the radius and the record's path as the source id the inventory counts. The body says
+    whether its radius blocks (premises.blocking_radii, veto V0) and whether it is settled the way a Premises: line
+    reads it (a settled status, with the literal quote D-069 item 10 asks for); what the register refuses in the record
+    (an answer that does not match the status, a radius below the computed one, a broken dependents seal) is a
+    problem of the object."""
     import premises
-    records, _ = premises.load(Path(root))
+    records, errors = premises.load(Path(root))
     found = []
     for ident, record in sorted(records.items()):
         path = Path(root) / record['path']
         item = _obj(ident, 'P', record['status'], record['path'], path.read_text() if path.is_file() else ident)
-        item.update(source_id=record['path'], body={'radius': record.get('radius'), 'statement': record.get('statement')})
+        item.update(source_id=record['path'], body={
+            'radius': record.get('radius'), 'statement': record.get('statement'),
+            'blocking': record.get('radius') in premises.setting('blocking_radii'),
+            'settled': record['status'] in premises.setting('settled_statuses') and not premises.unquoted(record)})
+        problems = [error.split(': ', 1)[1] for error in errors if error.startswith(record['path'] + ': ')]
+        if problems:
+            item['problems'] = problems
         found.append(item)
     return found
 
@@ -1472,14 +1488,21 @@ def read_threats(root):
 
 def read_checks(root):
     """Checks the merge queue requires (CHK, the Configuration system), derived from the workflows and the rulesets
-    (scripts/lib/queue_checks.py): staged, installed or required."""
+    (scripts/lib/queue_checks.py): staged, installed or required. What queue_checks refuses of a check (required with no
+    installed job that runs it, an installed workflow that differs from its staged copy) is a problem of that check."""
     import queue_checks
+    refusals = queue_checks.check(root)
     found = []
     for entry in queue_checks.checks(root):
         source = (f'{queue_checks.INSTALLED}/{entry["workflow"]}' if entry['installed'] else
                   f'{queue_checks.STAGED}/{entry["workflow"]}' if entry['workflow'] else entry['required_by'])
         item = _obj(queue_checks.check_id(entry['name']), 'CHK', entry['state'], source, json.dumps(entry, sort_keys=True))
         item['body'] = entry
+        mine = (f'check {entry["name"]}: ',) + ((f'{queue_checks.INSTALLED}/{entry["workflow"]}: ',)
+                                                 if entry['workflow'] else ())
+        problems = [error.split(': ', 1)[1] for error in refusals if error.startswith(mine)]
+        if problems:
+            item['problems'] = problems
         found.append(item)
     return found
 
@@ -1597,17 +1620,28 @@ VERDICTS = {'TEST': ('VERD', 'linked to what they verify')}
 
 def judged(meta, type_id):
     """Whether any rule judges the objects of a type: a rule of the type (`must_link`, `covered_by`,
-    `unconformant_states`) or the findings of its system. An object no rule judges is known, not judged (ISO/IEC 33020
+    `unconformant_states`, `unconformant_when`) or the findings of its system. An object no rule judges is known, not judged (ISO/IEC 33020
     N: little or no evidence of achievement), and is never counted conformant."""
     kind = meta['types'].get(type_id, {})
-    return any(kind.get(key) for key in ('must_link', 'covered_by', 'unconformant_states')) or type_id in JUDGED_BY_FINDINGS
+    return (any(kind.get(key) for key in ('must_link', 'covered_by', 'unconformant_states', 'unconformant_when'))
+            or type_id in JUDGED_BY_FINDINGS)
+
+
+def meets(condition, item):
+    """Whether an object meets one `unconformant_when` condition: every field it names (`state`, else a field of the
+    object's body) holds one of the condition's values."""
+    body = item.get('body') or {}
+    return all((item['state'] if field == 'state' else body.get(field)) in values for field, values in condition.items())
 
 
 def covered(meta, item, into, found):
-    """Whether every coverage rule (`covered_by`) and every required outgoing link (`must_link`) of the type holds. A
+    """Whether every coverage rule (`covered_by`) and every required outgoing link (`must_link`) of the type holds, and
+    the object is in no unconformant state or condition (`unconformant_states`, `unconformant_when`). A
     requirement's test rule is requirement_tested, the rule the chain uses (a met validation of its own counts when its
     verification is a validation)."""
     if item['state'] in meta['types'][item['type']].get('unconformant_states', []):
+        return False
+    if any(meets(condition, item) for condition in meta['types'][item['type']].get('unconformant_when', [])):
         return False
     held = {link['type'] for link in item['links'] if found.get(link['target'], {}).get('fingerprint') is not None}
     if set(meta['types'][item['type']].get('must_link', [])) - held:

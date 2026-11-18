@@ -12,5 +12,15 @@
   "inactive_states": [
     "refuted"
   ],
-  "description": "A premise with its blast radius, which is also a risk."
+  "unconformant_when": [
+    {
+      "blocking": [
+        true
+      ],
+      "settled": [
+        false
+      ]
+    }
+  ],
+  "description": "A premise with its blast radius, which is also a risk. Its rules come from D-066 and the register's own check (scripts/lib/premises.py): a premise whose radius blocks (premises.blocking_radii, veto V0) is not conformant until it is settled (confirmed or validated; a confirmed one with the literal quote D-069 item 10 asks for, unless grandfathered); and a record the register refuses (an answer that does not match its status, a confirmed or refuted answer with no quote or link, a validated one with no evidence, a radius below the computed one, dependents that break their seal) is a problem of the object. A refuted premise is inactive."
 }

@@ -98,6 +98,28 @@
       },
       "description": "States in which an object of this type is never conformant (a validation with no source wired, `defined`)."
     },
+    "unconformant_when": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "propertyNames": {
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "additionalProperties": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": [
+              "string",
+              "boolean",
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "description": "Conditions under which an active object of this type is never conformant: each entry maps a field of the object's body (or `state`) to the values that meet it, and an object that meets every field of one entry fails (a blocking premise that is not settled: {\"blocking\": [true], \"settled\": [false]})."
+    },
     "description": {
       "type": "string",
       "minLength": 1

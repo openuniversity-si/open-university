@@ -16,5 +16,9 @@
   "inactive_states": [
     "retired"
   ],
-  "description": "A check of the merge queue: one job of a GitHub workflow, staged in services/runner/github/ (a session writes it), installed in .github/workflows/ (the owner, D-087), required when a ruleset of .github/rulesets/ lists it (PADRAO-DEV F7d, D-320)."
+  "unconformant_states": [
+    "staged",
+    "installed"
+  ],
+  "description": "A check of the merge queue: one job of a GitHub workflow, staged in services/runner/github/ (a session writes it), installed in .github/workflows/ (the owner, D-087), required when a ruleset of .github/rulesets/ lists it (PADRAO-DEV F7d, D-320). Its rules: a check is conformant only when required (or retired, inactive), the end of the life cycle staged, installed, required, retired that PADRAO-DEV F7 gives the required workflows of the queue (a check staged or installed that no ruleset requires does not hold the queue); and what scripts/lib/queue_checks.py refuses (a required check no installed workflow runs, an installed workflow that differs from its staged copy, D-087) is a problem of the check."
 }

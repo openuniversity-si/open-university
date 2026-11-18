@@ -140,6 +140,25 @@ class TinyModel(unittest.TestCase):
         self.assertIn(f'know: N (0 of {many} conformant; {many} not judged: no rule of K)', model.summary(result))
         self.assertEqual(result['systems']['reqs']['not_judged'], 1)
 
+    def test_an_object_that_meets_an_unconformant_condition_of_its_type_is_judged_and_not_conformant(self):
+        write(self.root, 'config/model/types/VAL.json', {'id': 'VAL', 'name': 'val', 'system': 'reqs', 'states': ['defined'],
+                                                         'unconformant_when': [{'blocking': [True], 'settled': [False]}],
+                                                         'description': 'd'})
+        meta = self.meta()
+        self.assertEqual(meta['errors'], [])
+        self.assertTrue(model.judged(meta, 'VAL'))
+        cases = {'VAL-open': {'blocking': True, 'settled': False}, 'VAL-settled': {'blocking': True, 'settled': True},
+                 'VAL-low': {'blocking': False, 'settled': False}}
+        found = self.objects(*[{'id': id, 'type': 'VAL', 'state': 'defined', 'body': body} for id, body in cases.items()])
+        into = model.incoming(found)
+        self.assertEqual({id for id in cases if model.covered(meta, found[id], into, found)}, {'VAL-settled', 'VAL-low'})
+        self.assertTrue(model.meets({'state': ['defined']}, found['VAL-low']), 'state is a field of every condition')
+        write(self.root, 'config/model/types/VAL.json', {'id': 'VAL', 'name': 'val', 'system': 'reqs', 'states': ['defined'],
+                                                         'unconformant_when': [{'state': ['gone']}, {}], 'description': 'd'})
+        errors = self.meta()['errors']
+        self.assertIn('type VAL: unconformant_when state gone are not states of the type', errors)
+        self.assertIn('type VAL: an unconformant_when condition names no field', errors)
+
     def test_a_requirement_verified_by_validation_is_covered_by_its_own_met_validation_as_the_chain_says(self):
         found = self.objects({'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'body': {'verification': 'validation'}},
                              {'id': 'ARC-1', 'type': 'ARC', 'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
@@ -678,6 +697,70 @@ class Supply(unittest.TestCase):
         self.assertEqual((supply['weaknesses'], supply['level']), (0, 'F'))
         write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2000-01-01'})
         self.assertEqual(self.measure()['level'], 'L', 'an exemption past its deadline is not in force')
+
+
+class KnowledgeAndConfiguration(unittest.TestCase):
+    """The rules of P (D-066) and CHK (PADRAO-DEV F7) on a temporary checkout: a premise register and the queue's
+    workflows and ruleset, judged by the type files of this checkout."""
+
+    def setUp(self):
+        import premises
+        self.premises = premises
+        self.root = Path(tempfile.mkdtemp(prefix='model-rules-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        for folder in ('contracts/model', 'config/model', 'contracts/premises'):
+            shutil.copytree(ROOT / folder, self.root / folder)
+
+    def premise(self, ident, status, radius, quote='Sim.', evidence=None, reasons=()):
+        answer = None if status in self.premises.setting('open_statuses') else {
+            'by': 'Daniel', 'at': None, 'value': status, 'quote': quote, 'where': None, 'evidence': evidence,
+            'translation': None}
+        slug = ident.lower()
+        record = {'id': ident, 'slug': slug, 'statement': f'{ident} holds.', 'kind': 'process', 'scope': 'global',
+                  'source': {'who': 'orchestrator', 'where': 'plan', 'quote': None, 'at': None}, 'status': status,
+                  'radius': radius, 'blast': {'reasons': list(reasons), 'if_wrong': 'The plan changes.'},
+                  'validate': {'kind': 'question', 'how': 'Ask.'}, 'answer': answer,
+                  'dependents': self.premises.sealed([], []), 'supersedes': []}
+        folder = self.premises.register_dir(self.root)
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / (slug + self.premises.setting('record_suffix'))
+        path.write_text(self.premises.dump(record, self.premises.schema(self.root)))
+        return path
+
+    def conformant(self, readers):
+        meta = model.metamodel(self.root)
+        found = model.objects(self.root, readers)
+        errors, warnings = model.check(meta, found)
+        flagged = {line.split(':', 1)[0] for line in errors + warnings}
+        into = model.incoming(found)
+        return {id for id, item in found.items() if id not in flagged and model.covered(meta, item, into, found)}, found
+
+    def test_a_blocking_premise_is_conformant_only_settled_and_a_record_the_register_refuses_never_is(self):
+        self.premise('P-01', 'inferred', 'high', reasons=['decision:D-1'])
+        self.premise('P-02', 'confirmed', 'high', reasons=['decision:D-1'])
+        self.premise('P-03', 'confirmed', 'high', quote=None, reasons=['decision:D-1'])
+        self.premise('P-04', 'inferred', 'low')
+        self.premise('P-05', 'validated', 'low')
+        good, found = self.conformant((model.read_premises,))
+        self.assertEqual(found['P-03']['problems'][0].split(' needs ')[0], 'status confirmed')
+        self.assertFalse(found['P-03']['body']['settled'], 'a confirmed premise with no literal quote is not settled')
+        self.assertEqual(good, {'P-02', 'P-04'})
+        self.assertIn('answer.evidence', ' '.join(found['P-05']['problems']))
+
+    def test_a_check_is_conformant_only_required_with_an_installed_workflow_that_is_its_staged_copy(self):
+        job = 'on: pull_request\njobs:\n  {0}:\n    name: {0}\n'
+        for name in ('web', 'lint', 'gate'):
+            write(self.root, f'services/runner/github/{name}.yml', job.format(name))
+        for name in ('web', 'lint'):
+            write(self.root, f'.github/workflows/{name}.yml', job.format(name))
+        write(self.root, '.github/workflows/gate.yml', job.format('gate') + '    steps: []\n')
+        write(self.root, '.github/rulesets/main.json', {'rules': [{'type': 'required_status_checks', 'parameters': {
+            'required_status_checks': [{'context': name} for name in ('web', 'gate', 'ghost')]}}]})
+        good, found = self.conformant((model.read_checks,))
+        self.assertEqual(good, {'CHK-web'})
+        self.assertEqual(found['CHK-lint']['state'], 'installed')
+        self.assertIn('differs from its staged copy', found['CHK-gate']['problems'][0])
+        self.assertIn('no installed workflow runs it', found['CHK-ghost']['problems'][0])
 
 
 class Architecture(unittest.TestCase):
