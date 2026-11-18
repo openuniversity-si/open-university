@@ -9,7 +9,7 @@ sobre `main` em `97cd769`. Nenhuma decisão foi registrada. Os rascunhos abaixo 
 ## Resumo
 - **16 regras avaliadas.** 13 são regras de verdade e 3 não recusam nada. A #230 contou 2 casos assim; `generate-blocked`
   é o terceiro. `program-plan-block` é um parser, e a regra de verdade dele é `program.load`.
-- **Proposta: cinco rascunhos em vez de 14 decisões, uma por regra.** O A (contrato dos registros) cobre 6 regras. O B
+- **Proposta: seis rascunhos (A a F) em vez de 14 decisões, uma por regra.** O F, pedido por Daniel em 18/11 às 19:24, traz o esforço mais barato para o momento da decisão. O A (contrato dos registros) cobre 6 regras. O B
   (decidir, depois reportar) cobre 1. O C (o método de gestão) cobre 1. O D (regra dormente) cobre 2 sozinho e marca
   mais 3 que já têm base no A ou no B. O E (aposentadorias) cobre 6.
 - **10 ficam:** 6 com o A, 1 com o B, 1 com o C e 2 só como dormentes (D). **6 se aposentam:** os 3 casos que não são
@@ -18,7 +18,7 @@ sobre `main` em `97cd769`. Nenhuma decisão foi registrada. Os rascunhos abaixo 
 - **Achado transversal:** o `tower/gate` pula o estágio `pr metadata` (`scripts/lib/verify_commit.py:37`). Com isso,
   4 das 16 regras e 10 já justificadas pela #230 aparecem como `blocking` no catálogo, mas nenhuma etapa viva roda essas
   checagens.
-- **Três perguntas reais para Daniel**, no fim, cada uma com a minha recomendação.
+- **Três perguntas reais para Daniel**, no fim, cada uma com a minha recomendação. A 3 já tem resposta, e ela virou o F.
 
 ## Avaliação: o que cada regra é e faz
 "Viva" quer dizer que alguma etapa do fluxo de hoje chama a checagem: os estágios do `tower/gate`, que são os de
@@ -235,6 +235,35 @@ caminho de volta). Nenhum tem número. Os números vêm de `scripts/decision-rec
   `scripts/lib/structure.py`, o `commit-check` (`gate_errors`) exige que a PR cite o D-NNN aprovado. Por isso o E vem
   antes da PR.
 
+### D-rascunho-F: o esforço mais barato que resolve, na hora de decidir
+Daniel respondeu à pergunta 3 em 18/11, às 19:24 BRT. Ele concorda que o "esforço mais barato útil" não é uma regra que barra PR, mas quer que a IA pense nisso **logo de saída**, sempre que for decidir. A preocupação dele: hoje nada garante que essa pergunta seja feita no momento da decisão. Uma checagem que ninguém preenche não resolve, e confiar só na D-294 e nas guardas de custo também pode não bastar.
+
+A própria árvore já mostra que ele tem razão. O bloco de esforço era um campo a preencher, e 0 dos 30 PRs de #202 a #231 o trazia. Um formulário fica longe do momento em que o caminho é escolhido: ele é preenchido depois, quando já não muda nada. Por isso a pergunta precisa estar onde a escolha acontece, e precisa deixar um rastro que alguém lê.
+
+> **Every choice of how to solve a problem starts from the cheapest effort that solves it (Daniel, 18/11/2026 19:24
+> BRT, through the Torre; awaiting his approval).** Before a session chooses how to do something (a design, a fix, a
+> delegation, an AWS change), it names the cheapest path that would solve it and takes a costlier one only for a
+> reason the measure or the risk gives, which it states in one line where the choice is recorded: the commit
+> message or PR body that carries it, or the brief that delegates it. Three places carry it, none of them a field
+> that blocks a PR:
+> (1) AGENTS.md's judgment rules, read at the start of every session, state it next to D-294.
+> (2) Every brief to a subagent names the cheapest acceptable path and what is out of scope, because a delegated task
+> spends most of the effort.
+> (3) The retrospective samples merged PRs and asks of each "was there a clearly cheaper path that solved it?"; the
+> share of yes is a measure, so the rule is checked by its effect, not by a filled field.
+> Proof: the measure's reader and its test (scripts/model, the retrospective sample). Revert path: a later decision
+> that removes it.
+
+- **Razão:** a pergunta passa a estar no contexto de toda decisão, pelo AGENTS.md e pelos briefs, e deixa um rastro curto onde a decisão já é registrada. Ela é conferida pelo efeito, na retrospectiva, e não por um campo preenchido.
+  - O que não funciona e fica de fora: um campo obrigatório no PR, como o bloco de esforço, e uma regra `judgment` que nada mede.
+- **Cobre:** nenhuma das 16 regras. Ela entra no lugar de `effort-errors` e `effort-body-errors`, que o E aposenta.
+- **Se aceito:**
+  - uma linha nas regras de julgamento do AGENTS.md, junto da D-294;
+  - uma linha no modelo de brief que as sessões usam para delegar;
+  - a amostra da retrospectiva, com a medida "parcela de PRs com um caminho claramente mais barato", lida pelo `scripts/model` com o seu teste.
+  - Nenhum gate muda.
+- **O que ainda está em aberto:** o tamanho da amostra e a meta da medida. Proposta: 10 PRs por retrospectiva e a meta abaixo de 10%, revista depois de três retrospectivas.
+
 ## Aposentadorias e reescritas
 **Aposentar (6):**
 1. `STD-aws-tenant-isolation-proof-refusal`: sai o arquivo da regra. `Tenant.refusal` vira `attempt`
@@ -275,6 +304,10 @@ no caso das dormentes.
    ("essa ação cara precisa acontecer, e para quem?") poderia continuar como uma regra `judgment`. **Recomendação: não
    criar.** A D-294 (o julgamento da sessão) e as guardas de custo da SEMENTE §4 já cobrem isso, e uma regra de
    julgamento que nada mede repete o caso do campo que ninguém preenche.
+   **Resposta de Daniel (18/11, 19:24 BRT):** não é uma regra que barra PR, mas a IA deve pensar no esforço mais barato
+   logo de saída, sempre que decidir, e ele não quer depender só da D-294 nem das guardas de custo. A proposta está no
+   **D-rascunho-F**: a pergunta fica onde a decisão acontece (o AGENTS.md e os briefs), com uma linha de rastro onde a
+   escolha é registrada, e é conferida pelo efeito, numa amostra da retrospectiva.
 
 O que não é pergunta, porque a escolha reversível já está tomada: dormente em vez de aposentar para as travas da era
 Origin; troca de nome em vez de lista de exceções para os casos que não recusam; teste em vez de schema novo para o
