@@ -25,7 +25,18 @@
     "CAP-008": {
       "state": "deprecated",
       "retired_by": "D-111"
+    },
+    "CAP-009": {
+      "state": "deprecated",
+      "retired_by": "D-111"
+    },
+    "CAP-010": {
+      "state": "deprecated",
+      "retired_by": "D-111"
+    },
+    "CAP-012": {
+      "state": "active"
     }
   },
-  "note": "Six capabilities are the departed product's (the course batch, admin lists, public pages, the catalog word, the database package, the product's contexts) and left with it (D-111); the other six are the engine's."
+  "note": "Six capabilities are the departed product's (the course batch, admin lists, public pages, the catalog word, the database package, the product's contexts) and left with it (D-111). CAP-009 (the context map units/cells, scripts/generate context-map, the intents registry and the L3.context-dag/context-size rules) and CAP-010 (the vendor map scripts/lib/vendor-map.json and the L3.vendor-driver/dependency-declared/vendor-retired rules) were the archived product's tooling (archive 567176bb, D-110) and left with it too (D-111): the site that came back under apps/web (D-319) holds none of them; its own ring check is apps/web/tooling/check-architecture.mjs (CAP-004), and the engine's vendor rule is D-069 item 7 (scripts/lib/vendor_check.py). CAP-004 and CAP-005 are realized by the returned site (units/web), CAP-012 is active: its design merged with KD1 (PR #572) and engine-defects realizes it. CAP-011 stays proposed (requested): D-063 sets the rule but its proof is pending, and the returned site has no literal-catalogs manifest."
 }
