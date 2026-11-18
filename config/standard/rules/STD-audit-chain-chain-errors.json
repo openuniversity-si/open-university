@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/audit_chain.py:chain_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-069 item 4 (the event log is append-only), cited with item 3 by the module head for this hash chain: an edited or removed entry breaks it."
 }

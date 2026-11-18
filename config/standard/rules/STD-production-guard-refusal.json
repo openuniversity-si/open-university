@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/production_guard.py:refusal"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-054"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-054: production is frozen and no agent session deploys, promotes, rolls back or migrates it; the refusal's own message cites D-054."
 }

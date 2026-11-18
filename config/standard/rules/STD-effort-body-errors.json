@@ -11,5 +11,5 @@
     "ref": "scripts/lib/effort.py:body_errors"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: Ported from the motor rule rules/effort.md (EFFORT-STEP audit: \"no new decision is needed\"); the cited D-069 items 4, 8, 9 and D-065 (5) do not state the effort block; D-081 (2) only says the block stays in plan.md."
 }

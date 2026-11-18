@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/release_rules.py:refuse_frozen"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-054"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-054: production is frozen; pending production changes wait in docs/process/host-swap-queue.md (the queue the refusal names); the module head cites D-054."
 }

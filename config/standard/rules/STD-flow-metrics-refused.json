@@ -10,6 +10,9 @@
     "kind": "function",
     "ref": "scripts/lib/flow_metrics.py:refused"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-137",
+    "D-144"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-144 states it: scripts/flow-metrics --admit BASE..HEAD exits 1 when one commit would not count (empty, fixup or split), the guards of D-137; admit() cites D-137 and D-144."
 }

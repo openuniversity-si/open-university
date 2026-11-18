@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/commit_check.py:gate_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-025"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-025 states it: commit-check refuses a change to the gate (scripts/gate-*, scripts/lib/gate*, structure-check, commit-check) that cites no approved D-NNN of the register; proof test_refuses_a_gate_change_without_an_approved_decision."
 }

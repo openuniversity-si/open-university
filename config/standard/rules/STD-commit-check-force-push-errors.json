@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/commit_check.py:force_push_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-070"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-070 (f): \"Merge commits only, no rebase, stays\"; the check's own text derives the refusal from it (a force push rewrites pushed history). Built by unit FP1 (docs/units/FP1/plan.md item 3); its brief cites \"enforcement audit 26/10 rule 3\", which no decision records, so D-070 is the decision of record."
 }

@@ -11,5 +11,5 @@
     "ref": "scripts/lib/census.py:_shape_errors"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: The module head cites D-063, D-064 (a) and D-067 (per-unit records, no shared file); none states the shape rules of a census event (a remove carries no entry, catalog vs baseline shape)."
 }

@@ -11,5 +11,5 @@
     "ref": "scripts/lib/program.py:plan_block"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: Refuses a plan.md without its fenced data block (CO1); the module head cites D-069 (CO1), D-071 and D-077; none states it."
 }

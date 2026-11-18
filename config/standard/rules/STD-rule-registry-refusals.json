@@ -11,5 +11,5 @@
     "ref": "scripts/lib/rule_registry.py:refusals"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: Its catalog record R-rule-record-complete was created by RULE-AUDIT (Daniel 2026-10-28 16:52-17:09 BRT; D-069 item 9, D-072); D-072 is the blocking-evaluation step, and no decision states the rule register or its refuse mode."
 }

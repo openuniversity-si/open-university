@@ -11,5 +11,5 @@
     "ref": "scripts/lib/vendor_check.py:catalog_errors"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: The module head cites D-069 item 7 for the vendor check; no decision states the catalog's own consistency rules (paths exist, every baseline site classified, a forbidden vendor has no adapter, a slot has none)."
 }
