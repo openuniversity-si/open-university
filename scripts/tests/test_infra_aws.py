@@ -1914,7 +1914,9 @@ class MailStackTests(unittest.TestCase):
         self.assertEqual(calls[1][1], {'Bucket': 'inbox', 'Key': 'inbox/m1'})
         sent = calls[2][1]
         self.assertEqual(sent['Destination'], {'ToAddresses': [dest, other]})
-        self.assertEqual(sent['FromEmailAddress'], 'forward' + '@' + 'example.org')
+        # the end-to-end test of 18/11 received From forward@... without the name: with raw content SES writes the From
+        # from FromEmailAddress, so it carries the display name too
+        self.assertEqual(sent['FromEmailAddress'], 'Open University <forward' + '@' + 'example.org>')
         data = sent['Content']['Raw']['Data']
         head = data.split(b'\r\n\r\n')[0].split(b'\r\n')
         self.assertEqual(head[0], b'From: Open University <forward' + b'@example.org>')  # MAIL-SENDER-NAME
