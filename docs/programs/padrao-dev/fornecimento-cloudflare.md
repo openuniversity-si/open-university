@@ -143,3 +143,39 @@ O dono aprovou a recomendação inteira às 18:20 BRT: sair de tudo da Cloudflar
 
      O R2 fica só para leitura, como segunda cópia, e a volta é o CNAME antigo.
 6. **(f) O fim do R2 (Torre).** Depois de 30 dias sem leitura no R2 (as métricas de GetObject/HeadObject do bucket a zero), apaga `open-university-media`, `the-tower-fidelity` (já refeito na AWS, ver acima) e `the-tower-media`, e revoga a chave R2 de leitura. Então segue o passo 3 (DNS).
+
+## Passo 3: execução
+**O que esta PR traz.** O passo 3 fica a uma PR de distância, a que traz a exportação:
+- **`scripts/dns-zone`** (`scripts/lib/dns_zone.py`), offline, sem rede:
+  - `build <arquivo-bind>` lê a exportação BIND da Cloudflare (`$ORIGIN`, `$TTL`, comentários, TXT com várias strings, MX, SRV, CAA, CNAME, A/AAAA, NS e SOA) e escreve a lista de registros `infra/aws/dns/openuniversity.si.json` e a stack `infra/aws/stacks/70-dns.json`, gerada dela;
+  - `compare <arquivo-bind>` confere a exportação contra a lista versionada: todo registro, com os mesmos valores e o mesmo TTL. Sai com 1 numa diferença;
+  - `dig-plan --ns <os 4 NS> --site <SiteDistribution>` gera um `dig` por registro, com a resposta esperada;
+  - `template --check` prova que a stack é a da lista (o teste `test_dns_zone.py` também).
+- **Os registros com proxy são recusados.** A exportação traz o IP anycast da Cloudflare (ou, num CNAME com proxy, o alvo que ela fronteia), nunca a origem. Esses registros vão para `needs_target`, e o alvo real entra em `infra/aws/dns/openuniversity.si.targets.json`. As faixas da Cloudflare ficam em `infra/aws/dns/cloudflare-ips.json`, com a fonte (`cloudflare.com/ips-v4` e `ips-v6`). **Elas precisam ser atualizadas antes do `build`**, porque foram escritas de memória, sem busca.
+- **O NS e o SOA do apex são descartados**, porque o Route 53 cria os dele. O TTL automático da Cloudflare (1 na exportação) vira 300 s.
+- **O apex.** Um CNAME no apex (a Cloudflare o achata) para `*.cloudfront.net` vira alias A e AAAA para o parâmetro `SiteDistribution`, com a zona do CloudFront `Z2FDTNDATAQYW2`. O `www` continua CNAME. Enquanto o parâmetro está vazio, o apex não tem registro.
+- **A stack `tower-app-dns`** (sem dependência em `order.json`):
+  - com `Zone=off` (o `parameters.json` de hoje), só um `WaitConditionHandle`, que não cobra nada. A fronteira `tower-boundary` só permite o Route 53 depois que a Torre reaplica o `tower-bootstrap` com a declaração `TheSiteZoneOnRoute53`;
+  - com `Zone=on` e a lista vazia, só a zona, retida (`Retain`), com os quatro NS na saída `NameServers`;
+  - com a lista, um `AWS::Route53::RecordSet` por nome e tipo, com o TXT entre aspas e partido em strings de 255.
+- **O custo:** US$ 0,50 por mês pela zona, mais US$ 0,40 por milhão de consultas (as consultas de alias ao CloudFront são grátis). O volume de consultas não é medido, então o teto é 10 milhões por mês: no máximo US$ 4,50 por mês, contra o limite de US$ 150 (o teste `DnsStackTests` confere).
+
+**O que acontece depois, e quem faz:**
+1. **(a) A fronteira (Torre).** Reaplica o `tower-bootstrap` com este `bootstrap.json`, com `UsePreviousValue` nos parâmetros. Uma reaplicação só serve ao MEDIA-S3 e a esta. O hash está em `test_infra_aws.py`. Feito isso, uma PR põe `dns.Zone=on`, e o deploy cria a zona vazia.
+2. **(b) Os NS (Torre).** Lê a saída `NameServers` da stack `tower-app-dns` e entrega os quatro NS.
+3. **(c) A exportação (Torre).** Entrega a exportação BIND da zona `openuniversity.si` (Cloudflare, DNS, Records, Export) e as duas listas atuais de `cloudflare.com/ips-v4` e `ips-v6`. Diz também:
+   - o alvo real de cada registro com proxy (o `media` vai para o `DistributionDomain` da stack `tower-app-media`, sem proxy);
+   - se o DNSSEC está ligado (`dig DS openuniversity.si +short` não vazio).
+4. **(d) A PR do passo 3 (sessão).**
+   - atualiza `cloudflare-ips.json`;
+   - roda `scripts/dns-zone build <exportação>`;
+   - põe os alvos reais em `openuniversity.si.targets.json`;
+   - põe `dns.SiteDistribution` no `parameters.json` (o `build` diz o valor);
+   - roda `scripts/dns-zone compare <exportação>` até sair com 0.
+
+   O deploy do merge cria os registros. Nada muda para o site, porque o registrador ainda aponta para a Cloudflare.
+5. **(e) A conferência ao vivo (Torre).** Roda `scripts/dns-zone dig-plan --ns <os 4 NS> --site <SiteDistribution>` e cada `dig` que ele lista, contra o NS do Route 53. Cada resposta tem de ser a esperada. Uma diferença volta para (d), e a troca não acontece.
+6. **(f) O DNSSEC, se estiver ligado (Torre).** Apaga o DS no registrador e espera o TTL do DS passar antes da troca. Se não fizer isso, os resolvedores que validam DNSSEC deixam o domínio sem resposta.
+7. **(g) A troca dos NS (Torre),** só depois de (e) e de (f). No painel da OpusDNS/Hostinger, os NS de `openuniversity.si` passam a ser os quatro do Route 53. A volta é pôr de novo os dois NS da Cloudflare, e a zona dela fica intacta até o passo 4.
+8. **(h) A espera do TTL.** Espera pelo menos o maior TTL entre o NS da zona-pai (`dig NS openuniversity.si @<um NS do .si>`, em geral 86.400 s) e os registros da lista. Na prática são 48 horas. Depois disso, `dig NS openuniversity.si @1.1.1.1` e `@8.8.8.8` têm de dar só o Route 53, e o site, o e-mail e as mídias têm de responder.
+9. **(i) O passo 4 (Torre).** Revoga os tokens da API da Cloudflare e as chaves R2 que restarem. Depois apaga a zona `openuniversity.si` na Cloudflare, já com a troca propagada.

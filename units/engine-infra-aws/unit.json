@@ -17,7 +17,13 @@
     "scripts/lib/lambda_package.py",
     "scripts/tests/lambda-package.test.sh",
     "scripts/tests/test_lambda_package.py",
-    "scripts/tests/covers/lambda-package.json"
+    "scripts/tests/covers/lambda-package.json",
+    "scripts/dns-zone",
+    "scripts/lib/dns_zone.py",
+    "scripts/tests/dns-zone.test.sh",
+    "scripts/tests/test_dns_zone.py",
+    "scripts/tests/covers/dns-zone.json",
+    "scripts/tests/fixtures/dns/**"
   ],
   "battery": {
     "command": "scripts/unit-battery engine-infra-aws"

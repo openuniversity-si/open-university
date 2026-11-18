@@ -1,0 +1,56 @@
+;;
+;; Domain:     openuniversity.si.
+;; Exported:   2026-11-18 12:00:00
+;;
+;; This file is intended for use for informational and archival
+;; purposes ONLY and MUST be edited before use on a production
+;; DNS server.
+;;
+$ORIGIN openuniversity.si.
+$TTL 3600
+
+;; SOA Record
+openuniversity.si	3600	IN	SOA	ada.ns.cloudflare.com. dns.cloudflare.com. (
+		2050000000	; serial
+		10000	; refresh
+		2400	; retry
+		604800	; expire
+		3600 )	; minimum
+
+;; NS Records
+openuniversity.si.	86400	IN	NS	ada.ns.cloudflare.com.
+openuniversity.si.	86400	IN	NS	bob.ns.cloudflare.com.
+
+;; A Records
+cdn.openuniversity.si.	1	IN	A	104.21.32.10 ; cf_tags=cf-proxied:true
+legacy	300	IN	A	192.0.2.10
+legacy	300	IN	A	192.0.2.11
+
+;; AAAA Records
+legacy.openuniversity.si.	300	IN	AAAA	2001:0db8:0000:0000:0000:0000:0000:0010
+
+;; CAA Records
+openuniversity.si.	3600	IN	CAA	0 issue "amazon.com"
+openuniversity.si.	3600	IN	CAA	0 iodef "mailto:security@example.org"
+
+;; CNAME Records
+openuniversity.si.	1	IN	CNAME	d111111abcdef8.cloudfront.net. ; cf_tags=cf-proxied:false
+www	1	IN	CNAME	d111111abcdef8.cloudfront.net. ; cf_tags=cf-proxied:false
+media.openuniversity.si.	1	IN	CNAME	public.r2.example.net. ; cf_tags=cf-proxied:true
+
+;; MX Records
+openuniversity.si.	3600	IN	MX	10 mx1.mail.example.org.
+openuniversity.si.	3600	IN	MX	20 mx2.mail.example.org.
+
+;; NS Records (a delegation)
+lab	3600	IN	NS	ns1.example.net.
+
+;; SRV Records
+_sip._tcp.openuniversity.si.	3600	IN	SRV	10 60 5060 sip.example.org.
+
+;; TXT Records
+openuniversity.si.	3600	IN	TXT	"v=spf1 include:_spf.example.org ~all"
+openuniversity.si.	3600	IN	TXT	"google-site-verification=abc123-DEF456_ghi789"
+_dmarc	3600	IN	TXT	"v=DMARC1; p=quarantine; " "rua=mailto:dmarc@example.org"
+selector1._domainkey.openuniversity.si.	3600	IN	TXT	"v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAMIIBIjANBgkqhkiG9" "w0BAQEFAAOCAQ8AMIIBCgKCAQEAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"
+note	3600	IN	TXT	"say \"hi\"; not a comment"
