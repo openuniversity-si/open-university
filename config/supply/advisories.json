@@ -1,26 +1,10 @@
 {
  "generated_by": "scripts/supply audit",
- "at": "2026-11-17T17:55:26Z",
+ "at": "2026-11-18T03:35:43Z",
  "lockfiles": {
-  "apps/web/pnpm-lock.yaml": "8862a03c2821fedd8a0abe3a3314ebac3188be9083828116bf9fbb8d38da7ac8"
+  "apps/web/pnpm-lock.yaml": "658365e49ef343bbfa41cd649770a1fad1e70d2be8ceb24172f4dc9e221963fe"
  },
  "advisories": [
-  {
-   "id": "ADV-ghsa-333x-w4r6-6crp",
-   "ghsa": "GHSA-333x-w4r6-6crp",
-   "package": "fast-uri",
-   "versions": [
-    "3.1.8"
-   ],
-   "vulnerable": ">=3.0.0 <3.1.9",
-   "patched": ">=3.1.9",
-   "severity": "low",
-   "title": "fast-uri vulnerable to scheme injection via an unescaped first-segment colon in suffix references",
-   "url": "https://github.com/advisories/GHSA-333x-w4r6-6crp",
-   "lockfiles": [
-    "apps/web/pnpm-lock.yaml"
-   ]
-  },
   {
    "id": "ADV-ghsa-fc5q-39xc-vjpf",
    "ghsa": "GHSA-fc5q-39xc-vjpf",
@@ -50,54 +34,6 @@
    "severity": "moderate",
    "title": "minimatch has potential denial of service via globparts amplification",
    "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
-   "lockfiles": [
-    "apps/web/pnpm-lock.yaml"
-   ]
-  },
-  {
-   "id": "ADV-ghsa-w74x-v6f9-j3xg",
-   "ghsa": "GHSA-w74x-v6f9-j3xg",
-   "package": "fast-uri",
-   "versions": [
-    "3.1.8"
-   ],
-   "vulnerable": ">=3.0.0 <3.1.9",
-   "patched": ">=3.1.9",
-   "severity": "moderate",
-   "title": "fast-uri vulnerable to URI scheme spoofing via percent-encoded scheme decoding",
-   "url": "https://github.com/advisories/GHSA-w74x-v6f9-j3xg",
-   "lockfiles": [
-    "apps/web/pnpm-lock.yaml"
-   ]
-  },
-  {
-   "id": "ADV-ghsa-wjr9-j795-jxcr",
-   "ghsa": "GHSA-wjr9-j795-jxcr",
-   "package": "fast-uri",
-   "versions": [
-    "3.1.8"
-   ],
-   "vulnerable": ">=3.1.3 <3.1.9",
-   "patched": ">=3.1.9",
-   "severity": "moderate",
-   "title": "fast-uri vulnerable to host confusion via unchecked WHATWG host canonicalization",
-   "url": "https://github.com/advisories/GHSA-wjr9-j795-jxcr",
-   "lockfiles": [
-    "apps/web/pnpm-lock.yaml"
-   ]
-  },
-  {
-   "id": "ADV-ghsa-xhq7-xmqj-769h",
-   "ghsa": "GHSA-xhq7-xmqj-769h",
-   "package": "fast-uri",
-   "versions": [
-    "3.1.8"
-   ],
-   "vulnerable": ">=3.0.0 <3.1.9",
-   "patched": ">=3.1.9",
-   "severity": "low",
-   "title": "fast-uri vulnerable to improper path equivalence in relative reference normalization",
-   "url": "https://github.com/advisories/GHSA-xhq7-xmqj-769h",
    "lockfiles": [
     "apps/web/pnpm-lock.yaml"
    ]
