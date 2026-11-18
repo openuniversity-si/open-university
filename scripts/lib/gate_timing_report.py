@@ -76,7 +76,7 @@ def stage_samples_from_logs(dirs):
     return found
 
 
-def eta_errors(events, last):
+def eta_misses(events, last):
     """[{pr, sha, plan, expected_s, wall_s, error_s}] for the newest `last` gates with a gate.started and its verdict."""
     started, rows = {}, []
     for event in sorted(events, key=moment):
@@ -153,7 +153,7 @@ def main(argv=None):
         samples, errors = stage_samples_from_logs(args.logs), []
     else:
         events = json.loads(Path(args.events).read_text()) if args.events else ledger_events()
-        samples, errors = stage_samples(events), eta_errors(events, last)
+        samples, errors = stage_samples(events), eta_misses(events, last)
     data = report(samples, errors, stage_needs(args.stages_file))
     print(json.dumps(data, indent=1) if args.json else render(data))
     return 0
