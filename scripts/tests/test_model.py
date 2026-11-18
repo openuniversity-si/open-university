@@ -323,6 +323,12 @@ class StandardManagement(unittest.TestCase):
                          ('applied', [{'type': 'decided-by', 'target': 'D-9'}]))
         self.assertEqual((found['PROP-RC-002']['state'], found['PROP-RC-002']['links']), ('open', []))
 
+    def test_every_status_a_rule_challenge_may_have_maps_to_a_proposal_state(self):
+        import rule_challenges
+        self.assertEqual(set(model.CHALLENGE_STATE), set(rule_challenges.STATUSES))
+        self.assertEqual(model.CHALLENGE_STATE['upheld'], 'rejected')
+        self.assertEqual(model.CHALLENGE_STATE['lifted'], 'applied')
+
     def test_the_version_the_coordinator_names_is_effective_the_older_superseded_the_newer_a_draft(self):
         found = self.found()
         states = {id: item['state'] for id, item in found.items() if item['type'] == 'VER'}
