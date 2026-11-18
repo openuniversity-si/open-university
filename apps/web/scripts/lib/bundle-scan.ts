@@ -28,6 +28,8 @@ export const SECRET_ENV_NAMES = [
   "TOWER_MEDIA_REVALIDATE_SECRET",
   "R2_SECRET_ACCESS_KEY_RW",
   "R2_SECRET_ACCESS_KEY_RO",
+  "AWS_SECRET_ACCESS_KEY",
+  "AWS_SESSION_TOKEN",
 ] as const;
 
 export const SECRET_PATTERNS: readonly { readonly name: string; readonly pattern: RegExp }[] = [

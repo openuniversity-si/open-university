@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createS3Bucket, r2Config, StorageError } from "./r2.ts";
+import { createS3Bucket, mediaStoreMode, r2Config, s3Config, StorageError } from "./r2.ts";
+import { createConfiguredMediaStore, createWritableMediaStore, optionalReadStore } from "./storage.ts";
+import { getMediaStorageEnv } from "./storage-env.ts";
+import { MEDIA_PUBLIC_HOST } from "./public-hosts.ts";
 import { createR2MediaStore, uploadMedia } from "../../../scripts/lib/media-storage.ts";
 import { createR2Storage } from "../../../fidelity/references/storage.ts";
 import { startFakeS3 } from "../../../scripts/lib/s3-fake.test-helpers.ts";
@@ -110,5 +113,87 @@ describe("R2 fidelity store", () => {
     await storage.delete([url]);
     expect(await storage.get(url)).toBeNull();
     await expect(storage.get("https://evil.example/the-tower-fidelity/x.png")).rejects.toThrow(StorageError);
+  });
+});
+
+describe("S3 mode (MEDIA_STORE=s3, D-323 step 2)", () => {
+  const bucketName = "tower-media-994763873392-us-east-1";
+  const role = { MEDIA_STORE: "s3", MEDIA_S3_BUCKET: bucketName, AWS_REGION: "us-east-1", AWS_ACCESS_KEY_ID: "ASIATESTROLE", AWS_SECRET_ACCESS_KEY: secret, AWS_SESSION_TOKEN: "fake-session-token" };
+
+  it("is chosen only by MEDIA_STORE=s3; unset or r2 keeps R2; anything else is refused", () => {
+    expect(mediaStoreMode({})).toBe("r2");
+    expect(mediaStoreMode({ MEDIA_STORE: "r2" })).toBe("r2");
+    expect(mediaStoreMode({ MEDIA_STORE: "s3" })).toBe("s3");
+    expect(() => mediaStoreMode({ MEDIA_STORE: "blob" })).toThrow(StorageError);
+    // R2 env plus role credentials but no switch: still R2.
+    expect(() => createConfiguredMediaStore({ ...role, MEDIA_STORE: undefined }, "rw")).toThrow(/R2_ACCESS_KEY_ID_RW/);
+    expect(getMediaStorageEnv(role)).toEqual({ access: "rw" });
+    expect(() => getMediaStorageEnv({ ...role, MEDIA_S3_BUCKET: undefined })).toThrow(/MEDIA_S3_BUCKET/);
+    expect(optionalReadStore({ MEDIA_STORE: "s3" })).toBeUndefined();
+    expect(optionalReadStore(role)?.publicUrl("m/a.jpg")).toBe(`https://${MEDIA_PUBLIC_HOST}/m/a.jpg`);
+  });
+
+  it("uses the virtual-hosted regional endpoint and the role's credentials, never an R2 key", () => {
+    const config = s3Config({ ...role, R2_ACCESS_KEY_ID_RW: "R2KEY", R2_SECRET_ACCESS_KEY_RW: "r2secret" });
+    expect(config).toMatchObject({ endpoint: `https://${bucketName}.s3.us-east-1.amazonaws.com`, bucket: bucketName, region: "us-east-1", accessKeyId: "ASIATESTROLE", sessionToken: "fake-session-token", store: "s3", addressing: "virtual" });
+    expect(() => s3Config({ ...role, AWS_REGION: "auto" })).toThrow(StorageError);
+    expect(() => s3Config({ ...role, MEDIA_S3_BUCKET: "a.b.c" })).toThrow(StorageError);
+    expect(() => s3Config({ ...role, AWS_SECRET_ACCESS_KEY: undefined })).toThrow(StorageError);
+    const bucket = createS3Bucket(config);
+    expect(bucket.objectUrl("m/a b.jpg")).toBe(`https://${bucketName}.s3.us-east-1.amazonaws.com/m/a%20b.jpg`);
+    expect(bucket.keyFromUrl(bucket.objectUrl("m/a b.jpg"))).toBe("m/a b.jpg");
+    expect(() => bucket.keyFromUrl("https://evil.example/m/a.jpg")).toThrow(StorageError);
+    // The public URL stays on the media host in S3 mode.
+    expect(createWritableMediaStore(role).publicUrl("m/a.jpg")).toBe(`https://${MEDIA_PUBLIC_HOST}/m/a.jpg`);
+  });
+
+  it("signs for service s3 in AWS_REGION and sends the session token (fake fetch, no network)", async () => {
+    const sent = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 404 }));
+    try {
+      expect(await createS3Bucket(s3Config(role)).head("m/a.jpg")).toBeNull();
+      const request = sent.mock.calls.map(([value]) => value).find((value): value is Request => value instanceof Request);
+      expect(request?.url).toBe(`https://${bucketName}.s3.us-east-1.amazonaws.com/m/a.jpg`);
+      expect(request?.headers.get("authorization")).toMatch(/^AWS4-HMAC-SHA256 Credential=ASIATESTROLE\/\d{8}\/us-east-1\/s3\/aws4_request, SignedHeaders=[^ ]*x-amz-security-token/);
+      expect(request?.headers.get("x-amz-security-token")).toBe("fake-session-token");
+      expect(String(request?.headers.get("authorization"))).not.toContain(secret);
+    } finally { sent.mockRestore(); }
+  });
+
+  it("put with overwrite false answers exists on a live key; copy never replaces and sends no Cloudflare header", async () => {
+    // The local fake ignores destination conditions on copy, like S3: only the HEAD guard keeps the target.
+    const bucket = createS3Bucket({ endpoint: s3.endpoint, bucket: "s3-mode", region: "us-east-1", accessKeyId: "AKIDTEST", secretAccessKey: secret, sessionToken: "fake-session-token", store: "s3" });
+    expect(await bucket.put("m/s3.jpg", Buffer.from("original"), { contentType: "image/jpeg" })).toBe("created");
+    expect(await bucket.put("m/s3.jpg", Buffer.from("other"), { contentType: "image/jpeg" })).toBe("exists");
+    expect(String(await bucket.get("m/s3.jpg"))).toBe("original");
+    await bucket.put("covers/s3/source.jpg", Buffer.from("source"), { contentType: "image/jpeg" });
+    const sent = vi.spyOn(globalThis, "fetch");
+    try {
+      expect(await bucket.copy("covers/s3/source.jpg", "m/s3.jpg", "image/jpeg", "immutable")).toBe("exists");
+      expect(String(await bucket.get("m/s3.jpg"))).toBe("original");
+      expect(await bucket.copy("covers/s3/source.jpg", "m/s3-copy.jpg", "image/jpeg", "immutable")).toBe("created");
+      expect(String(await bucket.get("m/s3-copy.jpg"))).toBe("source");
+      const copies = sent.mock.calls.map(([value]) => value).filter((value): value is Request => value instanceof Request && value.headers.has("x-amz-copy-source"));
+      expect(copies).toHaveLength(1);
+      expect(copies[0]?.headers.get("cf-copy-destination-if-none-match")).toBeNull();
+      expect(copies[0]?.headers.get("x-amz-copy-source")).toBe("/s3-mode/covers/s3/source.jpg");
+    } finally { sent.mockRestore(); }
+    await bucket.delete("m/s3-copy.jpg");
+    expect(await bucket.head("m/s3-copy.jpg")).toBeNull();
+  });
+
+  it("retries a put once on S3's 409 ConditionalRequestConflict", async () => {
+    const statuses = [409, 412];
+    const sent = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(new Response(null, { status: statuses.shift() ?? 500 })));
+    try {
+      const bucket = createS3Bucket(s3Config(role), { now: () => 0, wait: () => Promise.resolve(), jitter: () => 0 });
+      expect(await bucket.put("m/a.jpg", Buffer.from("x"), { contentType: "image/jpeg" })).toBe("exists");
+      expect(sent).toHaveBeenCalledTimes(2);
+    } finally { sent.mockRestore(); }
+  });
+
+  it("leaves R2 mode as it was: path-style Cloudflare endpoint, region auto, atomic copy header, no session token", () => {
+    const config = r2Config({ R2_ACCOUNT_ID: "f".repeat(32), R2_ACCESS_KEY_ID_RW: "a", R2_SECRET_ACCESS_KEY_RW: "b", AWS_SESSION_TOKEN: "ignored" }, "open-university-media", "rw");
+    expect(config).toEqual({ endpoint: `https://${"f".repeat(32)}.r2.cloudflarestorage.com`, bucket: "open-university-media", accessKeyId: "a", secretAccessKey: "b", region: "auto" });
+    expect(createS3Bucket(config).objectUrl("m/a.jpg")).toBe(`https://${"f".repeat(32)}.r2.cloudflarestorage.com/open-university-media/m/a.jpg`);
   });
 });
