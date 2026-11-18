@@ -287,3 +287,27 @@ A mesma PR passa o `order.json` para `"dns": ["media", "mail"]`, e o `build` avi
 - **Só o encaminhamento:** a Torre grava `{}` no mapa, o que vale na hora e sem deploy. Ou uma PR esvazia `MapParameter`, e a regra volta a só gravar.
 - **Antes do corte:** a Torre desativa o conjunto (`aws ses set-active-receipt-rule-set`, sem nome), porque o CloudFormation não apaga um conjunto ativo. Depois, uma PR põe `Mail=off`. A identidade sai com ela, e o bucket fica retido e se esvazia em 30 dias.
 - **Depois do corte:** primeiro a PR de reversão do corte (`build` sem `--mail` e `"dns": ["media"]`), porque a `mail` não pode tirar as exportações enquanto a `dns` as importa. Com o NS já no Route 53, o Email Routing da Cloudflare não volta sozinho. Voltar o e-mail para a Cloudflare é voltar o NS (a reversão do passo 3).
+
+## O corte da mídia, feito (18/11)
+A Torre fez os passos 1 a 5 do corte entre 20:43 e 20:49Z, e a sessão conferiu o resultado de fora.
+- **Os passos:**
+  1. A política `tower-media-s3` foi posta no papel do Lambda.
+  2. `MEDIA_STORE=s3` e `MEDIA_S3_BUCKET` entraram no Lambda e no segredo `open-university/web-env`.
+  3. O build `lambda-19f92d4` está no ar.
+  4. A cópia final teve delta zero: nenhum objeto entrou depois de 18:04Z, e o S3 continua idêntico.
+  5. O `media` agora é um CNAME só de DNS para a distribuição de mídia.
+     - Antes, o registro era gerado pelo domínio personalizado do R2, e por isso a Torre tirou esse domínio do bucket.
+     - O `r2.dev` já estava desligado, então o R2 ficou sem acesso público.
+- **A conferência:** a home responde 200. Uma mídia da home responde `server: AmazonS3` e `via: CloudFront`, e os logs do Lambda não mostram erro de armazenamento.
+- **Ainda falta provar:** que um upload feito pelo site cai no S3. Basta o primeiro upload de admin.
+- **O caminho de volta:** apagar o CNAME e recriar o domínio personalizado do R2 no bucket.
+
+**O que fica com o dono:**
+- **A revogação da chave de escrita do R2.** O conector da Torre não lê nem revoga tokens da Cloudflare: falta o escopo `account-api-tokens.write`. A revogação é no painel, em R2 → Manage API tokens. O Lambda antigo só tinha a chave de leitura.
+- **Os endereços e destinos do e-mail.** O conector também não lê o Email Routing: faltam `zone-settings.read`, `email-routing-rule.read` e `email-routing-address.read`. Eles vêm do painel, em Email → Routing.
+
+**Decisões de 18/11:**
+- **O dono (Daniel, 17:42 BRT), sobre as outras zonas:**
+  - só `theopenuniversity.si` continua redirecionando para `openuniversity.si`, agora na AWS, com o desenho feito pela sessão;
+  - `thetower.si` e `atorre.digital` deixam de redirecionar, sem substituto.
+- **A Torre:** a guarda de 30 dias das mensagens fica, e o remetente do encaminhamento se chama "Open University".

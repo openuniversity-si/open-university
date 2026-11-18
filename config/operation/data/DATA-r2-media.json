@@ -2,14 +2,14 @@
   "id": "DATA-r2-media",
   "name": "the site's media bucket",
   "kind": "bucket",
-  "location": "Cloudflare R2, R2_MEDIA_BUCKET (apps/web/scripts/lib/r2.ts)",
-  "supplier": "SUP-cloudflare",
+  "location": "AWS S3, tower-media-994763873392-us-east-1 (infra/aws/stacks/60-media.json), served by CloudFront as media.openuniversity.si; Cloudflare R2 open-university-media is the second copy for 30 days",
+  "supplier": "SUP-aws",
   "owner": "Daniel",
   "personal": false,
   "backup": {
     "method": "replicated",
     "restore_proof": "the copy to S3 compared object by object: rclone size on both sides and the MD5 of every object against its R2 ETag (the Torre, D-323 step 2)",
     "last_restore_verified": "2026-11-18",
-    "note": "A versioned copy in S3 (tower-media-994763873392-us-east-1, the media stack 60-media.json, noncurrent versions kept 90 days): 31,026 objects and 3,388,187,740 bytes on both sides, 0 differences, copied and verified by the Torre on 2026-11-18. R2 stays the primary until the cut (docs/programs/padrao-dev/fornecimento-cloudflare.md, Passo 2), after which S3 is the primary and R2 the second copy for 30 days."
+    "note": "The cut was made on 2026-11-18 (the Torre, 20:43-20:49Z): the site writes to S3 (MEDIA_STORE=s3, the Lambda role), media.openuniversity.si resolves to the media distribution, and R2 lost its public access (custom domain removed, r2.dev off). R2 open-university-media stays the second copy, byte-identical (31,026 objects, 3,388,187,740 bytes, compared object by object after the cut, no object written after the first copy); it is deleted after 30 days without reads. S3 versioning keeps noncurrent versions 90 days."
   }
 }
