@@ -22,6 +22,7 @@ import gc
 import json
 import os
 from pty import STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO
+import select
 import selectors
 import signal
 import socket
@@ -35,6 +36,7 @@ import time
 SERVER = 'OU_FORK_SERVER'  # the server's directory: <dir>/socket, <dir>/bin/python3 (the client), <dir>/ready
 PYTHON = 'OU_FORK_SERVER_PYTHON'  # the real interpreter the client execs when the server says so
 SOCKET, READY, BIN = 'socket', 'ready', 'bin'
+READY_FD = 'OU_FORK_SERVER_READY_FD'  # the pipe the server writes READY on once it listens; the starter blocks on it
 FALLBACK, STARTED, EXITED = b'F', b'P', b'X'
 STATUS = '<i'  # a pid or a wait status after STARTED and EXITED
 TARGET = '<i'  # each descriptor number the client holds, in the order of its SCM_RIGHTS (after its cwd)
@@ -199,6 +201,7 @@ def serve(folder, preload=()):
     gc.freeze()  # the heap every fork shares: the collector never touches (and so never copies) its pages
     with open(os.path.join(folder, READY), 'w'):
         pass
+    _signal_ready()
     try:
         while True:
             for key, _ in selector.select():
@@ -469,11 +472,12 @@ def interpreter(environ, toolchain=None):
 
 
 @contextlib.contextmanager
-def started(environ, preload, compiler, start_s, poll_s, reuse=True, toolchain=None):
+def started(environ, preload, compiler, start_s, reuse=True, toolchain=None):
     """One fork server for a suite run: yields the variables its tests get (the client first on PATH, the server, the
     real interpreter), or {} when there is none to start (no compiler, no pidfd, a server that did not listen within
-    start_s, looked for every poll_s) or an outer run's server already serves this one. `environ`: the tests' own;
-    `toolchain`: the checkout's .toolchain, whose python3 is the real interpreter (interpreter())."""
+    start_s) or an outer run's server already serves this one. The starter blocks on a pipe the server writes READY on
+    (READY_FD), woken by that write or by the server's exit (end of file), never by an interval. `environ`: the tests'
+    own; `toolchain`: the checkout's .toolchain, whose python3 is the real interpreter (interpreter())."""
     if reuse and os.environ.get(SERVER) and os.path.exists(os.path.join(os.environ[SERVER], READY)):
         yield {}
         return
@@ -497,13 +501,19 @@ def started(environ, preload, compiler, start_s, poll_s, reuse=True, toolchain=N
             server_env = {**environ, 'PYTHONPATH': os.pathsep.join(entries)}
             if not server_env['PYTHONPATH']:
                 del server_env['PYTHONPATH']
-            with open(os.path.join(folder, 'log'), 'w') as log:
-                process = subprocess.Popen([real, _HERE, 'serve', folder, *preload], env=server_env,
-                                           stdin=subprocess.DEVNULL, stdout=log, stderr=log)
-            deadline = time.monotonic() + start_s
-            while not os.path.exists(os.path.join(folder, READY)) and process.poll() is None \
-                    and time.monotonic() < deadline:
-                time.sleep(poll_s)
+            reader, writer = os.pipe()
+            try:
+                with open(os.path.join(folder, 'log'), 'w') as log:
+                    process = subprocess.Popen([real, _HERE, 'serve', folder, *preload],
+                                               env={**server_env, READY_FD: str(writer)}, pass_fds=(writer,),
+                                               stdin=subprocess.DEVNULL, stdout=log, stderr=log)
+                os.close(writer)
+                writer = None
+                select.select([reader], [], [], start_s)  # READY, the server's exit (EOF) or start_s
+            finally:
+                if writer is not None:
+                    os.close(writer)
+                os.close(reader)
         if process is None or not os.path.exists(os.path.join(folder, READY)):
             yield {}
             return
@@ -525,6 +535,19 @@ def main(argv):
     signal.signal(signal.SIGTERM, _stop)
     job = serve(folder, preload)
     return become(job, base_path)
+
+
+def _signal_ready():
+    """Tells the starter the server listens: one byte on the READY_FD pipe, then closes it (started())."""
+    fd = os.environ.pop(READY_FD, '')
+    if not fd.isdigit():
+        return
+    try:
+        os.write(int(fd), READY.encode())
+    except OSError:
+        pass
+    finally:
+        os.close(int(fd))
 
 
 def _stop(_number, _frame):

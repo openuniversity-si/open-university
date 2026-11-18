@@ -335,7 +335,7 @@ def forks(env, todo, tool_root=None):
     if len(todo) < max(1, setting('fork_server_min_tests')) or not setting('fork_server'):
         return contextlib.nullcontext({})
     return fork_server.started({**os.environ, **env}, setting('fork_server_preload'), setting('fork_server_compiler'),
-                               setting('fork_server_start_s'), setting('jobserver_poll_s'),
+                               setting('fork_server_start_s'),
                                toolchain=str(Path(tool_root) / '.toolchain') if tool_root else None)
 
 

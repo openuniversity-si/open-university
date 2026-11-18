@@ -35,7 +35,7 @@ class Server(unittest.TestCase):
         cls._started = fork_server.started(
             environ, [*config.get("gate.fork_server_preload"), "no_such_module_anywhere"],
             config.get("gate.fork_server_compiler"),
-            config.get("gate.fork_server_start_s"), config.get("gate.jobserver_poll_s"), reuse=False)
+            config.get("gate.fork_server_start_s"), reuse=False)
         cls.overlay = cls._started.__enter__()
         cls.env = {**environ, **cls.overlay, "PROBE_VALUE": "from-the-caller"}
 
@@ -301,20 +301,32 @@ class Interpreter(unittest.TestCase):
 
 class NoServer(unittest.TestCase):
     def test_a_box_without_the_compiler_runs_fresh_interpreters(self):
-        with fork_server.started(dict(os.environ), [], "no-such-compiler-on-this-box", 1, 1, reuse=False) as overlay:
+        with fork_server.started(dict(os.environ), [], "no-such-compiler-on-this-box", 1, reuse=False) as overlay:
             self.assertEqual(overlay, {})
 
     def test_a_server_that_does_not_listen_in_time_runs_fresh_interpreters(self):
         environ = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
         with fork_server.started(environ, [], config.get("gate.fork_server_compiler"), 0,
-                                 config.get("gate.jobserver_poll_s"), reuse=False) as overlay:
+                                 reuse=False) as overlay:
             self.assertEqual(overlay, {})
+
+    def test_the_server_says_ready_on_the_starters_pipe_and_closes_it(self):
+        # F8b: the starter blocks on this pipe (select), woken by the byte or by the server's exit, never an interval
+        reader, writer = os.pipe()
+        try:
+            with mock.patch.dict(os.environ, {fork_server.READY_FD: str(writer)}):
+                fork_server._signal_ready()
+                self.assertNotIn(fork_server.READY_FD, os.environ)
+            self.assertEqual(os.read(reader, len(fork_server.READY) + 1), fork_server.READY.encode())
+            self.assertEqual(os.read(reader, 1), b"")  # closed: the server's forks never inherit it
+        finally:
+            os.close(reader)
 
     def test_an_outer_runs_server_serves_an_inner_run(self):
         with tempfile.TemporaryDirectory() as folder:
             pathlib.Path(folder, fork_server.READY).touch()
             with mock.patch.dict(os.environ, {fork_server.SERVER: folder}):
-                with fork_server.started(dict(os.environ), [], "cc", 1, 1) as overlay:
+                with fork_server.started(dict(os.environ), [], "cc", 1) as overlay:
                     self.assertEqual(overlay, {})
 
 

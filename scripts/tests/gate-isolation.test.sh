@@ -54,7 +54,7 @@ rc=0; PATH="$work/bin:$PATH" ou_test_db_ensure "postgresql://u@127.0.0.1:54322/x
 check "ensure refuses an unsafe database name" test "$rc" = 2
 
 # 3. Global semaphore: GATE_SLOTS holders at once, the next one waits for a release.
-export GATE_SLOT_DIR="$work/slots" GATE_SLOTS=3 GATE_SLOT_POLL=0.1
+export GATE_SLOT_DIR="$work/slots" GATE_SLOTS=3
 mkdir -p "$GATE_SLOT_DIR"
 holder() { # $1 = name; holds a slot until $work/release-$1 exists
   bash -c 'source "$1"; unset OU_GATE_SLOT; ou_gate_slot_acquire 2>/dev/null || exit 1
@@ -107,7 +107,7 @@ check "eight vCPUs get their vCPUs times gate.slots_per_vcpu" test "$(slots_for 
 check "more vCPUs never get fewer slots" test "$(slots_for $((two * two * two)))" -ge "$(slots_for $((two + two)))"
 check "GATE_SLOTS wins over the vCPUs" test "$(GATE_SLOTS="$two" GATE_VCPUS=1 bash -c 'source "$1/scripts/lib/gate-isolation.sh"; ou_gate_slot_count' _ "$root")" = "$two"
 check "the registry holds the /tmp slot directory" test "$(ou_config_value gate.slot_dir)" = /tmp
-check "the registry holds a one-second poll" test "$(ou_config_value gate.slot_poll_s)" = 1
+check "a waiter blocks on the slot locks, never an interval (F8b)" bash -c '! grep -nE "(^|[;&|(\s])sleep\s" "$1"' _ "$root/scripts/lib/gate-isolation.sh"
 mkdir -p "$work/alt/scripts/lib" "$work/alt/scripts/cloud" "$work/alt/config" "$work/altslots"
 cp "$root"/scripts/lib/*.py "$root"/scripts/lib/*.json "$root/scripts/lib/gate-isolation.sh" "$work/alt/scripts/lib/"
 cp "$root/scripts/cloud/test-db.sh" "$work/alt/scripts/cloud/"
@@ -115,7 +115,7 @@ cp -R "$root/config/registry" "$work/alt/config/"
 cp -R "$root/contracts" "$work/alt/"
 sed -i -e '/"gate.slots": {/,/"default"/ s/"default": 0,/"default": 2,/' -e "s|\"default\": \"/tmp\"|\"default\": \"$work/altslots\"|" "$work/alt/config/registry/gate.json"
 alt_slots() {
-  env -u GATE_SLOTS -u GATE_SLOT_DIR -u GATE_SLOT_POLL -u OU_GATE_SLOT "$@" bash -c \
+  env -u GATE_SLOTS -u GATE_SLOT_DIR -u OU_GATE_SLOT "$@" bash -c \
     'source "$1/scripts/lib/gate-isolation.sh"; ou_gate_slot_acquire 2>/dev/null || exit 1; printf "%s %s" "$OU_GATE_SLOTS" "$OU_GATE_SLOT"' _ "$work/alt"
 }
 check "a registry of two slots in its own directory drives the semaphore" test "$(alt_slots)" = "2 1"

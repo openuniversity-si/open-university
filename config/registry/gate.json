@@ -672,17 +672,6 @@
       ],
       "x-source": "D-064 (b)"
     },
-    "gate.slot_poll_s": {
-      "type": "number",
-      "default": 1,
-      "exclusiveMinimum": 0,
-      "x-unit": "s",
-      "description": "Seconds between checks for a free gate slot while every slot is busy; contention, not a wait for the gate itself. GATE_SLOT_POLL, when set, is an explicit override for one run.",
-      "x-readers": [
-        "scripts/lib/gate-isolation.sh"
-      ],
-      "x-source": "D-064 (b)"
-    },
     "gate.slots": {
       "type": "integer",
       "default": 0,

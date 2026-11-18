@@ -9,8 +9,9 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 fail() { echo "FAIL $*" >&2; exit 1; }
 expect() { [[ "$1" == "$2" ]] || fail "expected [$2] got [$1]: ${3:-}"; }
-export GATE_SLOT_DIR="$work/slots" GATE_SLOT_POLL=0.05 tool_root="$here/../.." root="$work"
+export GATE_SLOT_DIR="$work/slots" tool_root="$here/../.." root="$work"
 mkdir -p "$GATE_SLOT_DIR"
+rendezvous_poll=0.05  # the test's own rendezvous: how often a job looks at the event log
 # shellcheck source=scripts/lib/gate-isolation.sh
 source "$lib/gate-isolation.sh"
 
@@ -35,7 +36,7 @@ peak_of() {
         deadline=$((SECONDS + wait_s))
         until [[ $(grep -c "^+" "$events") -ge $want || $SECONDS -ge $deadline ]]; do sleep "$poll"; done
         sleep "$hold"
-        echo - >>"$events"' bash "$events" "$want" "$rendezvous_wait" "$hold" "$GATE_SLOT_POLL"
+        echo - >>"$events"' bash "$events" "$want" "$rendezvous_wait" "$hold" "$rendezvous_poll"
     ) &
   done
   wait
