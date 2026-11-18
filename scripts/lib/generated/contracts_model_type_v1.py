@@ -11,5 +11,6 @@ TypeV1 = TypedDict('TypeV1', {
     'covered_by': NotRequired[list[dict[str, Any]]],
     'must_link': NotRequired[list[str]],
     'unconformant_states': NotRequired[list[str]],
+    'unconformant_when': NotRequired[list[dict[str, list[str | bool | int | None]]]],
     'description': Required[str],
 }, total=False)
