@@ -16,7 +16,15 @@ Pela Torre, literal: "pode aprovar, pode seguir com isso aí" e "tudo o restante
   [D-329](../../domain/decisions/D-329.md) (o `pr metadata` volta ao `tower/gate`, lendo a PR do GitHub).
 - **Já aplicado:** as nove regras de A, B e D têm `basis` e a `note` "Basis: ...". O código do E, o estágio do
   `pr metadata`, o estado `dormant` do D e as reescritas de enunciado vêm em PRs próprias, que citam esses números.
-- **C (o método de gestão) não foi aprovado:** espera a pergunta sobre o grupo de gestão. `STD-metodo` segue sem base.
+- **C (o método de gestão) não foi aprovado em 20:19:** esperava a pergunta sobre o grupo de gestão.
+
+## Resposta de Daniel (18/11 20:31 BRT)
+Pela Torre, literal: "manda é pra esperar meu ok em nada não. Meu ok é pra ser esperado situações muito específicas,
+normalmente quando envolve dinheiro ou outras pessoas." A Torre mandou seguir com a recomendação: a gestão vira um
+grupo de sistemas separado (intenção, trabalho, decisões, medição, pela divisão da ISO/IEC/IEEE 15288 entre processos
+técnicos e de gestão), com o `METODO.md` como o padrão atual desse grupo, e o C decide só essa fronteira →
+[D-330](../../domain/decisions/D-330.md). `STD-metodo` tem `basis: [D-330]`; o campo `group` dos sistemas e a medida por
+grupo vêm numa PR própria.
 
 ## Resumo
 - **16 regras avaliadas.** 13 são regras de verdade e 3 não recusam nada. A #230 contou 2 casos assim; `generate-blocked`
