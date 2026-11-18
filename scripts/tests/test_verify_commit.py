@@ -252,6 +252,18 @@ class TheVerifier(unittest.TestCase):
         [(name, _)] = paces
         self.assertEqual(name, 'the batch of tests (t4 40.0 s, t3 30.0 s, t2 20.0 s)')
 
+    def test_the_job_log_names_every_test_of_five_seconds_or_more_with_its_wall(self):
+        # GATE-WALLS: not only the three slowest; a test under WALL_MIN_S is left out
+        import contextlib
+        import io
+        fake = Fake(plan={'stages': [], 'tests': [f'scripts/tests/t{n}.test.sh' for n in range(6)]})
+        fake.seconds = {f'scripts/tests/t{n}.test.sh': float(n * 2.5) for n in range(6)}  # 0, 2.5, 5, 7.5, 10, 12.5
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post'], run=fake), 0)
+        [line] = [each for each in out.getvalue().splitlines() if each.startswith('verify-commit: walls: ')]
+        self.assertEqual(line, 'verify-commit: walls: t5 12.5 s, t4 10.0 s, t3 7.5 s, t2 5.0 s')
+
     def test_the_job_log_names_the_pace_of_a_part(self):
         import contextlib
         import io
