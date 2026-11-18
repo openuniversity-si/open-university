@@ -1,0 +1,10 @@
+{
+  "name": "refutes",
+  "from": [
+    "D"
+  ],
+  "to": [
+    "P"
+  ],
+  "description": "A decision refutes a premise it names: its record says \"refutes P-NN\" (D-320 refutes P-58). Not an assumption: the knowledge measure does not count it as a refuted premise still assumed."
+}
