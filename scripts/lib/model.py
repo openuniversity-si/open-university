@@ -834,11 +834,40 @@ def _git(root, *args):
     return run.stdout if run.returncode == 0 else ''
 
 
+def _changed_units(root):
+    """{merge sha: [UNIT:<id>]}: the units whose paths each first-parent merge's diff (against its first parent)
+    touched, matched with the unit graph's own matcher (units.units_of, the manifests of the working tree). One git
+    call for every merge; a tree with no valid unit map derives nothing."""
+    import units
+    from config import ConfigError
+    listed = _git(root, 'log', '--first-parent', '--merges', '--diff-merges=first-parent', '--name-only',
+                  '--format=%x1e%H', 'HEAD')
+    if not listed:
+        return {}
+    try:
+        units.manifests(root)
+    except (units.UnitError, ConfigError):
+        return {}
+    owners, result = {}, {}
+    for block in listed.split('\x1e')[1:]:
+        sha, *paths = block.split('\n')
+        hit = []
+        for path in filter(None, paths):
+            if path not in owners:
+                owners[path] = units.units_of(path, root)
+            hit += owners[path]
+        result[sha.strip()] = [f'UNIT:{unit}' for unit in sorted(set(hit))]
+    return result
+
+
 def read_changes(root):
     """Changes (CHG): every merge on the first-parent line of HEAD, one per pull request (CHG-<number>, else
-    CHG-<sha>), merged; the `Implements:` trailers of its commits become implements links (requirements or units,
-    comma-separated)."""
+    CHG-<sha>), merged; the `Implements:` trailers of its commits become implements links (requirements, decisions
+    or units, comma-separated: intent), and each unit its diff touched becomes an implements link marked
+    `source: diff` (a fact: the link type's "changes a unit"). Only a trailer names a requirement, so a diff-derived
+    link never implements one (`implemented`)."""
     found = []
+    touched = _changed_units(Path(root))
     for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
         sha, _, subject = line.partition('\x1f')
         number = PR_NUMBER.search(subject)
@@ -848,6 +877,8 @@ def read_changes(root):
         for listed in TRAILER_IMPLEMENTS.findall(bodies):
             targets += [target.strip() for target in listed.split(',') if target.strip()]
         links = [{'type': 'implements', 'target': target} for target in dict.fromkeys(targets)]
+        links += [{'type': 'implements', 'target': unit, 'source': 'diff'} for unit in touched.get(sha, [])
+                  if unit not in targets]
         item = _obj(ident, 'CHG', 'merged', f'git:{sha}', sha, links)
         item['body'] = {'sha': sha, 'subject': subject}
         found.append(item)
