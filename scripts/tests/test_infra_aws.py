@@ -176,7 +176,12 @@ class BootstrapTests(unittest.TestCase):
     # /tower/infra-deploy too. The file is the applied one (raw sha256 28402007...42ac).
     # AWS-REVIEW DLQ alarm (the Torre, 17/11/2026 17:50:22 UTC): change set req-dlq-alarm, UPDATE_COMPLETE, one resource
     # added (EventsDeadLettersAlarm, tower-events-dlq-messages); raw sha256 a0d4e34e...be14.
-    APPLIED = 'ac6be32ed5be9fe950d861d996e832b3b572ade0361563df0781fe675432bc39'
+    # MEDIA-S3 (D-323 step 2, 18/11/2026): the boundary's workload statement adds cloudfront:* (the media stack's
+    # distribution, its origin access control and its cache policy; CloudFront answers in us-east-1, the stack region) and
+    # two reads of ACM (DescribeCertificate, ListCertificates) for a certificate the Torre issues; no stack may request
+    # one (MediaStackTests). The Torre re-applies tower-bootstrap with this template after the merge (UsePreviousValue for
+    # its parameters), as for QUEUE-RELOAD; until then the media stack stays at Cdn off (parameters.json), buckets only.
+    APPLIED = '76a21a0e2550ce0182bdaa552c5dd464d63e4053e589598135918c81d9b88501'
 
     def test_the_file_is_the_template_the_account_has_applied(self):
         canonical = json.dumps(self.template, sort_keys=True, separators=(',', ':'))
@@ -1060,6 +1065,239 @@ class PortFunctionNamesTests(unittest.TestCase):
             self.assertIn(f':function:{name}:*"', listed)
         for old in self.OLD:
             self.assertNotIn(f':function:{old}"', listed)
+
+
+PSEUDO = {'AWS::AccountId', 'AWS::Region', 'AWS::Partition', 'AWS::NoValue', 'AWS::StackName', 'AWS::URLSuffix'}
+
+
+def resolve(template, values):
+    """The template CloudFormation would create for these parameter values, offline: the conditions evaluated, the resources
+    and outputs of a false condition dropped, every Fn::If taken and AWS::NoValue removed from objects and lists."""
+    params = {name: values.get(name, spec.get('Default')) for name, spec in template.get('Parameters', {}).items()}
+    conditions = {}
+
+    def cond(node):
+        if isinstance(node, dict) and len(node) == 1:
+            (key, arg), = node.items()
+            if key == 'Condition':
+                if arg not in conditions:
+                    conditions[arg] = cond(template['Conditions'][arg])
+                return conditions[arg]
+            if key == 'Fn::Equals':
+                return value(arg[0]) == value(arg[1])
+            if key == 'Fn::Not':
+                return not cond(arg[0])
+            if key == 'Fn::And':
+                return all(cond(item) for item in arg)
+            if key == 'Fn::Or':
+                return any(cond(item) for item in arg)
+        raise AssertionError(f'not a condition: {node}')
+
+    def value(node):
+        if isinstance(node, dict) and set(node) == {'Ref'} and node['Ref'] in params:
+            return params[node['Ref']]
+        return node
+
+    def walk(node):
+        if isinstance(node, dict):
+            if set(node) == {'Fn::If'}:
+                name, yes, no = node['Fn::If']
+                return walk(yes if cond({'Condition': name}) else no)
+            if node == {'Ref': 'AWS::NoValue'}:
+                return None
+            out = {key: walk(item) for key, item in node.items()}
+            return {key: item for key, item in out.items() if item is not None}
+        if isinstance(node, list):
+            return [item for item in (walk(item) for item in node) if item is not None]
+        return node
+
+    keep = lambda section: {name: walk(item) for name, item in template.get(section, {}).items()
+                            if 'Condition' not in item or cond({'Condition': item['Condition']})}
+    return {'Resources': keep('Resources'), 'Outputs': keep('Outputs'), 'Parameters': params}
+
+
+def references(node):
+    """Every name a node points at: Ref, Fn::GetAtt and the ${X} or ${X.Attr} of Fn::Sub."""
+    found = set()
+    if isinstance(node, dict):
+        for key, item in node.items():
+            if key == 'Ref':
+                found.add(item)
+            elif key == 'Fn::GetAtt':
+                found.add(item[0] if isinstance(item, list) else item.split('.')[0])
+            elif key == 'Fn::Sub':
+                text = item if isinstance(item, str) else item[0]
+                found |= {name.split('.')[0] for name in re.findall(r'\$\{([^}!]+)\}', text)}
+                if isinstance(item, list):
+                    found |= references(item[1])
+            else:
+                found |= references(item)
+            if key == 'DependsOn':
+                found |= set(as_list(item))
+    elif isinstance(node, list):
+        for item in node:
+            found |= references(item)
+    return found
+
+
+class MediaStackTests(unittest.TestCase):
+    """MEDIA-S3 (D-323 step 2): the site's media bucket and its distribution. A merge to main deploys every stack, so the
+    stack must create cleanly with no certificate and no DNS, and before the Torre re-applies the bootstrap with
+    cloudfront:* in the boundary: Cdn off is the buckets alone, Cdn on without a certificate is the distribution on its
+    default domain, and the alias only comes with a certificate ARN the Torre already issued and validated."""
+    PATH = INFRA / 'stacks/60-media.json'
+
+    def setUp(self):
+        self.template = load(self.PATH)
+        self.parameters = load(INFRA / 'parameters.json')['media']
+
+    def created(self, **values):
+        resolved = resolve(self.template, values)
+        names = set(resolved['Resources']) | set(resolved['Parameters']) | PSEUDO
+        for section in ('Resources', 'Outputs'):
+            for name, item in resolved[section].items():
+                dangling = references(item) - names
+                self.assertEqual(dangling, set(), f'{section} {name} points at what this deploy does not create')
+        return resolved
+
+    def test_it_is_in_the_order_and_needs_no_other_stack(self):
+        self.assertEqual(load(INFRA / 'order.json')['media'], [])
+        self.assertNotIn('Fn::ImportValue', json.dumps(self.template))
+
+    def test_the_first_deploy_is_the_buckets_alone_and_waits_on_nothing(self):
+        # the template's Defaults are what CloudFormation creates with, for any parameter deploy.sh does not pass
+        self.assertEqual({name: spec['Default'] for name, spec in self.template['Parameters'].items()},
+                         {'Cdn': 'off', 'CertificateArn': '', 'Alias': ''})
+        first = self.created()
+        self.assertEqual(sorted(first['Resources']), ['Media', 'MediaLogs', 'MediaLogsPolicy', 'MediaPolicy'])
+        self.assertEqual(sorted(first['Outputs']), ['BucketName', 'LogsBucketName'])
+        statements = first['Resources']['MediaPolicy']['Properties']['PolicyDocument']['Statement']
+        self.assertEqual([item['Sid'] for item in statements], ['OnlyOverTls'])
+
+    def test_parameters_json_turns_on_only_what_the_account_can_take(self):
+        # deploy.sh passes infra/aws/parameters.json's media object. Cdn on needs the bootstrap with cloudfront:* applied
+        # (the Torre, after this lands); a certificate needs Cdn on, an alias, and CloudFront's region, us-east-1.
+        self.assertIn(self.parameters.get('Cdn', 'off'), ('off', 'on'))
+        self.created(**self.parameters)
+        arn = self.parameters.get('CertificateArn', '')
+        if arn:
+            self.assertEqual(self.parameters.get('Cdn'), 'on')
+            self.assertTrue(self.parameters.get('Alias'))
+            self.assertRegex(arn, r'^arn:aws:acm:us-east-1:\d{12}:certificate/[0-9a-f-]{36}$')
+        if self.parameters.get('Cdn', 'off') == 'off':
+            self.assertNotIn('Distribution', self.created(**self.parameters)['Resources'])
+
+    def test_an_empty_certificate_gives_the_default_domain_and_no_alias(self):
+        for values in ({'Cdn': 'on'}, {'Cdn': 'on', 'Alias': 'media.example.org'}, {**self.parameters, 'Cdn': 'on'},
+                       {'Cdn': 'on', 'CertificateArn': self.arn()}):  # an ARN without an alias is no alias either
+            config = self.created(**values)['Resources']['Distribution']['Properties']['DistributionConfig']
+            self.assertNotIn('Aliases', config, values)
+            self.assertEqual(config['ViewerCertificate'], {'CloudFrontDefaultCertificate': True}, values)
+            self.assertNotIn('CertificateArn', json.dumps(config))
+
+    def test_a_certificate_and_an_alias_give_the_alias_over_sni(self):
+        config = self.created(Cdn='on', Alias='media.openuniversity.si', CertificateArn=self.arn())[
+            'Resources']['Distribution']['Properties']['DistributionConfig']
+        self.assertEqual(config['Aliases'], [{'Ref': 'Alias'}])
+        self.assertEqual(config['ViewerCertificate'], {'AcmCertificateArn': {'Ref': 'CertificateArn'},
+                                                       'SslSupportMethod': 'sni-only', 'MinimumProtocolVersion': 'TLSv1.2_2021'})
+        pattern = re.compile(self.template['Parameters']['CertificateArn']['AllowedPattern'])
+        self.assertTrue(pattern.fullmatch('') and pattern.fullmatch(self.arn()))
+        self.assertIsNone(pattern.fullmatch('arn:aws:iam::123456789012:server-certificate/media'))
+
+    def test_no_stack_requests_a_certificate_or_touches_dns(self):
+        # an ACM certificate waiting for DNS validation inside a stack would hang the deploy of every merge
+        for path in sorted((INFRA / 'stacks').glob('*.json')):
+            kinds = {resource['Type'] for resource in load(path)['Resources'].values()}
+            self.assertEqual({kind for kind in kinds if kind.startswith(('AWS::CertificateManager::', 'AWS::Route53'))},
+                             set(), path.name)
+        boundary = load(INFRA / 'bootstrap.json')['Resources']['Boundary']['Properties']['PolicyDocument']['Statement']
+        workload = next(item for item in boundary if item['Sid'] == 'WorkloadServicesInTheStackRegion')
+        self.assertIn('cloudfront:*', workload['Action'])
+        self.assertEqual(sorted(action for action in workload['Action'] if action.startswith('acm:')),
+                         ['acm:DescribeCertificate', 'acm:ListCertificates'])
+        self.assertFalse([action for action in workload['Action'] if action.startswith('route53')])
+
+    def test_the_bucket_is_private_versioned_encrypted_and_kept(self):
+        resources = self.template['Resources']
+        for name in ('Media', 'MediaLogs'):
+            bucket = resources[name]
+            self.assertEqual((bucket['DeletionPolicy'], bucket['UpdateReplacePolicy']), ('Retain', 'Retain'), name)
+            props = bucket['Properties']
+            self.assertEqual(set(props['PublicAccessBlockConfiguration'].values()), {True}, name)
+            self.assertEqual(len(props['PublicAccessBlockConfiguration']), 4, name)
+            self.assertEqual(props['OwnershipControls'], {'Rules': [{'ObjectOwnership': 'BucketOwnerEnforced'}]}, name)
+            self.assertEqual(props['BucketEncryption']['ServerSideEncryptionConfiguration'][0]
+                             ['ServerSideEncryptionByDefault']['SSEAlgorithm'], 'AES256', name)
+        media = resources['Media']['Properties']
+        self.assertEqual(media['VersioningConfiguration'], {'Status': 'Enabled'})
+        [rule] = media['LifecycleConfiguration']['Rules']
+        self.assertEqual(rule['NoncurrentVersionExpiration'], {'NoncurrentDays': 90})
+        self.assertNotIn('ExpirationInDays', rule)  # a current object never expires: the bucket is the media's home
+        self.assertEqual(media['LoggingConfiguration']['DestinationBucketName'], {'Ref': 'MediaLogs'})
+        self.assertIn('MediaLogsPolicy', as_list(resources['Media']['DependsOn']))  # logging needs the grant first
+
+    def test_only_the_distribution_reads_the_bucket_and_only_over_tls(self):
+        on = self.created(Cdn='on')['Resources']
+        statements = on['MediaPolicy']['Properties']['PolicyDocument']['Statement']
+        deny, allow = statements
+        self.assertEqual((deny['Effect'], deny['Condition']), ('Deny', {'Bool': {'aws:SecureTransport': 'false'}}))
+        self.assertEqual(allow['Principal'], {'Service': 'cloudfront.amazonaws.com'})
+        self.assertEqual(allow['Action'], 's3:GetObject')
+        self.assertIn('distribution/${Distribution}', allow['Condition']['StringEquals']['AWS:SourceArn']['Fn::Sub'])
+        logs = on['MediaLogsPolicy']['Properties']['PolicyDocument']['Statement']
+        self.assertEqual([item['Principal'] for item in logs if item['Effect'] == 'Allow'],
+                         [{'Service': 'logging.s3.amazonaws.com'}])
+        access = on['MediaAccess']['Properties']['OriginAccessControlConfig']
+        self.assertEqual((access['SigningBehavior'], access['SigningProtocol'], access['OriginAccessControlOriginType']),
+                         ('always', 'sigv4', 's3'))
+
+    def test_the_distribution_is_https_only_cached_as_immutable_and_has_nothing_that_bills(self):
+        on = self.created(Cdn='on')['Resources']
+        config = on['Distribution']['Properties']['DistributionConfig']
+        behavior = config['DefaultCacheBehavior']
+        self.assertEqual(behavior['ViewerProtocolPolicy'], 'https-only')
+        self.assertEqual(behavior['AllowedMethods'], ['GET', 'HEAD'])
+        self.assertEqual(behavior['CachePolicyId'], {'Ref': 'Immutable'})
+        [origin] = config['Origins']
+        self.assertEqual(origin['OriginAccessControlId'], {'Fn::GetAtt': ['MediaAccess', 'Id']})
+        self.assertEqual(origin['S3OriginConfig'], {'OriginAccessIdentity': ''})
+        self.assertEqual(config['PriceClass'], 'PriceClass_100')
+        # what costs beyond the free tier: logs, a web ACL, edge functions, an origin shield, a second origin
+        for key in ('Logging', 'WebACLId', 'OriginGroups', 'CacheBehaviors', 'ContinuousDeploymentPolicyId'):
+            self.assertNotIn(key, config)
+        for key in ('LambdaFunctionAssociations', 'FunctionAssociations', 'RealtimeLogConfigArn'):
+            self.assertNotIn(key, behavior)
+        self.assertNotIn('OriginShield', origin)
+        cache = on['Immutable']['Properties']['CachePolicyConfig']
+        self.assertEqual((cache['DefaultTTL'], cache['MaxTTL']), (31536000, 31536000))
+        keyed = cache['ParametersInCacheKeyAndForwardedToOrigin']
+        self.assertEqual((keyed['CookiesConfig'], keyed['HeadersConfig'], keyed['QueryStringsConfig']),
+                         ({'CookieBehavior': 'none'}, {'HeaderBehavior': 'none'}, {'QueryStringBehavior': 'none'}))
+
+    def test_the_outputs_name_the_bucket_and_the_distribution(self):
+        on = self.created(Cdn='on')['Outputs']
+        self.assertEqual(on['BucketName']['Value'], {'Ref': 'Media'})
+        self.assertEqual(on['DistributionId']['Value'], {'Ref': 'Distribution'})
+        self.assertEqual(on['DistributionDomain']['Value'], {'Fn::GetAtt': ['Distribution', 'DomainName']})
+
+    def test_the_cost_it_declares_is_the_real_numbers_and_far_under_the_budget(self):
+        # The Torre's reading of R2 on 17/11 (docs/programs/padrao-dev/fornecimento-cloudflare.md): 3.388 GB in
+        # open-university-media; 21,373 GetObject and 81,462 HeadObject in 30 days, 2.459 GB read. S3 Standard at
+        # US$ 0.023/GB-month and US$ 0.0004 per 1,000 GET/HEAD; CloudFront's free tier is 1 TB and 10M requests a month.
+        storage = 3.388 * 0.023
+        reads = (21373 + 81462) / 1000 * 0.0004
+        self.assertLess(2.459, 1024)
+        self.assertLess(21373 + 81462, 10_000_000)
+        declared = float(re.search(r'About US\$ ([\d.]+) a month', self.template['Description']).group(1))
+        self.assertGreaterEqual(declared, round(storage + reads, 2))
+        self.assertLess(declared, 0.01 * load(INFRA / 'budget.json')['limit']['amount'])
+        for number in ('3.4 GB', '2.5 GB', '1 TB'):
+            self.assertIn(number, self.template['Description'])
+
+    @staticmethod
+    def arn():
+        return 'arn:aws:acm:us-east-1:123456789012:certificate/0123abcd-0123-4567-89ab-0123456789ab'
 
 
 if __name__ == '__main__':

@@ -73,7 +73,7 @@ O dono aprovou a recomendação inteira às 18:20 BRT: sair de tudo da Cloudflar
    - o executor da era Origin continua dormente, e o job `DEPLOY` dele falha com o motivo da D-323;
    - na conta não há o que apagar, porque o Worker e o Durable Object já não existiam.
 2. **As mídias para o S3:**
-   - uma stack com o bucket (versionamento ligado), o CloudFront e o certificado do ACM;
+   - uma stack com o bucket (versionamento ligado) e o CloudFront; o certificado do ACM é pedido fora dela (ver "Passo 2: execução");
    - a cópia do bucket, com o R2 só para leitura como segunda cópia durante a troca;
    - a troca do host público;
    - o R2 apagado depois de 30 dias sem leitura (passo da Torre).
@@ -82,3 +82,64 @@ O dono aprovou a recomendação inteira às 18:20 BRT: sair de tudo da Cloudflar
    - a zona no Route 53, replicando todos os registros atuais, inclusive e-mail, verificações e o CNAME novo das mídias;
    - a troca dos NS no registrador (passo da Torre).
 4. **No fim, todas as credenciais da Cloudflare revogadas** (passo da Torre).
+
+## Passo 2: execução
+**O que esta PR traz.** A stack `infra/aws/stacks/60-media.json` (`tower-app-media`, sem dependência em `order.json`):
+- **`tower-media-<conta>-us-east-1`**, o bucket das mídias:
+  - versionamento ligado; a versão não corrente fica 90 dias (cobre a janela de 30 dias do R2 e a demora em perceber um apagamento; como as chaves são imutáveis, quase não há versões antigas);
+  - SSE-S3, todo acesso público bloqueado, `BucketOwnerEnforced`, só por TLS;
+  - os dois buckets ficam retidos (`Retain`) se a stack sair.
+- **`tower-media-logs-<conta>-us-east-1`**, os logs de acesso do bucket, guardados 90 dias. Custam centavos.
+- **Com `Cdn=on`:**
+  - uma distribuição do CloudFront com Origin Access Control (sigv4, `always`), e a política do bucket só deixa essa distribuição ler (`s3:GetObject`, `AWS:SourceArn`);
+  - só HTTPS, `PriceClass_100`, sem log, WAF ou função de borda;
+  - cache de um ano para as chaves imutáveis, sem query, cookie ou cabeçalho na chave;
+  - o domínio padrão `*.cloudfront.net` até `CertificateArn` e `Alias` estarem os dois preenchidos.
+- **Nenhum certificado nem registro de DNS dentro de stack**, para que o deploy de um merge nunca espere validação (o teste `MediaStackTests` prova isso). O certificado é pedido fora da stack.
+- **O custo:** cerca de US$ 0,13 por mês, contra o limite de US$ 150 de `infra/aws/budget.json`:
+  - 3,388 GB × US$ 0,023;
+  - cerca de 103 mil leituras na origem por mês (21.373 GET e 81.462 HEAD) × US$ 0,0004 por mil;
+  - 2,459 GB e cerca de 100 mil requisições por mês, dentro do 1 TB e dos 10 milhões grátis do CloudFront;
+  - a cópia, uma vez só: 31.026 PUT, cerca de US$ 0,16.
+- **O bucket de fidelidade não é copiado:** o modelo o dá como `regenerable` (o `fidelity:sync` o refaz). O harness, porém, lê o `the-tower-fidelity` no R2 (`apps/web/fidelity/references/storage.ts`). Por isso, antes do passo (f), uma PR leva esse armazenamento para um bucket privado da AWS e o `fidelity:sync` o refaz lá. Se a referência que ele fotografa não existir mais, a Torre copia o bucket como está (1,212 GB, cerca de US$ 0,03 por mês).
+- **O legado `the-tower-media`** (sem domínio, sem leitor no código) não é copiado: sai com o R2 no passo (f).
+
+**O que acontece depois, e quem faz:**
+1. **(a) O deploy cria os buckets.** Faz isso sozinho, no merge desta PR: o `parameters.json` vem com `Cdn=off`. A fronteira `tower-boundary` só permite `cloudfront:*` depois que a Torre reaplica o `tower-bootstrap` com este `bootstrap.json` (com `UsePreviousValue` nos parâmetros, como na QUEUE-RELOAD; o hash está em `test_infra_aws.py`). Feito isso, uma PR põe `Cdn=on`, e o deploy cria a distribuição. As saídas `BucketName`, `DistributionId` e `DistributionDomain` da stack dão os nomes.
+2. **(b) A cópia R2 → S3 (Torre).** Pede a chave R2 **só de leitura**, que nenhuma sessão pode ter, e credenciais da AWS com escrita no bucket. Roda no CloudShell em `us-east-1`, para a leitura de verificação no S3 não sair da região. As chaves ficam só em variáveis de ambiente, nunca em arquivo nem no repositório:
+   ```sh
+   export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare \
+     RCLONE_CONFIG_R2_ENDPOINT=https://<conta-cloudflare>.r2.cloudflarestorage.com \
+     RCLONE_CONFIG_R2_ACCESS_KEY_ID=<chave RO> RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=<segredo RO>
+   export RCLONE_CONFIG_S3_TYPE=s3 RCLONE_CONFIG_S3_PROVIDER=AWS RCLONE_CONFIG_S3_ENV_AUTH=true RCLONE_CONFIG_S3_REGION=us-east-1
+   B=tower-media-<conta-aws>-us-east-1
+   rclone copy r2:open-university-media s3:$B --checksum --metadata --s3-no-check-bucket \
+     --transfers 32 --checkers 64 --log-level INFO --log-file copia-media.log
+   ```
+   - Usa `copy` e não `sync`: nada é apagado no S3.
+   - `--metadata` leva o `Content-Type` e o `Cache-Control` de cada objeto.
+   - **Verificação:**
+     - `rclone size r2:open-university-media --json` e `rclone size s3:$B --json` dão o mesmo `count` e o mesmo `bytes`. A referência é 31.026 objetos e 3,388 GB em 17/11, mais o que o site subiu desde então;
+     - `rclone check r2:open-university-media s3:$B --one-way --download` termina com 0 diferenças, porque compara os bytes, já que o ETag de um objeto multipart não é MD5;
+     - `aws s3api head-object --bucket $B --key <uma chave>` mostra o `Cache-Control` do R2.
+
+     A Torre registra os números no diário (`scripts/plan note`).
+3. **(c) O certificado (Torre).**
+   - Pede o certificado:
+     ```sh
+     aws acm request-certificate --region us-east-1 --domain-name media.openuniversity.si --validation-method DNS
+     ```
+   - Lê o registro com `aws acm describe-certificate --region us-east-1 --certificate-arn <arn> --query 'Certificate.DomainValidationOptions[0].ResourceRecord'`.
+   - Cria esse CNAME de validação na zona da Cloudflare, sem proxy, porque o DNS só sai no passo 3. Ele vai junto para o Route 53, para as renovações.
+   - Espera o `ISSUED` e entrega o ARN.
+4. **(d) A PR do certificado.** Preenche `infra/aws/parameters.json` → `media.CertificateArn`. O `Alias` (`media.openuniversity.si`) já está lá e o `Cdn` está `on`. O deploy acrescenta o alias à distribuição com SNI e TLS 1.2. O host ainda aponta para o R2, então nada muda para o site.
+5. **(e) A troca.**
+   - **Uma PR leva o cliente do site ao S3:** `apps/web/src/media/server/r2.ts` passa a usar o endpoint do S3 em `us-east-1`, com a função do Lambda `open-university-web` (com `s3:GetObject`/`PutObject` no bucket) no lugar das chaves R2. A `MEDIA_PUBLIC_HOST` (`apps/web/src/media/domain/types.ts`) continua `media.openuniversity.si`, porque o host não muda, só o destino dele.
+   - **Antes da troca,** a Torre roda o `rclone copy` de novo, para trazer o que o site subiu.
+   - **Depois, a Torre:**
+     - aponta o CNAME `media` para o `DistributionDomain`, **sem proxy**;
+     - desliga o acesso público `r2.dev`;
+     - revoga a chave R2 de escrita.
+
+     O R2 fica só para leitura, como segunda cópia, e a volta é o CNAME antigo.
+6. **(f) O fim do R2 (Torre).** Depois de 30 dias sem leitura no R2 (as métricas de GetObject/HeadObject do bucket a zero), apaga `open-university-media`, `the-tower-fidelity` (já refeito na AWS, ver acima) e `the-tower-media`, e revoga a chave R2 de leitura. Então segue o passo 3 (DNS).

@@ -8,5 +8,9 @@
   },
   "runner": {
     "DesiredCount": "0"
+  },
+  "media": {
+    "Cdn": "off",
+    "Alias": "media.openuniversity.si"
   }
 }
