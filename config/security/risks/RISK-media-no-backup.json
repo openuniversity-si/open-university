@@ -1,7 +1,7 @@
 {
   "id": "RISK-media-no-backup",
   "statement": "The site's media bucket on R2 has no backup or second copy: a deletion, a provider failure or a compromised write key loses the course media.",
-  "state": "treated",
+  "state": "closed",
   "owner": "Daniel",
   "assets": [
     "DATA-r2-media",
@@ -11,7 +11,7 @@
   "impact": "high",
   "treatment": {
     "option": "mitigate",
-    "plan": "A versioned copy of the bucket in S3 (D-323 step 2), verified object by object on 2026-11-18: a deletion, a provider failure or a compromised R2 write key no longer loses the media. The risk closes at the cut, when S3 is the primary and the R2 write key is revoked.",
+    "plan": "Cut made on 2026-11-18 (D-323 step 2): the media primary is the versioned S3 bucket of the media stack (noncurrent versions 90 days) and R2 is a second byte-identical copy for 30 days. A deletion or a provider failure no longer loses the media. The live R2 write key can only touch the second copy; its revocation is a credential step of D-323 step 4, left to the owner (the Torre's connector cannot revoke Cloudflare API tokens).",
     "by": [
       "DATA-r2-media"
     ]
