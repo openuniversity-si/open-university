@@ -184,12 +184,31 @@ class TheLongPoll(unittest.TestCase):
 
     def test_the_wait_is_bounded_by_the_port_and_by_the_canarys_own_limit(self):
         db, woken = Reads(reading('queued', 1.0)), Wake(woken=False)
-        clock = mock.Mock(side_effect=[0.0, 0.0, 0.0, 99.0])  # the deadline, whether it waits, the time left, the time left after the wait
-        said = canary.read(db, self.WHO, 'job-1', '500', woken, clock=clock)
+        said = canary.read(db, self.WHO, 'job-1', '500', woken, clock=lambda: 0.0)
         self.assertEqual((said['ok'], said['stage'], woken.waits), (None, 'dispatch', [canary.WAIT_MAX_S]))
-        db, woken = Reads(reading('queued', 1.0, stored='3')), Wake(woken=False)
-        canary.read(db, self.WHO, 'job-1', '20', woken, clock=mock.Mock(side_effect=[0.0, 0.0, 0.0, 99.0]))
+        self.assertEqual(said[port.LONG_POLL]['changed'], False)  # held the span, marked: no verdict yet
+        at = [0.0]
+        db, woken = Reads(reading('queued', 1.0, stored='3'), reading('queued', 3.1, stored='3')), Wake(woken=False)
+        woken.wait = lambda timeout_s: woken.waits.append(timeout_s) or at.__setitem__(0, at[0] + timeout_s) or False
+        said = canary.read(db, self.WHO, 'job-1', '20', woken, clock=lambda: at[0])
         self.assertEqual(woken.waits, [2.05])  # its limit passing ends the wait: the red verdict is not a poll away
+        self.assertEqual((said['ok'], said['stage'], said[port.LONG_POLL]['changed'], [said[port.LONG_POLL]['waited_s']]),
+                         (False, 'dispatch', True, woken.waits))
+
+    def test_a_listener_that_cannot_open_still_holds_the_read_and_marks_it(self):
+        # CANARY-HOLDS: the database refused the LISTEN's connection: no 500, the read is held the span (wake.Wake.wait
+        # waits it out, as port.long_poll's LONG-POLL-HOLDS) and marked, so the smoke's client never pauses on its own
+        def refused():
+            raise OSError('too many connections')
+        slept, at = [], [0.0]
+        listener = wake.Wake(refused, wake.WORK, sleep=lambda s: slept.append(s) or at.__setitem__(0, at[0] + s))
+        db = Reads(reading('running', 1.0, 0.4, 0.5))
+        said = canary.read(db, self.WHO, 'job-1', '20', listener, clock=lambda: at[0])
+        self.assertEqual((said['ok'], said[port.LONG_POLL]['changed'], said[port.LONG_POLL]['waited_s'], slept),
+                         (None, False, canary.WAIT_MAX_S, [canary.WAIT_MAX_S]))
+        db = Reads(reading('succeeded', 1.4, 0.4, 0.5, 1.2))
+        said = canary.read(db, self.WHO, 'job-1', '20', wake.Wake(refused, wake.WORK, sleep=self.fail), clock=lambda: 0.0)
+        self.assertEqual((said['ok'], said[port.LONG_POLL]['changed']), (True, True))  # a verdict: at once, marked
 
     def test_without_a_wake_or_a_wait_the_state_is_answered_now(self):
         for wait_s, woken in ((None, Wake()), ('20', None)):
