@@ -1,7 +1,7 @@
 {
   "id": "RISK-media-no-backup",
   "statement": "The site's media bucket on R2 has no backup or second copy: a deletion, a provider failure or a compromised write key loses the course media.",
-  "state": "assessed",
+  "state": "treated",
   "owner": "Daniel",
   "assets": [
     "DATA-r2-media",
@@ -11,7 +11,10 @@
   "impact": "high",
   "treatment": {
     "option": "mitigate",
-    "plan": "A second copy of the bucket in another account or provider, or the owner's acceptance of the residual with the media's sources recorded."
+    "plan": "A versioned copy of the bucket in S3 (D-323 step 2), verified object by object on 2026-11-18: a deletion, a provider failure or a compromised R2 write key no longer loses the media. The risk closes at the cut, when S3 is the primary and the R2 write key is revoked.",
+    "by": [
+      "DATA-r2-media"
+    ]
   },
   "review_by": "2026-12-17",
   "source": "docs/programs/padrao-dev/phases/F7.md (F7d)"
