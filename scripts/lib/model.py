@@ -137,6 +137,9 @@ def _obj(id, type, state, source, text, links=()):
             'links': [dict(link) for link in links]}
 
 
+REFUTES = re.compile(r'\brefutes (P-[0-9]+)\b')  # a decision that names the premise it refutes (D-320 refutes P-58)
+
+
 def read_decisions(root):
     objects, seen = [], set()
     for path in sorted(Path(root).glob(DECISION_RECORDS)):
@@ -145,7 +148,9 @@ def read_decisions(root):
         fields = dict(line.split(':', 1) for line in head.group(1).splitlines() if ':' in line) if head else {}
         number = fields.get('number', path.stem).strip()
         seen.add(number)
-        assumed = [{'type': 'assumes', 'target': ident} for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
+        refuted = set(REFUTES.findall(text))
+        assumed = [{'type': 'refutes' if ident in refuted else 'assumes', 'target': ident}
+                   for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
         objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed))
         proof = fields.get('proof', '').strip().strip('`')
         if proof:

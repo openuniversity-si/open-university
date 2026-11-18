@@ -695,6 +695,19 @@ class RealRepository(unittest.TestCase):
                 and record['status'] not in ('confirmed', 'validated', 'refuted')]
         self.assertEqual(counted['high_unsettled'], len(high))
 
+    def test_a_decision_that_says_it_refutes_a_premise_it_names_refutes_it_and_is_not_counted_as_assuming_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / Path(model.DECISION_RECORDS).parent
+            folder.mkdir(parents=True)
+            (folder / 'D-901.md').write_text('---\nnumber: D-901\npremises: P-1, P-2\n---\nThis refutes P-1 by measure.\n')
+            links = next(item for item in model.read_decisions(tmp) if item['id'] == 'D-901')['links']
+        self.assertEqual(links, [{'type': 'refutes', 'target': 'P-1'}, {'type': 'assumes', 'target': 'P-2'}])
+        found = {'P-1': {'id': 'P-1', 'type': 'P', 'state': 'refuted', 'body': {}, 'links': []},
+                 'P-2': {'id': 'P-2', 'type': 'P', 'state': 'refuted', 'body': {}, 'links': []},
+                 'D-901': {'id': 'D-901', 'type': 'D', 'state': 'accepted', 'body': '', 'links': links}}
+        self.assertEqual(model.knowledge_measure(found)['refuted_assumed'], 1)
+        self.assertEqual(model.knowledge_measure(model.objects(ROOT))['refuted_assumed'], 0)
+
     def test_show_names_an_object_with_its_links_out_and_in(self):
         text = model.show('UNIT:engine-model', ROOT)
         self.assertIn('UNIT:engine-model  UNIT  active  units/engine-model/unit.json', text)
