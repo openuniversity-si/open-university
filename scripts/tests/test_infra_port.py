@@ -25,7 +25,7 @@ sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
 import config  # noqa: E402
 import test_db  # noqa: E402
-from tower_infra import http_port, migrations, port  # noqa: E402
+from tower_infra import canary, http_port, migrations, port, wake  # noqa: E402
 
 URL = os.environ.get('TEST_DATABASE_URL', '')
 NULL = '<null>'
@@ -409,12 +409,131 @@ class PortAcceptance(unittest.TestCase):
         self.assertEqual(self.db.rows("select count(*) from work.job j where not exists (select 1 from log.event e "
                                       "where e.event_id = 'job.created:' || j.id)"), [('0',)])
 
+    def test_migration_0023_wakes_the_state_long_polls(self):
+        # PORT-LONG-POLL: a job's state or version changing notifies tower_jobs (run.waiting included: every state is an
+        # update of work.job), and an event the deploy status reads notifies tower_status
+        job = self.ok('POST', '/v1/jobs', TORRE, {'queue': 'default', 'executor': 'script-runner', 'input_uri': 'in/poll',
+                                                 'input_digest': 'sha256:poll', 'idempotency_key': 'long-poll-wake'})['id']
+        heard = self.db.call(['-A', '-t', '-f', '-'], script=(
+            f"listen tower_jobs;\nupdate work.job set version = version + 1 where id = '{job}'::uuid;\nselect 1;\n"))
+        self.assertIn('"tower_jobs"', heard)
+        self.assertIn(job, heard)  # the payload is the job's id
+        heard = self.db.call(['-A', '-t', '-f', '-'], script=(
+            f"listen tower_jobs;\nupdate work.job set rank = rank where id = '{job}'::uuid;\nselect 1;\n"))
+        self.assertNotIn('"tower_jobs"', heard)  # a write that changes neither is no change of the job
+        heard = self.db.call(['-A', '-t', '-f', '-'], script=(
+            "listen tower_status;\ninsert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
+            "values ('platform.deploy.poll_probe:1', null, 'platform.deploy.poll_probe', clock_timestamp(), 'test', "
+            "'deploy/status', '{}'::jsonb);\nselect 1;\n"))
+        self.assertIn('"tower_status"', heard)
+
+    def test_get_job_with_wait_s_is_a_long_poll_the_jobs_change_ends(self):
+        # PORT-LONG-POLL: the route on the real tables: at once when the caller saw nothing, held until the cancel (the
+        # wake's event) changed it, and the same answer when the wait passes with no change; no wait_s, the old answer
+        job = self.ok('POST', '/v1/jobs', TORRE, {'queue': 'default', 'executor': 'script-runner', 'input_uri': 'in/held',
+                                                 'input_digest': 'sha256:held', 'idempotency_key': 'long-poll-held'})['id']
+
+        def get(query, events=()):
+            heard, asked = Heard(events), []
+            with mock.patch.object(http_port, 'wake_of', lambda db, channel=None: asked.append(channel) or heard):
+                event = request('GET', f'/v1/jobs/{job}', TORRE)
+                if query:
+                    event['queryStringParameters'] = query
+                answer = http_port.handle(event, self.db, port.sha256(INSTALLATION))
+            self.assertEqual(answer['statusCode'], HTTPStatus.OK)
+            self.assertEqual(asked, [(wake.JOBS, wake.WORK, wake.RUNS)])
+            return json.loads(answer['body']), heard
+        plain, heard = get(None)
+        self.assertNotIn(port.LONG_POLL, plain)
+        self.assertEqual((heard.listened, getattr(heard, 'waits', [])), (False, []))
+        first, heard = get({'wait_s': '20'})
+        self.assertEqual((first[port.LONG_POLL]['changed'], getattr(heard, 'waits', [])), (True, []))  # nothing seen: now
+        self.assertEqual({k: v for k, v in first.items() if k != port.LONG_POLL}, plain)
+        cancel = lambda: self.ok('POST', f'/v1/jobs/{job}/cancel', TORRE)  # noqa: E731
+        moved, heard = get({'wait_s': '20', 'seen': first[port.LONG_POLL]['seen']}, [cancel])
+        self.assertEqual((moved['state'], moved[port.LONG_POLL]['changed'], heard.waits, heard.listened, heard.closed),
+                         ('cancelled', True, [heard.waits[0]], True, True))
+        self.assertLessEqual(heard.waits[0], 20.0)
+        same, heard = get({'wait_s': '20', 'seen': moved[port.LONG_POLL]['seen']})
+        self.assertEqual((same['state'], same[port.LONG_POLL]['changed'], len(heard.waits)), ('cancelled', False, 1))
+        self.assertEqual(same[port.LONG_POLL]['seen'], moved[port.LONG_POLL]['seen'])
+
     def test_a_body_that_is_not_json_and_a_route_that_is_not_there(self):
         broken = request('POST', '/v1/jobs', TORRE)
         broken['body'] = '{not json'
         answer = http_port.handle(broken, self.db, port.sha256(INSTALLATION))
         self.assertEqual(answer['statusCode'], HTTPStatus.BAD_REQUEST)
         self.assertEqual(self.call('GET', '/v1/nothing', TORRE)[0], HTTPStatus.NOT_FOUND)
+
+
+class StateLongPolls(unittest.TestCase):
+    """PORT-LONG-POLL (F8b, D-065): port.long_poll, the canary's long poll for GET /v1/jobs/<id> and GET /v1/deploy/status:
+    no wait_s is the old answer, the wait is bounded by the canary's WAIT_MAX_S, a wake that changes it ends it."""
+
+    def reads(self, *answers):
+        answers, said = list(answers), []
+
+        def read():
+            said.append(answers.pop(0) if len(answers) > 1 else answers[0])
+            return dict(said[-1])
+        return read, said
+
+    def test_without_wait_s_the_answer_is_the_old_one_and_nothing_listens(self):
+        read, said = self.reads({'state': 'queued'})
+        heard = Heard([])
+        self.assertEqual(port.long_poll(read, {}, heard), {'state': 'queued'})
+        self.assertEqual((len(said), heard.listened, heard.closed), (1, False, True))
+        read, said = self.reads({'state': 'queued'})
+        self.assertEqual(port.long_poll(read, {'wait_s': '20'}, None), {'state': 'queued'})  # no wake: now, unmarked
+
+    def test_a_wake_that_changes_the_answer_ends_the_wait_with_it(self):
+        read, _ = self.reads({'state': 'queued'})
+        seen = port.long_poll(read, {'wait_s': '20'}, Heard([]))[port.LONG_POLL]['seen']
+        read, said = self.reads({'state': 'queued'}, {'state': 'waiting'})
+        at = [0.0]
+        heard = Heard([lambda: at.__setitem__(0, 3.0)])
+        got = port.long_poll(read, {'wait_s': '20', 'seen': seen}, heard, clock=lambda: at[0])
+        self.assertEqual((got['state'], got[port.LONG_POLL]['changed'], got[port.LONG_POLL]['waited_s']), ('waiting', True, 3.0))
+        self.assertEqual((heard.listened, heard.waits, heard.closed, len(said)), (True, [20.0], True, 2))
+        self.assertNotEqual(got[port.LONG_POLL]['seen'], seen)
+
+    def test_a_wake_that_changes_nothing_waits_only_what_is_left_and_the_end_is_the_same_answer(self):
+        read, _ = self.reads({'state': 'queued'})
+        seen = port.long_poll(read, {'wait_s': '1'}, Heard([]))[port.LONG_POLL]['seen']
+        at = [0.0]
+        heard = Heard([lambda: at.__setitem__(0, 12.0)])  # another job's event: woken, nothing moved
+        read, said = self.reads({'state': 'queued'})
+        got = port.long_poll(read, {'wait_s': '500', 'seen': seen}, heard, clock=lambda: at[0])
+        self.assertEqual(heard.waits, [canary.WAIT_MAX_S, canary.WAIT_MAX_S - 12.0])  # the canary's bound, one deadline
+        self.assertEqual((got['state'], got[port.LONG_POLL]['changed'], got[port.LONG_POLL]['seen']), ('queued', False, seen))
+        self.assertEqual(len(said), 3)
+
+    def test_a_wait_that_is_not_a_number_is_refused(self):
+        read, _ = self.reads({})
+        with self.assertRaises(port.PortError) as refused:
+            port.long_poll(read, {'wait_s': 'soon'}, Heard([]))
+        self.assertEqual(refused.exception.status, HTTPStatus.BAD_REQUEST)
+
+    def test_the_status_route_reads_wait_s_and_seen_from_the_query_and_waits_on_tower_status_and_tower_deploy(self):
+        asked, status = [], {'last_sha': 'a', 'last_build': None}
+        db = mock.Mock(rows=lambda sql, params=None: [('installation',)], connect=lambda **kw: None)
+        with mock.patch.object(http_port, 'wake_of', lambda db, channel=None: asked.append(channel) or Heard([])), \
+                mock.patch.object(port, 'caller', lambda *args: ('installation', None)), \
+                mock.patch.object(port, 'deploy_status', lambda db, who, landings=None: dict(status, landings=landings)):
+            def get(query):
+                event = {'rawPath': '/v1/deploy/status', 'requestContext': {'http': {'method': 'GET'}},
+                         'headers': {'Authorization': 'Bearer installation'}, 'body': None}
+                if query:
+                    event['queryStringParameters'] = query
+                answer = http_port.handle(event, db, port.sha256('installation'))
+                return answer['statusCode'], json.loads(answer['body'])
+            self.assertEqual(get(None), (200, dict(status, landings=None)))  # an old client: the old answer
+            code, held = get({'wait_s': '15', 'landings': '3'})
+            self.assertEqual((code, held['landings'], held[port.LONG_POLL]['changed']), (200, '3', True))
+            code, again = get({'wait_s': '15', 'landings': '3', 'seen': held[port.LONG_POLL]['seen']})
+            self.assertEqual((again[port.LONG_POLL]['changed'], again[port.LONG_POLL]['seen']),
+                             (False, held[port.LONG_POLL]['seen']))
+        self.assertEqual(asked, [(wake.STATUS, wake.DEPLOY)] * 3)
 
 
 STACK = ROOT / 'infra/aws/stacks/40-port.json'

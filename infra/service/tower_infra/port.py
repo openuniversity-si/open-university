@@ -377,6 +377,55 @@ def get_job(db, who, job_id):
     return json.loads(found[0][0])
 
 
+# PORT-LONG-POLL (PADRAO-DEV F8b, D-065): the mark of an answer the long poll held: what it answered (seen, the digest a
+# client sends back), how long it held it and whether it differs from what the client said it had seen
+LONG_POLL = 'long_poll'
+
+
+def seen_of(said):
+    """The digest of an answer (without its mark), the `seen` a client sends back: the same answer, the same digest."""
+    text = json.dumps({key: value for key, value in said.items() if key != LONG_POLL}, sort_keys=True, default=str)
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]
+
+
+def long_poll(read, body, wake=None, clock=time.monotonic):
+    """GET /v1/jobs/<id> and GET /v1/deploy/status [?wait_s=N[&seen=D]]: the canary's long poll (canary.read) for a read
+    of a state. Without wait_s the answer is read() as it always was, unmarked, and nothing is listened to (an old client).
+    With wait_s and a wake, the LISTEN starts before the first read, so no change falls between the read and the wait; the
+    answer comes at once when it is not the one the client saw (`seen`, the digest of its previous answer; none: at once),
+    else after the first wake that changed it, or when wait_s passes (canary.WAIT_MAX_S at most, under the API's 30 s), and
+    it carries LONG_POLL {seen, waited_s, changed}. Without a wake there is nothing to wait on: answered now, unmarked, so
+    the client knows to keep its own pause."""
+    from . import canary  # the bound and the wakes are the canary route's (canary imports this module)
+    body = body if isinstance(body, dict) else {}
+    try:
+        span = None if body.get('wait_s') is None else min(max(float(body['wait_s']), 0.0), canary.WAIT_MAX_S)
+    except (TypeError, ValueError):
+        raise PortError(400, 'wait_s is a number of seconds') from None
+    if span is None or wake is None:
+        if wake is not None:
+            wake.close()
+        return read()
+    seen = None if body.get('seen') is None else str(body['seen'])
+    began = clock()
+    wake.listening()
+    try:
+        said = read()
+        changed = seen_of(said) != seen
+        for _ in range(canary.WAKES):
+            left = began + span - clock()
+            if changed or left <= 0:
+                break
+            woken = wake.wait(left)
+            said = read()
+            changed = seen_of(said) != seen
+            if not woken:
+                break
+        return dict(said, **{LONG_POLL: {'seen': seen_of(said), 'waited_s': round(clock() - began, 3), 'changed': changed}})
+    finally:
+        wake.close()
+
+
 LANDED = 'platform.deploy.landed'
 LANDED_FIELDS = ('merge_sha', 'base_before', 'pr', 'pr_head', 'functions', 'manifest_key', 'paths',
                  'code')  # IMAGE-PREWARM-C: {code_only, why, bundle_same[, moved]}, as the Origin-era delivery says it

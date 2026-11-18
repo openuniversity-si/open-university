@@ -19,11 +19,12 @@ Routes (the bearer token names the caller; a tenant sees only its own):
   POST /v1/jobs                          the job's fields
   POST /v1/jobs/{id}/cancel
   POST /v1/jobs/{id}/resume              {content}
-  GET  /v1/jobs/{id}
+  GET  /v1/jobs/{id}                     ?wait_s=N[&seen=D]                 PORT-LONG-POLL: a long poll until it is not the answer D
   GET  /v1/health                                                           no token: the database answers (the deploy smoke)
   POST /v1/deploy/landed                 {merge_sha, base_before, pr, pr_head, functions, manifest_key, paths, code}  platform.deploy.landed (+ the image swap, IMAGE-SWAP-TIGHTEN)
   GET  /v1/deploy/status                                                    last-sha and last-build, as the service observed them (DEP3)
                                          ?landings=N                        STATUS-LANDINGS: with the swaps of its newest N landings (10 with none)
+                                         ?wait_s=N[&seen=D]                 PORT-LONG-POLL: a long poll until it is not the answer D
   GET  /v1/deploy/ready/{sha256}                                            READY-BY-BEATS: the roles whose standby of the bundle beats now
   POST /v1/deploy/drill                  {digest, role}                     SWAP-DRILL: that bundle's successor of the role ends as it turns live
   POST /v1/check-run                     {repo, headSha, checkSuite, checkRun}  CHECK-RUN-AWS: tower/gate, posted by the service
@@ -87,9 +88,11 @@ ROUTES = [
     ('POST', r'/v1/jobs/(?P<job>[0-9a-f-]{36})/cancel', lambda db, who, body, job: port.cancel_job(db, who, job)),
     ('POST', r'/v1/jobs/(?P<job>[0-9a-f-]{36})/resume',
      lambda db, who, body, job: port.resume_job(db, who, job, body.get('content'))),
-    ('GET', r'/v1/jobs/(?P<job>[0-9a-f-]{36})', lambda db, who, body, job: port.get_job(db, who, job)),
+    ('GET', r'/v1/jobs/(?P<job>[0-9a-f-]{36})', lambda db, who, body, job: port.long_poll(  # PORT-LONG-POLL
+        lambda: port.get_job(db, who, job), body, wake_of(db, (wake.JOBS, wake.WORK, wake.RUNS)))),
     ('POST', r'/v1/deploy/landed', lambda db, who, body: port.deploy_landed(db, who, body)),
-    ('GET', r'/v1/deploy/status', lambda db, who, body: port.deploy_status(db, who, (body or {}).get('landings'))),
+    ('GET', r'/v1/deploy/status', lambda db, who, body: port.long_poll(  # PORT-LONG-POLL
+        lambda: port.deploy_status(db, who, (body or {}).get('landings')), body, wake_of(db, (wake.STATUS, wake.DEPLOY)))),
     ('GET', r'/v1/deploy/ready/(?P<digest>[0-9a-f]{64})',  # READY-BY-BEATS: would a landing of this bundle swap now
      lambda db, who, body, digest: port.deploy_ready(db, who, digest)),
     ('POST', r'/v1/deploy/canary', lambda db, who, body: canary.start(db, who, body)),  # DEPLOY-CANARY
@@ -323,7 +326,7 @@ def handle(event, db, installation_sha256, now=None):
     except ValueError:
         return answer(400, {'error': 'the body is not JSON'})
     if method == 'GET' and isinstance(body, dict) and event.get('queryStringParameters'):
-        body = {**event['queryStringParameters'], **body}  # DEPLOY-CANARY: a GET's query is its body (wait_s)
+        body = {**event['queryStringParameters'], **body}  # DEPLOY-CANARY: a GET's query is its body (wait_s, seen)
     for verb, pattern, act in ROUTES:
         found = re.fullmatch(pattern, path)
         if found and verb == method:

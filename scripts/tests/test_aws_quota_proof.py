@@ -46,7 +46,7 @@ class FakePort:
                               {'payload': {'job_id': 'job-a', 'meter': 'tokens_out:m', 'quantity': 4}}]
             return {'id': self.jobs[name], 'created': True}
         if method == 'GET':
-            job = path.rsplit('/', 1)[1]
+            job = path.split('?', 1)[0].rsplit('/', 1)[1]  # an old port ignores the query (PORT-LONG-POLL's wait_s)
             if job == 'job-b':
                 return {'state': 'succeeded' if self.lifted else ('waiting' if self.hold else 'succeeded')}
             return {'state': 'succeeded'}
@@ -120,6 +120,51 @@ class ProofTests(unittest.TestCase):
         checked, out = run(FakePort(hold=False))
         with contextlib.redirect_stdout(out), self.assertRaises(proof.NotProven):
             checked.run()
+
+    def test_until_against_a_waiting_port_never_sleeps_and_sends_back_what_it_saw(self):
+        # PORT-LONG-POLL: the port held each read (marked) until the job changed or the wait passed: asked again at once
+        clock, asked = [0.0], []
+        answers = [{'state': 'queued'}, {'state': 'running'}, {'state': 'waiting'}]
+
+        def call(method, path, body=None):
+            asked.append(path)
+            clock[0] += 5.0
+            said = answers.pop(0)
+            return dict(said, long_poll={'seen': said['state'], 'waited_s': 5.0, 'changed': True})
+        port = FakePort()
+        port.call = call
+        checked = proof.Proof(port, tag='t', sleep=lambda s: self.fail(f'slept {s} s'), clock=lambda: clock[0])
+        checked.jobs['b'] = 'job-b'
+        self.assertEqual(checked.until('b', ('waiting',), 'be held')['state'], 'waiting')
+        self.assertEqual(asked, ['/v1/jobs/job-b?wait_s=120.0', '/v1/jobs/job-b?wait_s=115.0&seen=queued',
+                                 '/v1/jobs/job-b?wait_s=110.0&seen=running'])
+
+    def test_until_against_a_waiting_port_keeps_its_deadline_and_message(self):
+        clock = [0.0]
+
+        def call(method, path, body=None):
+            clock[0] += 20.0
+            return {'state': 'queued', 'long_poll': {'seen': 'd', 'waited_s': 20.0, 'changed': False}}
+        port = FakePort()
+        port.call = call
+        checked = proof.Proof(port, tag='t', sleep=lambda s: self.fail(f'slept {s} s'), clock=lambda: clock[0])
+        checked.jobs['b'] = 'job-b'
+        with self.assertRaises(proof.NotProven) as refused:
+            checked.until('b', ('waiting',), 'be held')
+        self.assertEqual(str(refused.exception), 'job b did not be held in 120 s (it is queued)')
+
+    def test_until_against_an_old_port_keeps_the_one_second_pause(self):
+        clock, sleeps, answers = [0.0], [], [{'state': 'queued'}, {'state': 'queued'}, {'state': 'waiting'}]
+        port = FakePort()
+        port.call = lambda method, path, body=None: answers.pop(0)  # unmarked: it answered at once
+
+        def sleep(seconds):
+            sleeps.append(seconds)
+            clock[0] += seconds
+        checked = proof.Proof(port, tag='t', sleep=sleep, clock=lambda: clock[0])
+        checked.jobs['b'] = 'job-b'
+        self.assertEqual(checked.until('b', ('waiting',), 'be held')['state'], 'waiting')
+        self.assertEqual(sleeps, [1, 1])
 
     def test_without_the_port_it_stops_and_never_prints_a_token(self):
         err = io.StringIO()

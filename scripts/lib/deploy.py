@@ -7,7 +7,8 @@
   scripts/deploy status                the port's GET /v1/deploy/status: last_sha, the last build with its tail and the last
                                        ring/skip decision, as the service observed them (DEP3: it publishes them to the log)
   scripts/deploy follow [--target SHA] [--build ID] [--since EPOCH]
-                                       poll the status until the deploy ends; a failure prints the failed names and tail
+                                       follow the status until the deploy ends (the port's long poll; pauses with an old
+                                       port); a failure prints the failed names and tail
 
 The doorbell is TOWER_DEPLOY_DOORBELL_URL with the bearer TOWER_DEPLOY_DOORBELL_TOKEN (docs/operations/aws.md, 2): the
 token is not an AWS credential and is never printed. The status is read through the port (TOWER_PORT_URL,
@@ -210,8 +211,17 @@ def ring_until_free(environ=None, opener=urllib.request.urlopen, wait_s=None, ev
         sleep(every_s)
 
 
-def read_status(port):
-    return port.call('GET', '/v1/deploy/status')
+LONG_POLL = 'long_poll'  # PORT-LONG-POLL: the mark of an answer the port held (tower_infra.port.LONG_POLL)
+
+
+def read_status(port, wait_s=None, seen=None):
+    """GET /v1/deploy/status; with wait_s, the port's long poll (PORT-LONG-POLL): it answers when the status is not the
+    one `seen` names (the digest its previous answer's mark gave) or when wait_s passes. A port without the long poll
+    ignores the query and answers at once, unmarked."""
+    if wait_s is None:
+        return port.call('GET', '/v1/deploy/status')
+    query = {'wait_s': max(wait_s, 0.0), **({'seen': seen} if seen else {})}
+    return port.call('GET', '/v1/deploy/status?' + urllib.parse.urlencode(query))
 
 
 def describe(state, out=None):
@@ -288,12 +298,19 @@ def follow(port, target=None, build_id=None, since=None, sleep=time.sleep, clock
     since = now() - config.get('gate-infra.deploy_since_skew_s') if since is None else since
     first, longest = config.get('gate-infra.deploy_poll_s'), config.get('gate-infra.deploy_poll_max_s')
     deadline, pause = clock() + config.get('gate-infra.deploy_wait_s'), first
+    seen = None
     while True:
+        # PORT-LONG-POLL: each read waits at the port for a change, `first` seconds at most (never longer than the
+        # shortest pause, so nothing is seen later than the pauses would have seen it); an answer the port did not hold
+        # (an old port, or one with no wake) keeps the pauses below
         try:
-            state = read_status(port)
+            state = read_status(port, min(first, deadline - clock()), seen)
         except gate_infra.Refused as error:
             print(f'deploy: the status could not be read ({error})', file=sys.stderr)
             state = None
+        mark = (state or {}).get(LONG_POLL)
+        held = isinstance(mark, dict)
+        seen = mark.get('seen') if held else None
         build = (state or {}).get('last_build') or {}
         if build_id and build.get('status') == 'rolling' and build_id in build.get('build_id', ''):
             # SLOW-PATH-NO-ROLLOUT-WAIT: the followed build ended with its stacks rolling out: the build that verifies them
@@ -308,11 +325,13 @@ def follow(port, target=None, build_id=None, since=None, sleep=time.sleep, clock
                   f'{STALE_S} s); last reading:', file=sys.stderr)
             describe(state, sys.stderr)
             return 2
-        if clock() + pause > deadline:
+        if (clock() >= deadline) if held else (clock() + pause > deadline):
             print('deploy: the wait ran out; the build may still be running, last reading:', file=sys.stderr)
             if state:
                 describe(state, sys.stderr)
             return 2
+        if held:
+            continue  # the port waited: ask again at once
         sleep(pause)
         pause = min(longest, pause * 1.5)
 
