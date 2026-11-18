@@ -105,14 +105,17 @@ slow_commits() {
 
 # redact: the values of the environment variables that name a secret, then anything shaped like one.
 redact() {
-  local text name value
-  text="$(cat)"
-  while IFS='=' read -r name value; do
+  # DEPLOY-FEWER-FORKS: stdin and the environment are read by bash itself (read, compgen -e), not by cat and env; the
+  # environment is read at each call, so a secret exported during the build is redacted too
+  local text="" name value
+  IFS= read -r -d '' text || true
+  text="${text%"${text##*[!$'\n']}"}"  # as $(cat): no trailing newlines
+  for name in $(compgen -e); do
     case "$name" in
       *TOKEN* | *SECRET* | *PASSWORD* | *API_KEY* | *CREDENTIAL* | AWS_ACCESS_KEY_ID)
-        if [[ ${#value} -ge 8 ]]; then text="${text//"$value"/[redacted]}"; fi ;;
+        value="${!name}"; if [[ ${#value} -ge 8 ]]; then text="${text//"$value"/[redacted]}"; fi ;;
     esac
-  done < <(env)
+  done
   printf '%s' "$text" | sed -E \
     -e 's/([Bb]earer|[Bb]asic)[[:space:]]+[A-Za-z0-9._~+\/=-]{8,}/\1 [redacted]/g' \
     -e 's/(AKIA|ASIA)[A-Z0-9]{16}/[redacted]/g' \
@@ -121,7 +124,7 @@ redact() {
 }
 
 # bytes_of <text>: its size in BYTES (SSM Standard refuses a value over 4096; ${#x} counts characters).
-bytes_of() { printf '%s' "$1" | wc -c | tr -d ' '; }
+bytes_of() { local LC_ALL=C; printf '%s' "${#1}"; }  # DEPLOY-FEWER-FORKS: bash counts bytes under the C locale
 
 # steps_json: the steps file ($work/steps: name, status running|ok|failed, t0, t1 per line) as a compact array [{n,s,t}].
 steps_json() {
@@ -138,6 +141,14 @@ steps_json() {
 }
 # step_mark/step_err: a step's own output is what $output gained since step_begin; on failure its last 15 lines (redacted, 700 chars) are kept.
 # DEPLOY-FEWER-FORKS: a file's text with no cat, quiet and failing when it is not there (as `cat <f> 2>/dev/null`)
+# rw_file <var> <file>: the file's text into <var> by bash's read (no fork), empty when it is not there; trailing newlines
+# dropped, as $(<file) does
+rw_file() {
+  local -n __into="$1"; __into=""
+  [[ -f "$2" && -r "$2" ]] || return 0
+  IFS= read -r -d '' __into <"$2" || true
+  __into="${__into%"${__into##*[!$'\n']}"}"
+}
 slurp() { [[ -f "$1" && -r "$1" ]] || return 1; local text; text="$(<"$1")"; printf '%s' "$text"; }
 step_key() { printf '%s' "${1//[^A-Za-z0-9_-]/_}"; }
 step_err() {
@@ -184,18 +195,29 @@ record() {
   if (( lines > 0 )); then tail="$(tail -n "$lines" "$output" 2>/dev/null | tr -d '\000-\010\013-\037' | redact | tail -c "$tail_chars")"
   else tail="$(tail -c $((tail_chars * 2)) "$output" 2>/dev/null | tr -d '\000-\010\013-\037' | redact | tail -c "$tail_chars")"; fi
   local hashlines="" livelist="" f parts_out
-  for f in "$work"/res/*.hash; do [[ -f "$f" ]] && hashlines+="${f##*/}"$'\t'"$(<"$f")"$'\n'; done
+  for f in "$work"/res/*.hash; do [[ -f "$f" ]] && { rw_file hv "$f"; hashlines+="${f##*/}"$'\t'"$hv"$'\n'; }; done
   for f in "$repo"/infra/aws/stacks/*.json; do [[ -f "$f" ]] || continue; f="${f##*/}"; f="${f%.json}"; livelist+="${f#[0-9]*-}"$'\n'; done
   read_work() { [[ -f "$work/$1" ]] && printf '%s' "$(<"$work/$1")"; return 0; }
-  parts_out="$(jq -nr --arg prev "$prev_build" --arg done "$(read_work done)" --arg left "$(read_work left)" \
-    --arg rolled "$(read_work rolled)" --arg dirty "$(read_work dirty)" --arg secs "$(read_work secs)" \
-    --arg rollout "$(read_work rollout)" --arg parts "$(read_work parts)" --arg targets "$(read_work targets_json)" \
-    --arg bisect "$(read_work bisect)" --argjson has_bisect "$([[ -f "$work/bisect" ]] && echo true || echo false)" \
+  # DEPLOY-FEWER-FORKS: the work files into variables by bash's read, not one $(...) fork of this shell each (~20 a
+  # record, a record at each step): the same text, trailing newlines dropped as $(...) did
+  local w_done w_left w_rolled w_dirty w_secs w_rollout w_parts w_targets w_bisect w_fast_owned w_migrate w_rolling w_port_tpl w_wait
+  local has_bisect=false has_fast_owned=false has_port_tpl=false hv
+  rw_file w_done "$work/done"; rw_file w_left "$work/left"; rw_file w_rolled "$work/rolled"; rw_file w_dirty "$work/dirty"
+  rw_file w_secs "$work/secs"; rw_file w_rollout "$work/rollout"; rw_file w_parts "$work/parts"
+  rw_file w_targets "$work/targets_json"; rw_file w_bisect "$work/bisect"; rw_file w_fast_owned "$work/fast_owned"
+  rw_file w_migrate "$work/migrate"; rw_file w_rolling "$work/rolling"; rw_file w_port_tpl "$work/port_tpl"
+  rw_file w_wait "$work/rollout_wait"
+  [[ -f "$work/bisect" ]] && has_bisect=true; [[ -f "$work/fast_owned" ]] && has_fast_owned=true
+  [[ -f "$work/port_tpl" ]] && has_port_tpl=true
+  parts_out="$(jq -nr --arg prev "$prev_build" --arg done "$w_done" --arg left "$w_left" \
+    --arg rolled "$w_rolled" --arg dirty "$w_dirty" --arg secs "$w_secs" \
+    --arg rollout "$w_rollout" --arg parts "$w_parts" --arg targets "$w_targets" \
+    --arg bisect "$w_bisect" --argjson has_bisect "$has_bisect" \
     --arg hashlines "$hashlines" --arg live "$livelist" \
-    --arg fast_owned "$(read_work fast_owned)" --argjson has_fast_owned "$([[ -f "$work/fast_owned" ]] && echo true || echo false)" \
-    --arg migrate "$(read_work migrate)" --arg rolling "$(read_work rolling)" --arg status "$status" \
-    --arg port_tpl "$(read_work port_tpl)" --argjson has_port_tpl "$([[ -f "$work/port_tpl" ]] && echo true || echo false)" \
-    --arg wait "$(read_work rollout_wait)" --argjson seconds "$((ended - started))" --arg rate "${DEPLOY_PRICE_PER_MINUTE:-0.005}" '
+    --arg fast_owned "$w_fast_owned" --argjson has_fast_owned "$has_fast_owned" \
+    --arg migrate "$w_migrate" --arg rolling "$w_rolling" --arg status "$status" \
+    --arg port_tpl "$w_port_tpl" --argjson has_port_tpl "$has_port_tpl" \
+    --arg wait "$w_wait" --argjson seconds "$((ended - started))" --arg rate "${DEPLOY_PRICE_PER_MINUTE:-0.005}" '
     def lines($t): $t | split("\n") | map(select(length > 0));
     def doc($t; $d): ($t | try fromjson catch null) // $d;
     def object($t): ($t | try fromjson catch null) | if type == "object" then . else null end;
