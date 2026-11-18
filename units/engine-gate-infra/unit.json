@@ -57,6 +57,7 @@
   ],
   "requires": {
     "engine-cloud": "^1",
+    "engine-commit-plan": "^1",
     "engine-config": "^1",
     "engine-events": "^1",
     "engine-forge-origin": "^1",
