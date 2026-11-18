@@ -482,6 +482,8 @@ class Changes(unittest.TestCase):
         counted = model.decisions_measure(found, self.root)
         self.assertEqual(counted, {'by_state': {'accepted': 1, 'superseded': 1}, 'accepted': 1, 'proven': 1,
                                    'edited_records': 1})
+        found['D-1']['proof'] = {'outcome': 'dangling', 'missing': ['t'], 'outside': []}
+        self.assertEqual(model.decisions_measure(found, self.root)['table_proofs'], {'dangling': 1})
 
     def test_a_validation_state_is_derived_from_its_measure_never_written(self):
         def val(id, measure, comparator, threshold, window=None):
@@ -896,6 +898,82 @@ class RealRepository(unittest.TestCase):
         self.assertIn('-> depends-on UNIT:engine-config', text)
         with self.assertRaises(model.ModelError):
             model.show('UNIT:no-such-unit', ROOT)
+
+
+class DecisionTable(unittest.TestCase):
+    """The rows of DECISIONS.md: the state their Status cell says, their text as the fingerprint, and a verifies link
+    only from the test files and cases their Proof cell names when every one exists."""
+
+    HEADER = '| Id | Date | Decision | Invariant | Proof (test) | Status |\n|---|---|---|---|---|---|\n'
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-table-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        write(self.root, 'scripts/tests/test_alpha.py', 'class Alpha(unittest.TestCase):\n    def test_holds(self):\n        pass\n')
+        write(self.root, 'scripts/tests/beta.test.sh', 'test_runs() {\n  true\n}\n')
+
+    def rows(self, *rows):
+        write(self.root, model.DECISION_TABLE, '# Register\n\n' + self.HEADER + ''.join(f'{row}\n' for row in rows))
+        found, tests = model.read_decisions(self.root), {}
+        for item in found:
+            if item['type'] == 'TEST':
+                tests.setdefault(item['id'], {**item, 'links': []})['links'] += item['links']
+        return {item['id']: item for item in found if item['type'] == 'D'}, tests
+
+    def test_a_superseded_retired_or_replaced_status_is_an_inactive_state_and_any_other_is_accepted(self):
+        decisions, _ = self.rows('| D-1 | d | x | - | prose | superseded by D-3 (V3) |',
+                                 '| D-2 | d | x | - | prose | retired with the site (D-105) |',
+                                 '| D-3 | d | x | - | prose | replaced by D-4 |',
+                                 '| D-4 | d | x | - | prose | Deprecated |',
+                                 '| D-5 | d | x | - | prose | proven (step 3 replaced the allowance) |',
+                                 '| D-6 | d | x | - | prose | recorded |')
+        self.assertEqual({id: item['state'] for id, item in decisions.items()},
+                         {'D-1': 'superseded', 'D-2': 'deprecated', 'D-3': 'superseded', 'D-4': 'deprecated',
+                          'D-5': 'accepted', 'D-6': 'accepted'})
+        self.assertEqual(set(model.metamodel(ROOT)['types']['D']['inactive_states']), {'deprecated', 'superseded'})
+
+    def test_a_proof_whose_file_and_cases_exist_links_the_test(self):
+        decisions, tests = self.rows(
+            '| D-1 | d | x | - | `scripts/tests/test_alpha.py` › "test_holds" and `Alpha`; `beta.test.sh` (`test_runs`) | recorded |',
+            '| D-2 | d | x | - | `scripts/tests/test_alpha.py` (the reading, the refusal) | proven |')
+        self.assertEqual(decisions['D-1']['proof']['outcome'], 'proven')
+        self.assertIn({'type': 'verifies', 'target': 'D-1'}, tests['TEST:scripts/tests/test_alpha.py']['links'])
+        self.assertIn({'type': 'verifies', 'target': 'D-1'}, tests['TEST:scripts/tests/beta.test.sh']['links'])
+        self.assertIn({'type': 'verifies', 'target': 'D-2'}, tests['TEST:scripts/tests/test_alpha.py']['links'])
+
+    def test_a_missing_case_or_file_leaves_the_decision_unproven_and_listed(self):
+        decisions, tests = self.rows(
+            '| D-1 | d | x | - | `scripts/tests/test_alpha.py` › "test_holds", "test_gone" | proven |',
+            '| D-2 | d | x | - | `scripts/tests/test_alpha.py` (`test_holds`); `scripts/tests/test_gone.py` | proven |')
+        self.assertEqual(decisions['D-1']['proof'], {'outcome': 'dangling', 'outside': [],
+                                                     'missing': ['scripts/tests/test_alpha.py › test_gone']})
+        self.assertEqual(decisions['D-2']['proof']['missing'], ['scripts/tests/test_gone.py'])
+        self.assertEqual(tests, {})
+        _, warnings = model.check(model.metamodel(ROOT), {**decisions, **tests})
+        self.assertIn(f'D-2: its proof names scripts/tests/test_gone.py, which does not exist ({model.DECISION_TABLE})',
+                      warnings)
+
+    def test_a_prose_proof_or_an_empty_one_links_nothing(self):
+        decisions, tests = self.rows('| D-1 | d | x | - | ADR-24; `scripts/gate-local` checks for it | recorded |',
+                                     '| D-2 | d | x | - | test pending: each wave carries its tests | test pending |',
+                                     '| D-3 | d | x | - | — | recorded |')
+        self.assertEqual([decisions[id]['proof']['outcome'] for id in ('D-1', 'D-2', 'D-3')], ['prose', 'prose', 'none'])
+        self.assertEqual(tests, {})
+
+    def test_the_fingerprint_is_the_row_so_a_changed_row_is_detected(self):
+        before, _ = self.rows('| D-1 | d | x | - | prose | recorded |', '| D-2 | d | y | - | prose | recorded |')
+        after, _ = self.rows('| D-1 | d | x, amended | - | prose | recorded |', '| D-2 | d | y | - | prose | recorded |')
+        self.assertNotEqual(before['D-1']['fingerprint'], after['D-1']['fingerprint'])
+        self.assertEqual(before['D-2']['fingerprint'], after['D-2']['fingerprint'])
+
+    def test_a_decision_row_below_another_table_keeps_the_register_columns(self):
+        write(self.root, model.DECISION_TABLE, self.HEADER + '| D-1 | d | x | - | prose | recorded |\n\n## Questions\n\n'
+              '| Id | Question | Decision | Implemented in |\n|---|---|---|---|\n| Q1 | q | D-1 | S1 |\n'
+              '| D-2 | d | x | - | `scripts/tests/test_alpha.py` | superseded by D-1 |\n')
+        decisions = {item['id']: item for item in model.read_decisions(self.root) if item['type'] == 'D'}
+        self.assertEqual(sorted(decisions), ['D-1', 'D-2'])
+        self.assertEqual(decisions['D-2']['state'], 'superseded')
+        self.assertEqual(decisions['D-2']['proof']['outcome'], 'proven')
 
 
 if __name__ == '__main__':
