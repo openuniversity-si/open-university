@@ -21,9 +21,11 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
                                    end), the requirement inventory, and each system's objects and calculated conformance
 
 A requirement's chain is verified when an architecture element satisfies it, a unit realizes that element, a test
-verifies the requirement, and a validation validates it or the need it derives from. An object is conformant when it
-breaks no check and every coverage rule of its type (`covered_by`) holds; a system's conformance is the share of its
-objects that are conformant, rated on the scale.
+verifies the requirement, and a validation validates it or the need it derives from. An object is conformant when a
+rule judges it (a rule of its type, or the findings of its system), it breaks no check and every coverage rule of its
+type (`covered_by`) holds; an object no rule judges is known, not judged, and is not conformant. A system's conformance
+is the share of its objects that are conformant, rated on the scale; a system with a significant weakness (a dependency
+an advisory affects) is rated below F whatever its share.
 """
 import argparse
 import glob as globbing
@@ -859,19 +861,35 @@ def validation_measure(found):
     return {'by_state': dict(sorted(by_state.items())), 'needs': len(needs), 'needs_met': met}
 
 
+def implemented(item, into, found):
+    """Whether a merged (or deployed) change implements the requirement."""
+    return any(kind == 'implements' and found.get(source, {}).get('state') in ('merged', 'deployed')
+               for kind, source in into.get(item['id'], []))
+
+
+def requirement_tested(item, into, found):
+    """Whether the requirement is verified: a test that exists verifies it, or, for a requirement whose verification is
+    a validation, a validation of its own is met. The one rule the chain, the coverage and the derived state use."""
+    sources = into.get(item['id'], [])
+    if any(kind == 'verifies' and found.get(source, {}).get('type') == 'TEST' and
+           found[source].get('fingerprint') is not None for kind, source in sources):
+        return True
+    return item.get('body', {}).get('verification') == 'validation' and any(
+        kind == 'validates' and found.get(source, {}).get('type') == 'VAL' and found[source]['state'] == 'met'
+        for kind, source in sources)
+
+
 def requirement_states(found):
     """{requirement id: derived state}: implemented when a merged change implements it, verified when it is also
-    verified by a test (the verdicts on main join with the verification phase), else its declared state."""
+    verified (requirement_tested; the verdicts on main join with the verification phase), else its declared state."""
     into = incoming(found)
     states = {}
     for item in found.values():
         if item['type'] != 'REQ' or item['state'] in ('superseded', 'obsolete'):
             continue
-        sources = into.get(item['id'], [])
-        implemented = any(kind == 'implements' and found.get(source, {}).get('state') in ('merged', 'deployed')
-                          for kind, source in sources)
-        tested = any(kind == 'verifies' and found.get(source, {}).get('fingerprint') is not None for kind, source in sources)
-        states[item['id']] = 'verified' if implemented and tested else 'implemented' if implemented else item['state']
+        done = implemented(item, into, found)
+        states[item['id']] = ('verified' if done and requirement_tested(item, into, found) else
+                              'implemented' if done else item['state'])
     return states
 
 
@@ -1325,14 +1343,39 @@ def is_active(meta, item):
     return item['state'] not in meta['types'].get(item['type'], {}).get('inactive_states', [])
 
 
+# Types check() judges through the findings of their own system, not through a rule of the type (rule_findings judges a
+# rule of the standard; management_findings a proposal, an exemption and the version in effect).
+JUDGED_BY_FINDINGS = {'STD': 'rule_findings', 'PROP': 'management_findings', 'TAIL': 'management_findings',
+                      'VER': 'management_findings'}
+# A significant weakness (ISO/IEC 33020 F: "no significant weaknesses"): while an active object is in one of these
+# states its system is rated below F, however small a share it is (a dependency an advisory affects, not exempted).
+WEAKNESS_STATES = {'DEP': ('vulnerable',)}
+# The verdict type that would say whether a type's objects pass; while it has no object, the measure says so.
+VERDICTS = {'TEST': ('VERD', 'linked to what they verify')}
+
+
+def judged(meta, type_id):
+    """Whether any rule judges the objects of a type: a rule of the type (`must_link`, `covered_by`,
+    `unconformant_states`) or the findings of its system. An object no rule judges is known, not judged (ISO/IEC 33020
+    N: little or no evidence of achievement), and is never counted conformant."""
+    kind = meta['types'].get(type_id, {})
+    return any(kind.get(key) for key in ('must_link', 'covered_by', 'unconformant_states')) or type_id in JUDGED_BY_FINDINGS
+
+
 def covered(meta, item, into, found):
-    """Whether every coverage rule (`covered_by`) and every required outgoing link (`must_link`) of the type holds."""
+    """Whether every coverage rule (`covered_by`) and every required outgoing link (`must_link`) of the type holds. A
+    requirement's test rule is requirement_tested, the rule the chain uses (a met validation of its own counts when its
+    verification is a validation)."""
     if item['state'] in meta['types'][item['type']].get('unconformant_states', []):
         return False
     held = {link['type'] for link in item['links'] if found.get(link['target'], {}).get('fingerprint') is not None}
     if set(meta['types'][item['type']].get('must_link', [])) - held:
         return False
     for rule in meta['types'][item['type']].get('covered_by', []):
+        if item['type'] == 'REQ' and (rule['type'], rule['link']) == ('TEST', 'verifies'):
+            if not requirement_tested(item, into, found):
+                return False
+            continue
         if not any(kind == rule['link'] and found.get(source, {}).get('type') == rule['type'] and
                    found[source].get('fingerprint') is not None
                    for kind, source in into.get(item['id'], [])):
@@ -1341,15 +1384,13 @@ def covered(meta, item, into, found):
 
 
 def chain_verified(item, into, found):
-    """A requirement's chain: element satisfies it, a unit realizes the element, a test verifies it, a validation
-    validates it or the need it derives from."""
+    """A requirement's chain: element satisfies it, a unit realizes the element, a merged change implements it, it is
+    verified (requirement_tested), a validation validates it or the need it derives from."""
     def sources(target, link, kind):
         return [source for name, source in into.get(target, []) if name == link and found.get(source, {}).get('type') == kind]
     elements = sources(item['id'], 'satisfies', 'ARC')
     realized = any(sources(element, 'realizes', 'UNIT') for element in elements)
-    tested = bool(sources(item['id'], 'verifies', 'TEST')) or (
-        item.get('body', {}).get('verification') == 'validation' and
-        any(found[source]['state'] == 'met' for source in sources(item['id'], 'validates', 'VAL')))
+    tested = implemented(item, into, found) and requirement_tested(item, into, found)
     needs = [link['target'] for link in item['links'] if link['type'] == 'derives-from']
     validated = any(found[source]['state'] == 'met' for target in [item['id'], *needs]
                     for source in sources(target, 'validates', 'VAL'))
@@ -1438,9 +1479,21 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         kinds = {type_id for type_id, kind in meta['types'].items() if kind['system'] == name}
         mine = [item for item in found.values() if item['type'] in kinds and is_active(meta, item)
                 and item.get('fingerprint') is not None]
-        good = sum(1 for item in mine if item['id'] not in flagged and covered(meta, item, into, found))
+        unjudged = sorted({item['type'] for item in mine if not judged(meta, item['type'])})
+        good = sum(1 for item in mine if judged(meta, item['type']) and item['id'] not in flagged
+                   and covered(meta, item, into, found))
         share = good / len(mine) if mine else 0
-        systems[name] = {'objects': len(mine), 'conformant': good, 'share': share, 'level': rate(share, meta['scale'])}
+        level = rate(share, meta['scale'])
+        weak = sum(1 for item in mine if item['state'] in WEAKNESS_STATES.get(item['type'], ()))
+        levels = [step['level'] for step in meta['scale']]
+        if weak and level == levels[-1] and len(levels) > 1:
+            level = levels[levels.index(level) - 1]
+        unread = {type_id: {'verdict': VERDICTS[type_id][0], 'means': VERDICTS[type_id][1]}
+                  for type_id in sorted(kinds & set(VERDICTS))
+                  if not any(item['type'] == VERDICTS[type_id][0] for item in found.values())}
+        systems[name] = {'objects': len(mine), 'conformant': good, 'share': share, 'level': level,
+                         'not_judged': sum(1 for item in mine if item['type'] in unjudged), 'unjudged_types': unjudged,
+                         'weaknesses': weak, 'verdicts_unread': unread}
     sources = inventory(meta, found, root)
     return {
         'chain': {'active_requirements': len(requirements), 'verified': verified,
@@ -1472,6 +1525,20 @@ def show(id, root=ROOT):
     return '\n'.join(lines)
 
 
+def system_line(item):
+    """What a system's count means: conformant, or, for a type whose verdicts are not read, what is counted; the
+    objects no rule judges; the significant weaknesses that keep it below F."""
+    counted = 'conformant'
+    for unread in item.get('verdicts_unread', {}).values():
+        counted = f'{unread["means"]}; pass state not read: no {unread["verdict"]} source'
+    parts = [f'{item["conformant"]} of {item["objects"]} {counted}']
+    if item.get('not_judged'):
+        parts.append(f'{item["not_judged"]} not judged: no rule of {", ".join(item["unjudged_types"])}')
+    if item.get('weaknesses'):
+        parts.append(f'{item["weaknesses"]} significant weakness(es), below F whatever the share')
+    return '; '.join(parts)
+
+
 def summary(found):
     chain, stock = found['chain'], found['inventory']
     lines = [
@@ -1481,8 +1548,7 @@ def summary(found):
     ]
     lines += [f'  {name}: {item["imported"]} of {item["ids"]}' for name, item in stock['sources'].items()]
     lines.append(f'systems ({found["objects"]} object(s)):')
-    lines += [f'  {name}: {item["level"]} ({item["conformant"]} of {item["objects"]} conformant)'
-              for name, item in found['systems'].items()]
+    lines += [f'  {name}: {item["level"]} ({system_line(item)})' for name, item in found['systems'].items()]
     rules = found['standard']
     lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
                  f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
