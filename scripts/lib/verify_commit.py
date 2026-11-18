@@ -40,6 +40,7 @@ KEY_VERSION = 1  # VERDICT-REUSE: a change to what the key covers bumps it, so n
 RUNNER = ('RUNNER_OS', 'RUNNER_ARCH', 'ImageOS', 'ImageVersion')  # the hosted runner's image, part of the key
 WORKERS = 'GATE_TEST_WORKERS'  # GATE-ISOLATED: the batch's workers (gate_test_cache.WORKERS_ENV)
 PARTS = ('main', 'shard1', 'alone')  # GATE-PARTS: the jobs of one tower/gate, side by side (tower-gate.yml's matrix)
+WALL_MIN_S = 5.0  # GATE-WALLS: every test of the batch at least this long is named with its wall (not only the slowest)
 SLOWEST = 3  # GATE-PACE: the tests of a batch its pace line names, the slowest first (their walls in the batch)
 STAGES_S = 15.0  # GATE-PARTS: what main's stages weigh in the split (#130's commit: main 41 s, shard1 24 s with none)
 
@@ -237,6 +238,7 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
                 slowest = sorted(((float(spent), test) for test, spent in took.items()), reverse=True)[:SLOWEST]
                 named_slowest = ', '.join(f'{Path(test).name.removesuffix(".test.sh")} {spent:.1f} s' for spent, test in slowest)
                 paces.append(('the batch of tests' + (f' ({named_slowest})' if slowest else ''), spent_s))
+                planned['walls'] = {test: float(spent) for test, spent in took.items()}  # GATE-WALLS
                 failed = [test for test in batch if said.get(test) != 'PASS']
                 if code != 0 and not failed:
                     red.append('script tests')
@@ -344,6 +346,10 @@ def main(argv=None, run=run, environ=None):
             print(f'verify-commit: recorded {record(args.record, args.base, planned, args.sha, run, environ)}')
         except Exception as error:  # noqa: BLE001 - no record only costs the merge queue's run its reuse
             print(f'verify-commit: no record: {error}', file=sys.stderr)
+    walls = sorted(((spent, test) for test, spent in (planned.get('walls') or {}).items() if spent >= WALL_MIN_S), reverse=True)
+    if walls:  # GATE-WALLS (the Torre, 18/11/2026): a test slow on the runner alone (infra-aws: 56 s here, 4 s locally) is seen
+        print('verify-commit: walls: ' + ', '.join(f'{Path(test).name.removesuffix(".test.sh")} {spent:.1f} s'
+                                                   for spent, test in walls))
     if paces:  # GATE-PACE: what the part's time went to, the slowest first
         print('verify-commit: pace: ' + ', '.join(f'{name} {spent:.1f} s' for name, spent in
                                                   sorted(paces, key=lambda pair: -pair[1])))
