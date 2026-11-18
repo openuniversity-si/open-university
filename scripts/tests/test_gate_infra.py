@@ -960,16 +960,14 @@ class TheMetadataOfAForgeThatIsAway(unittest.TestCase):
              'structure-check (metadata, PR #7): 1 error(s), 0 warning(s)\n')
     GREEN = 'structure-check (metadata, PR #7): 0 error(s), 0 warning(s)\n'
 
-    BODY = 'measurement checks (body, PR #7): 0 error(s), 0 warning(s)\n'
     COMMITS = 'commit-check: 2 commit(s); 0 refusal(s)\n'
 
-    def answers(self, *said, body=BODY, commits=COMMITS):
+    def answers(self, *said, commits=COMMITS):
         left, self.commands, self.pauses, self.bodies, self.commits = list(said), [], [], [], []
 
         def run(command, **_):
-            if 'measurement_checks.py' in ' '.join(command):  # D-322: the PR body's measurement part, beside
+            if 'measurement_checks.py' in ' '.join(command):  # D-328: the PR body's effort part left; none is run
                 self.bodies.append(command)
-                return mock.Mock(returncode=0 if body == self.BODY else 1, stdout=body, stderr='')
             if command[0].endswith('commit-check'):  # D-322: the PR's commit part, beside
                 self.commits.append(command)
                 return mock.Mock(returncode=0 if commits == self.COMMITS else 1, stdout=commits, stderr='')
@@ -1003,17 +1001,11 @@ class TheMetadataOfAForgeThatIsAway(unittest.TestCase):
         self.assertEqual((green, len(self.commands)), (False, 1))  # a refusal about the PR: no retry makes it right
         self.assertFalse(gate_infra.blind(self.GREEN))
 
-    def test_the_pr_bodys_measurement_part_runs_beside_and_its_refusal_is_red(self):
-        # D-322: the effort block is measurement_checks.py body, judged once the structure check judged the PR
-        (green, said), _ = self.answers(self.GREEN)
+    def test_the_pr_bodys_effort_part_is_no_longer_run(self):
+        # D-328: the effort block (measurement_checks.py body) left; the metadata is the structure and commit parts
+        (green, _), _ = self.answers(self.GREEN)
         self.assertTrue(green)
-        self.assertEqual([command[2:5] for command in self.bodies], [['body', '--pr', '7']])
-        refused = 'FAIL effort: the PR body has no `## Cheapest useful effort` block\n'
-        (green, said), _ = self.answers(self.GREEN, body=refused)
-        self.assertFalse(green)
-        self.assertIn('Cheapest useful effort', said)
-        self.answers(self.BLIND)
-        self.assertEqual(self.bodies, [])  # a PR that was not read is not judged by either part
+        self.assertEqual(self.bodies, [])
 
     def test_the_prs_commit_part_runs_beside_and_its_refusal_or_blindness_is_red(self):
         # D-322: the commit discipline, plan completeness and lanes are commit-check --pr, run beside the structure check

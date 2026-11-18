@@ -6,11 +6,9 @@ data run here, as an always-run stage after it, the way the production guard and
   census             each unit's census record: shape, digest chain, fold, owner, append-only (CENSO-NO-MANIFESTO);
   shared literals    a value of two or more census areas is born in the common catalog (D-064 c);
   budgets            the performance budgets' entries and baseline, never loosened without a decision (D-069 item 14, D-025).
-And the PR body's part, which the gate's `pr metadata` stage runs beside structure-check --metadata:
-  effort             the `## Cheapest useful effort` block of the PR body (EFFORT-STEP, D-069 items 4, 8, 9).
+The PR body's effort block left with D-328.
 
-`python3 measurement_checks.py check [--base B] [--root R]` and `body (--pr-body FILE | --pr N) [--base B] [--sha S]
-[--observation FILE] [--root R]` print FAIL/WARN lines and a summary, and exit 1 on an error.
+`python3 measurement_checks.py check [--base B] [--root R]` prints FAIL/WARN lines and a summary, and exits 1 on an error.
 """
 import argparse
 import json
@@ -21,7 +19,6 @@ import sys
 import budget_check
 import census
 import config
-import effort
 
 ABSOLUTE_BASELINE = 'scripts/lib/absolute-literals-baseline'  # D-064 (a): where scripts/generate census renders an area
 SHARED_LITERALS = 'scripts/lib/shared-literals.json'
@@ -107,59 +104,22 @@ def check(root, base=None):
     return errors + list(budget_errors), warnings + list(budget_warnings)
 
 
-def fetched_pr(root, number, sha=None, observation=None):
-    """The PR as the structure check's `pr metadata` reads it (structure.gated_fetch, planning, a lower layer), judged on
-    the gated sha (GX-14); with an observation, what the live service read (PR-OBSERVATION). Imported only here, so the
-    tree's check and a body file never load it."""
-    import structure
-    return structure.gated_fetch(root, number, sha, observation=observation)
-
-
-def body(root, text, base=None, created=None):
-    """The PR body's measurement refusals: the effort block (EFFORT-STEP, D-069 items 4, 8, 9, D-025)."""
-    return effort.body_errors(text, root, base=base, created=created)
-
-
 def default_root():
     found = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True)
     return Path(found.stdout.strip()) if found.returncode == 0 else Path(__file__).resolve().parents[2]
 
 
-def main(argv=None, fetch=fetched_pr):
+def main(argv=None):
     parser = argparse.ArgumentParser(prog='measurement_checks.py', description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest='command', required=True)
     tree = commands.add_parser('check', help='the tree: absolute baseline, census, shared literals, budgets')
     tree.add_argument('--base')
     tree.add_argument('--root', type=Path)
-    pr = commands.add_parser('body', help='the PR body: the effort block (the gate runs it in `pr metadata`)')
-    source = pr.add_mutually_exclusive_group()
-    source.add_argument('--pr-body', type=Path, help='a PR body file')
-    source.add_argument('--pr', type=int, help='this PR over the forge, judged on --sha or the gated head')
-    pr.add_argument('--base')
-    pr.add_argument('--sha')
-    pr.add_argument('--observation', type=Path, help='--pr: judge what the live service read of the PR (PR-OBSERVATION)')
-    pr.add_argument('--root', type=Path)
     args = parser.parse_args(argv)
     root = (args.root or default_root()).resolve()
-    warnings = []
     with config.reading():
-        if args.command == 'check':
-            errors, warnings = check(root, args.base)
-            scope = f'against {args.base}' if args.base else 'no base'
-        elif args.pr_body:
-            errors, scope = body(root, args.pr_body.read_text()), 'PR body file'
-        elif args.pr:
-            scope = f'PR #{args.pr}'
-            try:
-                seen = json.loads(args.observation.read_text()) if args.observation else None
-                fetched = fetch(root, args.pr, args.sha, observation=seen)
-            except (RuntimeError, OSError, KeyError) as error:  # fail closed: the body was not judged
-                errors = [f'measurement: PR #{args.pr} not readable ({error})']
-            else:
-                errors = body(root, fetched.get('body', ''), base=(fetched.get('base') or {}).get('merge_base'),
-                              created=fetched.get('created_at'))
-        else:
-            errors, scope = [], 'no PR'  # the gate's `pr metadata` without --pr judges nothing
+        errors, warnings = check(root, args.base)
+    scope = f'against {args.base}' if args.base else 'no base'
     for line in errors:
         print('FAIL ' + line)
     for line in warnings:

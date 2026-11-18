@@ -40,7 +40,6 @@
  "scripts/tests/deploy-slow-e.test.sh": 41.1,
  "scripts/tests/deploy-slow-f.test.sh": 40.9,
  "scripts/tests/deploy.test.sh": 4.4,
- "scripts/tests/effort-check.test.sh": 0.7,
  "scripts/tests/env.test.sh": 0.6,
  "scripts/tests/event-contracts.test.sh": 0.5,
  "scripts/tests/fast-on-landed.test.sh": 0.2,

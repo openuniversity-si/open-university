@@ -544,8 +544,6 @@ def metadata_of(pr, base, run=subprocess.run, sleep=time.sleep, jitter=random.un
     PR-OBSERVATION: with the port and the head, what is judged is what the live service read with the forge's key (the
     lane's login and reflog off the path); a service that could not read it counts as a forge that did not answer."""
     command = [str(ROOT / 'scripts' / 'structure-check'), '--metadata', '--pr', str(pr), '--base', base, '--no-publish']
-    # D-322: the PR body's measurement part (the effort block), which the structure check no longer imports
-    measured = [sys.executable, str(ROOT / 'scripts' / 'lib' / 'measurement_checks.py'), 'body', '--pr', str(pr), '--base', base]
     # D-322: the PR's commit part (commit discipline, plan completeness, lanes), which the structure check no longer imports
     commits = [str(ROOT / 'scripts' / 'commit-check'), '--pr', str(pr)]
     METADATA_PARTS.clear()
@@ -574,12 +572,9 @@ def metadata_of(pr, base, run=subprocess.run, sleep=time.sleep, jitter=random.un
                     commit_text = judged.stdout + judged.stderr
                     unread = judged.returncode != 0 and blind(commit_text)  # its read of the PR is a read like the other
                     text = commit_text if unread else text + commit_text
-                if not unread:
-                    body = run(measured + extra, cwd=ROOT, capture_output=True, text=True, check=False)
                 METADATA_PARTS['metadata_check_s'] = round(METADATA_PARTS.get('metadata_check_s', 0) + time.monotonic() - began, 3)
             if not unread:
-                return (done.returncode == 0 and judged.returncode == 0 and body.returncode == 0,
-                        said(text + body.stdout + body.stderr))
+                return done.returncode == 0 and judged.returncode == 0, said(text)
         pause = jitter(0, backoff * 2 ** attempt)
         if attempt == retries or waited + pause > limit:
             break

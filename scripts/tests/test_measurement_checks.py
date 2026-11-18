@@ -1,5 +1,5 @@
 """The gate's "measurement checks" stage (D-322): the absolute baseline, the census, the shared literals and the budgets
-of the tree, and the PR body's effort block; the structure check imports none of them. Fixture repositories, no network."""
+of the tree (the PR body's effort block left with D-328); the structure check imports none of them. Fixture repositories, no network."""
 import contextlib
 import io
 import json
@@ -19,8 +19,6 @@ ASSETS = {'version': 1, 'entries': [
     {'category': 'doc', 'paths': ['docs/**'], 'protects': ['D-001'], 'retire': 'never: the constitution'},
     {'category': 'script', 'paths': ['scripts/lib/absolute-literals-baseline/*.json'], 'protects': ['D-001'],
      'retire': 'never: x'}]}
-BLOCK = ('## Cheapest useful effort\nAction: the gate run.\nCost: 5 min.\nRequirement: Daniel, to merge it.\n'
-         'Cheaper rejected: the unit tests alone (they skip the stage).\n\n')
 
 
 def write(root, files):
@@ -133,62 +131,17 @@ class Tree(unittest.TestCase):
         self.assertEqual(found, ['B'])
 
 
-class Body(unittest.TestCase):
-    BODY = 'Summary.\n\nPremises: none\nFit-Review: not reviewed (Daniel 2026-10-25: no review step)\n'
-
-    def run_main(self, *args, fetch=None):
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            code = measurement_checks.main(['body', '--root', str(ROOT), *args],
-                                           **({'fetch': fetch} if fetch else {}))
-        return code, out.getvalue()
-
-    def test_a_body_file_without_the_block_is_red_and_with_it_green(self):
-        with tempfile.NamedTemporaryFile('w', suffix='.md') as handle:
-            handle.write(self.BODY)
-            handle.flush()
-            code, out = self.run_main('--pr-body', handle.name)
-        self.assertEqual(code, 1, out)
-        self.assertIn('FAIL effort: the PR body has no `## Cheapest useful effort` block', out)
-        with tempfile.NamedTemporaryFile('w', suffix='.md') as handle:
-            handle.write(BLOCK + self.BODY)
-            handle.flush()
-            code, out = self.run_main('--pr-body', handle.name)
-        self.assertEqual(code, 0, out)
-        self.assertIn('measurement checks (body, PR body file): 0 error(s)', out)
-
-    def test_a_pr_is_judged_on_what_was_fetched_and_an_unreadable_one_is_red(self):
-        asked = []
-
-        def fetch(root, number, sha=None, observation=None):
-            asked.append((number, sha, observation))
-            return {'body': BLOCK + self.BODY, 'base': {}, 'created_at': None}
-        code, out = self.run_main('--pr', '7', '--sha', 'abc', fetch=fetch)
-        self.assertEqual((code, asked), (0, [(7, 'abc', None)]), out)
-
-        def unreadable(*_, **__):
-            raise RuntimeError('origin answered 503')
-        code, out = self.run_main('--pr', '7', fetch=unreadable)
-        self.assertEqual(code, 1, out)
-        self.assertIn('FAIL measurement: PR #7 not readable (origin answered 503)', out)
-
-    def test_without_a_pr_nothing_is_judged(self):
-        code, out = self.run_main('--base', 'B')
-        self.assertEqual(code, 0, out)
-        self.assertIn('measurement checks (body, no PR): 0 error(s)', out)
-
-
 class Wiring(unittest.TestCase):
     def test_the_structure_check_imports_no_measurement_module(self):
         source = (ROOT / 'scripts/lib/structure.py').read_text()
-        for name in ('budget_check', 'census', 'effort', 'measurement_checks'):
+        for name in ('budget_check', 'census', 'measurement_checks'):
             self.assertNotRegex(source, rf'(?m)^import {name}$')
 
-    def test_the_gate_runs_the_stage_and_the_pr_metadata_runs_the_body(self):
+    def test_the_gate_runs_the_stage_and_the_pr_metadata_no_longer_runs_a_body(self):
         self.assertIn('"measurement checks") "$py" "$root/scripts/lib/measurement_checks.py" check',
                       (ROOT / 'scripts/gate-check').read_text())
         self.assertIn('measurement_checks.py" check', (ROOT / 'scripts/gate-local').read_text())
-        self.assertIn('measurement_checks.py" body', (ROOT / 'scripts/lib/gate-hooks/prereq.sh').read_text())
+        self.assertNotIn('measurement_checks.py', (ROOT / 'scripts/lib/gate-hooks/prereq.sh').read_text())  # D-328
 
 
 if __name__ == '__main__':

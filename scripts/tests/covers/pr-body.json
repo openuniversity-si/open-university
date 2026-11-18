@@ -5,7 +5,6 @@
     "scripts/tests/test_pr_body.py",
     "scripts/pr-body",
     "scripts/lib/pr_body.py",
-    "scripts/lib/effort.py",
     "scripts/lib/structure.py",
     "scripts/lib/commit_check.py",
     "docs/process/lane.md"

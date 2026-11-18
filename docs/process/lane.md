@@ -25,12 +25,8 @@ brief alone, without opening `fila.md`, `RETOMAR.md` or `DECISIONS.md`. Base `mo
    its tests, is green after it, and ends with the trailers `Plan: N`, `Co-Authored-By: <model> <noreply@anthropic.com>`
    and `Claude-Session: <session>`. Push every commit, one per push; merge commits only, never a rebase or force-push.
 4. **PR body** (`scripts/pr-body` builds it from the commits and takes the `Claude-Session:` trailer from
-   `export CLAUDE_SESSION_URL=<session>`, else `--session`; `scripts/commit-check --pr-body <file>` (the plan) and `measurement_checks.py body --pr-body <file>` (the effort, D-322) show no
-   effort or plan warning): the commit plan; a `## Cheapest useful effort` block of four non-empty lines, `Action:` (the
-   most expensive action), `Cost:`, `Requirement:` and `Cheaper rejected:` ([effort.md](../padrao/v4/effort.md)). The
-   `Requirement:` names who needs the result with a word of `effort.owners` (`scripts/config get effort.owners`: Daniel,
-   A Torre, coordinator, author, operator, …) or a unit lane such as engine-lane; "manager", "the lanes" or "the gate"
-   are refused. Then `Premises: P-NN…|none` (`scripts/premises find "<statement>"`), the D-NNN when a gate file changes,
+   `export CLAUDE_SESSION_URL=<session>`, else `--session`; `scripts/commit-check --pr-body <file>` shows no plan
+   warning): the commit plan (the effort block left with D-328). Then `Premises: P-NN…|none` (`scripts/premises find "<statement>"`), the D-NNN when a gate file changes,
    `Fit-Review: not reviewed (Daniel 2026-10-25: no review step)` and the footer.
 5. **Open:** `origin pr create --draft` prints no number you can reuse; skip it: push the branch first (`git push origin units/<fxx>`; deliver reads `origin/<branch>` and says "no commit over base" otherwise), then `scripts/deliver --open --branch units/<fxx>` opens the PR from the branch commits when it has none and delivers it, finding the open PR of the branch itself (no `<N>`). With `--draft`, `origin pr ready <N>` needs the N from `origin pr list`.
 6. **Test:** `scripts/test-suite --changed` before delivering.
@@ -74,7 +70,7 @@ copy is stale). Change it together with the contract.
 1. `scripts/lane worktree <Fxx> --session <session>` in ~/the-tower (.toolchain; base mod/roadmap-integration not main; not PR #3, #41).
 2. Read only the row's files, by range (`rg -n`/`sed -n`); ~15k tokens a call: batch, `| tail -20`.
 3. Each commit green, pushed; no rebase/force. Trailers `Plan: N`, `Co-Authored-By: <model> <noreply@anthropic.com>`, `Claude-Session: <session>`.
-4. `export CLAUDE_SESSION_URL=<session>`; `scripts/pr-body --title --action --cost --requirement --cheaper` (all required, else refused); `scripts/commit-check --pr-body <file>`: checklist; `## Cheapest useful effort` (Action:, Cost:, Requirement: effort.owners/engine-lane, Cheaper rejected:); `Premises: P-NN|none`; D-NNN on gate change; `Fit-Review:` from pr-body.
+4. `export CLAUDE_SESSION_URL=<session>`; `scripts/pr-body --title`; `scripts/commit-check --pr-body <file>`: checklist; `Premises: P-NN|none`; D-NNN on gate change; `Fit-Review:` from pr-body.
 5. Title `<Fxx>: ...`; no `pr create`: `deliver --open` opens it.
 6. `scripts/test-suite --changed` once pre-deliver; iterate `scripts/run test <name>`.
 7. `scripts/deliver --open --branch units/<fxx> > ../<fxx>.log 2>&1` via `run_in_background` (never `&`), await exit. Red: fix by class, rerun; base red: friction+report.
@@ -203,7 +199,7 @@ An incident is fixed at the highest level it allows, in this order: the design t
 Every 10 minutes a session runs `scripts/repeats`: the open repeated actions, most repeated first. For the top one, it decides whether the action gets a script, a plan unit or a record of why not, and writes that in docs/process/repeats.md. The routine is the script; the session only decides the open rows.
 
 ## The PR body (D-208)
-`scripts/pr-body --title T --action A --cost C --requirement R --cheaper X --session URL --out FILE` builds the body from the branch's commits, so the plan, the effort block and the footer are not typed again; then `origin pr create -t T -F FILE -H B -B mod/roadmap-integration`.
+`scripts/pr-body --title T --session URL --out FILE` builds the body from the branch's commits, so the plan and the footer are not typed again; then `origin pr create -t T -F FILE -H B -B mod/roadmap-integration`.
 
 ## Sixteen lanes (D-209)
 | Lane | Units |
