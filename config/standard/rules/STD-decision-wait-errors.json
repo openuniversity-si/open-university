@@ -10,6 +10,9 @@
     "kind": "function",
     "ref": "scripts/lib/decision_wait.py:errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: The check cites \"DECIDE, THEN REPORT (Daniel 2026-10-26 21:29)\" and unit X1; no D-NNN records that order."
+  "basis": [
+    "D-325",
+    "D-326"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-325 (decide, then report: \"DECIDE, THEN REPORT (Daniel 2026-10-26 21:29)\", unit X1, confirmed by Daniel 18/11 20:19 BRT) and D-326 (dormant while tower/gate skips pr metadata; D-329 brings the stage back)."
 }

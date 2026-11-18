@@ -10,6 +10,9 @@
     "kind": "function",
     "ref": "scripts/lib/retro.py:shape_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: RETRO-API (Daniel 2026-10-28 20:00 BRT); the D-054 in the module head is the recording delegation, and no D-NNN records the store or its shape rule."
+  "basis": [
+    "D-324",
+    "D-326"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-324 (a log the retro store receives is non-empty UTF-8, and a transcript is Claude Code JSONL; RETRO-API, Daniel 2026-10-28 20:00 BRT) and D-326 (dormant: the store is the box's, stopped by D-314)."
 }

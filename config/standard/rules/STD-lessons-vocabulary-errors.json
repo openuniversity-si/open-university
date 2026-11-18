@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/lessons.py:vocabulary_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: The module head cites D-069 items 4 and 9 (LR1); neither states that a lesson's class, kind, owner, status and level come from the lessons.* registry lists."
+  "basis": [
+    "D-324"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-324 (every record the engine reads conforms to its contract): a lesson's class, kind, owner, status and level are values of the lessons.* registry lists (a closed vocabulary kept in the registry, D-068). The module head cites D-069 items 4 and 9 (LR1)."
 }
