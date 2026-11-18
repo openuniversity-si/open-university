@@ -1,7 +1,7 @@
 """Owner waits in PR comments (X1): DECIDE, THEN REPORT (Daniel 2026-10-26 21:29).
 
-No session may stop and wait for an owner decision. A comment line that holds one of push-guard.owner_wait_phrases
-waits on the owner; a later line that starts with push-guard.decision_marker (in the same comment or a later one)
+No session may stop and wait for an owner decision. A line of a PR comment, or of the PR body (I-c16f2b7c: commit-check
+reads the body first), that holds one of push-guard.owner_wait_phrases waits on the owner; a later line that starts with push-guard.decision_marker (in the same comment or a later one)
 records the decision the session took and clears it. Lines in code fences, quoted lines ('>') and inline code spans
 are not read, and comments of the forge_events log (forge-events.event_comment_marker) are skipped. Matching is
 case-insensitive; a phrase that ends in ':' counts only at the start of a line (after list, heading or bold marks).
@@ -88,14 +88,17 @@ def waiting(bodies, root=None):
     return found
 
 
-def errors(bodies, number=None, root=None):
-    """The commit-check refusal of a PR whose comments still wait on the owner."""
-    found = waiting(bodies, root)
+def errors(bodies, number=None, root=None, body=None):
+    """The commit-check refusal of a PR whose comments, or whose body (I-c16f2b7c), still wait on the owner. The body,
+    when given, is read first, so a Decision line in it or in any comment clears a wait the body holds."""
+    readable = ([body] if body is not None else []) + list(bodies)
+    found = waiting(readable, root)
     if found is None:
         return []
     index, phrase, line = found
+    where = 'the body' if body is not None and index == 0 else f'comment {index if body is not None else index + 1}'
     marker = config.get('push-guard.decision_marker', root)
-    return [f'decision-wait: comment {index + 1} of PR #{number or "?"} waits on an owner decision ("{phrase}": '
+    return [f'decision-wait: {where} of PR #{number or "?"} waits on an owner decision ("{phrase}": '
             f'{line[:120]!r}) and no later comment records a "{marker}" line. DECIDE, THEN REPORT (Daniel 2026-10-26 '
             f'21:29): pick the safest reversible option (never weaken a check, add a secret, touch production or move '
             f'the source of truth), act on it, and record it in a PR comment line that starts with "{marker}"']

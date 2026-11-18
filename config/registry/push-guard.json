@@ -92,7 +92,12 @@
         "waiting for the owner",
         "waiting on the owner",
         "needs an owner decision",
-        "BLOCKED:"
+        "BLOCKED:",
+        "held for Daniel",
+        "waits on Daniel",
+        "awaiting Daniel",
+        "espera o Daniel",
+        "aguarda Daniel"
       ],
       "minItems": 1,
       "items": {
