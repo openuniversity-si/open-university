@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/dns-zone.test.sh",
+  "covers": [
+    "scripts/tests/dns-zone.test.sh",
+    "scripts/tests/test_dns_zone.py",
+    "scripts/tests/fixtures/dns/**",
+    "scripts/dns-zone",
+    "scripts/lib/dns_zone.py",
+    "infra/aws/dns/**",
+    "infra/aws/stacks/70-dns.json",
+    "docs/domain/decisions/D-323.md"
+  ]
+}

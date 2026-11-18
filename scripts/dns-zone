@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/dns-zone build <bind-file> | template [--check] | compare <bind-file> | dig-plan [--ns a,b,c,d]
+# The DNS of openuniversity.si on Route 53 (D-323 step 3): the BIND export to the record list and the stack, offline.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/dns_zone.py" "$@"

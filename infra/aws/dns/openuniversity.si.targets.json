@@ -1,0 +1,4 @@
+{
+  "about": "The real target of each record Cloudflare proxies (scripts/dns-zone build lists them under needs_target, because the export holds Cloudflare's address, not the origin). A key is '<name> <type>' as needs_target names it; the value is the record Route 53 gets instead: {\"type\": ..., \"values\": [...], \"ttl\": ...}. Example: \"media.openuniversity.si. CNAME\": {\"type\": \"CNAME\", \"values\": [\"d1234abcd.cloudfront.net.\"], \"ttl\": 300}, the media stack's DistributionDomain.",
+  "targets": {}
+}

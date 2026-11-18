@@ -4,5 +4,6 @@
   "service": ["data", "network"],
   "port": ["data", "network"],
   "runner": [],
-  "media": []
+  "media": [],
+  "dns": []
 }

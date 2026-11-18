@@ -1,0 +1,9 @@
+{
+  "zone": "openuniversity.si.",
+  "generated_by": "scripts/dns-zone build (do not edit by hand: rebuild from the export)",
+  "export": null,
+  "ttl_note": "Cloudflare exports its automatic TTL as 1; it is 300 s here",
+  "records": [],
+  "needs_target": [],
+  "dropped": []
+}

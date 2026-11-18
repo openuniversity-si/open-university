@@ -12,5 +12,8 @@
   "media": {
     "Cdn": "off",
     "Alias": "media.openuniversity.si"
+  },
+  "dns": {
+    "Zone": "off"
   }
 }

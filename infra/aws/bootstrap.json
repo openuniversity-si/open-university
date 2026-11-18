@@ -129,6 +129,20 @@
               }
             },
             {
+              "Sid": "TheSiteZoneOnRoute53",
+              "Effect": "Allow",
+              "Action": [
+                "route53:*HostedZone",
+                "route53:ListHostedZones*",
+                "route53:UpdateHostedZoneComment",
+                "route53:*ResourceRecordSets",
+                "route53:*TagsForResource*",
+                "route53:GetChange",
+                "route53:ListQueryLoggingConfigs"
+              ],
+              "Resource": "*"
+            },
+            {
               "Sid": "AppRolesCarryThisBoundary",
               "Effect": "Allow",
               "Action": [
