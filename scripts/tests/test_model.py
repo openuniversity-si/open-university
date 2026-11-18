@@ -453,6 +453,41 @@ class Changes(unittest.TestCase):
         self.assertEqual(found['CHG-5']['links'], [{'type': 'implements', 'target': 'REQ-a'},
                                                    {'type': 'implements', 'target': 'UNIT:x'}])
 
+    def test_the_units_a_merges_diff_touched_are_implements_links_from_the_diff_that_implement_no_requirement(self):
+        import units
+        shutil.copytree(ROOT / 'config/registry', self.root / 'config/registry')
+        (self.root / 'contracts/units').mkdir(parents=True)
+        shutil.copy(ROOT / 'contracts/units/unit.v1.json', self.root / 'contracts/units/unit.v1.json')
+        write(self.root, 'units/x/unit.json', {'id': 'x', 'purpose': 'p', 'cell': 'engine', 'owner': 'engine-lane',
+                                               'paths': ['src/x/**'], 'requires': {}})
+        write(self.root, 'units/y/unit.json', {'id': 'y', 'purpose': 'p', 'cell': 'engine', 'owner': 'engine-lane',
+                                               'paths': ['src/y/**'], 'requires': {}})
+        units.reset()
+        self.addCleanup(units.reset)
+        self.git('add', 'units')
+        self.git('commit', '-q', '-m', 'units')
+        for number, branch, path, message in ((6, 'code', 'src/x/a.py', 'code: x\n\nImplements: REQ-c'),
+                                              (7, 'both', 'src/y/b.py', 'both: y\n\nImplements: UNIT:y'),
+                                              (8, 'docs', 'docs/n.md', 'docs: n')):
+            self.git('checkout', '-q', '-b', branch)
+            write(self.root, path, 'v')
+            self.git('add', path)
+            self.git('commit', '-q', '-m', message)
+            self.git('checkout', '-q', 'main')
+            self.git('merge', '-q', '--no-ff', branch, '-m', f'Merge pull request #{number} from org/{branch}')
+        found = {item['id']: item for item in model.read_changes(self.root)}
+        self.assertEqual(found['CHG-6']['links'], [{'type': 'implements', 'target': 'REQ-c'},
+                                                   {'type': 'implements', 'target': 'UNIT:x', 'source': 'diff'}])
+        self.assertEqual(found['CHG-7']['links'], [{'type': 'implements', 'target': 'UNIT:y'}], 'a trailer names it')
+        self.assertEqual(found['CHG-8']['links'], [], 'a docs-only merge changes no unit')
+        self.assertEqual(found['CHG-5']['links'], [{'type': 'implements', 'target': 'REQ-a'},
+                                                   {'type': 'implements', 'target': 'UNIT:x'}], 'no unit path touched')
+        found['REQ-x'] = {'id': 'REQ-x', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],
+                          'body': {'type': 'quality'}}
+        found['UNIT:x'] = {'id': 'UNIT:x', 'type': 'UNIT', 'state': 'active', 'fingerprint': 'f', 'links': []}
+        into = model.incoming(found)
+        self.assertFalse(model.implemented(found['REQ-x'], into, found), 'a diff-derived unit link implements no REQ')
+
     def test_a_requirement_is_implemented_by_a_merged_change_and_verified_when_a_test_also_verifies_it(self):
         found = {item['id']: item for item in model.read_changes(self.root)}
         found['REQ-a'] = {'id': 'REQ-a', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],
