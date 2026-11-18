@@ -1,0 +1,10 @@
+{
+  "script": "scripts/tests/deploy-files.test.sh",
+  "covers": [
+    "scripts/tests/deploy-files.test.sh",
+    "scripts/tests/test_deploy_files.py",
+    "infra/aws/stacks/**",
+    "infra/aws/parameters.json",
+    "units/engine-gate-infra/unit.json"
+  ]
+}
