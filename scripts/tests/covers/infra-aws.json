@@ -12,6 +12,8 @@
     "docs/domain/decisions/D-315.md",
     "docs/arquitetura-referencia/PLANO-DE-IMPLEMENTACAO.md",
     "config/registry/toolchain/toolchain.postgres_version.json",
-    "infra/service/tower_infra/live_image.py"
+    "infra/service/tower_infra/live_image.py",
+    "scripts/lib/dns_zone.py",
+    "docs/programs/padrao-dev/fornecimento-cloudflare.md"
   ]
 }

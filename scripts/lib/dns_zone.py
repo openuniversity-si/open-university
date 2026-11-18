@@ -8,6 +8,10 @@ the network.
                                     difference
   dig-plan [--ns a,b,c,d]           one `dig` per record against a Route 53 name server, with the answer it must give
 
+  build ... --mail ses              the e-mail cut (D-323, the Cloudflare exit): the record list and the stack with the
+                                    domain's mail on SES receiving instead of Cloudflare Email Routing (see MAIL below);
+                                    --mail cloudflare (the default) is the export as it is, and the revert
+
 A record Cloudflare proxies is refused: the export holds Cloudflare's anycast address (or, for a proxied CNAME, a target
 Cloudflare fronts), never the origin behind it, so translating it would point the name at Cloudflare or bypass what it
 did. It is listed under needs_target; the real target goes into the targets file (infra/aws/dns/<zone>.targets.json) and
@@ -20,6 +24,14 @@ holds a CloudFront domain ({"alias_import": "<export name>"}): the record become
 Fn::ImportValue of that export (hosted zone Z2FDTNDATAQYW2, CloudFront's), so the session never copies a domain it cannot
 read. The stack that exports it must come first in infra/aws/order.json (StackOrderTests derives the edge from the
 import), and while the dns stack imports it CloudFormation refuses to change or remove that export in the other stack.
+MAIL (--mail ses): the apex MX becomes SES receiving's endpoint in the stack's region (`10 inbound-smtp.<region>.amazonaws.com`,
+written with Fn::Sub ${AWS::Region}, so the stack fixes no region); in the apex SPF, Cloudflare's include becomes
+include:amazonses.com (`v=spf1 include:amazonses.com ~all` from today's export); Cloudflare's DKIM (cf<year>-<n>._domainkey)
+is dropped; a DMARC record `v=DMARC1; p=none` is added when the export has none (an existing one is kept); and the stack
+gets three CNAMEs, the Easy DKIM tokens of the mail stack's SES identity, read with Fn::ImportValue of its exports
+tower-mail-dkim-name-<n> and tower-mail-dkim-value-<n> (the tokens exist only once the identity does, so the session never
+copies them). The list records it as "mail": "ses", so compare applies the same change to the export before it compares;
+the dns stack then needs the mail stack in infra/aws/order.json, and the mail stack must be at Mail on.
 Stdlib only, deterministic (sorted output, no clock).
 """
 import argparse
@@ -39,6 +51,14 @@ CLOUDFRONT_ZONE_ID = 'Z2FDTNDATAQYW2'  # the hosted zone id every CloudFront ali
 AUTO_TTL = 300  # Cloudflare's "auto" TTL, exported as 1, is 300 s
 EXPORT_NAME = re.compile(r'^[A-Za-z0-9:-]{1,255}$')  # what CloudFormation takes as an export name
 MAX_BODY = 51200  # what `aws cloudformation deploy` sends without an S3 bucket
+MAIL_MODES = ('cloudflare', 'ses')
+SES_REGION = 'us-east-1'  # the stacks' region (SES receiving answers there); the stack writes ${AWS::Region}, the dig plan this
+SES_MX = '10 inbound-smtp.${AWS::Region}.amazonaws.com.'
+SES_SPF_INCLUDE = 'include:amazonses.com'
+CLOUDFLARE_SPF_INCLUDE = re.compile(r'\binclude:_spf\.mx\.cloudflare\.net\b')
+CLOUDFLARE_DKIM = re.compile(r'^cf\d{4}-\d+\._domainkey\.')
+SES_DMARC = 'v=DMARC1; p=none'
+DKIM_EXPORTS = tuple((f'tower-mail-dkim-name-{n}', f'tower-mail-dkim-value-{n}') for n in (1, 2, 3))
 TYPES = {'A', 'AAAA', 'CAA', 'CNAME', 'DS', 'HTTPS', 'MX', 'NAPTR', 'NS', 'PTR', 'SOA', 'SPF', 'SRV', 'SSHFP', 'SVCB',
          'TLSA', 'TXT'}  # what Route 53 serves
 CLASSES = {'IN', 'CH', 'HS'}
@@ -331,9 +351,49 @@ def site_alias(item):
     return item.get('route53', '').startswith('alias') and not item.get('alias_import')
 
 
-def record_list(text, source_name, zone=ZONE, networks=(), targets=None):
+def ses_spf(value):
+    """An SPF value with Cloudflare Email Routing's include replaced by SES's (added before `all` when it had none)."""
+    if SES_SPF_INCLUDE in value.split():
+        return CLOUDFLARE_SPF_INCLUDE.sub('', value).replace('  ', ' ').strip()
+    if CLOUDFLARE_SPF_INCLUDE.search(value):
+        return CLOUDFLARE_SPF_INCLUDE.sub(SES_SPF_INCLUDE, value)
+    words = value.split()
+    at = next((i for i, word in enumerate(words) if re.fullmatch(r'[-~?+]?all', word)), len(words))
+    return ' '.join(words[:at] + [SES_SPF_INCLUDE] + words[at:])
+
+
+def mail_records(kept, zone=ZONE, mail='cloudflare'):
+    """The record sets with the domain's mail on SES receiving (MAIL in the module's doc); cloudflare: unchanged."""
+    if mail not in MAIL_MODES:
+        raise ZoneError(f'--mail is one of {", ".join(MAIL_MODES)}, not {mail}')
+    if mail == 'cloudflare':
+        return kept
+    out, spf, dmarc = [], False, False
+    for item in kept:
+        if item['name'] == zone and item['type'] == 'MX':
+            continue
+        if item['type'] == 'TXT' and item['name'].endswith('._domainkey.' + zone) and CLOUDFLARE_DKIM.match(item['name']):
+            continue
+        if item['name'] == zone and item['type'] == 'TXT':
+            values = [ses_spf(value) if value.startswith('v=spf1') else value for value in item['values']]
+            if not any(value.startswith('v=spf1') for value in values):
+                values.append(f'v=spf1 {SES_SPF_INCLUDE} ~all')
+            item, spf = {**item, 'values': sorted(values), 'mail': 'ses'}, True
+        dmarc = dmarc or (item['name'] == '_dmarc.' + zone and item['type'] == 'TXT')
+        out.append(item)
+    if not spf:
+        out.append({'name': zone, 'type': 'TXT', 'ttl': AUTO_TTL, 'values': [f'v=spf1 {SES_SPF_INCLUDE} ~all'], 'mail': 'ses'})
+    if not dmarc:
+        out.append({'name': '_dmarc.' + zone, 'type': 'TXT', 'ttl': AUTO_TTL, 'values': [SES_DMARC], 'mail': 'ses'})
+    out.append({'name': zone, 'type': 'MX', 'ttl': AUTO_TTL, 'values': [SES_MX], 'mail': 'ses', 'sub': True,
+                'route53': "SES receiving's endpoint in the stack's region (Fn::Sub ${AWS::Region})"})
+    return sorted(out, key=lambda item: (item['name'], item['type']))
+
+
+def record_list(text, source_name, zone=ZONE, networks=(), targets=None, mail='cloudflare'):
     kept, refused, dropped = normalize(parse(text, zone), zone, networks, targets)
-    return {
+    kept = mail_records(kept, zone, mail)
+    data = {
         'zone': zone,
         'generated_by': 'scripts/dns-zone build (do not edit by hand: rebuild from the export)',
         'export': {'file': source_name, 'sha256': hashlib.sha256(text.encode('utf-8')).hexdigest()},
@@ -342,6 +402,9 @@ def record_list(text, source_name, zone=ZONE, networks=(), targets=None):
         'needs_target': refused,
         'dropped': dropped,
     }
+    if mail != 'cloudflare':
+        data['mail'] = mail
+    return data
 
 
 def load_targets(path):
@@ -374,7 +437,20 @@ def txt_value(text):
 def route53_values(item):
     if item['type'] in ('TXT', 'SPF'):
         return [txt_value(value) for value in item['values']]
+    if item.get('sub'):
+        return [{'Fn::Sub': value} for value in item['values']]
     return list(item['values'])
+
+
+def dkim_record_sets(data):
+    """--mail ses: the three Easy DKIM CNAMEs of the mail stack's identity, by Fn::ImportValue of its exports."""
+    if data.get('mail') != 'ses':
+        return {}
+    return {f'RecordSesDkim{n}Cname': {
+        'Type': 'AWS::Route53::RecordSet', 'Condition': 'ZoneOn',
+        'Properties': {'HostedZoneId': {'Ref': 'HostedZone'}, 'Name': {'Fn::ImportValue': name}, 'Type': 'CNAME',
+                       'TTL': str(AUTO_TTL), 'ResourceRecords': [{'Fn::ImportValue': value}]}}
+        for n, (name, value) in enumerate(DKIM_EXPORTS, 1)}
 
 
 def logical_id(item, zone, taken):
@@ -421,6 +497,7 @@ def template(data):
             'Type': 'AWS::Route53::RecordSet', 'Condition': 'ZoneOn',
             'Properties': {'HostedZoneId': {'Ref': 'HostedZone'}, 'Name': item['name'], 'Type': item['type'],
                            'TTL': str(item['ttl']), 'ResourceRecords': route53_values(item)}}
+    resources.update(dkim_record_sets(data))
     off = {'Fn::Equals': [{'Ref': 'Zone'}, 'off']}
     return {
         'AWSTemplateFormatVersion': '2010-09-09',
@@ -468,6 +545,7 @@ def compare(text, data, networks=(), targets=None):
     """The differences between an export and the record list, and the records that need their real target."""
     zone = data['zone']
     kept, refused, _ = normalize(parse(text, zone), zone, networks, targets)
+    kept = mail_records(kept, zone, data.get('mail', 'cloudflare'))
     want = {_key(item): item for item in kept}
     have = {_key(item): item for item in data['records']}
     problems = []
@@ -502,8 +580,11 @@ def dig_plan(data, name_servers, site=''):
                 lines.append(f'dig +norecurse @{ns} {item["name"]} {rtype} +short  # expect the addresses of '
                              f'{site or "<SiteDistribution>"} (alias)')
             continue
-        expect = ' | '.join(route53_values(item))
+        expect = ' | '.join(value.replace('${AWS::Region}', SES_REGION) for value in item['values']) if item.get('sub') \
+            else ' | '.join(route53_values(item))
         lines.append(f'dig +norecurse @{ns} {item["name"]} {item["type"]} +short  # expect ttl {item["ttl"]}: {expect}')
+    for name, value in (DKIM_EXPORTS if data.get('mail') == 'ses' else ()):
+        lines.append(f'# the CNAME the export {name} names: expect the value the export {value} holds (SES Easy DKIM)')
     for item in data.get('needs_target', []):
         lines.append(f'# not in Route 53 until its real target is known: {_key(item)} ({item["reason"]})')
     return '\n'.join(lines) + '\n'
@@ -526,6 +607,8 @@ def main(argv=None):
         cmd = sub.add_parser(name)
         cmd.add_argument('bind_file')
         cmd.add_argument('--targets', default=str(default_targets()))
+    sub.choices['build'].add_argument('--mail', choices=MAIL_MODES, default='cloudflare',
+                                      help='ses: the e-mail cut (MAIL above); cloudflare: the export as it is (the revert)')
     template_cmd = sub.add_parser('template')
     template_cmd.add_argument('--check', action='store_true')
     dig = sub.add_parser('dig-plan')
@@ -540,7 +623,7 @@ def main(argv=None):
         if args.command == 'build':
             text = Path(args.bind_file).read_text(encoding='utf-8')
             data = record_list(text, Path(args.bind_file).name, ZONE, proxy_networks(args.proxy_ips),
-                               load_targets(args.targets))
+                               load_targets(args.targets), args.mail)
             body = render(data)
             Path(args.list).write_text(dump(data), encoding='utf-8')
             Path(args.stack).write_text(body, encoding='utf-8')
@@ -553,6 +636,9 @@ def main(argv=None):
                 elif site_alias(item):
                     print(f'apex alias: set infra/aws/parameters.json dns.SiteDistribution to '
                           f'{item["values"][0].rstrip(".")}')
+            if data.get('mail') == 'ses':
+                print('mail on SES: the dns stack imports the mail stack\'s DKIM exports, so infra/aws/order.json gives dns '
+                      'the edge "mail", and the mail stack must be at Mail on (infra/aws/parameters.json)')
             for item in data['needs_target']:
                 print(f'needs its real target: {_key(item)} {item["values"]} ({item["reason"]}); '
                       f'put it in {args.targets}')

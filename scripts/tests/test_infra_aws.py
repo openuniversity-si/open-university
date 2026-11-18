@@ -191,7 +191,13 @@ class BootstrapTests(unittest.TestCase):
     # APPLIED (the Torre, 18/11/2026 18:01:00 UTC): change set req-d323-cloudfront-route53 from main 3613e9ed, one change
     # (Boundary, Modify, no replacement): cloudfront:* and the two ACM reads, and TheSiteZoneOnRoute53; raw sha256
     # 996cb23a...f01f. The media stack goes to Cdn on and the dns stack may go to Zone on.
-    APPLIED = 'e02eb929afe977b5ab8599020b8fc8544b61a9ca17d3a61bf312cb16ebe20c87'
+    # MAIL-SES (D-323, the Cloudflare exit, 18/11/2026): the boundary's workload statement adds ses:* (the mail stack's SES
+    # identity, receipt rule set and rules, and the forwarder's send; region-bound like the rest). To make room (the file was
+    # 32 bytes under the 51,200 limit) two denies of NoUsersKeysOrBoundaryChanges became patterns that deny as much or more:
+    # iam:CreatePolicy* (CreatePolicy, CreatePolicyVersion) and iam:*LoginProfile (Create, Update, and now Get and Delete).
+    # 51,104 bytes. The Torre re-applies tower-bootstrap with this template after the merge (UsePreviousValue for its
+    # parameters); until then the mail stack stays at Mail off (parameters.json), a wait-condition handle alone.
+    APPLIED = 'f3b82e301748035c1ed95d1509e36db9bff25ca5c6b3a644ede70d115af2e5d5'
 
     def test_the_file_is_the_template_the_account_has_applied(self):
         canonical = json.dumps(self.template, sort_keys=True, separators=(',', ':'))
@@ -1433,7 +1439,8 @@ class DnsStackTests(unittest.TestCase):
         self.assertEqual(on['Outputs']['NameServers']['Value'],
                          {'Fn::Join': [',', {'Fn::GetAtt': ['HostedZone', 'NameServers']}]})
         self.assertEqual(len(sets), len(self.records['records'])
-                         + sum(1 for item in self.records['records'] if item.get('route53', '').startswith('alias')))
+                         + sum(1 for item in self.records['records'] if item.get('route53', '').startswith('alias'))
+                         + (3 if self.records.get('mail') == 'ses' else 0))  # MAIL-SES: the three DKIM CNAMEs it imports
 
     def test_the_boundary_allows_the_zone_and_its_records_and_nothing_that_bills_beyond_them(self):
         boundary = load(INFRA / 'bootstrap.json')['Resources']['Boundary']['Properties']['PolicyDocument']['Statement']
@@ -1461,6 +1468,256 @@ class DnsStackTests(unittest.TestCase):
         self.assertLess(declared, 0.05 * load(INFRA / 'budget.json')['limit']['amount'])
         for number in ('US$ 0.50 a month', 'US$ 0.40 per million', '10 million queries'):
             self.assertIn(number, self.template['Description'])
+
+
+ADDRESS = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b')  # an e-mail address literal
+RESERVED = re.compile(r'@(?:[a-z0-9-]+\.)*(?:example\.(?:org|com|net)|invalid)$')  # RFC 2606 names, for fake addresses
+
+
+class MailStackTests(unittest.TestCase):
+    """MAIL-SES (D-323, the Cloudflare exit): the domain's mail on SES receiving, the substitute for Cloudflare Email Routing.
+    A merge deploys every stack, so Mail off (the default, parameters.json) creates nothing that bills; Mail on with no map
+    stores every message and sends nothing; only a map (an SSM parameter the Torre writes, never the tree) forwards."""
+    PATH = INFRA / 'stacks/65-mail.json'
+
+    def setUp(self):
+        self.template = load(self.PATH)
+        self.parameters = load(INFRA / 'parameters.json')['mail']
+
+    def created(self, **values):
+        resolved = resolve(self.template, values)
+        names = set(resolved['Resources']) | set(resolved['Parameters']) | PSEUDO
+        for section in ('Resources', 'Outputs'):
+            for name, item in resolved[section].items():
+                self.assertEqual(references(item) - names, set(), f'{section} {name} points at what this deploy does not create')
+        return resolved
+
+    def code(self):
+        return self.template['Resources']['Forwarder']['Properties']['Code']['ZipFile']
+
+    def test_it_is_in_the_order_needs_no_stack_and_comes_before_dns(self):
+        order = load(INFRA / 'order.json')
+        self.assertEqual(order['mail'], [])
+        self.assertNotIn('Fn::ImportValue', json.dumps(self.template))
+        names = [re.sub(r'^\d+-', '', path.stem) for path in sorted((INFRA / 'stacks').glob('*.json'))]
+        self.assertLess(names.index('mail'), names.index('dns'))  # the cut gives dns the edge mail (scripts/dns-zone --mail ses)
+
+    def test_mail_off_is_the_default_and_creates_nothing_that_bills(self):
+        self.assertEqual({name: spec['Default'] for name, spec in self.template['Parameters'].items()},
+                         {'Mail': 'off', 'MapParameter': '', 'Domain': 'openuniversity.si', 'SenderLocalPart': 'forward'})
+        self.assertEqual(self.parameters.get('Mail'), 'off')
+        self.assertNotIn('MapParameter', self.parameters)  # the map's name comes with Mail on, its content never to the tree
+        for values in ({}, self.parameters, {'MapParameter': '/tower/mail/forward-map'}):
+            off = self.created(**values)
+            self.assertEqual({name: item['Type'] for name, item in off['Resources'].items()},
+                             {'Pending': 'AWS::CloudFormation::WaitConditionHandle'}, values)
+            self.assertEqual(off['Outputs'], {}, values)
+
+    def test_mail_on_with_an_empty_map_stores_and_never_sends(self):
+        on = self.created(Mail='on')
+        self.assertEqual({name: item['Type'] for name, item in on['Resources'].items()},
+                         {'Identity': 'AWS::SES::EmailIdentity', 'Inbox': 'AWS::S3::Bucket', 'InboxPolicy': 'AWS::S3::BucketPolicy',
+                          'RuleSet': 'AWS::SES::ReceiptRuleSet', 'StoreRule': 'AWS::SES::ReceiptRule'})
+        rule = on['Resources']['StoreRule']['Properties']['Rule']
+        self.assertEqual(rule['Actions'], [{'S3Action': {'BucketName': {'Ref': 'Inbox'}, 'ObjectKeyPrefix': 'inbox/'}}])
+        self.assertEqual((rule['Recipients'], rule['Enabled'], rule['ScanEnabled']), ([{'Ref': 'Domain'}], True, True))
+        text = json.dumps(on['Resources'])
+        for sends in ('ses:Send', 'LambdaAction', 'SNSAction', 'BounceAction', 'AWS::Lambda::'):
+            self.assertNotIn(sends, text)
+        self.assertEqual(on['Resources']['StoreRule']['DependsOn'], ['InboxPolicy'])  # SES checks it may write before the rule
+
+    def test_a_map_adds_the_forwarder_after_the_store_and_its_permission_first(self):
+        on = self.created(Mail='on', MapParameter='/tower/mail/forward-map')
+        resources = on['Resources']
+        self.assertNotIn('StoreRule', resources)
+        self.assertEqual(sorted(name for name in resources if name.startswith('Forward')),
+                         ['ForwardRule', 'Forwarder', 'ForwarderInvoke', 'ForwarderLogs', 'ForwarderRole'])
+        rule = resources['ForwardRule']
+        self.assertEqual(sorted(rule['DependsOn']), ['ForwarderInvoke', 'InboxPolicy'])
+        actions = rule['Properties']['Rule']['Actions']
+        self.assertEqual([next(iter(action)) for action in actions], ['S3Action', 'LambdaAction'])  # stored first, always
+        self.assertEqual(actions[1]['LambdaAction']['InvocationType'], 'Event')
+        invoke = resources['ForwarderInvoke']['Properties']
+        self.assertEqual((invoke['Principal'], invoke['SourceAccount']), ('ses.amazonaws.com', {'Ref': 'AWS::AccountId'}))
+        self.assertIn(':receipt-rule-set/tower-mail:receipt-rule/tower-mail-forward', invoke['SourceArn']['Fn::Sub'])
+        self.assertNotEqual(resources['ForwardRule']['Properties']['Rule']['Name'],
+                            self.template['Resources']['StoreRule']['Properties']['Rule']['Name'])  # replaced, not renamed
+        env = resources['Forwarder']['Properties']['Environment']['Variables']
+        self.assertEqual(env['MAP'], {'Ref': 'MapParameter'})
+        self.assertEqual(env['SENDER'], {'Fn::Sub': '${SenderLocalPart}@${Domain}'})
+
+    def test_the_bucket_is_private_encrypted_written_only_by_this_rule_set_and_emptied_after_30_days(self):
+        props = self.template['Resources']['Inbox']['Properties']
+        self.assertEqual(props['PublicAccessBlockConfiguration'], {'BlockPublicAcls': True, 'BlockPublicPolicy': True,
+                                                                   'IgnorePublicAcls': True, 'RestrictPublicBuckets': True})
+        self.assertEqual(props['OwnershipControls'], {'Rules': [{'ObjectOwnership': 'BucketOwnerEnforced'}]})
+        self.assertEqual(props['BucketEncryption']['ServerSideEncryptionConfiguration'][0]['ServerSideEncryptionByDefault'],
+                         {'SSEAlgorithm': 'AES256'})
+        [rule] = props['LifecycleConfiguration']['Rules']
+        self.assertEqual((rule['Status'], rule['ExpirationInDays']), ('Enabled', 30))
+        self.assertIn('30 days', self.template['Description'])
+        [tls, ses] = self.template['Resources']['InboxPolicy']['Properties']['PolicyDocument']['Statement']
+        self.assertEqual((tls['Effect'], tls['Condition']), ('Deny', {'Bool': {'aws:SecureTransport': 'false'}}))
+        self.assertEqual((ses['Principal'], ses['Action']), ({'Service': 'ses.amazonaws.com'}, 's3:PutObject'))
+        self.assertEqual(ses['Condition']['StringEquals'], {'AWS:SourceAccount': {'Ref': 'AWS::AccountId'}})
+        self.assertIn(':receipt-rule-set/tower-mail:receipt-rule/*', ses['Condition']['ArnLike']['AWS:SourceArn']['Fn::Sub'])
+
+    def test_the_forwarder_reads_only_the_map_and_its_message_and_sends_only_as_the_domain_sender(self):
+        role = self.template['Resources']['ForwarderRole']['Properties']
+        self.assertIn('policy/tower-boundary', json.dumps(role['PermissionsBoundary']))
+        self.assertTrue(role['RoleName'].startswith('tower-app-'))
+        statements = {item['Sid']: item for item in role['Policies'][0]['PolicyDocument']['Statement']}
+        self.assertEqual(statements['ReadTheStoredMessage']['Action'], 's3:GetObject')
+        self.assertTrue(statements['ReadTheMap']['Resource']['Fn::Sub'].endswith(':parameter${MapParameter}'))
+        self.assertEqual(sorted(statements['SendAsTheDomain']['Action']), ['ses:SendEmail', 'ses:SendRawEmail'])
+        self.assertEqual(statements['SendAsTheDomain']['Condition'],
+                         {'StringEquals': {'ses:FromAddress': {'Fn::Sub': '${SenderLocalPart}@${Domain}'}}})
+        self.assertEqual(statements['DecryptTheMapThroughSsm']['Condition'],
+                         {'StringEquals': {'kms:ViaService': {'Fn::Sub': 'ssm.${AWS::Region}.amazonaws.com'}}})
+
+    def test_the_active_rule_set_is_left_to_the_torre(self):
+        # CloudFormation's ReceiptRuleSet has no "active" property: SetActiveReceiptRuleSet is the Torre's (the runbook),
+        # and no custom resource here calls it
+        self.assertEqual(self.template['Resources']['RuleSet']['Properties'], {'RuleSetName': 'tower-mail'})
+        self.assertNotIn('Custom::', json.dumps(self.template))
+        self.assertIn('made active by the Torre', self.template['Description'])
+
+    def test_the_boundary_allows_ses_in_the_stack_region(self):
+        boundary = load(INFRA / 'bootstrap.json')['Resources']['Boundary']['Properties']['PolicyDocument']['Statement']
+        workload = next(item for item in boundary if item['Sid'] == 'WorkloadServicesInTheStackRegion')
+        self.assertIn('ses:*', workload['Action'])
+        for action in ('ses:CreateReceiptRule', 'ses:CreateEmailIdentity', 'ses:SendRawEmail'):
+            self.assertEqual(decide(boundary, action, '*'), 'allow', action)
+            self.assertEqual(decide(boundary, action, '*', {'aws:RequestedRegion': 'ELSEWHERE'}), 'implicit', action)
+        for action in ('iam:CreatePolicy', 'iam:CreatePolicyVersion', 'iam:CreateLoginProfile', 'iam:UpdateLoginProfile'):
+            self.assertEqual(decide(boundary, action, '*'), 'deny', action)  # the denies compacted to make room for ses:*
+        self.assertLessEqual(len((INFRA / 'bootstrap.json').read_bytes()), 51200)
+
+    def test_the_cost_it_declares_is_under_the_budget(self):
+        # bound: 10,000 messages a month, each one 256 KB chunk and forwarded once (about 1 GB). SES receiving US$ 0.10 per
+        # 1,000 messages and US$ 0.09 per 1,000 chunks; sending US$ 0.10 per 1,000 and US$ 0.12 a GB; S3 at most 1 GB kept
+        # (30 days) at US$ 0.023 and 10,000 PUTs at US$ 0.005 per 1,000; Lambda inside its free tier (1M requests)
+        bound = 10 * 0.10 + 10 * 0.09 + 10 * 0.10 + 1 * 0.12 + 0.023 + 10 * 0.005
+        declared = float(re.search(r'at most US\$ ([\d.]+) a month', self.template['Description']).group(1))
+        self.assertGreaterEqual(declared, bound)
+        self.assertLess(declared, 0.05 * load(INFRA / 'budget.json')['limit']['amount'])
+        for number in ('US$ 1.00 plus US$ 0.90', '10,000 messages'):
+            self.assertIn(number, self.template['Description'])
+
+    def test_no_address_of_anyone_is_in_the_tree(self):
+        # the map (recipient -> destination) is owner configuration in SSM, read by the Lambda; only names of parameters here
+        paths = [path for path in INFRA.rglob('*') if path.is_file()]
+        paths += [ROOT / 'scripts/lib/dns_zone.py', ROOT / 'docs/programs/padrao-dev/fornecimento-cloudflare.md']
+        for path in paths:
+            found = [item for item in ADDRESS.findall(path.read_text(encoding='utf-8')) if not RESERVED.search(item)]
+            self.assertEqual(found, [], path.name)
+        self.assertEqual(ADDRESS.findall('${SenderLocalPart}@${Domain}'), [])
+        self.assertTrue(ADDRESS.findall('someone' + '@' + 'openuniversity.si'))
+
+    # --- the forwarder's code, run offline against stubs of boto3 ----------------------------------------------------------
+
+    def run_forwarder(self, table, recipients, raw, verdict='PASS'):
+        import sys
+        import types
+        calls = []
+
+        class Client:
+            def __init__(self, name):
+                self.name = name
+
+            def get_parameter(self, **kw):
+                calls.append(('ssm', kw))
+                return {'Parameter': {'Value': json.dumps(table)}}
+
+            def get_object(self, **kw):
+                calls.append(('s3', kw))
+                return {'Body': types.SimpleNamespace(read=lambda: raw)}
+
+            def send_email(self, **kw):
+                calls.append(('sesv2', kw))
+
+        stub = types.ModuleType('boto3')
+        stub.client = Client
+        saved = sys.modules.get('boto3')
+        sys.modules['boto3'] = stub
+        try:
+            scope = {}
+            exec(compile(self.code(), 'index.py', 'exec'), scope)
+            event = {'Records': [{'ses': {'mail': {'messageId': 'm1'}, 'receipt': {
+                'recipients': recipients, 'spamVerdict': {'status': verdict}, 'virusVerdict': {'status': 'PASS'}}}}]}
+            env = {'MAP': '/tower/mail/forward-map', 'BUCKET': 'inbox', 'PREFIX': 'inbox/',
+                   'SENDER': 'forward' + '@' + 'example.org', 'DOMAIN': 'example.org'}
+            saved_env = dict(os.environ)
+            os.environ.update(env)
+            try:
+                with contextlib_redirect() as out:
+                    scope['handler'](event, None)
+            finally:
+                os.environ.clear()
+                os.environ.update(saved_env)
+        finally:
+            if saved is None:
+                sys.modules.pop('boto3')
+            else:
+                sys.modules['boto3'] = saved
+        return calls, out.getvalue()
+
+    RAW = (b'Return-Path: <a@sender.example.net>\r\nDKIM-Signature: v=1; d=sender.example.net;\r\n b=abc\r\n'
+           b'From: "Ana Q" <ana@sender.example.net>\r\nTo: info@example.org\r\nSubject: hi\r\n'
+           b'Message-ID: <1@sender.example.net>\r\n\r\nbody\r\n')
+
+    def test_the_code_fits_inline(self):
+        self.assertLess(len(self.code().encode('utf-8')), 4096)  # CloudFormation's ZipFile limit
+        compile(self.code(), 'index.py', 'exec')
+
+    def test_an_empty_map_reads_no_message_and_sends_nothing(self):
+        calls, out = self.run_forwarder({}, ['info' + '@' + 'example.org'], self.RAW)
+        self.assertEqual([call[0] for call in calls], ['ssm'])
+        self.assertIn('"forwarded": 0', out)
+        self.assertNotIn('@', out)  # the log names no address
+
+    def test_spam_is_kept_in_the_bucket_and_not_forwarded(self):
+        calls, out = self.run_forwarder({'info': 'dest' + '@' + 'example.com'}, ['info' + '@' + 'example.org'], self.RAW, 'FAIL')
+        self.assertEqual(calls, [])
+        self.assertIn('spam or virus', out)
+
+    def test_a_mapped_recipient_gets_the_message_from_the_domain_with_reply_to_the_sender(self):
+        dest, other = 'dest' + '@' + 'example.com', 'other' + '@' + 'example.com'
+        table = {'info': dest, 'team' + '@' + 'example.org': [dest, other]}
+        calls, out = self.run_forwarder(table, ['INFO' + '@' + 'example.org', 'team' + '@' + 'example.org',
+                                                'nobody' + '@' + 'example.org'], self.RAW)
+        self.assertEqual([call[0] for call in calls], ['ssm', 's3', 'sesv2'])
+        self.assertEqual(calls[1][1], {'Bucket': 'inbox', 'Key': 'inbox/m1'})
+        sent = calls[2][1]
+        self.assertEqual(sent['Destination'], {'ToAddresses': [dest, other]})
+        self.assertEqual(sent['FromEmailAddress'], 'forward' + '@' + 'example.org')
+        data = sent['Content']['Raw']['Data']
+        head = data.split(b'\r\n\r\n')[0].split(b'\r\n')
+        self.assertEqual(head[0], b'From: "Ana Q via example.org" <forward' + b'@example.org>')
+        self.assertEqual(head[1], b'Reply-To: "Ana Q" <ana' + b'@sender.example.net>')
+        for gone in (b'Return-Path', b'DKIM-Signature', b' b=abc', b'Message-ID'):
+            self.assertFalse(any(line.startswith(gone) for line in head), gone)
+        self.assertIn(b'Subject: hi', head)
+        self.assertTrue(data.endswith(b'\r\n\r\nbody\r\n'))
+        self.assertIn('"forwarded": 2', out)
+
+    def test_an_existing_reply_to_is_kept(self):
+        raw = self.RAW.replace(b'Subject: hi', b'Reply-To: list' + b'@sender.example.net\r\nSubject: hi')
+        calls, _ = self.run_forwarder({'info': 'dest' + '@' + 'example.com'}, ['info' + '@' + 'example.org'], raw)
+        head = calls[2][1]['Content']['Raw']['Data'].split(b'\r\n\r\n')[0].split(b'\r\n')
+        self.assertEqual([line for line in head if line.startswith(b'Reply-To')], [b'Reply-To: list' + b'@sender.example.net'])
+
+
+def contextlib_redirect():
+    import contextlib
+    import io
+    buffer = io.StringIO()
+
+    class Redirect(contextlib.redirect_stdout):
+        def __enter__(self):
+            super().__enter__()
+            return buffer
+    return Redirect(buffer)
 
 
 if __name__ == '__main__':
