@@ -133,15 +133,53 @@ O dono aprovou a recomendação inteira às 18:20 BRT: sair de tudo da Cloudflar
    - Cria esse CNAME de validação na zona da Cloudflare, sem proxy, porque o DNS só sai no passo 3. Ele vai junto para o Route 53, para as renovações.
    - Espera o `ISSUED` e entrega o ARN.
 4. **(d) A PR do certificado.** Preenche `infra/aws/parameters.json` → `media.CertificateArn`. O `Alias` (`media.openuniversity.si`) já está lá e o `Cdn` está `on`. O deploy acrescenta o alias à distribuição com SNI e TLS 1.2. O host ainda aponta para o R2, então nada muda para o site.
-5. **(e) A troca.**
-   - **Uma PR leva o cliente do site ao S3:** `apps/web/src/media/server/r2.ts` passa a usar o endpoint do S3 em `us-east-1`, com a função do Lambda `open-university-web` (com `s3:GetObject`/`PutObject` no bucket) no lugar das chaves R2. A `MEDIA_PUBLIC_HOST` (`apps/web/src/media/domain/types.ts`) continua `media.openuniversity.si`, porque o host não muda, só o destino dele.
-   - **Antes da troca,** a Torre roda o `rclone copy` de novo, para trazer o que o site subiu.
-   - **Depois, a Torre:**
-     - aponta o CNAME `media` para o `DistributionDomain`, **sem proxy**;
-     - desliga o acesso público `r2.dev`;
-     - revoga a chave R2 de escrita.
+5. **(e) A troca.** A PR do cliente já está no `main`: com `MEDIA_STORE=s3`, `apps/web/src/media/server/r2.ts` fala com o S3 em `us-east-1` (URL virtual-hosted `https://<bucket>.s3.us-east-1.amazonaws.com/<chave>`, assinatura SigV4 do serviço `s3`), com as credenciais da própria função do Lambda (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`), nunca uma chave longa. Sem a variável, o site segue no R2 byte a byte. A `MEDIA_PUBLIC_HOST` continua `media.openuniversity.si`, porque o host não muda, só o destino dele. O ambiente do Lambda `open-university-web` **não está neste repositório**: ele vive na configuração da função e no segredo `open-university/web-env` (Q-11, passo 4, em `docs/process/host-swap-queue.md`), e só a Torre o muda. A troca, em ordem:
+   1. **A permissão da função (Torre).** O nome da função de execução sai de `aws lambda get-function-configuration --function-name open-university-web --query Role --output text` (o último segmento do ARN). A política em linha, só neste bucket (o `CopyObject` precisa de `s3:GetObject` na origem e `s3:PutObject` no destino, ambos aqui; o `s3:ListBucket` faz o `HEAD` de uma chave ausente responder 404 e não 403; o bucket é SSE-S3, então não há KMS):
+      ```json
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "MediaObjects",
+            "Effect": "Allow",
+            "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+            "Resource": "arn:aws:s3:::tower-media-994763873392-us-east-1/*"
+          },
+          {
+            "Sid": "MediaBucketList",
+            "Effect": "Allow",
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::tower-media-994763873392-us-east-1"
+          }
+        ]
+      }
+      ```
+      ```sh
+      aws iam put-role-policy --role-name <função do Lambda> --policy-name tower-media-s3 --policy-document file://media-s3.json
+      ```
+      A política do bucket (`60-media.json`) só nega o acesso sem TLS e só abre leitura à distribuição; não bloqueia a função da mesma conta.
+   2. **O ambiente (Torre).** Acrescenta `MEDIA_STORE=s3` e `MEDIA_S3_BUCKET=tower-media-994763873392-us-east-1` ao segredo `open-university/web-env` e ao ambiente da função, sem tirar nada (o `update-function-configuration` troca o mapa inteiro, então o comando junta; nada é impresso):
+      ```sh
+      ENV=$(aws lambda get-function-configuration --function-name open-university-web --query Environment.Variables --output json \
+        | jq -c '{Variables: (. + {MEDIA_STORE: "s3", MEDIA_S3_BUCKET: "tower-media-994763873392-us-east-1"})}')
+      aws lambda update-function-configuration --function-name open-university-web --environment "$ENV" --query LastUpdateStatus --output text
+      unset ENV
+      aws lambda wait function-updated --function-name open-university-web
+      ```
+      O `AWS_REGION` o Lambda já põe. A imagem em produção ainda não lê `MEDIA_STORE`, então este passo sozinho não muda nada.
+   3. **O build do site (Torre).** `aws codebuild start-build --project-name open-university-web --environment-variables-override name=SRC_SHA,value=<sha do main com esta PR>,type=PLAINTEXT`, depois `update-function-code` com `lambda-<sha7>` e a espera de `function-updated`, como nos passos 5 e 6 da Q-11. A partir daqui o site lê e escreve no S3. Prova: nos logs da função, nenhum `Storage HEAD returned HTTP 403`; um upload do admin cria a chave no bucket (`aws s3api head-object --bucket tower-media-994763873392-us-east-1 --key m/<sha>.<ext>`). Entre este passo e o 5, um upload novo vai só para o S3 e o host público ainda lê o R2: a Torre faz os passos 4 e 5 logo em seguida (ou sem uploads do admin nesse intervalo).
+   4. **A cópia final R2 → S3 (Torre).** Com as variáveis `RCLONE_CONFIG_*` do passo (b), a mesma cópia leva o que o site subiu desde 18/11 18:04Z. É `copy` (nada se apaga no S3) e `--immutable` (nenhuma chave já no S3 é reescrita, o que inclui as que o site gravou depois do passo 3); `--max-age` só encurta a listagem:
+      ```sh
+      rclone copy r2:open-university-media s3:$B --checksum --metadata --immutable --s3-no-check-bucket \
+        --max-age 2026-11-18T18:04:00Z --transfers 32 --checkers 64 --log-level INFO --log-file copia-delta.log
+      rclone size r2:open-university-media --json; rclone size s3:$B --json
+      rclone check r2:open-university-media s3:$B --one-way --download
+      ```
+      Prova: o `count` do S3 é o do R2 mais os uploads feitos depois do passo 3 (nunca menos), e o `check --one-way` termina com 0 diferenças. A Torre registra os números no diário (`scripts/plan note`).
+   5. **O DNS de `media` (Torre).** Na Cloudflare, o registro `media` vira um CNAME **só DNS (proxy desligado)** para o `DistributionDomain` da stack `tower-app-media` (o `xxxx.cloudfront.net`). No Route 53, a stack `70-dns.json` já tem os aliases A/AAAA `media` para a distribuição (`RecordMediaA`, `RecordMediaAaaa`), que valem quando a zona for para lá (passo 3 do DNS). Prova: `curl -sI https://media.openuniversity.si/<chave de uma capa>` responde 200 com `x-cache` e `via` do CloudFront. Depois, desliga o acesso público `r2.dev`.
+   6. **O R2 fica só para leitura (Torre).** Acompanha as leituras do bucket `open-university-media` (as métricas de GetObject/HeadObject do R2 no painel da Cloudflare) até zerarem; então revoga a chave R2 de **escrita**. O R2 fica como segunda cópia por 30 dias sem leitura e então sai no passo (f).
 
-     O R2 fica só para leitura, como segunda cópia, e a volta é o CNAME antigo.
+   **A volta:** tirar `MEDIA_STORE` do ambiente da função (o mesmo comando do passo 2, com `del(.MEDIA_STORE, .MEDIA_S3_BUCKET)`) põe o site de novo no R2, e o CNAME antigo devolve o host público. Os uploads feitos no S3 durante a troca não estão no R2: a volta copia esses de S3 para R2 com o mesmo `rclone copy` no sentido inverso.
 6. **(f) O fim do R2 (Torre).** Depois de 30 dias sem leitura no R2 (as métricas de GetObject/HeadObject do bucket a zero), apaga `open-university-media`, `the-tower-fidelity` (já refeito na AWS, ver acima) e `the-tower-media`, e revoga a chave R2 de leitura. Então segue o passo 3 (DNS).
 
 ## Passo 3: execução

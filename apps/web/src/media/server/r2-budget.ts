@@ -1,7 +1,7 @@
 import { assertR2Budget, DEFAULT_R2_BUDGET, type R2Budget } from "./r2-slot.ts";
 
 export { assertR2Budget, DEFAULT_R2_BUDGET, physicalSlotsInFlight, setPhysicalSlotLimit, withPhysicalSlot, type R2Budget } from "./r2-slot.ts";
-export { createS3Bucket, hasR2Credentials, r2Config, type R2Access, type S3Bucket, type S3Config, type StorageClock } from "./r2.ts";
+export { createS3Bucket, hasR2Credentials, hasS3Credentials, mediaStoreMode, r2Config, s3Config, type MediaStoreMode, type R2Access, type S3Bucket, type S3Config, type StorageClock } from "./r2.ts";
 
 /** Logical fan-out. It does not take a physical slot; the transport does, once per attempt. */
 export async function mapLimited<T, R>(items: readonly T[], work: (item: T) => Promise<R>, budget: R2Budget = DEFAULT_R2_BUDGET): Promise<R[]> {
