@@ -454,11 +454,15 @@
     },
     "DistributionDomain": {
       "Condition": "CdnOn",
+      "Description": "the distribution's domain, exported for the dns stack's alias of media.openuniversity.si, which imports it: while the dns stack imports it, CloudFormation refuses to change or remove it, so Cdn stays on until the dns record leaves it",
       "Value": {
         "Fn::GetAtt": [
           "Distribution",
           "DomainName"
         ]
+      },
+      "Export": {
+        "Name": "tower-media-distribution-domain"
       }
     }
   }

@@ -1,4 +1,8 @@
 {
-  "about": "The real target of each record Cloudflare proxies (scripts/dns-zone build lists them under needs_target, because the export holds Cloudflare's address, not the origin). A key is '<name> <type>' as needs_target names it; the value is the record Route 53 gets instead: {\"type\": ..., \"values\": [...], \"ttl\": ...}. Example: \"media.openuniversity.si. CNAME\": {\"type\": \"CNAME\", \"values\": [\"d1234abcd.cloudfront.net.\"], \"ttl\": 300}, the media stack's DistributionDomain.",
-  "targets": {}
+  "about": "The real target of each record Cloudflare proxies (scripts/dns-zone build lists them under needs_target, because the export holds Cloudflare's address, not the origin). A key is '<name> <type>' as needs_target names it; the value is either the record Route 53 gets instead, {\"type\": ..., \"values\": [...], \"ttl\": ...}, or {\"alias_import\": \"<export name>\"}: an alias A and AAAA to the CloudFront domain another stack exports, read with Fn::ImportValue (the exporting stack comes first in infra/aws/order.json, and keeps that export while the dns stack imports it). media is the media stack's DistributionDomain, exported as tower-media-distribution-domain (infra/aws/stacks/60-media.json, Cdn on).",
+  "targets": {
+    "media.openuniversity.si. CNAME": {
+      "alias_import": "tower-media-distribution-domain"
+    }
+  }
 }

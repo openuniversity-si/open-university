@@ -17,6 +17,7 @@ import dns_zone  # noqa: E402
 
 FIXTURE = ROOT / 'scripts/tests/fixtures/dns/cloudflare-export.zone'
 ZONE = 'openuniversity.si.'
+SITE = 'd111111abcdef8.cloudfront.net'  # the fixture's apex CloudFront domain
 
 
 def build(text=None, targets=None):
@@ -137,7 +138,7 @@ class TemplateTests(unittest.TestCase):
         self.template = json.loads(dns_zone.render(self.data))
 
     def test_one_record_set_per_name_and_type_and_the_apex_cname_is_an_alias(self):
-        resources, _ = created(self.template, Zone='on', SiteDistribution='d111111abcdef8.cloudfront.net')
+        resources, _ = created(self.template, Zone='on', SiteDistribution=SITE)
         sets = [item['Properties'] for item in resources.values() if item['Type'] == 'AWS::Route53::RecordSet']
         keys = [(item['Name'], item['Type']) for item in sets]
         self.assertEqual(len(keys), len(set(keys)))
@@ -161,7 +162,7 @@ class TemplateTests(unittest.TestCase):
                           if item['Type'] == 'AWS::Route53::RecordSet' and item['Properties']['Name'] == ZONE
                           and item['Properties']['Type'] in ('A', 'AAAA')])
         pattern = re.compile(self.template['Parameters']['SiteDistribution']['AllowedPattern'])
-        self.assertTrue(pattern.fullmatch('') and pattern.fullmatch('d111111abcdef8.cloudfront.net'))
+        self.assertTrue(pattern.fullmatch('') and pattern.fullmatch(SITE))
         self.assertIsNone(pattern.fullmatch('openuniversity.si'))
 
     def test_txt_is_quoted_and_split_at_255(self):
@@ -214,6 +215,78 @@ class TemplateTests(unittest.TestCase):
         self.assertEqual(code, 0, out)
 
 
+class ImportAliasTests(unittest.TestCase):
+    """A target {"alias_import": "<export>"}: the record is an alias A and AAAA to the CloudFront domain another stack exports,
+    read with Fn::ImportValue, never a copied domain."""
+    TARGETS = {'media.openuniversity.si. CNAME': {'alias_import': 'tower-media-distribution-domain'}}
+
+    def setUp(self):
+        self.data = build(targets=self.TARGETS)
+        self.template = json.loads(dns_zone.render(self.data))
+
+    def test_the_proxied_record_becomes_an_alias_to_the_export(self):
+        [media] = [item for item in self.data['records'] if item['name'] == 'media.openuniversity.si.']
+        self.assertEqual((media['type'], media['values'], media['alias_import']),
+                         ('ALIAS', [], 'tower-media-distribution-domain'))
+        self.assertIn('media.openuniversity.si. CNAME (proxied by Cloudflare', media['replaces'])
+        self.assertNotIn(('media.openuniversity.si.', 'CNAME'),
+                         {(item['name'], item['type']) for item in self.data['needs_target']})
+        self.assertFalse(dns_zone.site_alias(media))
+
+    def test_the_stack_has_the_alias_a_and_aaaa_behind_zone_on_alone(self):
+        for values in ({'Zone': 'on'}, {'Zone': 'on', 'SiteDistribution': SITE}):
+            resources, _ = created(self.template, **values)
+            media = {item['Properties']['Type']: item['Properties'] for item in resources.values()
+                     if item['Type'] == 'AWS::Route53::RecordSet'
+                     and item['Properties']['Name'] == 'media.openuniversity.si.'}
+            self.assertEqual(sorted(media), ['A', 'AAAA'])
+            for item in media.values():
+                self.assertEqual(item['AliasTarget'], {'DNSName': {'Fn::ImportValue': 'tower-media-distribution-domain'},
+                                                       'HostedZoneId': 'Z2FDTNDATAQYW2', 'EvaluateTargetHealth': False})
+                self.assertNotIn('TTL', item)
+                self.assertNotIn('ResourceRecords', item)
+        off, _ = created(self.template)
+        self.assertEqual(list(off), ['Pending'])
+        # the apex alias still takes SiteDistribution, not the export
+        apex = [item['Properties'] for item in created(self.template, Zone='on', SiteDistribution=SITE)[0].values()
+                if item['Properties'].get('Name') == ZONE and item['Properties'].get('Type') in ('A', 'AAAA')]
+        self.assertEqual([item['AliasTarget']['DNSName'] for item in apex], [{'Ref': 'SiteDistribution'}, {'Ref': 'SiteDistribution'}])
+
+    def test_a_bad_export_target_is_refused(self):
+        for target in ({'alias_import': ''}, {'alias_import': 'tower media'}, {'alias_import': ['tower-media-distribution-domain']},
+                       {'alias_import': 'tower-media-distribution-domain', 'type': 'CNAME'}):
+            with self.assertRaises(dns_zone.ZoneError, msg=target):
+                build(targets={'media.openuniversity.si. CNAME': target})
+
+    def test_an_alias_beside_an_address_of_the_same_name_is_refused(self):
+        text = ('$ORIGIN openuniversity.si.\nmedia 300 IN CNAME r2.example.net. ; cf_tags=cf-proxied:true\n'
+                'media 300 IN TXT "hello"\n')
+        build(text, self.TARGETS)  # a TXT beside the alias is fine
+        text = text.replace('media 300 IN TXT "hello"', 'media 300 IN AAAA 2001:db8::1')
+        with self.assertRaises(dns_zone.ZoneError):
+            build(text, self.TARGETS)
+
+    def test_compare_build_and_dig_plan_name_the_export(self):
+        tmp = Path(tempfile.mkdtemp())
+        targets, listed, stack = tmp / 'targets.json', tmp / 'list.json', tmp / 'stack.json'
+        targets.write_text(json.dumps({'targets': self.TARGETS}), encoding='utf-8')
+        files = ['--list', str(listed), '--stack', str(stack), '--targets', str(targets)]
+        code, out = run('build', str(FIXTURE), *files)
+        self.assertEqual(code, 0, out)
+        self.assertIn('media.openuniversity.si. alias: A and AAAA to the export tower-media-distribution-domain', out)
+        self.assertEqual(run('compare', str(FIXTURE), *files)[0], 0)
+        targets.write_text(json.dumps({'targets': {'media.openuniversity.si. CNAME': {'alias_import': 'other-export'}}}),
+                           encoding='utf-8')
+        code, out = run('compare', str(FIXTURE), *files)
+        self.assertEqual(code, 1, out)
+        self.assertIn('differs: media.openuniversity.si. ALIAS', out)
+        code, out = run('dig-plan', '--list', str(listed))
+        self.assertEqual(code, 0, out)
+        for rtype in ('A', 'AAAA'):
+            self.assertIn(f'media.openuniversity.si. {rtype} +short  # expect the addresses of the CloudFront domain the '
+                          'export tower-media-distribution-domain holds', out)
+
+
 class CommandTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -252,7 +325,7 @@ class CommandTests(unittest.TestCase):
 
     def test_the_dig_plan_asks_every_record_of_the_route_53_servers(self):
         code, out = run('dig-plan', '--list', str(self.list), '--ns', 'ns-1.awsdns-01.org,ns-2.awsdns-02.net',
-                        '--site', 'd111111abcdef8.cloudfront.net')
+                        '--site', SITE)
         self.assertEqual(code, 0, out)
         data = json.loads(self.list.read_text())
         for item in data['records']:

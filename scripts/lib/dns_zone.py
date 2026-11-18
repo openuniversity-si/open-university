@@ -14,6 +14,12 @@ did. It is listed under needs_target; the real target goes into the targets file
 the next build takes it from there. The proxy ranges are read from infra/aws/dns/cloudflare-ips.json, never from code.
 The apex's NS and SOA are dropped (Route 53 writes its own). A CNAME at the apex (Cloudflare flattens it) to a CloudFront
 domain becomes an alias A and AAAA to the distribution named by the stack's SiteDistribution parameter.
+
+A target is either a record ({"type": ..., "values": [...], "ttl": ...}) or a CloudFormation export of another stack that
+holds a CloudFront domain ({"alias_import": "<export name>"}): the record becomes an alias A and AAAA whose DNSName is
+Fn::ImportValue of that export (hosted zone Z2FDTNDATAQYW2, CloudFront's), so the session never copies a domain it cannot
+read. The stack that exports it must come first in infra/aws/order.json (StackOrderTests derives the edge from the
+import), and while the dns stack imports it CloudFormation refuses to change or remove that export in the other stack.
 Stdlib only, deterministic (sorted output, no clock).
 """
 import argparse
@@ -31,6 +37,7 @@ STACK = ROOT / 'infra/aws/stacks/70-dns.json'
 PROXY_IPS = DNS / 'cloudflare-ips.json'
 CLOUDFRONT_ZONE_ID = 'Z2FDTNDATAQYW2'  # the hosted zone id every CloudFront alias target carries (AWS's, fixed)
 AUTO_TTL = 300  # Cloudflare's "auto" TTL, exported as 1, is 300 s
+EXPORT_NAME = re.compile(r'^[A-Za-z0-9:-]{1,255}$')  # what CloudFormation takes as an export name
 MAX_BODY = 51200  # what `aws cloudformation deploy` sends without an S3 bucket
 TYPES = {'A', 'AAAA', 'CAA', 'CNAME', 'DS', 'HTTPS', 'MX', 'NAPTR', 'NS', 'PTR', 'SOA', 'SPF', 'SRV', 'SSHFP', 'SVCB',
          'TLSA', 'TXT'}  # what Route 53 serves
@@ -42,7 +49,8 @@ DESCRIPTION = (
     'infra/aws/dns/openuniversity.si.json (never edited by hand). Zone off (the first deploy, before the Torre re-applies '
     'the bootstrap with route53 in the boundary) is a wait-condition handle alone; Zone on is the hosted zone, retained, '
     'its four name servers an output, and one record set per name and type of the list; an apex CNAME to CloudFront is an '
-    'alias A and AAAA to SiteDistribution, absent while it is empty. Cost: US$ 0.50 a month for the zone plus US$ 0.40 '
+    'alias A and AAAA to SiteDistribution, absent while it is empty; a target named by an export is an alias A and AAAA '
+    'to its Fn::ImportValue (the exporting stack comes first in order.json). Cost: US$ 0.50 a month for the zone plus US$ 0.40 '
     'per million queries (alias queries to CloudFront are free); the query volume is not known, so the bound is '
     '10 million queries a month: at most US$ 4.50 a month.')
 
@@ -285,8 +293,7 @@ def normalize(records, zone=ZONE, networks=(), targets=None):
             if target is None:
                 refused.append({**item, 'reason': reason})
                 continue
-            item = {'name': name, 'type': target['type'], 'ttl': int(target.get('ttl', ttl)),
-                    'values': sorted(target['values']), 'replaces': f'{_key(item)} ({reason})'}
+            item = _replacement(item, target, reason)
         if rtype == 'CNAME' and name == zone and 'replaces' not in item:
             item['route53'] = 'alias A and AAAA to the CloudFront distribution SiteDistribution'
         kept.append(item)
@@ -294,11 +301,34 @@ def normalize(records, zone=ZONE, networks=(), targets=None):
     for item in kept:
         names.setdefault(item['name'], set()).add(item['type'])
     for name, types in sorted(names.items()):
+        if 'ALIAS' in types and types & {'A', 'AAAA'}:
+            raise ZoneError(f'{name}: the alias to an export is an A and AAAA, and the list has A or AAAA there too')
+    for name, types in sorted(names.items()):
         if 'CNAME' in types and len(types) > 1 and name != zone:
             raise ZoneError(f'{name}: a CNAME beside {sorted(types - {"CNAME"})} (a CNAME stands alone)')
         if name == zone and 'CNAME' in types and types & {'A', 'AAAA'}:
             raise ZoneError(f'{name}: the apex CNAME becomes an alias A and AAAA, and the export has A or AAAA there too')
     return kept, refused, dropped
+
+
+def _replacement(item, target, reason):
+    """The record Route 53 gets in place of a refused one: the target's record, or an alias to an export's domain."""
+    replaces = f'{_key(item)} ({reason})'
+    if 'alias_import' in target:
+        export = target['alias_import']
+        if not isinstance(export, str) or not EXPORT_NAME.match(export) or set(target) - {'alias_import'}:
+            raise ZoneError(f'{_key(item)}: a target {{"alias_import": "<export name>"}} names one CloudFormation export '
+                            f'(letters, digits, ":" and "-") and nothing else, not {json.dumps(target, sort_keys=True)}')
+        return {'name': item['name'], 'type': 'ALIAS', 'ttl': item['ttl'], 'values': [], 'alias_import': export,
+                'route53': f'alias A and AAAA to the CloudFront domain the export {export} holds (Fn::ImportValue)',
+                'replaces': replaces}
+    return {'name': item['name'], 'type': target['type'], 'ttl': int(target.get('ttl', item['ttl'])),
+            'values': sorted(target['values']), 'replaces': replaces}
+
+
+def site_alias(item):
+    """The apex alias to SiteDistribution (an export's alias names its own target)."""
+    return item.get('route53', '').startswith('alias') and not item.get('alias_import')
 
 
 def record_list(text, source_name, zone=ZONE, networks=(), targets=None):
@@ -371,7 +401,15 @@ def template(data):
     }
     taken = set(resources)
     for item in data['records']:
-        if item.get('route53', '').startswith('alias'):
+        if item.get('alias_import'):
+            for rtype in ('A', 'AAAA'):
+                resources[logical_id({**item, 'type': rtype}, zone, taken)] = {
+                    'Type': 'AWS::Route53::RecordSet', 'Condition': 'ZoneOn',
+                    'Properties': {'HostedZoneId': {'Ref': 'HostedZone'}, 'Name': item['name'], 'Type': rtype,
+                                   'AliasTarget': {'DNSName': {'Fn::ImportValue': item['alias_import']},
+                                                   'HostedZoneId': CLOUDFRONT_ZONE_ID, 'EvaluateTargetHealth': False}}}
+            continue
+        if site_alias(item):
             for rtype in ('A', 'AAAA'):
                 resources[logical_id({**item, 'type': rtype}, zone, taken)] = {
                     'Type': 'AWS::Route53::RecordSet', 'Condition': 'SiteKnown',
@@ -437,9 +475,9 @@ def compare(text, data, networks=(), targets=None):
         got = have.get(key)
         if got is None:
             problems.append(f'missing from the record list: {key} {item["values"]}')
-        elif (got['ttl'], got['values']) != (item['ttl'], item['values']):
-            problems.append(f'differs: {key} export ttl {item["ttl"]} {item["values"]}, '
-                            f'list ttl {got["ttl"]} {got["values"]}')
+        elif (got['ttl'], got['values'], got.get('alias_import')) != (item['ttl'], item['values'], item.get('alias_import')):
+            problems.append(f'differs: {key} export ttl {item["ttl"]} {item["values"] or item.get("alias_import")}, '
+                            f'list ttl {got["ttl"]} {got["values"] or got.get("alias_import")}')
     for key in sorted(set(have) - set(want)):
         problems.append(f'in the record list, not in the export: {key}')
     listed = {_key(item) for item in data.get('needs_target', [])}
@@ -454,7 +492,12 @@ def dig_plan(data, name_servers, site=''):
     for server in name_servers or ['<route53-ns>']:
         lines.append(f'dig +norecurse @{server} {data["zone"]} SOA +short  # the zone answers on {server}')
     for item in data['records']:
-        if item.get('route53', '').startswith('alias'):
+        if item.get('alias_import'):
+            for rtype in ('A', 'AAAA'):
+                lines.append(f'dig +norecurse @{ns} {item["name"]} {rtype} +short  # expect the addresses of the '
+                             f'CloudFront domain the export {item["alias_import"]} holds (alias)')
+            continue
+        if site_alias(item):
             for rtype in ('A', 'AAAA'):
                 lines.append(f'dig +norecurse @{ns} {item["name"]} {rtype} +short  # expect the addresses of '
                              f'{site or "<SiteDistribution>"} (alias)')
@@ -504,7 +547,10 @@ def main(argv=None):
             print(f'{len(data["records"])} record sets -> {args.list} and {args.stack}; dropped: '
                   f'{", ".join(data["dropped"]) or "none"}')
             for item in data['records']:
-                if item.get('route53', '').startswith('alias'):
+                if item.get('alias_import'):
+                    print(f'{item["name"]} alias: A and AAAA to the export {item["alias_import"]}; the stack that exports '
+                          'it comes first in infra/aws/order.json')
+                elif site_alias(item):
                     print(f'apex alias: set infra/aws/parameters.json dns.SiteDistribution to '
                           f'{item["values"][0].rstrip(".")}')
             for item in data['needs_target']:

@@ -154,23 +154,26 @@ O dono aprovou a recomendação inteira às 18:20 BRT: sair de tudo da Cloudflar
 - **Os registros com proxy são recusados.** A exportação traz o IP anycast da Cloudflare (ou, num CNAME com proxy, o alvo que ela fronteia), nunca a origem. Esses registros vão para `needs_target`, e o alvo real entra em `infra/aws/dns/openuniversity.si.targets.json`. As faixas da Cloudflare ficam em `infra/aws/dns/cloudflare-ips.json`, com a fonte (`cloudflare.com/ips-v4` e `ips-v6`). **Elas precisam ser atualizadas antes do `build`**, porque foram escritas de memória, sem busca.
 - **O NS e o SOA do apex são descartados**, porque o Route 53 cria os dele. O TTL automático da Cloudflare (1 na exportação) vira 300 s.
 - **O apex.** Um CNAME no apex (a Cloudflare o achata) para `*.cloudfront.net` vira alias A e AAAA para o parâmetro `SiteDistribution`, com a zona do CloudFront `Z2FDTNDATAQYW2`. O `www` continua CNAME. Enquanto o parâmetro está vazio, o apex não tem registro.
-- **A stack `tower-app-dns`** (sem dependência em `order.json`):
+- **Um alvo pode ser uma exportação do CloudFormation.** Em `openuniversity.si.targets.json`, o alvo `{"alias_import": "<nome da exportação>"}` vira alias A e AAAA cujo `DNSName` é o `Fn::ImportValue` dessa exportação, com a zona do CloudFront `Z2FDTNDATAQYW2`. A sessão não lê saídas de stack, então o domínio nunca é copiado à mão. O `media` usa isso: a saída `DistributionDomain` da `tower-app-media` (só com `Cdn=on`) é exportada como `tower-media-distribution-domain`, e o `media.openuniversity.si` da zona é alias A e AAAA para ela. A distribuição já tem o alias `media.openuniversity.si` com o certificado do ACM e IPv6 ligado.
+  - **A ordem.** Uma importação precisa da exportação antes, então `order.json` põe `dns` depois de `media` (`"dns": ["media"]`; o `StackOrderTests` deriva a aresta das importações). O deploy implanta o `dns` sempre que implanta o `media`, e espera o `media` acabar quando as saídas dele mudaram (DEP7-CRITICAL-PATH).
+  - **A trava.** Enquanto a `tower-app-dns` importa a exportação, o CloudFormation recusa mudar ou apagar a `tower-media-distribution-domain` na `tower-app-media`: `Cdn=off`, uma troca da distribuição que mude o domínio ou apagar a stack falham. A exportação fica enquanto o `dns` a importa. Para trocar, primeiro uma PR tira o alvo do `media` (ou o aponta para outra coisa) e o deploy atualiza o `dns`; só depois a exportação muda.
+- **A stack `tower-app-dns`** (depois de `media` em `order.json`):
   - com `Zone=off` (o `parameters.json` de hoje), só um `WaitConditionHandle`, que não cobra nada. A fronteira `tower-boundary` só permite o Route 53 depois que a Torre reaplica o `tower-bootstrap` com a declaração `TheSiteZoneOnRoute53`;
   - com `Zone=on` e a lista vazia, só a zona, retida (`Retain`), com os quatro NS na saída `NameServers`;
   - com a lista, um `AWS::Route53::RecordSet` por nome e tipo, com o TXT entre aspas e partido em strings de 255.
 - **O custo:** US$ 0,50 por mês pela zona, mais US$ 0,40 por milhão de consultas (as consultas de alias ao CloudFront são grátis). O volume de consultas não é medido, então o teto é 10 milhões por mês: no máximo US$ 4,50 por mês, contra o limite de US$ 150 (o teste `DnsStackTests` confere).
 
 **O que acontece depois, e quem faz:**
-1. **(a) A fronteira (Torre).** Reaplica o `tower-bootstrap` com este `bootstrap.json`, com `UsePreviousValue` nos parâmetros. Uma reaplicação só serve ao MEDIA-S3 e a esta. O hash está em `test_infra_aws.py`. Feito isso, uma PR põe `dns.Zone=on`, e o deploy cria a zona vazia.
+1. **(a) A fronteira (Torre).** Reaplica o `tower-bootstrap` com este `bootstrap.json`, com `UsePreviousValue` nos parâmetros. Uma reaplicação só serve ao MEDIA-S3 e a esta. O hash está em `test_infra_aws.py`. Feito isso (18/11), a PR do passo 3 (d) põe `dns.Zone=on` junto com a lista completa, e o deploy cria a zona já com todos os registros (nunca vazia, nunca antes de a lista estar certa).
 2. **(b) Os NS (Torre).** Lê a saída `NameServers` da stack `tower-app-dns` e entrega os quatro NS.
 3. **(c) A exportação (Torre).** Entrega a exportação BIND da zona `openuniversity.si` (Cloudflare, DNS, Records, Export) e as duas listas atuais de `cloudflare.com/ips-v4` e `ips-v6`. Diz também:
-   - o alvo real de cada registro com proxy (o `media` vai para o `DistributionDomain` da stack `tower-app-media`, sem proxy);
+   - o alvo real de cada registro com proxy (o `media` vai para o `DistributionDomain` da stack `tower-app-media`, sem proxy, pela exportação `tower-media-distribution-domain` com `alias_import`);
    - se o DNSSEC está ligado (`dig DS openuniversity.si +short` não vazio).
 4. **(d) A PR do passo 3 (sessão).**
    - atualiza `cloudflare-ips.json`;
    - roda `scripts/dns-zone build <exportação>`;
    - põe os alvos reais em `openuniversity.si.targets.json`;
-   - põe `dns.SiteDistribution` no `parameters.json` (o `build` diz o valor);
+   - põe `dns.SiteDistribution` no `parameters.json` (o `build` diz o valor) e `dns.Zone=on`;
    - roda `scripts/dns-zone compare <exportação>` até sair com 0.
 
    O deploy do merge cria os registros. Nada muda para o site, porque o registrador ainda aponta para a Cloudflare.
@@ -195,7 +198,7 @@ A Torre exportou a zona e conferiu o DNSSEC (desligado, sem DS). A exportação 
    - A D-323 só nomeia `openuniversity.si`. As outras três são passos novos, e o passo 4 (revogar credenciais) espera por elas.
 
 **O que já segue sem esperar esses bloqueios:**
-- a zona `openuniversity.si` no Route 53, com todos os registros, incluindo os dois CNAME de validação do ACM. Ela não atende ninguém antes da troca de NS.
+- a zona `openuniversity.si` no Route 53, com todos os registros, incluindo os três CNAME de validação do ACM. Ela não atende ninguém antes da troca de NS. A PR do passo 3 (d) liga `dns.Zone=on` com `dns.SiteDistribution` e a lista completa: o deploy cria a zona já com todos os registros (os MX, o DKIM e o SPF do Email Routing como exportados, até o substituto do e-mail), e a saída `NameServers` é o que a Torre lê em (b).
 - a distribuição de mídia com o alias, que fica sem tráfego até o CNAME de `media` apontar para ela.
 - a troca do cliente do site para o S3.
 

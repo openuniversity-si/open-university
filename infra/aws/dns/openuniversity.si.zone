@@ -1,0 +1,23 @@
+;; SOA Record
+openuniversity.si	3600	IN	SOA	elle.ns.cloudflare.com. dns.cloudflare.com. 2054669169 10000 2400 604800 3600
+
+;; NS Records
+openuniversity.si.	86400	IN	NS	elle.ns.cloudflare.com.
+openuniversity.si.	86400	IN	NS	hunts.ns.cloudflare.com.
+
+;; CNAME Records
+_0caf1ede61e0b4e7b1479112fab2d9e5.media.openuniversity.si.	300	IN	CNAME	_2a2acb8ca9f7ebcd81013c22c8d243a0.wzccmgtwzk.acm-validations.aws. ; ACM DNS validation media.openuniversity.si (D-323); keep for renewals, goes to Route 53 cf_tags=cf-proxied:false
+_35fea2b741d03cbfbbf7de1c69feed6b.www.openuniversity.si.	300	IN	CNAME	_7b07c4af832e201447a4b39423c4f4ab.wzccmgtwzk.acm-validations.aws. ; AWS ACM validation for open-university ALB (2026-11-10) cf_tags=cf-proxied:false
+_39debf49a94bd92f1530716d49f40aed.openuniversity.si.	300	IN	CNAME	_a6da2254b6f7095da747cb27f18a46b8.wzccmgtwzk.acm-validations.aws. ; AWS ACM validation for open-university ALB (2026-11-10) cf_tags=cf-proxied:false
+media.openuniversity.si.	1	IN	CNAME	public.r2.dev. ; cf_tags=cf-proxied:true
+openuniversity.si.	300	IN	CNAME	dns1rg162g0y7.cloudfront.net. ; 2026-11-10 AWS CloudFront E20KHUP9NU9TI4 (Lambda) cf_tags=cf-proxied:false
+www.openuniversity.si.	300	IN	CNAME	dns1rg162g0y7.cloudfront.net. ; 2026-11-10 AWS CloudFront E20KHUP9NU9TI4 (Lambda) cf_tags=cf-proxied:false
+
+;; MX Records
+openuniversity.si.	1	IN	MX	74 route3.mx.cloudflare.net.
+openuniversity.si.	1	IN	MX	91 route2.mx.cloudflare.net.
+openuniversity.si.	1	IN	MX	22 route1.mx.cloudflare.net.
+
+;; TXT Records
+cf2024-1._domainkey.openuniversity.si.	1	IN	TXT	"v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiweykoi+o48IOGuP7GR3X0MOExCUDY/BCRHoWBnh3rChl7WhdyCxW3jgq1daEjPPqoi7sJvdg5hEQVsgVRQP4DcnQDVjGMbASQtrY4WmB1VebF+RPJB2ECPsEDTpeiI5ZyUAwJaVX7r6bznU67g7LvFq35yIo4sdlmtZGV+i0H4cpYH9+3JJ78k" "m4KXwaf9xUJCWF6nxeD+qG6Fyruw1Qlbds2r85U9dkNDVAS3gioCvELryh1TxKGiVTkg4wqHTyHfWsp7KD3WQHYJn0RyfJJu6YEmL77zonn7p2SRMvTMP3ZEXibnC9gz3nnhR6wcYL8Q7zXypKTMD58bTixDSJwIDAQAB"
+openuniversity.si.	1	IN	TXT	"v=spf1 include:_spf.mx.cloudflare.net ~all"
