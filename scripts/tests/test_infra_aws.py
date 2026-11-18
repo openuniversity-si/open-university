@@ -1709,9 +1709,11 @@ class MailStackTests(unittest.TestCase):
         self.assertEqual({name: spec['Default'] for name, spec in self.template['Parameters'].items()},
                          {'Mail': 'off', 'MapParameter': '', 'Domain': 'openuniversity.si', 'SenderLocalPart': 'forward',
                           'SenderName': 'Open University'})
-        self.assertEqual(self.parameters.get('Mail'), 'off')
-        self.assertNotIn('MapParameter', self.parameters)  # the map's name comes with Mail on, its content never to the tree
-        for values in ({}, self.parameters, {'MapParameter': '/tower/mail/forward-map'}):
+        # The Torre re-applied the bootstrap with ses:* (req-d323-ses, 18/11 21:11:50Z, the APPLIED hash above), so the live
+        # parameters may turn Mail on; until the map's name is set it only stores (test_mail_on_with_an_empty_map...)
+        self.assertIn(self.parameters.get('Mail', 'off'), ('off', 'on'))
+        self.assertNotIn('MapParameter', self.parameters)  # the map's name comes after Mail on, its content never to the tree
+        for values in ({}, {'MapParameter': '/tower/mail/forward-map'}):
             off = self.created(**values)
             self.assertEqual({name: item['Type'] for name, item in off['Resources'].items()},
                              {'Pending': 'AWS::CloudFormation::WaitConditionHandle'}, values)
