@@ -22,6 +22,8 @@
     "scripts/lib/forge_events.py",
     "scripts/lib/event_contracts.py",
     "scripts/lib/train_queue.py",
-    "scripts/tests/forge_doubles.py"
+    "scripts/tests/forge_doubles.py",
+    "scripts/lib/git_objects.py",
+    "scripts/lib/train_ownership.py"
   ]
 }

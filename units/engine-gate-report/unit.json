@@ -1,6 +1,6 @@
 {
   "id": "engine-gate-report",
-  "purpose": "Gate reports: speed, result cache, classification and the nightly run.",
+  "purpose": "Gate reports: speed, result cache, classification, the nightly run, and the plan tick and pr.ready a passed gate announces (D-065, D-322).",
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
@@ -15,13 +15,18 @@
     "scripts/lib/gate_noite.py",
     "scripts/lib/gate_skips.py",
     "scripts/lib/gate_tier.py",
+    "scripts/lib/plan_tick.py",
+    "scripts/lib/pr_ready.py",
     "scripts/lib/regime_lifts.py",
+    "scripts/plan-tick",
+    "scripts/pr-ready",
     "scripts/tests/covers/regime-lifts.json",
     "scripts/tests/gate-classify.test.sh",
     "scripts/tests/gate-failures.test.sh",
     "scripts/tests/gate-flake.test.sh",
     "scripts/tests/gate-skip.test.sh",
     "scripts/tests/gate-tier.test.sh",
+    "scripts/tests/plan-tick.test.sh",
     "scripts/tests/regime-lifts.test.sh",
     "scripts/tests/test_gate_classify.py",
     "scripts/tests/test_gate_classify_flake.py",
@@ -29,7 +34,12 @@
     "scripts/tests/test_gate_flake.py",
     "scripts/tests/test_gate_tier.py",
     "scripts/tests/test_gate_v4_readers.py",
+    "scripts/tests/test_plan_tick.py",
+    "scripts/tests/test_pr_ready.py",
     "scripts/tests/test_regime_lifts.py"
+  ],
+  "realizes": [
+    "ARC-gate"
   ],
   "requires": {
     "engine-config": "^1",
@@ -39,9 +49,8 @@
     "engine-gate-cache": "^1",
     "engine-gate-plan": "^1",
     "engine-gate-status": "^1",
-    "engine-quarantine": "^1"
-  },
-  "realizes": [
-    "ARC-gate"
-  ]
+    "engine-git-ref": "^1",
+    "engine-quarantine": "^1",
+    "engine-role": "^1"
+  }
 }

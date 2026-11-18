@@ -159,12 +159,12 @@ def check_sizes(table, max_runs):
 
 
 def observed_red(window, measure=None):
-    """The red share p of the gate over the last `window` merged PRs (flow_metrics.measured_gate_runs, VAZÃO F24, read
+    """The red share p of the gate over the last `window` merged PRs (box_meter.measured_gate_runs, VAZÃO F24, read
     once per leadership), or None when it cannot be read or nothing was measured."""
     if measure is None:
-        import flow_metrics
-        measure = lambda count: flow_metrics.measured_gate_runs(  # noqa: E731
-            engine_role.ROOT, f'origin/{engine_role.setting("train.base_branch")}', flow_metrics.SINCE, count)
+        import box_meter
+        measure = lambda count: box_meter.measured_gate_runs(  # noqa: E731
+            engine_role.ROOT, f'origin/{engine_role.setting("train.base_branch")}', box_meter.SINCE, count)
     row = measure(window)
     if 'error' in row or not row.get('runs'):
         return None

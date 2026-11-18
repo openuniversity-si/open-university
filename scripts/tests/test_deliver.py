@@ -675,7 +675,7 @@ class BoxBatch(unittest.TestCase):
         self.assertTrue(any('the batch is not ready (box busy 48% < 70%)' in line for line in lines), lines)
 
     def test_a_reading_that_fails_is_not_ready(self):
-        self.enterContext(mock.patch.dict(sys.modules, {'flow_metrics': mock.Mock(
+        self.enterContext(mock.patch.dict(sys.modules, {'box_meter': mock.Mock(
             measured_batch_reading=mock.Mock(side_effect=OSError('no lock log')))}))
         reading = DELIVER_BATCH_READING()
         self.assertFalse(reading['ready'])

@@ -9,7 +9,8 @@ names it and whether a commit on the base names it (`git log --first-parent --gr
 the base head, so a lane never debugs someone else's red: the open base.red the last gate verdict on that sha emitted
 (GX-32, defect_detect.base_signal) and the F73 base-class cache's failures for it (defect_detect.outcome). Nothing is
 written; the coordinator hands the printed text to the lane.
-`scripts/lane collect <report>` closes a delivered lane from its report (VAZÃO F69, scripts/lib/lane_collect.py).
+`scripts/lane collect <report>` closes a delivered lane from its report (VAZÃO F69): scripts/lib/lane_collect.py, which
+reads the quota ledger (measurement) and so enters `scripts/lane` above this module (lane_collect.command, D-322).
 """
 import argparse
 from pathlib import Path
@@ -370,10 +371,6 @@ def started(unit, path, base=BASE, session='<session>', root=None, run=subproces
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    if argv[:1] == ['collect']:  # F69: its own parser, in its own module
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        import lane_collect
-        return lane_collect.main(argv[1:])
     parser = argparse.ArgumentParser(prog='scripts/lane', description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest='command', required=True)

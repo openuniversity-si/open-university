@@ -11,6 +11,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
+import box_meter  # noqa: E402
 import flow_metrics  # noqa: E402
 
 SINCE = '1970-01-01'
@@ -681,7 +682,7 @@ class BatchReading(unittest.TestCase):
         self.assertAlmostEqual(reading['ceiling_per_h'], 40 * 8 / 2.0)
 
     def test_lazy_does_not_read_p_while_the_box_is_idle(self):
-        with mock.patch.object(flow_metrics, 'measured_gate_runs', side_effect=AssertionError('read p')):
+        with mock.patch.object(box_meter, 'measured_gate_runs', side_effect=AssertionError('read p')):
             reading = flow_metrics.measured_batch_reading(self.found(0.2), lazy=True)
         self.assertFalse(reading['ready'])
 
@@ -727,8 +728,8 @@ class WindowCache(unittest.TestCase):
     def test_measured_gate_runs_on_the_real_forge_is_cached_but_an_injected_port_is_not(self):
         port = FakePort({})
         with mock.patch.dict(os.environ, {'FLOW_METRICS_CACHE': str(self.path)}), \
-                mock.patch.object(flow_metrics, 'merged_prs', return_value=[(1, 'm1')]), \
-                mock.patch.object(flow_metrics, 'read_gate_runs', wraps=flow_metrics.read_gate_runs) as read:
+                mock.patch.object(box_meter, 'merged_prs', return_value=[(1, 'm1')]), \
+                mock.patch.object(box_meter, 'read_gate_runs', wraps=flow_metrics.read_gate_runs) as read:
             for _ in range(2):
                 flow_metrics.measured_gate_runs(ROOT, 'main', SINCE, 1, 'UTC', port=port, repo='r')
             self.assertEqual((read.call_count, self.path.exists()), (2, False))

@@ -1,11 +1,12 @@
 {
   "id": "engine-gate-plan",
-  "purpose": "The gate plan: areas, policy, suites and script-test selection.",
+  "purpose": "The gate plan: areas, policy, suites, script-test selection and the lane rule of the unit manifests (train_ownership, D-065 (4), M3).",
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
     "config/registry/gate-carry.json",
     "config/registry/gate-inputs.json",
+    "scripts/lib/delivery.py",
     "scripts/lib/gate-areas.json",
     "scripts/lib/gate-stage-inputs.json",
     "scripts/lib/gate-stages.json",
@@ -14,6 +15,7 @@
     "scripts/lib/gate_graph.py",
     "scripts/lib/gate_policy.py",
     "scripts/lib/gate_select.py",
+    "scripts/lib/train_ownership.py",
     "scripts/tests/gate-areas.test.sh",
     "scripts/tests/gate-carry.test.sh",
     "scripts/tests/gate-graph.test.sh",
@@ -21,8 +23,7 @@
     "scripts/tests/test_gate_areas.py",
     "scripts/tests/test_gate_carry.py",
     "scripts/tests/test_gate_graph.py",
-    "scripts/tests/test_gate_select.py",
-    "scripts/lib/delivery.py"
+    "scripts/tests/test_gate_select.py"
   ],
   "realizes": [
     "ARC-gate"

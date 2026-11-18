@@ -5,7 +5,7 @@
   "x-unit": "count",
   "description": "PRs the train takes into one batch (B).",
   "x-readers": [
-    "scripts/lib/flow_metrics.py",
+    "scripts/lib/box_meter.py",
     "scripts/lib/train.py"
   ],
   "x-source": "D-065; docs/process/EVENTS.md, Batch size B"

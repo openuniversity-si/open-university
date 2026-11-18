@@ -17,8 +17,8 @@ import event_contracts  # noqa: E402
 import forge_events  # noqa: E402
 import gate_carry  # noqa: E402
 import gate_verdicts  # noqa: E402
+import git_objects  # noqa: E402
 import plan_tick  # noqa: E402
-import train_git  # noqa: E402
 import train_ownership  # noqa: E402
 import train_trigger  # noqa: E402
 
@@ -35,19 +35,25 @@ def short(sha):
     return sha[:config.get('plan-tick.short_sha_chars')]
 
 
+def tree(root):
+    """The read-only reader of the checkout (git_objects.Tree, with the train's git timeout), never the train's own
+    workspace: pr.ready is the gate's announcement and reads commits from below the train (D-322)."""
+    return git_objects.Tree(root, config.get('train.git_timeout_s'))
+
+
 def lane_of(root, base, head):
     """The lane the head's changes belong to, by the unit manifests at the merge base with `base` (train_ownership).
 
     A change touching several lanes, or no unit, gets None, so the train's ownership check still judges it.
     """
-    workspace = train_git.GitWorkspace(root)
+    workspace = tree(root)
     merge_base = workspace.git('merge-base', base, head).stdout.strip()
     return train_ownership.UnitOwnership(workspace).lane_of(merge_base, workspace.changed_files(base, head), head)  # D-112
 
 
 def unit_of(root, base, head):
     """REC-1: the one unit the head's changes belong to (forge_events.unit_of at the merge base), else None."""
-    workspace = train_git.GitWorkspace(root)
+    workspace = tree(root)
     merge_base = workspace.git('merge-base', base, head).stdout.strip()
     return forge_events.unit_of(train_ownership.UnitOwnership(workspace), merge_base, workspace.changed_files(base, head))
 
@@ -216,7 +222,8 @@ def ready_after_gate(port, repo, pr, sha, body, root=None, plan=None, base=None,
     try:
         event = emit_ready(port, repo, pr, sha, forge_events.premises_from_body(body), plan, lane_of(root, base, sha),
                            events, unit_of(root, base, sha))
-    except (GateNotPassed, forge_events.ForgeEventsError, event_contracts.ContractError, train_git.GitError) as error:
+    except (GateNotPassed, forge_events.ForgeEventsError, event_contracts.ContractError,
+            git_objects.GitObjectsError) as error:
         return None, str(error)
     return event, f'ready ({"; ".join(notes)})' if notes else 'ready'
 
@@ -241,7 +248,7 @@ def main(argv=None):
         messages = plan_tick.commit_messages(base, root, head)
         lane_id = lane_of(root, base, head)
         unit = unit_of(root, base, head)
-    except (subprocess.CalledProcessError, train_git.GitError) as error:
+    except (subprocess.CalledProcessError, git_objects.GitObjectsError) as error:
         print(f'FAIL pr-ready: git failed: {getattr(error, "stderr", error).strip()}')
         return 1
     detail = plan_gap(body, messages)

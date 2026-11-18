@@ -4,6 +4,7 @@
     "scripts/tests/flow-metrics.test.sh",
     "scripts/tests/test_flow_metrics.py",
     "scripts/flow-metrics",
-    "scripts/lib/flow_metrics.py"
+    "scripts/lib/flow_metrics.py",
+    "scripts/lib/box_meter.py"
   ]
 }

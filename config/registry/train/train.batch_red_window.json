@@ -5,7 +5,7 @@
   "x-unit": "count",
   "description": "VAZÃO F36: the merged PRs whose gate runs give the red share p that train.batch_size_by_red maps to the batch size on the box (scripts/flow-metrics gate runs, F24). Read once per leadership, an event, never a clock.",
   "x-readers": [
-    "scripts/lib/flow_metrics.py",
+    "scripts/lib/box_meter.py",
     "scripts/lib/train.py"
   ]
 }

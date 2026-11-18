@@ -38,11 +38,11 @@
       "x-unit": "branch",
       "description": "Integration branch the train builds every batch on and merges into (D-054: PRs target it, a release merges it into main).",
       "x-readers": [
+        "scripts/lib/box_meter.py",
         "scripts/lib/coordinator_launch.py",
         "scripts/lib/covers_cost.py",
         "scripts/lib/defect_router.py",
         "scripts/lib/deliver.py",
-        "scripts/lib/flow_metrics.py",
         "scripts/lib/gate_bypass.py",
         "scripts/lib/local_checks.py",
         "scripts/lib/prepush.py",
@@ -94,7 +94,7 @@
       "x-unit": "count",
       "description": "VAZÃO F36: the merged PRs whose gate runs give the red share p that train.batch_size_by_red maps to the batch size on the box (scripts/flow-metrics gate runs, F24). Read once per leadership, an event, never a clock.",
       "x-readers": [
-        "scripts/lib/flow_metrics.py",
+        "scripts/lib/box_meter.py",
         "scripts/lib/train.py"
       ]
     },
@@ -105,7 +105,7 @@
       "x-unit": "count",
       "description": "PRs the train takes into one batch (B).",
       "x-readers": [
-        "scripts/lib/flow_metrics.py",
+        "scripts/lib/box_meter.py",
         "scripts/lib/train.py"
       ],
       "x-source": "D-065; docs/process/EVENTS.md, Batch size B"
@@ -149,7 +149,7 @@
       "x-unit": "count",
       "description": "VAZÃO F36 (docs/programs/vazao/design-trem.md §3): the most PRs a batch on the box takes, k_max, by the observed red share p of the gate (VAZÃO F24, scripts/flow-metrics) over the last train.batch_red_window merged PRs. The first row whose red_max p does not pass gives k_max; past the last row k_max is 1 (no batch). Rows go in ascending red_max; each size must fit train.bisection_max_runs (ceil(log2 size) runs), and k_max never passes train.batch_size. The rows come from a Monte Carlo of the prefix policy with the proven prefix merged (gate runs per resolved PR: 0.30 at p 0.05 and k 8, 0.57 at p 0.133 and k 4, 0.76 at p 0.20 and k 2).",
       "x-readers": [
-        "scripts/lib/flow_metrics.py",
+        "scripts/lib/box_meter.py",
         "scripts/lib/train.py"
       ]
     },
@@ -230,6 +230,7 @@
       "description": "Timeout of each git command the train runs (fetch, merge-tree, commit-tree, rev-parse).",
       "x-readers": [
         "scripts/lib/forge_git_ref.py",
+        "scripts/lib/pr_ready.py",
         "scripts/lib/service_runner.py",
         "scripts/lib/train_git.py",
         "scripts/lib/train_serve.py"

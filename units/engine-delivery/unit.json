@@ -1,11 +1,12 @@
 {
   "id": "engine-delivery",
-  "purpose": "The delivery tail: ship-tail, ship-verify, merge and release policy (D-054).",
+  "purpose": "The delivery tail: ship-tail, ship-verify, merge and release policy (D-054), and the box's meter a batch is steered by (box_meter, F64; D-322).",
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
     "config/registry/delivery.json",
     "config/registry/merge.json",
+    "scripts/lib/box_meter.py",
     "scripts/lib/box_queue.py",
     "scripts/lib/merge_behind.py",
     "scripts/lib/queue_wait.py",

@@ -62,8 +62,9 @@ def failure(command, done):
     return GitError(f'git {command} failed: {done.stderr.strip()[-300:]}')
 
 
-class GitWorkspace:
-    """Objects and refs of one local repository (the train's checkout, or a test repository)."""
+class GitWorkspace(git_objects.Tree):
+    """Objects and refs of one local repository (the train's checkout, or a test repository); its reads of a commit
+    (paths, has_path, files, changed_files) are git_objects.Tree's, through this git()."""
 
     def __init__(self, root=None):
         self.root = Path(root or ROOT)
@@ -178,17 +179,6 @@ class GitWorkspace:
                                str(work)], cwd=work, capture_output=True, text=True, timeout=self.timeout, env=env)
         return done.returncode, done.stdout + done.stderr
 
-    def paths(self, commit):
-        """Every file path of the commit's tree (GATE-SPEED F11, N8: the train asks its port, never git directly)."""
-        return self.git('ls-tree', '-r', '--name-only', commit).stdout.split()
-
-    def has_path(self, commit, path):
-        return self.git('cat-file', '-e', f'{commit}:{path}', check=False).returncode == 0
-
-    def files(self, commit, paths):
-        """{path: text} of the paths that exist in the commit (git_objects: one batched read per commit, remembered)."""
-        return git_objects.files(self.root, commit, paths, timeout=self.timeout)
-
     def count(self, base, tip, first_parent=False):
         """How many commits tip has that base does not (first-parent only when asked)."""
         return int(self.git('rev-list', *(['--first-parent'] if first_parent else []), '--count',
@@ -196,10 +186,6 @@ class GitWorkspace:
 
     def is_ancestor(self, ancestor, commit):
         return self.git('merge-base', '--is-ancestor', ancestor, commit, check=False).returncode == 0
-
-    def changed_files(self, base, head):
-        """Files the head changes against its merge base with `base` (what the PR itself touches)."""
-        return sorted(self.git('diff', '--name-only', f'{base}...{head}').stdout.split())
 
     def push(self, commit, branch, verify=True):
         """Push `commit` to the remote branch, never forced: a branch `commit` does not contain refuses (GitError).
