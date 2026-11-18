@@ -13,6 +13,7 @@
     "contracts/premises/premise.v1.json",
     "docs/process/premises/*.yml",
     "units/engine-rules/unit.json",
-    "scripts/tests/fixture_copy.py"
+    "scripts/tests/fixture_copy.py",
+    "scripts/lib/globs.py"
   ]
 }

@@ -30,6 +30,8 @@
     "scripts/lib/program.py",
     "contracts/programs/**",
     "docs/programs/**",
-    "scripts/program"
+    "scripts/program",
+    "scripts/lib/script_covers.py",
+    "scripts/lib/globs.py"
   ]
 }

@@ -14,6 +14,7 @@
     "config/registry/gate.json",
     "config/registry/gate-tier.json",
     "docs/padrao/v5/gate-verdict.md",
-    "docs/padrao/v5/padrao.json"
+    "docs/padrao/v5/padrao.json",
+    "scripts/lib/stage_classes.py"
   ]
 }

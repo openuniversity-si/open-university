@@ -6,6 +6,7 @@
     "scripts/cloud/**",
     "config/registry/cloud.json",
     "scripts/lib/config.py",
-    "scripts/lib/config_check.py"
+    "scripts/lib/config_check.py",
+    "scripts/lib/hooks_path.py"
   ]
 }

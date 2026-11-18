@@ -22,6 +22,7 @@
     "scripts/lib/hermetic/sitecustomize.py",
     "scripts/test-suite",
     "scripts/lib/fork_server.py",
-    "scripts/lib/git_objects.py"
+    "scripts/lib/git_objects.py",
+    "scripts/lib/script_covers.py"
   ]
 }

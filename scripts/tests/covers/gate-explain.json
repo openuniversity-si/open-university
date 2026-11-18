@@ -16,6 +16,8 @@
     "config/registry/gate.json",
     "config/registry/gate-gc.json",
     "scripts/lib/registry_readers.py",
-    "scripts/lib/git_objects.py"
+    "scripts/lib/git_objects.py",
+    "scripts/lib/stage_classes.py",
+    "scripts/lib/script_covers.py"
   ]
 }

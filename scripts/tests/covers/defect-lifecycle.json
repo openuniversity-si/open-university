@@ -12,6 +12,9 @@
     "config/registry/defects.json",
     "contracts/events/*.json",
     "units/*/unit.json",
-    "scripts/tests/forge_doubles.py"
+    "scripts/tests/forge_doubles.py",
+    "scripts/lib/failure_signatures.py",
+    "scripts/lib/script_covers.py",
+    "scripts/lib/globs.py"
   ]
 }

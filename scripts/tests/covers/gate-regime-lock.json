@@ -12,6 +12,7 @@
     "scripts/lib/config.py",
     "config/registry/regime.json",
     "config/registry/regime/**",
-    "scripts/lib/service_budget.py"
+    "scripts/lib/service_budget.py",
+    "scripts/lib/stage_classes.py"
   ]
 }

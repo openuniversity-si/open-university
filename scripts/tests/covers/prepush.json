@@ -22,6 +22,7 @@
     "scripts/lib/entrypoint_mentions.py",
     "scripts/lib/git_objects.py",
     "scripts/lib/globs.py",
-    "scripts/lib/operation_demands_check.py"
+    "scripts/lib/operation_demands_check.py",
+    "scripts/lib/script_covers.py"
   ]
 }

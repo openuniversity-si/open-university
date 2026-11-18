@@ -36,6 +36,8 @@
     "scripts/lib/operation_demands.json",
     "scripts/lib/forge_requirements.py",
     "scripts/lib/port_http.py",
-    "scripts/lib/operation_demands_check.py"
+    "scripts/lib/operation_demands_check.py",
+    "scripts/lib/stage_classes.py",
+    "scripts/lib/release_rules.py"
   ]
 }

@@ -21,8 +21,8 @@ import config
 import defect_detect
 import defects
 import forge_events
-import gate_areas
-import gate_script_tests
+import globs
+import script_covers  # D-322: the covers map's layer-0 reader, not the gate's selection
 import units
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -60,7 +60,7 @@ def masked(record, mapping):
     """Script tests whose covers match a path glob of the defect's area or the defect's own test file."""
     paths = list(record['area']) + record['test'].split(' > ', 1)[0].split()
     return sum(1 for item in mapping['tests']
-               if any(gate_areas.glob_match(path, cover) or gate_areas.glob_match(cover, path)
+               if any(globs.glob_match(path, cover) or globs.glob_match(cover, path)
                       for cover in item['covers'] for path in paths))
 
 
@@ -68,7 +68,7 @@ def impact(record, queue, root, mapping=None):
     unit = record['unit']
     touching = sorted(item['pr'] for item in queue if unit and unit in item['units'])
     needing = dependents(unit, root) if unit else []
-    covered = masked(record, mapping or gate_script_tests.load(root=root)) if unit else 0
+    covered = masked(record, mapping or script_covers.load(root=root)) if unit else 0
     priority = (setting('weight_touching_unit') * len(touching) + setting('weight_dependent_unit') * len(needing)
                 + setting('weight_masked_test') * covered)
     names = setting('priority_classes')

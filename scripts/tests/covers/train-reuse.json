@@ -25,6 +25,7 @@
     "scripts/lib/gate_select.py",
     "scripts/tests/memory_git.py",
     "scripts/lib/service_budget.py",
-    "scripts/tests/fixture_copy.py"
+    "scripts/tests/fixture_copy.py",
+    "scripts/lib/stage_classes.py"
   ]
 }

@@ -14,15 +14,12 @@
     "scripts/tests/defects.test.sh",
     "scripts/tests/test_defect*.py"
   ],
+  "realizes": [
+    "ARC-knowledge"
+  ],
   "requires": {
     "engine-config": "^1",
     "engine-events": "^1",
-    "engine-gate-plan": "^1",
-    "engine-gate-report": "^1",
-    "engine-gate-tests": "^1",
     "engine-premises": "^1"
-  },
-  "realizes": [
-    "ARC-knowledge"
-  ]
+  }
 }

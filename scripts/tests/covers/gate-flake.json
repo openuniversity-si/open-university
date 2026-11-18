@@ -27,6 +27,10 @@
     "scripts/units",
     "contracts/defects/*.json",
     "units/*/unit.json",
-    "scripts/lib/units_cli.py"
+    "scripts/lib/units_cli.py",
+    "scripts/lib/stage_classes.py",
+    "scripts/lib/failure_signatures.py",
+    "scripts/lib/script_covers.py",
+    "scripts/lib/globs.py"
   ]
 }

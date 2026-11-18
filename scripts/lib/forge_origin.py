@@ -24,7 +24,7 @@ import forge_events
 from forge_events import Channel
 from forge_git_ref import GitRefAdapter, GitRefs
 import forge_origin_history
-import release_policy
+import release_rules  # D-322: the freeze and release rule is layer 0; release_policy (delivery) re-exports it
 
 
 APPROVE, BLOCK = VERDICT_APPROVE, VERDICT_BLOCK
@@ -343,7 +343,7 @@ class OriginAdapter:
         base, head = change['base_ref'], change['head_ref']
         if not base or not head:
             raise OriginAdapterError('merge requires base_ref and head_ref')
-        release_policy.refuse_merge(base, head, self.refs.url())
+        release_rules.refuse_merge(base, head, self.refs.url())
         merged = self.refs.merge(base, head, head_sha, f'Merge change #{number} from {head}\n')
         if not merged:
             raise OriginAdapterError('merge lost the race to advance the base')

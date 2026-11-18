@@ -15,6 +15,9 @@
     "config/registry/defects.json",
     "contracts/events/*.json",
     "units/*/unit.json",
-    "scripts/lib/registry_readers.py"
+    "scripts/lib/registry_readers.py",
+    "scripts/lib/failure_signatures.py",
+    "scripts/lib/script_covers.py",
+    "scripts/lib/globs.py"
   ]
 }

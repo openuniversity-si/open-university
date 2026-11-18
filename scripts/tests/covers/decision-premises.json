@@ -12,6 +12,7 @@
     "config/registry/premises.json",
     "contracts/premises/premise.v1.json",
     "docs/process/premises/*.yml",
-    "docs/domain/DECISIONS.md"
+    "docs/domain/DECISIONS.md",
+    "scripts/lib/globs.py"
   ]
 }

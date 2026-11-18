@@ -10,6 +10,7 @@
     "config/registry/origin-client.json",
     "config/registry/origin-client/**",
     "config/registry/forge-events.json",
-    "units/engine-cloud/unit.json"
+    "units/engine-cloud/unit.json",
+    "scripts/lib/release_rules.py"
   ]
 }

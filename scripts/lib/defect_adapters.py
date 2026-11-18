@@ -7,9 +7,9 @@
 
 Any other failed stage (a scan, the structure check, shellcheck, a log with no test in it) has no per-test failure to
 excuse: it is always the PR's. The vitest and Playwright shapes left with Open University's stages (F46, D-113).
-Every signature is gate_failures' own, the one base.red carries.
+Every signature is failure_signatures' own (the one gate_failures re-exports), the one base.red carries.
 """
-import gate_failures
+import failure_signatures  # D-322: layer 0, not the gate's report
 
 SCRIPT_STAGE = 'script tests'
 
@@ -19,7 +19,7 @@ def rerunnable(stage):
 
 
 def extract(stage, logs):
-    return gate_failures.script_failures(gate_failures._records(logs)) if stage == SCRIPT_STAGE else []
+    return failure_signatures.script_failures(failure_signatures.records(logs)) if stage == SCRIPT_STAGE else []
 
 
 def failures(report, logs):

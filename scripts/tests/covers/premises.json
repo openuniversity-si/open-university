@@ -11,6 +11,7 @@
     "contracts/premises/premise.v1.json",
     "contracts/events/premise.*.v1.json",
     "docs/process/premises/*.yml",
-    "scripts/tests/forge_doubles.py"
+    "scripts/tests/forge_doubles.py",
+    "scripts/lib/globs.py"
   ]
 }

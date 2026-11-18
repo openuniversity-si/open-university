@@ -3,6 +3,7 @@
   "covers": [
     "scripts/tests/run.test.sh",
     "scripts/run",
-    "scripts/cloud/env.sh"
+    "scripts/cloud/env.sh",
+    "scripts/lib/hooks_path.py"
   ]
 }

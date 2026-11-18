@@ -23,6 +23,7 @@
     "scripts/lib/forge_origin_client.py",
     "scripts/lib/forge_git_ref.py",
     "scripts/lib/release_policy.py",
-    "config/registry/origin-client.json"
+    "config/registry/origin-client.json",
+    "scripts/lib/release_rules.py"
   ]
 }

@@ -14,7 +14,7 @@ import config  # noqa: E402
 import defect_router  # noqa: E402
 import defects  # noqa: E402
 import forge_events  # noqa: E402
-import gate_script_tests  # noqa: E402
+import script_covers  # noqa: E402
 import test_defects  # noqa: E402
 import units  # noqa: E402
 
@@ -39,7 +39,7 @@ class Adapter(forge_events.MemoryAdapter):
 class Router(test_defects.Fixture):
     def setUp(self):
         super().setUp()
-        for target, value in ((units, 'manifests'), (gate_script_tests, 'load')):
+        for target, value in ((units, 'manifests'), (script_covers, 'load')):
             patch = mock.patch.object(target, value, side_effect=lambda *a, _v=value, **k: MANIFESTS if _v == 'manifests' else MAPPING)
             patch.start()
             self.addCleanup(patch.stop)

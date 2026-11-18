@@ -59,10 +59,10 @@ else
   export OU_PYTHON=python3
 fi
 unset _ou_cloud _ou_bin _ou_fork_bin
-# X1 (D-022): the versioned hooks push each commit alone as it is made (scripts/lib/push_guard.py install sets
+# X1 (D-022): the versioned hooks push each commit alone as it is made (scripts/lib/hooks_path.py install sets
 # core.hooksPath to push-guard.hooks_path when the checkout has none). Never fails the shell.
 if [[ -e "$_ou_root/.git" && -z "$(git -C "$_ou_root" config --get core.hooksPath 2>/dev/null)" ]]; then
-  "$OU_PYTHON" "$_ou_root/scripts/lib/push_guard.py" install --root "$_ou_root" >/dev/null || true
+  "$OU_PYTHON" "$_ou_root/scripts/lib/hooks_path.py" install --root "$_ou_root" >/dev/null || true
 fi
 # CENSO-NO-MANIFESTO 3bis: a checkout that skipped setup.sh still gets the regenerate merge driver of .gitattributes.
 if [[ -e "$_ou_root/.git" ]] && ! git -C "$_ou_root" config --get-regexp '^merge\..*\.driver$' 2>/dev/null | grep -q merge-regenerate; then

@@ -14,6 +14,8 @@
     "scripts/lib/gate-runner.sh",
     "scripts/lib/gate_classify.py",
     "config/registry/gate-gc.json",
-    "scripts/run"
+    "scripts/run",
+    "scripts/lib/stage_classes.py",
+    "scripts/lib/script_covers.py"
   ]
 }

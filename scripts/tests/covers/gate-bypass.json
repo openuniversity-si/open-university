@@ -11,6 +11,7 @@
     "scripts/lib/regime.py",
     "scripts/lib/forge_events.py",
     "config/registry/regime/**",
-    "scripts/lib/service_budget.py"
+    "scripts/lib/service_budget.py",
+    "scripts/lib/stage_classes.py"
   ]
 }

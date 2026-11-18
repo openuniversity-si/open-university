@@ -5,6 +5,7 @@
     "scripts/tests/test_hooks_path.py",
     ".githooks/*",
     "scripts/lib/push_guard.py",
-    "scripts/cloud/env.sh"
+    "scripts/cloud/env.sh",
+    "scripts/lib/hooks_path.py"
   ]
 }

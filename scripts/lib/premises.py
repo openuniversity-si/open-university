@@ -396,7 +396,7 @@ def index_text(by_id):
 
 def plan_dependents(root, ident):
     """Tracked plan files whose `Premises:` line cites the premise."""
-    from gate_areas import glob_match
+    from globs import glob_match
     listed = subprocess.run(['git', '-C', str(root), 'ls-files'], capture_output=True, text=True).stdout.splitlines()
     found = []
     for name in listed:

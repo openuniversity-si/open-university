@@ -33,9 +33,10 @@ import tempfile
 import config
 import defect_adapters
 import defects
+import failure_signatures  # D-322: the signature is layer 0, the one gate_failures re-exports
 import forge_events
-import gate_failures
-import gate_script_tests
+import globs
+import script_covers  # D-322: the covers map's layer-0 reader, not the gate's selection
 from adapters import storage
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -128,7 +129,7 @@ def rerun(test, base, root=ROOT):
         if done.returncode == 0:
             return {'result': PASS, 'signature': ''}
         tail = (done.stdout + done.stderr).splitlines()[-config.get('gate.script_tests_log_lines'):]
-        failure = gate_failures.script_failures([{'test': test, 'result': 'FAIL', 'tail': tail}])[0]
+        failure = failure_signatures.script_failures([{'test': test, 'result': 'FAIL', 'tail': tail}])[0]
         return {'result': FAIL, 'signature': failure['signature']}
     finally:
         subprocess.run(['git', '-C', str(root), 'worktree', 'remove', '--force', str(tree)], capture_output=True)
@@ -192,14 +193,14 @@ def touched(test, changed, root=ROOT, mapping=None):
     if changed is None:
         return True
     changed = set(changed)
-    if test in changed or gate_script_tests.manifest_path(test, root).relative_to(root).as_posix() in changed:
+    if test in changed or script_covers.manifest_path(test, root).relative_to(root).as_posix() in changed:
         return True
     try:
-        mapping = mapping or gate_script_tests.load(root)
-    except (gate_script_tests.ScriptTestMapError, OSError, ValueError):
+        mapping = mapping or script_covers.load(root)
+    except (script_covers.ScriptTestMapError, OSError, ValueError):
         return True
     covers = [pattern for item in mapping['tests'] if item['script'] == test for pattern in item['covers']]
-    return any(gate_script_tests.glob_match(path, pattern) for path in changed for pattern in covers)
+    return any(globs.glob_match(path, pattern) for path in changed for pattern in covers)
 
 
 def adjudicate(failures, base, root=ROOT, location=None, runner=None, now=None, changed=(), mapping=None, signal=None):

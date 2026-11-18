@@ -11,14 +11,9 @@
     "scripts/tests/origin-remote.test.sh",
     "scripts/tests/test_origin_remote.py",
     "scripts/tests/covers/origin-remote.json",
-    "scripts/lib/origin_remote.py"
+    "scripts/lib/origin_remote.py",
+    "scripts/lib/hooks_path.py"
   ],
-  "requires": {
-    "engine-config": "^1",
-    "engine-env": "^1",
-    "engine-gate-run": "^1",
-    "engine-push-guard": "^1"
-  },
   "realizes": [
     "ARC-environment"
   ],
@@ -36,5 +31,10 @@
     "P-04",
     "P-05",
     "P-07"
-  ]
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-env": "^1",
+    "engine-gate-run": "^1"
+  }
 }

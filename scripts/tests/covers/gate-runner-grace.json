@@ -8,6 +8,7 @@
     "scripts/lib/gate_status.py",
     "scripts/lib/config.py",
     "scripts/lib/json_schema.py",
-    "config/registry/gate-gc.json"
+    "config/registry/gate-gc.json",
+    "scripts/lib/stage_classes.py"
   ]
 }
