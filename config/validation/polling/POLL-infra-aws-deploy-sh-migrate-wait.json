@@ -2,6 +2,6 @@
   "id": "POLL-infra-aws-deploy-sh-migrate-wait",
   "site": "infra/aws/deploy.sh::migrate_wait",
   "class": "state-wait",
-  "reason": "Reads the migration task's state on an interval.",
-  "replace_with": "aws ecs wait tasks-stopped, or the task's state-change event"
+  "reason": "Reads, every DEPLOY_MIGRATE_POLL_S up to DEPLOY_MIGRATE_WAIT_S, the newest applied migration the port's GET /v1/health?migration=1 answers, while the live service applies them in place. No ECS task runs the migration, so aws ecs wait tasks-stopped has nothing to wait (and the deployer's role has no ecs:Describe*).",
+  "replace_with": "an event from the live service when it applied the migrations, delivered to the deployer (new infrastructure through the stacks)"
 }

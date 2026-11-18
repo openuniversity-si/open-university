@@ -9,7 +9,8 @@ modules of a port Lambda, autodeploy asks this module to deploy that push:
   2. lambda:UpdateFunctionCode(S3Bucket, S3Key) uploads the digest (FAST-WAIT-ACTIVE: a function in a VPC is InProgress for
      seconds, so a ResourceConflictException first waits for the previous update; then LastUpdateStatus must be Successful,
      Failed aborts with its reason), PublishVersion makes the version, whose CodeSha256 must be the digest, and the version
-     must be State Active before anything invokes it; all of that is activate_ms, inside deploy.fast_activate_s (120 s,
+     must be State Active before anything invokes it (Lambda's waiters, function_updated and published_version_active, which
+     poll GetFunctionConfiguration inside the SDK); all of that is activate_ms, inside deploy.fast_activate_s (120 s,
      a safety timeout: not active in time is smoke_pre 'not active in N s', no swap); the previous version is read from
      the alias first (GetAlias);
   3. PRE-swap smoke (FAST-SMOKE-ORDER): the NEW VERSION is invoked by its qualifier (immediately consistent) with the health
@@ -34,7 +35,7 @@ import time
 LOG = logging.getLogger('tower_infra.fastdeploy')
 FAST, ROLLEDBACK = 'platform.deploy.fast', 'platform.deploy.rolledback'
 ALIAS = 'live'
-ACTIVATE_STEP_S = 1.0  # between two polls of the function / version state while the code activates
+ACTIVATE_STEP_S = 1.0  # the Lambda waiter's delay between two reads of the function / version state, and the first backoff of a conflict
 PROPAGATION_STEP_S = 0.25  # between two invokes of the alias while it converges (bounded by deploy.fast_propagation_s)
 FUNCTIONS = ('tower-port-api', 'tower-port-ack-ingress', 'tower-port-webhook-consumer')
 # module (file name in tower_infra) -> the Lambdas whose package holds it: the import closure of each handler. A test pins it to
@@ -177,6 +178,7 @@ class FastDeploy:
         deadline = begin + self.activate_s
         version = None
         self.settle(function, None, deadline, version)  # an update still running (another task, the last deploy): wait first
+        pause = ACTIVATE_STEP_S
         while True:
             try:
                 self.lam.update_function_code(FunctionName=function, S3Bucket=self.bucket, S3Key=wanted['key'])
@@ -187,7 +189,9 @@ class FastDeploy:
                 if self.clock() >= deadline:
                     raise NotActive(f'the code update conflicts with another one, not active in {round(self.activate_s)} s')
                 self.settle(function, None, deadline, version)  # another update began meanwhile: wait it out, then try again
-                self.sleep(ACTIVATE_STEP_S)
+                # a backoff of the refused call, not a wait on a state (the waiter above waited it): doubling, up to the deadline
+                self.sleep(max(0.0, min(pause, deadline - self.clock())))
+                pause *= 2
         self.settle(function, None, deadline, version)
         published = self.lam.publish_version(FunctionName=function, CodeSha256=digest_b64(wanted['sha256']))
         version = published['Version']
@@ -195,22 +199,28 @@ class FastDeploy:
         return {'Version': version, 'CodeSha256': published.get('CodeSha256')}
 
     def settle(self, function, version, deadline, published):
-        """Poll GetFunctionConfiguration until the function's last update is Successful (version None) or the version is
-        Active; Failed raises with its LastUpdateStatusReason; past the deadline raises NotActive."""
+        """Lambda's own waiter until the function's last update is Successful (version None: function_updated) or the version
+        is Active (published_version_active); both read GetFunctionConfiguration, the call the task role has. The waiter polls
+        inside the SDK with a fixed delay (WaiterConfig Delay ACTIVATE_STEP_S) and as many attempts as the time left before the
+        deadline holds: the same bound as the loop it replaced. Failed raises with its LastUpdateStatusReason (StateReason);
+        past the deadline raises NotActive."""
         args = {'FunctionName': function, **({'Qualifier': version} if version else {})}
-        while True:
-            config = self.lam.get_function_configuration(**args)
-            if config.get('LastUpdateStatus') == 'Failed':
-                raise RuntimeError(f'the code update failed: {config.get("LastUpdateStatusReason") or "no reason"}')
-            if version and config.get('State') == 'Failed':
-                raise RuntimeError(f'the version failed to activate: {config.get("StateReason") or "no reason"}')
-            if config.get('LastUpdateStatus') in (None, 'Successful') and (not version or config.get('State') in (None, 'Active')):
-                return
-            if self.clock() >= deadline:
-                what = 'version %s' % version if version else 'the code update'
-                raise NotActive(f'{what} not active in {round(self.activate_s)} s '
-                                f'(State {config.get("State")}, LastUpdateStatus {config.get("LastUpdateStatus")})', published)
-            self.sleep(ACTIVATE_STEP_S)
+        attempts = max(1, int(max(0.0, deadline - self.clock()) // ACTIVATE_STEP_S) + 1)
+        waiter = self.lam.get_waiter('published_version_active' if version else 'function_updated')
+        try:
+            waiter.wait(**args, WaiterConfig={'Delay': ACTIVATE_STEP_S, 'MaxAttempts': attempts})
+            return
+        except Exception as error:  # noqa: BLE001 - botocore.exceptions.WaiterError: its last answer says why it stopped
+            config = getattr(error, 'last_response', None)
+            if type(error).__name__ != 'WaiterError' or not isinstance(config, dict) or 'Error' in config:
+                raise
+        if config.get('LastUpdateStatus') == 'Failed':
+            raise RuntimeError(f'the code update failed: {config.get("LastUpdateStatusReason") or "no reason"}')
+        if version and config.get('State') == 'Failed':
+            raise RuntimeError(f'the version failed to activate: {config.get("StateReason") or "no reason"}')
+        what = 'version %s' % version if version else 'the code update'
+        raise NotActive(f'{what} not active in {round(self.activate_s)} s '
+                        f'(State {config.get("State")}, LastUpdateStatus {config.get("LastUpdateStatus")})', published)
 
     def propagate(self, function, version, entry):
         """Invoke the alias until it answers `version`, at most propagation_s. None unless the alias answered an ERROR (then

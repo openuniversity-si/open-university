@@ -20,6 +20,37 @@ DIGEST = hashlib.sha256(b'zip').hexdigest()
 B64 = base64.b64encode(bytes.fromhex(DIGEST)).decode()
 
 
+class WaiterError(Exception):
+    """botocore.exceptions.WaiterError as the module reads it: its name and its last_response."""
+    def __init__(self, name, reason, last_response):
+        super().__init__(f'Waiter {name} failed: {reason}')
+        self.last_response = last_response
+
+
+# botocore's lambda waiters the module uses (data/lambda/2015-03-31/waiters-2.json): the field, success, failure
+WAITERS = {'function_updated': ('LastUpdateStatus', 'Successful', 'Failed'),
+           'published_version_active': ('State', 'Active', 'Failed')}
+
+
+class FakeWaiter:
+    """A botocore waiter on the fake: GetFunctionConfiguration up to MaxAttempts, `tick` (the SDK's own sleep) of Delay between."""
+    def __init__(self, lam, name):
+        self.lam, self.name = lam, name
+
+    def wait(self, WaiterConfig, **kw):
+        field, success, failure = WAITERS[self.name]
+        self.lam.waits.append((self.name, kw.get('Qualifier'), WaiterConfig['Delay'], WaiterConfig['MaxAttempts']))
+        for attempt in range(1, WaiterConfig['MaxAttempts'] + 1):
+            answer = self.lam.get_function_configuration(**kw)
+            if answer.get(field) == success:
+                return
+            if answer.get(field) == failure:
+                raise WaiterError(self.name, f'Waiter encountered a terminal failure state: {field} {failure}', answer)
+            if attempt == WaiterConfig['MaxAttempts']:
+                raise WaiterError(self.name, 'Max attempts exceeded', answer)
+            self.lam.tick(WaiterConfig['Delay'])
+
+
 class FakeLambda:
     def __init__(self, live='4', fail=None, executed=None, status=200, error=None, alias_error=None, stale=0,
                  update_pending=0, version_pending=0, update_failed=False, conflicts=0, busy_before=0):
@@ -29,6 +60,11 @@ class FakeLambda:
         self.updated = False
         self.update_pending, self.version_pending, self.update_failed = update_pending, version_pending, update_failed
         self.conflicts, self.busy_before = conflicts, busy_before
+        self.waits, self.tick = [], lambda seconds: None  # the waiters asked for; the SDK's sleep inside them
+
+    def get_waiter(self, name):
+        assert name in WAITERS, name
+        return FakeWaiter(self, name)
 
     def get_alias(self, **kw):
         self.calls.append(('get_alias', kw['FunctionName']))
@@ -108,7 +144,8 @@ def manifest(head, base_sha='b0', files=None):
 
 
 def clock():
-    ticks = iter([0.0, 0.0, 0.0, 0.0, 0.0, 0.0125] + [1.0] * 8)  # activate begin/end, smoke_pre begin/end, swap begin/end
+    # activate begin, its three waits' time left, its end, smoke_pre begin/end, swap begin/end
+    ticks = iter([0.0] * 8 + [0.0125] + [1.0] * 8)
     return lambda: next(ticks)
 
 
@@ -130,12 +167,18 @@ class Swap(unittest.TestCase):
 
     def test_pending_and_in_progress_are_waited_for_then_the_swap_goes_on(self):
         lam = FakeLambda(update_pending=3, version_pending=4, conflicts=2, busy_before=2)
-        sleeps = []
+        sleeps, waited = [], []
+        lam.tick = waited.append
         entry = fastdeploy.FastDeploy(lam, FakeS3({}), 'bucket', clock=lambda: 0.0, sleep=sleeps.append,
                                       propagation_s=2).deploy('tower-port-api', manifest('h1'), 'h1')
         self.assertEqual((entry['ok'], entry['version'], lam.live), (True, '5', '5'))
-        self.assertGreaterEqual(len(sleeps), 9)
+        self.assertEqual(len(waited), 2 + 3 + 4)  # busy before, the update, the version: inside Lambda's waiters
+        self.assertEqual(sleeps, [1.0, 2.0])  # the two conflicts: a doubling backoff of the refused call, not a poll
         self.assertEqual([c[0] for c in lam.calls].count('update_function_code'), 3)  # two conflicts, then accepted
+        # each wait is Lambda's own waiter on GetFunctionConfiguration, its attempts the time left (120 s) at a 1 s delay
+        self.assertEqual([(name, qualifier) for name, qualifier, _, _ in lam.waits],
+                         [('function_updated', None)] * 4 + [('published_version_active', '5')])
+        self.assertEqual({(delay, attempts) for _, _, delay, attempts in lam.waits}, {(fastdeploy.ACTIVATE_STEP_S, 121)})
 
     def test_a_version_that_never_becomes_active_is_not_active_in_n_s_and_never_swaps(self):
         now = [0.0]
@@ -143,12 +186,37 @@ class Swap(unittest.TestCase):
 
         def sleep(seconds):
             now[0] += seconds
+        lam.tick = sleep  # the waiter's own delay is the time that passes
         entry = fastdeploy.FastDeploy(lam, FakeS3({}), 'bucket', clock=lambda: now[0], sleep=sleep, propagation_s=2,
                                       activate_s=30).deploy('tower-port-api', manifest('h1'), 'h1')
         self.assertEqual((entry['ok'], entry['smoke_pre'], entry['rolled_back'], lam.live), (False, 'not active in 30 s', False, '4'))
         self.assertNotIn('update_alias', [c[0] for c in lam.calls])
         self.assertNotIn('invoke', [c[0] for c in lam.calls])
         self.assertGreaterEqual(entry['activate_ms'], 30000)
+        self.assertIn('version 5 not active in 30 s (State Pending, LastUpdateStatus Successful)', entry['reason'])
+        self.assertEqual(entry['version'], '5')
+        self.assertEqual(lam.waits[-1][0], 'published_version_active')  # the waiter expired: the same NotActive as the loop
+
+    def test_an_update_whose_waiter_expires_is_not_active_and_a_failed_version_aborts_with_its_reason(self):
+        now = [0.0]
+        lam = FakeLambda(update_pending=10 ** 6)
+
+        def sleep(seconds):
+            now[0] += seconds
+        lam.tick = sleep
+        entry = fastdeploy.FastDeploy(lam, FakeS3({}), 'bucket', clock=lambda: now[0], sleep=sleep, propagation_s=2,
+                                      activate_s=20).deploy('tower-port-api', manifest('h1'), 'h1')
+        self.assertEqual((entry['ok'], entry['smoke_pre'], lam.live), (False, 'not active in 20 s', '4'))
+        self.assertIn('the code update not active in 20 s (State None, LastUpdateStatus InProgress)', entry['reason'])
+        self.assertEqual(lam.waits[-1][:2], ('function_updated', None))
+        self.assertNotIn('publish_version', [c[0] for c in lam.calls])
+        lam = FakeLambda()
+        real = lam.get_function_configuration
+        lam.get_function_configuration = lambda **kw: ({'LastUpdateStatus': 'Successful', 'State': 'Failed', 'StateReason': 'no ENI'}
+                                                       if kw.get('Qualifier') == '5' and lam.updated else real(**kw))
+        entry = self.deploy(lam)
+        self.assertEqual((entry['ok'], entry['swap_ms'], lam.live), (False, None, '4'))
+        self.assertIn('the version failed to activate: no ENI', entry['reason'])
 
     def test_a_conflict_that_never_clears_ends_as_not_active(self):
         now = [0.0]
@@ -164,7 +232,8 @@ class Swap(unittest.TestCase):
         lam = FakeLambda(update_failed=True)
         entry = self.deploy(lam)
         self.assertFalse(entry['ok'])
-        self.assertIn('ENI limit', entry['reason'])
+        self.assertIn('RuntimeError: the code update failed: ENI limit', entry['reason'])  # the waiter's failure state, as before
+        self.assertEqual(lam.waits[-1][:2], ('function_updated', None))
         self.assertNotIn('publish_version', [c[0] for c in lam.calls])
         self.assertEqual(lam.live, '4')
 

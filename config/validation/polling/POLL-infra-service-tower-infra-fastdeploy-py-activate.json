@@ -1,7 +1,6 @@
 {
   "id": "POLL-infra-service-tower-infra-fastdeploy-py-activate",
   "site": "infra/service/tower_infra/fastdeploy.py::activate",
-  "class": "state-wait",
-  "reason": "Waits on an interval for the Lambda's new version to become active.",
-  "replace_with": "the Lambda waiter or an EventBridge event on the function's state"
+  "class": "backoff",
+  "reason": "Retries UpdateFunctionCode after a ResourceConflictException with a doubling pause, bounded by deploy.fast_activate_s; the wait on the function's state between two tries is Lambda's waiter (settle: function_updated, published_version_active). AWS waiter (SDK polls with fixed delay); an EventBridge event needs new infrastructure through the stacks."
 }
