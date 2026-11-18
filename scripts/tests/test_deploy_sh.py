@@ -810,6 +810,23 @@ class SlowPathShTests(DeployShTests):
         self.assertEqual(again.returncode, 0, again.stderr)
         self.assertIn('template and images unchanged', again.stdout)
 
+    def test_a_stack_whose_values_in_parameters_json_changed_is_deployed_not_skipped(self):
+        # #220 (18/11): media's Cdn went from off to on in parameters.json alone; the hash covered the template and its
+        # images only, so the build skipped tower-app-media and the distribution was never created
+        self.five_stacks()
+        self.run_deploy(STUB_LAST='old', DEPLOY_SMOKE_CMD='none')
+        hashes = self.build()['hashes']
+        self.commit('a value of the service', **{'infra__aws__parameters.json': json.dumps({'service': {'DesiredCount': '2'}})})
+        (self.state / 'calls').write_text('')
+        again = self.run_deploy(STUB_LAST='old', STUB_LAST_BUILD=json.dumps({'hashes': hashes}),
+                                STUB_TAGGED='tower-app-network tower-app-data tower-app-service tower-app-port tower-app-runner',
+                                STUB_TAG_VALUE='older', DEPLOY_SMOKE_CMD='none')
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertNotEqual(self.build()['hashes']['service'], hashes['service'])
+        self.assertEqual(self.build()['hashes']['network'], hashes['network'])
+        self.assertTrue(self.stack_calls('service'), again.stdout)
+        self.assertIn('skip  tower-app-network', again.stdout)
+
     # --- ACK-CANARY-GONE: a head that takes a stack's template and its line of the order away -------------------------------
     def test_a_stack_whose_template_left_the_tree_is_not_applied_not_dirty_and_leaves_the_record(self):
         # the canary's stack (12/11): emptied by an update, deleted by the account's owner, then its file and its line of

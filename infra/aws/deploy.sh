@@ -350,6 +350,9 @@ stack_hash() {
   { cat "${tpl[$1]}"
     for i in $(grep -o '/tower/deploy/image/[A-Za-z0-9_-]*' "${tpl[$1]}" | sort -u); do cat "$work/img/${i##*/}" 2>/dev/null; done
     [[ $1 = port ]] && printf '%s' "$lsig"
+    # PARAMS-IN-HASH (#220, 18/11): the stack's values in infra/aws/parameters.json are part of what it is applied with,
+    # so a change there alone (media's Cdn off -> on) deploys the stack instead of skipping it as unchanged
+    jq -cS --arg n "$1" '.[$n] // empty' "$repo/infra/aws/parameters.json" 2>/dev/null
     [[ ($1 = service || $1 = runner) && -s "$work/livecode" ]] && printf 'LiveCode=%s' "$(<"$work/livecode")"; } | sha256sum | cut -c1-20
 }
 
