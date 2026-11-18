@@ -42,7 +42,11 @@ WORKERS = 'GATE_TEST_WORKERS'  # GATE-ISOLATED: the batch's workers (gate_test_c
 PARTS = ('main', 'shard1', 'alone')  # GATE-PARTS: the jobs of one tower/gate, side by side (tower-gate.yml's matrix)
 WALL_MIN_S = 5.0  # GATE-WALLS: every test of the batch at least this long is named with its wall (not only the slowest)
 SLOWEST = 3  # GATE-PACE: the tests of a batch its pace line names, the slowest first (their walls in the batch)
-STAGES_S = 15.0  # GATE-PARTS: what main's stages weigh in the split (#130's commit: main 41 s, shard1 24 s with none)
+STAGES_S = 15.0
+# GATE-PER-WORKER (18/11/2026): what each part's batch runs at once, the load a part's share is weighed by: main keeps one
+# worker for its stages beside the batch (GATE-PACE), shard1 has the runner's four. Constants, not the machine's CPUs:
+# every job of one run must split alike. #217's gate: main's three deploy parts 54.7-60.7 s, shard1's three 48.2-49.8 s.
+PART_WORKERS = {'main': 3, 'shard1': 4}  # GATE-PARTS: what main's stages weigh in the split (#130's commit: main 41 s, shard1 24 s with none)
 
 
 def costs():
@@ -56,8 +60,8 @@ def costs():
 
 def split(tests, named, hints):
     """GATE-PARTS: the planned tests of each part. alone: the timing-bound ones (named); main and shard1: the others,
-    longest first into the lighter of the two (by the cost hints, ties by name; main starts STAGES_S heavier, for its
-    stages), so every job computes the same split."""
+    longest first into the one it leaves lighter per worker (by the cost hints, ties by name; main starts STAGES_S heavier,
+    for its stages, and has PART_WORKERS one fewer), so every job computes the same split."""
     parts = {'main': [], 'shard1': [], 'alone': [test for test in tests if test in named]}
     load = {'main': STAGES_S, 'shard1': 0.0}  # main runs the stages too
     known = sorted(float(value) for value in hints.values() if value)
@@ -66,7 +70,8 @@ def split(tests, named, hints):
     def weight(test):
         return float(hints.get(test) or usual)
     for test in sorted((test for test in tests if test not in named), key=lambda test: (-weight(test), test)):
-        lighter = min(('main', 'shard1'), key=lambda part: (load[part], part != 'main'))
+        lighter = min(('main', 'shard1'),
+                      key=lambda part: ((load[part] + weight(test)) / PART_WORKERS[part], part != 'main'))
         parts[lighter].append(test)
         load[lighter] += weight(test)
     return parts
