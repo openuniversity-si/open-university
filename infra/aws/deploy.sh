@@ -129,8 +129,9 @@ bytes_of() { local LC_ALL=C; printf '%s' "${#1}"; }  # DEPLOY-FEWER-FORKS: bash 
 # steps_json: the steps file ($work/steps: name, status running|ok|failed, t0, t1 per line) as a compact array [{n,s,t}].
 steps_json() {
   local arr f
-  arr="$(jq -R --argjson now "$EPOCHSECONDS" 'select(length > 0) | split("\t") | {n: .[0], s: .[1], t: ((if (.[3] | tonumber) > 0 then (.[3] | tonumber) else $now end) - (.[2] | tonumber))}' \
-    "$work/steps" 2>/dev/null | jq -sc '.[-24:]' 2>/dev/null)" || arr='[]'
+  # DEPLOY-FEWER-FORKS: one jq over the whole file (-Rs), not one per line piped into a second that slurps
+  arr="$(jq -Rsc --argjson now "$EPOCHSECONDS" 'split("\n") | map(select(length > 0) | split("\t") | {n: .[0], s: .[1], t: ((if (.[3] | tonumber) > 0 then (.[3] | tonumber) else $now end) - (.[2] | tonumber))}) | .[-24:]' \
+    "$work/steps" 2>/dev/null)" || arr='[]'
   [[ -n "$arr" ]] || arr='[]'
   # a failed step carries `e`: its own last lines of output (step_err), so the status says WHY, not only where
   for f in "$work"/err.*; do
@@ -256,12 +257,15 @@ record() {
   fi
   [[ $'\n'"$(slurp "$work/rolled")"$'\n' == *$'\n'tower-app-port$'\n'* ]] && port_tpl=""  # DEPLOY-FEWER-FORKS: no grep
   local reload_json=""; [[ -f "$work/reload" ]] && reload_json="$(jq -c 'if type == "object" then . else empty end' "$work/reload" 2>/dev/null)"; [[ -n "$reload_json" ]] || reload_json=null  # FAST-PATH-RELOAD
-  code_live="$(read_work code_live)"; local code_live_why; code_live_why="$(read_work code_live_why)"  # the bundle a code-only batch was found live by: nothing of it was deployed
+  local code_live_why; rw_file code_live "$work/code_live"; rw_file code_live_why "$work/code_live_why"  # the bundle a code-only batch was found live by: nothing of it was deployed
   steps="$(steps_json)"
-  step_cur="$(awk -F'\t' '$2 == "running" {n = $1} END {print n}' "$work/steps" 2>/dev/null)"
-  fail_step="$(read_work failed_step)"
-  bnote_txt="$(read_work bnote)"
-  seconds=$((ended - started)); batch="$(slurp "$work/batch" || echo 0)"
+  # DEPLOY-FEWER-FORKS: the running step by bash's read (as the awk did: the last line whose state is running)
+  step_cur=""; local step_n step_s step_rest
+  if [[ -f "$work/steps" ]]; then
+    while IFS=$'\t' read -r step_n step_s step_rest; do [[ "$step_s" = running ]] && step_cur="$step_n"; done <"$work/steps"
+  fi
+  rw_file fail_step "$work/failed_step"; rw_file bnote_txt "$work/bnote"
+  seconds=$((ended - started)); batch=0; [[ -f "$work/batch" ]] && rw_file batch "$work/batch"
   while :; do
     json="$(jq -nc --arg build_id "$build_id" --arg base_head "$head" --arg status "$status" --arg bootstrap "$bootstrap_said" \
       --argjson failed "$failed_json" --argjson done "$done_json" --argjson left "$left_json" --argjson stacks "$secs_json" \
