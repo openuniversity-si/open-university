@@ -331,3 +331,22 @@ A Torre fez os passos 1 a 5 do corte entre 20:43 e 20:49Z, e a sessão conferiu 
     2. Pedir o certificado ACM para o apex e o www, e validar pelo botão "Create records in Route 53". Esses dois CNAME de validação ficam fora da stack, o que é aceitável: o CloudFormation não apaga registros que não criou.
     3. Um PR põe o `CertificateArn`.
     4. Conferir com `curl -sI https://www.theopenuniversity.si/x?y=1`.
+
+## E-mail e theopenuniversity.si (18/11 ~18:47 BRT)
+**E-mail:**
+- **O DKIM foi verificado.** Os três CNAME estão na zona da Cloudflare, e a identidade SES de `openuniversity.si` dá `DkimAttributes.Status = SUCCESS` e `VerifiedForSendingStatus = true` desde 21:46Z.
+  - Na zona do Route 53, esses três CNAME chegam com o PR do corte (`scripts/dns-zone build ... --mail ses`), que os importa da stack de e-mail. Ninguém os escreve à mão, porque um registro manual faria o CREATE do CloudFormation falhar.
+- **O rule set `tower-mail` está ativo**, com a regra `tower-mail-store`. O MX continua na Cloudflare, então nada chega a ele ainda.
+- **O mapa está em `/tower/mail/forward-map`:** SecureString, versão 1, com duas entradas. Nenhum endereço está no repositório.
+- **O acesso de produção do SES foi NEGADO** (caso 179503637000266), porque ainda não havia identidade verificada. A Torre responde o caso agora que o domínio está verificado.
+- **Caminho enquanto o sandbox durar, aceito pelo desenho:**
+  - Os dois endereços encaminham para a caixa do próprio dono. Em sandbox, o SES envia para identidades verificadas, então verificar esse destino como identidade de e-mail faz o encaminhamento funcionar antes da aprovação.
+  - O dono clica no link que o SES manda.
+  - A cota do sandbox, de 200 por dia, cobre o volume de cerca de 48 por dia.
+  - O pedido de produção continua, para tirar a dependência dessa verificação.
+
+**theopenuniversity.si:**
+- **A zona é `Z03672211K9Z57D4JOTHY`.** Os NS estão sendo trocados no registrador para `ns-630.awsdns-14.net`, `ns-1578.awsdns-05.co.uk`, `ns-84.awsdns-10.com` e `ns-1419.awsdns-49.org`.
+- **O certificado** é `arn:aws:acm:us-east-1:994763873392:certificate/302c7003-…`, para o apex e o www, e está `PENDING_VALIDATION` até a troca propagar.
+  - Os dois CNAME de validação estão na zona e ficam fora do template. O CloudFormation não apaga um registro que não criou, e o ACM renova pelo mesmo CNAME.
+  - O PR do `CertificateArn` só entra depois de o certificado estar `ISSUED`, porque um certificado ainda não emitido faria o update da distribuição falhar.

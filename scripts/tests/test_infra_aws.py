@@ -1712,7 +1712,9 @@ class MailStackTests(unittest.TestCase):
         # The Torre re-applied the bootstrap with ses:* (req-d323-ses, 18/11 21:11:50Z, the APPLIED hash above), so the live
         # parameters may turn Mail on; until the map's name is set it only stores (test_mail_on_with_an_empty_map...)
         self.assertIn(self.parameters.get('Mail', 'off'), ('off', 'on'))
-        self.assertNotIn('MapParameter', self.parameters)  # the map's name comes after Mail on, its content never to the tree
+        # the map's name may be set once the Torre has written it (18/11 21:4xZ); its content never comes to the tree
+        self.assertIn(self.parameters.get('MapParameter', '/tower/mail/forward-map'), ('/tower/mail/forward-map',))
+        self.assertNotIn('@', json.dumps(self.parameters))
         for values in ({}, {'MapParameter': '/tower/mail/forward-map'}):
             off = self.created(**values)
             self.assertEqual({name: item['Type'] for name, item in off['Resources'].items()},
