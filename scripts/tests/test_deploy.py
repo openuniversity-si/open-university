@@ -631,6 +631,45 @@ class CliTests(unittest.TestCase):
         self.assertGreater(sum(sleeps), 2300)
         self.assertIn('ran out', out)
 
+    def held_follow(self, answers, wait_each_s=15.0, **kwargs):
+        """follow against a port with the long poll (PORT-LONG-POLL): each answer after the first is held wait_each_s
+        on the test's clock, and marked; a sleep is a failure."""
+        clock, paths = [0.0], []
+
+        def call(method, path):
+            paths.append(path)
+            clock[0] += wait_each_s if len(paths) > 1 else 0.0
+            state = answers.pop(0) if len(answers) > 1 else answers[0]
+            return dict(state, long_poll={'seen': state['digest'], 'waited_s': wait_each_s, 'changed': True})
+        port = mock.Mock()
+        port.call.side_effect = call
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+            code = deploy.follow(port, sleep=lambda s: self.fail(f'slept {s} s against a waiting port'),
+                                 clock=lambda: clock[0], now=lambda: 1000.0, **kwargs)
+        return code, out.getvalue(), paths
+
+    def test_follow_against_a_waiting_port_asks_again_at_once_with_what_it_saw(self):
+        old = {'last_sha': 'a', 'last_build': None, 'digest': 'd1'}
+        new = {'last_sha': 'b', 'last_build': None, 'digest': 'd2'}
+        code, _, paths = self.held_follow([old, old, new], target='b')
+        self.assertEqual(code, 0)
+        self.assertEqual(paths, ['/v1/deploy/status?wait_s=15', '/v1/deploy/status?wait_s=15&seen=d1',
+                                 '/v1/deploy/status?wait_s=15&seen=d1'])
+
+    def test_follow_against_a_waiting_port_keeps_the_deadline_and_its_message(self):
+        quiet = {'last_sha': 'a', 'last_build': None, 'digest': 'd1'}
+        code, out, paths = self.held_follow([quiet], target='b')
+        self.assertEqual(code, 2)
+        self.assertIn('ran out', out)
+        self.assertEqual(len(paths), 2400 // 15 + 1)  # one read each 15 s at most: never later than the pauses
+
+    def test_follow_against_an_old_port_keeps_todays_pauses(self):
+        # an old port ignores the query and answers at once, unmarked: the pauses of before the long poll
+        code, _, sleeps = self.follow([{'last_sha': 'a', 'last_build': None}] * 4 + [{'last_sha': 'b', 'last_build': None}],
+                                      target='b')
+        self.assertEqual((code, sleeps), (0, [15, 22.5, 33.75, 50.625]))
+
     def test_follow_through_the_real_client_reads_the_fake_port(self):
         self.server.states = [{'last_sha': 'new', 'last_build': None}]
         code, _, _ = self.run_main('follow', '--target', 'new')

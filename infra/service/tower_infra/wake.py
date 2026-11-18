@@ -22,8 +22,11 @@ import time
 
 LOG = logging.getLogger('tower_infra.wake')
 WORK, RUNS, DEPLOY, CONFIG, TRAIN = 'tower_work', 'tower_runs', 'tower_deploy', 'tower_config', 'tower_train'
+# PORT-LONG-POLL (migration 0023): a job's state changed (GET /v1/jobs/<id>), an event of the deploy status was recorded
+# (GET /v1/deploy/status); only the port's long polls listen to them
+JOBS, STATUS = 'tower_jobs', 'tower_status'
 
-CHANNELS = (WORK, RUNS, DEPLOY, CONFIG, TRAIN)
+CHANNELS = (WORK, RUNS, DEPLOY, CONFIG, TRAIN, JOBS, STATUS)
 RETRY_S = (1.0, 30.0)  # DB-LISTEN-ONE: a hub that lost its connection listens again after 1 s, then 2, 4... up to 30
 # DB-LISTEN-ONE: libpq's keepalive for the hub's connection, which only ever reads: a peer that went away without a
 # word is noticed in about a minute (the system's default is hours), and the hub listens again
@@ -35,7 +38,7 @@ def channels_of(channel, known=CHANNELS):
     channels = (channel,) if isinstance(channel, str) else tuple(channel)
     for each in channels or (None,):
         if each not in known:
-            raise ValueError(f'{each!r} is not a channel of migrations 0006, 0009, 0010 and 0011' if known is CHANNELS
+            raise ValueError(f'{each!r} is not a channel of migrations 0006, 0009, 0010, 0011 and 0023' if known is CHANNELS
                              else f'{each!r} is not a channel this hub listens to ({", ".join(known)})')
     return channels
 
