@@ -19,7 +19,8 @@
     "SiteDistribution": "dns1rg162g0y7.cloudfront.net"
   },
   "mail": {
-    "Mail": "on"
+    "Mail": "on",
+    "MapParameter": "/tower/mail/forward-map"
   },
   "redirect": {
     "Redirect": "on"
