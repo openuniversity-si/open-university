@@ -20,5 +20,8 @@
   },
   "mail": {
     "Mail": "off"
+  },
+  "redirect": {
+    "Redirect": "off"
   }
 }

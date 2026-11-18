@@ -5,6 +5,7 @@
   "port": ["data", "network"],
   "runner": [],
   "media": [],
+  "redirect": [],
   "mail": [],
   "dns": ["media"]
 }
