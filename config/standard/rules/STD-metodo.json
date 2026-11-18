@@ -10,6 +10,8 @@
     "kind": "judgment",
     "ref": "docs/padrao/METODO.md"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: docs/padrao/METODO.md says Daniel decided the method on 02/11/2026 and it was recorded on 03/11; no D-NNN records it (D-304 mentions management methods only as a program on the core)."
+  "basis": [
+    "D-330"
+  ],
+  "note": "Basis: D-330 (management is its own group of systems; docs/padrao/METODO.md is its current standard). Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed."
 }
