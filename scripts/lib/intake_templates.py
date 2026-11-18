@@ -3,7 +3,7 @@
 The four templates (intake, research, audit, plan) are rendered from config/registry/intake.json's
 `intake.template_sections`: the title, the comment under the header and each section's heading and hint. The drift
 check holds the rendering to the committed files and holds the section names the checker reads (intake.*_sections,
-intake.choice_section, intake.alternatives_section, effort.heading and effort.fields) to the templates that carry them.
+intake.choice_section and intake.alternatives_section) to the templates that carry them.
 `scripts/intake-templates` writes the files; `--check` exits 1 on drift (no file is written).
 """
 import argparse
@@ -54,7 +54,7 @@ def registry_sections():
         'intake': list(get('intake.intake_sections')),
         'research': list(get('intake.research_sections')),
         'audit': list(get('intake.audit_sections')),
-        'plan': [get('intake.choice_section'), get('intake.alternatives_section'), get('effort.heading')],
+        'plan': [get('intake.choice_section'), get('intake.alternatives_section')],  # effort.* left with D-328
     }
 
 
