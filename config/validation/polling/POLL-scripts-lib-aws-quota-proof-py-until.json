@@ -2,6 +2,6 @@
   "id": "POLL-scripts-lib-aws-quota-proof-py-until",
   "site": "scripts/lib/aws_quota_proof.py::until",
   "class": "state-wait",
-  "reason": "Reads a quota job's state every second until it reaches the wanted state or the deadline.",
-  "replace_with": "the quota service's job-finished event"
+  "reason": "Reads GET /v1/jobs/<id> every second until the job reaches the wanted state (ended, or waiting) or wait_s (120 s): a wait on a state. The route answers at once (port.get_job); only GET /v1/deploy/canary/<id> has a long poll today (canary.read on the LISTEN of tower_work). Missing, in infra/service/tower_infra (port.py, http_port.py) and live only after a port deploy: a ?wait_s long poll on GET /v1/jobs/<id> on the same LISTEN, with the run.waiting write notifying it too, so until() asks once per wait_s.",
+  "replace_with": "a ?wait_s long poll on GET /v1/jobs/<id> on the LISTEN of tower_work (a run's end, its run.waiting), once the port is deployed with it"
 }

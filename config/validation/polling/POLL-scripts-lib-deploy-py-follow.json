@@ -2,6 +2,6 @@
   "id": "POLL-scripts-lib-deploy-py-follow",
   "site": "scripts/lib/deploy.py::follow",
   "class": "state-wait",
-  "reason": "scripts/deploy status --follow reads the deploy's status on an interval until it ends.",
-  "replace_with": "a stream of the deploy's events, or the deploy notifying the session"
+  "reason": "scripts/deploy follow reads GET /v1/deploy/status at a pause growing from gate-infra.deploy_poll_s (15 s) by 1.5 to deploy_poll_max_s (60 s), within deploy_wait_s, until the build it follows ends: a read of a state, not a retry of a failure, so not backoff. The port has no wait on that route today: GET /v1/deploy/status answers the newest platform.deploy.observed at once (port.deploy_status), and autodeploy.py writes that event with no NOTIFY. Missing, all in infra/service/tower_infra and live only after a port and service deploy no session makes (D-054): a pg_notify when autodeploy publishes platform.deploy.observed, and a ?wait_s long poll on the route woken by it, as canary.read does for GET /v1/deploy/canary/<id> (WAIT_MAX_S under the API's 30 s).",
+  "replace_with": "a ?wait_s long poll on GET /v1/deploy/status woken by a NOTIFY at autodeploy's platform.deploy.observed write (port.py, http_port.py, autodeploy.py), once the port and the service are deployed with it"
 }

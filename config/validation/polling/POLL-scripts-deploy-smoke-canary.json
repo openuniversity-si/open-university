@@ -2,6 +2,6 @@
   "id": "POLL-scripts-deploy-smoke-canary",
   "site": "scripts/deploy-smoke::canary",
   "class": "state-wait",
-  "reason": "Retries the canary request on an interval until it passes or the tries end.",
-  "replace_with": "the deploy's own health signal once the service is ready"
+  "reason": "The wait is already a long poll: GET /v1/deploy/canary/<id>?wait_s=20, which canary.read holds on the LISTEN of tower_work until the job's end or its limit (WAIT_MAX_S, under the API's 30 s), asked again until the verdict or deploy.canary_limit_s + 60. The sleep (DEPLOY_SMOKE_SLEEP) runs only when the port answered within 2 s with no verdict: a failed request, or a port with no wake to listen on, which answers the state at once (http_port.wake_of is None when the database opens no connection of its own, and canary.read then does not wait); then the loop reads a state on an interval. Missing: a port whose long poll can always listen (wake_of never None), in infra/service/tower_infra/http_port.py, live after a port deploy; the client needs nothing more.",
+  "replace_with": "the port's long poll holding every read (http_port.wake_of never None), so the fallback sleep never runs"
 }

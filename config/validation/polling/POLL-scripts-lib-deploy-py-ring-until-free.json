@@ -2,6 +2,6 @@
   "id": "POLL-scripts-lib-deploy-py-ring-until-free",
   "site": "scripts/lib/deploy.py::ring_until_free",
   "class": "state-wait",
-  "reason": "On a 409 from the deploy's doorbell, rings again every interval until a build starts (deploy-doorbell.yml, deploy.py ring).",
-  "replace_with": "the deploy service queueing the ring and answering when the build starts"
+  "reason": "In the push job (GITHUB_ACTIONS=true), a 409 from the doorbell (CodeBuild runs one deploy build at a time) is rung again every RING_EVERY_S (10 s) until a build starts, within RING_WAIT_S (240 s): a wait for the running build's end, not a transient failure, so not backoff, and a growing delay would start the next build later. The doorbell answers 409 and forgets the ring (StartBuild in infra/aws/bootstrap.json); the service could ring again itself (autodeploy.py, running_retry_s), but deploy.auto is off on GitHub. Missing, owner-deployed: the doorbell recording the refused ring and a CodeBuild build-state rule on EventBridge starting the next build when the running one ends (bootstrap.json), or deploy.auto turned on for GitHub, a change of the live deploy that is not a session's.",
+  "replace_with": "the doorbell queueing a refused ring and the CodeBuild build-state event starting the next build (infra/aws/bootstrap.json, owner-deployed)"
 }
