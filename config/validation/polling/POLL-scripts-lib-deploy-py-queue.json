@@ -2,6 +2,6 @@
   "id": "POLL-scripts-lib-deploy-py-queue",
   "site": "scripts/lib/deploy.py::queue",
   "class": "state-wait",
-  "reason": "The doorbell workflow's merge_group job rings prepare and waits for main to move before ringing landed (deploy-doorbell.yml runs it on every queue entry).",
-  "replace_with": "the push event on main, a second workflow job on push instead of a wait"
+  "reason": "The doorbell workflow's merge_group job rings prepare, reads main and the queue's branch (git ls-remote) every 0.25 s and rings landed the moment main is the queue's commit, on a connection kept warm (QUEUE-BELL: landed in 236-1400 ms). GitHub delivers no event to a running job. The push event on main exists today, but a job on it starts only once a runner picks it up, seconds after the push: moving landed there would make the landing ring later, a worse guard, so no workflow change was staged. Missing, outside what a session may change: a repository webhook on push (GitHub settings, the owner's) delivered straight to the doorbell, and a doorbell route that verifies GitHub's X-Hub-Signature-256 and passes landed to the port (the doorbell's code is in infra/aws/bootstrap.json, deployed by the owner).",
+  "replace_with": "GitHub's push webhook on main delivered to the doorbell (owner's repository webhook, a signature-checking route in infra/aws/bootstrap.json's doorbell), which rings landed with no watch"
 }

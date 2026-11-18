@@ -2,6 +2,6 @@
   "id": "POLL-scripts-deploy-smoke-check",
   "site": "scripts/deploy-smoke::check",
   "class": "state-wait",
-  "reason": "Retries a deployed endpoint until it answers as expected or the tries end: a wait on the service's readiness.",
-  "replace_with": "the deploy's own health signal once the service is ready"
+  "reason": "Retries GET /v1/health, /v1/deploy/status and the registry read DEPLOY_SMOKE_TRIES times (6), DEPLOY_SMOKE_SLEEP apart (5 s), because the port's Lambda just rolled out answers late (cold start, the database's first login): a wait on the service's readiness. CloudFormation's stack end (deploy.sh) is already passed when the smoke runs and says nothing about the first answer. A growing delay would either shorten the 25 s window (a false red rolls the stacks back) or space the late tries further apart (a slower green). Missing: a readiness signal the port publishes once its init and first database login are done (a platform.port.ready event or a ?wait_s on /v1/health), in infra/service/tower_infra/http_port.py, live after a port deploy.",
+  "replace_with": "the port's own readiness signal (a ready event, or a long poll on /v1/health) from http_port.py, once deployed"
 }
