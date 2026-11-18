@@ -1,0 +1,6 @@
+{
+  "id": "ADV-ghsa-g3hv-75wg-m249",
+  "reason": "The fix is minimatch 11.0.1, a major version; @typescript-eslint/typescript-estree (through eslint-config-next) declares minimatch ^10.2.2, so an override would break its declared range. The globparts amplification needs an attacker-controlled glob; minimatch 10.2.6 reaches apps/web only through the lint toolchain, which matches the repository's own config patterns, and the site never builds a glob from user input. Revisit when typescript-estree accepts minimatch 11 or the deadline passes.",
+  "deadline": "2026-12-17",
+  "owner": "engine-lane"
+}
