@@ -65,7 +65,9 @@ tail_chars="${DEPLOY_TAIL_CHARS:-1500}"
 max_bytes="${DEPLOY_RECORD_MAX_BYTES:-3900}"
 (( max_bytes > 4000 )) && max_bytes=4000  # DEP-WATCHDOG: last-build is ALWAYS <= 4000 bytes (SSM Standard refuses > 4096)
 build_id="${CODEBUILD_BUILD_ID:-unknown}"
-started="$(date +%s)"
+# DEPLOY-FEWER-FORKS: the clock is bash's own (EPOCHSECONDS, bash 5; the build image and the runner have 5.2)
+[[ -n "${EPOCHSECONDS:-}" ]] || { echo "deploy.sh needs bash 5 (EPOCHSECONDS)" >&2; exit 2; }
+started="$EPOCHSECONDS"
 work="$(mktemp -d)"
 output="$work/output"
 head0="$(git -C "$repo" rev-parse HEAD 2>/dev/null || echo unknown)"
@@ -124,7 +126,7 @@ bytes_of() { printf '%s' "$1" | wc -c | tr -d ' '; }
 # steps_json: the steps file ($work/steps: name, status running|ok|failed, t0, t1 per line) as a compact array [{n,s,t}].
 steps_json() {
   local arr f
-  arr="$(jq -R --argjson now "$(date +%s)" 'select(length > 0) | split("\t") | {n: .[0], s: .[1], t: ((if (.[3] | tonumber) > 0 then (.[3] | tonumber) else $now end) - (.[2] | tonumber))}' \
+  arr="$(jq -R --argjson now "$EPOCHSECONDS" 'select(length > 0) | split("\t") | {n: .[0], s: .[1], t: ((if (.[3] | tonumber) > 0 then (.[3] | tonumber) else $now end) - (.[2] | tonumber))}' \
     "$work/steps" 2>/dev/null | jq -sc '.[-24:]' 2>/dev/null)" || arr='[]'
   [[ -n "$arr" ]] || arr='[]'
   # a failed step carries `e`: its own last lines of output (step_err), so the status says WHY, not only where
@@ -135,17 +137,22 @@ steps_json() {
   echo "${arr:-[]}"
 }
 # step_mark/step_err: a step's own output is what $output gained since step_begin; on failure its last 15 lines (redacted, 700 chars) are kept.
+# DEPLOY-FEWER-FORKS: a file's text with no cat, quiet and failing when it is not there (as `cat <f> 2>/dev/null`)
+slurp() { [[ -f "$1" && -r "$1" ]] || return 1; local text; text="$(<"$1")"; printf '%s' "$text"; }
 step_key() { printf '%s' "${1//[^A-Za-z0-9_-]/_}"; }
 step_err() {
-  local k mark; k="$(step_key "$1")"; mark="$(cat "$work/mark.$k" 2>/dev/null || echo 0)"
+  local k mark; k="$(step_key "$1")"; mark="$(slurp "$work/mark.$k" || echo 0)"
   tail -n +$((mark + 1)) "$output" 2>/dev/null | tail -n 15 | tr -d '\000-\010\013-\037' | redact | cut -c1-240 | tail -c 700 >"$work/err.$k"
 }
 # step_begin <name>: DEP-WATCHDOG: a step starts; last-build is rewritten (status in_progress) so a reader sees where the build is.
-step_begin() { wc -l <"$output" 2>/dev/null | tr -d ' ' >"$work/mark.$(step_key "$1")"; printf '%s\trunning\t%s\t0\n' "$1" "$(date +%s)" >>"$work/steps"; progress; }
+step_begin() {  # DEPLOY-FEWER-FORKS: no tr, no date: bash's own expansion and clock
+  local lines; lines="$(wc -l <"$output" 2>/dev/null)"; printf '%s' "${lines//[[:space:]]/}" >"$work/mark.${1//[^A-Za-z0-9_-]/_}"
+  printf '%s\trunning\t%s\t0\n' "$1" "$EPOCHSECONDS" >>"$work/steps"; progress
+}
 # step_end <name> <exit code>: the step ends ok or failed; the first failed step names the failure.
 step_end() {
   local st=ok; [[ "$2" = 0 ]] || st=failed
-  awk -F'\t' -v OFS='\t' -v n="$1" -v s="$st" -v t="$(date +%s)" '$1 == n && $2 == "running" {$2 = s; $4 = t} {print}' "$work/steps" >"$work/steps.tmp" 2>/dev/null \
+  awk -F'\t' -v OFS='\t' -v n="$1" -v s="$st" -v t="$EPOCHSECONDS" '$1 == n && $2 == "running" {$2 = s; $4 = t} {print}' "$work/steps" >"$work/steps.tmp" 2>/dev/null \
     && mv "$work/steps.tmp" "$work/steps"
   [[ "$st" = failed ]] && step_err "$1"
   [[ "$st" = failed && ! -s "$work/failed_step" ]] && echo "$1" >"$work/failed_step"
@@ -156,7 +163,7 @@ step_end() {
 # progress: last-build = in_progress with the current step; never changes the outcome. Skipped when the build already recorded its end.
 progress() {
   [[ -f "$work/recorded" ]] && return 0
-  record in_progress "$(cat "$work/head" 2>/dev/null || echo "$head0")" >/dev/null 2>&1 || true
+  record in_progress "$(slurp "$work/head" || echo "$head0")" >/dev/null 2>&1 || true
 }
 
 # record <status> <head> <failed...>: the last-build parameter, ALWAYS <= max_bytes (4000: the SSM Standard limit is 4096). When it
@@ -167,7 +174,7 @@ record() {
   local status="$1" head="$2" ended ended_out tail failed_json json done_json left_json secs_json targets_json rolled_json bisect_json hashes_json fast_owned_json live_json
   local n seconds usd batch steps step_cur fail_step bnote_txt lvl=0 over size lines="${record_tail_lines:-0}" migrate_json rolling_json rollout_json wait_json code_live parts_json port_tpl
   shift 2
-  ended="$(date +%s)"; ended_out="$ended"; [[ "$status" = in_progress ]] && ended_out=0
+  ended="$EPOCHSECONDS"; ended_out="$ended"; [[ "$status" = in_progress ]] && ended_out=0
   # BOOTSTRAP-DRIFT: its verdict in the record; the build's end waits for it (a read of a second, begun at the build's start)
   [[ "$status" = in_progress ]] || wait "${bootstrap_pid:-}" 2>/dev/null || true
   local bootstrap_said=""; [[ -s "$work/bootstrap" ]] && bootstrap_said="$(<"$work/bootstrap")"
@@ -220,15 +227,19 @@ record() {
   done
   # STACK-COMMIT-OFF-TAGS: the port template as last applied: this build's apply, else the earlier record's; none once the
   # port stack was rolled back (the next build applies it again)
-  if [[ -f "$work/port_tpl" ]]; then port_tpl="$(<"$work/port_tpl")"; else port_tpl="$(jq -r '.port_tpl // empty' <<<"$prev_build" 2>/dev/null)"; fi
-  grep -qx 'tower-app-port' "$work/rolled" 2>/dev/null && port_tpl=""
-  local reload_json; reload_json="$(jq -c 'if type == "object" then . else empty end' "$work/reload" 2>/dev/null)"; [[ -n "$reload_json" ]] || reload_json=null  # FAST-PATH-RELOAD
+  if [[ -f "$work/port_tpl" ]]; then port_tpl="$(<"$work/port_tpl")"
+  else  # DEPLOY-FEWER-FORKS: the earlier record does not change while the build runs: read once
+    [[ -n "${prev_port_tpl+x}" ]] || prev_port_tpl="$(jq -r '.port_tpl // empty' <<<"$prev_build" 2>/dev/null)"
+    port_tpl="$prev_port_tpl"
+  fi
+  [[ $'\n'"$(slurp "$work/rolled")"$'\n' == *$'\n'tower-app-port$'\n'* ]] && port_tpl=""  # DEPLOY-FEWER-FORKS: no grep
+  local reload_json=""; [[ -f "$work/reload" ]] && reload_json="$(jq -c 'if type == "object" then . else empty end' "$work/reload" 2>/dev/null)"; [[ -n "$reload_json" ]] || reload_json=null  # FAST-PATH-RELOAD
   code_live="$(read_work code_live)"; local code_live_why; code_live_why="$(read_work code_live_why)"  # the bundle a code-only batch was found live by: nothing of it was deployed
   steps="$(steps_json)"
   step_cur="$(awk -F'\t' '$2 == "running" {n = $1} END {print n}' "$work/steps" 2>/dev/null)"
   fail_step="$(read_work failed_step)"
   bnote_txt="$(read_work bnote)"
-  seconds=$((ended - started)); batch="$(cat "$work/batch" 2>/dev/null || echo 0)"
+  seconds=$((ended - started)); batch="$(slurp "$work/batch" || echo 0)"
   while :; do
     json="$(jq -nc --arg build_id "$build_id" --arg base_head "$head" --arg status "$status" --arg bootstrap "$bootstrap_said" \
       --argjson failed "$failed_json" --argjson done "$done_json" --argjson left "$left_json" --argjson stacks "$secs_json" \
@@ -262,7 +273,7 @@ record() {
 record_minimal() {
   local json
   json="$(jq -nc --arg build_id "$build_id" --arg base_head "$2" --arg status "$1" --argjson started "$started" --argjson ended "$3" \
-    --arg error "${4:0:200}" --arg failed_step "$(cat "$work/failed_step" 2>/dev/null)" \
+    --arg error "${4:0:200}" --arg failed_step "$(slurp "$work/failed_step")" \
     '{build_id: $build_id, base_head: $base_head, status: $status, started: $started, ended: $ended, failed_step: $failed_step, error: $error}')" || return 1
   timeout 60 aws ssm put-parameter --name /tower/deploy/last-build --type String --overwrite --value "$json" >/dev/null
 }
@@ -295,7 +306,7 @@ select_targets() {
     case " $spec " in *" image "*) echo 1 >"$work/image" ;; *) echo 0 >"$work/image" ;; esac
   fi
   jq -R 'select(length > 0)' "$work/targets" | jq -sc . >"$work/targets_json"
-  echo "targets: $(tr '\n' ' ' <"$work/targets")(image: $(cat "$work/image"))"
+  echo "targets: $(tr '\n' ' ' <"$work/targets")(image: $(<"$work/image"))"
 }
 
 # deploy_stacks: every infra/aws/stacks/NN-name.json as tower-app-name, in the order of infra/aws/order.json (name -> the names
@@ -313,7 +324,7 @@ stack_hash() {
   { cat "${tpl[$1]}"
     for i in $(grep -o '/tower/deploy/image/[A-Za-z0-9_-]*' "${tpl[$1]}" | sort -u); do cat "$work/img/${i##*/}" 2>/dev/null; done
     [[ $1 = port ]] && printf '%s' "$lsig"
-    [[ ($1 = service || $1 = runner) && -s "$work/livecode" ]] && printf 'LiveCode=%s' "$(cat "$work/livecode")"; } | sha256sum | cut -c1-20
+    [[ ($1 = service || $1 = runner) && -s "$work/livecode" ]] && printf 'LiveCode=%s' "$(<"$work/livecode")"; } | sha256sum | cut -c1-20
 }
 
 # DEP7-PORT-FAST-OWNED: port_fast_owned: 0 when applying tower-app-port would change nothing but the S3 key of Lambdas whose code at
@@ -506,7 +517,7 @@ reload_states() {  # what the status says of this head's order and of this bundl
 }
 reload_live() {
   local digest limit out asked deadline datum seen="" said state="" why="" t s port_stack order_limit="${DEPLOY_RELOAD_ORDER_S:-30}"
-  digest="$(cat "$work/code_digest" 2>/dev/null)"
+  digest="$(slurp "$work/code_digest")"
   [[ "$digest" =~ ^[0-9a-f]{64}$ && -z "${bgood:-}" && -z "${DEPLOY_TARGETS:-}" ]] || return 1
   limit="${DEPLOY_RELOAD_WAIT_S:-150}"
   [[ "$limit" =~ ^[0-9]+$ ]] && (( limit > 0 )) || { echo "reload: off (DEPLOY_RELOAD_WAIT_S=$limit)"; return 1; }
@@ -520,7 +531,7 @@ reload_live() {
   if ! jq -e --arg d "$digest" '.sha256 == $d and (.key | test("^artifacts/lambda/tower-code/[0-9a-f]{64}\\.zip$"))' <<<"$out" >/dev/null 2>&1; then
     echo "reload: the head's code bundle ${digest:0:12} was not published: the image path"; return 1
   fi
-  asked="$(date +%s)"; deadline=$((asked + limit))
+  asked="$EPOCHSECONDS"; deadline=$((asked + limit))
   jq -c --arg h "$head" --argjson t "$asked" '{key, sha256, head: $h, state: "asked", at: $t}' <<<"$out" >"$work/reload"
   echo "reload: asked the live service to load ${digest:0:12} in place (last-build.reload); waiting for deploy.live_code=${digest:0:12}@${head:0:10} (${limit}s at most)"
   progress  # the ask is the live service's to read now
@@ -533,16 +544,16 @@ reload_live() {
     if [[ "$datum" = "$digest@$head" ]]; then state=live; break; fi
     t="$(grep -m 1 -E '^(failed|declined)' <<<"$said")"
     if [[ -n "$t" ]]; then state="${t%% *}"; why="${t#* }"; [[ "$why" = "$t" ]] && why=""; break; fi
-    (( $(date +%s) < deadline )) || { state=timeout; break; }
-    if [[ -z "$said" ]] && (( $(date +%s) - asked >= order_limit )); then state=unordered; why="no order of it in ${order_limit}s"; break; fi
+    (( $EPOCHSECONDS < deadline )) || { state=timeout; break; }
+    if [[ -z "$said" ]] && (( $EPOCHSECONDS - asked >= order_limit )); then state=unordered; why="no order of it in ${order_limit}s"; break; fi
     sleep "${DEPLOY_RELOAD_POLL_S:-2}"
   done
-  s=$(( $(date +%s) - asked ))
+  s=$(( $EPOCHSECONDS - asked ))
   if [[ "$state" = live ]] && code_live; then
     rm -f "${work:?}/code_live_why"; echo "$s" >"$work/reloaded"
     echo "reload: live in ${s}s: the service runs ${digest:0:12} in place and proved it; deploy.live_code names it"
   else
-    [[ "$state" = live ]] && { state=unproven; why="$(cat "$work/code_live_why" 2>/dev/null)"; }
+    [[ "$state" = live ]] && { state=unproven; why="$(slurp "$work/code_live_why")"; }
     echo "reload: $state after ${s}s${why:+: $why}: the image path, in this build"
     code_live_no "the reload in place was $state after ${s}s${why:+: $why}" >/dev/null
   fi
@@ -605,7 +616,7 @@ up_seen() {
     aws cloudformation describe-stacks --stack-name tower-app-port --query 'Stacks[0]' --output json >"$work/port_stack.json.$$" 2>/dev/null \
       && mv "$work/port_stack.json.$$" "$work/port_stack.json"
   fi
-  fast_status "$(cat "$work/port_stack.json" 2>/dev/null)" 2>/dev/null | jq -r --arg s "tower-app-$1" --argjson t0 "$2" --arg i "$3" \
+  fast_status "$(slurp "$work/port_stack.json")" 2>/dev/null | jq -r --arg s "tower-app-$1" --argjson t0 "$2" --arg i "$3" \
     '[(.task_up // [])[] | select(type == "object" and .stack == $s and .image == $i and ((.at // 0) >= $t0 - 30)) | .at] | min // empty' 2>/dev/null
 }
 
@@ -691,12 +702,12 @@ migrated() {
 migrate_wait() {
   local want got="" limit="${DEPLOY_MIGRATE_WAIT_S:-90}" deadline
   [[ -s "$work/migrate" ]] || return 0
-  want="$(jq -r .want "$work/migrate")"; deadline=$(( $(date +%s) + limit ))
+  want="$(jq -r .want "$work/migrate")"; deadline=$(( $EPOCHSECONDS + limit ))
   step_begin migrate
   while :; do
     got="$(migrated)" || got=""
     [[ -n "$got" && ! "$got" < "$want" ]] && { : >"$work/migrated"; break; }
-    (( $(date +%s) < deadline )) || break
+    (( $EPOCHSECONDS < deadline )) || break
     sleep "${DEPLOY_MIGRATE_POLL_S:-3}"
   done
   if [[ -f "$work/migrated" ]]; then echo "migrate: the live service applied the migrations (the database is at $got): the runner does not wait for the service"
@@ -809,8 +820,8 @@ deploy_stacks() {
     names+=("$name")
   done
   # DEP7: the targeted stacks, and every stack that needs one of them (order.json), are the ones to deploy
-  if [[ "$(cat "$work/targets" 2>/dev/null || echo all)" = all ]]; then for n in "${names[@]}"; do want[$n]=1; done
-  else for n in $(cat "$work/targets"); do want[$n]=1; done
+  if [[ "$(slurp "$work/targets" || echo all)" = all ]]; then for n in "${names[@]}"; do want[$n]=1; done
+  else for n in $(<"$work/targets"); do want[$n]=1; done
     # DEP-EVENTS: a stack whose recorded hash is not the hash at this head (its last apply failed, was rolled back or never
     # happened) is always redeployed, whatever the diff says. Not inside a bisection (it deploys an older commit on purpose).
     if [[ -z "${bgood:-}" && "$(jq -r '(.hashes // {}) | length' <<<"$prev_build" 2>/dev/null || echo 0)" -gt 0 ]]; then
@@ -873,8 +884,8 @@ deploy_stacks() {
         read -r status d <"$work/res/$n"
         running=$((running - 1)); changed=1
         step_end "stack:$n" "$status"
-        if [[ "$status" = 0 ]]; then state[$n]=ok; echo "$(date -u +%T) end   tower-app-$n ok in ${d}s$([[ -f "$work/res/$n.rolling" ]] && echo ': its update is started and the rollout is not waited')"
-        else state[$n]=failed; failed="$failed tower-app-$n"; echo "$(date -u +%T) end   tower-app-$n FAILED (exit $status) in ${d}s"; fi
+        if [[ "$status" = 0 ]]; then state[$n]=ok; echo "$(TZ=UTC printf '%(%T)T' -1) end   tower-app-$n ok in ${d}s$([[ -f "$work/res/$n.rolling" ]] && echo ': its update is started and the rollout is not waited')"
+        else state[$n]=failed; failed="$failed tower-app-$n"; echo "$(TZ=UTC printf '%(%T)T' -1) end   tower-app-$n FAILED (exit $status) in ${d}s"; fi
       }
     done
     for n in "${names[@]}"; do
@@ -884,19 +895,19 @@ deploy_stacks() {
         case "${state[$d]:-ok}" in
           ok | skipped) ;;
           failed | left) dep_ok=0; state[$n]=left; changed=1
-            echo "$(date -u +%T) not started tower-app-$n: it needs tower-app-$d, which did not finish"; break ;;
+            echo "$(TZ=UTC printf '%(%T)T' -1) not started tower-app-$n: it needs tower-app-$d, which did not finish"; break ;;
           *) [[ "${soft[$d]:-0}" = 1 ]] || dep_ok=0 ;;  # DEP7-CRITICAL-PATH: a soft edge does not wait
         esac
       done
       [[ "${state[$n]}" = pending && $dep_ok = 1 && $running -lt $parallel ]] || continue
       if [[ -z "${want[$n]:-}" ]]; then
         state[$n]=skipped; changed=1
-        echo "$(date -u +%T) skip  tower-app-$n: not a target of this batch"
+        echo "$(TZ=UTC printf '%(%T)T' -1) skip  tower-app-$n: not a target of this batch"
         continue
       fi
       if [[ $n = port && -n "$fast_port" ]]; then
         state[$n]=skipped; changed=1
-        echo "$(date -u +%T) skip  tower-app-port: code live by the fast path (DEP7-PORT-FAST-OWNED)"
+        echo "$(TZ=UTC printf '%(%T)T' -1) skip  tower-app-port: code live by the fast path (DEP7-PORT-FAST-OWNED)"
         continue
       fi
       # STACK-COMMIT-OFF-TAGS: the stack's status alone. Its commit tag is gone: a stack tag is copied to every resource that
@@ -920,13 +931,13 @@ deploy_stacks() {
         roll="${rolled[$n]}"; read -r at <"$work/res/$n.up"
         echo "${roll##* }" >"$work/res/$n.hash"; echo "${roll%% *} ${roll##* } $(( ${at%.*} - ${roll%% *} ))" >"$work/res/$n.settling"
         state[$n]=skipped; changed=1
-        echo "$(date -u +%T) done  tower-app-$n: up at ${rollhead:0:10}, its new task said so $(( ${at%.*} - ${roll%% *} ))s after the update started; the stack is $status, its end is the next build's to verify"
+        echo "$(TZ=UTC printf '%(%T)T' -1) done  tower-app-$n: up at ${rollhead:0:10}, its new task said so $(( ${at%.*} - ${roll%% *} ))s after the update started; the stack is $status, its end is the next build's to verify"
         continue
       fi
       if [[ "$status" == *_IN_PROGRESS || ( -z "$status" && -n "${rolled[$n]:-}" ) ]]; then
         state[$n]=waiting; running=$((running + 1)); changed=1
         step_begin "wait:$n"
-        echo "$(date -u +%T) wait  tower-app-$n: ${status:-status unreadable}, an operation an earlier build started: this build waits for its end${settle:+ or the up of its new task}"
+        echo "$(TZ=UTC printf '%(%T)T' -1) wait  tower-app-$n: ${status:-status unreadable}, an operation an earlier build started: this build waits for its end${settle:+ or the up of its new task}"
         ( while read -r status _ <<<"$(aws cloudformation describe-stacks --stack-name "tower-app-$n" --query 'Stacks[0].StackStatus' --output text 2>/dev/null)"
                 [[ -z "$status" || "$status" == *_IN_PROGRESS ]]; do
             if [[ -n "$settle" && "$status" == *_IN_PROGRESS ]] && up_seen "$n" "${rolled[$n]%% *}" "${rolled_img[$n]}" >"$work/res/$n.up.tmp" \
@@ -947,12 +958,12 @@ deploy_stacks() {
         rolled_out "$n" "${roll%% *}"; stored="${roll##* }"
         # ROLLOUT-PARTS: and where that rollout's seconds went on CloudFormation's side (the Service resource against the
         # stack's end: what it waited after the ECS deployment), in last-build.parts like a stack that was waited
-        slow_parts "$n" "${roll%% *}" >"$work/res/$n.parts" 2>/dev/null; [[ -s "$work/res/$n.parts" ]] && echo "[$n] parts: $(cat "$work/res/$n.parts")" || rm -f "$work/res/$n.parts"
-        echo "$(date -u +%T) done  tower-app-$n: rolled out at ${rollhead:0:10}$([[ -f "$work/res/$n.roll" ]] && echo " in $(cat "$work/res/$n.roll")s, off the build's clock")"
+        slow_parts "$n" "${roll%% *}" >"$work/res/$n.parts" 2>/dev/null; [[ -s "$work/res/$n.parts" ]] && echo "[$n] parts: $(<"$work/res/$n.parts")" || rm -f "$work/res/$n.parts"
+        echo "$(TZ=UTC printf '%(%T)T' -1) done  tower-app-$n: rolled out at ${rollhead:0:10}$([[ -f "$work/res/$n.roll" ]] && echo " in $(<"$work/res/$n.roll")s, off the build's clock")"
       elif [[ -n "$roll" && "$rollhead" = "$head" && -n "$status" ]]; then
         state[$n]=failed; failed="$failed tower-app-$n"; changed=1
         step_begin "stack:$n"
-        echo "$(date -u +%T) end   tower-app-$n FAILED: the rollout started at ${rollhead:0:10} did not complete: the stack is ${status:-unreadable} (rolled back)"
+        echo "$(TZ=UTC printf '%(%T)T' -1) end   tower-app-$n FAILED: the rollout started at ${rollhead:0:10} did not complete: the stack is ${status:-unreadable} (rolled back)"
         failed_events "$n" "${roll%% *}" 2>&1 | sed -u "s/^/[$n] /"
         step_end "stack:$n" 1
         continue
@@ -961,14 +972,14 @@ deploy_stacks() {
       [[ -n "$stored" ]] || stored="$(jq -r --arg n "$n" '(.hashes // {})[$n] // empty' <<<"$prev_build" 2>/dev/null)"
       if [[ -n "$stored" && "$stored" = "$hash" && "$status" =~ ^(CREATE|UPDATE)_COMPLETE$ ]]; then
         state[$n]=skipped; changed=1
-        echo "$(date -u +%T) skip  tower-app-$n: template and images unchanged since the last apply ($hash)"
+        echo "$(TZ=UTC printf '%(%T)T' -1) skip  tower-app-$n: template and images unchanged since the last apply ($hash)"
         echo "$hash" >"$work/res/$n.hash"
         continue
       fi
-      left_for=$((budget - (${DEPLOY_NOW:-$(date +%s)} - begin)))  # DEPLOY_NOW: a test pins the clock; a build leaves it unset
+      left_for=$((budget - (${DEPLOY_NOW:-$EPOCHSECONDS} - begin)))  # DEPLOY_NOW: a test pins the clock; a build leaves it unset
       if (( left_for < ${last_secs[$n]:-0} )); then
         state[$n]=left; changed=1
-        echo "$(date -u +%T) not started tower-app-$n: ${left_for}s of the ${budget}s budget remain, its last deploy took ${last_secs[$n]:-0}s"
+        echo "$(TZ=UTC printf '%(%T)T' -1) not started tower-app-$n: ${left_for}s of the ${budget}s budget remain, its last deploy took ${last_secs[$n]:-0}s"
         continue
       fi
       [[ $n = port ]] && echo null >"$work/fast_owned"  # DEP7-PORT-FAST-OWNED: a real apply passes every current key
@@ -985,12 +996,12 @@ deploy_stacks() {
       fi
       state[$n]=running; running=$((running + 1)); changed=1
       step_begin "stack:$n"
-      echo "$(date -u +%T) start tower-app-$n from ${tpl[$n]} (${left_for}s of budget remain)${det:+: its rollout will not be waited}"
+      echo "$(TZ=UTC printf '%(%T)T' -1) start tower-app-$n from ${tpl[$n]} (${left_for}s of budget remain)${det:+: its rollout will not be waited}"
       (
-        t0="$(date +%s)"
+        t0="$EPOCHSECONDS"
         overrides=(); [[ $n = port && -n "${lambda_params[*]:-}" ]] && overrides=(--parameter-overrides "${lambda_params[@]}")  # PortCode, DepsKey
         # IMAGE-PREWARM-C: LiveCode; SLOW-PATH-NO-ROLLOUT-WAIT: LiveSeen, the datum this deploy saw
-        [[ $n = service || $n = runner ]] && overrides=(--parameter-overrides "LiveCode=$(cat "$work/livecode" 2>/dev/null)" "LiveSeen=$(cat "$work/liveseen" 2>/dev/null || echo unknown)")
+        [[ $n = service || $n = runner ]] && overrides=(--parameter-overrides "LiveCode=$(slurp "$work/livecode")" "LiveSeen=$(slurp "$work/liveseen" || echo unknown)")
         # DB-MEDIUM, SERVICE-MEMORY: a stack's values from infra/aws/parameters.json, beside its own (`aws cloudformation
         # deploy` keeps a parameter's previous value when it is not given, so a template Default never reaches the stack): the
         # database's class, the service's memory
@@ -1008,19 +1019,19 @@ deploy_stacks() {
           arn="$(grep -o 'arn:aws[^ ]*:cloudformation:[^ ]*:changeSet/[^ ]*' "$work/res/$n.log" | tail -n 1)"
           if [[ -z "$arn" ]]; then echo "[$n] no change set to execute in the output of the deploy"; code=1
           else aws cloudformation execute-change-set --change-set-name "$arn" 2>&1 | tee -a "$work/res/$n.log" | sed -u "s/^/[$n] /"; code="${PIPESTATUS[0]}"; fi
-          [[ $code = 0 ]] && echo "$(date +%s) $hash" >"$work/res/$n.rolling"
+          [[ $code = 0 ]] && echo "$EPOCHSECONDS $hash" >"$work/res/$n.rolling"
         fi
         # a failed stack: its FAILED events (ResourceStatusReason) go to the build log, so GET /v1/deploy/status shows why
         [[ $code = 0 ]] || failed_events "$n" "$t0" 2>&1 | sed -u "s/^/[$n] /"
         # a deploy without changes takes seconds: it must not replace the recorded duration of a real one
-        if [[ $code = 0 ]] && ! grep -q 'No changes to deploy' "$work/res/$n.log"; then echo "$(( $(date +%s) - t0 ))" >"$work/res/$n.secs"; fi
+        if [[ $code = 0 ]] && ! grep -q 'No changes to deploy' "$work/res/$n.log"; then echo "$(( $EPOCHSECONDS - t0 ))" >"$work/res/$n.secs"; fi
         # SLOW-PATH-STACK-PARTS: a real change that was waited says where its seconds went (last-build.parts, and the build's log)
         if [[ -f "$work/res/$n.secs" && ! -f "$work/res/$n.rolling" ]]; then
-          slow_parts "$n" "$t0" >"$work/res/$n.parts" 2>/dev/null; [[ -s "$work/res/$n.parts" ]] && echo "[$n] parts: $(cat "$work/res/$n.parts")" || rm -f "$work/res/$n.parts"
+          slow_parts "$n" "$t0" >"$work/res/$n.parts" 2>/dev/null; [[ -s "$work/res/$n.parts" ]] && echo "[$n] parts: $(<"$work/res/$n.parts")" || rm -f "$work/res/$n.parts"
         fi
         [[ $code = 0 && ! -f "$work/res/$n.rolling" ]] && echo "$hash" >"$work/res/$n.hash"
         [[ $n = port && $code = 0 ]] && sha256sum <"${tpl[port]}" | cut -c1-20 >"$work/port_tpl"  # STACK-COMMIT-OFF-TAGS
-        echo "$code $(( $(date +%s) - t0 ))" >"$work/res/$n.tmp" && mv "$work/res/$n.tmp" "$work/res/$n"
+        echo "$code $(( $EPOCHSECONDS - t0 ))" >"$work/res/$n.tmp" && mv "$work/res/$n.tmp" "$work/res/$n"
       ) &
     done
     if (( running == 0 )); then
@@ -1035,7 +1046,7 @@ deploy_stacks() {
       ok | skipped) echo "tower-app-$n" >>"$work/done" ;;
       left) echo "tower-app-$n" >>"$work/left" ;;
     esac
-    [[ -f "$work/res/$n.secs" ]] && secs_json="$(jq -c --arg k "tower-app-$n" --argjson v "$(cat "$work/res/$n.secs")" '. + {($k): $v}' <<<"$secs_json")"
+    [[ -f "$work/res/$n.secs" ]] && secs_json="$(jq -c --arg k "tower-app-$n" --argjson v "$(<"$work/res/$n.secs")" '. + {($k): $v}' <<<"$secs_json")"
   done
   echo "$secs_json" >"$work/secs"
   for f in "$work"/res/*.parts; do  # SLOW-PATH-STACK-PARTS
@@ -1046,8 +1057,8 @@ deploy_stacks() {
   # started them to the last one stable, the wait that is no longer on any build's clock (rollout_wait_s)
   for f in "$work"/res/*.roll; do
     [[ -f "$f" ]] || continue
-    n="$(basename "$f" .roll)"; rollout_json="$(jq -c --arg k "tower-app-$n" --argjson v "$(cat "$f")" '. + {($k): $v}' <<<"$rollout_json")"
-    at="$(cat "$work/res/$n.rollend")"; (( at > last_end )) && last_end=$at
+    n="$(basename "$f" .roll)"; rollout_json="$(jq -c --arg k "tower-app-$n" --argjson v "$(<"$f")" '. + {($k): $v}' <<<"$rollout_json")"
+    at="$(<"$work/res/$n.rollend")"; (( at > last_end )) && last_end=$at
   done
   echo "$rollout_json" >"$work/rollout"
   d="$(jq -r '.ended // 0' <<<"$prev_build" 2>/dev/null)"
@@ -1081,7 +1092,7 @@ deploy_stacks() {
   fi
   stacks_json="$(jq -c --argjson s "$settling_json" '$s + .' <<<"$stacks_json")"
   if [[ "$stacks_json" != "$settling_json" ]]; then
-    for f in "$work"/prev_image.*; do [[ -f "$f" ]] && prev_json="$(jq -c --arg k "${f##*/prev_image.}" --arg v "$(cat "$f")" '. + {($k): $v}' <<<"$prev_json")"; done
+    for f in "$work"/prev_image.*; do [[ -f "$f" ]] && prev_json="$(jq -c --arg k "${f##*/prev_image.}" --arg v "$(<"$f")" '. + {($k): $v}' <<<"$prev_json")"; done
     params_json='{}'  # LIVECODE-NOT-REFUSED: the parameters the stacks had before this build, for the build that verifies it
     for f in "$work"/prev_param.*; do
       [[ -f "$f" ]] && params_json="$(jq -c --arg k "${f##*/prev_param.}" --arg c "$(sed -n 's/^LiveCode=//p' "$f")" --arg s "$(sed -n 's/^LiveSeen=//p' "$f")" \
@@ -1096,7 +1107,7 @@ deploy_stacks() {
   if [[ -z "${bgood:-}" && "$(jq -r '(.hashes // {}) | length' <<<"$prev_build" 2>/dev/null || echo 0)" -gt 0 ]]; then
     for n in "${names[@]}"; do
       [[ -f "$work/res/$n.rolling" ]] && continue  # SLOW-PATH-NO-ROLLOUT-WAIT: rolling out, not dirty: the next build verifies it
-      if [[ -f "$work/res/$n.hash" ]]; then stored="$(cat "$work/res/$n.hash")"; else stored="$(jq -r --arg n "$n" '(.hashes // {})[$n] // empty' <<<"$prev_build" 2>/dev/null)"; fi
+      if [[ -f "$work/res/$n.hash" ]]; then stored="$(<"$work/res/$n.hash")"; else stored="$(jq -r --arg n "$n" '(.hashes // {})[$n] // empty' <<<"$prev_build" 2>/dev/null)"; fi
       [[ "$stored" = "$(stack_hash "$n")" ]] || echo "tower-app-$n" >>"$work/dirty"
     done
   fi
@@ -1128,7 +1139,7 @@ rollback() {
   [[ "$last" != none ]] && git -C "$repo" cat-file -e "$last^{commit}" 2>/dev/null || { echo "rollback: no previous sha, nothing to restore"; return 1; }
   for f in "$work"/prev_image.*; do
     [[ -f "$f" ]] || continue
-    name="${f##*/prev_image.}"; old="$(cat "$f")"
+    name="${f##*/prev_image.}"; old="$(<"$f")"
     [[ -n "$old" ]] && aws ssm put-parameter --name "/tower/deploy/image/$name" --type String --overwrite --value "$old" >/dev/null
   done
   for n in $(changed_stacks); do  # SLOW-PATH-NO-ROLLOUT-WAIT: also what the build that left stacks rolling changed
@@ -1244,7 +1255,7 @@ deploy() {
   select_targets "$last"
   step_end classify 0
   lambda_bucket="tower-outputs-${IMAGE_REGISTRY%%.*}-${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
-  if [[ "$(cat "$work/image")" = 1 ]]; then  # SLOW-PATH-NO-ROLLOUT-WAIT
+  if [[ "$(<"$work/image")" = 1 ]]; then  # SLOW-PATH-NO-ROLLOUT-WAIT
     step_begin code-live
     if code_live; then step_end code-live 0
     else
@@ -1259,7 +1270,7 @@ deploy() {
   migrate_ask
   shopt -s nullglob
   for dockerfile in "$repo"/infra/*/Dockerfile; do
-    [[ "$(cat "$work/image")" = 1 ]] || { echo "image: not a target of this batch"; break; }
+    [[ "$(<"$work/image")" = 1 ]] || { echo "image: not a target of this batch"; break; }
     name="$(basename "$(dirname "$dockerfile")")"
     repository="tower-$name"
     step_begin "image:$name"
@@ -1413,15 +1424,15 @@ on_exit() {
   [[ -z "${watch_pid:-}" ]] || kill_tree "$watch_pid"
   if [[ ! -f "$work/recorded" ]]; then
     [[ -z "${dpid:-}" ]] || kill_tree "$dpid"
-    why="$(cat "$work/why" 2>/dev/null)"; [[ -n "$why" ]] || why="${sig:+terminated by SIG$sig}"; [[ -n "$why" ]] || why="exit $rc before the outcome was recorded"
+    why="$(slurp "$work/why")"; [[ -n "$why" ]] || why="${sig:+terminated by SIG$sig}"; [[ -n "$why" ]] || why="exit $rc before the outcome was recorded"
     fs="$(awk -F'\t' '$2 == "running" {n = $1} END {print n}' "$work/steps" 2>/dev/null)"
     [[ -z "$fs" ]] || step_err "$fs"
-    [[ -z "$fs" ]] || { awk -F'\t' -v OFS='\t' -v t="$(date +%s)" '$2 == "running" {$2 = "failed"; $4 = t} {print}' "$work/steps" >"$work/steps.tmp" && mv "$work/steps.tmp" "$work/steps"; }
+    [[ -z "$fs" ]] || { awk -F'\t' -v OFS='\t' -v t="$EPOCHSECONDS" '$2 == "running" {$2 = "failed"; $4 = t} {print}' "$work/steps" >"$work/steps.tmp" && mv "$work/steps.tmp" "$work/steps"; }
     [[ -s "$work/failed_step" ]] || echo "${fs:-before-first-step}" >"$work/failed_step"
-    echo "deploy.sh: $why, at step $(cat "$work/failed_step")" | tee -a "$output" >&2
+    echo "deploy.sh: $why, at step $(<"$work/failed_step")" | tee -a "$output" >&2
     : >"$work/recorded"
-    head="$(cat "$work/head" 2>/dev/null || echo "$head0")"
-    record_tail_lines=40 record failed "$head" "step:$(cat "$work/failed_step")" || true
+    head="$(slurp "$work/head" || echo "$head0")"
+    record_tail_lines=40 record failed "$head" "step:$(<"$work/failed_step")" || true
     [[ $rc -ne 0 ]] || rc=1
   fi
   rm -rf "$work"
@@ -1432,7 +1443,7 @@ trap 'sig=TERM; exit 143' TERM
 trap 'sig=INT; exit 130' INT
 trap 'sig=HUP; exit 129' HUP
 hard="${DEPLOY_HARD_S:-$(( ${DEPLOY_BUDGET_S:-1080} + 240 ))}"; zero="$started"; [[ -n "${CODEBUILD_START_TIME:-}" ]] && zero=$((CODEBUILD_START_TIME / 1000))
-left_s=$(( hard - (${DEPLOY_NOW:-$(date +%s)} - zero) )); (( left_s >= 1 )) || left_s=1
+left_s=$(( hard - (${DEPLOY_NOW:-$EPOCHSECONDS} - zero) )); (( left_s >= 1 )) || left_s=1
 set -m  # each background job below gets its own process group, so kill_tree ends a hung stack deploy with all its children
 ( sleep "$left_s"; echo "hard deadline ${hard}s exceeded (DEPLOY_HARD_S)" >"$work/why"; kill -TERM $$ ) >/dev/null 2>&1 &
 watch_pid=$!
@@ -1440,16 +1451,16 @@ progress  # the build is in_progress from now on
 { deploy 2>&1 | tee "$output"; echo "${PIPESTATUS[0]}" >"$work/code"; } &
 dpid=$!
 wait "$dpid"
-code="$(cat "$work/code" 2>/dev/null || echo 1)"
-head="$(cat "$work/head" 2>/dev/null || echo "$head0")"
-read -r -a failed <<<"$(cat "$work/failed" 2>/dev/null)"
-if [[ "$(cat "$work/status" 2>/dev/null)" == incomplete ]]; then
+code="$(slurp "$work/code" || echo 1)"
+head="$(slurp "$work/head" || echo "$head0")"
+read -r -a failed <<<"$(slurp "$work/failed")"
+if [[ "$(slurp "$work/status")" == incomplete ]]; then
   status=incomplete
 elif [[ $code -ne 0 ]]; then
   status=failed
-elif [[ "$(cat "$work/status" 2>/dev/null)" == nothing_new ]]; then
+elif [[ "$(slurp "$work/status")" == nothing_new ]]; then
   status=nothing_new
-elif [[ "$(cat "$work/status" 2>/dev/null)" == rolling ]]; then
+elif [[ "$(slurp "$work/status")" == rolling ]]; then
   status=rolling  # SLOW-PATH-NO-ROLLOUT-WAIT: ended, its stacks rolling out: not deployed until the next build verifies them
 else
   status=succeeded

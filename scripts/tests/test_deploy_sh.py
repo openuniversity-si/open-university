@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 TOKEN = 'doorbell-token-of-the-test-0123456789'
 # two stacks that go side by side: each one's apply ends when the other's has started (the stub's STUB_UNTIL)
 SIDE_BY_SIDE = 'tower-app-service:tower-app-runner,tower-app-runner:tower-app-service'
+BASH = shutil.which('bash') or '/bin/bash'  # DEPLOY-FEWER-FORKS: the stubs' interpreter, by its path
 AWS_STUB = r'''#!/usr/bin/env bash
 echo "aws $*" >> "$STUB_DIR/calls"
 case "$1 $2" in
@@ -35,7 +36,7 @@ case "$1 $2" in
     while [ $# -gt 0 ]; do case "$1" in --name) n="$2";; esac; shift; done
     if [ "$n" = /tower/deploy/cloudflare-api-token ]; then [ -n "${STUB_CF_TOKEN:-}" ] && { echo "$STUB_CF_TOKEN"; exit 0; } || exit 255; fi
     if [ "$n" = /tower/deploy/last-build ]; then [ -n "${STUB_LAST_BUILD:-}" ] && { echo "$STUB_LAST_BUILD"; exit 0; } || exit 255; fi
-    [ -f "$STUB_DIR/param$(echo "$n" | tr / _)" ] && { cat "$STUB_DIR/param$(echo "$n" | tr / _)"; exit 0; }
+    [ -f "$STUB_DIR/param${n//\//_}" ] && { cat "$STUB_DIR/param${n//\//_}"; exit 0; }
     [ -n "${STUB_LAST:-}" ] && { echo "$STUB_LAST"; exit 0; } || exit 255 ;;
   "cloudformation describe-stacks")
     [ -n "${STUB_SLOW_READS:-}" ] && sleep "$STUB_SLOW_READS"  # a busy runner: every read of a stack takes this long
@@ -55,7 +56,7 @@ case "$1 $2" in
     if [ "${#v}" -gt 4096 ] || { [ -n "${STUB_FAIL_FULL:-}" ] && [ "$n" = /tower/deploy/last-build ] && case "$v" in *'"hashes"'*) true ;; *) false ;; esac; }; then
       echo "ValidationException: value too long or refused" >&2; exit 254; fi
     [ "$n" = /tower/deploy/last-build ] && printf '%s\n' "$v" >> "$STUB_DIR/last-build.history"
-    printf '%s' "$v" > "$STUB_DIR/ssm$(echo "$n" | tr / _)" ;;
+    printf '%s' "$v" > "$STUB_DIR/ssm${n//\//_}" ;;
   "cloudformation describe-stack-events")
     case "$*" in *"--max-items 1"*) [ -n "${STUB_LAST_EVENT:-}" ] && { echo "$STUB_LAST_EVENT"; exit 0; } || exit 255 ;; esac
     case "$*" in *"--output json"*) [ -n "${STUB_EVENTS_JSON:-}" ] && { echo "$STUB_EVENTS_JSON"; exit 0; } || exit 255 ;; esac  # SLOW-PATH-STACK-PARTS
@@ -147,7 +148,8 @@ class DeployShTests(unittest.TestCase):
         self.stubs = self.tmp / 'bin'
         self.stubs.mkdir()
         for name, text in (('aws', AWS_STUB), ('docker', DOCKER_STUB)):
-            (self.stubs / name).write_text(text)
+            # DEPLOY-FEWER-FORKS: the stubs run on bash itself, not through env (two processes per call, ~40 calls a run)
+            (self.stubs / name).write_text(text.replace('#!/usr/bin/env bash', '#!' + BASH, 1))
             (self.stubs / name).chmod(0o755)
         self.state = self.tmp / 'state'
         self.state.mkdir()
