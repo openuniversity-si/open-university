@@ -311,3 +311,23 @@ A Torre fez os passos 1 a 5 do corte entre 20:43 e 20:49Z, e a sessão conferiu 
   - só `theopenuniversity.si` continua redirecionando para `openuniversity.si`, agora na AWS, com o desenho feito pela sessão;
   - `thetower.si` e `atorre.digital` deixam de redirecionar, sem substituto.
 - **A Torre:** a guarda de 30 dias das mensagens fica, e o remetente do encaminhamento se chama "Open University".
+
+## Respostas da Torre de 18/11 (~18:15 BRT)
+- **O token de escrita do R2 foi revogado.** O `R2 Account Token` foi apagado às 21:10Z.
+  - Ficam quatro tokens: `open-university-ci-ro` (só leitura, `open-university-media`), `tower-ro` (só leitura, `the-tower-*`), `tower-rw` (`the-tower-fidelity` e `the-tower-media`) e o token de usuário `Editar Cloudflare Workers`, que é admin.
+  - Eles saem na revogação final, depois da troca de NS.
+- **O upload pelo caminho real do site está provado.**
+  - Às 21:13:24Z, um `POST /api/admin/media/objects` com uma WebP de 324 bytes respondeu 200, com `m/f3deca3f…a2f7.webp`.
+  - O `head-object` no S3 traz o `VersionId`, `AES256` e `public, max-age=31536000, immutable`.
+  - A URL pública responde 200, com `server: AmazonS3` via CloudFront e o mesmo sha256 do arquivo enviado.
+- **O bootstrap foi reaplicado com `ses:*`** pelo change set `req-d323-ses`, às 21:11:50Z. O sha256 canônico é `f3b82e30…e5d5`.
+- **O acesso de produção do SES foi pedido** em us-east-1 e está `PENDING` na revisão da AWS. Enquanto isso vale a cota do sandbox: 200 por dia e 1 por segundo.
+- **`theopenuniversity.si` não estava na Cloudflare.**
+  - Os NS são `atlas/hyperion.dns-parking.com`, o estacionamento do registrador (Hostinger), e não há DS.
+  - O apex e o www apontam para sobras do host antigo, e `http://theopenuniversity.si/` responde 500.
+  - O redirecionamento não funciona hoje, então trocar os NS para a zona do Route 53 não perde nada.
+  - **Ordem:**
+    1. Trocar os NS no registrador para os quatro da saída `NameServers` de `tower-app-redirect`.
+    2. Pedir o certificado ACM para o apex e o www, e validar pelo botão "Create records in Route 53". Esses dois CNAME de validação ficam fora da stack, o que é aceitável: o CloudFormation não apaga registros que não criou.
+    3. Um PR põe o `CertificateArn`.
+    4. Conferir com `curl -sI https://www.theopenuniversity.si/x?y=1`.
