@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/unit_check.py:companion_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-067"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-067 (6): every production file belongs to exactly one unit and no file belongs to two, checked by scripts/lib/unit_check.py; the refusal's message cites D-067 (6)."
 }

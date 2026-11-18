@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/pr_body.py:effort_block"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-208"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-208: scripts/pr-body builds the body from the commits and four fields (the effort block among them). Not a refusal: seed-rules matched the name \"block\"; the refusal of the block is effort.py's (STD-effort-*)."
 }

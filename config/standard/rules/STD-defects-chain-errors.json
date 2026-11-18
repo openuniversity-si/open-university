@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/defects.py:chain_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-069 item 4 (append-only), cited by the module head (KD1, items 4, 8 and 9): the defect audit trail is only ever appended and an edited or removed entry breaks the chain."
 }

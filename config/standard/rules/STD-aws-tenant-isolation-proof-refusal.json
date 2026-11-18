@@ -11,5 +11,5 @@
     "ref": "scripts/lib/aws_tenant_isolation_proof.py:refusal"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: Not a refusal: a method of the live tenant-isolation proof that returns a status and the refused text (seed-rules matched the name). D-306 names isolation between tenants as a property, but no decision states this function; to retire or restate, not to justify."
 }

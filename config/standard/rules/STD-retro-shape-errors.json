@@ -11,5 +11,5 @@
     "ref": "scripts/lib/retro.py:shape_errors"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: RETRO-API (Daniel 2026-10-28 20:00 BRT); the D-054 in the module head is the recording delegation, and no D-NNN records the store or its shape rule."
 }

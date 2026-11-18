@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/text_check.py:scoped_export_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-069 item 15: a migrated export that spells a string literal is user-facing text not sourced from config (the module head cites item 15)."
 }

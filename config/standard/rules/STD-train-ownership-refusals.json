@@ -10,6 +10,9 @@
     "kind": "function",
     "ref": "scripts/lib/train_ownership.py:refusals"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-067",
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-069 item 8: a change outside the unit needs its owner; D-067 (2) and (6): the owner is the lane that exclusively owns the unit, and units.owner_of_path is what the train's ownership refusal (M3) calls."
 }

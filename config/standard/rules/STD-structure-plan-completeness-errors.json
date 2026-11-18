@@ -10,6 +10,9 @@
     "kind": "function",
     "ref": "scripts/lib/commit_check.py:plan_completeness_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-022",
+    "D-083"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-022 has every plan item ticked by its commit; D-083 states it: the plan's completeness (GX-21) is refused once the PR is marked ready (plan_verdict, right below this function, cites D-083)."
 }

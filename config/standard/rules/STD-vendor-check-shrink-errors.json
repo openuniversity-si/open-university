@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/vendor_check.py:shrink_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-069 item 7 (ports and adapters for every vendor), cited by this function's refusals: the baseline only shrinks and a new adapter lives in the adapter directory."
 }

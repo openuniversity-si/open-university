@@ -11,5 +11,5 @@
     "ref": "scripts/lib/generate.py:blocked"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: Reports why a generate target cannot run (disabled, or nothing matches its requires); the module head cites D-069 items 1 and 2 and D-095, none of which states it."
 }

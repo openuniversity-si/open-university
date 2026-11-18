@@ -10,6 +10,9 @@
     "kind": "function",
     "ref": "scripts/lib/text_check.py:entry_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-068",
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-068 (1): user-facing text is a locale-keyed registry object with x-text; D-069 item 15: user-facing text keyed by locale, sourced from config (the module head cites item 15)."
 }

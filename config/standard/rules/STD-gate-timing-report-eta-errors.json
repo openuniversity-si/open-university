@@ -11,5 +11,5 @@
     "ref": "scripts/lib/gate_timing_report.py:eta_errors"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: Not a refusal: the ETA error rows of the gate timing report (GX-25), matched by the name \"errors\"; no decision states it."
 }

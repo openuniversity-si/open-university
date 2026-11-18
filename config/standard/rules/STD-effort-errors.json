@@ -11,5 +11,5 @@
     "ref": "scripts/lib/effort.py:errors"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: Same as STD-effort-body-errors: the effort block and its owner rule came from the motor rule rules/effort.md; no decision states them (D-081 (2) only keeps the block in plan.md)."
 }

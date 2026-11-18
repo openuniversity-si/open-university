@@ -11,5 +11,5 @@
     "ref": "scripts/lib/budgets.py:schema_errors"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: The module head cites D-069 item 14 (budgets in config, fail on regression) and D-111; neither states that the baseline file must match contracts/budgets/baseline.v1.json."
 }

@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/config.py:value_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-068"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-068 (3) and (4) state it: scripts/config set validates the value against its schema, and a key or value that looks like a secret is refused."
 }

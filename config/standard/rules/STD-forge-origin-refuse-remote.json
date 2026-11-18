@@ -11,5 +11,5 @@
     "ref": "scripts/lib/forge_origin.py:refuse_remote"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: The module head cites D-283 (forge adapters behind one port) and D-300 (event log on Origin); neither states that a git remote must be the repository on a declared Origin git host."
 }

@@ -11,5 +11,5 @@
     "ref": "scripts/lib/decision_wait.py:errors"
   },
   "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: The check cites \"DECIDE, THEN REPORT (Daniel 2026-10-26 21:29)\" and unit X1; no D-NNN records that order."
 }

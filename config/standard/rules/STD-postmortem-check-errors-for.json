@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/postmortem_check.py:errors_for"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "basis": [
+    "D-069"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-069 item 9 states it: every incident ends with a gate check that prevents it, recorded in a blameless postmortem; the module head cites item 9 for this refusal."
 }
