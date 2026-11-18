@@ -1,15 +1,17 @@
 {
   "id": "engine-session-usage",
-  "purpose": "What a session did and cost: counted from its transcript (scripts/usage, scripts/repeats; D-208), its quota ledger and the fronts in flight (scripts/fronts; VAZÃO F59, F69), the friction log (F85) and the bash output trim hook.",
+  "purpose": "What a session did and cost: counted from its transcript (scripts/usage, scripts/repeats; D-208), its quota ledger and the fronts in flight (scripts/fronts; VAZÃO F59), the lane collect that closes a delivered lane and reads them (scripts/lane, F69; D-322), the friction log (F85) and the bash output trim hook.",
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
     "scripts/friction",
     "scripts/fronts",
     "scripts/hooks/bash-trim",
+    "scripts/lane",
     "scripts/lib/bash_trim.py",
     "scripts/lib/friction.py",
     "scripts/lib/fronts.py",
+    "scripts/lib/lane_collect.py",
     "scripts/lib/repeats.py",
     "scripts/lib/usage.py",
     "scripts/repeats",
@@ -17,19 +19,23 @@
     "scripts/tests/covers/bash-trim.json",
     "scripts/tests/friction.test.sh",
     "scripts/tests/fronts.test.sh",
+    "scripts/tests/lane-collect.test.sh",
     "scripts/tests/repeats.test.sh",
     "scripts/tests/test_bash_trim.py",
     "scripts/tests/test_friction.py",
     "scripts/tests/test_fronts.py",
+    "scripts/tests/test_lane_collect.py",
     "scripts/tests/test_repeats.py",
     "scripts/tests/test_usage.py",
     "scripts/tests/usage.test.sh",
     "scripts/usage"
   ],
-  "requires": {
-    "engine-config": "^1"
-  },
   "realizes": [
     "ARC-measurement"
-  ]
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-lane-deliver": "^1",
+    "engine-lane-tools": "^1"
+  }
 }

@@ -188,8 +188,15 @@ class Main(unittest.TestCase):
 class Hookup(unittest.TestCase):
     def test_scripts_lane_collect_hands_its_arguments_to_lane_collect(self):
         with mock.patch.object(lane_collect, 'main', return_value=7) as collect:
-            self.assertEqual(lane_command.main(['collect', 'report.txt', '--pr', '5']), 7)
+            self.assertEqual(lane_collect.command(['collect', 'report.txt', '--pr', '5']), 7)
         collect.assert_called_once_with(['report.txt', '--pr', '5'])
+
+    def test_every_other_subcommand_is_the_lane_brief(self):
+        with mock.patch.object(lane_command, 'main', return_value='brief') as brief, \
+                mock.patch.object(lane_collect, 'main') as collect:
+            self.assertEqual(lane_collect.command(['brief', 'F68']), 'brief')
+        brief.assert_called_once_with(['brief', 'F68'])
+        collect.assert_not_called()
 
 
 if __name__ == '__main__':

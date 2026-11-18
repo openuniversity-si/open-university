@@ -1,12 +1,11 @@
 {
   "id": "engine-train-admission",
-  "purpose": "What the merge train may take: the queue index, verdict admission (D-075), the ownership refusal (D-065 (4), M3), the shard key of a batch and the tier-2 reuse of attested proofs.",
+  "purpose": "What the merge train may take: the queue index, verdict admission (D-075), the shard key of a batch and the tier-2 reuse of attested proofs; the ownership rule it refuses by is the gate plan's (train_ownership, D-322).",
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
     "config/registry/train-reuse.json",
     "scripts/lib/train_admit.py",
-    "scripts/lib/train_ownership.py",
     "scripts/lib/train_queue.py",
     "scripts/lib/train_reuse.py",
     "scripts/lib/train_shard.py",

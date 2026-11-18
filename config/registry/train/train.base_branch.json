@@ -5,11 +5,11 @@
   "x-unit": "branch",
   "description": "Integration branch the train builds every batch on and merges into (D-054: PRs target it, a release merges it into main).",
   "x-readers": [
+    "scripts/lib/box_meter.py",
     "scripts/lib/coordinator_launch.py",
     "scripts/lib/covers_cost.py",
     "scripts/lib/defect_router.py",
     "scripts/lib/deliver.py",
-    "scripts/lib/flow_metrics.py",
     "scripts/lib/gate_bypass.py",
     "scripts/lib/local_checks.py",
     "scripts/lib/prepush.py",

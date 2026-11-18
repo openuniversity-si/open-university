@@ -1,6 +1,6 @@
 {
   "id": "engine-commit-plan",
-  "purpose": "Commit discipline, the plan tick and pr.ready (D-025, D-065).",
+  "purpose": "Commit discipline: commit-check and the local checks (D-025); the plan tick and pr.ready it reads are the gate's (engine-gate-report, D-322).",
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
@@ -8,17 +8,10 @@
     "scripts/commit-check",
     "scripts/lib/commit_check.py",
     "scripts/lib/local_checks.py",
-    "scripts/lib/plan_tick.py",
-    "scripts/lib/pr_ready.py",
-    "scripts/plan-tick",
-    "scripts/pr-ready",
     "scripts/tests/commit-check.test.sh",
     "scripts/tests/local-checks.test.sh",
-    "scripts/tests/plan-tick.test.sh",
     "scripts/tests/test_commit_check.py",
-    "scripts/tests/test_local_checks.py",
-    "scripts/tests/test_plan_tick.py",
-    "scripts/tests/test_pr_ready.py"
+    "scripts/tests/test_local_checks.py"
   ],
   "realizes": [
     "ARC-delivery"
@@ -31,14 +24,13 @@
     "engine-config-check": "^1",
     "engine-events": "^1",
     "engine-gate-plan": "^1",
+    "engine-gate-report": "^1",
     "engine-gate-verdict": "^1",
     "engine-premises": "^1",
     "engine-push-guard": "^1",
     "engine-records": "^1",
     "engine-regime": "^1",
-    "engine-role": "^1",
     "engine-structure": "^1",
-    "engine-train": "^1",
-    "engine-train-admission": "^1"
+    "engine-train": "^1"
   }
 }

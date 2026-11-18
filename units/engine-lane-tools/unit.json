@@ -1,6 +1,6 @@
 {
   "id": "engine-lane-tools",
-  "purpose": "The lane's working tools from branch to PR: branch-start (D-211), scaffold (D-146), covers-prove (D-178), lane worktree/brief and collect, and the cycle's Stop hook (I-0d1c3a25). Delivery lives in engine-lane-deliver.",
+  "purpose": "The lane's working tools from branch to PR: branch-start (D-211), scaffold (D-146), covers-prove (D-178), lane worktree/brief, and the cycle's Stop hook (I-0d1c3a25). Delivery lives in engine-lane-deliver.",
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
@@ -8,38 +8,32 @@
     "scripts/covers-prove",
     "scripts/cycle",
     "scripts/hooks/cycle-stop",
-    "scripts/lane",
     "scripts/lib/branch_start.py",
     "scripts/lib/covers_prove.py",
     "scripts/lib/cycle_stop.py",
     "scripts/lib/lane.py",
-    "scripts/lib/lane_collect.py",
     "scripts/lib/scaffold.py",
     "scripts/scaffold",
     "scripts/tests/branch-start.test.sh",
     "scripts/tests/covers-prove.test.sh",
     "scripts/tests/covers/cycle-stop.json",
     "scripts/tests/cycle-stop.test.sh",
-    "scripts/tests/lane-collect.test.sh",
     "scripts/tests/lane.test.sh",
     "scripts/tests/scaffold.test.sh",
     "scripts/tests/test_branch_start.py",
     "scripts/tests/test_covers_prove.py",
     "scripts/tests/test_cycle_stop.py",
     "scripts/tests/test_lane.py",
-    "scripts/tests/test_lane_collect.py",
     "scripts/tests/test_scaffold.py"
+  ],
+  "realizes": [
+    "ARC-delivery"
   ],
   "requires": {
     "engine-config": "^1",
     "engine-config-check": "^1",
     "engine-defects": "^1",
     "engine-gate-plan": "^1",
-    "engine-generate": "^1",
-    "engine-lane-deliver": "^1",
-    "engine-session-usage": "^1"
-  },
-  "realizes": [
-    "ARC-delivery"
-  ]
+    "engine-generate": "^1"
+  }
 }

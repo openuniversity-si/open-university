@@ -24,10 +24,8 @@
     "ARC-delivery"
   ],
   "requires": {
-    "engine-commit-plan": "^1",
     "engine-config": "^1",
     "engine-delivery": "^1",
-    "engine-flow": "^1",
     "engine-gate-infra": "^1",
     "engine-gate-plan": "^1",
     "engine-gate-report": "^1",

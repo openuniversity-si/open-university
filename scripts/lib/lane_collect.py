@@ -16,7 +16,9 @@ table that is not closed (no closed-rows record line, no delivering commit on th
 `units/<fxx>` branch, local or on the remote, and no open PR naming it) and whose "Depois de" units are all merged.
 `--no-next` skips it. The coordinator starts the next lane from this one call.
 
-Its own module; `scripts/lane collect` (F68's scripts/lane) hands it its arguments.
+Its own module, and the entry of `scripts/lane` (command): `collect` is this module's, and every other subcommand is
+lane.main's (F68). Collect reads the quota ledger and the transcripts (fronts, usage: measurement), so it sits above the
+lane brief and drives it, never the reverse (D-322: a unit depends only on its own or a lower layer).
 """
 import argparse
 import json
@@ -165,5 +167,13 @@ def main(argv=None):
     return code
 
 
+def command(argv=None):
+    """`scripts/lane`: `collect <report>` is main's (F69), every other subcommand lane.main's (brief, worktree)."""
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ['collect']:
+        return main(argv[1:])
+    return lane.main(argv)
+
+
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(command())

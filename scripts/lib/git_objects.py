@@ -10,6 +10,10 @@ path). A ref is resolved on every call and is never a key: only the sha is. Read
   changed_paths(root, base, head)            the paths of the diff base...head, renames on both sides (D-322: the
                                              gate's diff, here so a layer-0 tool reads it without importing the gate;
                                              gate_policy re-exports it)
+  Tree(root, timeout=None)                   read-only questions about one repository's commits (paths, has_path,
+                                             files, changed_files): the reads train_git.GitWorkspace inherits, here so
+                                             the gate's lane rule (pr_ready, train_ownership) reads a commit without
+                                             the train's workspace (D-322)
 """
 from pathlib import Path
 import subprocess
@@ -60,6 +64,35 @@ def _objects(answer, count):
 
 def forget():
     _HELD.clear()
+
+
+class Tree:
+    """Read-only questions about the commits of one local repository; train_git.GitWorkspace adds the train's writes
+    and its remembered answers to these same reads."""
+
+    def __init__(self, root, timeout=None):
+        self.root, self.timeout = Path(root), timeout
+
+    def git(self, *args, check=True):
+        done = subprocess.run(['git', '-C', str(self.root), *args], capture_output=True, text=True, timeout=self.timeout)
+        if check and done.returncode != 0:
+            raise GitObjectsError(f'git {args[0]} failed: {done.stderr.strip()}')
+        return done
+
+    def paths(self, commit):
+        """Every file path of the commit's tree (GATE-SPEED F11, N8: the train asks its port, never git directly)."""
+        return self.git('ls-tree', '-r', '--name-only', commit).stdout.split()
+
+    def has_path(self, commit, path):
+        return self.git('cat-file', '-e', f'{commit}:{path}', check=False).returncode == 0
+
+    def files(self, commit, paths):
+        """{path: text} of the paths that exist in the commit (one batched read per commit, remembered)."""
+        return files(self.root, commit, paths, timeout=self.timeout)
+
+    def changed_files(self, base, head):
+        """Files the head changes against its merge base with `base` (what the PR itself touches)."""
+        return sorted(self.git('diff', '--name-only', f'{base}...{head}').stdout.split())
 
 
 def changed_paths(root, base, head):

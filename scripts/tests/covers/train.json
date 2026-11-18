@@ -5,7 +5,7 @@
     "scripts/tests/test_train.py",
     "scripts/tests/train/*.py",
     "scripts/lib/train.py",
-    "scripts/lib/flow_metrics.py",
+    "scripts/lib/box_meter.py",
     "scripts/lib/box_queue.py",
     "config/registry/delivery.json",
     "scripts/lib/train_verdict.py",

@@ -29,7 +29,6 @@
   ],
   "requires": {
     "engine-cloud": "^1",
-    "engine-commit-plan": "^1",
     "engine-config": "^1",
     "engine-env": "^1",
     "engine-events": "^1",

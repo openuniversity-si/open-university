@@ -19,7 +19,7 @@ The box batch (VAZÃO F36, D-297; docs/programs/vazao/design-trem.md §2): with 
 branch writes its entry to the box queue (box_queue.enqueue) before it asks for the box's lock. Once it holds the lock:
 a result the leader of an earlier batch wrote for its head is its answer (merged: exit 0; ejected, conflicted or
 refused: exit 1), with no gate; with two or more live deliveries waiting and the batch reading ready (F64: the box busy
->= 0.70 over the last hour and p <= 0.25, flow_metrics.measured_batch_reading) it leads one batch, `scripts/train run --box`
+>= 0.70 over the last hour and p <= 0.25, box_meter.measured_batch_reading) it leads one batch, `scripts/train run --box`
 in the base's checkout with the lock passed down (box_queue.HELD_ENV), and the batch's line goes to the lock log; its
 own PR, when the batch did not resolve it (no batch, or it waited after the culprit), then takes today's single path.
 With delivery.batch `off` (the default, the one-key rollback) nothing of this runs.
@@ -342,12 +342,12 @@ def _answer(pr, found, out):
 
 
 def batch_reading():
-    """F64 (D-297): flow-metrics' batch reading, read only when a batch could lead: ready when the box's busy share over
-    the last hour reaches 0.70 and p <= 0.25 over the last train.batch_red_window merged PRs. A reading that fails is
-    not ready (the single path), never a failed delivery."""
+    """F64 (D-297): the box's batch reading (box_meter, the one flow-metrics reports), read only when a batch could lead:
+    ready when the box's busy share over the last hour reaches 0.70 and p <= 0.25 over the last train.batch_red_window
+    merged PRs. A reading that fails is not ready (the single path), never a failed delivery."""
     try:
-        import flow_metrics
-        return flow_metrics.measured_batch_reading(lazy=True)
+        import box_meter
+        return box_meter.measured_batch_reading(lazy=True)
     except Exception as error:  # noqa: BLE001 - an unreadable meter keeps the single path
         return {'ready': False, 'why': f'the reading failed: {type(error).__name__}: {str(error)[:200]}'}
 

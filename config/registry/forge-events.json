@@ -420,6 +420,7 @@
       "description": "Repository whose change and repository channels the port reads and writes by default.",
       "x-readers": [
         "scripts/lib/battery.py",
+        "scripts/lib/box_meter.py",
         "scripts/lib/budgets.py",
         "scripts/lib/config.py",
         "scripts/lib/coordinator_launch.py",
@@ -427,7 +428,6 @@
         "scripts/lib/defect_detect.py",
         "scripts/lib/defect_router.py",
         "scripts/lib/defects.py",
-        "scripts/lib/flow_metrics.py",
         "scripts/lib/forge_events.py",
         "scripts/lib/forge_origin.py",
         "scripts/lib/forge_pr.py",
