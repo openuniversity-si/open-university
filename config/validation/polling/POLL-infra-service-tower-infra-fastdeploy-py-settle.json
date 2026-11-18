@@ -1,7 +1,0 @@
-{
-  "id": "POLL-infra-service-tower-infra-fastdeploy-py-settle",
-  "site": "infra/service/tower_infra/fastdeploy.py::settle",
-  "class": "state-wait",
-  "reason": "Waits on an interval for the deploy to settle.",
-  "replace_with": "an EventBridge event on the deploy's end"
-}

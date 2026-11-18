@@ -2,6 +2,6 @@
   "id": "POLL-infra-service-tower-infra-fastdeploy-py-propagate",
   "site": "infra/service/tower_infra/fastdeploy.py::propagate",
   "class": "state-wait",
-  "reason": "Waits on an interval for the alias change to propagate.",
-  "replace_with": "an EventBridge event on the alias update"
+  "reason": "Invokes the alias every PROPAGATION_STEP_S until it answers the new version, at most deploy.fast_propagation_s. Lambda has no waiter for an alias's routing (UpdateAlias returns at once; the waiters cover a function's State and LastUpdateStatus), so no waiter replaced it.",
+  "replace_with": "an event when the alias routes to the new version: none exists (UpdateAlias's CloudTrail event is the call, not the convergence); needs new infrastructure"
 }
