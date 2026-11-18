@@ -44,12 +44,13 @@ class SmokeTests(unittest.TestCase):
 
     GREEN = {'ok': True, 'stage': 'ended', 'line': 'canary job dispatched in 0.4 s, taken in 0.1 s, ended in 0.7 s'}
 
-    def serve(self, health=200, status=200, source='registry', canary=(GREEN,), created=200, held=None):
+    def serve(self, health=200, status=200, source='registry', canary=(GREEN,), created=200, held=None, unmarked=None):
         """canary (DEPLOY-CANARY): what each GET /v1/deploy/canary/<id> answers, in order (the last one repeats); created:
         the status of POST /v1/deploy/canary (404: a port older than the route). held (PORT-HEALTH-WAIT): the health
         answers of a port that holds GET /v1/health?wait_s, in order (the last one repeats): (seconds held, status);
-        None: a port older than the wait, which ignores the query."""
-        outer, readings, holds = self, list(canary), list(held or [])
+        None: a port older than the wait, which ignores the query. unmarked (SMOKE-BACKOFF): the health answers, in order
+        (the last one repeats), of a port or a gateway that does not hold it: (status, body)."""
+        outer, readings, holds, plain = self, list(canary), list(held or []), list(unmarked or [])
 
         class Handler(BaseHTTPRequestHandler):
             def say(self, code, body):
@@ -66,6 +67,8 @@ class SmokeTests(unittest.TestCase):
                     seconds, code = holds.pop(0) if len(holds) > 1 else holds[0]
                     time.sleep(seconds)
                     return self.say(code, {'ok': code == 200, 'long_poll': {'waited_s': seconds, 'ready': code == 200}})
+                if path == '/v1/health' and plain:
+                    return self.say(*(plain.pop(0) if len(plain) > 1 else plain[0]))
                 self.say(*{'/v1/health': (health, {'ok': health == 200}),
                            '/v1/deploy/status': (status, {'source': source})}.get(path, (404, {})))
 
@@ -125,6 +128,41 @@ class SmokeTests(unittest.TestCase):
         self.assertIn("smoke RED: GET /v1/health answered '503'", done.stdout)
         # never before the window ((tries - 1) x pause, 2 s): held 1.1 s each, so asked at least twice
         self.assertGreaterEqual(len([path for path, *_ in self.seen if path.startswith('/v1/health')]), 2)
+
+    def test_a_failed_request_is_asked_again_on_a_backoff_and_green_once_it_answers(self):
+        # SMOKE-BACKOFF: the gateway's 500 and 429 (no port answered, unmarked) are failed requests: asked again after
+        # 1 s, then 2 s, never the 600 s of DEPLOY_SMOKE_SLEEP (that would run past run_smoke's 60 s timeout)
+        gateway = [(500, {'message': 'Internal server error'}), (429, {'message': 'Too Many Requests'}), (200, {'ok': True})]
+        done = self.run_smoke(self.serve(unmarked=gateway, status=401), DEPLOY_SMOKE_SLEEP='600')
+        self.assertEqual(done.returncode, 0, done.stdout)
+        self.assertEqual(len([path for path, *_ in self.seen if path.startswith('/v1/health')]), 3)
+        self.assertNotIn('older than PORT-HEALTH-WAIT', done.stdout)  # the gateway's answer is no port's
+
+    def test_an_unmarked_answer_of_the_port_is_said_and_failed_as_an_unready_port_when_the_window_ends(self):
+        # a port older than PORT-HEALTH-WAIT ignores wait_s: its 503 is said, asked again within the window (one that gets
+        # ready in time is still green) and red only once the window, 2 s here, is over
+        old = [(503, {'error': 'unavailable', 'detail': 'the database could not be reached: too many connections'})]
+        done = self.run_smoke(self.serve(unmarked=old, status=401), DEPLOY_SMOKE_TRIES='3', DEPLOY_SMOKE_SLEEP='1')
+        self.assertEqual(done.returncode, 1, done.stdout)
+        self.assertIn('the port did not hold it (older than PORT-HEALTH-WAIT)', done.stdout)
+        self.assertIn("smoke RED: GET /v1/health answered '503'", done.stdout)
+        self.assertGreaterEqual(len([path for path, *_ in self.seen if path.startswith('/v1/health')]), 2)
+        self.seen = []
+        done = self.run_smoke(self.serve(unmarked=old + [(200, {'ok': True, 'service': 'tower-port'})], status=401),
+                              DEPLOY_SMOKE_TRIES='3', DEPLOY_SMOKE_SLEEP='1')
+        self.assertEqual(done.returncode, 0, done.stdout)
+
+    def test_a_marked_pending_canary_is_asked_again_at_once_and_an_unmarked_fast_one_on_a_backoff(self):
+        # CANARY-HOLDS: a pending answer canary.read marked was held by the port: asked again with no pause (600 s would
+        # time out); one it did not mark and answered at once is asked again after 1 s, then 2 s
+        pending = {'ok': None, 'stage': 'take', 'line': 'canary job waiting for its take'}
+        for first in ({**pending, 'long_poll': {'seen': 'x', 'changed': False}}, pending):
+            self.seen = []
+            done = self.run_smoke(self.serve(canary=(first, first, self.GREEN)), DEPLOY_SMOKE_TOKEN='t' * 12,
+                                  DEPLOY_SMOKE_SLEEP='600', DEPLOY_SMOKE_CANARY='on')
+            self.assertEqual(done.returncode, 0, done.stdout)
+            self.assertIn('smoke ok: canary job', done.stdout)
+            self.assertEqual(len([path for path, *_ in self.seen if path.startswith('/v1/deploy/canary/')]), 3)
 
     def test_a_status_that_does_not_come_from_the_registry_is_red(self):
         done = self.run_smoke(self.serve(source='ssm'), DEPLOY_SMOKE_TOKEN='t' * 12)

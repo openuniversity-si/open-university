@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # Usage: scripts/deploy-smoke [--url URL]
 # The post-deploy smoke (DEP7): what must answer after the slow path changed a stack. Run by infra/aws/deploy.sh inside the
-# deployer (CodeBuild); red (exit 1) rolls back the stacks that build changed. Three checks, each retried
-# (DEPLOY_SMOKE_TRIES, default 6, DEPLOY_SMOKE_SLEEP seconds apart, default 5) because a stack that just rolled out answers late:
+# deployer (CodeBuild); red (exit 1) rolls back the stacks that build changed. Three checks, each within a window of
+# (DEPLOY_SMOKE_TRIES - 1) x DEPLOY_SMOKE_SLEEP seconds (6 and 5 by default: 25 s) because a stack that just rolled out
+# answers late; a failed request is asked again on a backoff (SMOKE-BACKOFF: from 1 s, doubling up to DEPLOY_SMOKE_SLEEP):
 #   1. GET /v1/health          200 and "ok":true: the port's Lambda is up and the database answers.
 #                              PORT-HEALTH-WAIT: asked with ?wait_s, held by the port until it is ready (no pause between
-#                              tries unless the port did not hold it: one older than the wait)
+#                              held answers; an unmarked one, from a port older than the wait, is said and retried)
 #   2. GET /v1/deploy/status   the route is alive: 200 with a token, 401/403 without one.
 #   3. a registry read         with a token, that status answers source "registry" (read from the log); without, skipped.
 # and, with a token, the canary (DEPLOY-CANARY, docs/operations/aws.md 22.3): the three above are all served by the port's
 # Lambda, so a deploy that broke the service's dispatch or the runner's take passed them.
 #   4. POST /v1/deploy/canary  one job through the path a check takes (tower_infra.canary), idempotent by the build's id;
-#      GET /v1/deploy/canary/<id>?wait_s=20, a long poll the job's end wakes (no sleep here), until the port gives its
-#      verdict: green when the job ended well within deploy.canary_limit_s (registry, 120 s), red with the stage that never
-#      happened: not dispatched (the service), dispatched and not taken (the runner), taken and failed (the run). A red
+#      GET /v1/deploy/canary/<id>?wait_s=20, a long poll the job's end wakes (CANARY-HOLDS: held and marked even when its
+#      listener cannot open), until the port gives its verdict: green when the job ended well within
+#      deploy.canary_limit_s (registry, 120 s), red with the stage that never happened: not dispatched (the service), dispatched and not taken (the runner), taken and failed (the run). A red
 #      canary is also published to ALERTS_TOPIC_ARN when the deployer has it. A port with no canary route (a bisection's
 #      midpoint older than the route) skips it, and says so.
 #      SMOKE-WITHOUT-RUNNER (the migration to GitHub, Torre 14/11): the canary is a check's path, and a check needs the
@@ -49,28 +50,43 @@ get() {
 }
 body="$(mktemp)"; trap 'rm -f "$body"' EXIT
 
-# check <name> <path> <auth?> <ok-status-regex> <body-regex> [hold]: retried until it passes or the tries end.
-# PORT-HEALTH-WAIT (hold): asked with ?wait_s=<what is left of the window>, (tries - 1) x pause (25 s by default), the
-# port holds the call until its database answers and marks the answer (long_poll); a held answer that is not ok yet is
-# asked again at once while the window lasts, and red when it is over. The pause between tries is kept only for an answer
-# the port did not hold (no long_poll: a port older than PORT-HEALTH-WAIT, a transport failure, or an answer in under 1 s).
+# now_ms: the wall clock in milliseconds (a window's end; SECONDS counts whole seconds, which could end it up to 1 s early).
+now_ms() { date +%s%3N; }
+ms=1000  # milliseconds in a second
+
+# secs <ms>: those milliseconds as the seconds sleep takes (SMOKE-BACKOFF's pause after a failed request).
+secs() { local part=$(( $1 % ms + ms )); echo "$(( $1 / ms )).${part:1}"; }
+
+# check <name> <path> <auth?> <ok-status-regex> <body-regex> [hold]: asked until it passes or its window, (tries - 1) x
+# pause (25 s by default), is over: red then, never before it and never later than a retry every pause was.
+# PORT-HEALTH-WAIT (hold): asked with ?wait_s=<what is left of the window>; the port holds the call until its database
+# answers and marks the answer (long_poll), so a marked answer that is not ok yet is asked again at once, with no pause.
+# SMOKE-BACKOFF (PADRAO-DEV F8b): what is left is a failed request: no answer, the gateway's (a 5xx, a 429), a refusal or a
+# wrong body, and, with hold, an answer the port did not mark (a port older than PORT-HEALTH-WAIT, which no deploy serves
+# since it went live in 1d5693e: said, and failed as an unready port fails, so one that gets ready in time is still green).
+# It is asked again after a pause that doubles from 1 s up to pause (never longer than a retry every pause), cut at the
+# window's end so the last ask is at that end, and back to 1 s after an answer the port held.
 check() {
-  local name="$1" path="$2" auth="$3" want="$4" shape="$5" hold="${6:-}" code="" i asked left began=$SECONDS
-  local window=$(( (tries - 1) * pause ))
-  for ((i = 1; i <= tries; i++)); do
-    asked=$SECONDS
+  local name="$1" path="$2" auth="$3" want="$4" shape="$5" hold="${6:-}" code="" left wait old=""
+  local deadline=$(( $(now_ms) + (tries - 1) * pause * ms )) step=$(( pause < 1 ? pause : 1 )) delay
+  delay=$step
+  while :; do
+    left=$(( deadline - $(now_ms) )); (( left > 0 )) || left=0
     if [[ -n "$hold" ]]; then
-      left=$(( window - (SECONDS - began) )); (( left > 0 )) || left=0
-      code="$(get "$path?wait_s=$left" "$auth" $(( left + 10 )))"
+      wait=$(( (left + ms - 1) / ms ))
+      code="$(get "$path?wait_s=$wait" "$auth" $(( wait + 10 )))"
     else
       code="$(get "$path" "$auth")"
     fi
     if [[ "$code" =~ ^($want)$ ]] && { [[ -z "$shape" ]] || grep -Eq "$shape" "$body"; }; then echo "smoke ok: $name ($code)"; return 0; fi
-    if [[ -n "$hold" ]] && jq -e 'has("long_poll")' "$body" >/dev/null 2>&1 && (( SECONDS - asked >= 1 )); then
-      (( SECONDS - began <= window )) || break  # SECONDS counts whole seconds: never before the window
-      (( i-- )); continue  # the port held it: ask again at once, within the window
+    left=$(( deadline - $(now_ms) ))
+    (( left > 0 )) || break
+    if [[ -n "$hold" ]] && jq -e 'has("long_poll")' "$body" >/dev/null 2>&1; then delay=$step; continue; fi  # held: at once
+    if [[ -n "$hold" && -z "$old" ]] && jq -e '.service == "tower-port" or .error == "unavailable"' "$body" >/dev/null 2>&1; then
+      old=1; echo "smoke: $name answered '$code' unmarked: the port did not hold it (older than PORT-HEALTH-WAIT): asked as an unready port"
     fi
-    (( i < tries )) && sleep "$pause"
+    sleep "$(secs $(( delay * ms < left ? delay * ms : left )))"
+    (( delay += delay, delay < pause )) || delay=$pause
   done
   echo "smoke RED: $name answered '${code:-no answer}' (wanted $want${shape:+ with $shape}): $(head -c 200 "$body" | tr -d '\000-\037')"
   return 1
@@ -79,6 +95,8 @@ check() {
 # canary: DEPLOY-CANARY. One canary job by the port, then its verdict by long poll; 0 green or skipped, 1 red.
 canary() {
   local key="${DEPLOY_SMOKE_CANARY_KEY:-${CODEBUILD_BUILD_ID:-smoke-$(date +%s)-$$}}" code id limit ok asked began=$SECONDS
+  local step=$(( pause < 1 ? pause : 1 )) delay over
+  delay=$step
   code="$(curl -sS -m 30 -o "$body" -w '%{http_code}' -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
     -d "$(jq -nc --arg key "$key" '{key: $key}')" "$url/v1/deploy/canary" 2>/dev/null || true)"
   if [[ "$code" = 404 ]]; then echo "smoke: the port has no canary route (code older than DEPLOY-CANARY): the canary job was skipped"; return 0; fi
@@ -86,6 +104,7 @@ canary() {
   if [[ ! "$code" =~ ^20[01]$ || -z "$id" ]]; then
     echo "smoke RED: canary job not created: POST /v1/deploy/canary answered '${code:-no answer}': $(head -c 200 "$body" | tr -d '\000-\037')"; return 1
   fi
+  over=$(( ${limit:-120} + 60 ))  # no verdict this long after the job was made: red
   while :; do
     asked=$SECONDS
     code="$(curl -sS -m 30 -o "$body" -w '%{http_code}' -H "Authorization: Bearer $token" "$url/v1/deploy/canary/$id?wait_s=20" 2>/dev/null || true)"
@@ -97,10 +116,19 @@ canary() {
         --message "$(jq -r .line "$body") (build $key, canary $id)" >/dev/null 2>&1 || true
       return 1
     fi
-    if (( SECONDS - began > ${limit:-120} + 60 )); then
+    if (( SECONDS - began > over )); then
       echo "smoke RED: canary job $id has no verdict after $((SECONDS - began)) s: GET /v1/deploy/canary answered '${code:-no answer}'"; return 1
     fi
-    (( SECONDS - asked >= 2 )) || sleep "$pause"  # only when the port answered at once (it could not wait, or failed): never a hot loop
+    # CANARY-HOLDS: canary.read holds every read it marks (long_poll), its listener open or not: asked again at once. An
+    # unmarked answer held 2 s or more (a port older than CANARY-HOLDS whose listener opened, which a bisection's midpoint
+    # may still serve until the deployed sha passes it, or a request that timed out) is asked again at once, as before.
+    if jq -e 'has("long_poll")' "$body" >/dev/null 2>&1; then delay=$step; continue; fi
+    if (( SECONDS - asked >= 2 )); then delay=$step; continue; fi
+    # SMOKE-BACKOFF: a failed request answered at once (no answer, a 5xx: a port older than CANARY-HOLDS whose listener
+    # could not open, a 429; or an unmarked state from a port with no listener at all, which the Lambda never is): asked
+    # again after a pause that doubles from 1 s up to pause, cut so the next ask is no later than the red
+    sleep "$(( delay <= over - (SECONDS - began) ? delay : over - (SECONDS - began) + 1 ))"
+    (( delay += delay, delay < pause )) || delay=$pause
   done
 }
 

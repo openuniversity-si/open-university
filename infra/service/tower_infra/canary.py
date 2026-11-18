@@ -260,26 +260,14 @@ def read(db, who, ident, wait_s=None, wake=None, clock=time.monotonic):
     """GET /v1/deploy/canary/<id>[?wait_s=N]: the canary's state, seconds and verdict (look). With wait_s the answer
     waits, WAIT_MAX_S at most, until the verdict exists: the wait is the LISTEN of `wake` (tower_work: a run's end, a
     cancelled job), started before the first read so no end falls between the read and the wait, and it ends by itself
-    when the canary's limit passes; without a wake there is nothing to wait on and the state is answered now."""
+    when the canary's limit passes; without a wake there is nothing to wait on and the state is answered now.
+    CANARY-HOLDS (PADRAO-DEV F8b): the wait is port.long_poll's, so a listener that cannot open (the database at its
+    connections' limit) holds the read the same way (LONG-POLL-HOLDS: wake.Wake.wait waits it out, never a 500) and the
+    answer carries LONG_POLL {seen, waited_s, changed: whether it has the verdict}, never later than the span."""
     tenant, _ = configured(db, who)
-    try:
-        until = clock() + min(max(float(wait_s or 0), 0.0), WAIT_MAX_S)
-    except (TypeError, ValueError):
-        raise port.PortError(400, 'wait_s is a number of seconds') from None
-    waits = wake is not None and until > clock()
-    if waits:
-        wake.listening()
-    try:
-        for _ in range(WAKES):
-            said, _fresh = look(db, tenant, ident)
-            left = until - clock()
-            if said['ok'] is not None or not waits or left <= 0:
-                break
-            wake.wait(min(left, max(said['limit_s'] - said['age_s'], 0.0) + 0.05))  # its limit passing is an end too
-        return said
-    finally:
-        if wake is not None:
-            wake.close()
+    return port.long_poll(lambda: look(db, tenant, ident)[0], {'wait_s': wait_s or None}, wake, clock,
+                          answers=lambda said: said['ok'] is not None,
+                          bound=lambda said: max(said['limit_s'] - said['age_s'], 0.0) + 0.05)
 
 
 def swap_key(digest, version):

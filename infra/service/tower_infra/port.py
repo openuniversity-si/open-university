@@ -388,7 +388,7 @@ def seen_of(said):
     return hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]
 
 
-def long_poll(read, body, wake=None, clock=time.monotonic):
+def long_poll(read, body, wake=None, clock=time.monotonic, answers=None, bound=None):
     """GET /v1/jobs/<id> and GET /v1/deploy/status [?wait_s=N[&seen=D]]: the canary's long poll (canary.read) for a read
     of a state. Without wait_s the answer is read() as it always was, unmarked, and nothing is listened to (an old client).
     With wait_s and a wake, the LISTEN starts before the first read, so no change falls between the read and the wait; the
@@ -398,7 +398,11 @@ def long_poll(read, body, wake=None, clock=time.monotonic):
     database with no connection of its own, as the tests' are: http_port.wake_of is never None on the port's Lambda,
     whose Lazy always has one). LONG-POLL-HOLDS: a listener that cannot open (the database at its connections' limit)
     does not fail the read: wake.wait tries it again and, if it cannot either, waits the span out (wake.Wake.wait), and
-    the answer read after it is marked as any other, never later than the span."""
+    the answer read after it is marked as any other, never later than the span.
+    CANARY-HOLDS: canary.read is this same wait with its own end. answers(said), when given, says whether an answer is
+    the one the wait is for (the canary's verdict) in place of `seen`, and `changed` in the mark is what it said;
+    bound(said), when given, caps each wait (the canary's limit passing is an end too), and a wait so capped that
+    nothing woke reads again, within the span, instead of ending."""
     from . import canary  # the bound and the wakes are the canary route's (canary imports this module)
     body = body if isinstance(body, dict) else {}
     try:
@@ -410,6 +414,7 @@ def long_poll(read, body, wake=None, clock=time.monotonic):
             wake.close()
         return read()
     seen = None if body.get('seen') is None else str(body['seen'])
+    answers = answers or (lambda said: seen_of(said) != seen)
     began = clock()
     try:
         wake.listening()
@@ -417,15 +422,16 @@ def long_poll(read, body, wake=None, clock=time.monotonic):
         pass
     try:
         said = read()
-        changed = seen_of(said) != seen
+        changed = bool(answers(said))
         for _ in range(canary.WAKES):
             left = began + span - clock()
             if changed or left <= 0:
                 break
-            woken = wake.wait(left)
+            waited = left if bound is None else min(left, bound(said))
+            woken = wake.wait(waited)
             said = read()
-            changed = seen_of(said) != seen
-            if not woken:
+            changed = bool(answers(said))
+            if not woken and waited >= left:
                 break
         return dict(said, **{LONG_POLL: {'seen': seen_of(said), 'waited_s': round(clock() - began, 3), 'changed': changed}})
     finally:
