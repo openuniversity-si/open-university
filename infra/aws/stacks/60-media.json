@@ -1,0 +1,465 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The media of the site on AWS (D-323 step 2): one S3 bucket, versioned (noncurrent versions kept 90 days), SSE-S3, private, owner-enforced, with its access logs in a second private bucket kept 90 days; and, once Cdn is on (the boundary allows cloudfront only after the Torre applies the bootstrap), a CloudFront distribution that reads it through Origin Access Control alone, HTTPS only, cached as immutable, on its default domain until CertificateArn (in CloudFront's region, issued and validated by the Torre) and Alias are both set: the stack never waits on DNS. Both buckets are retained. About US$ 0.13 a month: 3.4 GB at US$ 0.023, about 100k origin reads a month at US$ 0.0004 per 1k, and 2.5 GB and 100k requests a month inside CloudFront's free 1 TB and 10M.",
+  "Parameters": {
+    "Cdn": {
+      "Type": "String",
+      "Default": "off",
+      "AllowedValues": [
+        "off",
+        "on"
+      ],
+      "Description": "on creates the distribution; off (the first deploy) leaves the buckets alone"
+    },
+    "CertificateArn": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^arn:aws:acm:[a-z0-9-]+:[0-9]{12}:certificate/[0-9a-f-]{36}$",
+      "Description": "an issued ACM certificate for Alias, in the region CloudFront reads (the stack region here); empty: the distribution's default domain"
+    },
+    "Alias": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+      "Description": "the public host the distribution answers with CertificateArn; ignored while it is empty"
+    }
+  },
+  "Conditions": {
+    "CdnOn": {
+      "Fn::Equals": [
+        {
+          "Ref": "Cdn"
+        },
+        "on"
+      ]
+    },
+    "HasAlias": {
+      "Fn::And": [
+        {
+          "Condition": "CdnOn"
+        },
+        {
+          "Fn::Not": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "CertificateArn"
+                },
+                ""
+              ]
+            }
+          ]
+        },
+        {
+          "Fn::Not": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "Alias"
+                },
+                ""
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "MediaLogs": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketName": {
+          "Fn::Sub": "tower-media-logs-${AWS::AccountId}-${AWS::Region}"
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "logs-expire",
+              "Status": "Enabled",
+              "ExpirationInDays": 90,
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "MediaLogsPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Bucket": {
+          "Ref": "MediaLogs"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "S3LogsOfTheMediaBucket",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "logging.s3.amazonaws.com"
+              },
+              "Action": "s3:PutObject",
+              "Resource": {
+                "Fn::Sub": "${MediaLogs.Arn}/media/*"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::tower-media-${AWS::AccountId}-${AWS::Region}"
+                  }
+                }
+              }
+            },
+            {
+              "Sid": "OnlyOverTls",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::Sub": "${MediaLogs.Arn}"
+                },
+                {
+                  "Fn::Sub": "${MediaLogs.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "Media": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "DependsOn": "MediaLogsPolicy",
+      "Properties": {
+        "BucketName": {
+          "Fn::Sub": "tower-media-${AWS::AccountId}-${AWS::Region}"
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "noncurrent-expire",
+              "Status": "Enabled",
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 90
+              },
+              "ExpiredObjectDeleteMarker": true,
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 7
+              }
+            }
+          ]
+        },
+        "LoggingConfiguration": {
+          "DestinationBucketName": {
+            "Ref": "MediaLogs"
+          },
+          "LogFilePrefix": "media/"
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "MediaPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Bucket": {
+          "Ref": "Media"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "OnlyOverTls",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::Sub": "${Media.Arn}"
+                },
+                {
+                  "Fn::Sub": "${Media.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            },
+            {
+              "Fn::If": [
+                "CdnOn",
+                {
+                  "Sid": "ReadOnlyByTheDistribution",
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "cloudfront.amazonaws.com"
+                  },
+                  "Action": "s3:GetObject",
+                  "Resource": {
+                    "Fn::Sub": "${Media.Arn}/*"
+                  },
+                  "Condition": {
+                    "StringEquals": {
+                      "AWS:SourceArn": {
+                        "Fn::Sub": "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Ref": "AWS::NoValue"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "MediaAccess": {
+      "Type": "AWS::CloudFront::OriginAccessControl",
+      "Condition": "CdnOn",
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": {
+            "Fn::Sub": "tower-media-${AWS::Region}"
+          },
+          "Description": "the distribution signs every read of the media bucket",
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4"
+        }
+      }
+    },
+    "Immutable": {
+      "Type": "AWS::CloudFront::CachePolicy",
+      "Condition": "CdnOn",
+      "Properties": {
+        "CachePolicyConfig": {
+          "Name": {
+            "Fn::Sub": "tower-media-immutable-${AWS::Region}"
+          },
+          "Comment": "immutable keys: a year by default, the object's Cache-Control below that; no query, cookie or header in the key",
+          "MinTTL": 0,
+          "DefaultTTL": 31536000,
+          "MaxTTL": 31536000,
+          "ParametersInCacheKeyAndForwardedToOrigin": {
+            "EnableAcceptEncodingGzip": true,
+            "EnableAcceptEncodingBrotli": true,
+            "CookiesConfig": {
+              "CookieBehavior": "none"
+            },
+            "HeadersConfig": {
+              "HeaderBehavior": "none"
+            },
+            "QueryStringsConfig": {
+              "QueryStringBehavior": "none"
+            }
+          }
+        }
+      }
+    },
+    "Distribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Condition": "CdnOn",
+      "Properties": {
+        "DistributionConfig": {
+          "Comment": "tower media",
+          "Enabled": true,
+          "HttpVersion": "http2and3",
+          "IPV6Enabled": true,
+          "PriceClass": "PriceClass_100",
+          "Aliases": {
+            "Fn::If": [
+              "HasAlias",
+              [
+                {
+                  "Ref": "Alias"
+                }
+              ],
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          },
+          "ViewerCertificate": {
+            "Fn::If": [
+              "HasAlias",
+              {
+                "AcmCertificateArn": {
+                  "Ref": "CertificateArn"
+                },
+                "SslSupportMethod": "sni-only",
+                "MinimumProtocolVersion": "TLSv1.2_2021"
+              },
+              {
+                "CloudFrontDefaultCertificate": true
+              }
+            ]
+          },
+          "Origins": [
+            {
+              "Id": "media",
+              "DomainName": {
+                "Fn::GetAtt": [
+                  "Media",
+                  "RegionalDomainName"
+                ]
+              },
+              "OriginAccessControlId": {
+                "Fn::GetAtt": [
+                  "MediaAccess",
+                  "Id"
+                ]
+              },
+              "S3OriginConfig": {
+                "OriginAccessIdentity": ""
+              }
+            }
+          ],
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "media",
+            "ViewerProtocolPolicy": "https-only",
+            "AllowedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "CachedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "Compress": true,
+            "CachePolicyId": {
+              "Ref": "Immutable"
+            }
+          },
+          "CustomErrorResponses": [
+            {
+              "ErrorCode": 403,
+              "ErrorCachingMinTTL": 60
+            },
+            {
+              "ErrorCode": 404,
+              "ErrorCachingMinTTL": 60
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "BucketName": {
+      "Description": "the media bucket",
+      "Value": {
+        "Ref": "Media"
+      }
+    },
+    "LogsBucketName": {
+      "Description": "its access logs",
+      "Value": {
+        "Ref": "MediaLogs"
+      }
+    },
+    "DistributionId": {
+      "Condition": "CdnOn",
+      "Value": {
+        "Ref": "Distribution"
+      }
+    },
+    "DistributionDomain": {
+      "Condition": "CdnOn",
+      "Value": {
+        "Fn::GetAtt": [
+          "Distribution",
+          "DomainName"
+        ]
+      }
+    }
+  }
+}

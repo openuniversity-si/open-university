@@ -4,7 +4,7 @@ A path maps to a list of targets, by the first matching rule of RULES (ordered, 
 docs/operations/aws.md, 'Deploy contínuo em dois caminhos'). Targets:
 
   fast:lambda-<x>      pointer swap of one Lambda alias (x: port, ingress, webhooks) or all of them (x: all)
-  slow:stack-<y>       a CloudFormation stack of infra/aws/stacks (y: network, data, service, port, runner), or all
+  slow:stack-<y>       a CloudFormation stack of infra/aws/stacks (y: network, data, service, port, runner, media), or all
   slow:service-image   the Fargate service/runner image (infra/service, infra/db)
   slow:deployer        the deployer itself (infra/aws/deploy.sh, order.json): every stack is a candidate
   manual:bootstrap     infra/aws/bootstrap.json, budget.json: applied by hand (the Torre), never by the pipeline
