@@ -34,6 +34,12 @@
       "Default": "Open University",
       "AllowedPattern": "^[A-Za-z0-9][A-Za-z0-9 .&'-]{0,62}$",
       "Description": "the display name of the From the forwarder writes (the Torre, 18/11: \"Open University\"); the original sender stays in Reply-To"
+    },
+    "TestDomain": {
+      "Type": "String",
+      "Default": "",
+      "Description": "A subdomain the rules also accept, only for an end-to-end test of SES receiving while the domain MX stays elsewhere (its own MX points at SES); empty outside a test.",
+      "AllowedPattern": "^$|^[a-z0-9-]+(\\.[a-z0-9-]+)+$"
     }
   },
   "Conditions": {
@@ -85,6 +91,18 @@
           "Fn::Equals": [
             {
               "Ref": "MapParameter"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+    "HasTestDomain": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TestDomain"
             },
             ""
           ]
@@ -242,11 +260,24 @@
           "Enabled": true,
           "ScanEnabled": true,
           "TlsPolicy": "Optional",
-          "Recipients": [
-            {
-              "Ref": "Domain"
-            }
-          ],
+          "Recipients": {
+            "Fn::If": [
+              "HasTestDomain",
+              [
+                {
+                  "Ref": "Domain"
+                },
+                {
+                  "Ref": "TestDomain"
+                }
+              ],
+              [
+                {
+                  "Ref": "Domain"
+                }
+              ]
+            ]
+          },
           "Actions": [
             {
               "S3Action": {
@@ -276,11 +307,24 @@
           "Enabled": true,
           "ScanEnabled": true,
           "TlsPolicy": "Optional",
-          "Recipients": [
-            {
-              "Ref": "Domain"
-            }
-          ],
+          "Recipients": {
+            "Fn::If": [
+              "HasTestDomain",
+              [
+                {
+                  "Ref": "Domain"
+                },
+                {
+                  "Ref": "TestDomain"
+                }
+              ],
+              [
+                {
+                  "Ref": "Domain"
+                }
+              ]
+            ]
+          },
           "Actions": [
             {
               "S3Action": {
