@@ -15,7 +15,8 @@
     "scripts/tests/test_defect*.py"
   ],
   "realizes": [
-    "ARC-knowledge"
+    "ARC-knowledge",
+    "ARC-cap-012"
   ],
   "requires": {
     "engine-config": "^1",

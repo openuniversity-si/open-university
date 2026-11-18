@@ -10,6 +10,8 @@ import { injectSession, TEST_SESSION_SECRET } from "./fixtures/session.ts";
 import { PAGE_ROUTES } from "./routes.ts";
 
 // Verifies: REQ-web-wcag-22-aa
+// The built site renders every page route and course page, the player and the not-found and error pages here.
+// Verifies: UNIT:web
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 const course = catalog.courses[0];
 if (!course) throw new Error("Featured course is required.");
