@@ -32,6 +32,7 @@
     "docs/padrao/v*/padrao.json",
     "config/standard/**",
     "config/registry/coordinator.json",
+    "config/registry/test-orphans.json",
     "scripts/lib/*.py",
     "config/intent/**",
     "config/requirements/**",

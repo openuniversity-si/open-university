@@ -7,7 +7,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
   D     docs/domain/decisions/D-NNN.md (state accepted; its `proof:` file verifies it) and the older rows of
         docs/domain/DECISIONS.md (accepted, proof in prose)
   UNIT  units/<id>/unit.json (active; `requires` are depends-on links)
-  TEST  scripts/tests/*.test.sh and the test files under scripts/tests/ (active)
+  TEST  scripts/tests/*.test.sh (active), each with the test files it runs as its parts, and the test files under
+        scripts/tests/ that no script test runs (active, a test of their own)
 
   scripts/model check [--strict]   errors (exit 1) for a metamodel or object that breaks the model; warnings (a link to an
                                    object that does not exist, such as a decision proof that is gone) are counted, and
@@ -188,17 +189,38 @@ def read_tests(root):
     """Tests (TEST): every script test and test file. A test file declares what it verifies on a `Verifies:` line (a
     comment or a docstring line naming requirements, decisions or units, comma-separated: the link on the test
     itself, as OpenFastTrace tags do); a script test verifies the units whose code its covers manifest names
-    (derived from the declared covers, never written twice)."""
+    (derived from the declared covers, never written twice). A test file a script test runs (test_orphans.runners,
+    the reading of the gate's "gate maps" stage) is part of that script test, not a test of its own: the script test
+    is what the gate selects and reports, so its object lists the file among its parts, its fingerprint covers the
+    file's text and the file's `Verifies:` lines are its links. A test file no script test runs stays a test of its
+    own, linked only by its own `Verifies:` lines."""
+    import test_orphans
     root = Path(root)
     paths = sorted({Path(found) for pattern in TEST_GLOBS for found in globbing.glob(str(root / pattern), recursive=True)})
-    found = []
+    run_by = {name: wrappers for name, wrappers in test_orphans.runners(root).items() if wrappers}
+    texts = {}
     for path in paths:
-        if not path.is_file():
+        if path.is_file():
+            texts[path.relative_to(root).as_posix()] = path.read_text(errors='replace')
+    parts = {}
+    for name, wrappers in sorted(run_by.items()):
+        for wrapper in wrappers:
+            if name in texts and wrapper in texts:
+                parts.setdefault(wrapper, []).append(name)
+    folded = {name for names in parts.values() for name in names}
+    found = []
+    for name, text in texts.items():
+        if name in folded:
             continue
-        text = path.read_text(errors='replace')
-        targets = [target.strip() for listed in VERIFIES.findall(text) for target in listed.split(',') if target.strip()]
-        found.append(_obj(f'TEST:{path.relative_to(root).as_posix()}', 'TEST', 'active', path.relative_to(root).as_posix(),
-                          text, [{'type': 'verifies', 'target': target} for target in dict.fromkeys(targets)]))
+        mine = parts.get(name, [])
+        whole = text + ''.join(f'\n{part}\n{texts[part]}' for part in mine)
+        targets = [target.strip() for source in [text, *(texts[part] for part in mine)]
+                   for listed in VERIFIES.findall(source) for target in listed.split(',') if target.strip()]
+        item = _obj(f'TEST:{name}', 'TEST', 'active', name, whole,
+                    [{'type': 'verifies', 'target': target} for target in dict.fromkeys(targets)])
+        if mine:
+            item['parts'] = mine
+        found.append(item)
     # The site's tests count only when they declare what they verify: the site keeps its own suite (D-319).
     for pattern in SITE_TESTS:
         for path in sorted(root.glob(pattern)):
@@ -1285,11 +1307,32 @@ def objects(root=ROOT, readers=READERS):
                 found[item['id']] = {**item, 'links': current['links'] + item['links']}
             else:
                 current['links'] += item['links']
+    fold_parts(found)
     if read_validations in readers:
         derive_validations(found, root)
     if read_controls in readers:
         derive_controls(found)
     return found
+
+
+def fold_parts(found):
+    """A link to a test file a script test runs (a decision's proof, a control's implemented-by) is a link to that
+    script test: the file is one of its parts (read_tests), not an object of its own. The claimed object the link made
+    is dropped and its links move to every script test that runs the file; a link that targets the file is retargeted."""
+    owners = {}
+    for item in found.values():
+        for part in item.get('parts', ()):
+            owners.setdefault(f'TEST:{part}', []).append(item['id'])
+    if not owners:
+        return
+    for id in [id for id in owners if id in found and found[id].get('claimed') and found[id].get('fingerprint') is None]:
+        claimed = found.pop(id)
+        for owner in owners[id]:
+            found[owner]['links'] += [dict(link) for link in claimed['links']]
+    for item in found.values():
+        if any(link['target'] in owners for link in item['links']):
+            item['links'] = [{**link, 'target': owner} for link in item['links']
+                             for owner in owners.get(link['target'], [link['target']])]
 
 
 def check(meta, found, root=None, today=None):
@@ -1520,6 +1563,7 @@ def show(id, root=ROOT):
     if item is None:
         raise ModelError(f'{id}: no such object')
     lines = [f'{item["id"]}  {item["type"]}  {item["state"]}  {item["source"]}']
+    lines += [f'  part {part}' for part in item.get('parts', ())]
     lines += [f'  -> {link["type"]} {link["target"]}' for link in item['links']]
     lines += [f'  <- {kind} {source}' for kind, source in sorted(incoming(found).get(id, []))]
     return '\n'.join(lines)

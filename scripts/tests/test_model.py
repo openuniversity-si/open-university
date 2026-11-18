@@ -732,6 +732,81 @@ class Architecture(unittest.TestCase):
         found = {item['id']: item for item in model.read_tests(ROOT)}
         self.assertIn({'type': 'verifies', 'target': 'UNIT:engine-model'}, found['TEST:scripts/tests/model.test.sh']['links'])
 
+    def test_this_checkouts_test_files_are_parts_of_the_script_tests_that_run_them(self):
+        found = {item['id']: item for item in model.read_tests(ROOT)}
+        self.assertNotIn('TEST:scripts/tests/test_model.py', found)
+        self.assertIn('scripts/tests/test_model.py', found['TEST:scripts/tests/model.test.sh']['parts'])
+        self.assertIn({'type': 'verifies', 'target': 'REQ-chain-verified'}, found['TEST:scripts/tests/model.test.sh']['links'])
+
+
+ORPHANS_REGISTRY = ('contracts/config/registry.v1.json', 'contracts/events/config.changed.v1.json',
+                    'config/registry/config.json', 'config/registry/test-orphans.json')
+
+
+class FoldedTests(unittest.TestCase):
+    """A test file a script test runs is part of that script test (the unit the gate selects and reports), not a
+    test object of its own; a test file no script test runs stays one."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-folded-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        for name in ORPHANS_REGISTRY:
+            (self.root / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(ROOT / name, self.root / name)
+        write(self.root, 'scripts/tests/a.test.sh', 'exec python3 "$root"/scripts/tests/test_a*.py\n')
+        write(self.root, 'scripts/tests/test_a.py', '# Verifies: D-1\n')
+        write(self.root, 'scripts/tests/test_a_more.py', 'pass\n')
+        write(self.root, 'scripts/tests/s1.test.sh', 'X_SHARD=1 python3 "$root"/scripts/tests/test_shared.py\n')
+        write(self.root, 'scripts/tests/s2.test.sh', 'X_SHARD=2 python3 "$root"/scripts/tests/test_shared.py\n')
+        write(self.root, 'scripts/tests/test_shared.py', 'pass\n')
+        write(self.root, 'scripts/tests/test_zed.py', 'pass\n')
+
+    def read(self):
+        return {item['id']: item for item in model.read_tests(self.root)}
+
+    def test_a_test_file_a_script_test_runs_is_one_of_its_parts_and_its_verifies_lines_are_the_script_tests_links(self):
+        found = self.read()
+        runner = found['TEST:scripts/tests/a.test.sh']
+        self.assertEqual(runner['parts'], ['scripts/tests/test_a.py', 'scripts/tests/test_a_more.py'])
+        self.assertEqual(runner['links'], [{'type': 'verifies', 'target': 'D-1'}])
+        self.assertNotIn('TEST:scripts/tests/test_a.py', found)
+        self.assertNotIn('TEST:scripts/tests/test_a_more.py', found)
+
+    def test_a_test_file_no_script_test_runs_stays_a_test_of_its_own_with_no_link(self):
+        found = self.read()
+        self.assertEqual(found['TEST:scripts/tests/test_zed.py']['links'], [])
+        self.assertNotIn('parts', found['TEST:scripts/tests/test_zed.py'])
+        self.assertEqual(sorted(found), ['TEST:scripts/tests/a.test.sh', 'TEST:scripts/tests/s1.test.sh',
+                                         'TEST:scripts/tests/s2.test.sh', 'TEST:scripts/tests/test_zed.py'])
+
+    def test_a_file_each_shard_runs_is_a_part_of_every_shard_and_gives_none_a_link_it_does_not_hold(self):
+        found = self.read()
+        for shard in ('s1', 's2'):
+            self.assertEqual(found[f'TEST:scripts/tests/{shard}.test.sh']['parts'], ['scripts/tests/test_shared.py'])
+            self.assertEqual(found[f'TEST:scripts/tests/{shard}.test.sh']['links'], [])
+
+    def test_the_script_tests_fingerprint_moves_when_a_part_changes(self):
+        before = self.read()['TEST:scripts/tests/a.test.sh']['fingerprint']
+        write(self.root, 'scripts/tests/test_a_more.py', 'pass  # changed\n')
+        self.assertNotEqual(self.read()['TEST:scripts/tests/a.test.sh']['fingerprint'], before)
+
+    def test_a_link_to_a_part_moves_to_its_script_test_and_a_gone_file_stays_claimed(self):
+        found = {item['id']: item for item in model.read_tests(self.root)}
+        found['TEST:scripts/tests/test_a_more.py'] = {
+            'id': 'TEST:scripts/tests/test_a_more.py', 'type': 'TEST', 'state': 'active', 'claimed': True,
+            'source': 'scripts/tests/test_a_more.py', 'fingerprint': None, 'links': [{'type': 'verifies', 'target': 'D-2'}]}
+        found['TEST:scripts/tests/test_gone.py'] = {
+            'id': 'TEST:scripts/tests/test_gone.py', 'type': 'TEST', 'state': 'active', 'claimed': True,
+            'source': 'scripts/tests/test_gone.py', 'fingerprint': None, 'links': [{'type': 'verifies', 'target': 'D-3'}]}
+        found['CTRL-x'] = {'id': 'CTRL-x', 'type': 'CTRL', 'state': 'met', 'fingerprint': 'f',
+                           'links': [{'type': 'implemented-by', 'target': 'TEST:scripts/tests/test_shared.py'}]}
+        model.fold_parts(found)
+        self.assertNotIn('TEST:scripts/tests/test_a_more.py', found)
+        self.assertIn({'type': 'verifies', 'target': 'D-2'}, found['TEST:scripts/tests/a.test.sh']['links'])
+        self.assertIn('TEST:scripts/tests/test_gone.py', found)
+        self.assertEqual(found['CTRL-x']['links'], [{'type': 'implemented-by', 'target': 'TEST:scripts/tests/s1.test.sh'},
+                                                    {'type': 'implemented-by', 'target': 'TEST:scripts/tests/s2.test.sh'}])
+
 
 class Layers(unittest.TestCase):
     def test_a_dependency_on_a_higher_layer_is_refused_and_one_on_the_same_or_lower_is_not(self):
@@ -766,7 +841,9 @@ class RealRepository(unittest.TestCase):
         record = next(Path(ROOT).glob(model.DECISION_RECORDS))
         number = record.stem
         proof = model.FRONT.match(record.read_text()).group(1).split('proof:', 1)[1].split('\n', 1)[0].strip().strip('`')
-        self.assertIn(('verifies', f'TEST:{proof}'), model.incoming(found).get(number, []))
+        # A proof that names a test file a script test runs is a link on that script test (its part).
+        holders = {f'TEST:{proof}'} | {item['id'] for item in found.values() if proof in item.get('parts', ())}
+        self.assertTrue(holders & {source for kind, source in model.incoming(found).get(number, []) if kind == 'verifies'})
         _, warnings = model.check(model.metamodel(ROOT), found)
         gone = [item for item in found.values() if item.get('claimed') and item['fingerprint'] is None]
         self.assertEqual(len([line for line in warnings if 'no such file exists' in line]), len(gone))
