@@ -179,3 +179,24 @@ O dono aprovou a recomendação inteira às 18:20 BRT: sair de tudo da Cloudflar
 7. **(g) A troca dos NS (Torre),** só depois de (e) e de (f). No painel da OpusDNS/Hostinger, os NS de `openuniversity.si` passam a ser os quatro do Route 53. A volta é pôr de novo os dois NS da Cloudflare, e a zona dela fica intacta até o passo 4.
 8. **(h) A espera do TTL.** Espera pelo menos o maior TTL entre o NS da zona-pai (`dig NS openuniversity.si @<um NS do .si>`, em geral 86.400 s) e os registros da lista. Na prática são 48 horas. Depois disso, `dig NS openuniversity.si @1.1.1.1` e `@8.8.8.8` têm de dar só o Route 53, e o site, o e-mail e as mídias têm de responder.
 9. **(i) O passo 4 (Torre).** Revoga os tokens da API da Cloudflare e as chaves R2 que restarem. Depois apaga a zona `openuniversity.si` na Cloudflare, já com a troca propagada.
+
+## Bloqueios achados na resposta da Torre (18/11)
+A Torre exportou a zona e conferiu o DNSSEC (desligado, sem DS). A exportação mostra duas coisas que o runbook não cobria. As duas bloqueiam a troca de NS do passo 3 e o apagamento da zona do passo 4, mas não bloqueiam o resto.
+
+1. **O e-mail de `openuniversity.si` passa pelo Cloudflare Email Routing.**
+   - Os registros são os MX `route1/2/3.mx.cloudflare.net`, o DKIM `cf2024-1._domainkey` e o SPF `include:_spf.mx.cloudflare.net`.
+   - O roteamento só funciona com a zona ativa na Cloudflare. Copiar esses registros para o Route 53 mantém os nomes, mas a troca de NS desativa a zona lá e, com ela, o roteamento. Apagar a zona no passo 4 também o desliga.
+   - **Antes da troca de NS, o e-mail precisa de um substituto.** O caminho que fica na AWS é o recebimento do SES (MX `inbound-smtp.us-east-1.amazonaws.com`), uma regra que encaminha para o destino de hoje e o DKIM e o SPF do SES.
+   - Isso é infraestrutura nova, que entra pelas stacks. O destino atual de cada endereço é configuração da conta Cloudflare, que só a Torre lê, e o encaminhamento envolve o e-mail de pessoas. Por isso a Torre informa os endereços e os destinos e o dono confirma o substituto antes do corte.
+2. **As outras zonas da conta, `thetower.si`, `atorre.digital` e `theopenuniversity.si`, dependem do proxy e de Page Rules da Cloudflare.**
+   - Cada uma faz um redirecionamento 301 para `openuniversity.si`.
+   - A `thetower.si` também tem e-mail pelo ImprovMX e uma verificação do Google.
+   - Sair da Cloudflare de vez exige levar esses redirecionamentos para a AWS (por exemplo, uma distribuição CloudFront com uma função de redirecionamento, ou um bucket S3 de redirect) e as zonas para o Route 53.
+   - A D-323 só nomeia `openuniversity.si`. As outras três são passos novos, e o passo 4 (revogar credenciais) espera por elas.
+
+**O que já segue sem esperar esses bloqueios:**
+- a zona `openuniversity.si` no Route 53, com todos os registros, incluindo os dois CNAME de validação do ACM. Ela não atende ninguém antes da troca de NS.
+- a distribuição de mídia com o alias, que fica sem tráfego até o CNAME de `media` apontar para ela.
+- a troca do cliente do site para o S3.
+
+**Nota sobre a chave R2 só de leitura (`R2_ACCESS_KEY_ID_RO`):** ela recebe 403 no `ListObjectsV2` do `open-university-media`. A Torre copiou pela API da Cloudflare e pelo host público. O cliente do site deixa o R2 no corte, então esse acesso some com ele.

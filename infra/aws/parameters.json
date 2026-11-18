@@ -10,7 +10,8 @@
     "DesiredCount": "0"
   },
   "media": {
-    "Cdn": "off",
+    "Cdn": "on",
+    "CertificateArn": "arn:aws:acm:us-east-1:994763873392:certificate/7edd7aa8-fea2-4e8d-8919-0d7c30de46b7",
     "Alias": "media.openuniversity.si"
   },
   "dns": {

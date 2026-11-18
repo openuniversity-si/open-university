@@ -188,6 +188,9 @@ class BootstrapTests(unittest.TestCase):
     # 51,200 a template body may be). The Torre re-applies tower-bootstrap with this
     # template after the merge (UsePreviousValue for its parameters), one re-apply for MEDIA-S3 and this; until then the
     # dns stack stays at Zone off (parameters.json), a wait-condition handle alone.
+    # APPLIED (the Torre, 18/11/2026 18:01:00 UTC): change set req-d323-cloudfront-route53 from main 3613e9ed, one change
+    # (Boundary, Modify, no replacement): cloudfront:* and the two ACM reads, and TheSiteZoneOnRoute53; raw sha256
+    # 996cb23a...f01f. The media stack goes to Cdn on and the dns stack may go to Zone on.
     APPLIED = 'e02eb929afe977b5ab8599020b8fc8544b61a9ca17d3a61bf312cb16ebe20c87'
 
     def test_the_file_is_the_template_the_account_has_applied(self):
@@ -1221,7 +1224,7 @@ class MediaStackTests(unittest.TestCase):
             self.assertNotIn('Distribution', self.created(**self.parameters)['Resources'])
 
     def test_an_empty_certificate_gives_the_default_domain_and_no_alias(self):
-        for values in ({'Cdn': 'on'}, {'Cdn': 'on', 'Alias': 'media.example.org'}, {**self.parameters, 'Cdn': 'on'},
+        for values in ({'Cdn': 'on'}, {'Cdn': 'on', 'Alias': 'media.example.org'}, {**self.parameters, 'Cdn': 'on', 'CertificateArn': ''},
                        {'Cdn': 'on', 'CertificateArn': self.arn()}):  # an ARN without an alias is no alias either
             config = self.created(**values)['Resources']['Distribution']['Properties']['DistributionConfig']
             self.assertNotIn('Aliases', config, values)
