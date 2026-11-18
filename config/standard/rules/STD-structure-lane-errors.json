@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/commit_check.py:lane_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: GX-21 (docs/units/GX21) defined \"lane undecidable\" itself; the D-112 in the body is about retired units, and D-065 (4) / D-067 (2) give each unit one exclusive lane but do not state that a change touching several lanes is refused."
+  "basis": [
+    "D-326"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-326 (dormant: the lane matters only to the train, stopped by D-314). GX-21 (docs/units/GX21) defined \"lane undecidable\"; D-065 (4) / D-067 (2) give each unit one exclusive lane."
 }

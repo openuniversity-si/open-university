@@ -6,6 +6,18 @@ semeadas em `config/standard/rules/STD-*.json`. Sobraram 16 com o `basis` vazio,
 segue o [método](../../padrao/METODO.md) como os outros do programa: avaliação, pesquisa, análise e solução. Foi medido
 sobre `main` em `97cd769`. Nenhuma decisão foi registrada. Os rascunhos abaixo levam nomes `D-rascunho-X` e esperam Daniel.
 
+## Resposta de Daniel (18/11 20:19 BRT)
+Pela Torre, literal: "pode aprovar, pode seguir com isso aí" e "tudo o restante pode confirmar e vamos seguir em frente".
+- **Aprovados e registrados:** A → [D-324](../../domain/decisions/D-324.md) (o contrato dos registros), B →
+  [D-325](../../domain/decisions/D-325.md) (decidir, depois reportar; as ordens de 26/10 e 02/11 confirmadas como dele),
+  D → [D-326](../../domain/decisions/D-326.md) (a regra dormente), F → [D-327](../../domain/decisions/D-327.md) (o
+  esforço mais barato como pergunta na hora de decidir, não como regra que barra PR), E →
+  [D-328](../../domain/decisions/D-328.md) (as seis aposentadorias) e a pergunta 1, opção (a) →
+  [D-329](../../domain/decisions/D-329.md) (o `pr metadata` volta ao `tower/gate`, lendo a PR do GitHub).
+- **Já aplicado:** as nove regras de A, B e D têm `basis` e a `note` "Basis: ...". O código do E, o estágio do
+  `pr metadata`, o estado `dormant` do D e as reescritas de enunciado vêm em PRs próprias, que citam esses números.
+- **C (o método de gestão) não foi aprovado:** espera a pergunta sobre o grupo de gestão. `STD-metodo` segue sem base.
+
 ## Resumo
 - **16 regras avaliadas.** 13 são regras de verdade e 3 não recusam nada. A #230 contou 2 casos assim; `generate-blocked`
   é o terceiro. `program-plan-block` é um parser, e a regra de verdade dele é `program.load`.

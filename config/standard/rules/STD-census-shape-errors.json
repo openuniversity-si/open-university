@@ -10,6 +10,8 @@
     "kind": "function",
     "ref": "scripts/lib/census.py:_shape_errors"
   },
-  "basis": [],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. No basis: The module head cites D-063, D-064 (a) and D-067 (per-unit records, no shared file); none states the shape rules of a census event (a remove carries no entry, catalog vs baseline shape)."
+  "basis": [
+    "D-324"
+  ],
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-324 (every record the engine reads conforms to its contract): a census event validates against its schema plus the invariants it cannot state (a remove carries no entry, an add carries one shaped as its census, a baseline entry is never empty). The module head cites D-063, D-064 (a) and D-067."
 }
