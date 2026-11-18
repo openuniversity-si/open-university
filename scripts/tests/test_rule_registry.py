@@ -101,7 +101,7 @@ class Fixture(unittest.TestCase):
     def world(self, records, by_id=None, value_of=None):
         values = dict(DEFAULTS, catalog=records)
         return rules.World(self.root, TODAY, values, PREMISES if by_id is None else by_id, {'D-001'},
-                           value_of=value_of or (lambda name: DEFAULTS['check_mode']))
+                           value_of=value_of or (lambda name: 'unset'))
 
     def gaps(self, record, **world):
         return rules.record_gaps(record, self.world([record], **world))
@@ -171,11 +171,11 @@ class Ending(Fixture):
     def test_path_conditions_and_registry_values_end_a_rule(self):
         absent = {'kind': 'path_absent', 'path': 'scripts/lib/gone.py', 'text': 'While gone.py exists.'}
         exists = {'kind': 'path_exists', 'path': 'scripts/lib/guard.py', 'text': 'Until guard.py lands.'}
-        flipped = {'kind': 'registry_equals', 'key': 'rules.check_mode', 'equals': 'refuse', 'text': 'Until refuse.'}
+        flipped = {'kind': 'registry_equals', 'key': 'fixture.mode', 'equals': 'on', 'text': 'Until on.'}  # D-328: not check_mode
         self.assertEqual([item['id'] for item in self.proposals(complete(ends_when=absent))], ['R-push-plan'])
         self.assertEqual([item['id'] for item in self.proposals(complete(ends_when=exists))], ['R-push-plan'])
         self.assertEqual(self.proposals(complete(ends_when=flipped)), [])
-        self.assertEqual(len(self.proposals(complete(ends_when=flipped), value_of=lambda name: 'refuse')), 1)
+        self.assertEqual(len(self.proposals(complete(ends_when=flipped), value_of=lambda name: 'on')), 1)
 
     def test_code_gone_proposes_the_retirement_and_code_partly_gone_is_a_gap(self):
         gone = complete(where=['scripts/lib/guard.py:vanished_errors', 'scripts/lib/old.py:old_errors'])
@@ -202,8 +202,6 @@ class Findings(Fixture):
         self.assertEqual(rules.unregistered(world), ['scripts/lib/guard.py:merge_block'])
         report = rules.check(world)
         self.assertEqual(report['unregistered'], ['scripts/lib/guard.py:merge_block'])
-        self.assertIn('scripts/lib/guard.py:merge_block can stop a flow without a question (no active record lists it)',
-                      report['refusals'])
 
     def test_daniel_fixture_a_rule_on_a_refuted_premise_is_stale_one_on_a_confirmed_premise_is_not(self):
         webkit = complete('R-gate-e2e-browser', premises=['P-02'], where=['scripts/lib/guard.py:merge_block'])
@@ -248,14 +246,12 @@ class Findings(Fixture):
         self.assertEqual(rules.check(world)['unanswered'], ['R-push-plan'])
         self.assertIn('question.text is missing', self.gaps(complete(question={'answers': []})))
 
-    def test_report_mode_refuses_nothing_and_refuse_mode_exits_one(self):
+    def test_the_check_reports_a_gap_and_refuses_nothing(self):
         record = complete()
         del record['owner']
-        world = self.world([record])
-        self.assertEqual(rules.check(world, rules.REPORT)['exit'], 0)
-        refused = rules.check(world, rules.REFUSE)
-        self.assertEqual(refused['exit'], 1)
-        self.assertIn('R-push-plan can stop a flow and has 1 gap(s)', refused['refusals'])
+        report = rules.check(self.world([record]))
+        self.assertEqual(report['counts']['stopping_with_gaps'], 1)
+        self.assertNotIn('refusals', report)  # D-328: the refuse mode left
 
 
 class Cli(Fixture):
@@ -311,16 +307,14 @@ class Cli(Fixture):
         self.assertTrue(lines[-1].startswith('rule R-gate-e2e-browser: 1 premise(s)'), text)
         self.assertIn('no record R-none', self.usage('show', 'R-none'))
 
-    def test_check_report_exits_zero_with_findings_and_refuse_exits_one(self):
-        code, lines = self.run_cli('check', '--mode', 'report')
+    def test_check_exits_zero_with_findings_and_has_no_refuse_mode(self):
+        code, lines = self.run_cli('check')
         self.assertEqual(code, 0)
         self.assertIn('ACCIDENT R-gate-e2e-browser: stops the flow and has never been measured (stop_record.count is null)',
                       lines)
         self.assertIn('PREMISE R-gate-e2e-browser (stops): rests on P-02 refuted', lines)
-        self.assertTrue(lines[-1].startswith('rules check: ') and lines[-1].endswith('exit 0'))
-        code, lines = self.run_cli('check', '--mode', 'refuse')
-        self.assertEqual(code, 1)
-        self.assertTrue(lines[-1].endswith('exit 1'))
+        self.assertTrue(lines[-1].startswith('rules check: '))
+        self.assertIn('unrecognized arguments: --mode', self.usage('check', '--mode', 'refuse'))  # D-328
         code, lines = self.run_cli('check', '--json')
         self.assertEqual(json.loads('\n'.join(lines))['counts']['unregistered_stops'], 0)
 
@@ -394,8 +388,6 @@ class Cli(Fixture):
         code, lines = self.run_cli('check', '--base', 'HEAD')
         self.assertEqual(code, 0)
         self.assertIn('DELETED R-gate-e2e-browser: left rules.catalog without a retirement', lines)
-        code, _ = self.run_cli('check', '--base', 'HEAD', '--mode', 'refuse')
-        self.assertEqual(code, 1)
         self.assertIn('is not a commit', self.usage('check', '--base', 'no-such-ref'))
 
 
@@ -414,7 +406,7 @@ class ThisCheckout(unittest.TestCase):
         ident = DEFAULTS['catalog'][0]['id']
         for argv, last in ((['list'], 'rules: '), (['show', ident], f'rule {ident}: '), (['due'], 'rules due: '),
                            (['retired'], 'rules retired: '), (['stale'], 'stale premises: '),
-                           (['question', ident], f'question {ident}: '), (['check', '--mode', 'report'], 'rules check: ')):
+                           (['question', ident], f'question {ident}: '), (['check'], 'rules check: ')):
             out = io.StringIO()
             code = rules.main([*argv, '--root', str(ROOT), '--today', TODAY.isoformat()], out=out)
             self.assertEqual(code, 0, argv)

@@ -1,11 +1,12 @@
 {
   "id": "PROP-rules-check-mode-refuse",
   "statement": "The rule register leaves report mode (rules.check_mode refuse) once every stopping rule of the catalog is justified by a decision, so a refusal with no rule stops the change that adds it.",
-  "state": "open",
+  "state": "rejected",
   "owner": "administration",
   "changes": [
     "STD-rule-registry-refusals"
   ],
   "deadline": "2026-11-30",
-  "note": "rules.check_mode has been report since 28/10 (RULE-AUDIT) with no deadline; the catalog now holds every refusal (PADRAO-DEV F1b)."
+  "decided_by": "D-328",
+  "note": "rules.check_mode has been report since 28/10 (RULE-AUDIT) with no deadline; the catalog now holds every refusal (PADRAO-DEV F1b). Rejected by D-328 (18/11): the refuse mode, refusals() and STD-rule-registry-refusals left, and the standard's catalog of rules (D-317) is the one register."
 }

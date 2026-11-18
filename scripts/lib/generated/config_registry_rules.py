@@ -4,7 +4,6 @@ from typing import Any, Literal, NotRequired, Required, TypedDict  # noqa: F401
 Name = Literal[
     'rules.catalog',
     'rules.census_file',
-    'rules.check_mode',
     'rules.decision_register',
     'rules.groups_file',
     'rules.lint_ignored',
@@ -19,7 +18,6 @@ Name = Literal[
 Values = TypedDict('Values', {
     'rules.catalog': list[dict[str, Any]],
     'rules.census_file': str,
-    'rules.check_mode': Literal['report', 'refuse'],
     'rules.decision_register': str,
     'rules.groups_file': str,
     'rules.lint_ignored': list[Any],
