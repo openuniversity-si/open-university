@@ -37,12 +37,13 @@ class TinyModel(unittest.TestCase):
             'UNIT': {'system': 'build', 'states': ['active'], 'must_link': ['realizes']},
             'TEST': {'system': 'build', 'states': ['active'], 'must_link': ['verifies']},
             'VAL': {'system': 'reqs', 'states': ['defined']},
+            'CHG': {'system': 'build', 'states': ['merged'], 'must_link': ['implements']},
         }
         for id, item in types.items():
             write(self.root, f'config/model/types/{id}.json', {'id': id, 'name': id.lower(), **item, 'description': 'd'})
         for name, start, end in (('satisfies', ['ARC'], ['REQ']), ('realizes', ['UNIT'], ['ARC']),
                                  ('verifies', ['TEST'], ['REQ']), ('validates', ['VAL'], ['REQ']),
-                                 ('derives-from', ['REQ'], ['REQ'])):
+                                 ('derives-from', ['REQ'], ['REQ']), ('implements', ['CHG'], ['REQ'])):
             write(self.root, f'config/model/links/{name}.json', {'name': name, 'from': start, 'to': end,
                                                                  'description': 'd'})
         write(self.root, 'config/model/conformance.json', json.loads((ROOT / 'config/model/conformance.json').read_text()))
@@ -92,8 +93,9 @@ class TinyModel(unittest.TestCase):
         self.assertTrue(any('REQ-9, which does not exist' in warning for warning in warnings), warnings)
         self.assertTrue(any('REQ-1 is suspect' in warning for warning in warnings), warnings)
 
-    def test_the_chain_is_verified_only_with_an_element_a_unit_a_test_and_a_validation(self):
+    def test_the_chain_is_verified_only_with_an_element_a_unit_a_change_a_test_and_a_validation(self):
         chain = [{'id': 'REQ-1', 'type': 'REQ', 'state': 'approved'},
+                 {'id': 'CHG-1', 'type': 'CHG', 'state': 'merged', 'links': [{'type': 'implements', 'target': 'REQ-1'}]},
                  {'id': 'ARC-1', 'type': 'ARC', 'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
                  {'id': 'UNIT:a', 'type': 'UNIT', 'links': [{'type': 'realizes', 'target': 'ARC-1'}]},
                  {'id': 'TEST:a', 'type': 'TEST', 'links': [{'type': 'verifies', 'target': 'REQ-1'}]},
@@ -118,6 +120,48 @@ class TinyModel(unittest.TestCase):
         self.assertEqual((build['objects'], build['conformant']), (len(['UNIT', 'TEST']), 1))
         self.assertEqual(build['level'], 'P')
         self.assertEqual(result['systems']['reqs']['level'], 'N')
+
+    def test_an_object_no_rule_judges_is_known_not_judged_and_never_conformant(self):
+        write(self.root, 'config/model/systems/know.json', {'id': 'know', 'name': 'Knowledge', 'processes': ['p'],
+                                                            'owner': 'administration', 'measure': 'm', 'description': 'd'})
+        write(self.root, 'config/model/types/K.json', {'id': 'K', 'name': 'known item', 'system': 'know',
+                                                       'states': ['active'], 'description': 'd'})
+        meta = self.meta()
+        self.assertEqual(meta['errors'], [])
+        self.assertFalse(model.judged(meta, 'K'))
+        self.assertTrue(model.judged(meta, 'UNIT'))
+        self.assertTrue(model.judged({'types': {'STD': {}}}, 'STD'), 'the findings of the standard judge its rules')
+        many = len('abc')
+        found = self.objects(*[{'id': f'K-{n}', 'type': 'K'} for n in range(many)],
+                             {'id': 'VAL-1', 'type': 'VAL', 'state': 'defined'})
+        result = model.measure(self.root, meta, found)
+        known = result['systems']['know']
+        self.assertEqual((known['objects'], known['conformant'], known['not_judged'], known['level']), (many, 0, many, 'N'))
+        self.assertIn(f'know: N (0 of {many} conformant; {many} not judged: no rule of K)', model.summary(result))
+        self.assertEqual(result['systems']['reqs']['not_judged'], 1)
+
+    def test_a_requirement_verified_by_validation_is_covered_by_its_own_met_validation_as_the_chain_says(self):
+        found = self.objects({'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'body': {'verification': 'validation'}},
+                             {'id': 'ARC-1', 'type': 'ARC', 'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
+                             {'id': 'VAL-1', 'type': 'VAL', 'state': 'defined',
+                              'links': [{'type': 'validates', 'target': 'REQ-1'}]})
+        meta, into = self.meta(), model.incoming(found)
+        self.assertFalse(model.covered(meta, found['REQ-1'], into, found))
+        found['VAL-1']['state'] = 'met'
+        self.assertTrue(model.covered(meta, found['REQ-1'], into, found))
+        self.assertEqual(model.covered(meta, found['REQ-1'], into, found), model.requirement_tested(found['REQ-1'], into, found))
+        del found['REQ-1']['body']['verification']
+        self.assertFalse(model.covered(meta, found['REQ-1'], into, found), 'a test is still needed without it')
+
+    def test_a_test_counted_without_a_verdict_source_says_what_it_counts(self):
+        found = self.objects({'id': 'REQ-1', 'type': 'REQ', 'state': 'approved'},
+                             {'id': 'TEST:a', 'type': 'TEST', 'links': [{'type': 'verifies', 'target': 'REQ-1'}]})
+        result = model.measure(self.root, self.meta(), found)
+        self.assertEqual(result['systems']['build']['verdicts_unread'],
+                         {'TEST': {'verdict': 'VERD', 'means': 'linked to what they verify'}})
+        line = next(line for line in model.summary(result).splitlines() if line.startswith('  build:'))
+        self.assertIn('1 of 1 linked to what they verify; pass state not read: no VERD source', line)
+        self.assertNotIn('conformant', line)
 
     def test_the_inventory_counts_distinct_ids_by_file_name_content_file_and_registry_key(self):
         write(self.root, 'docs/D-1.md', '| D-2 | x |\n| D-2 | again |')
@@ -505,6 +549,8 @@ class Changes(unittest.TestCase):
 
     def test_a_requirements_chain_needs_a_validation_that_is_met(self):
         chain = {'REQ-1': {'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': []},
+                 'CHG-1': {'id': 'CHG-1', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f',
+                           'links': [{'type': 'implements', 'target': 'REQ-1'}]},
                  'ARC-1': {'id': 'ARC-1', 'type': 'ARC', 'state': 'active', 'fingerprint': 'f',
                            'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
                  'UNIT:a': {'id': 'UNIT:a', 'type': 'UNIT', 'state': 'active', 'fingerprint': 'f',
@@ -520,6 +566,8 @@ class Changes(unittest.TestCase):
     def test_a_runtime_requirement_is_verified_by_its_own_validation_met_in_place_of_a_test(self):
         chain = {'REQ-1': {'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],
                            'body': {'verification': 'validation'}},
+                 'CHG-1': {'id': 'CHG-1', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f',
+                           'links': [{'type': 'implements', 'target': 'REQ-1'}]},
                  'ARC-1': {'id': 'ARC-1', 'type': 'ARC', 'state': 'active', 'fingerprint': 'f',
                            'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
                  'UNIT:a': {'id': 'UNIT:a', 'type': 'UNIT', 'state': 'active', 'fingerprint': 'f',
@@ -532,10 +580,67 @@ class Changes(unittest.TestCase):
         del chain['REQ-1']['body']['verification']
         self.assertFalse(model.chain_verified(chain['REQ-1'], model.incoming(chain), chain))
 
+    def test_a_verified_requirement_that_no_merged_change_implements_is_not_verified_end_to_end(self):
+        chain = {'REQ-1': {'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': []},
+                 'ARC-1': {'id': 'ARC-1', 'type': 'ARC', 'state': 'active', 'fingerprint': 'f',
+                           'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
+                 'UNIT:a': {'id': 'UNIT:a', 'type': 'UNIT', 'state': 'active', 'fingerprint': 'f',
+                            'links': [{'type': 'realizes', 'target': 'ARC-1'}]},
+                 'TEST:a': {'id': 'TEST:a', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
+                            'links': [{'type': 'verifies', 'target': 'REQ-1'}]},
+                 'VAL-1': {'id': 'VAL-1', 'type': 'VAL', 'state': 'met', 'fingerprint': 'f',
+                           'links': [{'type': 'validates', 'target': 'REQ-1'}]},
+                 'CHG-1': {'id': 'CHG-1', 'type': 'CHG', 'state': 'open', 'fingerprint': 'f',
+                           'links': [{'type': 'implements', 'target': 'REQ-1'}]}}
+        into = model.incoming(chain)
+        self.assertFalse(model.implemented(chain['REQ-1'], into, chain))
+        self.assertFalse(model.chain_verified(chain['REQ-1'], into, chain), 'verified but not implemented')
+        chain['CHG-1']['state'] = 'merged'
+        self.assertTrue(model.chain_verified(chain['REQ-1'], into, chain))
+        self.assertEqual(model.requirement_states(chain)['REQ-1'], 'verified')
+
     def test_a_directory_that_is_not_a_repository_has_no_changes(self):
         other = Path(tempfile.mkdtemp(prefix='model-nogit-'))
         self.addCleanup(shutil.rmtree, other)
         self.assertEqual(model.read_changes(other), [])
+
+
+class Supply(unittest.TestCase):
+    """The Fornecimento system read from a temporary checkout: a lockfile, a supplier and an audit snapshot."""
+
+    PACKAGES = [f'pkg-{letter}' for letter in 'abcdefghijklmnopqrst']
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-supply-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        shutil.copytree(ROOT / 'contracts' / 'model', self.root / 'contracts' / 'model')
+        shutil.copytree(ROOT / 'config' / 'model', self.root / 'config' / 'model')
+        lock = "lockfileVersion: '9.0'\n\npackages:\n\n" + ''.join(
+            f'  {name}@1.0.0:\n    resolution: {{integrity: sha512-{name}}}\n\n' for name in self.PACKAGES)
+        write(self.root, 'pnpm-lock.yaml', lock)
+        write(self.root, 'config/supply/suppliers/SUP-npm.json', {'id': 'SUP-npm', 'name': 'npm', 'state': 'active',
+                                                                  'owner': 'engine-lane', 'kind': 'registry',
+                                                                  'ecosystems': ['npm']})
+        write(self.root, 'config/supply/advisories.json', {'advisories': [
+            {'id': 'ADV-ghsa-aaaa', 'package': 'pkg-a', 'versions': ['1.0.0'], 'severity': 'low', 'patched': '>=2.0.0'}]})
+
+    def measure(self):
+        readers = (model.read_suppliers, model.read_dependencies, model.read_advisories)
+        return model.measure(self.root, model.metamodel(self.root), model.objects(self.root, readers))['systems']['supply']
+
+    def test_an_advisory_affecting_a_component_in_use_keeps_both_unconformant_and_the_system_below_f(self):
+        found = model.objects(self.root, (model.read_suppliers, model.read_dependencies, model.read_advisories))
+        meta, into = model.metamodel(self.root), model.incoming(found)
+        for id in ('ADV-ghsa-aaaa', 'DEP:npm:pkg-a@1.0.0'):
+            self.assertFalse(model.covered(meta, found[id], into, found), id)
+        supply = self.measure()
+        self.assertEqual(model.rate(supply['share'], meta['scale']), 'F', 'the share alone would rate it F')
+        self.assertEqual((supply['weaknesses'], supply['level']), (1, 'L'))
+        write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2099-01-01'})
+        supply = self.measure()
+        self.assertEqual((supply['weaknesses'], supply['level']), (0, 'F'))
+        write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2000-01-01'})
+        self.assertEqual(self.measure()['level'], 'L', 'an exemption past its deadline is not in force')
 
 
 class Architecture(unittest.TestCase):

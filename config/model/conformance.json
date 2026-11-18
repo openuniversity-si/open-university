@@ -1,5 +1,5 @@
 {
-  "description": "The rating scale of a calculated conformance (ISO/IEC 33020, as Automotive SPICE uses it): the share of a system's objects that pass every rule that applies to them, minus live exemptions. The first level whose upper bound the share does not exceed is the rating.",
+  "description": "The rating scale of a calculated conformance (ISO/IEC 33020, as Automotive SPICE uses it): the share of a system's objects that pass every rule that applies to them, minus live exemptions. The first level whose upper bound the share does not exceed is the rating. An object no rule judges (its type carries no rule and no finding of its system judges it) is known, not judged: it is no evidence of achievement (N: little or no evidence) and is never counted conformant. F is full achievement with no significant weakness: a system with one (a dependency an advisory affects, with no fix and no exemption in force) is rated below F whatever its share.",
   "scale": [
     {
       "level": "N",
