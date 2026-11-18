@@ -618,7 +618,7 @@ def seed_rules(root=ROOT, stops=None, stages=None):
 
 
 CHALLENGES = 'docs/process/rule-challenges/RC-*.md'
-CHALLENGE_STATE = {'open': 'open', 'changed': 'applied', 'kept': 'rejected', 'rejected': 'rejected'}
+CHALLENGE_STATE = {'open': 'open', 'escalated': 'open', 'changed': 'applied', 'lifted': 'applied', 'upheld': 'rejected'}  # rule_challenges.STATUSES
 FIELD = re.compile(r'^- ([A-Za-z]+): (.*)$', re.MULTILINE)
 PROPOSALS = 'config/standard/proposals/*.json'
 VERSION_FOLDERS = 'docs/padrao/v*/padrao.json'
