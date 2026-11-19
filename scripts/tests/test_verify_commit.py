@@ -708,6 +708,25 @@ class ThePullRequestMetadata(unittest.TestCase):
             self.assertEqual(ran.statuses[-1][-1], 'red: pr metadata', rule)
             self.assertRegex(out.getvalue(), rf'FAIL {rule}: ', rule)
 
+    def test_the_review_check_refuses_an_approved_trailer_no_review_of_the_head_approves(self):
+        """THREAT-planning spoofing (D-335): structure.review_errors runs in `pr metadata`. An `approved` Fit-Review with
+        no APPROVED review comment of the gated head, or with a review that requests changes, is red; a `not reviewed`
+        or `not structural` body with no review comment is green, so no review step is asked for (D-055)."""
+        approved = f'Fit-Review: approved by A Torre (independent reviewer session, head {TWO}) 2026-11-19'
+        review = 'Independent fit review (reviewer session, head {}): {}'
+        for fake, green in (({'body': f'{BODY}\nFit-Review: not structural\n'}, True),
+                            ({'body': f'{BODY}\n{approved}\n'}, False),
+                            ({'body': f'{BODY}\n{approved}\n', 'comments': [review.format(TWO, 'APPROVED')]}, True),
+                            ({'body': f'{BODY}\n{approved}\n', 'comments': [review.format(ONE, 'APPROVED')]}, False),
+                            ({'body': BODY, 'comments': [review.format(TWO, 'CHANGES_REQUESTED')]}, False)):
+            out = io.StringIO()
+            with mock.patch('sys.stderr', out), mock.patch('sys.stdout', io.StringIO()):
+                code, ran = self.judged(**fake)
+            self.assertEqual(code, 0 if green else 1, (fake, ran.statuses))
+            if not green:
+                self.assertEqual(ran.statuses[-1][-1], 'red: pr metadata', fake)
+                self.assertRegex(out.getvalue(), r'FAIL (no "Independent fit review|the latest independent fit review)', fake)
+
     def test_a_pull_request_github_cannot_answer_or_an_event_naming_none_is_red(self):
         for environ, fake in ((QUEUE, {'broken': '/activity'}), ({'GITHUB_EVENT_NAME': 'merge_group'}, {})):
             out = io.StringIO()

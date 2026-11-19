@@ -2,9 +2,9 @@
 
 The gate's `pr metadata` stage (scripts/lib/verify_commit.py, tower/gate) judges a pull request with pr_errors(): the
 commit plan, fix-ups, one commit per push, force pushes, a head behind its base without a merge of it, a gate change
-citing no decision, an owner wait (decision_wait), the plan completeness and the lanes. They live in the gate layer so
-the gate reads no delivery module (D-322); scripts/commit-check (scripts/lib/commit_check.py, delivery) re-exports
-them for its callers and its command line.
+citing no decision, an owner wait (decision_wait), the plan completeness, the lanes and the review. They live in the
+gate layer so the gate reads no delivery module (D-322); scripts/commit-check (scripts/lib/commit_check.py, delivery)
+re-exports them for its callers and its command line.
 """
 import re
 import sys
@@ -228,12 +228,23 @@ def lane_errors(root, merge_base, files):
     return [f'lane undecidable: the change touches units of several lanes: {listed}; split it into one PR per lane']
 
 
+def review_errors(pr):
+    """THREAT-planning (spoofing, D-335): the structure check's review rule (structure.review_errors, D-054/D-055) on the
+    read PR: an `approved` Fit-Review needs the latest review comment of the gated head to approve it and name that head,
+    and a review of the head that requests changes refuses. A `not reviewed` body with no review comment passes, so no
+    review step is asked for (D-055). Residual: it reads a comment's text, not its author."""
+    import structure  # planning, a lower layer (D-322); not at import: the pre-push path never judges a review
+    comments = [item.get('body') or '' for item in pr.get('comments') or []]
+    return structure.review_errors(pr.get('body', ''), (pr.get('gated') or {}).get('sha') or '', comments)
+
+
 def pr_errors(pr, root):
     """(errors, warnings) of a PR as the gate's `pr metadata` stage judges its commits (D-322: these left the structure
-    check, a lower layer): the discipline of check(), the plan completeness of plan_verdict() and the lanes of
-    lane_errors() on the merge base. The plan and lane refusals stay under the `structure` lock they were born in."""
+    check, a lower layer): the discipline of check(), the plan completeness of plan_verdict(), the lanes of lane_errors()
+    on the merge base (the train's ownership rule, whose lane is lane_of(): LANE-OWN) and the review of review_errors().
+    The plan, lane and review refusals stay under the `structure` lock they were born in."""
     errors = check(pr, decisions(root))
     plan, warnings = plan_verdict(pr.get('body', ''), pr.get('commits', []), pr.get('draft', False))
     merge_base = (pr.get('base') or {}).get('merge_base')
     lanes = lane_errors(root, merge_base, pr.get('files') or []) if merge_base else []
-    return errors + lift(plan + lanes, 'structure'), warnings
+    return errors + lift(plan + lanes + review_errors(pr), 'structure'), warnings
