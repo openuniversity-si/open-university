@@ -122,7 +122,7 @@
             "ENV_ID": "the-tower",
             "PREFIX": "/tower/agent-env/the-tower/",
             "VARIABLES": "{}",
-            "SECRETS": "{}",
+            "SECRETS": "{\"port-token\": \"TOWER_PORT_TOKEN\"}",
             "DENIED": "[\"*DATABASE_URL*\", \"R2_*\", \"AUTH_*\", \"OU_GOOGLE_*\", \"MUX_*\", \"FIGMA_*\", \"*BLOB*\"]"
           }
         },
