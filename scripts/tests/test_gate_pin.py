@@ -245,6 +245,40 @@ class Worktree(Fixture):
         self.assertFalse(throwaway.exists())
 
 
+class GateFiles(unittest.TestCase):
+    def test_the_gate_is_its_stages_its_registry_keys_and_its_github_entry_point(self):
+        """GATE-FILE-REACH (D-335): the files whose change asks a decision and is judged by the base's tooling."""
+        for name in ("scripts/gate-local", "scripts/lib/gate_pin.py", "scripts/structure-check", "scripts/lib/structure.py",
+                     "scripts/commit-check", "scripts/lib/commit_check.py", "scripts/verify-commit",
+                     "scripts/lib/verify_commit.py", "config/registry/gate/gate.allowed_workflows.json",
+                     "config/registry/gate.json"):
+            self.assertTrue(gate_pin.GATE_FILE.match(name), name)
+        for name in ("scripts/plan", "scripts/lib/config.py", "config/registry/gate-carry/x.json", "config/registry/gate-carry.json",
+                     "config/registry/gate/sub/x.json", "docs/scripts/gate-local", "scripts/verify-commit.bak/x"):
+            self.assertFalse(gate_pin.GATE_FILE.match(name), name)
+
+
+class Overlay(Fixture):
+    def test_the_base_gate_is_put_back_in_the_working_tree_only(self):
+        """PINNED-ON-GITHUB (D-335): a changed gate file is the base's, one the change added is gone, one it removed is
+        back; the rest of the change, HEAD and the index stay the head's."""
+        git(self.repo, "rm", "-q", "scripts/gate-local")
+        head = self.commit({"scripts/commit-check": "added\n", "app.txt": "head app\n"}, "head")
+        pinned = gate_pin.overlay(self.repo, self.base)
+        self.assertEqual(sorted(pinned), ["scripts/commit-check", "scripts/gate-local"])
+        self.assertEqual((self.repo / "scripts/gate-local").read_text(), "base gate\n")
+        self.assertFalse((self.repo / "scripts/commit-check").exists())
+        self.assertEqual((self.repo / "app.txt").read_text(), "head app\n")
+        self.assertEqual(git(self.repo, "rev-parse", "HEAD"), head)
+        self.assertEqual(git(self.repo, "diff", "--cached", "--name-only"), "")
+
+    def test_a_change_that_touches_no_gate_file_pins_nothing(self):
+        git(self.repo, "checkout", "-q", self.base)
+        self.commit({"app.txt": "other\n"}, "app only")
+        self.assertEqual(gate_pin.overlay(self.repo, self.base), [])
+        self.assertEqual(git(self.repo, "status", "--porcelain"), "")
+
+
 class Version(Fixture):
     def test_gate_change_and_version(self):
         self.assertEqual(gate_pin.gate_changed(self.repo, self.base, self.head), ["scripts/gate-local"])

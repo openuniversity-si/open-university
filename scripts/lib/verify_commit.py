@@ -194,7 +194,7 @@ def reuser(repo, base, run=run, environ=None, parts=None):
 
 
 def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=False, reuse=None, isolated=isolated_tests,
-          cpus=os.cpu_count, part=None, hints=costs, paces=None, metadata=None):
+          cpus=os.cpu_count, part=None, hints=costs, paces=None, metadata=None, stages_only=False):
     """(green, red names, the plan, seconds): every stage of the plan but SKIPPED, then its tests in one batch.
     VERIFY-TAIL: tails, when given, receives (name, the end of its output) for each red stage and each test still red.
     VERIFY-ALONE (the engine's FULL-RUN-ALONE): a test red in the batch runs again alone, and that verdict is its own; a
@@ -215,7 +215,9 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
     GATE-PACE (the Torre's AWS review, 16/11/2026): in the main part the stages run one after another in a thread beside
     the batch, which keeps one worker fewer for them, instead of before it: on the hosted runner they were ~35 of main's
     57 s (#146's queue commit: main 57 s, shard1 22 s with more of the tests), and the queue gate waits for its slowest
-    part. paces, when given, receives (name, seconds) of each stage and of the batch, for the job log to name the pace."""
+    part. paces, when given, receives (name, seconds) of each stage and of the batch, for the job log to name the pace.
+    PINNED-ON-GITHUB (D-070, D-335): stages_only runs the plan's stages and none of its tests: the job that judges a
+    gate change with the base's gate (gate_pin.py overlay); the head's tests are the parts' to run."""
     began = clock()
     planned = plan(base, run)
     red = []
@@ -247,6 +249,10 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
         staging.start()
     else:
         stages()
+    if stages_only:
+        planned['judged'] = len([stage for stage in planned.get('stages') or [] if stage not in SKIPPED])
+        red[:0], tails[:0] = staged_red, staged_tails
+        return not red, red, planned, clock() - began
     tests = planned.get('tests') or []
     if every:
         tests = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / 'scripts' / 'tests').glob('*.test.sh'))
@@ -455,7 +461,11 @@ def main(argv=None, run=run, environ=None):
                         help='GATE-PARTS: judge this job\'s share of the plan; the other parts are other jobs')
     parser.add_argument('--record', type=Path, metavar='DIR',
                         help='VERDICT-REUSE: on green, write the verdict\'s key under DIR and name it in $GITHUB_OUTPUT')
+    parser.add_argument('--stages-only', action='store_true',
+                        help='PINNED-ON-GITHUB: the plan\'s stages only, no test (the pinned job of a gate change)')
     args = parser.parse_args(argv)
+    if args.stages_only and (args.part or args.all or args.reuse or args.record):
+        parser.error('--stages-only judges the stages alone: no --part, --all, --reuse or --record')
     code, head = run(['git', 'rev-parse', 'HEAD'])
     if code != 0 or head.strip() != args.sha:
         print(f'verify-commit: HEAD is {head.strip()[:12]}, not {args.sha[:12]}: check out the commit it judges',
@@ -474,7 +484,7 @@ def main(argv=None, run=run, environ=None):
         number, head, must = pull_request(environ, args.pr)  # PR-METADATA-GITHUB (D-329)
         metadata = lambda: pr_metadata(repo, number, head, must, run)  # noqa: E731 - run in the stages' thread
         green, red, planned, seconds = judge(args.base, run, tails=tails, alone=alone, every=args.all, reuse=reuse,
-                                             part=args.part, paces=paces, metadata=metadata)
+                                             part=args.part, paces=paces, metadata=metadata, stages_only=args.stages_only)
     except Exception as error:  # noqa: BLE001 - a verifier that could not judge says so on the commit
         if not args.no_post:
             post(repo, args.sha, 'error', f'not judged: {error}', run)
@@ -483,7 +493,7 @@ def main(argv=None, run=run, environ=None):
     checks = len([stage for stage in planned.get('stages') or [] if stage not in SKIPPED]) + len(planned.get('tests') or [])
     if 'judged' in planned:  # GATE-PARTS: this job's share of them
         checks = planned['judged']
-    description = ((f'{args.part}: ' if args.part else '') + f'green: {checks} check(s) in {seconds:.0f} s' + (f', {len(alone)} green only alone' if alone else '')
+    description = ((f'{args.part}: ' if args.part else 'stages: ' if args.stages_only else '') + f'green: {checks} check(s) in {seconds:.0f} s' + (f', {len(alone)} green only alone' if alone else '')
                    + (f', tests green in run {planned["reused"]}' if 'reused' in planned else '')
                    if green else f'red: {", ".join(red)}'[:140])
     if not args.no_post:
