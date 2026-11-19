@@ -1,0 +1,174 @@
+{
+  "description": "AGENT-ENV (D-341): the Torre relay in infra/aws/stacks/45-agent-env.json, which scripts/lib/agent_env_stack.py renders once (Resources) plus once per declaration of config/agent-env/ (PerEnvironment: @ID@ is its id, @KEY@ its logical-id prefix). The generator fills @WEBHOOK@ (the webhook secrets' ARN pattern), @TOKENS@ (each environment's token-sha256 ARN), @RELAY@ (its name), the code (@CODE@, infra/aws/agent-env/relay.py) and the environment (@ENVIRONMENT@).",
+  "Resources": {
+    "TorreRelayLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/@RELAY@",
+        "RetentionInDays": 14
+      }
+    },
+    "TorreRelayRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "@RELAY@",
+        "Description": "AGENT-ENV: the Torre relay, the one role that reads the Torre's webhook secrets (D-341)",
+        "PermissionsBoundary": {
+          "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/tower-boundary"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "torre-relay",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "WriteTheLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "TorreRelayLogs",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "ReadTheTorreWebhook",
+                  "Effect": "Allow",
+                  "Action": "secretsmanager:GetSecretValue",
+                  "Resource": {
+                    "Fn::Sub": "@WEBHOOK@"
+                  }
+                },
+                {
+                  "Sid": "KeepTheRateLimit",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ssm:GetParameter",
+                    "ssm:PutParameter"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/torre-relay/*"
+                  }
+                },
+                {
+                  "Sid": "ReadEachEnvironmentToken",
+                  "Effect": "Allow",
+                  "Action": "ssm:GetParameter",
+                  "Resource": "@TOKENS@"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "TorreRelayFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "@RELAY@",
+        "Description": "AGENT-ENV: forwards an authenticated session's text to the Torre's webhook, one call a window per environment (D-341)",
+        "Runtime": "python3.12",
+        "Handler": "index.handler",
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 128,
+        "Timeout": 15,
+        "ReservedConcurrentExecutions": 1,
+        "Role": {
+          "Fn::GetAtt": [
+            "TorreRelayRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "ZipFile": "@CODE@"
+        },
+        "Environment": {
+          "Variables": "@ENVIRONMENT@"
+        },
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "TorreRelayLogs"
+          }
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "TorreRelayIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Fn::ImportValue": "tower-port-api-id"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "TorreRelayFunction",
+            "Arn"
+          ]
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 15000
+      }
+    }
+  },
+  "PerEnvironment": {
+    "@KEY@TorreRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Fn::ImportValue": "tower-port-api-id"
+        },
+        "RouteKey": "POST /agent-env/@ID@/v1/torre",
+        "Target": {
+          "Fn::Sub": "integrations/${TorreRelayIntegration}"
+        }
+      }
+    },
+    "@KEY@TorreInvoke": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "TorreRelayFunction"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": [
+            "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/POST/agent-env/@ID@/v1/torre",
+            {
+              "Api": {
+                "Fn::ImportValue": "tower-port-api-id"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

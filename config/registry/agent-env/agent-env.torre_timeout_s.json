@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 10,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Seconds the Torre relay (D-341) waits for the Torre's webhook before it answers 502, embedded in tower-app-torre-relay's environment by scripts/lib/agent_env_stack.py; the client's `agent-env torre` waits this plus agent-env.fetch_timeout_s.",
+  "x-readers": [
+    "scripts/lib/agent_env_stack.py"
+  ],
+  "x-source": "D-341"
+}

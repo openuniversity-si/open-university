@@ -28,6 +28,7 @@ import config
 
 ROOT = Path(__file__).resolve().parents[2]
 ROUTE = '/v1/agent-env'
+TORRE_ROUTE = '/v1/torre'  # the Torre relay's route under the same endpoint (agent_env_stack.TORRE_ROUTE)
 LOCAL_FILE = '.gate/agent-env.sh'
 ENV_FILE = 'CLAUDE_ENV_FILE'
 FILE_MODE = stat.S_IRUSR | stat.S_IWUSR  # 600: the owner alone reads the secrets
