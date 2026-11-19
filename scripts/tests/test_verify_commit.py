@@ -402,6 +402,9 @@ class TheVerifier(unittest.TestCase):
             self.assertIn(line, staged)
         pinned = staged.split('  pinned:', 1)[1].split('\n  gate:', 1)[0]
         self.assertLess(pinned.index('gate_pin.py" overlay'), pinned.index('--stages-only'))  # the overlay first
+        self.assertLess(pinned.index('gate_pin.py" overlay'), pinned.index('bash scripts/cloud/setup.sh'))
+        # D-335: no cache the pull request's scope could have saved under the base's key reaches the base's gate.
+        self.assertNotIn('actions/cache', pinned)
 
     def test_a_commit_that_is_not_the_checkout_is_never_judged_nor_published(self):
         fake = Fake(head='c' * 40)
