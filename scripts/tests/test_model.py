@@ -873,6 +873,11 @@ class Architecture(unittest.TestCase):
             unit('UNIT:a2', 'ARC-a', 'UNIT:a'))}
         self.assertEqual(model.reflexion(found), {'convergences': [('ARC-a', 'ARC-b')], 'divergences': [('ARC-b', 'ARC-c')],
                                                   'absences': [('ARC-a', 'ARC-c')]})
+        # A capability a unit also realizes is no node: it adds no dependency to or from its units' components.
+        capability = {'id': 'ARC-cap-1', 'type': 'ARC', 'state': 'active', 'fingerprint': 'f',
+                      'body': {'kind': 'capability', 'name': 'cap'}, 'links': []}
+        both = {**unit('UNIT:c', 'ARC-c'), 'links': [{'type': 'realizes', 'target': 'ARC-c'}, {'type': 'realizes', 'target': 'ARC-cap-1'}]}
+        self.assertEqual(model.reflexion({**found, 'ARC-cap-1': capability, 'UNIT:c': both}), model.reflexion(found))
         self.assertEqual(model.reflexion_share(found)['share'], 1 / len(['conv', 'div', 'abs']))
         drawn = model.view(found)
         self.assertIn('ARC_a --> ARC_b', drawn)
