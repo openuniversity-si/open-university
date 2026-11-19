@@ -199,7 +199,11 @@ def queue_state(event, db):
     if word not in ('prepare', 'landed') or not re.fullmatch(r'[0-9a-f]{40}', sha):
         return {'ignored': True}
     ident = f'platform.deploy.queue:{word}:{sha}'
-    db.rows(QUEUE_SAID, {'id': ident, 'payload': json.dumps({'event': word, 'sha': sha})})
+    said = {'event': word, 'sha': sha, 'port_at': round(time.time(), 3)}  # PUSH-STEPS: when the port got the word
+    heard = detail.get('heard')  # and when the doorbell heard it (absent from an older doorbell)
+    if isinstance(heard, (int, float)) and not isinstance(heard, bool):
+        said['heard'] = round(float(heard), 3)
+    db.rows(QUEUE_SAID, {'id': ident, 'payload': json.dumps(said)})
     return {'event_id': ident}
 
 

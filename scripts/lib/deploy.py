@@ -9,7 +9,8 @@
   scripts/deploy status                the port's GET /v1/deploy/status: last_sha, the last build with its tail and the last
                                        ring/skip decision, as the service observed them (DEP3: it publishes them to the log);
                                        a succeeded build's seconds go into config/validation/runs/deploy.json (record),
-                                       a code-only merge's push-to-live seconds into deploy-live.json (record_live, the push clock)
+                                       a code-only merge's push-to-live seconds into deploy-live.json (record_live, the push clock),
+                                       and the newest one's steps (PUSH-STEPS: push, doorbell, port, look, ls-remote, swap, live)
   scripts/deploy status --json         the same answer as JSON (`| scripts/spend record`: the month's AWS spend, D-331)
   scripts/deploy follow [--target SHA] [--build ID] [--since EPOCH]
                                        follow the status until the deploy ends (the port's long poll; pauses with an old
@@ -172,6 +173,42 @@ def record_live(state, root=None, now=None, api=None, repo=None):
     with open(target, 'w') as handle:
         handle.write(json.dumps(made, indent=1) + '\n')
     return made['runs']
+
+
+STEPS = ('push', 'heard', 'port', 'look', 'ls-remote', 'verified', 'swap', 'live')
+
+
+def steps(state, runs):
+    """PUSH-STEPS (REQ-deploy-1s): the newest code-only merge that went live (live_at), split at each step's instant, so
+    the next cut is chosen by numbers: push (its run in deploy-live.json, `from: push`, whole seconds), heard (the doorbell
+    got the word), port (the port recorded it), look (the queue's look took the landing), ls-remote (main answered),
+    verified (the claim checked), swap (the pointer written, or the reload ordered), live. Answers (sha, how,
+    [(step, instant)]) with the steps the events said, in that order, or None when no merge went live."""
+    number = lambda value: isinstance(value, (int, float)) and not isinstance(value, bool)  # noqa: E731
+    seen = live_at(state)
+    if not seen:
+        return None
+    sha, (live, how) = max(seen.items(), key=lambda item: item[1][0])
+    said = [each for each in state.get('queue_landed') or [] if isinstance(each, dict) and each.get('sha') == sha]
+    word = next((each for each in said if each.get('type') == 'platform.deploy.queue'), {})
+    outcome = next((each for each in said if each.get('type') == 'platform.deploy.queue_reload'), {})
+    run = next((each for each in runs or [] if isinstance(each, dict) and each.get('id') == sha
+                and each.get('from') == 'push'), None)
+    ordered = next((each.get('at') for each in state.get('image_reload') or [] if isinstance(each, dict)
+                    and each.get('state') == 'ordered' and each.get('head') == sha), None)
+    at = {'push': iso_epoch(run['started']) if run else None, 'heard': word.get('heard'),
+          'port': word.get('port_at', word.get('at')), 'look': outcome.get('began_at'), 'ls-remote': outcome.get('main_at'),
+          'verified': outcome.get('verified_at'), 'swap': outcome.get('wrote_at', ordered), 'live': live}
+    return sha, how, [(name, at[name]) for name in STEPS if number(at[name])]
+
+
+def say_steps(found, out=None):
+    """`steps <sha> (<how>): push -> heard +0.8 -> ... -> live +0.4 = 1.7 s`: each step's seconds since the step before."""
+    if not found or len(found[2]) < 2:
+        return
+    sha, how, marks = found
+    parts = [marks[0][0]] + [f'{name} +{round(at - before, 3)}' for (_, before), (name, at) in zip(marks, marks[1:])]
+    print(f"steps {sha[:12]} ({how}): {' -> '.join(parts)} = {round(marks[-1][1] - marks[0][1], 3)} s", file=out or sys.stdout)
 
 
 def missing(names, environ):
@@ -423,6 +460,13 @@ def main(argv=None, environ=None):
         if live:
             print(f'recorded: {len(live)} landing(s) in {LIVE_RUNS}.json, the snapshot VAL-deploy-1s reads',
                   file=sys.stderr if args.json else sys.stdout)
+        if live is None:  # PUSH-STEPS: the push of the last landing is in the snapshot even when nothing new was recorded
+            try:
+                with open(os.path.join(RUNS_ROOT, RUNS_FOLDER, LIVE_RUNS + '.json')) as handle:
+                    live = json.load(handle).get('runs') or []
+            except (OSError, ValueError):
+                live = []
+        say_steps(steps(state, live), sys.stderr if args.json else sys.stdout)
         return 0
     return follow(port, args.target, args.build, args.since)
 
