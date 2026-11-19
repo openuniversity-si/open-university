@@ -1,6 +1,7 @@
 """The session side of AGENT-ENV (D-341): fetch what this agent environment declares and write it for the next shell.
 
     scripts/cloud/agent-env fetch
+    scripts/cloud/agent-env torre "<text>"
 
 The environment is the declaration in config/agent-env/ whose starting credential variable is set. With an empty
 agent-env.endpoint (not provisioned yet) it says so in one line and does nothing. Otherwise it GETs
@@ -10,6 +11,10 @@ nothing, when a name is denied (agent_env.refused, the validator's own rule) or 
 A bundle it accepts becomes `export NAME=<shell-quoted value>` lines, appended to $CLAUDE_ENV_FILE when set, else
 written to .gate/agent-env.sh, mode 600. It prints names and counts only, never a value, and every failure is one line
 and exit 0: setup.sh never fails on it.
+
+`torre` sends one text to the Torre through its relay: it POSTs {"text": ...} to <endpoint>/v1/torre with the same
+starting credential and prints the relay's answer in one line (the upstream status it forwarded, or the relay's own
+status: 401, 400, 429), exit 0. The relay alone holds the Torre's webhook key and URL; this side never sees them.
 """
 from http import HTTPStatus
 import json
@@ -135,6 +140,40 @@ def request(url, token, timeout):
         raise Refused(f'{host} did not answer JSON') from None
 
 
+def send(url, token, text, timeout):
+    """One line on what the relay answered: the status it forwarded, its own status, or why it was not reached."""
+    host = urlparse(url).hostname or 'the endpoint'
+    data = json.dumps({'text': text}).encode()
+    headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json', 'Accept': 'application/json'}
+    try:
+        with urlopen(Request(url, data=data, headers=headers, method='POST'), timeout=timeout) as response:
+            forwarded = json.loads(response.read()).get('forwarded')
+    except HTTPError as error:
+        return f'{host} answered {error.code}'
+    except (OSError, ValueError, AttributeError) as error:
+        return f'{host} could not be reached or did not answer JSON ({type(error).__name__})'
+    return f'forwarded, the Torre answered {forwarded}' if isinstance(forwarded, int) else f'{host} answered no status'
+
+
+def torre(text, environ=None, root=ROOT, out=print):
+    """Send `text` to the Torre through the relay; one line on `out` in every case; always 0."""
+    environ = os.environ if environ is None else environ
+    base = endpoint(root)
+    if not base:
+        out(f'{LABEL}: torre: not provisioned (agent-env.endpoint is empty); nothing sent')
+        return 0
+    declarations = load_declarations(root)
+    declaration = select(declarations, environ)
+    if declaration is None:
+        names = ', '.join(sorted({credential_variable(item) for item in declarations})) or 'none declared'
+        out(f'{LABEL}: torre: no starting credential is set ({names}); nothing sent')
+        return 0
+    timeout = config.get('agent-env.torre_timeout_s', root) + config.get('agent-env.fetch_timeout_s', root)
+    answer = send(base + TORRE_ROUTE, environ[credential_variable(declaration)], text, timeout)
+    out(f'{LABEL}: torre: {declaration["id"]}: {answer}')
+    return 0
+
+
 def fetch(environ=None, root=ROOT, out=print):
     """One line on `out` in every case; always 0."""
     environ = os.environ if environ is None else environ
@@ -177,11 +216,12 @@ def preflight_lines(environ=None, root=ROOT):
 
 
 def main(argv):
-    if list(argv) != ['fetch']:
-        print('usage: scripts/cloud/agent-env fetch', file=sys.stderr)
+    command, *rest = list(argv) or ['']
+    if (command, len(rest)) not in (('fetch', 0), ('torre', 1)):
+        print('usage: scripts/cloud/agent-env fetch | scripts/cloud/agent-env torre "<text>"', file=sys.stderr)
         return 2
     try:
-        return fetch()
+        return fetch() if command == 'fetch' else torre(rest[0])
     except Exception as error:  # best effort at session start: one line, never a traceback that could carry a value
         print(f'{LABEL}: failed ({type(error).__name__}); nothing written')
         return 0

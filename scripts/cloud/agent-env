@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # AGENT-ENV (D-341): `scripts/cloud/agent-env fetch` writes what this agent environment declares for the next shell.
+# `scripts/cloud/agent-env torre "<text>"` sends one text to the Torre through its relay and prints the status it answered.
 # Inert while agent-env.endpoint is empty. Prints names and counts only, never a value; every failure is one line, exit 0.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
