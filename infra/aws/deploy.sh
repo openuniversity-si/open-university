@@ -110,6 +110,9 @@ bootstrap_pid=$!
 # nor slows a build. The engine has no AWS credential: it records the reading from the port's status
 # (`scripts/deploy status --json | scripts/spend record`) and scripts/model judges VAL-aws-200 by that snapshot.
 spend_day="$(date -u +%F)"
+# SPEND-PARSE: the version of the reading's parser; a refusal of an older parser does not hold the day (2: a credit or an
+# exponent is a reading, #317)
+spend_parse=2
 spend_read() {
   local from="${spend_day:0:8}01" until usd
   until="$(date -u -d "$spend_day + 1 day" +%F 2>/dev/null)" || return 1
@@ -126,16 +129,17 @@ spend_read() {
     elif (( said == 0 )); then why=no-amount; fi
     # no-amount keeps what the CLI printed instead, cut to 24 characters of [A-Za-z0-9.+-] (an amount or None, no secret)
     local seen=""; [[ "$why" = no-amount ]] && seen="$(printf '%s' "$usd" | tr -cd 'A-Za-z0-9.+-' | cut -c1-24)"
-    jq -nc --arg day "$spend_day" --arg why "$why" --arg seen "$seen" \
-      '{day: $day, why: $why} + (if $seen != "" then {seen: $seen} else {} end)' >"$work/spend.why"
+    jq -nc --arg day "$spend_day" --arg why "$why" --arg seen "$seen" --argjson parse "$spend_parse" \
+      '{day: $day, why: $why, parse: $parse} + (if $seen != "" then {seen: $seen} else {} end)' >"$work/spend.why"
     return 1
   fi
   jq -nc --arg day "$spend_day" --arg from "$from" --arg usd "$usd" '{day: $day, from: $from, usd: ($usd | tonumber * 100 | round / 100)}'
 }
 spend_pid=""
-# a day already read, or already refused (spend_error, SPEND-WHY), calls Cost Explorer no more that day
+# a day already read, or already refused by this parser (spend_error, SPEND-WHY, SPEND-PARSE), calls Cost Explorer no
+# more that day
 if [[ "$(jq -r '.spend.day? // empty' <<<"$prev_build" 2>/dev/null)" != "$spend_day" &&
-      "$(jq -r '.spend_error.day? // empty' <<<"$prev_build" 2>/dev/null)" != "$spend_day" ]]; then
+      "$(jq -r '"\(.spend_error.day? // "")/\(.spend_error.parse? // "")"' <<<"$prev_build" 2>/dev/null)" != "$spend_day/$spend_parse" ]]; then
   ( spend_read >"$work/spend.tmp" 2>/dev/null && mv "$work/spend.tmp" "$work/spend" ) >/dev/null 2>&1 &
   spend_pid=$!
 fi

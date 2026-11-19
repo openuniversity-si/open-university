@@ -148,6 +148,9 @@ printf '%s' "$out" | jq -c --arg d "$d" '. + {{long_poll: {{seen: $d}}}}'
 """)
     return f'bash {script}'
 
+PARSE = int(re.search(r'^spend_parse=(\d+)$', (ROOT / 'infra/aws/deploy.sh').read_text(), re.M).group(1))  # SPEND-PARSE
+
+
 class DeployShTests(unittest.TestCase):
     def setUp(self):
         # deploy.sh writes its record with jq (the deploy build has it). A runner image without it made every test here fail on
@@ -293,7 +296,7 @@ class DeployShTests(unittest.TestCase):
                           ('something else entirely', 'other')):
             done = self.run_deploy(STUB_LAST='old', STUB_SPEND_ERR=said)
             self.assertEqual((done.returncode, self.build()['status']), (0, 'succeeded'), done.stderr)
-            self.assertEqual(self.build()['spend_error'], {'day': today, 'why': why})
+            self.assertEqual(self.build()['spend_error'], {'day': today, 'why': why, 'parse': PARSE})
             self.assertNotIn('arn:x', json.dumps(self.build()))
         (self.state / 'calls').write_text('')
         done = self.run_deploy(STUB_LAST='old', STUB_SPEND_ERR='x', STUB_LAST_BUILD=self.recorded('/tower/deploy/last-build'))
@@ -309,7 +312,13 @@ class DeployShTests(unittest.TestCase):
             self.assertEqual((done.returncode, self.build()['spend']['usd']), (0, usd), done.stderr)
         done = self.run_deploy(STUB_LAST='old', STUB_SPEND='None')
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual(self.build()['spend_error'], {'day': today, 'why': 'no-amount', 'seen': 'None'})
+        self.assertEqual(self.build()['spend_error'], {'day': today, 'why': 'no-amount', 'seen': 'None', 'parse': PARSE})
+        # SPEND-PARSE: a refusal of an older parser (no parse, or another) does not hold the day: it is read again
+        older = json.dumps({'spend_error': {'day': today, 'why': 'no-amount'}})
+        (self.state / 'calls').write_text('')
+        done = self.run_deploy(STUB_LAST='old', STUB_SPEND='12.5', STUB_LAST_BUILD=older)
+        self.assertEqual((done.returncode, self.build()['spend']['usd']), (0, float('12.5')), done.stderr)
+        self.assertIn('aws ce get-cost-and-usage', (self.state / 'calls').read_text())
 
     def test_a_record_over_4000_bytes_is_shrunk_in_order_and_still_written(self):
         prev = json.dumps({'hashes': {f'stack{i}': 'h' * 20 for i in range(60)}, 'stacks': {f'tower-app-s{i}': 100 + i for i in range(80)}})
