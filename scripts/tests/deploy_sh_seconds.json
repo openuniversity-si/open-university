@@ -105,5 +105,8 @@
  "DeployShTests.test_the_deployer_never_deploys_the_control_plane_worker": 0.8,
  "SlowPathShTests.test_a_head_with_no_image_whose_code_is_live_keeps_the_ecs_stacks_after_a_swap": 3.51,
  "SlowPathShTests.test_a_stack_whose_values_in_parameters_json_changed_is_deployed_not_skipped": 3.2,
- "DeployShTests.test_a_stack_named_in_the_regions_file_is_deployed_and_read_in_its_region_alone": 1.08
+ "DeployShTests.test_a_stack_named_in_the_regions_file_is_deployed_and_read_in_its_region_alone": 1.08,
+ "SlowPathShTests.test_a_stack_in_its_operation_is_looked_at_again_at_each_event_never_on_an_interval": 6.5,
+ "SlowPathShTests.test_a_status_the_port_does_not_hold_ends_the_reload_on_the_image_path": 5.0,
+ "SlowPathShTests.test_the_wait_for_the_migrations_ends_at_the_services_word_on_the_status_long_poll": 4.5
 }

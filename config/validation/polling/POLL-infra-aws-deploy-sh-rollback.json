@@ -1,7 +1,0 @@
-{
-  "id": "POLL-infra-aws-deploy-sh-rollback",
-  "site": "infra/aws/deploy.sh::rollback",
-  "class": "state-wait",
-  "reason": "Reads, every DEPLOY_ROLL_POLL_S (5 s), the status of a stack a red smoke rolls back until it is out of its operation. aws cloudformation wait was tried and rejected: the CLI waiter polls with a fixed 30 s delay, so a rollback would notice the stack's end up to 25 s later (a worse recovery time).",
-  "replace_with": "the stack's CloudFormation status-change event on EventBridge, which needs new infrastructure through the stacks"
-}

@@ -1,7 +1,0 @@
-{
-  "id": "POLL-infra-aws-deploy-sh-reload-live",
-  "site": "infra/aws/deploy.sh::reload_live",
-  "class": "state-wait",
-  "reason": "Reads, every DEPLOY_RELOAD_POLL_S up to DEPLOY_RELOAD_WAIT_S, the port's /v1/deploy/status until deploy.live_code names the head's bundle or the service says the reload failed or declined. The reload is in place (no ECS deployment), so aws ecs wait services-stable would not see it (and the deployer's role has no ecs:Describe*).",
-  "replace_with": "the live service's platform.deploy.image_reload event delivered to the deployer (new infrastructure through the stacks)"
-}

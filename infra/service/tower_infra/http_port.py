@@ -92,8 +92,11 @@ ROUTES = [
     ('GET', r'/v1/jobs/(?P<job>[0-9a-f-]{36})', lambda db, who, body, job: port.long_poll(  # PORT-LONG-POLL
         lambda: port.get_job(db, who, job), body, wake_of(db, (wake.JOBS, wake.WORK, wake.RUNS)))),
     ('POST', r'/v1/deploy/landed', lambda db, who, body: port.deploy_landed(db, who, body)),
-    ('GET', r'/v1/deploy/status', lambda db, who, body: port.long_poll(  # PORT-LONG-POLL
-        lambda: port.deploy_status(db, who, (body or {}).get('landings')), body, wake_of(db, (wake.STATUS, wake.DEPLOY)))),
+    # PORT-LONG-POLL; STATUS-HOLD (D-331): and tower_config, since deploy.live_code (the status's live_code, which deploy.sh's
+    # reload waits for) is a config value, written after the image_reload event that woke the poll before it
+    ('GET', r'/v1/deploy/status', lambda db, who, body: port.long_poll(
+        lambda: port.deploy_status(db, who, (body or {}).get('landings')), body,
+        wake_of(db, (wake.STATUS, wake.DEPLOY, wake.CONFIG)))),
     ('GET', r'/v1/deploy/ready/(?P<digest>[0-9a-f]{64})',  # READY-BY-BEATS: would a landing of this bundle swap now
      lambda db, who, body, digest: port.deploy_ready(db, who, digest)),
     ('POST', r'/v1/deploy/canary', lambda db, who, body: canary.start(db, who, body)),  # DEPLOY-CANARY

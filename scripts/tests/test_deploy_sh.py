@@ -128,6 +128,24 @@ DEPLOY_PARAMETERS = {'data': {'InstanceClass': 'db.t4g.medium'}, 'service': {'Cp
                      'runner': {'DesiredCount': '0'}}
 
 
+
+def held(state, inner):
+    """STATUS-HOLD: the port's long poll on GET /v1/deploy/status as deploy.sh asks it (STATUS_HOLD_S, STATUS_SEEN), around
+    `inner`, a command that prints the status: a read with a hold is marked long_poll {seen: its digest}; one whose answer is
+    the one seen names is held a moment (the event the test's service writes meanwhile) and read again. Answers the command
+    for DEPLOY_FAST_STATUS_CMD; every read is counted in <state>/holds (its hold and seen)."""
+    script = Path(state) / 'held.sh'
+    (Path(state) / 'held_inner').write_text(inner)
+    script.write_text(f"""inner="$(cat {state}/held_inner)"
+out="$(bash -c "$inner")" || exit 1
+[ -n "${{STATUS_HOLD_S:-}}" ] || {{ printf '%s' "$out"; exit 0; }}
+echo "${{STATUS_HOLD_S}} ${{STATUS_SEEN:-none}}" >> {state}/holds
+d="$(printf '%s' "$out" | sha256sum | cut -c1-16)"
+if [ "$d" = "${{STATUS_SEEN:-}}" ]; then sleep 0.1; out="$(bash -c "$inner")" || exit 1; d="$(printf '%s' "$out" | sha256sum | cut -c1-16)"; fi
+printf '%s' "$out" | jq -c --arg d "$d" '. + {{long_poll: {{seen: $d}}}}'
+""")
+    return f'bash {script}'
+
 class DeployShTests(unittest.TestCase):
     def setUp(self):
         # deploy.sh writes its record with jq (the deploy build has it). A runner image without it made every test here fail on
@@ -980,7 +998,7 @@ class SlowPathShTests(DeployShTests):
             'STUB_LAST': self.base, 'DEPLOY_SMOKE_CMD': 'none', 'STUB_SLEEP': 'tower-app-service:1,tower-app-runner:1',
             'STUB_TAGGED': 'tower-app-service tower-app-port tower-app-runner', 'STUB_TAG_VALUE': 'older',
             'DEPLOY_CODE_BUNDLE_CMD': "echo publishing; echo '" + json.dumps(self.BUNDLE) + "'",
-            'DEPLOY_MIGRATED_CMD': f'echo {applied}', 'DEPLOY_MIGRATE_WAIT_S': '1', 'DEPLOY_MIGRATE_POLL_S': '0.2', **extra})
+            'DEPLOY_MIGRATED_CMD': f'echo {applied}', 'DEPLOY_MIGRATE_WAIT_S': '1', **extra})
 
     def test_a_migration_is_asked_of_the_live_service_before_the_stacks_and_the_runner_does_not_wait_for_the_service(self):
         done = self.migration(STUB_SLEEP='', STUB_UNTIL=SIDE_BY_SIDE)
@@ -996,6 +1014,33 @@ class SlowPathShTests(DeployShTests):
         self.assertFalse(any(step['n'].startswith(('image:', 'stack:')) for step in asked[0]['steps']))  # before the image is built
         steps = {step['n']: step['s'] for step in self.build()['steps']}
         self.assertEqual((steps['migrate-ask'], steps['migrate']), ('ok', 'ok'))
+
+    def test_the_wait_for_the_migrations_ends_at_the_services_word_on_the_status_long_poll(self):
+        # MIGRATED-EVENT (D-331): the build holds the status until the live service says its migrate() of this bundle ended
+        # (platform.deploy.migrated), then reads the database once: no read of it on an interval
+        script = self.state / 'service.sh'
+        script.write_text(f"""if [ -n "${{STATUS_HOLD_S:-}}" ] && grep -q '"migrate":{{"key"' {self.state}/ssm_tower_deploy_last-build 2>/dev/null; then
+  n=$(cat {self.state}/looks 2>/dev/null || echo 0); echo $((n + 1)) > {self.state}/looks
+  [ "$n" -ge 1 ] && {{ echo '{{"migrated": [{{"bundle": "{'c' * 64}", "state": "applied", "at": 1}}]}}'; exit 0; }}
+fi
+echo '{{"migrated": []}}'
+""")
+        began = time.time()
+        done = self.migration(STUB_SLEEP='', DEPLOY_MIGRATE_WAIT_S='60', DEPLOY_FAST_STATUS_CMD=held(self.state, f'bash {script}'))
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        self.assertIn('migrate: the live service applied the migrations (the database is at 0002_more)', done.stdout)
+        self.assertLess(time.time() - began, 50)  # ended by the word, not by the 60 s bound
+        holds = [line.split() for line in (self.state / 'holds').read_text().splitlines()]
+        self.assertTrue(len(holds) >= 2 and holds[0][1] == 'none' and all(len(seen) == 16 for _, seen in holds[1:]), holds)
+        # the service says its migrate() failed: the wait ends at once and the old order stands
+        self.setUp()
+        script.parent.mkdir(parents=True, exist_ok=True)
+        script.write_text(f"""echo '{{"migrated": [{{"bundle": "{'c' * 64}", "state": "failed", "at": 1}}]}}'""")
+        done = self.migration(applied='0001_base', DEPLOY_MIGRATE_WAIT_S='60', DEPLOY_FAST_STATUS_CMD=held(self.state, f'bash {script}'))
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        self.assertIn('is not applied: the service says its migrate() failed (the database is at 0001_base)', done.stdout)
+        e = self.events()
+        self.assertLess(e[('end', 'service')], e[('start', 'runner')])
 
     def test_a_migration_the_live_service_does_not_apply_keeps_the_old_order(self):
         cases = (('an older service: the database stays behind', {'applied': '0001_base'}, 'is not applied after 1s'),
@@ -1484,7 +1529,7 @@ class SlowPathShTests(DeployShTests):
         plain = hashlib.sha256(b'x\n').hexdigest()[:20]  # network and data: applied long ago, their hash recorded
         record = {**record, 'hashes': {'network': plain, 'data': plain, **record['hashes']}}
         return self.run_deploy(**{'STUB_LAST': self.base, 'STUB_LAST_BUILD': json.dumps(record), 'DEPLOY_SMOKE_CMD': 'echo smoked',
-                                  'DEPLOY_ROLL_POLL_S': '0.2', **extra})
+                                  **extra})
 
     def rolled(self, head, status='UPDATE_COMPLETE'):
         return {stack: f'{status}\t{head}' for stack in ('service', 'port', 'runner')}
@@ -1580,6 +1625,26 @@ class SlowPathShTests(DeployShTests):
         self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
         self.assertIn('wait  tower-app-service: status unreadable', done.stdout)
         self.assertEqual(self.stacks_deployed(), [])
+
+    def test_a_stack_in_its_operation_is_looked_at_again_at_each_event_never_on_an_interval(self):
+        # STACK-END-BY-EVENT (D-331): the stack's end reaches the port (tower-app-stack-state) and wakes the status's long poll:
+        # each look of the stack is the answer of a held status read naming the answer it saw, and no waiter runs
+        _, head, record = self.start()
+        going = '\n'.join([f'UPDATE_IN_PROGRESS\t{head}'] * 3 + [f'UPDATE_COMPLETE\t{head}'])
+        at = {**self.rolled(head), 'runner': going}
+        (self.state / 'plain_status.json').write_text('{"task_up": []}')
+        done = self.verify(record, at, DEPLOY_FAST_STATUS_CMD=held(self.state, f'cat {self.state}/plain_status.json'))
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        self.assertIn('done  tower-app-runner: rolled out at', done.stdout)
+        holds = [line.split() for line in (self.state / 'holds').read_text().splitlines()]
+        self.assertEqual([seen == 'none' for _, seen in holds], [True, False])  # two looks in its operation, two held reads
+        self.assertNotIn('cloudformation wait', (self.state / 'calls').read_text())
+        # a status the port does not hold (a port older than PORT-LONG-POLL, or no token): CloudFormation's own waiter, once
+        # per look, never a pause of the build's own
+        done = self.verify(record, at, DEPLOY_FAST_STATUS_CMD=f'cat {self.state}/plain_status.json')
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        waits = [line for line in (self.state / 'calls').read_text().splitlines() if 'cloudformation wait' in line]
+        self.assertEqual(waits, ['aws cloudformation wait stack-update-complete --stack-name tower-app-runner'] * 2)
 
     # --- VERIFY-AT-UP: a rolled stack whose new task said it is up on the rollout's image is settled, not waited ----------------
     def ups(self, record, image=None, at=None):
@@ -1857,8 +1922,7 @@ else echo '{{"live_code": "", "image_reload": []}}'; fi
         (self.state / 'status_after.json').write_text(json.dumps({'live_code': '', **after}))
         bundle = json.dumps({'key': f'artifacts/lambda/tower-code/{self.LIVE}.zip', 'sha256': self.LIVE, 'uploaded': True})
         return self.code_only(runner_ecs=False, status={'live_code': '', 'image_reload': []}, **{
-            'DEPLOY_FAST_STATUS_CMD': f'bash {script}', 'DEPLOY_CODE_BUNDLE_CMD': f"echo '{bundle}'", 'DEPLOY_RELOAD_POLL_S': '0.1',
-            **extra})
+            'DEPLOY_FAST_STATUS_CMD': held(self.state, f'bash {script}'), 'DEPLOY_CODE_BUNDLE_CMD': f"echo '{bundle}'", **extra})
 
     def test_a_code_only_landing_is_reloaded_in_place_by_the_service_and_deploys_no_image_and_no_ecs_stack(self):
         # FAST-PATH-RELOAD: the build asks (last-build.reload), the service reloads and proves itself, its autodeploy writes
@@ -1882,6 +1946,17 @@ else echo '{{"live_code": "", "image_reload": []}}'; fi
         self.assertNotIn('code_live_why', build)
         asked = [json.loads(line) for line in (self.state / 'last-build.history').read_text().splitlines() if '"reload":{' in line]
         self.assertEqual((asked[0]['status'], asked[0]['reload']['state'], asked[0]['step']), ('in_progress', 'asked', 'reload'))
+        # STATUS-HOLD (D-331): the build reads the status on the port's long poll: the first read answers at once (no seen)
+        self.assertEqual((self.state / 'holds').read_text().split()[1], 'none')
+
+    def test_a_status_the_port_does_not_hold_ends_the_reload_on_the_image_path(self):
+        # STATUS-HOLD: an unmarked answer is a port older than PORT-LONG-POLL: there is nothing to wait on, so no read on an
+        # interval either: the image path, in this build
+        done = self.reloading({'image_reload': []}, DEPLOY_FAST_STATUS_CMD=f'cat {self.state}/status.json')[0]
+        self.assertEqual(done.returncode, 0, done.stderr + done.stdout)
+        self.assertIn('reload: unheld after', done.stdout)
+        self.assertIn('the image path, in this build', done.stdout)
+        self.assertEqual(self.build()['reload']['state'], 'unheld')
 
     def test_a_reload_that_is_never_proven_falls_back_to_the_image_in_the_same_build(self):
         # FAST-PATH-RELOAD: the Torre's condition: an unproven reload is the image path in this build, green only if that is
@@ -1904,6 +1979,10 @@ else echo '{{"live_code": "", "image_reload": []}}'; fi
                 self.assertIn('docker build', (self.state / 'calls').read_text())
                 build = self.build()
                 self.assertEqual(build['reload']['state'], label.split(',')[0])
+                if label == 'timeout':  # STATUS-HOLD (D-331): held on the long poll, each read naming the answer it saw, never paused
+                    holds = [line.split() for line in (self.state / 'holds').read_text().splitlines()]
+                    self.assertEqual(holds[0][1], 'none')
+                    self.assertTrue(holds[1:] and all(len(seen) == 16 and 0 < int(hold) <= 20 for hold, seen in holds[1:]), holds)
                 self.assertIn('the reload in place was', build['code_live_why'])
                 self.assertEqual(build['targets'], ['service', 'port', 'runner'])  # the image's stacks are the batch's again
                 if code == 0:

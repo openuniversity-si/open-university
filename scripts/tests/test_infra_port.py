@@ -514,7 +514,8 @@ class StateLongPolls(unittest.TestCase):
             port.long_poll(read, {'wait_s': 'soon'}, Heard([]))
         self.assertEqual(refused.exception.status, HTTPStatus.BAD_REQUEST)
 
-    def test_the_status_route_reads_wait_s_and_seen_from_the_query_and_waits_on_tower_status_and_tower_deploy(self):
+    def test_the_status_route_reads_wait_s_and_seen_from_the_query_and_waits_on_tower_status_deploy_and_config(self):
+        # STATUS-HOLD: tower_config too: deploy.live_code, which deploy.sh's reload waits for, is a config value
         asked, status = [], {'last_sha': 'a', 'last_build': None}
         db = mock.Mock(rows=lambda sql, params=None: [('installation',)], connect=lambda **kw: None)
         with mock.patch.object(http_port, 'wake_of', lambda db, channel=None: asked.append(channel) or Heard([])), \
@@ -533,7 +534,7 @@ class StateLongPolls(unittest.TestCase):
             code, again = get({'wait_s': '15', 'landings': '3', 'seen': held[port.LONG_POLL]['seen']})
             self.assertEqual((again[port.LONG_POLL]['changed'], again[port.LONG_POLL]['seen']),
                              (False, held[port.LONG_POLL]['seen']))
-        self.assertEqual(asked, [(wake.STATUS, wake.DEPLOY)] * 3)
+        self.assertEqual(asked, [(wake.STATUS, wake.DEPLOY, wake.CONFIG)] * 3)
 
     def test_a_listener_that_cannot_open_still_holds_the_read_and_marks_it(self):
         # LONG-POLL-HOLDS: the database refused the LISTEN's connection: no 500, wake.Wake.wait waits the span out and

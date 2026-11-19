@@ -453,6 +453,10 @@ class OnPostgres(unittest.TestCase):
         self.assertEqual(applied, [('9998_rollout_a', 'autodeploy'), ('9999_rollout_b', 'autodeploy')])
         rig.watcher.migrate(self.db)  # the same ask again (every look reads last-build): nothing read, nothing applied
         self.assertEqual(rig.watcher.bundles.reads, [key])
+        # MIGRATED-EVENT (D-331): the end of it, once, in the status deploy.sh's migrate_wait holds on its long poll
+        said = port.deploy_status(self.db, ('installation', None))['migrated']
+        self.assertEqual([(each['bundle'], each['state'], each['applied'], each['newest']) for each in said],
+                         [(sha, 'applied', ['9998_rollout_a', '9999_rollout_b'], '9999_rollout_b')])
 
     def test_a_stopped_task_and_a_service_s_action_are_recorded_once_on_the_real_log(self):
         # ECS-STOPS-IN-LOG: the real statement; a task says STOPPED more than once and EventBridge delivers at least once
@@ -579,6 +583,10 @@ class OnPostgres(unittest.TestCase):
         rig.watcher.migrate(self.db)  # logged, not raised
         self.assertEqual(self.health()['migration'], self.newest)  # no evidence: deploy.sh keeps the old order
         self.assertEqual(self.db.rows("select to_regclass('work.rollout_c') is null"), [('t',)])  # one transaction
+        # MIGRATED-EVENT: and its end is said, so the build that asked stops waiting at once and keeps the old order
+        [said] = port.deploy_status(self.db, ('installation', None))['migrated']
+        self.assertEqual((said['bundle'], said['state']), (sha, 'failed'))
+        self.assertIn('division by zero', said['why'])
 
 
 if __name__ == '__main__':
