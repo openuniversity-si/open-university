@@ -671,6 +671,42 @@ class Changes(unittest.TestCase):
         into = model.incoming(found)
         self.assertFalse(model.implemented(found['REQ-x'], into, found), 'a diff-derived unit link implements no REQ')
 
+    def test_a_retired_unit_is_read_from_the_commit_that_deleted_it_and_its_earlier_changes_still_implement_it(self):
+        import units
+        shutil.copytree(ROOT / 'config/registry', self.root / 'config/registry')
+        (self.root / 'contracts/units').mkdir(parents=True)
+        shutil.copy(ROOT / 'contracts/units/unit.v1.json', self.root / 'contracts/units/unit.v1.json')
+        gone = {'id': 'gone', 'purpose': 'p', 'cell': 'engine', 'owner': 'engine-lane', 'paths': ['src/gone/**'],
+                'requires': {}}
+        write(self.root, 'units/x/unit.json', {'id': 'x', 'purpose': 'p', 'cell': 'engine', 'owner': 'engine-lane',
+                                               'paths': ['src/x/**'], 'requires': {}})
+        write(self.root, 'units/gone/unit.json', gone)
+        units.reset()
+        self.addCleanup(units.reset)
+        self.git('add', 'units')
+        self.git('commit', '-q', '-m', 'units')
+        self.git('checkout', '-q', '-b', 'old')
+        write(self.root, 'src/gone/a.py', 'v')
+        self.git('add', 'src')
+        self.git('commit', '-q', '-m', 'old: gone')
+        self.git('checkout', '-q', 'main')
+        self.git('merge', '-q', '--no-ff', 'old', '-m', 'Merge pull request #6 from org/old')
+        self.git('rm', '-q', '-r', 'units/gone', 'src/gone')
+        self.git('commit', '-q', '-m', 'retire gone')
+        units.reset()
+        read = {item['id']: item for item in model.read_units(self.root)}
+        self.assertEqual((read['UNIT:gone']['state'], read['UNIT:gone']['links']), ('retired', []))
+        self.assertEqual(read['UNIT:x']['state'], 'active')
+        self.assertTrue(read['UNIT:gone']['source'].endswith('^:units/gone/unit.json'))
+        found = {item['id']: item for item in model.read_changes(self.root)}
+        self.assertEqual(found['CHG-6']['links'], [{'type': 'implements', 'target': 'UNIT:gone', 'source': 'diff'}])
+        meta = model.metamodel()
+        self.assertFalse(model.is_active(meta, read['UNIT:gone']), 'a retired unit is counted by no system')
+        restored = {**gone, 'purpose': 'back'}
+        write(self.root, 'units/gone/unit.json', restored)
+        self.assertEqual([item['state'] for item in model.read_units(self.root) if item['id'] == 'UNIT:gone'], ['active'],
+                         'a manifest the tree holds again is the live unit, never a second, retired one')
+
     def test_a_requirement_is_implemented_by_a_merged_change_and_verified_when_a_test_also_verifies_it(self):
         found = {item['id']: item for item in model.read_changes(self.root)}
         found['REQ-a'] = {'id': 'REQ-a', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],

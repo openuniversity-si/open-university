@@ -7,7 +7,7 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
   D     docs/domain/decisions/D-NNN.md (state accepted; its `proof:` file verifies it; the decisions its `supersedes:`
         names are superseded) and the older rows of docs/domain/DECISIONS.md (the state its Status cell says, the test
         files and cases its Proof cell names verify it when they all exist; row_proof)
-  UNIT  units/<id>/unit.json (active; `requires` are depends-on links)
+  UNIT  units/<id>/unit.json (active; `requires` are depends-on links); a manifest a commit deleted is a retired unit
   TEST  scripts/tests/*.test.sh (active), each with the test files it runs as its parts, and the test files under
         scripts/tests/ that no script test runs (active, a test of their own)
   INC   an escape (read_escapes): each pull request a later merge's commits name in `Fixes-PR:` is INC-escape-<n>,
@@ -362,7 +362,34 @@ def read_units(root):
         links = [{'type': 'depends-on', 'target': f'UNIT:{name}'} for name in sorted(manifest.get('requires') or {})]
         links += [{'type': 'realizes', 'target': element} for element in manifest.get('realizes', [])]
         objects.append(_obj(f'UNIT:{manifest["id"]}', 'UNIT', 'active', path.relative_to(root).as_posix(), text, links))
+    live = {item['id'] for item in objects}
+    for path, (sha, text, manifest) in sorted(retired_units(root).items()):
+        if f'UNIT:{manifest["id"]}' not in live:
+            live.add(f'UNIT:{manifest["id"]}')
+            objects.append(_obj(f'UNIT:{manifest["id"]}', 'UNIT', 'retired', f'git:{sha}^:{path}', text))
     return objects
+
+
+def retired_units(root):
+    """{manifest path: (sha, text, manifest)}: each unit whose manifest a commit of HEAD deleted and the working tree no
+    longer holds, read from the deleting commit's parent (the unit's retirement). A retired unit keeps its id, so the
+    changes that touched its paths before it left still implement it (_changed_units); it is inactive, links nothing
+    and is judged by no rule. Outside a git checkout it reads none."""
+    found = {}
+    listed = _git(root, 'log', '--diff-filter=D', '--format=%x1e%H', '--name-only', 'HEAD', '--', UNIT_MANIFESTS)
+    for block in listed.split('\x1e')[1:]:
+        sha, *paths = block.strip().split('\n')
+        for path in filter(None, paths):
+            if path in found or (Path(root) / path).exists():
+                continue
+            text = _git(root, 'show', f'{sha}^:{path}')
+            try:
+                manifest = json.loads(text)
+            except ValueError:
+                continue
+            if isinstance(manifest, dict) and isinstance(manifest.get('id'), str):
+                found[path] = (sha, text, manifest)
+    return found
 
 
 VERIFIES = re.compile(r'^\s*(?:(?:#|//|\*)\s*)?Verifies:\s*(.+)$', re.MULTILINE)
@@ -903,8 +930,9 @@ def _git(root, *args):
 
 def _changed_units(root):
     """{merge sha: [UNIT:<id>]}: the units whose paths each first-parent merge's diff (against its first parent)
-    touched, matched with the unit graph's own matcher (units.units_of, the manifests of the working tree). One git
-    call for every merge; a tree with no valid unit map derives nothing."""
+    touched, matched with the unit graph's own matcher (units.units_of, the manifests of the working tree); a path no
+    live unit claims is matched against the paths of the retired units (retired_units). One git call for every merge;
+    a tree with no valid unit map derives nothing."""
     import units
     from config import ConfigError
     listed = _git(root, 'log', '--first-parent', '--merges', '--diff-merges=first-parent', '--name-only',
@@ -915,13 +943,17 @@ def _changed_units(root):
         units.manifests(root)
     except (units.UnitError, ConfigError):
         return {}
+    retired = [(manifest['id'], manifest.get('paths') or []) for _, _, manifest in retired_units(root).values()]
     owners, result = {}, {}
     for block in listed.split('\x1e')[1:]:
         sha, *paths = block.split('\n')
         hit = []
         for path in filter(None, paths):
             if path not in owners:
-                owners[path] = units.units_of(path, root)
+                # a path no live unit claims was a retired unit's when that unit's manifest claimed it
+                owners[path] = units.units_of(path, root) or [
+                    unit for unit, globs in retired if any(isinstance(glob, str) and units.match(glob, path)
+                                                           for glob in globs)]
             hit += owners[path]
         result[sha.strip()] = [f'UNIT:{unit}' for unit in sorted(set(hit))]
     return result
@@ -1431,7 +1463,7 @@ def architecture_measure(found):
     for item in elements:
         kind = item.get('body', {}).get('kind', '?')
         by_kind[kind] = by_kind.get(kind, 0) + 1
-    units = [item for item in found.values() if item['type'] == 'UNIT']
+    units = [item for item in found.values() if item['type'] == 'UNIT' and item['state'] == 'active']
     adrs = {}
     for item in found.values():
         if item.get('body', {}).get('adr'):
