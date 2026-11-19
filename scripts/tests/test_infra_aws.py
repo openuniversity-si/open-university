@@ -2,11 +2,15 @@
 templates under infra/aws as JSON and checks Daniel's decision and the guardrails; no AWS call, no network.
 """
 # Verifies: REQ-aws-200
+from datetime import timedelta
 import hashlib
+from http import HTTPStatus
 import json
 import os
 import re
 import shutil
+import sys
+import types
 import unittest
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -17,6 +21,9 @@ BODY_LIMIT = 51200  # a template sent as its body (deploy.sh without an S3 bucke
 URL_LIMIT = 1048576  # BOOTSTRAP-URL: a template read from S3 (--template-url), how the Torre applies the bootstrap
 RECORD = ROOT / 'docs/domain/decisions/D-303.md'
 BUDGET_RECORD = ROOT / 'docs/domain/decisions/D-315.md'  # D-315 amends D-303's numbers (US$ 150, ceiling US$ 200)
+sys.path.insert(0, str(ROOT / 'scripts/lib'))
+import agent_env  # noqa: E402
+import agent_env_stack  # noqa: E402
 
 
 def load(path):
@@ -2274,6 +2281,197 @@ class MailStackTests(unittest.TestCase):
         calls, _ = self.run_forwarder({'info': 'dest' + '@' + 'example.com'}, ['info' + '@' + 'example.org'], raw)
         head = calls[2][1]['Content']['Raw']['Data'].split(b'\r\n\r\n')[0].split(b'\r\n')
         self.assertEqual([line for line in head if line.startswith(b'Reply-To')], [b'Reply-To: list' + b'@sender.example.net'])
+
+
+TOKEN = 'token-of-the-test'  # a fake bearer; its sha256 is the fake SSM's token-sha256
+PREFIX = '/tower/agent-env/the-tower/'
+SECRETS = {'gh-token': 'GH_TOKEN', 'api-key': 'API_KEY'}
+
+
+class FakeSsm:
+    """SSM in process: a parameter store, one parameter a page, and the calls it answered."""
+
+    def __init__(self, parameters):
+        self.parameters, self.calls = parameters, []
+
+    def get_parameter(self, Name):
+        self.calls.append(('get_parameter', Name))
+        return {'Parameter': {'Name': Name, 'Value': self.parameters[Name]}}
+
+    def get_parameters_by_path(self, Path, WithDecryption, NextToken='0'):
+        self.calls.append(('get_parameters_by_path', Path, WithDecryption))
+        names = sorted(name for name in self.parameters if name.startswith(Path) and '/' not in name[len(Path):])
+        start = int(NextToken)
+        page = {'Parameters': [{'Name': name, 'Value': self.parameters[name]} for name in names[start:start + 1]]}
+        if start + 1 < len(names):
+            page['NextToken'] = str(start + 1)
+        return page
+
+
+class AgentEnvStackTests(unittest.TestCase):
+    """AGENT-ENV (D-341): the stack that serves each environment's bundle, generated from config/agent-env/ and the deny
+    list; one Lambda and one role per declaration, each reading its own SSM prefix alone, SSM SecureString only."""
+    PATH = INFRA / 'stacks/45-agent-env.json'
+
+    def setUp(self):
+        self.template = load(self.PATH)
+        self.resources = self.template['Resources']
+        self.functions = {name: item for name, item in self.resources.items() if item['Type'] == 'AWS::Lambda::Function'}
+
+    def of_type(self, kind):
+        return [item['Properties'] for item in self.resources.values() if item['Type'] == kind]
+
+    def test_the_committed_stack_is_its_generation(self):
+        self.assertEqual(self.PATH.read_text(encoding='utf-8'), agent_env_stack.render(ROOT))
+
+    def test_one_function_and_one_role_per_declaration(self):
+        ids = sorted(path.stem for path in agent_env.declarations(ROOT))
+        self.assertTrue(ids)
+        want = sorted(agent_env_stack.NAME.format(id=ident) for ident in ids)
+        self.assertEqual(sorted(item['Properties']['FunctionName'] for item in self.functions.values()), want)
+        self.assertEqual(sorted(role['RoleName'] for role in self.of_type('AWS::IAM::Role')), want)
+        self.assertEqual(sorted(item['Properties']['Environment']['Variables']['ENV_ID'] for item in self.functions.values()), ids)
+        port = load(INFRA / 'stacks/40-port.json')['Resources']['PortFunction']['Properties']
+        for function in self.functions.values():
+            properties = function['Properties']
+            self.assertNotIn('VpcConfig', properties)
+            self.assertEqual(properties['Runtime'], port['Runtime'])
+            self.assertLessEqual(properties['MemorySize'], port['MemorySize'])
+            self.assertLess(len(properties['Code']['ZipFile'].encode('utf-8')), agent_env_stack.skeleton()['zipfile_limit'])
+        kept = load(INFRA / 'stacks/40-port.json')['Resources']['Logs']['Properties']['RetentionInDays']
+        for group in self.of_type('AWS::Logs::LogGroup'):
+            self.assertEqual(group['RetentionInDays'], kept)  # 14 days, as the port's
+
+    def test_each_role_reads_its_own_prefix_alone_under_the_boundary(self):
+        boundary = load(INFRA / 'stacks/40-port.json')['Resources']['PortRole']['Properties']['PermissionsBoundary']
+        for role in self.of_type('AWS::IAM::Role'):
+            ident = role['RoleName'][len(agent_env_stack.NAME.format(id='')):]
+            self.assertEqual(role['PermissionsBoundary'], boundary)
+            [policy] = role['Policies']
+            statements = policy['PolicyDocument']['Statement']
+            parameters = 'arn:aws-partition:ssm:REGION:ACCOUNT:parameter/tower/'
+            own = f'{parameters}agent-env/{ident}'
+            for action in ('ssm:GetParameter', 'ssm:GetParametersByPath'):
+                self.assertEqual(decide(statements, action, f'{own}/token-sha256'), 'allow')
+                self.assertEqual(decide(statements, action, own), 'allow')
+                for other in (f'{own}-x/token-sha256', f'{parameters}agent-env/other/a', f'{parameters}port/installation-token-sha256'):
+                    self.assertEqual(decide(statements, action, other), 'implicit', other)
+            key = 'arn:aws-partition:kms:REGION:ACCOUNT:key/k'
+            self.assertEqual(decide(statements, 'kms:Decrypt', key, {'kms:ViaService': 'ssm.REGION.amazonaws.com'}), 'allow')
+            self.assertEqual(decide(statements, 'kms:Decrypt', key, {'kms:ViaService': 's3.REGION.amazonaws.com'}), 'implicit')
+            actions = {action for item in statements for action in as_list(item['Action'])}
+            self.assertEqual(actions, {'logs:CreateLogStream', 'logs:PutLogEvents', 'ssm:GetParameter',
+                                       'ssm:GetParametersByPath', 'kms:Decrypt'})
+            [condition] = [item['Condition'] for item in statements if item['Action'] == 'kms:Decrypt']
+            self.assertEqual(condition, {'StringEquals': {'kms:ViaService': {'Fn::Sub': 'ssm.${AWS::Region}.amazonaws.com'}}})
+
+    def test_no_secrets_manager_and_no_literal_account_id(self):
+        text = self.PATH.read_text(encoding='utf-8')
+        self.assertNotIn('secretsmanager', text)
+        self.assertIsNone(ACCOUNT_ID.search(text))
+        self.assertIsNone(REGION_CODE.search(text))
+        for secret in ({'name': 'A', 'store': 'secretsmanager', 'ref': 'tower/agent-env/x/a'},
+                       {'name': 'A', 'store': 'ssm', 'ref': '/tower/agent-env/x/a/b'}):
+            with self.assertRaises(agent_env_stack.StackError):
+                agent_env_stack.secret_map({'id': 'x', 'secrets': [secret]})
+
+    def test_the_deny_list_is_embedded_and_is_the_registry_s(self):
+        for function in self.functions.values():
+            embedded = json.loads(function['Properties']['Environment']['Variables']['DENIED'])
+            self.assertTrue(embedded)
+            self.assertEqual(embedded, agent_env.denied_patterns(ROOT))
+
+    def test_the_route_is_on_the_port_s_api_and_the_port_exports_it(self):
+        exports = [output['Export']['Name'] for output in load(INFRA / 'stacks/40-port.json')['Outputs'].values()]
+        self.assertIn(agent_env_stack.API_EXPORT, exports)
+        self.assertEqual(load(INFRA / 'order.json')['agent-env'], ['port'])
+        routes = sorted(route['RouteKey'] for route in self.of_type('AWS::ApiGatewayV2::Route'))
+        self.assertEqual(routes, sorted(agent_env_stack.ROUTE.format(id=path.stem) for path in agent_env.declarations(ROOT)))
+        for route in self.of_type('AWS::ApiGatewayV2::Route') + self.of_type('AWS::ApiGatewayV2::Integration'):
+            self.assertEqual(route['ApiId'], {'Fn::ImportValue': agent_env_stack.API_EXPORT})
+
+    def handler_scope(self, ssm, clock):
+        stub = types.ModuleType('boto3')
+        stub.client = lambda name: ssm
+        saved = sys.modules.get('boto3')
+        sys.modules['boto3'] = stub
+        try:
+            scope = {}
+            [function] = self.functions.values()
+            exec(compile(function['Properties']['Code']['ZipFile'], 'index.py', 'exec'), scope)
+        finally:
+            if saved is None:
+                del sys.modules['boto3']
+            else:
+                sys.modules['boto3'] = saved
+        scope['CLOCK'] = clock
+        return scope
+
+    def call(self, scope, header, variables=None, secrets=None, denied=('AUTH_*',)):
+        env = {'ENV_ID': 'the-tower', 'PREFIX': PREFIX, 'VARIABLES': json.dumps(variables or {}),
+               'SECRETS': json.dumps(SECRETS if secrets is None else secrets), 'DENIED': json.dumps(list(denied))}
+        saved = {key: os.environ.get(key) for key in env}
+        os.environ.update(env)
+        try:
+            with contextlib_redirect() as out:
+                answer = scope['handler']({'headers': {'authorization': header} if header else {}}, None)
+        finally:
+            for key, value in saved.items():
+                if value is None:
+                    os.environ.pop(key)
+                else:
+                    os.environ[key] = value
+        return answer, out.getvalue()
+
+    def run_handler(self, header, **given):
+        ssm = FakeSsm(self.store())
+        answer, out = self.call(self.handler_scope(ssm, lambda: 0), header, **given)
+        return answer, out, ssm
+
+    @staticmethod
+    def store(**extra):
+        return {PREFIX + 'token-sha256': hashlib.sha256(TOKEN.encode()).hexdigest(), PREFIX + 'gh-token': 'value-one',
+                PREFIX + 'api-key': 'value-two', **{PREFIX + key: value for key, value in extra.items()}}
+
+    def test_a_wrong_or_missing_token_answers_401_and_reads_no_secret(self):
+        for header in ('Bearer wrong', '', TOKEN, 'Basic ' + TOKEN, 'Bearer '):
+            answer, out, ssm = self.run_handler(header)
+            self.assertEqual(answer['statusCode'], HTTPStatus.UNAUTHORIZED, header)
+            self.assertEqual(json.loads(answer['body']), {})
+            self.assertEqual([call[0] for call in ssm.calls], ['get_parameter'])
+            self.assertEqual(json.loads(out), {'env': 'the-tower', 'status': HTTPStatus.UNAUTHORIZED, 'names': []})
+
+    def test_the_right_token_answers_the_declared_names_and_values_and_logs_no_value(self):
+        answer, out, ssm = self.run_handler('Bearer ' + TOKEN, variables={'MODE': 'cloud'})
+        self.assertEqual(answer['statusCode'], HTTPStatus.OK)
+        self.assertEqual(json.loads(answer['body']), {'variables': {'MODE': 'cloud'},
+                                                      'secrets': {'GH_TOKEN': 'value-one', 'API_KEY': 'value-two'}})
+        self.assertIn(('get_parameters_by_path', PREFIX, True), ssm.calls)
+        self.assertEqual(json.loads(out), {'env': 'the-tower', 'status': HTTPStatus.OK, 'names': ['API_KEY', 'GH_TOKEN', 'MODE']})
+        for value in ('value-one', 'value-two', 'cloud', TOKEN, hashlib.sha256(TOKEN.encode()).hexdigest()):
+            self.assertNotIn(value, out)
+
+    def test_a_denied_or_undeclared_name_refuses_the_whole_bundle(self):
+        cases = (({'secrets': {'gh-token': 'GH_TOKEN', 'api-key': 'AUTH_SECRET'}}, ['AUTH_SECRET']),
+                 ({'variables': {'AUTH_URL': 'x'}}, ['AUTH_URL']),
+                 ({'secrets': {'gh-token': 'GH_TOKEN'}}, ['api-key']))
+        for given, bad in cases:
+            answer, out, _ = self.run_handler('Bearer ' + TOKEN, **given)
+            self.assertEqual(answer['statusCode'], HTTPStatus.INTERNAL_SERVER_ERROR, given)
+            self.assertEqual(json.loads(answer['body']), {})
+            self.assertEqual(json.loads(out), {'env': 'the-tower', 'status': HTTPStatus.INTERNAL_SERVER_ERROR, 'names': bad})
+            self.assertNotIn('value-', out)
+
+    def test_the_reads_are_cached_for_sixty_seconds_or_less(self):
+        ssm, now = FakeSsm(self.store()), [0]
+        scope = self.handler_scope(ssm, lambda: now[0])
+        self.assertLessEqual(scope['TTL'], timedelta(minutes=1).total_seconds())
+        self.assertEqual(self.call(scope, 'Bearer ' + TOKEN)[0]['statusCode'], HTTPStatus.OK)
+        first = len(ssm.calls)
+        for at, calls in ((scope['TTL'] - 1, first), (scope['TTL'] + 1, first + first)):
+            now[0] = at
+            self.assertEqual(self.call(scope, 'Bearer ' + TOKEN)[0]['statusCode'], HTTPStatus.OK)
+            self.assertEqual(len(ssm.calls), calls, at)
 
 
 def contextlib_redirect():

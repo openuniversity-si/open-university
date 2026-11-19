@@ -3,6 +3,7 @@
   "data": ["network"],
   "service": ["data", "network"],
   "port": ["data", "network"],
+  "agent-env": ["port"],
   "runner": [],
   "media-replica": [],
   "media": ["media-replica"],
