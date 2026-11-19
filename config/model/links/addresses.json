@@ -1,0 +1,10 @@
+{
+  "name": "addresses",
+  "from": [
+    "OBJ"
+  ],
+  "to": [
+    "PROB"
+  ],
+  "description": "An objective addresses a problem or opportunity (D-347)."
+}

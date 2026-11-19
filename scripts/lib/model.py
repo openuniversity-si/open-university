@@ -832,7 +832,7 @@ def target_errors(found, root, today=None):
     top = contract['properties']['measure']['properties']['percentile']['maximum']
     for id, item in sorted(found.items()):
         body = item.get('body') or {}
-        if item['type'] != 'VAL' or 'measure' not in body:
+        if item['type'] not in ('VAL', 'OBJ') or 'measure' not in body:
             continue
         measure, comparator, threshold = body['measure'], body['comparator'], body['threshold']
         if measure['kind'] in SHARE_MEASURES and (threshold < 1 if comparator == 'gte' else threshold > 0):
@@ -868,18 +868,28 @@ REQUIREMENTS ='config/requirements/REQ-*.json'
 IMPORTS = 'config/requirements/imports/*.json'
 
 
+PROBLEMS, OBJECTIVES = 'config/intent/PROB-*.json', 'config/intent/OBJ-*.json'  # D-347: the problem space
+
+
 def read_intent(root):
-    """Intentions (INT) and needs (NEED), one file each; a need refines intentions."""
+    """Intentions (INT) and needs (NEED), one file each; a need refines intentions and derives from objectives. With
+    them the problem space (D-347): problems (PROB) refine intentions, objectives (OBJ) address problems, their solution
+    decided by decisions, and their state is derived from their measure (derive_validations), the benefit reading."""
     root = Path(root)
     schema = _read_json(root / CONTRACTS_DIR / 'intent.v1.json')
-    found = []
-    for path in sorted(root.glob(INTENT)):
+    found = _declared(root, PROBLEMS, 'problem.v1.json', 'PROB',
+                      lambda body: [{'type': 'refines', 'target': target} for target in body['refines']])
+    found += _thresholds(_declared(root, OBJECTIVES, 'objective.v1.json', 'OBJ', lambda body: [
+        {'type': 'addresses', 'target': target} for target in body['addresses']] + [
+        {'type': 'decided-by', 'target': target} for target in body.get('decided_by', [])]), root)
+    for path in sorted(path for path in root.glob(INTENT) if path.stem.split('-', 1)[0] in ('INT', 'NEED')):
         body = _read_json(path)
         kind = path.stem.split('-', 1)[0]
         problems = list(json_schema.validate(schema, body))
         if isinstance(body, dict) and body.get('id') != path.stem:
             problems.append(f'its id must equal the file name {path.stem}')
-        links = [{'type': 'refines', 'target': target} for target in body.get('refines', [])] if not problems else []
+        links = [{'type': 'refines', 'target': target} for target in body.get('refines', [])] + [
+            {'type': 'derives-from', 'target': target} for target in body.get('derives_from', [])] if not problems else []
         item = _obj(path.stem, kind, body.get('state', '') if isinstance(body, dict) else '',
                     path.relative_to(root).as_posix(), path.read_text(), links)
         item['body'] = body
@@ -1163,8 +1173,14 @@ VALIDATIONS = 'config/validation/VAL-*.json'
 def read_validations(root):
     """Validations (VAL), one file each; the state is derived later (derive_validations), never read from the file. A
     threshold_key (D-342) becomes the threshold: the key's registry value, so the number lives in one key."""
-    found = _declared(Path(root), VALIDATIONS, 'validation.v1.json', 'VAL',
-                      lambda body: [{'type': 'validates', 'target': target} for target in body['validates']])
+    return _thresholds(_declared(Path(root), VALIDATIONS, 'validation.v1.json', 'VAL',
+                                 lambda body: [{'type': 'validates', 'target': target} for target in body['validates']]),
+                       root)
+
+
+def _thresholds(found, root):
+    """The measured objects (VAL, OBJ) with each threshold_key resolved to its registry value (D-342); one with both
+    or neither of threshold and threshold_key, or a key that is no number, is a problem of the object."""
     for item in found:
         body = item.get('body')
         if body is None:
@@ -1402,7 +1418,7 @@ def derive_validations(found, root, today=None):
     """Sets each validation's state from its measure: met or not-met when the window holds data, measuring while it
     is short, defined while no source is wired."""
     today = today or utc_today()
-    vals = [item for item in found.values() if item['type'] == 'VAL' and 'body' in item]
+    vals = [item for item in found.values() if item['type'] in ('VAL', 'OBJ') and 'body' in item]  # OBJ: D-347
     # a composite reads the states of the others, so it is derived after them
     for item in sorted(vals, key=lambda item: item['body']['measure']['kind'] == 'all-met'):
         value, enough = measured(item['body'], found, root, today)
@@ -2155,7 +2171,7 @@ def objects(root=ROOT, readers=READERS):
         derive_verdicts(found, root)
     if read_requirements in readers and read_changes in readers:
         link_implemented_by(found)
-    if read_validations in readers:
+    if read_validations in readers or read_intent in readers:
         derive_validations(found, root)
     if read_controls in readers:
         derive_controls(found)

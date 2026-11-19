@@ -13,7 +13,7 @@
   ],
   "covered_by": [
     {
-      "type": "NEED",
+      "type": "PROB",
       "link": "refines"
     }
   ],

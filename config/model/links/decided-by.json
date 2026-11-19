@@ -1,10 +1,11 @@
 {
   "name": "decided-by",
   "from": [
-    "PROP"
+    "PROP",
+    "OBJ"
   ],
   "to": [
     "D"
   ],
-  "description": "A proposal is decided by a decision."
+  "description": "A proposal is decided by a decision; an objective's solution is chosen by one (D-347)."
 }

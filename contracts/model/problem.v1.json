@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/problem.v1.json",
+  "title": "Problem or opportunity v1",
+  "description": "config/intent/PROB-<name>.json (D-347): a problem, opportunity or threat, the situation to change before any solution (ISO/IEC/IEEE 15288:2023 6.4.1 business or mission analysis; INCOSE NRM 4.3.1; BABOK 6.1): what it is, its current state with the evidence that shows it, and the intentions it makes concrete. Objectives (OBJ) address it.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "statement",
+    "kind",
+    "current",
+    "refines",
+    "owner",
+    "state",
+    "source"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^PROB-[a-z0-9][a-z0-9-]*$"
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The situation to change, with no solution in it: who is affected, what, and its impact."
+    },
+    "kind": {
+      "enum": [
+        "problem",
+        "opportunity",
+        "threat"
+      ]
+    },
+    "current": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statement",
+        "evidence"
+      ],
+      "properties": {
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The current state, as measured or observed."
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "The commands, files or records that show the current state."
+        }
+      }
+    },
+    "refines": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^INT-[a-z0-9][a-z0-9-]*$"
+      },
+      "description": "The intentions it makes concrete."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state": {
+      "enum": [
+        "open",
+        "addressed",
+        "closed",
+        "reopened"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where it is written (a path and section)."
+    }
+  }
+}

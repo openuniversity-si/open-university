@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contracts/model/intent.v1.json",
   "title": "Intent or need v1",
-  "description": "config/intent/<id>.json (PADRAO-DEV F2a): an intention, goal or locked constraint (INT) of the owner, or a need (NEED) that refines one. The intention lives in docs/SEMENTE.md and only Daniel changes it (its \u00a76 lock); a need written by a session enters proposed until he validates it.",
+  "description": "config/intent/<id>.json (PADRAO-DEV F2a): an intention, goal or locked constraint (INT) of the owner, or a need (NEED) that refines one. The intention lives in docs/SEMENTE.md and only Daniel changes it (its §6 lock); a need written by a session enters proposed until he validates it.",
   "x-owner": "model",
   "x-schema-version": 1,
   "type": "object",
@@ -48,6 +48,15 @@
       "type": "string",
       "minLength": 1,
       "description": "Where it is written (a path and section)."
+    },
+    "derives_from": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^OBJ-[a-z0-9][a-z0-9-]*$"
+      },
+      "description": "For a need: the objectives it derives from (D-347)."
     }
   }
 }

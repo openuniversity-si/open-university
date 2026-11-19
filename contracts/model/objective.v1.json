@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/objective.v1.json",
+  "title": "Objective v1",
+  "description": "config/intent/OBJ-<name>.json (D-347): an objective measured against a baseline and a target (INCOSE NRM 4.3.2 mission, goals and objectives with their measures; BABOK 6.2 future state; ISO 21502 7.3 benefits): the problems it addresses, its measure (the kinds of a validation, read by the same function), its baseline, its target and when, and the decisions that chose the solution. Its state is derived by scripts/model from the measure, the benefit reading (met, not-met, measuring while the window is short, defined while no source is wired), never written; the gap is the target less the measure, never stored. Needs derive from it.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "statement",
+    "addresses",
+    "owner",
+    "measure",
+    "comparator",
+    "baseline",
+    "by",
+    "source"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^OBJ-[a-z0-9][a-z0-9-]*$"
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "addresses": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^PROB-[a-z0-9][a-z0-9-]*$"
+      }
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "measure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "merges-per-day",
+            "trailer-rate",
+            "escape-rate",
+            "model-share",
+            "incident-count",
+            "code-scan",
+            "all-met",
+            "run-durations",
+            "aws-spend",
+            "supplier-spend",
+            "unwired"
+          ],
+          "description": "merges-per-day: merges on main's first-parent line per complete UTC day, averaged over the window's days; trailer-rate: the share of merges whose commits carry `trailer`, over the window's merges; escape-rate: the share of the window's merged changes that an escape (INC-escape-<n>, from a later merge's `Fixes-PR:` trailer) was introduced by; model-share: a share scripts/model computes (`name`); incident-count: the incident records (scripts/incident) of kind `incident` opened over the window's days; code-scan: the sleep calls inside a loop in the code under `paths` less `exclude` (globs), the candidates for polling; all-met: how many of the validations `of` are not met, measuring while any is short of data or has no source; run-durations: the `percentile` of the durations in a recorded snapshot of `workflow` (config/validation/runs/: a GitHub workflow's runs by scripts/runs, or `deploy`, the AWS deploy's succeeded builds by scripts/deploy status), measuring while it holds fewer than `min_runs` runs or is older than `max_age_days`; aws-spend: the AWS account's unblended spend for the month to date in US$, from the snapshot of the deploy build's daily Cost Explorer reading (config/validation/spend/aws.json, scripts/spend), measuring while it is of another month or older than `max_age_days` (a reading of this month over the threshold is final); supplier-spend: a supplier's spend in US$ from a reading checked by hand against its invoice (config/validation/spend/<supplier>.json, scripts/lib/spend.py read_supplier), measuring once older than `max_age_days` (D-342); unwired: no source is wired yet (`source` says which)."
+        },
+        "trailer": {
+          "type": "string"
+        },
+        "name": {
+          "enum": [
+            "reflexion",
+            "requirements-tested"
+          ]
+        },
+        "source": {
+          "type": "string"
+        },
+        "incident": {
+          "type": "string"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "of": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^VAL-[a-z0-9][a-z0-9-]*$"
+          },
+          "minItems": 1
+        },
+        "workflow": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "percentile": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "min_runs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_age_days": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "supplier": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        }
+      }
+    },
+    "comparator": {
+      "enum": [
+        "gte",
+        "lte"
+      ]
+    },
+    "threshold": {
+      "type": "number"
+    },
+    "threshold_key": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9_.-]*$",
+      "description": "A registry key whose value is the threshold (D-342), so the number lives in one key. A validation carries threshold or threshold_key, exactly one (scripts/model read_validations refuses both or neither: a oneOf here would not be an additive change of v1)."
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "size"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "days",
+            "merges"
+          ]
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "date",
+        "source"
+      ],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The command or record that measured it."
+        }
+      }
+    },
+    "by": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "When the target is due."
+    },
+    "decided_by": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^D-[0-9]+$"
+      },
+      "description": "The decisions that chose the solution."
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
