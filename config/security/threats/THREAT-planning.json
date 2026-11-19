@@ -90,8 +90,8 @@
       {
         "about": "tampering",
         "finding": "Missing threat: the plan, lane, review and companion refusals sit under the structure lock, and a pull request can lift it by committing a config.changed line for regime.exception_active to the tracked change store .tower/config (see THREAT-config, tampering), which no gate file change, decision or pinning catches.",
-        "disposition": "open",
-        "reason": "needs the gate to ignore or refuse a tracked change store: for example the gate reading registry defaults only (an empty or memory store), or a stage that refuses any tracked file under config.store_dir; not in place."
+        "disposition": "fixed",
+        "reason": "Fixed 2026-11-19 in three layers: the structure check's hygiene refuses any tracked path under .tower/ (repo_hygiene.tower_store_errors, STD-repo-hygiene-tower-store-errors, test_repo_hygiene.TowerStore); verify-commit sets OU_CONFIG_REGISTRY_ONLY to its checkout, so every stage and test it runs reads registry defaults only (test_config_api.GateMode, test_verify_commit.GateMode); the pinned overlay deletes .tower/ from the checkout (gate_pin.remove_store, test_gate_pin.Overlay). VULN-gate-tower-config-override."
       },
       {
         "about": "repudiation",

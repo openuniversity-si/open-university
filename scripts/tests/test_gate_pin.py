@@ -285,6 +285,21 @@ class Overlay(Fixture):
         self.assertEqual(git(self.repo, "rev-parse", "HEAD"), head)
         self.assertEqual(git(self.repo, "diff", "--cached", "--name-only"), "")
 
+    def test_the_change_store_the_head_brings_is_deleted(self):
+        """D-335: a .tower/config override the head commits (a forced add) and any untracked store file are gone after
+        the overlay, whether or not the change touches a gate file; HEAD and the index stay the head's."""
+        store = config.entry("config.store_dir")["default"]
+        events = f"{store}/events.jsonl"
+        head = self.commit({events: '{"type": "config.changed"}\n'}, "head commits the store")
+        (self.repo / f"{store}-cache").mkdir()
+        (self.repo / f"{store}-cache/read.json").write_text("{}\n")
+        pinned = gate_pin.overlay(self.repo, self.base)
+        self.assertIn(events, pinned)
+        self.assertFalse((self.repo / pathlib.Path(store).parts[0]).exists())
+        self.assertEqual((self.repo / "scripts/gate-local").read_text(), "base gate\n")
+        self.assertEqual(git(self.repo, "rev-parse", "HEAD"), head)
+        self.assertEqual(gate_pin.remove_store(self.repo), [])
+
     def closure_base(self):
         """A base whose gate imports helpers: gate_x.py (import helper, from pkg import mod, json, an optional module)
         and the shell entry point gate-local (runs scripts/lib/runner.py by path, a heredoc imports heredoc_mod)."""

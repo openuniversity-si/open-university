@@ -136,5 +136,16 @@ class RasterImages(Repo):
         self.assertEqual(repo_hygiene.check(ROOT), [])
 
 
+class TowerStore(Repo):
+    """D-335: a forced add of the change store (`git add -f .tower/config`) is refused, whatever file it holds."""
+    def test_a_tracked_file_of_the_change_store_is_refused_and_a_lookalike_path_is_not(self):
+        store = config.get('config.store_dir')
+        self.write(f'{store}/events.jsonl', '{}\n')
+        self.write(f'docs/{store}/note.md', 'a path that only ends like the store\n')
+        self.assertEqual(len(repo_hygiene.tower_store_errors(repo_hygiene.tracked(self.root), store)), 1)
+        self.assertTrue(any(error.startswith(f'{store}/events.jsonl: a tracked file of the change store')
+                            for error in self.errors()))
+
+
 if __name__ == '__main__':
     unittest.main()

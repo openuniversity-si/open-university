@@ -292,6 +292,33 @@ class StoreSelection(Fixture):
         self.assertFalse((self.root / config.entry('config.store_dir', self.root)['default']).exists())
 
 
+class GateMode(Fixture):
+    """D-335: under the gate's mode ($OU_CONFIG_REGISTRY_ONLY names the judged checkout) a .tower/config override in
+    that checkout is never read: config.get returns the registry default, and every other checkout keeps its store."""
+
+    DEFAULT = TRAIN['properties']['train.batch_size']['default']
+    OVERRIDE = DEFAULT + 1
+
+    def gated(self, root):
+        self.enterContext(mock.patch.dict(os.environ, {config.REGISTRY_ONLY_ENV: str(root)}))
+        config.invalidate()
+        self.addCleanup(config.invalidate)
+
+    def test_an_override_in_the_judged_checkout_reads_its_registry_default(self):
+        config.set_value('train.batch_size', self.OVERRIDE, actor='head', reason='forced add', now=at(0), root=self.root)
+        self.assertEqual(config.get('train.batch_size', self.root), self.OVERRIDE)
+        self.gated(self.root)
+        self.assertTrue(config.registry_only(self.root))
+        self.assertEqual(config.get('train.batch_size', self.root), self.DEFAULT)
+        self.assertEqual(config.overrides(self.root), {})
+
+    def test_another_checkout_keeps_its_own_store(self):
+        config.set_value('train.batch_size', self.OVERRIDE, actor='test', reason='temp root', now=at(0), root=self.root)
+        self.gated(ROOT)
+        self.assertFalse(config.registry_only(self.root))
+        self.assertEqual(config.get('train.batch_size', self.root), self.OVERRIDE)
+
+
 class RemoteForge(forge_events.MemoryAdapter):
     """A fake forge whose log lives off the machine: the config store caches its reads. Counts every read."""
 

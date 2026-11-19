@@ -452,7 +452,8 @@ class Trigger(unittest.TestCase):
         self.enterContext(unittest.mock.patch.object(forge_events, 'FileAdapter', lambda _path: adapter))
         self.enterContext(unittest.mock.patch.object(config, '_chosen', []))
         self.enterContext(unittest.mock.patch.dict(os.environ, {'OU_CONFIG_STORE': 'file'}))
-        self.addCleanup(config.invalidate)
+        os.environ.pop(config.REGISTRY_ONLY_ENV, None)  # D-335: the double is this checkout's store; under verify-commit
+        self.addCleanup(config.invalidate)  # it would read registry defaults only (restored with the patch above)
         config.invalidate()
 
     def test_gate_on_push_r1_the_pinned_gate_reads_the_switch_from_the_shared_store(self):
