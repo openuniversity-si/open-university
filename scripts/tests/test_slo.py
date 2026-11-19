@@ -121,6 +121,15 @@ class Fold(unittest.TestCase):
         self.assertEqual(slo.percentile([3, 1, 2], 95), 3)
         self.assertEqual(slo.percentile([7], 50), 7)
 
+    def test_the_slos_judge_the_whole_sample_so_one_slow_value_breaches(self):
+        """D-336, D-337: slo.percentile is 100, the maximum; one slow verdict among many decides the window."""
+        self.assertEqual(config.get('slo.percentile'), 100)
+        self.assertEqual(slo.percentile(list(range(1, 1001)), 100), 1000)
+        limit = config.get('slo.gate_tier1_p95_s')
+        log = make_log([gate(i, i + 1, limit / 2) for i in range(39)] + [gate(50, 60, limit * 3)])
+        item = by_name(slo.evaluate(log, conf(**{'slo.percentile': config.get('slo.percentile')})))['slo.gate_tier1_p95_s']
+        self.assertEqual((item['state'], item['value']), ('breached', limit * 3))
+
     def test_tier1_p95_breaches_when_the_slow_tail_exceeds_the_entry(self):
         limit = config.get('slo.gate_tier1_p95_s')
         log = make_log([gate(i, i + 1, limit / 2) for i in range(18)] + [gate(20 + i, 30 + i, limit * 3) for i in range(2)])
