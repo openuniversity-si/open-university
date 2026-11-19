@@ -1,0 +1,10 @@
+{
+  "id": "TAIL-gate-fork-workflow",
+  "exempts": "STD-targets-full",
+  "scope": "THREAT-gate",
+  "reason": "THREAT-gate's one open finding: a pull request from a fork brings its own tower-gate.yml into the pull request and merge-group runs, so a required check bound to the GitHub Actions app can be made green by that workflow; nothing inside the repository can refuse it. The barrier is that only a writer queues a merge, under D-344's rule that a session never queues a fork's pull request whose diff touches .github/. Ends when a push rule refuses a change to .github/workflows/** on main except by the owner.",
+  "owner": "administration",
+  "authorized_by": "D-344",
+  "valid_until": "2026-12-19",
+  "state": "active"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "TAIL-ssdf-pw2-gate",
+  "exempts": "STD-targets-full",
+  "scope": "CTRL-ssdf-pw.2",
+  "reason": "CTRL-ssdf-pw.2 is partial only because THREAT-gate is not reviewed: ten of the eleven threat models are reviewed by an independent reviewer (D-333), and THREAT-gate's one open finding is the fork residual D-344 accepts. Ends with TAIL-gate-fork-workflow.",
+  "owner": "administration",
+  "authorized_by": "D-344",
+  "valid_until": "2026-12-19",
+  "state": "active"
+}
