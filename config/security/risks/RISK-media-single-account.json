@@ -1,7 +1,7 @@
 {
   "id": "RISK-media-single-account",
   "statement": "The site's media has one copy, in one AWS account and region: S3 versioning covers a deletion or an overwrite, not a compromised account, an account closure or a regional loss.",
-  "state": "assessed",
+  "state": "treated",
   "owner": "Daniel",
   "assets": [
     "DATA-r2-media",
@@ -11,11 +11,11 @@
   "impact": "high",
   "treatment": {
     "option": "mitigate",
-    "plan": "Approved by the owner on 2026-11-18 21:29 BRT (a copy in a second AWS region, under US$ 1 a month). S3 Cross-Region Replication of the media bucket to tower-media-replica-<account>-us-west-2 (infra/aws/stacks/58-media-replica.json, region in infra/aws/regions.json): versioned, SSE-S3, private, retained, noncurrent versions 90 days; the media stack's rule (ReplicaRegion in parameters.json) copies every new object version as Glacier Instant Retrieval and never replicates a delete marker, so a deletion or an overwrite in us-east-1 leaves the copy whole. The objects older than the rule are copied once by an S3 Batch Replication job (the runbook's 'A cópia da mídia em outra região'). About US$ 0.03 a month, about US$ 1 once. It covers a regional loss and a deletion in the primary, not a compromised account or its closure (same account, no Object Lock). The state stays assessed until the Torre's verification (object count and bytes equal on both sides) is recorded; until then versioning (90 days) is the only recovery.",
+    "plan": "Approved by the owner on 2026-11-18 21:29 BRT (a copy in a second AWS region, under US$ 1 a month). S3 Cross-Region Replication of the media bucket to tower-media-replica-<account>-us-west-2 (infra/aws/stacks/58-media-replica.json, region in infra/aws/regions.json): versioned, SSE-S3, private, retained, noncurrent versions 90 days; the media stack's rule (ReplicaRegion in parameters.json) copies every new object version as Glacier Instant Retrieval and never replicates a delete marker, so a deletion or an overwrite in us-east-1 leaves the copy whole. The objects older than the rule are copied once by an S3 Batch Replication job (the runbook's 'A cópia da mídia em outra região'). About US$ 0.03 a month, about US$ 1 once. It covers a regional loss and a deletion in the primary, not a compromised account or its closure (same account, no Object Lock). Verified on 2026-11-18 22:39 BRT (the Torre): the merge deploy of #249 (tower-infra-deploy:86218c47) created tower-app-media-replica in us-west-2 and the rule media-replica (Enabled, GLACIER_IR, delete markers off); Batch Replication job fac31b6a-ab70-4b87-840f-355f25d0c8e9 completed 31,093 of 31,093 tasks with 0 failures; both buckets list 31,028 objects and 3,388,226,582 bytes. What remains is the residual risk a compromised or closed account carries, which only a separate account or Object Lock would treat.",
     "by": [
       "DATA-r2-media"
     ]
   },
-  "review_by": "2026-12-02",
+  "review_by": "2027-02-18",
   "source": "docs/programs/padrao-dev/fornecimento-cloudflare.md (the R2 deletion, 18/11; 'A cópia da mídia em outra região', 19/11)"
 }
