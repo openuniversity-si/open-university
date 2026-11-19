@@ -350,3 +350,18 @@ A Torre fez os passos 1 a 5 do corte entre 20:43 e 20:49Z, e a sessão conferiu 
 - **O certificado** é `arn:aws:acm:us-east-1:994763873392:certificate/302c7003-…`, para o apex e o www, e está `PENDING_VALIDATION` até a troca propagar.
   - Os dois CNAME de validação estão na zona e ficam fora do template. O CloudFormation não apaga um registro que não criou, e o ACM renova pelo mesmo CNAME.
   - O PR do `CertificateArn` só entra depois de o certificado estar `ISSUED`, porque um certificado ainda não emitido faria o update da distribuição falhar.
+
+## Revogação e o R2 apagado (18/11 ~20:42 e 20:58 BRT)
+Daniel mandou não esperar as 48 h nem os 30 dias. Pela Torre:
+- **Chaves R2 fora das cópias:** saíram `R2_ACCESS_KEY_ID_RO`, `R2_SECRET_ACCESS_KEY_RO` e `R2_ACCOUNT_ID` do segredo
+  `open-university/web-env` e do ambiente da Lambda `open-university-web`; os arquivos de R2 da caixa foram apagados.
+- **R2 apagado:** `open-university-media` (31.026 objetos) e `the-tower-media` (1.329) foram esvaziados e apagados às
+  20:57 BRT, depois que a listagem do S3 bateu (SHA-256 `f9eaf5c8…e581f`) e a única chave que faltava foi copiada.
+  Às 21:01 BRT, com o ok de Daniel, `the-tower-fidelity` (1.178 objetos, máscaras da era Origin) foi apagado sem cópia
+  (job `8f37a878-593c-470b-9219-d3ca012ea9f8`). O R2 está vazio (GET /r2/buckets: lista vazia).
+- **Não revogados:** os tokens `open-university-ci-ro`, `tower-ro`, `tower-rw` e `Editar Cloudflare Workers`. O conector
+  da Torre não tem permissão de API Tokens (403), então isso pede o login de Daniel no painel. As zonas ficam até o fim da
+  propagação dos NS.
+- **O risco que nasce:** sem o R2, a mídia tem uma cópia só, numa conta e numa região. O versionamento cobre apagar ou
+  sobrescrever, mas não uma conta comprometida. `RISK-media-single-account` registra isso. O tratamento é replicar para
+  outra região (menos de um dólar por mês) e espera o ok de Daniel, porque é gasto.
