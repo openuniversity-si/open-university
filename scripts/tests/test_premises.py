@@ -256,6 +256,22 @@ class Commands(Fixture):
         by_id, errors = premises.load(self.root)
         self.assertEqual((errors, by_id['P-01']['status'], by_id['P-02']['status']), ([], 'confirmed', 'refuted'))
 
+    def test_refuting_a_measurement_premise_requires_evidence(self):
+        self.put(record('P-03', 'measured', 'to-validate', 'high', ['decision:D-348'],
+                        validate={'kind': 'measurement', 'how': 'Measure across consecutive windows.'}))
+        code, lines, events = self.run_cli('answer', 'P-03', '--value', 'refuted', '--by', 'Daniel',
+                                           '--quote', 'Not yet measured.')
+        self.assertEqual((code, events), (1, []))
+        self.assertIn('measurement premise needs the measurement in answer.evidence', '\n'.join(lines))
+        code, _, events = self.run_cli('answer', 'P-03', '--value', 'refuted', '--by', 'Daniel',
+                                       '--quote', 'Measured.', '--evidence', 'NC-trust met across 3 windows')
+        self.assertEqual((code, events[0]['type']), (0, 'premise.refuted'))
+        self.assertEqual(self.errors(), [])
+        self.put(record('P-04', 'unmeasured-refuted', 'refuted', 'high', ['decision:D-348'],
+                        answer=answer('refuted', evidence=None),
+                        validate={'kind': 'measurement', 'how': 'Measure.'}))
+        self.assertTrue(any('measurement premise needs the measurement in answer.evidence' in e for e in self.errors()))
+
     def test_propose_reaching_a_large_share_of_the_units_is_high(self):
         self.put(record())
         share = premises.setting('high_blast_unit_share_percent')
