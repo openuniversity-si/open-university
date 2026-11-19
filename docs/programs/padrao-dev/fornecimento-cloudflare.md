@@ -580,3 +580,43 @@ aplicação só para PUSH-STEPS e SIGNED-HOOK.
 **Reverter.** O mesmo caminho com o `bootstrap.json` anterior (hash canônico `cbb372a6…`): o doorbell deixa de dizer
 `heard` e `steps` volta a começar no `port`, e o pouso volta a vir na palavra `{landed, sha}`, sem assinatura (com o
 `ls-remote`); nada mais muda.
+
+## O limite do AGENT-ENV (19/11, AGENT-ENV-BOUNDARY, D-341)
+
+O `tower-boundary` ganha a declaração `AgentEnvSecrets`: `secretsmanager:GetSecretValue` e `DescribeSecret` só em
+`secret:tower/agent-env/*` e `secret:tower/torre-webhook-*` da região da pilha; nenhuma outra ação do Secrets Manager e
+nenhum recurso `*`. O `ssm:*` da região já cobre `parameter/tower/agent-env/*`. O `tower-cfn-exec` não muda: a sua única
+política é o próprio limite, cujas regras `tower-app-*` (funções, papéis com o limite, parâmetros) já criam o que a pilha
+`45-agent-env` vai declarar (`tower-app-agent-env-*`, `tower-app-torre-relay`, `parameter/tower/agent-env/*` e
+`parameter/tower/torre-relay/*`). Nada lê esses segredos ainda, então **não há ordem com o merge**. Custo: US$ 0.
+
+**Passos da Torre**, do checkout da cabeça da PR (ou de `main` depois do merge), em `us-east-1`:
+1. **Conferir o arquivo e subir o modelo.**
+   ```
+   ACCT=$(aws sts get-caller-identity --query Account --output text)
+   sha256sum infra/aws/bootstrap.json   # 13ec3fb44cbf6c4286798a55f83b8a356589251f39ee0c0051c4c643b1ac94b1
+   aws s3 cp infra/aws/bootstrap.json s3://tower-outputs-$ACCT-us-east-1/artifacts/bootstrap/bootstrap-38bdc05f.json \
+     --region us-east-1 --only-show-errors
+   ```
+2. **Ver o que muda e reaplicar o `tower-bootstrap`** com `UsePreviousValue` nos cinco parâmetros:
+   ```
+   URL=https://tower-outputs-$ACCT-us-east-1.s3.us-east-1.amazonaws.com/artifacts/bootstrap/bootstrap-38bdc05f.json
+   PARAMS="ParameterKey=OriginRepoUrl,UsePreviousValue=true ParameterKey=BaseBranch,UsePreviousValue=true \
+     ParameterKey=DoorbellTokenSha256,UsePreviousValue=true ParameterKey=AlertEmail,UsePreviousValue=true \
+     ParameterKey=ReplicaRegion,UsePreviousValue=true"
+   aws cloudformation create-change-set --region us-east-1 --stack-name tower-bootstrap \
+     --change-set-name req-agent-env-boundary --template-url $URL --capabilities CAPABILITY_NAMED_IAM --parameters $PARAMS
+   aws cloudformation describe-change-set --region us-east-1 --stack-name tower-bootstrap \
+     --change-set-name req-agent-env-boundary --query 'Changes[].ResourceChange.[Action,LogicalResourceId,Replacement]'
+   # [["Modify","Boundary","False"]]: só a política do limite muda, nada é substituído
+   aws cloudformation execute-change-set --region us-east-1 --stack-name tower-bootstrap \
+     --change-set-name req-agent-env-boundary
+   aws cloudformation wait stack-update-complete --region us-east-1 --stack-name tower-bootstrap
+   ```
+   Se o change set mostrar outro recurso (o `DoorbellFunction` de PUSH-STEPS/SIGNED-HOOK ainda não aplicado), é a
+   aplicação pendente daquela seção, que vem junto; um `Replacement` diferente de `False` faz parar antes de executar.
+3. **Conferir o hash canônico** do que a conta tem, com o comando da seção anterior; tem de ser o `APPLIED` de
+   `test_infra_aws.py`: `38bdc05f44129bb5795761b728715a19c9cb419ff9c510a830e45f060cec6e2e`.
+
+**Reverter.** O mesmo caminho com o `bootstrap.json` anterior (hash canônico `96926148…`): o limite deixa de permitir a
+leitura dos dois prefixos; nada mais muda.
