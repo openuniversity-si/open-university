@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/agent-env.test.sh",
+  "covers": [
+    "scripts/tests/agent-env.test.sh",
+    "scripts/tests/test_agent_env.py",
+    "scripts/lib/agent_env.py",
+    "contracts/agent-env/environment.v1.json",
+    "config/agent-env/the-tower.json",
+    "config/registry/agent-env/_owner.json",
+    "config/registry/agent-env/agent-env.denied_names.json"
+  ]
+}

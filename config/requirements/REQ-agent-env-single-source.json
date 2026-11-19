@@ -1,0 +1,16 @@
+{
+  "id": "REQ-agent-env-single-source",
+  "type": "constraint",
+  "statement": "Each agent execution environment receives only what its declaration in config/agent-env/ names: non-secret variables, secrets by name under its own prefix, its network hosts and one starting credential; a declaration that names a denied name or a secret outside its prefix is refused.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-autonomy",
+    "NEED-cost"
+  ],
+  "basis": [
+    "D-341"
+  ],
+  "source": "docs/domain/decisions/D-341.md",
+  "verification": "test"
+}

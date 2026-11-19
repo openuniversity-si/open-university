@@ -1,6 +1,6 @@
 {
   "id": "engine-env",
-  "purpose": "The environment manifest, preflight and session identity.",
+  "purpose": "The environment manifest, preflight and session identity, and the agent execution environments' declarations (D-341).",
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
@@ -15,7 +15,13 @@
     "scripts/tests/test_preflight.py",
     "scripts/tests/test_toolchain_pins.py",
     "scripts/tests/toolchain-pins.test.sh",
-    "scripts/lib/credentials.py"
+    "scripts/lib/credentials.py",
+    "scripts/lib/agent_env.py",
+    "scripts/tests/agent-env.test.sh",
+    "scripts/tests/test_agent_env.py",
+    "contracts/agent-env/**",
+    "config/agent-env/**",
+    "config/registry/agent-env.json"
   ],
   "requires": {
     "engine-config": "^1",

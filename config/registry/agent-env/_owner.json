@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "config/registry/agent-env.json",
+  "x-owner": "agent-env",
+  "x-schema-version": 1,
+  "description": "Agent execution environments (AGENT-ENV, D-341): the parameters of the declarations in config/agent-env/ and of their validator, scripts/lib/agent_env.py.",
+  "type": "object",
+  "additionalProperties": false
+}

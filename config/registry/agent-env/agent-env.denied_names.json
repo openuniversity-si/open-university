@@ -1,0 +1,23 @@
+{
+  "type": "array",
+  "default": [
+    "*DATABASE_URL*",
+    "R2_*",
+    "AUTH_*",
+    "OU_GOOGLE_*",
+    "MUX_*",
+    "FIGMA_*",
+    "*BLOB*"
+  ],
+  "uniqueItems": true,
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "x-unit": "count",
+  "description": "Shell-style patterns (fnmatch, case-sensitive) of the variable and secret names the engine never sends to a cloud agent (AGENTS.md Cloud setup): database URLs, R2 keys, AUTH_*, OU_GOOGLE_*, Mux, Figma and blob tokens. The validator, the delivery and the client refuse a name that matches one, and a name that matches a retired vendor term (structure.retired_vendor_terms, D-318), which covers the site's former hosting and database tokens without naming them here.",
+  "x-readers": [
+    "scripts/lib/agent_env.py"
+  ],
+  "x-source": "D-341"
+}

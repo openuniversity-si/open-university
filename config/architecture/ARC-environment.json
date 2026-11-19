@@ -6,7 +6,8 @@
   "state": "active",
   "owner": "efficiency",
   "satisfies": [
-    "REQ-origin-dormant"
+    "REQ-origin-dormant",
+    "REQ-agent-env-single-source"
   ],
   "depends_on": [
     "ARC-config",
