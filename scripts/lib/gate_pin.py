@@ -180,6 +180,21 @@ def gate_changed(root, base, head):
     return [name for name in names.splitlines() if GATE_FILE.match(name)]
 
 
+def overlay(tree, base):
+    """PINNED-ON-GITHUB (D-070, D-335, VULN-gate-judged-by-own-head): in the checkout tree, put back the base's version of
+    every gate file (GATE_FILE, this module's: the base's when it runs from the base) that the change base..HEAD touches,
+    and remove one the change added; only the working tree changes (HEAD and the index stay the head's), so the stages
+    run there judge the head's commits and diff with the base's gate. Returns the files pinned."""
+    names = git(tree, 'diff', '--name-only', '--no-renames', base, 'HEAD') or ''
+    pinned = [name for name in names.splitlines() if GATE_FILE.match(name)]
+    for name in pinned:
+        if git(tree, 'cat-file', '-e', f'{base}:{name}', check=False) is None:
+            (Path(tree) / name).unlink(missing_ok=True)
+        else:
+            git(tree, 'restore', f'--source={base}', '--worktree', '--', name)
+    return pinned
+
+
 def clean_at(root, sha):
     """True when the checkout's HEAD is <sha> and no tracked file differs."""
     return (git(root, 'rev-parse', 'HEAD', check=False) == sha
@@ -413,13 +428,23 @@ def report(root, args, opts, base, head, pinned_rc, environ, call, post, out):
 
 
 def main(argv):
-    """gate_pin.py run --root <checkout> [--abort-file <path>] -- <gate-local args>"""
+    """gate_pin.py run --root <checkout> [--abort-file <path>] -- <gate-local args>
+    gate_pin.py overlay --root <checkout> --base <sha>   (PINNED-ON-GITHUB: run from the base's tooling)"""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('command', choices=['run'])
+    parser.add_argument('command', choices=['run', 'overlay'])
     parser.add_argument('--root', required=True)
     parser.add_argument('--abort-file')
+    parser.add_argument('--base')
     split = argv.index('--') if '--' in argv else len(argv)
     found = parser.parse_args(argv[:split])
+    if found.command == 'overlay':
+        if not found.base or not SHA.fullmatch(found.base):
+            parser.error('overlay needs --base <full sha>')
+        pinned = overlay(found.root, found.base)
+        for name in pinned:
+            print(f'gate: pinned to the base: {name}')
+        print(f'gate: {len(pinned)} gate file(s) of the change judged by the base {found.base[:12]}')
+        return 0
     return run(found.root, argv[split + 1:], abort_file=found.abort_file)
 
 

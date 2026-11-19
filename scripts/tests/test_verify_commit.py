@@ -94,6 +94,20 @@ class TheVerifier(unittest.TestCase):
         self.assertIn(['scripts/gate-check', 'tests', 'scripts/tests/x.test.sh,scripts/tests/y.test.sh'], fake.calls)
         self.assertIn(['scripts/gate-check', 'plan', 'checks', '--base', BASE], fake.calls)
 
+    def test_stages_only_runs_the_plans_stages_and_no_test(self):
+        """PINNED-ON-GITHUB (D-335): the pinned job judges a gate change's stages with the base's gate, no test."""
+        fake = Fake(red=('scripts/tests/y.test.sh',))
+        with mock.patch('verify_commit.pr_metadata', return_value=(0, 'quiet')):
+            self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post', '--stages-only'], run=fake), 0)
+        self.assertEqual([call[2] for call in fake.calls if call[:2] == ['scripts/gate-check', 'stage']],
+                         ['structure check', 'secret scan (tree)'])
+        self.assertFalse([call for call in fake.calls if call[:2] in (['scripts/gate-check', 'test'], ['scripts/gate-check', 'tests'])])
+        red = Fake(red=('structure check',))
+        with mock.patch('verify_commit.pr_metadata', return_value=(0, 'quiet')):
+            self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post', '--stages-only'], run=red), 1)
+        with self.assertRaises(SystemExit):
+            verify_commit.main(['--sha', SHA, '--base', BASE, '--stages-only', '--part', 'main'], run=Fake())
+
     def test_a_red_stage_or_test_is_a_failure_naming_it(self):
         fake = Fake(red=('structure check', 'scripts/tests/y.test.sh'))
         self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=fake), 1)
