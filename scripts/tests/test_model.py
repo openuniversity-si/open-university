@@ -1075,6 +1075,21 @@ class Architecture(unittest.TestCase):
         self.assertEqual(found['D-314']['links'], [{'type': 'supersedes', 'target': 'ADR-24'}])
         self.assertEqual(found['ADR-11']['body']['retired_by'], 'D-111')
 
+    def test_an_accepted_adr_is_verified_by_the_tests_its_proof_line_names_when_they_all_exist(self):
+        # D-335: an ADR carries its proof as a row does, in a Proof: line of its head (row_proof)
+        write(self.root, 'scripts/tests/test_alpha.py', 'class Alpha(unittest.TestCase):\n    def test_holds(self):\n        pass\n')
+        write(self.root, 'docs/adr/ADR-40-kept.md', '# ADR-40\n\nStatus: accepted.\nProof: `scripts/tests/test_alpha.py` › "test_holds"\n')
+        write(self.root, 'docs/adr/ADR-41-gone.md', '# ADR-41\n\nStatus: accepted.\nProof: `scripts/tests/test_gone.py`\n')
+        items = model.read_adrs(self.root)
+        verifies = {link['target'] for item in items if item['type'] == 'TEST' for link in item['links']}
+        self.assertEqual(verifies, {'ADR-40'})
+        adrs = {item['id']: item for item in items if item['type'] == 'D'}
+        self.assertEqual((adrs['ADR-40']['proof']['outcome'], adrs['ADR-41']['proof']['missing']),
+                         ('proven', ['scripts/tests/test_gone.py']))
+        self.assertNotIn('proof', adrs['ADR-28'])
+        counted = model.decisions_measure({item['id']: item for item in items}, root=self.root)
+        self.assertNotIn('table_proofs', counted)
+
     def test_a_unit_realizes_the_elements_its_manifest_names_and_the_measure_counts_them(self):
         write(self.root, 'units/engine-gate/unit.json', {'id': 'engine-gate', 'requires': {}, 'realizes': ['ARC-gate']})
         found = {item['id']: item for item in model.read_units(self.root)}
