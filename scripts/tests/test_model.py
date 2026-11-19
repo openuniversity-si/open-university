@@ -187,6 +187,24 @@ class TinyModel(unittest.TestCase):
         self.assertFalse(model.rate_system(self.meta(), one, model.incoming(one), set(), 'build', {'CHG-1'})['closed'],
                          'while no verdict source is read, a test is not known to pass and its system stays open')
 
+    def test_d335_a_requirement_d331_measures_after_the_stop_keeps_its_system_closable_only_while_measuring(self):
+        def found(state):
+            return self.objects({'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'body': {'verification': 'validation'}},
+                                {'id': 'ARC-1', 'type': 'ARC', 'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
+                                {'id': 'VAL-escape-under-1', 'type': 'VAL', 'state': state,
+                                 'links': [{'type': 'validates', 'target': 'REQ-1'}]})
+        measuring = found('measuring')
+        unjudged = {'VAL-escape-under-1'}  # the tiny metamodel has no rule of VAL
+        rated = model.rate_system(self.meta(), measuring, model.incoming(measuring), set(), 'reqs', unjudged)
+        self.assertEqual((rated['conformant'], rated['measured_after'], rated['nonconformant'], rated['closed']),
+                         (0, ['REQ-1'], [], True), 'the level still counts it not conformant')
+        missed = found('not-met')
+        rated = model.rate_system(self.meta(), missed, model.incoming(missed), set(), 'reqs', unjudged)
+        self.assertEqual((rated['measured_after'], rated['nonconformant'], rated['closed']), ([], ['REQ-1'], False))
+        del measuring['ARC-1']
+        rated = model.rate_system(self.meta(), measuring, model.incoming(measuring), set(), 'reqs', unjudged)
+        self.assertEqual(rated['nonconformant'], ['REQ-1'], 'another open rule keeps it open')
+
     def test_d335_only_an_exemption_in_force_that_a_decision_granted_exempts(self):
         tail = lambda **body: {'id': 'TAIL-x', 'type': 'TAIL', 'state': body.pop('state', 'active'), 'links': [],
                                'source': 'config/standard/tailoring/TAIL-x.json',

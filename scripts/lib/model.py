@@ -1999,11 +1999,11 @@ def meets(condition, item):
     return all((item['state'] if field == 'state' else body.get(field)) in values for field, values in condition.items())
 
 
-def covered(meta, item, into, found):
+def covered(meta, item, into, found, tested=None):
     """Whether every coverage rule (`covered_by`) and every required outgoing link (`must_link`) of the type holds, and
     the object is in no unconformant state or condition (`unconformant_states`, `unconformant_when`). A
     requirement's test rule is requirement_tested, the rule the chain uses (a met validation of its own counts when its
-    verification is a validation)."""
+    verification is a validation), unless `tested` says how it stands."""
     if item['state'] in meta['types'][item['type']].get('unconformant_states', []):
         return False
     if any(meets(condition, item) for condition in meta['types'][item['type']].get('unconformant_when', [])):
@@ -2013,7 +2013,7 @@ def covered(meta, item, into, found):
         return False
     for rule in meta['types'][item['type']].get('covered_by', []):
         if item['type'] == 'REQ' and (rule['type'], rule['link']) == ('TEST', 'verifies'):
-            if not requirement_tested(item, into, found):
+            if not (requirement_tested(item, into, found) if tested is None else tested):
                 return False
             continue
         if not any(kind == rule['link'] and found.get(source, {}).get('type') == rule['type'] and
@@ -2218,11 +2218,22 @@ def exempted_ids(found, today):
 CLOSED_SHOWN = 10  # D-335: the non-conformant ids a system lists before it gives only the count
 
 
+def deferred(meta, item, into, found):
+    """D-331 for D-335's closing: a requirement verified by validation whose only open rule is its verification, while
+    its own validations not met are of MEASURED_AFTER and waiting, counts for the stop criterion; its level does not."""
+    if item['type'] != 'REQ' or item.get('body', {}).get('verification') != 'validation':
+        return False
+    own = [source for kind, source in into.get(item['id'], [])
+           if kind == 'validates' and found.get(source, {}).get('type') == 'VAL']
+    return _only_measured_after(own, found) and covered(meta, item, into, found, tested=True)
+
+
 def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
     """One system's conformance: its active objects, those a rule judges and pass every rule, the share, the level
     (below F while a significant weakness stands), the types no rule judges and the verdict types not read; D-335:
-    the objects that are not conformant (an object no rule judges included), those an exemption in force covers, and
-    whether the system is closed (every other object conformant and no significant weakness)."""
+    the objects that are not conformant (an object no rule judges included), those an exemption in force covers, the
+    requirements D-331 measures after the stop (deferred), and whether the system is closed (every other object
+    conformant, no significant weakness and no verdict left unread)."""
     kinds = {type_id for type_id, kind in meta['types'].items() if kind['system'] == name}
     mine = [item for item in found.values() if item['type'] in kinds and is_active(meta, item)
             and item.get('fingerprint') is not None]
@@ -2240,12 +2251,14 @@ def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
               for type_id in sorted(kinds & set(VERDICTS))
               if not any(item['type'] == VERDICTS[type_id][0] for item in found.values())}
     failing = sorted(item['id'] for item in mine if item['id'] not in passing)
-    open_ids = [id for id in failing if id not in exempt]
+    later = sorted(item['id'] for item in mine if item['id'] in failing and item['id'] not in flagged
+                   and item['id'] not in exempt and deferred(meta, item, into, found))
+    open_ids = [id for id in failing if id not in exempt and id not in later]
     return {'group': meta['systems'][name].get('group', ''), 'objects': len(mine), 'conformant': good,
             'share': share, 'level': level,
             'not_judged': sum(1 for item in mine if item['type'] in unjudged), 'unjudged_types': unjudged,
             'weaknesses': weak, 'verdicts_unread': unread,
-            'nonconformant': open_ids, 'exempted': sorted(set(failing) & set(exempt)),
+            'nonconformant': open_ids, 'exempted': sorted(set(failing) & set(exempt)), 'measured_after': later,
             'closed': bool(mine) and not open_ids and not weak and not unread}
 
 
@@ -2351,6 +2364,8 @@ def system_line(item):
         parts.append(f'{item["weaknesses"]} significant weakness(es), below F whatever the share')
     if item.get('exempted'):
         parts.append(f'{len(item["exempted"])} exempted by a decision')
+    if item.get('measured_after'):
+        parts.append(f'{", ".join(item["measured_after"])} measured after the stop (D-331)')
     if 'closed' in item:  # D-335
         failing = item['nonconformant']
         shown = ', '.join(failing[:CLOSED_SHOWN]) + (f' and {len(failing) - CLOSED_SHOWN} more'
