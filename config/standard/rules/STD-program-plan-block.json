@@ -1,7 +1,8 @@
 {
   "id": "STD-program-plan-block",
   "statement": "A change passes the refusing check plan_block of scripts/lib/program.py.",
-  "state": "blocking",
+  "state": "dormant",
+  "dormant_by": "D-314",
   "owner": "administration",
   "applies_to": [
     "CHG"

@@ -6,10 +6,12 @@
     "draft",
     "warning",
     "blocking",
-    "replaced"
+    "replaced",
+    "dormant"
   ],
   "inactive_states": [
-    "replaced"
+    "replaced",
+    "dormant"
   ],
   "description": "A rule of the development standard with its check, the tests of the check and its mode."
 }

@@ -286,7 +286,43 @@ class Rules(unittest.TestCase):
         found['TEST:scripts/tests/guard.test.sh']['fingerprint'] = 'f'
         counted = model.standard_measure(found, today='2026-11-16')
         self.assertEqual(counted, {'rules': len(['plan', 'judge', 'late']), 'executable': len(['plan', 'late']),
-                                   'tested': 1, 'justified': len(['plan', 'judge']), 'overdue': 1})
+                                   'tested': 1, 'justified': len(['plan', 'judge']), 'overdue': 1, 'dormant': 0})
+
+    def test_a_dormant_rule_counts_in_no_enforcement_measure_and_needs_no_basis_while_dormant(self):
+        # D-326: dormant, named by the decision that stopped its tooling; it keeps its file, check and test
+        self.rule('STD-asleep', state='dormant', dormant_by='D-314',
+                  check={'kind': 'function', 'ref': 'scripts/lib/guard.py:plan_errors'})
+        self.rule('STD-unnamed', state='dormant', basis=['D-1'])
+        self.rule('STD-awake', state='blocking', basis=['D-1'], dormant_by='D-314')
+        found = self.found()
+        meta = model.metamodel(ROOT)
+        errors, _ = model.check(model.metamodel(self.root), found)
+        self.assertEqual([line for line in errors if 'STD-' in line], [])
+        warnings = model.rule_findings(found, self.root, stops=[], stages=[])
+        self.assertNotIn('STD-asleep: no decision justifies it (basis)', warnings)
+        self.assertIn('STD-unnamed: dormant with no decision that stopped its tooling (dormant_by)', warnings)
+        self.assertIn('STD-awake: dormant_by D-314 on a rule in blocking', warnings)
+        self.assertFalse(model.is_active(meta, found['STD-asleep']))
+        self.assertTrue(model.is_active(meta, found['STD-plan']))
+        found['TEST:scripts/tests/guard.test.sh']['fingerprint'] = 'f'
+        counted = model.standard_measure(found, today='2026-11-16')
+        self.assertEqual((counted['rules'], counted['dormant']), (len(['plan', 'awake']), len(['asleep', 'unnamed'])))
+        self.assertEqual(counted['tested'], len(['plan']))  # the dormant rule's test still runs, but verifies no control
+
+    def test_a_blocking_gate_stage_rule_whose_stage_tower_gate_skips_is_an_error(self):
+        # D-326: blocking means tower/gate or the pre-push check runs the check
+        write(self.root, model.VERIFIER, "SKIPPED = ('pr metadata',)  # a stage the live gate does not run\n")
+        self.assertEqual(model.skipped_stages(self.root), ['pr metadata'])
+        self.rule('STD-gate-pr-metadata', state='blocking', basis=['D-1'],
+                  check={'kind': 'gate-stage', 'ref': 'pr metadata'})
+        self.rule('STD-gate-asleep', state='dormant', dormant_by='D-314',
+                  check={'kind': 'gate-stage', 'ref': 'pr metadata'})
+        self.rule('STD-gate-shellcheck', state='blocking', basis=['D-1'],
+                  check={'kind': 'gate-stage', 'ref': 'shellcheck'})
+        errors = model.skipped_stage_errors(self.found(), self.root)
+        self.assertEqual([line.split(':', 1)[0] for line in errors], ['STD-gate-pr-metadata'])
+        write(self.root, model.VERIFIER, 'SKIPPED = ()\n')
+        self.assertEqual(model.skipped_stage_errors(self.found(), self.root), [])
 
 
 class StandardManagement(unittest.TestCase):
@@ -1006,6 +1042,18 @@ class RealRepository(unittest.TestCase):
         self.assertLess(heading['management'], heading['engineering'])
         self.assertIn('    intent: ', '\n'.join(text[heading['management']:heading['engineering']]))
         self.assertIn('    standard: ', '\n'.join(text[heading['engineering']:]))
+
+    def test_the_rules_whose_tooling_d314_stopped_are_dormant_and_the_ones_tower_gate_runs_are_not(self):
+        # D-326, checked against the live flow: D-329 brought `pr metadata` back to tower/gate, so the lane and the
+        # decision-wait refusals it runs stay blocking; the Origin adapter, the box's retro store and the CO1
+        # program check run only in Origin-era tooling
+        found = model.objects(ROOT)
+        dormant = sorted(id for id, item in found.items() if item['type'] == 'STD' and item['state'] == 'dormant')
+        self.assertEqual(dormant, ['STD-forge-origin-refuse-remote', 'STD-program-plan-block', 'STD-retro-shape-errors'])
+        self.assertTrue(all(found[id]['rule']['dormant_by'] == 'D-314' for id in dormant))
+        for id in ('STD-structure-lane-errors', 'STD-decision-wait-errors'):
+            self.assertEqual(found[id]['state'], 'blocking', id)
+        self.assertEqual(model.skipped_stage_errors(found, ROOT), [])
 
     def test_every_refusal_and_gate_stage_of_this_checkout_has_a_rule(self):
         warnings = model.rule_findings(model.objects(ROOT), ROOT)
