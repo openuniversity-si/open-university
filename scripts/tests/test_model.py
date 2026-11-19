@@ -467,6 +467,14 @@ class StandardManagement(unittest.TestCase):
         _, warnings = model.management_findings(found, '2026-11-16')
         self.assertIn('TAIL-x: active past its validity 2026-01-01', warnings)
 
+    def test_an_exemption_may_name_its_owner_and_an_empty_owner_is_refused(self):
+        body = {'id': 'TAIL-x', 'exempts': 'STD-padrao-save-often', 'scope': 'units/engine-x/**', 'reason': 'r',
+                'owner': 'administration', 'authorized_by': 'D-9', 'valid_until': '2026-01-01', 'state': 'active'}
+        write(self.root, 'config/standard/tailoring/TAIL-x.json', body)
+        self.assertEqual(self.found()['TAIL-x']['body']['owner'], 'administration')
+        write(self.root, 'config/standard/tailoring/TAIL-x.json', {**body, 'owner': ''})
+        self.assertTrue(self.found()['TAIL:TAIL-x']['problems'])
+
     def test_open_proposals_with_no_deadline_or_past_it_and_two_effective_versions_are_reported(self):
         write(self.root, 'config/standard/proposals/PROP-late.json', {
             'id': 'PROP-late', 'statement': 's', 'state': 'open', 'owner': 'administration',

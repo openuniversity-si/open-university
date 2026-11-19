@@ -34,6 +34,11 @@
       "type": "string",
       "minLength": 1
     },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who answers for the exemption while it is in force (D-337: an exemption is decided, recorded and in force, with its reason and its owner); an exemption from STD-targets-full counts only with one."
+    },
     "authorized_by": {
       "type": "string",
       "pattern": "^D-[0-9]+$"
