@@ -1,0 +1,15 @@
+{
+  "id": "REQ-owner-stop-closed-list",
+  "type": "constraint",
+  "statement": "A session stops to ask the owner only for a login, a credential, money or other people; any other stop is an owner-stop incident, and the Stop hook asks the next-step question once before a turn ends in the cycle.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-autonomy"
+  ],
+  "basis": [
+    "D-339"
+  ],
+  "source": "docs/domain/decisions/D-339.md",
+  "verification": "validation"
+}

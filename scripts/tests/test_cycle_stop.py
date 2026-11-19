@@ -1,4 +1,7 @@
-"""The cycle's turn guard (I-0d1c3a25): the Stop hook blocks a turn's end while the cycle is on, unless STOP: <reason>."""
+"""The cycle's turn guard (I-0d1c3a25): the Stop hook blocks a turn's end while the cycle is on, unless STOP: <reason>.
+
+Verifies: REQ-owner-stop-closed-list
+"""
 import io
 import json
 from pathlib import Path
