@@ -94,19 +94,25 @@
     "findings": [
       {
         "about": "spoofing",
-        "finding": "config.py check refuses an x-owner that is not the file's owner and a key name that does not start with its owner; value_errors checks a value against its schema. The config check is not lifted by the regime.",
+        "finding": "config.py check refuses an x-owner that is not the file's owner and a key not prefixed by its owner; value_errors checks a value against its schema.",
         "disposition": "fixed",
         "reason": "holds as stated."
       },
       {
         "about": "tampering",
-        "finding": "The residual was wrong: threshold_check (run by the structure check) also refuses a numeric default matching config.monotonic_patterns (timeouts, limits, maxima, budgets, ceilings, tolerances) that loosens against the base without a `Loosens:` line citing a decision. But it runs inside the structure check, which the exception regime lifts today: config/registry/regime/regime.exception_active.json is true and regime.exception_kept is [money, people], so regime.lifted('structure') and lifted('commit-plan') are true on every tower/gate run (nothing pins the regime outside the script tests' hermetic hook): structure.py under_regime turns every structure-check refusal into a warning, and gate_discipline.lift does the same to the plan, fix-up, one-commit-per-push, plan-completeness and lane refusals.",
+        "finding": "threshold_check (run by the structure check) refuses a loosened numeric default matching config.monotonic_patterns or x-monotonic (the base's declaration wins) without a Loosens: line citing a recorded decision in the body and a commit, and refuses a dropped pattern; with the regime off (D-340) it refuses in tower/gate.",
         "disposition": "fixed",
-        "reason": "The exception regime ended (D-340, #309): regime.exception_active is false, so the structure check and the threshold check it runs refuse in tower/gate again; the residual text names the threshold check."
+        "reason": "verified in threshold_check.py and config/registry/regime/regime.exception_active.json."
       },
       {
         "about": "tampering",
-        "finding": "Generated drift and schema compat are gate stages of scripts/gate-check (generate --check, schema-compat --base) and are not lifted by the regime.",
+        "finding": "Missing threat: The registry's effective value is the latest change in the file store, and the gate reads that store from the checkout it judges (OU_CONFIG_STORE=file; config.store_dir .tower/config, so .tower/config/<repo>/repository.jsonl). The path is gitignored (/.tower/), but `git add -f` tracks it, and nothing refuses a tracked file there; the overlay of the pinned job restores registry files, not that store. Reproduced in a scratch copy: config.set_value('regime.exception_active', true) wrote that file and config.get then returned true. So a pull request that commits a config.changed line can turn the exception regime on (every structure and commit-plan lock warns), loosen a budget or threshold that threshold_check judges only by registry default, or change any gate.* key, with no GATE_FILE change, no decision and no pinning. threshold_check compares registry defaults only, so the threat's own mitigation does not see such an override.",
+        "disposition": "open",
+        "reason": "needs the gate to ignore or refuse a tracked change store: for example the gate reading registry defaults only (an empty or memory store), or a stage that refuses any tracked file under config.store_dir; not in place."
+      },
+      {
+        "about": "tampering",
+        "finding": "Generated drift and schema compat are gate stages (generate --check, schema-compat --base) and are not lifted by the regime.",
         "disposition": "fixed",
         "reason": "holds as stated."
       },
@@ -130,21 +136,21 @@
       },
       {
         "about": "elevation-of-privilege",
-        "finding": "GATE_FILE now matches config/registry/gate/*.json and config/registry/gate.json (verified), but other registry owners govern the gate and stay outside it: gate-pin/, gate-tests/, gate-tier/, gate-carry/, gate-proof/, gate-infra/ and the rest of config/registry/gate-*/, config.monotonic_patterns (the threshold check's own list) and regime/ (which lifts locks). A change to them asks no decision and is not pinned. The pinned gate the statement relies on is staged, not installed.",
+        "finding": "GATE_FILE matches config/registry/gate*/ and their aggregates and config/registry/regime/; the job pinned is installed and required, and registry_pins restores from the base a registry owner whose key the closure reads when the change alters it.",
         "disposition": "fixed",
-        "reason": "GATE_FILE reaches every config/registry/gate*/ owner and the regime keys (D-340, #309); the job gate pinned to the base is installed and required (#308, #312, #318) and restores, from the base, the registry keys its stages read (#323), so a head that loosens one is judged by the base's value; config.monotonic_patterns only grows: threshold_check refuses a dropped pattern as a loosening without a Loosens: line citing a decision."
+        "reason": "verified in gate_pin.py; the change-store override is the separate open tampering finding."
       },
       {
         "about": "elevation-of-privilege",
-        "finding": "Any recorded D-NNN satisfies the gate-change rule, including one the change itself adds to docs/domain/DECISIONS.md, since decisions() reads the checkout's copy.",
+        "finding": "Any recorded D-NNN satisfies the gate-change rule, including one the change itself adds, since decisions() reads the checkout's copy.",
         "disposition": "accepted",
-        "reason": "the rule asks for a traceable decision, not an approval (D-055); the earlier acceptance stands, with this sharper residual."
+        "reason": "the rule asks for a traceable decision, not an approval (D-055); the residual says so."
       },
       {
         "about": "assets",
-        "finding": "The exception regime's recorded state is a listed asset but no threat covers a change that turns the regime on or widens it; today it is on and lifts the structure and commit-plan locks.",
+        "finding": "The exception regime's recorded state has a threat (tampering, the regime's state): its keys are gate files and the regime is off (D-340). That threat does not name the change store, which also sets the regime.",
         "disposition": "fixed",
-        "reason": "threat added (tampering, the regime's state): its keys are gate files, the regime is off (D-340)."
+        "reason": "the threat exists and its mitigations are real for the registry files; the store path is the open tampering finding."
       }
     ]
   }

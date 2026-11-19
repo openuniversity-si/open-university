@@ -71,39 +71,51 @@
     "findings": [
       {
         "about": "spoofing",
-        "finding": "Neither mitigation runs in tower/gate: train_ownership.refusals runs only in the stopped train and is a no-op with no lane manifest; structure.review_errors runs only with structure-check --review, which gate-check's structure stage does not pass, and it matches a comment's text, not its author. Impact is low (no step grants anything on an approved trailer, D-055; claims coordinate lanes), but the stated mitigation is not real.",
+        "finding": "gate_discipline.pr_errors, run by tower/gate's pr metadata stage on the GitHub pull request, runs review_errors (a comment's text, not its author) and lane_errors from the diff and the unit manifests at the merge base; units/ declares two lanes (engine-lane, site-lane), so the lane rule has something to refuse.",
         "disposition": "fixed",
-        "reason": "both rules run in tower/gate's pr metadata stage: gate_discipline.pr_errors runs structure.review_errors on the GitHub pull request, and lane_errors, the train's ownership rule with the lane lane_of() gives it (test_commit_check: lane_of and lane_errors agree), from the diff and the manifests at the merge base, without the train; test_verify_commit proves each refuses a violating PR and passes a clean one. The review rule asks no review step (D-055): a not reviewed body with no review comment passes. Residual restated in the threat."
+        "reason": "verified in gate_discipline.py and verify_commit.py; the residual is restated in the threat."
       },
       {
         "about": "tampering",
-        "finding": "plan_completeness_errors is real in the GitHub pr metadata stage (gate_discipline.pr_errors), but it is under the structure lock, which the regime lifts today: config/registry/regime/regime.exception_active.json is true and regime.exception_kept is [money, people], so regime.lifted('structure') and lifted('commit-plan') are true on every tower/gate run (nothing pins the regime outside the script tests' hermetic hook): structure.py under_regime turns every structure-check refusal into a warning, and gate_discipline.lift does the same to the plan, fix-up, one-commit-per-push, plan-completeness and lane refusals.",
+        "finding": "plan_verdict refuses a ready pull request with an item no commit's Plan: trailer ticks, under the structure lock, which the regime no longer lifts (D-340).",
         "disposition": "fixed",
-        "reason": "the regime is off (D-340, regime.exception_active false): test_verify_commit.ThePullRequestMetadataAsRecorded runs pr metadata under the registry's regime, proves gate_discipline.lifted('structure') and lifted('commit-plan') false, and a ready PR with an item no commit ticks red."
+        "reason": "verified; test_verify_commit.ThePullRequestMetadataAsRecorded runs it under the registry's regime."
+      },
+      {
+        "about": "tampering",
+        "finding": "The tick is derived from a commit's Plan: N trailer, which the commit's author writes: a commit can name an item it does not deliver. The threat has no residual for that.",
+        "disposition": "accepted",
+        "reason": "a trailer is the author's claim, and no check can tell an item's content from a commit; the gate's tests and the merge commit are what is judged (D-055)."
+      },
+      {
+        "about": "tampering",
+        "finding": "Missing threat: the plan, lane, review and companion refusals sit under the structure lock, and a pull request can lift it by committing a config.changed line for regime.exception_active to the tracked change store .tower/config (see THREAT-config, tampering), which no gate file change, decision or pinning catches.",
+        "disposition": "open",
+        "reason": "needs the gate to ignore or refuse a tracked change store: for example the gate reading registry defaults only (an empty or memory store), or a stage that refuses any tracked file under config.store_dir; not in place."
       },
       {
         "about": "repudiation",
-        "finding": "unit_check.companion_errors runs inside the structure check, so the regime turns its refusals into warnings today.",
+        "finding": "unit_check.companion_errors runs inside the structure check's structure stage, and the structure lock is not lifted under the registry's regime (D-340).",
         "disposition": "fixed",
-        "reason": "the regime is off (D-340): test_structure proves the structure lock is not lifted under the registry's regime, so a companion_errors refusal stays a refusal in tower/gate's structure stage."
+        "reason": "holds; the change-store path above is the open finding."
       },
       {
         "about": "information-disclosure",
         "finding": "The residual (no check finds a person's data) is honest.",
-        "disposition": "fixed",
-        "reason": "the earlier disposition stands."
+        "disposition": "accepted",
+        "reason": "a person's data has no shape a check can find; the earlier 'fixed' named a residual, so it is recorded as accepted."
       },
       {
         "about": "denial-of-service",
-        "finding": "lane_errors is lifted by the regime and train_ownership finds no lanes without manifests; GitHub's merge queue does not place changes by lane, so the threat as stated no longer applies to the queue the flow uses.",
+        "finding": "GitHub's merge queue does not place changes by lane, so the threat as stated no longer applies to the queue the flow uses; lane_errors still refuses a change across lanes.",
         "disposition": "accepted",
         "reason": "the remaining harm is lane collision, a coordination cost, not a blocked queue."
       },
       {
         "about": "elevation-of-privilege",
-        "finding": "The structure check is a gate file and the pinned job would run the base's, but the job is staged, not installed, and the overlay does not pin the modules structure.py imports (premises, unit_check, threshold_check, forge_pr, config, regime and others), so a change to one of them judges the structure check with the head's code and asks no decision. The earlier 'fixed' was premature.",
+        "finding": "The structure check is a gate file; the job pinned is installed and required, and its overlay restores gate_pin.gate_closure, which test_gate_pin proves holds every scripts/lib module structure.py imports.",
         "disposition": "fixed",
-        "reason": "the job pinned of .github/workflows/tower-gate.yml is installed and tower/gate needs it green; its overlay restores gate_pin.gate_closure, the transitive imports of every gate file, and test_gate_pin proves every scripts/lib module structure.py imports is in that closure on this repository's HEAD. VULN-gate-judged-by-own-head is recorded fixed (#323)."
+        "reason": "verified in gate_pin.py, the workflow and the test."
       }
     ]
   }
