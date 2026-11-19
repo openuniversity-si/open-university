@@ -1,0 +1,12 @@
+{
+  "script": "scripts/tests/spend.test.sh",
+  "covers": [
+    "scripts/tests/spend.test.sh",
+    "scripts/tests/test_spend.py",
+    "scripts/spend",
+    "scripts/lib/spend.py",
+    "scripts/lib/model.py",
+    "config/validation/**",
+    "contracts/model/validation.v1.json"
+  ]
+}

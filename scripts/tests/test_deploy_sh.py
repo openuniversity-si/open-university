@@ -62,6 +62,7 @@ case "$1 $2" in
     case "$*" in *"--output json"*) [ -n "${STUB_EVENTS_JSON:-}" ] && { echo "$STUB_EVENTS_JSON"; exit 0; } || exit 255 ;; esac  # SLOW-PATH-STACK-PARTS
     printf '2020-01-01T04:03:00.000000+00:00\tAckIntegration\tCREATE_FAILED\tOLD PORT7 failure\n'
     printf '%s\tNewResource\tUPDATE_FAILED\tTHIS build failure\n' "$(date -u +%Y-%m-%dT%H:%M:%S.000000+00:00)" ;;
+  "ce get-cost-and-usage") [ -n "${STUB_SPEND:-}" ] && { echo "$STUB_SPEND"; exit 0; } || exit 254 ;;  # AWS-SPEND
   "cloudformation get-template") [ -f "$STUB_DIR/bootstrap.json" ] && { cat "$STUB_DIR/bootstrap.json"; exit 0; } || exit 255 ;;  # BOOTSTRAP-DRIFT
   "ecr describe-repositories") exit 0 ;;
   "ecr describe-images")  # IMAGE-STAGE-CACHE: ecr_tags lists the tags that exist (none by default)
@@ -256,6 +257,29 @@ class DeployShTests(unittest.TestCase):
             done = self.run_deploy(STUB_LAST='old')
             self.assertEqual(done.returncode, 0, done.stderr)
             self.assertEqual((self.build()['bootstrap'], self.build()['status']), (verdict, 'succeeded'))
+
+    def test_the_months_spend_is_read_at_most_once_a_day_and_kept_in_the_record(self):
+        # AWS-SPEND (D-331, VAL-aws-200): one Cost Explorer call (US$ 0.01) for the month to date, unblended, in us-east-1
+        said = '41.236'
+        done = self.run_deploy(STUB_LAST='old', STUB_SPEND=said)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        today = time.strftime('%Y-%m-%d', time.gmtime())
+        self.assertEqual(self.build()['spend'], {'day': today, 'from': today[:len('2026-01-')] + '01', 'usd': round(float(said), 2)})
+        [call] = [line for line in (self.state / 'calls').read_text().splitlines() if line.startswith('aws ce ')]
+        self.assertIn('get-cost-and-usage --region us-east-1 --time-period Start=' + today[:len('2026-01-')] + '01,End=', call)
+        self.assertIn('--granularity MONTHLY --metrics UnblendedCost', call)
+        # a later build of the same day carries the reading and calls nothing
+        (self.state / 'calls').write_text('')
+        done = self.run_deploy(STUB_LAST='old', STUB_SPEND='99', STUB_LAST_BUILD=self.recorded('/tower/deploy/last-build'))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.build()['spend']['usd'], round(float(said), 2))
+        self.assertNotIn('aws ce ', (self.state / 'calls').read_text())
+        # an earlier day's reading is read again; a refused read keeps the earlier one and fails nothing
+        earlier = '{"spend": {"day": "2026-01-31", "from": "2026-01-01", "usd": 7.5}}'
+        done = self.run_deploy(STUB_LAST='old', STUB_LAST_BUILD=earlier)
+        self.assertEqual((done.returncode, self.build()['status']), (0, 'succeeded'), done.stderr)
+        self.assertEqual(self.build()['spend'], json.loads(earlier)['spend'])
+        self.assertIn('aws ce get-cost-and-usage', (self.state / 'calls').read_text())
 
     def test_a_record_over_4000_bytes_is_shrunk_in_order_and_still_written(self):
         prev = json.dumps({'hashes': {f'stack{i}': 'h' * 20 for i in range(60)}, 'stacks': {f'tower-app-s{i}': 100 + i for i in range(80)}})

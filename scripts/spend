@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/deploy status --json | scripts/spend record
+# The AWS spend as a validation source (D-331): records the month's spend to date, read by the deploy build from Cost Explorer once a day, as the snapshot scripts/model's aws-spend measure reads for VAL-aws-200; the gate reads the snapshot, never the network.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/spend.py" "$@"

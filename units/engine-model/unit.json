@@ -18,10 +18,12 @@
     "scripts/lib/padrao_metrics.py",
     "scripts/lib/queue_checks.py",
     "scripts/lib/runs.py",
+    "scripts/lib/spend.py",
     "scripts/lib/supply.py",
     "scripts/model",
     "scripts/padrao-metrics",
     "scripts/runs",
+    "scripts/spend",
     "scripts/supply",
     "scripts/tests/model.test.sh",
     "scripts/tests/operation-data.test.sh",
@@ -30,6 +32,7 @@
     "scripts/tests/queue-checks.test.sh",
     "scripts/tests/runs.test.sh",
     "scripts/tests/security.test.sh",
+    "scripts/tests/spend.test.sh",
     "scripts/tests/supply.test.sh",
     "scripts/tests/test_model.py",
     "scripts/tests/test_operation_data.py",
@@ -38,6 +41,7 @@
     "scripts/tests/test_queue_checks.py",
     "scripts/tests/test_runs.py",
     "scripts/tests/test_security.py",
+    "scripts/tests/test_spend.py",
     "scripts/tests/test_supply.py"
   ],
   "requires": {

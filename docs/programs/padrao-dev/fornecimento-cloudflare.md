@@ -452,3 +452,54 @@ mão, pela Torre). Voltar o `bootstrap.json` pede outra reaplicação.
 **O que fica fora.** Uma conta comprometida ou fechada ainda leva as duas cópias (mesma conta, sem Object Lock); a regra
 `tower-app-stack-state` do EventBridge só vê stacks de `us-east-1`, então os eventos da `tower-app-media-replica` não chegam
 à porta (o `deploy.sh` espera a stack pelo `describe-stacks`).
+
+## Aplicar o bootstrap pelo S3 (19/11, BOOTSTRAP-URL)
+
+O `infra/aws/bootstrap.json` passou dos 51.200 bytes que um `--template-body` aceita (53.556 bytes com AWS-SPEND e
+RING-QUEUE). O caminho mais barato (D-327): a Torre aplica o modelo a partir do S3 com `--template-url`, que aceita até
+1 MB; nada mais muda no modelo para caber. O teste `test_infra_aws.py` limita o bootstrap a 1 MB (`URL_LIMIT`) e as stacks
+do deploy seguem em 51.200 (`BODY_LIMIT`, o `deploy.sh` manda o corpo).
+
+**O que esta aplicação leva.** AWS-SPEND (D-331, VAL-aws-200): `ce:GetCostAndUsage` no `DeployerRole` e na fronteira, e a
+negação de `ce:*` sai. RING-QUEUE (POLL-scripts-lib-deploy-py-ring-until-free): o doorbell guarda um toque recusado com 409
+em `/tower/deploy/ring-pending` e responde `{"queued": true}`; a `tower-infra-deploy-state` ganha o doorbell como segundo
+alvo, e o fim do build em curso começa o próximo. Depois do merge, o `deploy.py ring` do push toma esse 409 como final.
+
+**Passos da Torre, em ordem: antes do merge da PR que traz este modelo.** Do checkout da cabeça da PR, em `us-east-1`. O
+bucket é o `tower-outputs-<conta>-us-east-1`, que já existe (o deploy põe ali os pacotes Lambda, em `artifacts/lambda/`); o
+modelo vai para `artifacts/bootstrap/`, prefixo que o deployer não escreve.
+1. **Conferir o arquivo e subir o modelo.**
+   ```
+   ACCT=$(aws sts get-caller-identity --query Account --output text)
+   sha256sum infra/aws/bootstrap.json   # c7e708c03ac33881b27620d56bc1e98a0768529f06e3b0dfdb49408551c5a33e
+   aws s3 cp infra/aws/bootstrap.json s3://tower-outputs-$ACCT-us-east-1/artifacts/bootstrap/bootstrap-4a516f01.json \
+     --region us-east-1 --only-show-errors
+   ```
+2. **Reaplicar o `tower-bootstrap`** com `UsePreviousValue` em todos os parâmetros:
+   ```
+   aws cloudformation update-stack --region us-east-1 --stack-name tower-bootstrap \
+     --template-url https://tower-outputs-$ACCT-us-east-1.s3.us-east-1.amazonaws.com/artifacts/bootstrap/bootstrap-4a516f01.json \
+     --capabilities CAPABILITY_NAMED_IAM \
+     --parameters ParameterKey=OriginRepoUrl,UsePreviousValue=true ParameterKey=BaseBranch,UsePreviousValue=true \
+       ParameterKey=DoorbellTokenSha256,UsePreviousValue=true ParameterKey=AlertEmail,UsePreviousValue=true \
+       ParameterKey=ReplicaRegion,UsePreviousValue=true
+   aws cloudformation wait stack-update-complete --region us-east-1 --stack-name tower-bootstrap
+   ```
+   Para ver antes o que muda, o mesmo `--template-url` e os mesmos parâmetros em `create-change-set` (`--change-set-name
+   req-spend-ring-queue`) e `describe-change-set`. Esperado: `Boundary`, `DeployerRole`, `DoorbellRole`, `DoorbellFunction`
+   e `DeployStateRule` em `Modify` sem substituição, e `DeployStateDoorbellPermission` em `Add`; nada mais.
+3. **Conferir o hash canônico** do que a conta tem; tem de ser o `APPLIED` de `test_infra_aws.py`:
+   ```
+   aws cloudformation get-template --region us-east-1 --stack-name tower-bootstrap --query TemplateBody --output json \
+     | python3 -c 'import hashlib,json,sys; t=json.load(sys.stdin); t=json.loads(t) if isinstance(t,str) else t; print(hashlib.sha256(json.dumps(t,sort_keys=True,separators=(",",":")).encode()).hexdigest())'
+   # 4a516f0181d9ca93a88a542d6a55c3bffa12dbc365fc4ae09346d037bcf2fe9f
+   ```
+4. **Então o merge.** O build diário lê o gasto do mês (`scripts/deploy status --json | scripts/spend record`), e um 409 do
+   doorbell passa a dizer `queued`.
+
+**Antes da reaplicação, nada quebra:** o build tem a leitura do Cost Explorer recusada e não guarda gasto; o doorbell antigo
+responde 409 sem `queued`, e o push termina com código 2, como numa sessão. Por isso a ordem é aplicar antes do merge.
+
+**Reverter.** O `update-stack` com o modelo anterior (o `bootstrap.json` de `main`, pelo mesmo caminho do S3) tira o alvo, a
+permissão e as ações de SSM e de Cost Explorer; um `/tower/deploy/ring-pending` que sobrar é apagado à mão
+(`aws ssm delete-parameter --name /tower/deploy/ring-pending`).

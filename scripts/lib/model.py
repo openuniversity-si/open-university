@@ -1020,8 +1020,19 @@ def measured(body, found, root, today):
         fresh = (date.fromisoformat(today) - date.fromisoformat(recorded['at'][:len('2026-01-01')])).days <= measure['max_age_days']
         values = [run['seconds'] for run in recorded['runs']]
         return runs.percentile(values, measure['percentile']), fresh and len(values) >= measure['min_runs']
+    if measure['kind'] == 'aws-spend':
+        import spend
+        from datetime import date
+        recorded = spend.read(root)
+        if not recorded:
+            return None, False
+        # the month to date: a reading of an earlier month or older than max_age_days is still measuring, except that a
+        # reading of this month already over the ceiling stays over it until the month ends
+        month = recorded['day'][:len('2026-01')] == today[:len('2026-01')]
+        fresh = month and (date.fromisoformat(today) - date.fromisoformat(recorded['day'])).days <= measure['max_age_days']
+        return recorded['usd'], fresh or (month and body['comparator'] == 'lte' and recorded['usd'] > body['threshold'])
     if measure['kind'] == 'all-met':
-        states = [found.get(ident, {}).get('state', 'defined') for ident in measure['of']]
+        states =[found.get(ident, {}).get('state', 'defined') for ident in measure['of']]
         missed = sum(1 for state in states if state == 'not-met')
         return (missed, True) if missed or all(state == 'met' for state in states) else (missed, False)
     if measure['kind'] == 'code-scan':

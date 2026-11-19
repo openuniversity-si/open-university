@@ -611,6 +611,16 @@ class CliTests(unittest.TestCase):
             self.assertIn(text, out)
         self.assertEqual(self.server.asked[0], ('/v1/deploy/status', 'Bearer port-token-of-the-test'))
 
+    def test_status_says_the_months_spend_and_gives_the_answer_as_json_for_the_spend_snapshot(self):
+        # AWS-SPEND (D-331): the build's daily Cost Explorer reading, printed, and the raw answer scripts/spend records
+        spent = json.loads('{"day": "2026-11-19", "from": "2026-11-01", "usd": 41.24}')
+        self.server.states = [{'last_sha': 'a0bd4d1', 'last_build': {'status': 'succeeded', 'build_id': 'p:b1', 'spend': spent}}]
+        code, out, _ = self.run_main('status')
+        self.assertEqual(code, 0)
+        self.assertIn(f"spend: US$ {spent['usd']} from 2026-11-01 to 2026-11-19", out)
+        code, out, _ = self.run_main('status', '--json')
+        self.assertEqual((code, json.loads(out)['last_build']['spend']), (0, spent))
+
     def follow(self, states, held=True, **kwargs):
         """follow against a fake port; held (PORT-LONG-POLL, the live port): each answer after the first waited 15 s on
         the test's clock and is marked; not held: an old port, unmarked at once. An Exception in states is raised."""

@@ -13,6 +13,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 INFRA = ROOT / 'infra' / 'aws'
+BODY_LIMIT = 51200  # a template sent as its body (deploy.sh without an S3 bucket, the stacks)
+URL_LIMIT = 1048576  # BOOTSTRAP-URL: a template read from S3 (--template-url), how the Torre applies the bootstrap
 RECORD = ROOT / 'docs/domain/decisions/D-303.md'
 BUDGET_RECORD = ROOT / 'docs/domain/decisions/D-315.md'  # D-315 amends D-303's numbers (US$ 150, ceiling US$ 200)
 
@@ -211,7 +213,21 @@ class BootstrapTests(unittest.TestCase):
     # more: codebuild:*Project, lambda:DeleteFunction*, lambda:*Permission, iam:*RolePermissionsBoundary. 51,155 bytes.
     # The Torre re-applies tower-bootstrap with this template BEFORE the merge that deploys the media-replica stack
     # (UsePreviousValue for the other parameters): without it that stack's apply is refused, in us-west-2.
-    APPLIED = 'ea269641596c909fcd5d8584a2539b75315a6dff2818305b653345a7e15fcda3'
+    # AWS-SPEND (D-331, VAL-aws-200): the deployer reads the month's spend, ce:GetCostAndUsage (Resource *, as AWS requires;
+    # its only endpoint is us-east-1, the stack region), at most once a UTC day (deploy.sh). The boundary's workload
+    # statement allows that one action, and its deny of ce:* goes: the boundary allows no other ce action, so the rest
+    # stays implicitly denied to every role under it. To make room (45 bytes were left) the template's Description says
+    # "Applied by hand" without "in the console", and "from GitHub" where it said Origin (BUILD-NO-ORIGIN). 51,196 bytes.
+    # The Torre re-applies tower-bootstrap with this template BEFORE the merge (UsePreviousValue for every parameter):
+    # until then the build's read is refused and the record keeps no spend; nothing fails.
+    # BOOTSTRAP-URL (D-327, 19/11/2026): the file stood at 51,196 of the 51,200 bytes a template body may be, so the Torre
+    # applies it from S3 with --template-url (1 MB) and the room-making above stops (docs/programs/padrao-dev/
+    # fornecimento-cloudflare.md, "Aplicar o bootstrap"). RING-QUEUE (D-331, POLL-scripts-lib-deploy-py-ring-until-free): a
+    # 409 while a build runs leaves the ring pending in /tower/deploy/ring-pending (the doorbell's KeepTheRingPending:
+    # get, put, delete of that one parameter), and DeployStateRule's second target, the doorbell, starts it at the running
+    # build's end; deploy.py's push ring takes that queued 409 as final and loops no more. One re-apply with AWS-SPEND,
+    # BEFORE the merge (UsePreviousValue for every parameter). 53,556 bytes.
+    APPLIED = '4a516f0181d9ca93a88a542d6a55c3bffa12dbc365fc4ae09346d037bcf2fe9f'
 
     # MEDIA-REPLICA: the workload services in the stack region and in the media replica's, nowhere else
     REGIONS = {'StringEquals': {'aws:RequestedRegion': [{'Ref': 'AWS::Region'}, {'Ref': 'ReplicaRegion'}]}}
@@ -237,7 +253,7 @@ class BootstrapTests(unittest.TestCase):
                                  ('lambda:AddPermission', doorbell), ('lambda:RemovePermission', doorbell),
                                  ('lambda:UpdateFunctionCode', doorbell), ('lambda:UpdateFunctionUrlConfig', doorbell)):
             self.assertEqual(decide(statements, action, resource), 'deny', action)
-        self.assertLessEqual(len((INFRA / 'bootstrap.json').read_bytes()), 51200)
+        self.assertLessEqual(len((INFRA / 'bootstrap.json').read_bytes()), URL_LIMIT)
 
     def test_the_file_is_the_template_the_account_has_applied(self):
         canonical = json.dumps(self.template, sort_keys=True, separators=(',', ':'))
@@ -359,6 +375,19 @@ class BootstrapTests(unittest.TestCase):
         workload = next(item for item in statements if item['Sid'] == 'WorkloadServicesInTheStackRegion')
         self.assertEqual(workload['Condition'], self.REGIONS)
 
+    def test_the_deployer_reads_the_months_spend_and_nothing_else_of_cost_explorer(self):
+        # AWS-SPEND (D-331): the identity policy and the boundary both allow ce:GetCostAndUsage, in the stack region only
+        boundary = self.resources['Boundary']['Properties']['PolicyDocument']['Statement']
+        deployer = self.policy('DeployerRole')
+        self.assertEqual(decide(deployer, 'ce:GetCostAndUsage', '*'), 'allow')
+        self.assertEqual(decide(boundary, 'ce:GetCostAndUsage', '*'), 'allow')
+        self.assertEqual(decide(boundary, 'ce:GetCostAndUsage', '*', {'aws:RequestedRegion': 'ELSEWHERE'}), 'implicit')
+        for action in ('ce:CreateAnomalyMonitor', 'ce:UpdateCostAllocationTagsStatus', 'ce:DeleteCostCategoryDefinition',
+                       'ce:GetCostAndUsageWithResources', 'ce:GetCostForecast'):
+            self.assertNotEqual(decide(boundary, action, '*'), 'allow', action)
+            self.assertNotEqual(decide(deployer, action, '*'), 'allow', action)
+        self.assertEqual(decide(boundary, 'budgets:ModifyBudget', '*'), 'deny')
+
     def test_the_boundary_lets_an_app_role_reach_the_database_by_iam_only_in_the_stack_region(self):
         # The service connects to tower-data as an IAM database user (P2 F2, P3 F1): rds-db:connect is its own service
         # prefix, outside rds:*, and an app role's permission to it is the intersection with this boundary.
@@ -471,7 +500,12 @@ class BootstrapTests(unittest.TestCase):
 
     def test_the_doorbell_can_only_start_the_deploy(self):
         actions = {action for item in self.policy('DoorbellRole') for action in as_list(item['Action'])}
-        self.assertEqual(actions, {'codebuild:StartBuild', 'lambda:InvokeFunction', 'logs:CreateLogStream', 'logs:PutLogEvents'})
+        self.assertEqual(actions, {'codebuild:StartBuild', 'lambda:InvokeFunction', 'logs:CreateLogStream', 'logs:PutLogEvents',
+                                   'ssm:GetParameter', 'ssm:PutParameter', 'ssm:DeleteParameter'})
+        # RING-QUEUE: the SSM actions on the one pending-ring parameter, nothing else
+        [pending] = [item for item in self.policy('DoorbellRole') if item['Sid'] == 'KeepTheRingPending']
+        self.assertEqual(pending['Resource'], {'Fn::Sub': 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}'
+                                                          ':parameter/tower/deploy/ring-pending'})
         # QUEUE-RELOAD: and pass the merge queue's words to the port's alias, nothing else
         invoke = [item for item in self.policy('DoorbellRole') if 'lambda:InvokeFunction' in as_list(item['Action'])]
         self.assertEqual([item['Resource'] for item in invoke], [
@@ -483,17 +517,21 @@ class BootstrapTests(unittest.TestCase):
         self.assertTrue(token['NoEcho'])
         self.assertEqual(token['AllowedPattern'], '^[0-9a-f]{64}$')
 
-    def test_the_deploy_state_rule_may_invoke_only_the_port_alias(self):
+    def test_the_deploy_state_rule_may_invoke_only_the_port_alias_and_the_doorbell(self):
         # DEP-EVENTS (the Torre, 09/11 17:19 BRT): CodeBuild Build State Change of tower-infra-deploy -> tower-port-api:live,
         # the invoke permission limited to that rule's ARN and this account
         rule = self.resources['DeployStateRule']['Properties']
         self.assertEqual(rule['EventPattern'], {'source': ['aws.codebuild'], 'detail-type': ['CodeBuild Build State Change'],
                                                 'detail': {'project-name': ['tower-infra-deploy']}})
         target = {'Fn::Sub': 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live'}
-        self.assertEqual([each['Arn'] for each in rule['Targets']], [target])
-        permission = self.resources['DeployStateInvokePermission']['Properties']
-        self.assertEqual((permission['FunctionName'], permission['Principal'], permission['SourceArn']),
-                         (target, 'events.amazonaws.com', {'Fn::GetAtt': ['DeployStateRule', 'Arn']}))
+        doorbell = {'Fn::GetAtt': ['DoorbellFunction', 'Arn']}  # RING-QUEUE: a build's end starts the pending ring
+        self.assertEqual([each['Arn'] for each in rule['Targets']], [target, doorbell])
+        for name, function in (('DeployStateInvokePermission', target), ('DeployStateDoorbellPermission', doorbell)):
+            permission = self.resources[name]['Properties']
+            self.assertEqual((permission['FunctionName'], permission['Principal'], permission['SourceArn'],
+                              permission['SourceAccount'], permission['Action']),
+                             (function, 'events.amazonaws.com', {'Fn::GetAtt': ['DeployStateRule', 'Arn']},
+                              {'Ref': 'AWS::AccountId'}, 'lambda:InvokeFunction'))
 
     def test_a_stack_s_end_wakes_the_port_and_an_engine_ecs_cannot_keep_up_goes_to_the_topic(self):
         # The Torre applied both on 11/11 14:58 UTC (change set req1455-rules); this is their mirror. StackStateRule
@@ -1067,7 +1105,8 @@ class SpotStandbyGoneTests(unittest.TestCase):
 
 class CloudFormationLimitTests(unittest.TestCase):
     """The hard limits CloudFormation enforces at CreateChangeSet, checked offline: the deploy of #398/#399 failed on a
-    1316-byte Description (cap 1024). `deploy` without an S3 bucket sends the body, so 51200 bytes applies."""
+    1316-byte Description (cap 1024). `deploy` without an S3 bucket sends the body, so 51200 bytes applies to the stacks;
+    the Torre applies the bootstrap from S3 (--template-url, BOOTSTRAP-URL), so 1 MB applies to it."""
 
     def setUp(self):
         self.paths = sorted((INFRA / 'stacks').glob('*.json')) + [INFRA / 'bootstrap.json']
@@ -1081,8 +1120,9 @@ class CloudFormationLimitTests(unittest.TestCase):
             self.assertLessEqual(len(template['Resources']), 500, path.name)
             self.assertLessEqual(len(template.get('Parameters', {})), 200, path.name)
             self.assertLessEqual(len(template.get('Outputs', {})), 200, path.name)
-            self.assertLessEqual(len(raw), 51200, f'{path.name} is {len(raw)} bytes')
-            report.append(f'{path.name}: {len(raw)} bytes, headroom {51200 - len(raw)}')
+            limit = URL_LIMIT if path.name == 'bootstrap.json' else BODY_LIMIT
+            self.assertLessEqual(len(raw), limit, f'{path.name} is {len(raw)} bytes')
+            report.append(f'{path.name}: {len(raw)} bytes, headroom {limit - len(raw)}')
         print('\n' + '\n'.join(report))
 
     def test_no_parameter_shares_its_name_with_a_resource(self):
@@ -2002,7 +2042,7 @@ class MailStackTests(unittest.TestCase):
             self.assertEqual(decide(boundary, action, '*', {'aws:RequestedRegion': 'ELSEWHERE'}), 'implicit', action)
         for action in ('iam:CreatePolicy', 'iam:CreatePolicyVersion', 'iam:CreateLoginProfile', 'iam:UpdateLoginProfile'):
             self.assertEqual(decide(boundary, action, '*'), 'deny', action)  # the denies compacted to make room for ses:*
-        self.assertLessEqual(len((INFRA / 'bootstrap.json').read_bytes()), 51200)
+        self.assertLessEqual(len((INFRA / 'bootstrap.json').read_bytes()), URL_LIMIT)
 
     def test_the_cost_it_declares_is_under_the_budget(self):
         # bound: 10,000 messages a month, each one 256 KB chunk and forwarded once (about 1 GB). SES receiving US$ 0.10 per

@@ -1,12 +1,15 @@
 """The session's deploy tool (DEP1): ring the deploy doorbell and follow the build to its end, with no AWS credential.
 
   scripts/deploy ring                  POST to the doorbell; 202 prints the build id
+                                       (a 409 the doorbell queued ends it too: the running build's end starts
+                                       the next one, RING-QUEUE)
   scripts/deploy queue --sha SHA --ref REF
                                        QUEUE-RELOAD, the merge_group job: ring `prepare` for the merge queue's commit, watch
                                        main (git ls-remote) and ring `landed` the moment main is that commit
   scripts/deploy status                the port's GET /v1/deploy/status: last_sha, the last build with its tail and the last
                                        ring/skip decision, as the service observed them (DEP3: it publishes them to the log);
                                        a succeeded build's seconds go into config/validation/runs/deploy.json (record)
+  scripts/deploy status --json         the same answer as JSON (`| scripts/spend record`: the month's AWS spend, D-331)
   scripts/deploy follow [--target SHA] [--build ID] [--since EPOCH]
                                        follow the status until the deploy ends (the port's long poll; pauses with an old
                                        port); a failure prints the failed names and tail
@@ -118,6 +121,14 @@ def ring(environ=None, opener=urllib.request.urlopen, word=None):
         print(f'deploy: rung; build {build}. scripts/deploy follow to see it end')
         return 0, build
     if status == 409:
+        try:
+            queued = json.loads(body).get('queued') is True
+        except (ValueError, AttributeError):
+            queued = False
+        if queued:  # RING-QUEUE: the doorbell keeps the ring and the running build's end starts the next build
+            print('deploy: a build is running (409); the doorbell queued this ring and starts the next build when the '
+                  'running one ends. scripts/deploy follow to see it')
+            return 0, None
         print('deploy: a build is running already (409); scripts/deploy follow waits for it')
         return 2, None
     if status == 401:
@@ -219,32 +230,6 @@ def queue(sha, ref, environ=None, bell=None, heads=None, clock=time.monotonic, s
         bell.close()
 
 
-RING_WAIT_S = 240.0  # RING-RETRY: the push job's 5 minutes, less its checkout and the last ring
-RING_EVERY_S = 10.0
-
-
-def ring_until_free(environ=None, opener=urllib.request.urlopen, wait_s=None, every_s=RING_EVERY_S, clock=time.monotonic,
-                    sleep=time.sleep):
-    """RING-RETRY (15/11, #41): the push job's ring. A 409 means another deploy build runs (CodeBuild runs one at a
-    time), and nobody rings again for this merge (deploy.auto is false on GitHub): #41's build never ran, last-sha stayed
-    behind main, and the next merges' queue swap was refused by its parent check. In a GitHub Actions job
-    (GITHUB_ACTIONS=true) the 409 is rung again every every_s until a build starts or wait_s ends; a later build deploys
-    main's head, which carries this merge. Elsewhere (a session's scripts/deploy ring) it is one ring, as before.
-    Returns ring()'s (exit code, build id or None)."""
-    environ = os.environ if environ is None else environ
-    if wait_s is None:
-        wait_s = RING_WAIT_S if environ.get('GITHUB_ACTIONS') == 'true' else 0.0
-    began = clock()
-    while True:
-        code, build = ring(environ, opener)
-        if code != 2 or build is not None or clock() - began + every_s > wait_s:
-            return code, build
-        if missing(DOORBELL_VARS, environ):
-            return code, build
-        print(f'deploy: ringing again in {every_s:g} s, until a build starts ({wait_s:g} s at most)')
-        sleep(every_s)
-
-
 LONG_POLL = 'long_poll'  # PORT-LONG-POLL: the mark of an answer the port held (tower_infra.port.LONG_POLL)
 
 
@@ -296,6 +281,9 @@ def describe(state, out=None):
     if build.get('status') == 'rolling':  # SLOW-PATH-NO-ROLLOUT-WAIT: ended, its ECS rollouts not waited
         print(f"rolling: {' '.join(sorted((build.get('rolling') or {}).get('stacks') or {}))} started and not waited; "
               'the next build verifies them, runs the smoke and moves last_sha', file=out)
+    spent = build.get('spend')
+    if isinstance(spent, dict):  # AWS-SPEND (D-331): the month's spend to date, read once a day by the build
+        print(f"spend: US$ {spent.get('usd')} from {spent.get('from')} to {spent.get('day')} (scripts/spend record)", file=out)
     if build.get('failed_step'):
         print(f"failed_step: {build['failed_step']}", file=out)
     for each in build.get('steps') or []:
@@ -387,14 +375,15 @@ def main(argv=None, environ=None):
     queued = sub.add_parser('queue')
     queued.add_argument('--sha', required=True, help="the merge queue's commit (github.sha of the merge_group run)")
     queued.add_argument('--ref', required=True, help="its branch (github.ref: refs/heads/gh-readonly-queue/main/...)")
-    sub.add_parser('status')
+    status = sub.add_parser('status')
+    status.add_argument('--json', action='store_true', help="the port's answer as JSON (scripts/spend record reads it)")
     follows = sub.add_parser('follow')
     follows.add_argument('--target', help='wait until /tower/deploy/last-sha is this commit')
     follows.add_argument('--build', help='the build id ring printed: follow that build only')
     follows.add_argument('--since', type=float, help='epoch seconds; a recorded build that started earlier is not the one')
     args = parser.parse_args(argv)
     if args.command == 'ring':
-        return ring_until_free(environ)[0]
+        return ring(environ)[0]
     if args.command == 'queue':
         return queue(args.sha, args.ref, environ)
     absent = missing(PORT_VARS, environ)
@@ -408,10 +397,11 @@ def main(argv=None, environ=None):
         except gate_infra.Refused as error:
             print(f'deploy: the status could not be read ({error})', file=sys.stderr)
             return 2
-        describe(state)
+        print(json.dumps(state)) if args.json else describe(state)
         recorded = record(state)
-        if recorded:
-            print(f'recorded: {len(recorded)} build(s) in {DEPLOY_RUNS}.json, the snapshot VAL-deploy-1s reads')
+        if recorded:  # stderr under --json, so the answer stays one JSON document for scripts/spend record
+            print(f'recorded: {len(recorded)} build(s) in {DEPLOY_RUNS}.json, the snapshot VAL-deploy-1s reads',
+                  file=sys.stderr if args.json else sys.stdout)
         return 0
     return follow(port, args.target, args.build, args.since)
 
