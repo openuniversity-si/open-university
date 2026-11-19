@@ -228,7 +228,7 @@ def lane_errors(root, merge_base, files):
     return [f'lane undecidable: the change touches units of several lanes: {listed}; split it into one PR per lane']
 
 
-def review_errors(pr):
+def review_of(pr):
     """THREAT-planning (spoofing, D-335): the structure check's review rule (structure.review_errors, D-054/D-055) on the
     read PR: an `approved` Fit-Review needs the latest review comment of the gated head to approve it and name that head,
     and a review of the head that requests changes refuses. A `not reviewed` body with no review comment passes, so no
@@ -241,10 +241,10 @@ def review_errors(pr):
 def pr_errors(pr, root):
     """(errors, warnings) of a PR as the gate's `pr metadata` stage judges its commits (D-322: these left the structure
     check, a lower layer): the discipline of check(), the plan completeness of plan_verdict(), the lanes of lane_errors()
-    on the merge base (the train's ownership rule, whose lane is lane_of(): LANE-OWN) and the review of review_errors().
+    on the merge base (the train's ownership rule, whose lane is lane_of(): LANE-OWN) and the review of review_of().
     The plan, lane and review refusals stay under the `structure` lock they were born in."""
     errors = check(pr, decisions(root))
     plan, warnings = plan_verdict(pr.get('body', ''), pr.get('commits', []), pr.get('draft', False))
     merge_base = (pr.get('base') or {}).get('merge_base')
     lanes = lane_errors(root, merge_base, pr.get('files') or []) if merge_base else []
-    return errors + lift(plan + lanes + review_errors(pr), 'structure'), warnings
+    return errors + lift(plan + lanes + review_of(pr), 'structure'), warnings
