@@ -27,6 +27,8 @@
     "scripts/tests/deploy-slow-d.test.sh",
     "scripts/tests/deploy-slow-e.test.sh",
     "scripts/tests/deploy-slow-f.test.sh",
+    "scripts/tests/deploy-slow-g.test.sh",
+    "scripts/tests/deploy-slow-h.test.sh",
     "scripts/tests/deploy-files.test.sh",
     "scripts/tests/test_deploy_files.py",
     "scripts/tests/covers/deploy-files.json",

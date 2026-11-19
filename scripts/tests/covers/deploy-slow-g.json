@@ -1,0 +1,13 @@
+{
+  "script": "scripts/tests/deploy-slow-g.test.sh",
+  "covers": [
+    "scripts/tests/deploy-slow-g.test.sh",
+    "scripts/tests/test_deploy_sh.py",
+    "scripts/tests/deploy_sh_seconds.json",
+    "infra/aws/deploy.sh",
+    "config/registry/gate-infra.json",
+    "config/registry/gate-infra/**",
+    "units/engine-gate-infra/unit.json",
+    "scripts/lib/deploy_classify.py"
+  ]
+}
