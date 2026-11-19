@@ -9,7 +9,7 @@
   scripts/deploy status                the port's GET /v1/deploy/status: last_sha, the last build with its tail and the last
                                        ring/skip decision, as the service observed them (DEP3: it publishes them to the log);
                                        a succeeded build's seconds go into config/validation/runs/deploy.json (record),
-                                       a code-only merge's push-to-live seconds into deploy-live.json (record_live, the push clock),
+                                       a code-only merge's landing-to-live seconds into deploy-live.json (record_live: the doorbell's clock, D-345),
                                        and the newest one's steps (PUSH-STEPS: push, doorbell, port, look, ls-remote, swap, live)
   scripts/deploy status --json         the same answer as JSON (`| scripts/spend record`: the month's AWS spend, D-331)
   scripts/deploy follow [--target SHA] [--build ID] [--since EPOCH]
@@ -76,6 +76,20 @@ def record(state, root=None, now=None):
     return made['runs']
 
 
+HEARD = 'heard'  # a run timed from the doorbell's receipt of GitHub's signed push hook (LANDING-CLOCK, D-345)
+
+
+def heard_at(state):
+    """LANDING-CLOCK (D-345): {merge sha: epoch the doorbell heard GitHub's signed push of it to main}, the landing
+    instant REQ-deploy-1s counts from. The doorbell stamps it on its own clock in milliseconds, the first instant any
+    part of the engine can know main moved; GitHub's push timestamp has whole seconds, a resolution as coarse as the 1 s
+    target, so it cannot prove nor refuse it. An unsigned word is not a landing."""
+    number = lambda value: isinstance(value, (int, float)) and not isinstance(value, bool)  # noqa: E731
+    return {each['sha']: each['heard'] for each in state.get('queue_landed') or []
+            if isinstance(each, dict) and each.get('type') == 'platform.deploy.queue' and each.get('event') == 'landed'
+            and each.get('signed') is True and each.get('sha') and number(each.get('heard'))}
+
+
 def live_at(state):
     """REQ-deploy-1s: {merge sha: (epoch the merge's code went live, how)} for the code-only merges the status shows
     going live (QUEUE-RELOAD, infra/service/tower_infra/queue_deploy.py: "a code-only merge is live about a second after
@@ -113,7 +127,8 @@ def pushed_at(api, repo, ref='refs/heads/main'):
     `timestamp`): the push of the merge commit, the earliest true landing (a pull request's merged_at is set 1-2 s
     later). A reversible choice taken under D-325; its revert is reading merged_at again. The timestamp has whole
     seconds while the live instant has milliseconds, so a run's seconds carry up to 1 s of that resolution (long when
-    GitHub truncates, as the 1-2 s gap to merged_at suggests; unproved). One page: the last PUSH_PAGE pushes."""
+    GitHub truncates, as the 1-2 s gap to merged_at suggests; unproved), which is why a run is timed from heard_at
+    whenever the doorbell heard a signed push (D-345); this clock is the fallback. One page: the last PUSH_PAGE pushes."""
     found = {}
     for push in api(f'repos/{repo}/activity?ref={ref}&per_page={PUSH_PAGE}') or []:
         if isinstance(push, dict) and push.get('after') and push.get('timestamp'):
@@ -121,11 +136,18 @@ def pushed_at(api, repo, ref='refs/heads/main'):
     return found
 
 
+def landed_run(sha, how, landed, live, clock, iso):
+    """One run of deploy-live.json: from `landed` to `live` in milliseconds, its landing clock named in `from`."""
+    return {'id': sha, 'event': how, 'conclusion': 'success', 'started': iso(landed), 'seconds': round(live - landed, 3),
+            'from': clock}
+
+
 def record_live(state, root=None, now=None, api=None, repo=None):
     """REQ-deploy-1s: each code-only merge's seconds from its landing to its code live (live_at), in
     config/validation/runs/deploy-live.json, the snapshot VAL-deploy-1s reads; the build seconds stay in deploy.json
-    (record), the slow path's cost. The landing is the push of the merge commit to main (pushed_at, whole seconds),
-    and such a run carries `from: push`. A run recorded before the push clock (from the pull request's merged_at, no
+    (record), the slow path's cost. The landing is the instant the doorbell heard GitHub's signed push of the merge
+    commit to main (heard_at, milliseconds on the engine's clock, D-345), and such a run carries `from: heard`; a merge
+    with no signed word falls back to the push (pushed_at, whole seconds) and carries `from: push`. A run recorded before the push clock (from the pull request's merged_at, no
     `from`) is re-based on its push while the activity page still holds it (live = started + seconds), else kept and
     marked `from: merged_at` (1-2 s short). A run recorded from its push is not read again; offline (TOWER_OFFLINE, no
     gh, the API refusing) nothing changes. Answers the runs recorded, or None when there is nothing to record."""
@@ -149,7 +171,13 @@ def record_live(state, root=None, now=None, api=None, repo=None):
     lives = {sha: (run.get('event'), iso_epoch(run['started']) + run['seconds']) for sha, run in runs.items()
              if 'from' not in run and isinstance(run.get('started'), str)
              and isinstance(run.get('seconds'), (int, float))}  # the runs from merged_at: live = merged_at + seconds
-    lives.update({sha: (how, live) for sha, (live, how) in seen.items() if (runs.get(sha) or {}).get('from') != 'push'})
+    doorbell = heard_at(state)
+    for sha, (live, how) in seen.items():  # LANDING-CLOCK (D-345): the doorbell's millisecond clock, when it heard the push
+        if sha in doorbell and live >= doorbell[sha] and (runs.get(sha) or {}).get('from') != HEARD:
+            runs[sha] = landed_run(sha, how, doorbell[sha], live, HEARD, iso)
+            lives.pop(sha, None)
+    lives.update({sha: (how, live) for sha, (live, how) in seen.items()
+                  if (runs.get(sha) or {}).get('from') not in ('push', HEARD)})
     pushes = None
     if lives and api is not None:
         try:
@@ -158,12 +186,11 @@ def record_live(state, root=None, now=None, api=None, repo=None):
             pushes = None
     for sha, (how, live) in lives.items() if pushes is not None else ():
         if sha in pushes and live >= pushes[sha]:
-            runs[sha] = {'id': sha, 'event': how, 'conclusion': 'success', 'started': iso(pushes[sha]),
-                         'seconds': round(live - pushes[sha], 3), 'from': 'push'}
+            runs[sha] = landed_run(sha, how, pushes[sha], live, 'push', iso)
         elif sha in runs and 'from' not in runs[sha]:  # its push left the page: kept from merged_at, said, not asked again
             runs[sha] = dict(runs[sha], **{'from': 'merged_at'})
-    made = {'workflow': LIVE_RUNS, 'source': "code-only merges' landing (the push of the merge commit to main, GitHub's "
-                                             "activity API) to code live (image_swap/image_live, image_reload of "
+    made = {'workflow': LIVE_RUNS, 'source': "code-only merges' landing (the doorbell heard GitHub's signed push of the "
+                                             "merge commit to main, else the push in GitHub's activity API) to code live (image_swap/image_live, image_reload of "
                                              'GET /v1/deploy/status)',
             'at': iso(now if now is not None else time.time()),
             'runs': sorted(runs.values(), key=lambda run: run['started'], reverse=True)[:DEPLOY_KEEP]}

@@ -802,6 +802,35 @@ class CliTests(unittest.TestCase):
         self.assertEqual((runs[new]['seconds'], runs[new]['from']), (0.2, 'push'))
         self.assertEqual((runs[gone]['seconds'], runs[gone]['from']), (0.4, 'merged_at'))
 
+    def test_a_landing_the_doorbell_heard_signed_is_timed_on_its_millisecond_clock_not_the_push_second(self):
+        # LANDING-CLOCK (D-345): a 1 s target needs a landing clock far finer than 1 s, from a source the engine controls
+        root = tempfile.mkdtemp(prefix='deploy-live-')
+        self.addCleanup(shutil.rmtree, root)
+        signed, unsigned = (hashlib.sha1(letter.encode()).hexdigest() for letter in 'su')
+        push = deploy.iso_epoch('2026-11-18T11:06:40Z')  # GitHub's push second for both merges
+        heard = push + 1 / (1 + 1)  # the doorbell's millisecond receipt, half a second into the push second
+        live = heard + (heard - push)  # the code live as long after
+        state = {'image_swap': [{'head': sha, 'swapped': True, 'at': live, 'digest': sha, 'versions': {}}
+                                for sha in (signed, unsigned)],
+                 'queue_landed': [{'type': 'platform.deploy.queue', 'event': 'landed', 'sha': signed, 'heard': heard,
+                                   'signed': True},
+                                  {'type': 'platform.deploy.queue', 'event': 'landed', 'sha': unsigned, 'heard': heard}]}
+        asked = []
+
+        def api(path):
+            asked.append(path)
+            return [{'after': sha, 'timestamp': '2026-11-18T11:06:40Z'} for sha in (signed, unsigned)]
+        runs = {run['id']: run for run in deploy.record_live(state, root, now=live, api=api, repo='o/r')}
+        self.assertEqual((runs[signed]['seconds'], runs[signed]['from']), (live - heard, deploy.HEARD),
+                         'heard to live, not push to live')
+        self.assertEqual((runs[unsigned]['seconds'], runs[unsigned]['from']), (live - push, 'push'),
+                         'an unsigned word is no landing')
+        asked.clear()
+        state['queue_landed'][1]['signed'] = True
+        runs = {run['id']: run for run in deploy.record_live(state, root, now=live, api=api, repo='o/r')}
+        self.assertEqual((runs[unsigned]['seconds'], runs[unsigned]['from']), (live - heard, deploy.HEARD))
+        self.assertEqual(asked, [], 'every landing heard: the push clock is not asked')
+
     def test_status_says_the_builds_seconds_and_the_reload_in_place(self):
         # FAST-PATH-RELOAD: what a code-only merge's deploy cost, and how long its swap took, from `scripts/deploy status`
         state = {'last_sha': 'a', 'last_build': {
