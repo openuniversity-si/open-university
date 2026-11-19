@@ -520,6 +520,27 @@ class Prepared(unittest.TestCase):
             self.assertEqual(self.word(event, sha), {'ignored': True})
         self.assertIn('pg_notify(\'tower_deploy\'', http_port.QUEUE_SAID)  # it wakes the look
 
+    def hook(self, **detail):
+        return http_port.handle({'source': 'tower.doorbell', 'detail-type': 'Merge Queue',
+                                 'detail': {'event': 'hook', **detail}}, self.log, '')
+
+    def test_the_port_lands_a_signed_push_to_main_alone_and_still_takes_the_old_word(self):
+        """SIGNED-HOOK: the doorbell forwards every signed GitHub event; a push to main that deletes nothing is a landing,
+        signed; another ref, a deletion, another event or a bad sha is acknowledged and ignored; {landed, sha} stands."""
+        sha = 'd' * 40
+        push = {'kind': 'push', 'ref': 'refs/heads/main', 'after': sha, 'deleted': False, 'heard': float(len(sha))}
+        self.assertEqual(self.hook(**push), {'event_id': f'platform.deploy.queue:landed:{sha}'})
+        [said] = self.log.of(queue_deploy.QUEUE)
+        self.assertEqual((said['event'], said['sha'], said['signed'], said['heard']), ('landed', sha, True, push['heard']))
+        for other in ({'ref': 'refs/heads/feature'}, {'ref': 'refs/tags/v1'}, {'deleted': True, 'after': '0' * 40},
+                      {'kind': 'ping'}, {'kind': 'check_suite'}, {'kind': None}, {'after': 'main'}, {'after': 'E' * 40},
+                      {'after': None}):
+            self.assertEqual(self.hook(**{**push, 'after': 'e' * 40, **other}), {'ignored': True}, other)
+        self.assertEqual(len(self.log.of(queue_deploy.QUEUE)), 1)
+        old = 'f' * 40
+        self.assertEqual(self.word('landed', old), {'event_id': f'platform.deploy.queue:landed:{old}'})
+        self.assertNotIn('signed', self.log.of(queue_deploy.QUEUE)[-1])  # an older doorbell's word lands unsigned
+
     def test_the_look_orders_the_service_alone_by_queue_and_the_key_turns_it_off(self):
         look = autodeploy.AutoDeploy(None, lambda name: None, None)
         seen = []
