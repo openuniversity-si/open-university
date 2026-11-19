@@ -86,10 +86,10 @@ def source_check(root):
 
 def tower_store_errors(paths, store_dir):
     """One error per tracked path under the change store's top directory (the first part of `store_dir`): the store is
-    gitignored, and a forced add of it would override the registry's gate, budget or regime keys from the head (D-335)."""
+    gitignored, and a forced add of it, or of a link of that name (a tracked `.tower` symlink to a tracked store), would override the registry's gate, budget or regime keys from the head (D-335)."""
     top = Path(store_dir).parts[0] + '/'
     return [f'{path}: a tracked file of the change store ({top}, config.store_dir); it is machine-local and never '
-            f'committed: git rm --cached it' for path in paths if path.startswith(top)]
+            f'committed: git rm --cached it' for path in paths if path.startswith(top) or path == top.rstrip('/')]
 
 
 def tree_check(root):
