@@ -113,13 +113,25 @@ spend_day="$(date -u +%F)"
 spend_read() {
   local from="${spend_day:0:8}01" until usd
   until="$(date -u -d "$spend_day + 1 day" +%F 2>/dev/null)" || return 1
+  local said=0
   usd="$(timeout 30 aws ce get-cost-and-usage --region us-east-1 --time-period "Start=$from,End=$until" --granularity MONTHLY \
-    --metrics UnblendedCost --query 'ResultsByTime[0].Total.UnblendedCost.Amount' --output text 2>/dev/null)" || return 1
-  [[ "$usd" =~ ^[0-9]+(\.[0-9]+)?$ ]] || return 1
+    --metrics UnblendedCost --query 'ResultsByTime[0].Total.UnblendedCost.Amount' --output text 2>"$work/spend.err")" || said=$?
+  if (( said != 0 )) || ! [[ "$usd" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    # SPEND-WHY (VAL-aws-200): the class of the refusal, never the CLI's text, so the record says why there is no reading
+    local why=other
+    if (( said == 124 )); then why=timeout
+    elif grep -qiE 'AccessDenied|not authorized' "$work/spend.err" 2>/dev/null; then why=access-denied
+    elif grep -qiE 'not enabled|DataUnavailable|opt.?in' "$work/spend.err" 2>/dev/null; then why=not-enabled
+    elif (( said == 0 )); then why=no-amount; fi
+    jq -nc --arg day "$spend_day" --arg why "$why" '{day: $day, why: $why}' >"$work/spend.why"
+    return 1
+  fi
   jq -nc --arg day "$spend_day" --arg from "$from" --arg usd "$usd" '{day: $day, from: $from, usd: ($usd | tonumber * 100 | round / 100)}'
 }
 spend_pid=""
-if [[ "$(jq -r '.spend.day? // empty' <<<"$prev_build" 2>/dev/null)" != "$spend_day" ]]; then
+# a day already read, or already refused (spend_error, SPEND-WHY), calls Cost Explorer no more that day
+if [[ "$(jq -r '.spend.day? // empty' <<<"$prev_build" 2>/dev/null)" != "$spend_day" &&
+      "$(jq -r '.spend_error.day? // empty' <<<"$prev_build" 2>/dev/null)" != "$spend_day" ]]; then
   ( spend_read >"$work/spend.tmp" 2>/dev/null && mv "$work/spend.tmp" "$work/spend" ) >/dev/null 2>&1 &
   spend_pid=$!
 fi
@@ -224,6 +236,11 @@ record() {
     spend_json="$prev_spend"
   fi
   [[ -n "$spend_json" ]] || spend_json=null
+  local spend_error_json=null; [[ -s "$work/spend.why" ]] && spend_error_json="$(<"$work/spend.why")"
+  if [[ "$spend_error_json" = null ]]; then
+    spend_error_json="$(jq -c --arg day "$spend_day" '.spend_error? | if type == "object" and .day == $day then . else null end' <<<"$prev_build" 2>/dev/null)"
+    [[ -n "$spend_error_json" ]] || spend_error_json=null
+  fi
   # RECORD-ONE-JQ: every part of the record from one jq over this build's files and the earlier record, one compact JSON per
   # line: the record was ~33 jq calls (each its own process), 3.2 of a tested deploy's 3.9 s and the CPU the deploy's tests
   # fight for on the runner's two vCPUs
@@ -305,9 +322,9 @@ record() {
       --argjson failed "$failed_json" --argjson done "$done_json" --argjson left "$left_json" --argjson stacks "$secs_json" \
       --argjson started "$started" --argjson ended "$ended_out" --arg tail "$tail" --argjson targets "$targets_json" \
       --argjson rolled "$rolled_json" --argjson bisect "$bisect_json" --argjson epoch "$BISECT_EPOCH" --arg bnote "$bnote_txt" --argjson hashes "$hashes_json" --argjson dirty "$dirty_json" \
-      --argjson fast_owned "$fast_owned_json" --argjson migrate "$migrate_json" --argjson rolling "$rolling_json" --argjson rollout "$rollout_json" --argjson parts "$parts_json" --arg port_tpl "$port_tpl" --argjson wait "$wait_json" --arg code_live "$code_live" --arg code_live_why "$code_live_why" --argjson reload "$reload_json" --argjson seconds "$seconds" --argjson usd "$usd" --argjson batch "$batch" --argjson spend "$spend_json" \
+      --argjson fast_owned "$fast_owned_json" --argjson migrate "$migrate_json" --argjson rolling "$rolling_json" --argjson rollout "$rollout_json" --argjson parts "$parts_json" --arg port_tpl "$port_tpl" --argjson wait "$wait_json" --arg code_live "$code_live" --arg code_live_why "$code_live_why" --argjson reload "$reload_json" --argjson seconds "$seconds" --argjson usd "$usd" --argjson batch "$batch" --argjson spend "$spend_json" --argjson spend_error "$spend_error_json" \
       --argjson steps "$steps" --arg step "$step_cur" --arg failed_step "$fail_step" --argjson updated "$ended" \
-      '{build_id: $build_id, base_head: $base_head, status: $status, failed: $failed, done: $done, left: $left, stacks: $stacks, started: $started, ended: $ended, updated: $updated, step: $step, failed_step: $failed_step, steps: $steps, seconds: $seconds, usd: $usd, targets: $targets, batch: $batch, rolled_back: $rolled, bisect: $bisect, bisect_epoch: $epoch, bisect_note: $bnote, hashes: $hashes, dirty: $dirty, tail: $tail} + (if $fast_owned then {fast_owned: $fast_owned} else {} end) + (if $migrate then {migrate: $migrate} else {} end) + (if $rolling then {rolling: $rolling} else {} end) + (if ($rollout | length) > 0 then {rollout: $rollout} else {} end) + {parts: $parts} + (if $port_tpl != "" then {port_tpl: $port_tpl} else {} end) + (if $wait != null then {rollout_wait_s: $wait} else {} end) + (if $code_live != "" then {code_live: $code_live} else {} end) + (if $code_live_why != "" then {code_live_why: $code_live_why} else {} end) + (if $reload then {reload: $reload} else {} end) + (if $bootstrap != "" then {bootstrap: $bootstrap} else {} end) + (if $spend then {spend: $spend} else {} end)' 2>/dev/null)" || json=""
+      '{build_id: $build_id, base_head: $base_head, status: $status, failed: $failed, done: $done, left: $left, stacks: $stacks, started: $started, ended: $ended, updated: $updated, step: $step, failed_step: $failed_step, steps: $steps, seconds: $seconds, usd: $usd, targets: $targets, batch: $batch, rolled_back: $rolled, bisect: $bisect, bisect_epoch: $epoch, bisect_note: $bnote, hashes: $hashes, dirty: $dirty, tail: $tail} + (if $fast_owned then {fast_owned: $fast_owned} else {} end) + (if $migrate then {migrate: $migrate} else {} end) + (if $rolling then {rolling: $rolling} else {} end) + (if ($rollout | length) > 0 then {rollout: $rollout} else {} end) + {parts: $parts} + (if $port_tpl != "" then {port_tpl: $port_tpl} else {} end) + (if $wait != null then {rollout_wait_s: $wait} else {} end) + (if $code_live != "" then {code_live: $code_live} else {} end) + (if $code_live_why != "" then {code_live_why: $code_live_why} else {} end) + (if $reload then {reload: $reload} else {} end) + (if $bootstrap != "" then {bootstrap: $bootstrap} else {} end) + (if $spend then {spend: $spend} else {} end) + (if $spend_error then {spend_error: $spend_error} else {} end)' 2>/dev/null)" || json=""
     [[ -n "$json" ]] || break
     size="$(bytes_of "$json")"
     (( size <= max_bytes )) && break
