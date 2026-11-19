@@ -36,6 +36,7 @@
     "engine-gate-report": "^1",
     "engine-gate-status": "^1",
     "engine-git-ref": "^1",
-    "engine-regime": "^1"
+    "engine-regime": "^1",
+    "engine-structure": "^1"
   }
 }

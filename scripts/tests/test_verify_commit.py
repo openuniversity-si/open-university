@@ -6,6 +6,7 @@ import json
 import re
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -614,9 +615,10 @@ class GitHub(Fake):
     """A fake gh for PR-METADATA-GITHUB (D-329): pull request NUMBER on GitHub, two commits pushed one by one."""
 
     def __init__(self, body=BODY, messages=('The rule\n\nPlan: 1', 'Its use\n\nPlan: 2'), files=(['src/a.py'], ['src/b.py']),
-                 comments=(), forced=(), broken=None, **fake):
+                 comments=(), forced=(), broken=None, merge_base=MERGE_BASE, **fake):
         super().__init__(**fake)
         self.body, self.messages, self.files, self.comments, self.forced = body, messages, files, list(comments), list(forced)
+        self.merge_base = merge_base
         self.broken, self.read = broken, []
 
     def lines(self, items):
@@ -647,7 +649,7 @@ class GitHub(Fake):
         if path.startswith(f'repos/{REPO}/issues/{NUMBER}/comments'):
             return self.lines([{'body': each, 'created_at': '2026-11-18T20:01:30Z'} for each in self.comments])
         if path == f'repos/{REPO}/compare/main...{TWO}':
-            return 0, json.dumps({'behind_by': 0, 'merge_base_commit': {'sha': MERGE_BASE}})
+            return 0, json.dumps({'behind_by': 0, 'merge_base_commit': {'sha': self.merge_base}})
         if path.startswith(f'repos/{REPO}/commits/'):
             return self.lines(self.files[[ONE, TWO].index(path.rsplit('/', 1)[1])])
         raise AssertionError(path)
@@ -708,6 +710,25 @@ class ThePullRequestMetadata(unittest.TestCase):
             self.assertEqual(ran.statuses[-1][-1], 'red: pr metadata', rule)
             self.assertRegex(out.getvalue(), rf'FAIL {rule}: ', rule)
 
+    def test_the_review_check_refuses_an_approved_trailer_no_review_of_the_head_approves(self):
+        """THREAT-planning spoofing (D-335): structure.review_errors runs in `pr metadata`. An `approved` Fit-Review with
+        no APPROVED review comment of the gated head, or with a review that requests changes, is red; a `not reviewed`
+        or `not structural` body with no review comment is green, so no review step is asked for (D-055)."""
+        approved = f'Fit-Review: approved by A Torre (independent reviewer session, head {TWO}) 2026-11-19'
+        review = 'Independent fit review (reviewer session, head {}): {}'
+        for fake, green in (({'body': f'{BODY}\nFit-Review: not structural\n'}, True),
+                            ({'body': f'{BODY}\n{approved}\n'}, False),
+                            ({'body': f'{BODY}\n{approved}\n', 'comments': [review.format(TWO, 'APPROVED')]}, True),
+                            ({'body': f'{BODY}\n{approved}\n', 'comments': [review.format(ONE, 'APPROVED')]}, False),
+                            ({'body': BODY, 'comments': [review.format(TWO, 'CHANGES_REQUESTED')]}, False)):
+            out = io.StringIO()
+            with mock.patch('sys.stderr', out), mock.patch('sys.stdout', io.StringIO()):
+                code, ran = self.judged(**fake)
+            self.assertEqual(code, 0 if green else 1, (fake, ran.statuses))
+            if not green:
+                self.assertEqual(ran.statuses[-1][-1], 'red: pr metadata', fake)
+                self.assertRegex(out.getvalue(), r'FAIL (no "Independent fit review|the latest independent fit review)', fake)
+
     def test_a_pull_request_github_cannot_answer_or_an_event_naming_none_is_red(self):
         for environ, fake in ((QUEUE, {'broken': '/activity'}), ({'GITHUB_EVENT_NAME': 'merge_group'}, {})):
             out = io.StringIO()
@@ -723,6 +744,58 @@ class ThePullRequestMetadata(unittest.TestCase):
         code, ran = self.judged(environ={}, argv=('--pr', str(NUMBER)))
         self.assertEqual(code, 0)
         self.assertIn(f'repos/{REPO}/pulls/{NUMBER}', ran.read)
+
+
+class ThePullRequestMetadataAsRecorded(unittest.TestCase):
+    """THREAT-planning (D-335, D-340): `pr metadata` under the regime the registry records (none since D-340), with real
+    unit manifests: a ready PR with an item no commit ticks and a PR across two lanes' units are red, a clean one green.
+    The lane rule is the train's ownership rule with the lane lane_of() gives it (LANE-OWN), run from the diff and the
+    manifests at the merge base, without the train."""
+
+    LANES = {'engine': ('lane-a', 'scripts/engine/**'), 'admin': ('lane-b', 'apps/admin/**')}
+
+    def setUp(self):
+        import regime
+        pinned = list(regime._JUDGE)
+        regime.pin(None)  # the registry's view, not the hermetic hook's
+        self.addCleanup(lambda: regime.pin(pinned[0] if pinned else None))
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        for unit, (lane, glob) in self.LANES.items():
+            path = self.root / 'units' / unit / 'unit.json'
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps({'id': unit, 'owner': lane, 'paths': [glob]}))
+        git = ['git', '-C', tmp.name, '-c', 'user.email=t@example.com', '-c', 'user.name=T']
+        for args in (['init', '-q'], ['add', '-A'], ['commit', '-q', '-m', 'base']):
+            subprocess.run([*git, *args], check=True, capture_output=True)
+        self.base = subprocess.run([*git, 'rev-parse', 'HEAD'], check=True, capture_output=True, text=True).stdout.strip()
+
+    def judged(self, **fake):
+        out = io.StringIO()
+        with mock.patch('sys.stderr', out):
+            code, said = verify_commit.pr_metadata(REPO, NUMBER, run=GitHub(merge_base=self.base, **fake), root=self.root)
+        return code, said + out.getvalue()
+
+    def test_the_recorded_regime_lifts_no_lock_of_the_stage(self):
+        import gate_discipline
+        self.assertFalse(gate_discipline.lifted('structure'))
+        self.assertFalse(gate_discipline.lifted('commit-plan'))
+
+    def test_a_clean_pull_request_is_green(self):
+        code, said = self.judged(files=(['scripts/engine/a.py'], ['scripts/engine/b.py']))
+        self.assertEqual(code, 0, said)
+        self.assertNotIn('lifted', said)
+
+    def test_an_item_no_commit_ticks_is_refused(self):
+        code, said = self.judged(messages=('The rule\n\nPlan: 1', 'Its use'))
+        self.assertEqual(code, 1, said)
+        self.assertRegex(said, r'FAIL plan: item\(s\) 2 not ticked')
+
+    def test_a_change_across_two_lanes_units_is_refused(self):
+        code, said = self.judged(files=(['scripts/engine/a.py'], ['apps/admin/r.ts']))
+        self.assertEqual(code, 1, said)
+        self.assertRegex(said, r'FAIL lane undecidable: .*admin \(lane-b\), engine \(lane-a\)')
 
 
 if __name__ == '__main__':

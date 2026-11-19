@@ -13,10 +13,11 @@
   "threats": [
     {
       "stride": "spoofing",
-      "statement": "A session works a unit another lane owns, or a body carries an approved trailer with no review of that head.",
+      "statement": "A session works a unit another lane owns, or a body carries an approved trailer with no review of that head. Both rules run in tower/gate's pr metadata stage (gate_discipline.pr_errors): the lane rule refuses a change across several lanes' units, the train's ownership rule with the lane lane_of() gives it (LANE-OWN), and the review rule refuses an approved trailer no review comment of the gated head approves. Residual: the lane is read from the files, not from the session, so a session that works one lane's units alone is not told apart from that lane; the review rule reads a comment's text, not its author, and no step grants anything on an approved trailer (D-055).",
       "mitigated_by": [
-        "STD-train-ownership-refusals",
+        "STD-structure-lane-errors",
         "STD-structure-review-errors",
+        "TEST:scripts/tests/verify-commit.test.sh",
         "TEST:scripts/tests/structure-check.test.sh"
       ]
     },
@@ -25,7 +26,8 @@
       "statement": "A plan is ticked by hand instead of by real commits, so a ready pull request hides an undelivered item.",
       "mitigated_by": [
         "STD-structure-plan-completeness-errors",
-        "TEST:scripts/tests/plan-tick.test.sh"
+        "TEST:scripts/tests/plan-tick.test.sh",
+        "TEST:scripts/tests/verify-commit.test.sh"
       ]
     },
     {
@@ -33,7 +35,8 @@
       "statement": "A unit or a companion file is claimed by two units, so nobody can tell who owns a change.",
       "mitigated_by": [
         "STD-unit-check-companion-errors",
-        "TEST:scripts/tests/units.test.sh"
+        "TEST:scripts/tests/units.test.sh",
+        "TEST:scripts/tests/structure-check.test.sh"
       ]
     },
     {
@@ -54,7 +57,7 @@
     },
     {
       "stride": "elevation-of-privilege",
-      "statement": "A planning change edits the structure check itself so its own body passes. The structure check is a gate file: the change asks a decision, and the pinned job of tower/gate runs the base's structure check on it. Residual: the pinned job holds once the owner installs it (VULN-gate-judged-by-own-head), and the decision the gate-change rule asks for may be any recorded D-NNN.",
+      "statement": "A planning change edits the structure check itself so its own body passes. The structure check is a gate file: the change asks a decision, and the pinned job of tower/gate (.github/workflows/tower-gate.yml) runs the base's structure check on it, with every scripts/lib module it imports restored from the base (gate_pin.gate_closure). Residual: the decision the gate-change rule asks for may be any recorded D-NNN.",
       "mitigated_by": [
         "STD-commit-check-gate-errors",
         "STD-gate-structure-check",
@@ -69,20 +72,20 @@
       {
         "about": "spoofing",
         "finding": "Neither mitigation runs in tower/gate: train_ownership.refusals runs only in the stopped train and is a no-op with no lane manifest; structure.review_errors runs only with structure-check --review, which gate-check's structure stage does not pass, and it matches a comment's text, not its author. Impact is low (no step grants anything on an approved trailer, D-055; claims coordinate lanes), but the stated mitigation is not real.",
-        "disposition": "open",
-        "reason": "needs the threat restated with its residual, or the review check wired into the gate; not in place."
+        "disposition": "fixed",
+        "reason": "both rules run in tower/gate's pr metadata stage: gate_discipline.pr_errors runs structure.review_errors on the GitHub pull request, and lane_errors, the train's ownership rule with the lane lane_of() gives it (test_commit_check: lane_of and lane_errors agree), from the diff and the manifests at the merge base, without the train; test_verify_commit proves each refuses a violating PR and passes a clean one. The review rule asks no review step (D-055): a not reviewed body with no review comment passes. Residual restated in the threat."
       },
       {
         "about": "tampering",
         "finding": "plan_completeness_errors is real in the GitHub pr metadata stage (gate_discipline.pr_errors), but it is under the structure lock, which the regime lifts today: config/registry/regime/regime.exception_active.json is true and regime.exception_kept is [money, people], so regime.lifted('structure') and lifted('commit-plan') are true on every tower/gate run (nothing pins the regime outside the script tests' hermetic hook): structure.py under_regime turns every structure-check refusal into a warning, and gate_discipline.lift does the same to the plan, fix-up, one-commit-per-push, plan-completeness and lane refusals.",
-        "disposition": "open",
-        "reason": "needs the regime ended or the structure lock kept."
+        "disposition": "fixed",
+        "reason": "the regime is off (D-340, regime.exception_active false): test_verify_commit.ThePullRequestMetadataAsRecorded runs pr metadata under the registry's regime, proves gate_discipline.lifted('structure') and lifted('commit-plan') false, and a ready PR with an item no commit ticks red."
       },
       {
         "about": "repudiation",
         "finding": "unit_check.companion_errors runs inside the structure check, so the regime turns its refusals into warnings today.",
-        "disposition": "open",
-        "reason": "same cause as the tampering finding."
+        "disposition": "fixed",
+        "reason": "the regime is off (D-340): test_structure proves the structure lock is not lifted under the registry's regime, so a companion_errors refusal stays a refusal in tower/gate's structure stage."
       },
       {
         "about": "information-disclosure",
@@ -99,8 +102,8 @@
       {
         "about": "elevation-of-privilege",
         "finding": "The structure check is a gate file and the pinned job would run the base's, but the job is staged, not installed, and the overlay does not pin the modules structure.py imports (premises, unit_check, threshold_check, forge_pr, config, regime and others), so a change to one of them judges the structure check with the head's code and asks no decision. The earlier 'fixed' was premature.",
-        "disposition": "open",
-        "reason": "VULN-gate-judged-by-own-head is open; needs the pinned job installed and GATE_FILE widened to the structure check's imports."
+        "disposition": "fixed",
+        "reason": "the job pinned of .github/workflows/tower-gate.yml is installed and tower/gate needs it green; its overlay restores gate_pin.gate_closure, the transitive imports of every gate file, and test_gate_pin proves every scripts/lib module structure.py imports is in that closure on this repository's HEAD. VULN-gate-judged-by-own-head is recorded fixed (#323)."
       }
     ]
   }

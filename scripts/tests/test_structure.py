@@ -671,6 +671,18 @@ class ExceptionRegime(unittest.TestCase):
         import structure
         self.assertEqual(structure.under_regime(['FAIL one'], [], False), (['FAIL one'], []))
 
+    def test_the_recorded_regime_keeps_the_structure_lock_so_a_companion_refusal_refuses(self):
+        """THREAT-planning repudiation (D-335, D-340): under the regime the registry records, not the hermetic hook's pin,
+        the structure lock is not lifted, so unit_check.companion_errors refuses in tower/gate's structure stage."""
+        import structure
+        refusal = 'scripts/tests/covers/x.json belongs to x, the unit of scripts/tests/x.test.sh (D-067 (6))'
+        regime.pin(None)
+        try:
+            self.assertFalse(structure._lifted('structure'))
+            self.assertEqual(structure.under_regime([refusal], [], structure._lifted('structure')), ([refusal], []))
+        finally:
+            regime.pin(False)
+
     def test_a_read_failure_is_not_lifted_while_a_rule_finding_beside_it_is(self):
         """GC (D-260, D-300): the regime is for rule debt, not for blindness."""
         import structure
