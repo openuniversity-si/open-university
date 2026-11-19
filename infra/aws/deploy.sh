@@ -116,14 +116,18 @@ spend_read() {
   local said=0
   usd="$(timeout 30 aws ce get-cost-and-usage --region us-east-1 --time-period "Start=$from,End=$until" --granularity MONTHLY \
     --metrics UnblendedCost --query 'ResultsByTime[0].Total.UnblendedCost.Amount' --output text 2>"$work/spend.err")" || said=$?
-  if (( said != 0 )) || ! [[ "$usd" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+  # a credit can make the month negative, and the CLI may print a tiny amount with an exponent: both are a number
+  if (( said != 0 )) || ! [[ "$usd" =~ ^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$ ]]; then
     # SPEND-WHY (VAL-aws-200): the class of the refusal, never the CLI's text, so the record says why there is no reading
     local why=other
     if (( said == 124 )); then why=timeout
     elif grep -qiE 'AccessDenied|not authorized' "$work/spend.err" 2>/dev/null; then why=access-denied
     elif grep -qiE 'not enabled|DataUnavailable|opt.?in' "$work/spend.err" 2>/dev/null; then why=not-enabled
     elif (( said == 0 )); then why=no-amount; fi
-    jq -nc --arg day "$spend_day" --arg why "$why" '{day: $day, why: $why}' >"$work/spend.why"
+    # no-amount keeps what the CLI printed instead, cut to 24 characters of [A-Za-z0-9.+-] (an amount or None, no secret)
+    local seen=""; [[ "$why" = no-amount ]] && seen="$(printf '%s' "$usd" | tr -cd 'A-Za-z0-9.+-' | cut -c1-24)"
+    jq -nc --arg day "$spend_day" --arg why "$why" --arg seen "$seen" \
+      '{day: $day, why: $why} + (if $seen != "" then {seen: $seen} else {} end)' >"$work/spend.why"
     return 1
   fi
   jq -nc --arg day "$spend_day" --arg from "$from" --arg usd "$usd" '{day: $day, from: $from, usd: ($usd | tonumber * 100 | round / 100)}'
