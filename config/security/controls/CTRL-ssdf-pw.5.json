@@ -4,7 +4,7 @@
   "control": "PW.5",
   "title": "Create source code by adhering to secure coding practices",
   "applicable": true,
-  "reason": "The lint ratchet keeps Python's bug rules from growing; nothing checks secure coding beyond it, and the site's code has its own lint only.",
+  "reason": "The lint ratchet keeps Python's bug rules and the bandit rules of forty vulnerability classes at zero findings in the engine (rules.lint_select). Partial: the site's TypeScript has its own lint with no security rules, and no secure coding standard is written for either language.",
   "implemented_by": [
     "STD-lint-ratchet"
   ],

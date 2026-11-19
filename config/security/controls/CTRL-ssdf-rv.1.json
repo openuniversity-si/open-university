@@ -4,9 +4,9 @@
   "control": "RV.1",
   "title": "Identify and confirm vulnerabilities on an ongoing basis",
   "applicable": true,
-  "reason": "Third-party advisories are audited into a snapshot; vulnerabilities of the repository's own code have a record (VULN) but no source that finds them.",
+  "reason": "Vulnerabilities are identified on an ongoing basis from three sources: third-party advisories are audited into a snapshot that blocks high and critical ones (RV.1.1), the lint ratchet's bandit rules analyze the repository's own Python on every change (RV.1.2), and SECURITY.md is the disclosure policy with a private reporting channel (RV.1.3); a vulnerability confirmed in our code gets a VULN record.",
   "implemented_by": [
-    "TEST:scripts/tests/supply.test.sh"
-  ],
-  "coverage": "partial"
+    "TEST:scripts/tests/supply.test.sh",
+    "STD-lint-ratchet"
+  ]
 }
