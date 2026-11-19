@@ -11,7 +11,6 @@ import io
 import json
 import os
 from pathlib import Path
-import socket
 import stat
 import subprocess
 import sys
@@ -142,9 +141,9 @@ class ClientTests(unittest.TestCase):
     def test_a_non_200_or_unreachable_endpoint_is_one_line_and_exit_0(self):
         self.serve({'error': 'no'}, status=HTTPStatus.FORBIDDEN)
         self.assertIn(f'answered {HTTPStatus.FORBIDDEN.value}', self.run_fetch())
-        with socket.socket() as closed:
-            closed.bind((HOST, 0))
-            port = closed.getsockname()[1]
+        closed = ThreadingHTTPServer((HOST, 0), Stub)  # a port of the loopback that answers nothing once closed
+        port = closed.server_address[1]
+        closed.server_close()
         with mock.patch.object(client, 'endpoint', return_value=f'http://{HOST}:{port}'):
             self.assertIn('could not be reached', self.run_fetch())
         self.assertFalse(self.env_file.exists())
