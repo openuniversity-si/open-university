@@ -303,6 +303,13 @@ class DeployShTests(unittest.TestCase):
         done = self.run_deploy(STUB_LAST='old', STUB_SPEND='12.5')
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertNotIn('spend_error', self.build())
+        # SPEND-SHAPE: a credit (negative) or an exponent is a reading; an answer that is no number keeps its shape
+        for said, usd in (('-3.254', round(-float('3.254'), 2)), ('1.2E-7', 0)):
+            done = self.run_deploy(STUB_LAST='old', STUB_SPEND=said)
+            self.assertEqual((done.returncode, self.build()['spend']['usd']), (0, usd), done.stderr)
+        done = self.run_deploy(STUB_LAST='old', STUB_SPEND='None')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.build()['spend_error'], {'day': today, 'why': 'no-amount', 'seen': 'None'})
 
     def test_a_record_over_4000_bytes_is_shrunk_in_order_and_still_written(self):
         prev = json.dumps({'hashes': {f'stack{i}': 'h' * 20 for i in range(60)}, 'stacks': {f'tower-app-s{i}': 100 + i for i in range(80)}})
