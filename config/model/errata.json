@@ -18,6 +18,12 @@
       "was": "UNIT:agent-env",
       "is": "UNIT:engine-env",
       "why": "There is no unit agent-env: the agent-environment declarations and their checks belong to engine-env (units/engine-env/unit.json), the unit this commit (Plan: 1 of the PR that declares TOWER_PORT_TOKEN) changed."
+    },
+    {
+      "commit": "fe38b4040644ef49ade5471a67929aa9d57c40e3",
+      "was": "UNIT:engine-supply",
+      "is": "UNIT:engine-model",
+      "why": "There is no unit engine-supply: scripts/lib/supply.py belongs to engine-model (units/engine-model/unit.json), the unit this commit changed."
     }
   ]
 }

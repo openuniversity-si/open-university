@@ -53,7 +53,12 @@ def sha256(path):
 
 
 def lockfiles(root):
+    """The tree's lockfiles: the tracked ones in a git work tree, so an untracked copy (a session's worktree under
+    .claude/worktrees/, a scratch checkout) is never audited nor compared; outside one (a test's fixture), the files."""
     root = Path(root)
+    listed = subprocess.run(['git', '-C', str(root), 'ls-files', '-z', '--', f':(glob){LOCKFILES}'], capture_output=True)
+    if listed.returncode == 0:
+        return sorted(name for name in listed.stdout.decode().split('\0') if name and 'node_modules' not in name)
     return sorted(path.relative_to(root).as_posix() for path in root.glob(LOCKFILES) if 'node_modules' not in path.parts)
 
 
