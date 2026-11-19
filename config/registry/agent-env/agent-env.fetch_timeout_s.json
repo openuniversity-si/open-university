@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 10,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "Seconds the AGENT-ENV client waits for the delivery endpoint at session start before it gives up, in one line and exit 0 (D-341).",
+  "x-readers": [
+    "scripts/lib/agent_env_client.py"
+  ],
+  "x-source": "D-341"
+}

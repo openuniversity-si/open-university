@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "",
+  "x-unit": "url",
+  "description": "The base URL of the AGENT-ENV delivery endpoint (D-341); the client GETs <endpoint>/v1/agent-env with the environment's starting credential. Empty (the default) is not provisioned yet: the client prints one line and fetches nothing, and preflight names it as a warning, never a gap.",
+  "x-readers": [
+    "scripts/lib/agent_env_client.py"
+  ],
+  "x-source": "D-341"
+}

@@ -1,0 +1,11 @@
+{
+  "script": "scripts/tests/agent-env-client.test.sh",
+  "covers": [
+    "scripts/tests/agent-env-client.test.sh",
+    "scripts/tests/test_agent_env_client.py",
+    "scripts/lib/agent_env_client.py",
+    "scripts/cloud/agent-env",
+    "config/registry/agent-env/agent-env.endpoint.json",
+    "config/registry/agent-env/agent-env.fetch_timeout_s.json"
+  ]
+}
