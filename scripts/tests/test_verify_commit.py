@@ -197,17 +197,31 @@ class TheVerifier(unittest.TestCase):
                  'scripts/tests/g.test.sh': 7, 'scripts/tests/h.test.sh': 4, 'scripts/tests/slow.test.sh': 6}
         tests = sorted(hints)
         parts = verify_commit.split(tests, {'scripts/tests/slow.test.sh'}, hints)
-        # main's 3 workers start at 5 (STAGES_S 15 between them), shard1's 4 at 0, alone's 4 at 6 (its slow test): a, b, c
-        # and d take shard1's four; e, f and g main's three (5 against alone's 6); h alone's first (6 against main's 12)
-        self.assertEqual(parts, {'main': ['scripts/tests/e.test.sh', 'scripts/tests/f.test.sh', 'scripts/tests/g.test.sh'],
-                                 'shard1': ['scripts/tests/a.test.sh', 'scripts/tests/b.test.sh', 'scripts/tests/c.test.sh',
-                                            'scripts/tests/d.test.sh'],
-                                 'alone': ['scripts/tests/slow.test.sh', 'scripts/tests/h.test.sh']})
+        # GATE-PER-RUNNER: each test to the part it ends earliest on, by its workers and by its runner's load over
+        # RUNNER_LOAD 3 (main's STAGES_S 15 in its load and its floor; alone after its slow 6): a ends 50 on main and
+        # shard1 (main first); b, c, d end 30, 25, 25 on shard1 (main 31.7, 30, 28.3); e, f, g, h end 16, 14, 13, 15.7 on
+        # alone (shard1 at 85/3 = 28.3, main at 25 and more): the heavy tests no longer stack on one runner
+        self.assertEqual(parts, {'main': ['scripts/tests/a.test.sh'],
+                                 'shard1': ['scripts/tests/b.test.sh', 'scripts/tests/c.test.sh', 'scripts/tests/d.test.sh'],
+                                 'alone': ['scripts/tests/slow.test.sh', 'scripts/tests/e.test.sh', 'scripts/tests/f.test.sh',
+                                           'scripts/tests/g.test.sh', 'scripts/tests/h.test.sh']})
         unhinted = verify_commit.split(['scripts/tests/e.test.sh', 'scripts/tests/f.test.sh', 'scripts/tests/g.test.sh'],
                                        set(), {'scripts/tests/a.test.sh': 10})  # no hint weighs the median, never 0
         self.assertEqual((len(unhinted['main']), len(unhinted['shard1'])), (0, 3))  # 10 each: shard1's 4 workers hold the three
         self.assertEqual(parts, verify_commit.split(list(reversed(tests)), {'scripts/tests/slow.test.sh'}, hints))
         self.assertEqual(sorted(sum(parts.values(), [])), sorted(tests))
+
+    def test_the_heavy_tests_spread_over_the_three_runners(self):
+        """GATE-PER-RUNNER: #279's queue gate, eight deploy-slow parts of ~30 s, put four on alone and four on shard1 (four
+        at once on a 4-vCPU runner: 40-55 s each); by the runner's load they go 3/3/2 and no part ends past ~40 s."""
+        hints = {f'scripts/tests/deploy-slow-{name}.test.sh': 30 for name in 'abcdefgh'}
+        hints.update({'scripts/tests/deploy.test.sh': 21, 'scripts/tests/deploy-smoke.test.sh': 21, 'scripts/tests/x.test.sh': 1})
+        parts = verify_commit.split(sorted(hints), set(), hints)
+        heavy = {part: sum('deploy-slow' in test for test in tests) for part, tests in parts.items()}
+        self.assertEqual(sorted(heavy.values()), [2, 3, 3])
+        for part, tests in parts.items():
+            self.assertLessEqual(sum(hints[test] for test in tests) + (verify_commit.STAGES_S if part == 'main' else 0),
+                                 40 * verify_commit.RUNNER_LOAD, part)
 
     def test_each_part_judges_its_share_and_only_main_runs_the_stages(self):
         plan = {'stages': PLAN['stages'], 'tests': ['scripts/tests/x.test.sh', 'scripts/tests/y.test.sh',
@@ -244,13 +258,14 @@ class TheVerifier(unittest.TestCase):
         green, _, planned, _ = verify_commit.judge(BASE, run=fake, part='alone', hints=hints.copy,
                                                    isolated=lambda: ['scripts/tests/slow.test.sh'], cpus=lambda: 4)
         self.assertTrue(green)
-        # a-d take shard1's four workers (at 0), e-h alone's (at 1, before main's 5), i main's first
+        # GATE-PER-RUNNER: a-c end 10 on shard1; d, e, f 11 on alone (shard1's load 40/3 = 13.3); g 13.3 on shard1 against
+        # alone's 14.3; h 14.3 on alone (main's floor 15); i on shard1 (13.7 against alone's 14.7); main none
         self.assertEqual([call[1:3] for call in fake.calls if call[:2] in (['scripts/gate-check', 'test'],
                                                                          ['scripts/gate-check', 'tests'])],
-                         [['test', 'scripts/tests/slow.test.sh'], ['tests', ','.join(others[4:])]])
+                         [['test', 'scripts/tests/slow.test.sh'], ['tests', ','.join(others[3:6] + others[7:])]])
         self.assertEqual((fake.workers, planned['judged']), (None, 5))  # the whole runner: no worker kept for slow
         shares = verify_commit.split(plan['tests'], {'scripts/tests/slow.test.sh'}, hints)
-        self.assertEqual((shares['shard1'], shares['main']), (others[:4], ['scripts/tests/i.test.sh']))
+        self.assertEqual((shares['shard1'], shares['main']), (others[:3] + others[6:7] + ['scripts/tests/i.test.sh'], []))
 
     def test_the_main_part_runs_its_stages_beside_its_batch_and_says_the_pace(self):
         """GATE-PACE: the stages of the main part run while its batch runs (one worker fewer), not before it; a red stage
