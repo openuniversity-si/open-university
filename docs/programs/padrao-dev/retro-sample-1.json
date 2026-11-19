@@ -1,0 +1,18 @@
+{
+  "id": "retro-sample-1",
+  "program": "padrao-dev",
+  "date": "2026-11-19",
+  "base": "e43b40a",
+  "prs": [
+    {"number": 245, "title": "Group the systems (D-330) and give the standard a dormant state (D-326)", "cheaper": false, "why": "One group field per system file and one dormant state; the 30 files are the 17 systems plus their reader and test."},
+    {"number": 242, "title": "Record the R2 deletion and the media single-copy risk (D-323)", "cheaper": false, "why": "A record of steps already taken, 3 files and 40 lines."},
+    {"number": 241, "title": "Run the pr metadata stage in tower/gate from GitHub (D-329) and read the owner wait in the PR body (I-c16f2b7c)", "cheaper": false, "why": "Reads the PR from GitHub in the existing stage instead of a new one; the incident fix rode the same PR."},
+    {"number": 239, "title": "Retire the seven rules no decision states and rename the three that only report (D-328)", "cheaper": false, "why": "Mostly deletion (-1332); renaming the three reporters was cheaper than an exception list."},
+    {"number": 238, "title": "Record draft C as D-330: management is its own group of systems", "cheaper": true, "why": "One decision recorded in its own PR from the same branch 45 minutes before #245 implemented it; the record could have been #245's first commit, one gate round fewer."},
+    {"number": 237, "title": "Record the approved drafts A, B, D, E, F and the pr metadata return (D-324..D-329)", "cheaper": false, "why": "Six approved decisions recorded in one PR before the code that implements them, as the decision rule asks."},
+    {"number": 236, "title": "D-323: corte do e-mail na zona do Route 53 (MX para o SES, DKIM importado), o nome de exibição no From e a limpeza do domínio de teste", "cheaper": false, "why": "The cut-over after both end-to-end tests passed, with the test domain removed in the same PR."},
+    {"number": 235, "title": "D-323: um subdomínio de teste que as regras de e-mail também aceitam, para testar o recebimento do SES com o MX ainda na Cloudflare", "cheaper": false, "why": "Moving the MX first would have been cheaper but risked live mail; the risk gives the reason, and port 25 was blocked."},
+    {"number": 234, "title": "D-323: theopenuniversity.si recebe o certificado emitido, e o apex e o www respondem o 301", "cheaper": false, "why": "A two-line parameter change."},
+    {"number": 233, "title": "PADRAO-DEV: rascunho F, o esforço mais barato que resolve no momento da decisão (pedido de Daniel)", "cheaper": false, "why": "One document section answering the owner's question, no code."}
+  ]
+}

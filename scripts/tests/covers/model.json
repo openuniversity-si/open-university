@@ -8,6 +8,7 @@
     "scripts/lib/json_schema.py",
     "contracts/model/*.json",
     "config/model/**",
+    "docs/programs/*/retro-sample-*.json",
     "docs/domain/decisions/*.md",
     "docs/domain/DECISIONS.md",
     "docs/domain/CONTRACT.md",
