@@ -4,5 +4,14 @@
   "control": "PO.5",
   "title": "Implement and maintain secure environments for software development",
   "applicable": true,
-  "reason": "Sessions run in isolated cloud containers, but no record describes or checks that environment."
+  "reason": "The environments are separated and protected (PO.5.1): development runs in an isolated, ephemeral cloud container per session, set up only by scripts/cloud/setup.sh from pinned, checksummed tools (cloud test) and checked by scripts/cloud/preflight, with no production credential in it (AGENTS.md: the site's tokens and database URLs are never sent to a cloud agent, and no session reads a credential file); the build and the gate run on GitHub Actions (CHK-tower-gate); production is reached only by the deploy a merge rings, and the production guard refuses a production entrypoint run anywhere else. The endpoint itself (PO.5.2) is the provider's sandbox, behind its network allowlist.",
+  "implemented_by": [
+    "STD-gate-production-guard",
+    "STD-production-guard-refusal",
+    "TEST:scripts/tests/production-guard.test.sh",
+    "TEST:scripts/tests/cloud.test.sh",
+    "TEST:scripts/tests/preflight.test.sh",
+    "CHK-tower-gate"
+  ],
+  "coverage": "full"
 }

@@ -3,6 +3,6 @@
   "catalog": "SSDF-1.1",
   "control": "PW.6",
   "title": "Configure the compilation, interpreter, and build processes to improve executable security",
-  "applicable": true,
-  "reason": "No build hardening is recorded for the engine or the site."
+  "applicable": false,
+  "reason": "Not applicable: nothing is compiled to native code. The engine is Python and bash run by the pinned interpreters of scripts/cloud/toolchain.json, and the site is TypeScript bundled by Next.js and run on the Node.js of an image pinned by digest; the security features of those interpreters and runtimes are their suppliers' (SUP-nodejs, SUP-aws), and the build's inputs are pinned (PO.3, PW.4)."
 }

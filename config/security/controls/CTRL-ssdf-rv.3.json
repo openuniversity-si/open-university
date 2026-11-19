@@ -4,5 +4,12 @@
   "control": "RV.3",
   "title": "Analyze vulnerabilities to identify their root causes",
   "applicable": true,
-  "reason": "Incidents record case, class and design, but no vulnerability has gone through that analysis."
+  "reason": "Every refusal, stop or defect is analyzed to its root cause: the incident record carries its case, class and design fix (scripts/incident, RV.3.1); the lessons registry keeps the causes over time and applies them to the process (RV.3.2, RV.3.4); the known-defect registry records a failure once by its normalized signature, so a second sighting joins the first, derives its unit and owner and opens its fix unit (RV.3.3); and the escape requirement measures what still reaches main. A vulnerability of our own code (VULN) goes through the same records.",
+  "implemented_by": [
+    "TEST:scripts/tests/incident.test.sh",
+    "TEST:scripts/tests/lessons.test.sh",
+    "TEST:scripts/tests/defects.test.sh",
+    "REQ-escape-under-1"
+  ],
+  "coverage": "full"
 }

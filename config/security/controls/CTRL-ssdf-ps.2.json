@@ -4,5 +4,11 @@
   "control": "PS.2",
   "title": "Provide a mechanism for verifying software release integrity",
   "applicable": true,
-  "reason": "No release is signed and no provenance is published."
+  "reason": "Every release is a commit of main in the public repository: its hash, a digest of its whole tree, is published on GitHub with the tower/gate status that judged that exact commit (scripts/verify-commit), so anyone can verify what they received against it. What is deployed is built from that commit and addressed by content: the code bundle by its sha256 (infra/aws/deploy.sh) and the site's image bases by digest (apps/web/deploy/Dockerfile). No binary is distributed, so no release is signed and no SLSA provenance is published; both are the next step if one ever is.",
+  "implemented_by": [
+    "REQ-github-truth",
+    "CHK-tower-gate",
+    "TEST:scripts/tests/verify-commit.test.sh"
+  ],
+  "coverage": "full"
 }

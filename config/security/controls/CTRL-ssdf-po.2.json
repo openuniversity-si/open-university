@@ -4,5 +4,11 @@
   "control": "PO.2",
   "title": "Implement roles and responsibilities",
   "applicable": true,
-  "reason": "Owners are recorded per unit, supplier and data store, but no one holds the security role."
+  "reason": "The roles are recorded and enforced: the owner of the security system and of every risk, supplier and personal data store is Daniel (config/model/systems/security.json and each record's owner); nobody changes production by hand (D-054), which the production guard refuses; a unit's files change only with its owner's approval, which commit-check refuses otherwise (STD-train-ownership-refusals); the security records and their owner were set by D-321; and every session, the only developer, loads the same rules (AGENTS.md) and judges every request against them (D-294), which is its training (PO.2.2).",
+  "implemented_by": [
+    "STD-train-ownership-refusals",
+    "STD-gate-production-guard",
+    "STD-production-guard-refusal"
+  ],
+  "coverage": "full"
 }
