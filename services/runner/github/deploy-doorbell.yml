@@ -28,7 +28,7 @@ jobs:
       group: deploy-doorbell
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: ring
         env:
           TOWER_DEPLOY_DOORBELL_URL: ${{ secrets.TOWER_DEPLOY_DOORBELL_URL }}
@@ -43,7 +43,7 @@ jobs:
       group: deploy-prepare-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: prepare, then ring at the merge
         env:
           TOWER_DEPLOY_DOORBELL_URL: ${{ secrets.TOWER_DEPLOY_DOORBELL_URL }}
