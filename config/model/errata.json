@@ -6,6 +6,12 @@
       "was": "REQ-changeability",
       "is": null,
       "why": "REQ-changeability never existed: the commit (509d2e4, Plan: 2) brought the reflexion to 97 % so that VAL-changeability is met, and a change implements a requirement, a decision or a unit, never a validation; the change still implements UNIT:engine-model through its diff."
+    },
+    {
+      "commit": "d0046f79235439a9bde192b263268241df90edf0",
+      "was": "VAL-aws-200",
+      "is": null,
+      "why": "A change implements a requirement, a decision or a unit, never a validation: the commit (d0046f7, Plan: 1 of #333) recorded the spend snapshot VAL-aws-200 reads, so it should have named nothing."
     }
   ]
 }
