@@ -125,6 +125,22 @@
               ]
             },
             {
+              "Sid": "AgentEnvSecrets",
+              "Effect": "Allow",
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:tower/agent-env/*"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:tower/torre-webhook-*"
+                }
+              ]
+            },
+            {
               "Sid": "KeyGrantsOnlyForAwsServices",
               "Effect": "Allow",
               "Action": "kms:CreateGrant",

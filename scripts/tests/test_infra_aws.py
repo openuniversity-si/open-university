@@ -245,7 +245,12 @@ class BootstrapTests(unittest.TestCase):
     # look skips its git ls-remote of main for it. The D-303 comment went to make room: 4,018 of the 4,096 characters. The
     # old port ignores a hook word, so the Torre applies it AFTER the merge's deploy (the runbook's "PUSH-STEPS", one
     # apply for both changes). 54,021 bytes.
-    APPLIED = '96926148a75f7150e417b780fff70132da521f50d169a99096ea370b03cea084'
+    # AGENT-ENV-BOUNDARY (D-341, 19/11/2026): the boundary's AgentEnvSecrets lets a role read (GetSecretValue,
+    # DescribeSecret) the Secrets Manager secrets tower/agent-env/* and tower/torre-webhook-* of the stack region, and
+    # nothing else of Secrets Manager; tower-cfn-exec, whose one policy is the boundary, already creates the later stack's
+    # tower-app-* functions, roles and SSM parameters. The Torre applies it from S3 (the runbook's "AGENT-ENV-BOUNDARY"),
+    # with no order to the merge: nothing reads those secrets yet. 54,636 bytes.
+    APPLIED = '38bdc05f44129bb5795761b728715a19c9cb419ff9c510a830e45f060cec6e2e'
 
     # MEDIA-REPLICA: the workload services in the stack region and in the media replica's, nowhere else
     REGIONS = {'StringEquals': {'aws:RequestedRegion': [{'Ref': 'AWS::Region'}, {'Ref': 'ReplicaRegion'}]}}
@@ -496,6 +501,70 @@ class BootstrapTests(unittest.TestCase):
         for resource in ('arn:aws-partition:bedrock:REGION:ACCOUNT:provisioned-model/abc', 'arn:aws-partition:bedrock:REGION:ACCOUNT:custom-model/x',
                          '*'):
             self.assertNotEqual(decide(self.boundary(), 'bedrock:InvokeModel', resource), 'allow', resource)
+
+    # AGENT-ENV-BOUNDARY (D-341): the two Secrets Manager prefixes the boundary lets a role read, and the later stack's names
+    SECRET = 'arn:aws-partition:secretsmanager:REGION:ACCOUNT:secret:'
+    AGENT_ENV_SECRETS = ('tower/agent-env/*', 'tower/torre-webhook-*')
+    SECRET_READS = ('secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret')
+    A_TOKEN = 'tower/agent-env/the-tower/token-AbCdEf'
+
+    def test_the_boundary_reads_secrets_only_under_the_agent_env_and_the_torre_webhook_prefixes(self):
+        statements = self.boundary()
+        [agent_env] = [item for item in statements if item['Sid'] == 'AgentEnvSecrets']
+        self.assertEqual(agent_env['Effect'], 'Allow')
+        self.assertEqual(sorted(agent_env['Action']), sorted(self.SECRET_READS))
+        self.assertEqual(sorted(resolved(agent_env['Resource'])), sorted(self.SECRET + name for name in self.AGENT_ENV_SECRETS))
+        # no other statement names Secrets Manager, and none allows it on every resource
+        for item in statements:
+            if item is agent_env:
+                continue
+            listed = as_list(item.get('Action', item.get('NotAction')))
+            self.assertFalse([action for action in listed if action.startswith('secretsmanager:') or action == '*'],
+                             item['Sid'])
+        for action in self.SECRET_READS:
+            for name in (self.A_TOKEN, 'tower/torre-webhook-key-AbCdEf', 'tower/torre-webhook-url-AbCdEf'):
+                self.assertEqual(decide(statements, action, self.SECRET + name), 'allow', (action, name))
+            for name in ('tower/other-AbCdEf', 'tower/agent-envoy-AbCdEf', 'site/database-url-AbCdEf'):
+                self.assertEqual(decide(statements, action, self.SECRET + name), 'implicit', (action, name))
+            self.assertEqual(decide(statements, action, '*'), 'implicit', action)
+            elsewhere = self.SECRET.replace(':REGION:', ':ELSEWHERE:') + self.A_TOKEN
+            self.assertEqual(decide(statements, action, elsewhere), 'implicit', action)
+
+    def test_the_boundary_allows_no_secrets_manager_write(self):
+        statements = self.boundary()
+        for verb in ('PutSecretValue', 'CreateSecret', 'DeleteSecret', 'UpdateSecret', 'UpdateSecretVersionStage',
+                     'RotateSecret', 'CancelRotateSecret', 'RestoreSecret', 'PutResourcePolicy', 'TagResource',
+                     'ListSecrets', 'BatchGetSecretValue'):
+            for resource in ('*', self.SECRET + self.A_TOKEN):
+                self.assertNotEqual(decide(statements, f'secretsmanager:{verb}', resource), 'allow', (verb, resource))
+
+    def test_the_bootstrap_names_no_account_id(self):
+        # every ARN says ${AWS::AccountId}; a literal 12-digit account would leak it and pin the template to one account
+        text = (INFRA / 'bootstrap.json').read_text(encoding='utf-8')
+        self.assertEqual(re.findall(r'(?<![0-9])[0-9]{12}(?![0-9])', text), [])
+
+    def test_the_execution_role_creates_the_agent_env_functions_roles_and_parameters(self):
+        # tower-cfn-exec's one policy is the boundary, so its patterns already reach the later stack (45-agent-env)
+        exec_role = self.resources['CfnExecRole']['Properties']
+        self.assertEqual(exec_role['ManagedPolicyArns'], [{'Ref': 'Boundary'}])
+        self.assertNotIn('Policies', exec_role)
+        statements = self.boundary()
+        bounded = {'iam:PermissionsBoundary': 'arn:aws-partition:iam::ACCOUNT:policy/tower-boundary'}
+        for name in ('tower-app-agent-env-the-tower', 'tower-app-torre-relay'):
+            function = f'arn:aws-partition:lambda:REGION:ACCOUNT:function:{name}'
+            for action in ('lambda:CreateFunction', 'lambda:UpdateFunctionCode', 'lambda:AddPermission', 'lambda:DeleteFunction'):
+                self.assertEqual(decide(statements, action, function), 'allow', (action, name))
+            role = f'arn:aws-partition:iam::ACCOUNT:role/{name}'
+            for action in ('iam:CreateRole', 'iam:PutRolePolicy'):
+                self.assertEqual(decide(statements, action, role, bounded), 'allow', (action, name))
+                self.assertEqual(decide(statements, action, role), 'implicit', (action, name))
+            self.assertEqual(decide(statements, 'iam:PassRole', role), 'allow', name)
+        for path in ('/tower/agent-env/the-tower/token-sha256', '/tower/torre-relay/allowed'):
+            parameter = f'arn:aws-partition:ssm:REGION:ACCOUNT:parameter{path}'
+            for action in ('ssm:PutParameter', 'ssm:GetParameter', 'ssm:GetParametersByPath', 'ssm:DeleteParameter'):
+                self.assertEqual(decide(statements, action, parameter), 'allow', (action, path))
+            self.assertEqual(decide(statements, 'ssm:GetParameter', parameter, {'aws:RequestedRegion': 'ELSEWHERE'}),
+                             'implicit', path)
 
     def test_key_grants_go_only_to_aws_services(self):
         # RDS encrypts tower-data with the AWS managed key, which needs a grant made for the service.
