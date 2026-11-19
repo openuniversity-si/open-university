@@ -25,6 +25,13 @@
       "type": "string",
       "minLength": 1
     },
+    "group": {
+      "enum": [
+        "management",
+        "engineering"
+      ],
+      "description": "D-330: the group of systems it belongs to, after ISO/IEC/IEEE 15288's split: management (the work and its direction: intent, work, decisions, measurement; its standard is docs/padrao/METODO.md) or engineering (every other system; its standard is the rule catalog of config/standard/rules)."
+    },
     "processes": {
       "type": "array",
       "minItems": 1,

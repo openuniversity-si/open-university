@@ -20,7 +20,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
   scripts/model seed-rules         writes config/standard/rules/<id>.json for every refusal, gate stage, D-069 principle
                                    and the method that has no rule yet (never rewrites a rule)
   scripts/model measure [--json F] the main metric (the share of active requirements whose chain is verified end to
-                                   end), the requirement inventory, and each system's objects and calculated conformance
+                                   end), the requirement inventory, and each system's objects and calculated conformance,
+                                   under a heading per group of systems (management, engineering: D-330)
 
 A requirement's chain is verified when an architecture element satisfies it, a unit realizes that element, a test
 verifies the requirement, and a validation validates it or the need it derives from. An object is conformant when a
@@ -1766,7 +1767,8 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         unread = {type_id: {'verdict': VERDICTS[type_id][0], 'means': VERDICTS[type_id][1]}
                   for type_id in sorted(kinds & set(VERDICTS))
                   if not any(item['type'] == VERDICTS[type_id][0] for item in found.values())}
-        systems[name] = {'objects': len(mine), 'conformant': good, 'share': share, 'level': level,
+        systems[name] = {'group': meta['systems'][name].get('group', ''), 'objects': len(mine), 'conformant': good,
+                         'share': share, 'level': level,
                          'not_judged': sum(1 for item in mine if item['type'] in unjudged), 'unjudged_types': unjudged,
                          'weaknesses': weak, 'verdicts_unread': unread}
     sources = inventory(meta, found, root)
@@ -1776,6 +1778,10 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'inventory': {'sources': sources, 'ids': sum(item['ids'] for item in sources.values()),
                       'imported': sum(item['imported'] for item in sources.values())},
         'systems': systems,
+        'groups': {group: {'systems': names, 'levels': {step['level']: count for step in reversed(meta['scale'])
+                                                        if (count := sum(1 for name in names
+                                                                         if systems[name]['level'] == step['level']))}}
+                   for group, names in system_groups(systems).items()},
         'standard': standard_measure(found, today or utc_today()),
         'standard_management': management_measure(found, today or utc_today()),
         'knowledge': knowledge_measure(found),
@@ -1801,6 +1807,18 @@ def show(id, root=ROOT):
     return '\n'.join(lines)
 
 
+GROUPS = ('management', 'engineering')  # D-330: contracts/model/system.v1.json's `group`, in the order measure reports them
+
+
+def system_groups(systems):
+    """{group: [system names]} in GROUPS order, then a system with no group under ''; D-330."""
+    order = {group: index for index, group in enumerate(GROUPS)}
+    grouped = {}
+    for name in sorted(systems, key=lambda name: (order.get(systems[name].get('group', ''), len(order)), name)):
+        grouped.setdefault(systems[name].get('group', ''), []).append(name)
+    return grouped
+
+
 def system_line(item):
     """What a system's count means: conformant, or, for a type whose verdicts are not read, what is counted; the
     objects no rule judges; the significant weaknesses that keep it below F."""
@@ -1824,7 +1842,11 @@ def summary(found):
     ]
     lines += [f'  {name}: {item["imported"]} of {item["ids"]}' for name, item in stock['sources'].items()]
     lines.append(f'systems ({found["objects"]} object(s)):')
-    lines += [f'  {name}: {item["level"]} ({system_line(item)})' for name, item in found['systems'].items()]
+    for group, item in found['groups'].items():  # D-330: each group's levels apart
+        counted = ', '.join(f'{count} {level}' for level, count in item['levels'].items())
+        lines.append(f'  {group or "no group"} ({len(item["systems"])} system(s): {counted}):')
+        lines += [f'    {name}: {found["systems"][name]["level"]} ({system_line(found["systems"][name])})'
+                  for name in item['systems']]
     rules = found['standard']
     lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
                  f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '

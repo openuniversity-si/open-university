@@ -1,6 +1,7 @@
 {
   "id": "construction",
   "name": "Construction and delivery",
+  "group": "engineering",
   "processes": [
     "15288/12207 implementation",
     "15288/12207 integration",

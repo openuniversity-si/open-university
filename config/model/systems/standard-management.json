@@ -1,6 +1,7 @@
 {
   "id": "standard-management",
   "name": "Standard management",
+  "group": "engineering",
   "processes": [
     "15288/12207 life cycle model management (establish, assess, improve)",
     "CMMI organizational process definition and focus"

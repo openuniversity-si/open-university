@@ -1,6 +1,7 @@
 {
   "id": "validation",
   "name": "Validation",
+  "group": "engineering",
   "processes": [
     "15288/12207 validation"
   ],

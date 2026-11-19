@@ -1,6 +1,7 @@
 {
   "id": "conformance",
   "name": "Conformance",
+  "group": "engineering",
   "processes": [
     "15288/12207 quality management",
     "15288/12207 quality assurance",

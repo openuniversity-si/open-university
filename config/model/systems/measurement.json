@@ -1,6 +1,7 @@
 {
   "id": "measurement",
   "name": "Measurement",
+  "group": "management",
   "processes": [
     "15288/12207 measurement",
     "15288/12207 system analysis",

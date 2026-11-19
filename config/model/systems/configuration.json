@@ -1,6 +1,7 @@
 {
   "id": "configuration",
   "name": "Configuration",
+  "group": "engineering",
   "processes": [
     "15288/12207 configuration management",
     "15288/12207 information management",

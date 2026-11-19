@@ -178,7 +178,7 @@ class TinyModel(unittest.TestCase):
         result = model.measure(self.root, self.meta(), found)
         self.assertEqual(result['systems']['build']['verdicts_unread'],
                          {'TEST': {'verdict': 'VERD', 'means': 'linked to what they verify'}})
-        line = next(line for line in model.summary(result).splitlines() if line.startswith('  build:'))
+        line = next(line for line in model.summary(result).splitlines() if line.lstrip().startswith('build:'))
         self.assertIn('1 of 1 linked to what they verify; pass state not read: no VERD source', line)
         self.assertNotIn('conformant', line)
 
@@ -983,6 +983,29 @@ class RealRepository(unittest.TestCase):
         self.assertTrue(all(item['level'] in levels for item in result['systems'].values()))
         self.assertEqual(set(result['systems']), set(meta['systems']))
         self.assertIn('chain:', model.summary(result))
+
+    def test_the_systems_split_into_a_management_and_an_engineering_group_reported_apart(self):
+        # D-330: management holds intent, work, decisions and measurement; every other system is engineering
+        meta = model.metamodel(ROOT)
+        self.assertEqual(meta['errors'], [])
+        groups = {name: system.get('group') for name, system in meta['systems'].items()}
+        self.assertEqual([name for name, group in groups.items() if group not in model.GROUPS], [])
+        self.assertEqual(sorted(name for name, group in groups.items() if group == 'management'),
+                         ['decisions', 'intent', 'measurement', 'work'])
+        self.assertEqual(sorted(name for name, group in groups.items() if group == 'engineering'),
+                         sorted(set(groups) - {'decisions', 'intent', 'measurement', 'work'}))
+        result = model.measure(ROOT, meta=meta)
+        self.assertEqual(list(result['groups']), ['management', 'engineering'])
+        self.assertEqual({group: sorted(item['systems']) for group, item in result['groups'].items()},
+                         {group: sorted(name for name in groups if groups[name] == group) for group in model.GROUPS})
+        for item in result['groups'].values():
+            self.assertEqual(sum(item['levels'].values()), len(item['systems']))
+        text = model.summary(result).splitlines()
+        heading = {line.strip().split(' ', 1)[0]: at for at, line in enumerate(text) if line.startswith('  ')
+                   and not line.startswith('    ') and line.strip().split(' ', 1)[0] in model.GROUPS}
+        self.assertLess(heading['management'], heading['engineering'])
+        self.assertIn('    intent: ', '\n'.join(text[heading['management']:heading['engineering']]))
+        self.assertIn('    standard: ', '\n'.join(text[heading['engineering']:]))
 
     def test_every_refusal_and_gate_stage_of_this_checkout_has_a_rule(self):
         warnings = model.rule_findings(model.objects(ROOT), ROOT)

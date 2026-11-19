@@ -1,6 +1,7 @@
 {
   "id": "security",
   "name": "Segurança",
+  "group": "engineering",
   "processes": [
     "ISO/IEC 27001 information security risk assessment and treatment",
     "Microsoft SDL threat modeling and security response",
