@@ -20,6 +20,7 @@ resolves the caller's PATH, OU_PYTHON and PostgreSQL, and the caller's exported 
 is inherited. gate_version is the git tree id of scripts/ at the tooling commit (same tooling, same version).
 """
 import argparse
+import ast
 import fcntl
 import hashlib
 import json
@@ -181,13 +182,110 @@ def gate_changed(root, base, head):
     return [name for name in names.splitlines() if GATE_FILE.match(name)]
 
 
+LIB = 'scripts/lib'
+# What site.py imports on its own from a directory on sys.path (scripts/lib is sys.path[0] of every scripts/lib/x.py).
+IMPLICIT = ('sitecustomize', 'usercustomize')
+# A scripts/lib file the gate names by path (a shell entry point runs its helpers so): scripts/lib/<...> (also under
+# "$root/"), or lib/<x>.py|.sh. The top-level scripts a stage runs are not followed (the residual of D-335's closure).
+SCRIPT_PATH = re.compile(r'(?<![\w.-])scripts/lib/[\w./-]*[\w-]')
+LIB_PATH = re.compile(r'(?<![\w.-])lib/[\w-]+\.(?:py|sh)')
+# A Python import line inside a shell script (a heredoc run with scripts/lib on sys.path).
+STEM = '.*'  # the closure entry of an imported top-level name (in_closure)
+IMPORT_LINE = re.compile(r'^\s*(?:from\s+(?P<source>[A-Za-z_][\w.]*)\s+import\b|import\s+(?P<names>[A-Za-z_][\w.]*(?:\s*,\s*[A-Za-z_][\w.]*)*))',
+                         re.M)
+
+
+def module_paths(name):
+    """The scripts/lib paths module <name> (dotted) may load: each prefix as a module and as a package, and the top
+    name's stem entry (<scripts/lib>/<top>.*: any file there that import could load, a .pyc or an extension module)."""
+    parts = name.split('.')
+    found = [f'{LIB}/{parts[0]}{STEM}']
+    for count in range(1, len(parts) + 1):
+        stem = f'{LIB}/' + '/'.join(parts[:count])
+        found += [f'{stem}.py', f'{stem}/__init__.py']
+    return found
+
+
+def in_closure(name, closure):
+    """True when the change's file <name> is the gate's: a gate file, a closure file, or a scripts/lib file an import of
+    the closure could load (its first component's stem is an imported top-level name: a .pyc, a .so, a package file)."""
+    if GATE_FILE.match(name) or name in closure:
+        return True
+    rest = name.removeprefix(f'{LIB}/')
+    return rest != name and f'{LIB}/{rest.split("/")[0].split(".")[0]}{STEM}' in closure
+
+
+def python_refs(text):
+    """(modules, path literals) of a Python source, read statically (ast): its import and from-import lines,
+    importlib.import_module / __import__ of a literal, and the string literals that name a script."""
+    tree = ast.parse(text)
+    modules, literals = [], []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            modules += [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
+            modules += [node.module] + [f'{node.module}.{alias.name}' for alias in node.names if alias.name != '*']
+        elif (isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant)
+              and isinstance(node.args[0].value, str)
+              and ((isinstance(node.func, ast.Name) and node.func.id == '__import__')
+                   or (isinstance(node.func, ast.Attribute) and node.func.attr == 'import_module'))):
+            modules.append(node.args[0].value)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            literals.append(node.value)
+    return modules, literals
+
+
+def text_refs(text):
+    """(modules, path literals) of a shell or JSON file: the Python import lines of its heredocs and the whole text."""
+    modules = []
+    for found in IMPORT_LINE.finditer(text):
+        modules += [name.strip() for name in (found['source'] or found['names']).split(',')]
+    return modules, [text]
+
+
+def gate_closure(tree, base):
+    """VULN-gate-judged-by-own-head (D-335): the files the base's gate loads, read from the base's tree. From every
+    GATE_FILE of the base, the transitive closure of what it imports from scripts/lib (a static ast read of import and
+    from-import lines; a shell script's heredoc import lines) and of the scripts/lib files it names by path.
+    A module path the base lacks is in it too (a file the change adds there would shadow a standard module)."""
+    files = set((git(tree, 'ls-tree', '-r', '--name-only', base) or '').splitlines())
+    directories = {name.rsplit('/', count)[0] for name in files for count in range(1, name.count('/') + 1)}
+    closure = set()
+    todo = [name for name in sorted(files) if GATE_FILE.match(name)]
+    for name in IMPLICIT:
+        todo += module_paths(name)
+    while todo:
+        name = todo.pop()
+        if name in closure or name in directories:
+            continue
+        closure.add(name)
+        if name.endswith(STEM) or name not in files:
+            continue
+        text = subprocess.run(['git', '-C', str(tree), 'show', f'{base}:{name}'], capture_output=True).stdout
+        text = text.decode('utf-8', 'replace')
+        try:
+            modules, literals = python_refs(text) if name.endswith('.py') or text.startswith('#!/usr/bin/env python') \
+                else text_refs(text)
+        except (SyntaxError, ValueError):
+            modules, literals = text_refs(text)
+        for module in modules:
+            todo += module_paths(module)
+        for literal in literals:
+            todo += SCRIPT_PATH.findall(literal)
+            todo += [f'scripts/{path}' for path in LIB_PATH.findall(literal)]
+    return closure
+
+
 def overlay(tree, base):
     """PINNED-ON-GITHUB (D-070, D-335, VULN-gate-judged-by-own-head): in the checkout tree, put back the base's version of
-    every gate file (GATE_FILE, this module's: the base's when it runs from the base) that the change base..HEAD touches,
-    and remove one the change added; only the working tree changes (HEAD and the index stay the head's), so the stages
-    run there judge the head's commits and diff with the base's gate. Returns the files pinned."""
+    every file of the gate's closure (gate_closure: the gate files of GATE_FILE and what they load, this module's: the
+    base's when it runs from the base) that the change base..HEAD touches, and remove one the change added; only the
+    working tree changes (HEAD and the index stay the head's), so the stages run there judge the head's commits and diff
+    with the base's gate. GATE_FILE stays the files whose change asks a decision. Returns the files pinned."""
     names = git(tree, 'diff', '--name-only', '--no-renames', base, 'HEAD') or ''
-    pinned = [name for name in names.splitlines() if GATE_FILE.match(name)]
+    touched = names.splitlines()
+    closure = gate_closure(tree, base) if touched else set()
+    pinned = [name for name in touched if in_closure(name, closure)]
     for name in pinned:
         if git(tree, 'cat-file', '-e', f'{base}:{name}', check=False) is None:
             (Path(tree) / name).unlink(missing_ok=True)
