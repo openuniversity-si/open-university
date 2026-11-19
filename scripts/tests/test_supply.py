@@ -182,6 +182,24 @@ class Check(unittest.TestCase):
         self.assertEqual([(item['state'], item['links']) for item in advisories],
                          [('affecting', [{'type': 'affects', 'target': 'DEP:npm:left-pad@1.3.0'}])])
 
+    def test_a_supplier_is_judged_an_account_by_its_budget_and_a_registry_by_what_it_supplies(self):
+        """STD-supply-supplier-answers (D-335): the warnings that make a supplier non-conformant."""
+        def sup(id, kind, **body):
+            return {'id': id, 'type': 'SUP', 'state': body.pop('state', 'active'), 'fingerprint': 'f', 'links': [],
+                    'body': {'id': id, 'kind': kind, **body}}
+        found = {item['id']: item for item in (
+            sup('SUP-paid', 'account', budget='REQ-cap'), sup('SUP-free', 'account'),
+            sup('SUP-lost', 'account', budget='REQ-gone'), sup('SUP-used', 'registry'), sup('SUP-idle', 'platform'),
+            sup('SUP-old', 'registry', state='retired'), sup('SUP-only-removed', 'registry'),
+            {'id': 'REQ-cap', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': []},
+            {'id': 'DEP:npm:a@1', 'type': 'DEP', 'state': 'in-use', 'fingerprint': 'f',
+             'links': [{'type': 'supplied-by', 'target': 'SUP-used'}]},
+            {'id': 'DEP:npm:b@1', 'type': 'DEP', 'state': 'removed', 'fingerprint': 'f',
+             'links': [{'type': 'supplied-by', 'target': 'SUP-only-removed'}]})}
+        self.assertEqual(sorted(line.split(':', 1)[0] for line in model.supply_findings(found)),
+                         ['SUP-free', 'SUP-idle', 'SUP-lost', 'SUP-only-removed'])
+        self.assertTrue(model.judged(model.metamodel(ROOT), 'SUP'))
+
 
 class RealRepository(unittest.TestCase):
     """The gate check: this tree's lockfiles were audited as they are, and no high or critical advisory is affecting."""

@@ -1608,6 +1608,32 @@ def read_advisories(root):
     return found
 
 
+SUPPLIER_INACTIVE = {'SUP': ('retired',), 'DEP': ('removed',), 'REQ': ('superseded', 'obsolete')}
+
+
+def supply_findings(found):
+    """Warnings of the suppliers (SUP, D-320, D-335): an active account whose spend is measured against no requirement
+    that exists (its `budget`), and an active registry or platform that supplies nothing (no component or data store
+    is supplied by it): retire it."""
+    def live(id):
+        item = found.get(id, {})
+        return item.get('fingerprint') is not None and item['state'] not in SUPPLIER_INACTIVE.get(item['type'], ())
+    supplied = {link['target'] for item in found.values() if item['type'] in ('DEP', 'DATA') and live(item['id'])
+                for link in item['links'] if link['type'] == 'supplied-by'}
+    warnings = []
+    for item in found.values():
+        body = item.get('body', {})
+        if item['type'] != 'SUP' or 'kind' not in body or item['state'] != 'active':
+            continue
+        if body['kind'] == 'account' and not body.get('budget'):
+            warnings.append(f'{item["id"]}: an account with no budget requirement its spend is measured against')
+        elif body['kind'] == 'account' and not (found.get(body['budget'], {}).get('type') == 'REQ' and live(body['budget'])):
+            warnings.append(f'{item["id"]}: its budget {body["budget"]} is no active requirement')
+        if body['kind'] != 'account' and item['id'] not in supplied:
+            warnings.append(f'{item["id"]}: a {body["kind"]} nothing is supplied by; retire it')
+    return warnings
+
+
 def registered(body):
     """Whether a store of personal data records its processing: every personal field in a `processing` entry (each
     with purpose, legal basis and retention), or one purpose, legal basis and retention for the whole store."""
@@ -2055,6 +2081,7 @@ def check(meta, found, root=None, today=None):
         warnings += rule_findings(found, root)
         errors += skipped_stage_errors(found, root)
         warnings += requirement_findings(found)
+        warnings += supply_findings(found)
         managed_errors, managed_warnings = management_findings(found, today or utc_today())
         errors += managed_errors
         warnings += managed_warnings
@@ -2103,9 +2130,10 @@ def is_active(meta, item):
 
 
 # Types check() judges through the findings of their own system, not through a rule of the type (rule_findings judges a
-# rule of the standard; management_findings a proposal, an exemption and the version in effect).
+# rule of the standard; management_findings a proposal, an exemption and the version in effect; supply_findings a
+# supplier).
 JUDGED_BY_FINDINGS = {'STD': 'rule_findings', 'PROP': 'management_findings', 'TAIL': 'management_findings',
-                      'VER': 'management_findings'}
+                      'VER': 'management_findings', 'SUP': 'supply_findings'}
 # A significant weakness (ISO/IEC 33020 F: "no significant weaknesses"): while an active object is in one of these
 # states its system is rated below F, however small a share it is (a dependency an advisory affects, not exempted).
 WEAKNESS_STATES = {'DEP': ('vulnerable',)}
