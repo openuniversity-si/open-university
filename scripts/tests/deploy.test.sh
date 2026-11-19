@@ -4,4 +4,5 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 # DEPLOY-SH-OWN-MODULE: the status, the CLI, the smoke, the stacks' order; deploy-slow-{a,b,c}.test.sh run test_deploy_sh.py
-PYTHONDONTWRITEBYTECODE=1 exec python3 "$root/scripts/tests/test_deploy.py"
+# DEPLOY-PY-PARTS: every class, half of SmokeTests; deploy-smoke.test.sh the other half
+DEPLOY_PY_PART=main PYTHONDONTWRITEBYTECODE=1 exec python3 "$root/scripts/tests/test_deploy.py"

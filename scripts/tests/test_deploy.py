@@ -849,6 +849,62 @@ class BootstrapTests(unittest.TestCase):
 # runner and the check timed out in three of them, with no test red. Its wrappers run it in three parts, each a check of
 # its own on a slot of its own: deploy.test.sh the classes but SlowPathShTests, deploy-slow-a/-b.test.sh that class's
 # tests, every other one by name. Without the variable (a local run, a class or a test by name) nothing is left out.
+# DEPLOY-PY-PARTS (REQ-gate-60s, 19/11/2026): this module took 42 s for 2.6 s of CPU, the smoke's real windows and
+# backoffs (SmokeTests 31 s, the rest 10 s), the longest test of a wide plan once the deploy-slow parts were ~33 s. Its
+# wrappers run it in two parts (DEPLOY_PY_PART): deploy.test.sh every class and every other SmokeTests test by name,
+# deploy-smoke.test.sh the others (~21 s each). Without the variable nothing is left out.
+PY_PART = 'DEPLOY_PY_PART'
+PY_PARTS = ('main', 'smoke')
+
+
+def cases(suite):
+    for each in suite:
+        if isinstance(each, unittest.TestSuite):
+            yield from cases(each)
+        else:
+            yield each
+
+
+def part_of(case):
+    """DEPLOY-PY-PARTS: smoke for every odd SmokeTests test by name, main for the rest."""
+    if not isinstance(case, SmokeTests):
+        return 'main'
+    names = sorted(unittest.TestLoader().getTestCaseNames(SmokeTests))
+    return PY_PARTS[names.index(case._testMethodName) % 2]
+
+
+def load_tests(loader, tests, pattern):
+    part = os.environ.get(PY_PART, '')
+    if not part:
+        return tests
+    if part not in PY_PARTS:
+        raise ValueError(f'{PY_PART} is {part!r}, not one of {PY_PARTS}')
+    return unittest.TestSuite(case for case in cases(tests) if part_of(case) == part)
+
+
+class PartTests(unittest.TestCase):
+    def test_every_test_runs_in_exactly_one_part_and_the_wrappers_name_the_two(self):
+        with mock.patch.dict(os.environ, {PY_PART: ''}):
+            every = [case.id() for case in cases(unittest.TestLoader().loadTestsFromModule(sys.modules[__name__]))]
+        parts = {}
+        for part in PY_PARTS:
+            with mock.patch.dict(os.environ, {PY_PART: part}):
+                parts[part] = [case.id() for case in cases(unittest.TestLoader().loadTestsFromModule(sys.modules[__name__]))]
+        self.assertEqual(sorted(sum(parts.values(), [])), sorted(every))  # none twice, none left out
+        self.assertTrue(all(name.split('.')[-2] == 'SmokeTests' for name in parts['smoke']), parts['smoke'])
+        smoke = [name for name in every if name.split('.')[-2] == 'SmokeTests']
+        self.assertLessEqual(abs(len(parts['smoke']) * 2 - len(smoke)), 1)  # half of the smoke, either way by one
+        with mock.patch.dict(os.environ, {PY_PART: 'half'}), self.assertRaises(ValueError):
+            load_tests(None, unittest.TestSuite(), None)
+        named = {}
+        for script in ('deploy.test.sh', 'deploy-smoke.test.sh'):
+            text = (ROOT / 'scripts/tests' / script).read_text(encoding='utf-8')
+            self.assertIn('test_deploy.py', text)
+            named[script] = re.search(PY_PART + r'=([a-z]+)', text).group(1)
+        self.assertEqual(named, {'deploy.test.sh': 'main', 'deploy-smoke.test.sh': 'smoke'})
+        covers = [json.loads((ROOT / 'scripts/tests/covers' / name).read_text(encoding='utf-8'))['covers'][1:]
+                  for name in ('deploy.json', 'deploy-smoke.json')]
+        self.assertEqual(covers[0], covers[1])  # selected by the same files
 
 
 if __name__ == '__main__':

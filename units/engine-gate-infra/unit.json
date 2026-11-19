@@ -35,6 +35,8 @@
     "scripts/tests/deploy.test.sh",
     "scripts/tests/test_deploy.py",
     "scripts/tests/covers/deploy.json",
+    "scripts/tests/deploy-smoke.test.sh",
+    "scripts/tests/covers/deploy-smoke.json",
     "scripts/verify-commit",
     "scripts/lib/verify_commit.py",
     "scripts/tests/verify-commit.test.sh",
