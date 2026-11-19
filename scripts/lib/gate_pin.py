@@ -186,17 +186,26 @@ LIB = 'scripts/lib'
 # What site.py imports on its own from a directory on sys.path (scripts/lib is sys.path[0] of every scripts/lib/x.py).
 IMPLICIT = ('sitecustomize', 'usercustomize')
 # A scripts/lib file the gate names by path (a shell entry point runs its helpers so): scripts/lib/<...> (also under
-# "$root/"), or lib/<x>.py|.sh. The top-level scripts a stage runs are not followed (the residual of D-335's closure).
+# "$root/"), or lib/<x>.py|.sh.
 SCRIPT_PATH = re.compile(r'(?<![\w.-])scripts/lib/[\w./-]*[\w-]')
 LIB_PATH = re.compile(r'(?<![\w.-])lib/[\w-]+\.(?:py|sh)')
+# OVERLAY-STAGE-SCRIPTS (D-335): a file a shell file of the closure runs or reads by path under a variable or a command
+# substitution: "$root/scripts/generate" (a stage of scripts/gate-check), "$(dirname "$0")/lib/generate.py",
+# "$gate_lib_dir/gate_speed.py", "$source_root/.gitleaks.toml"; the path is the repository's, else its file's directory's.
+SHELL_PATH = re.compile(r'(?:\$\{?\w+\}?|\))/((?:[\w.-]+/)*[\w.-]*\w)')
 # A Python import line inside a shell script (a heredoc run with scripts/lib on sys.path).
 # The toolchain the pinned job runs after the overlay (D-335, VULN-gate-judged-by-own-head): `bash scripts/cloud/setup.sh`
 # and `source scripts/cloud/env.sh` with every scripts/cloud file they source or run, the registry they read (the cloud and
 # toolchain owners: versions; checksums are scripts/cloud/toolchain.json), the hermetic harness, and any .toolchain file
 # a change tracks. The overlay puts the base's back, so the job's toolchain step runs the base's with no workflow change.
+# OVERLAY-REGISTRY (D-335): an owner's aggregate (what config.get reads), its folder of key files, a key word of a shell file.
+REGISTRY = 'config/registry'
+REGISTRY_AGGREGATE = re.compile(r'config/registry/([\w-]+)\.json')
+KEY_WORD = re.compile(r'(?<![\w.-])[a-z][\w-]*(?:\.[\w-]+)+')
 TOOLCHAIN_FILE = re.compile(r'^(scripts/cloud/[^/]+|scripts/lib/hermetic/.+|config/registry/(toolchain|cloud)(\.json|/[^/]+\.json)'
                             r'|\.toolchain/.+)$')
 STEM = '.*'  # the closure entry of an imported top-level name (in_closure)
+PREFIX = '*'  # OVERLAY-STAGE-SCRIPTS: the closure entry of a module name built at run time from a literal start
 IMPORT_LINE = re.compile(r'^\s*(?:from\s+(?P<source>[A-Za-z_][\w.]*)\s+import\b|import\s+(?P<names>[A-Za-z_][\w.]*(?:\s*,\s*[A-Za-z_][\w.]*)*))',
                          re.M)
 
@@ -204,6 +213,8 @@ IMPORT_LINE = re.compile(r'^\s*(?:from\s+(?P<source>[A-Za-z_][\w.]*)\s+import\b|
 def module_paths(name):
     """The scripts/lib paths module <name> (dotted) may load: each prefix as a module and as a package, and the top
     name's stem entry (<scripts/lib>/<top>.*: any file there that import could load, a .pyc or an extension module)."""
+    if name.endswith(PREFIX):
+        return [f'{LIB}/{name}']
     parts = name.split('.')
     found = [f'{LIB}/{parts[0]}{STEM}']
     for count in range(1, len(parts) + 1):
@@ -218,43 +229,123 @@ def in_closure(name, closure):
     if GATE_FILE.match(name) or TOOLCHAIN_FILE.match(name) or name in closure:
         return True
     rest = name.removeprefix(f'{LIB}/')
-    return rest != name and f'{LIB}/{rest.split("/")[0].split(".")[0]}{STEM}' in closure
+    if rest == name:
+        return False
+    top = rest.split('/')[0].split('.')[0]
+    return f'{LIB}/{top}{STEM}' in closure or any(top.startswith(entry[len(LIB) + 1:-len(PREFIX)])
+                                                    for entry in closure if built(entry))
+
+
+def built(entry):
+    """True for a closure entry of a module name built at run time (<scripts/lib>/<start>*)."""
+    return entry.endswith(PREFIX) and not entry.endswith(STEM) and entry.startswith(f'{LIB}/')
 
 
 def python_refs(text):
-    """(modules, path literals) of a Python source, read statically (ast): its import and from-import lines,
-    importlib.import_module / __import__ of a literal, and the string literals that name a script."""
+    """(modules, path literals, paths) of a Python source, read statically (ast): its import and from-import lines,
+    importlib.import_module / __import__ of a literal or of a name built from a literal start (built_prefix), the
+    string literals that name a script and the paths it joins under a root (joined_path)."""
     tree = ast.parse(text)
-    modules, literals = [], []
+    modules, literals, paths = [], [], []
     for node in ast.walk(tree):
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            paths += joined_path(node)
         if isinstance(node, ast.Import):
             modules += [alias.name for alias in node.names]
         elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
             modules += [node.module] + [f'{node.module}.{alias.name}' for alias in node.names if alias.name != '*']
-        elif (isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant)
-              and isinstance(node.args[0].value, str)
-              and ((isinstance(node.func, ast.Name) and node.func.id == '__import__')
-                   or (isinstance(node.func, ast.Attribute) and node.func.attr == 'import_module'))):
+        elif imports(node) and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
             modules.append(node.args[0].value)
+        elif imports(node) and built_prefix(node.args[0]):
+            modules.append(built_prefix(node.args[0]) + PREFIX)
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
             literals.append(node.value)
-    return modules, literals
+    return modules, literals, paths
+
+
+def imports(node):
+    """True for a call of __import__ or importlib.import_module with an argument."""
+    return (isinstance(node, ast.Call) and bool(node.args)
+            and ((isinstance(node.func, ast.Name) and node.func.id == '__import__')
+                 or (isinstance(node.func, ast.Attribute) and node.func.attr == 'import_module')))
+
+
+def joined_path(node):
+    """OVERLAY-STAGE-SCRIPTS: the repository path of `<root> / 'scripts' / 'budgets'` (a path built from a non-literal
+    root and literal parts, as a Python stage runs a top-level script), else none. Only the outermost join counts."""
+    parts = []
+    while isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        if not (isinstance(node.right, ast.Constant) and isinstance(node.right.value, str)):
+            return []
+        parts.insert(0, node.right.value)
+        node = node.left
+    path = '/'.join(parts)
+    return [path] if path.startswith('scripts/') and not isinstance(node, ast.Constant) else []
+
+
+def built_prefix(node):
+    """OVERLAY-STAGE-SCRIPTS: the literal start of a module name built at run time (`'generate_' + name`,
+    f'generate_{name}'), so every scripts/lib module it can name is the gate's; '' when it starts with no literal."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return built_prefix(node.left)
+    if isinstance(node, ast.JoinedStr) and node.values:
+        node = node.values[0]
+    if isinstance(node, ast.Constant) and isinstance(node.value, str) and re.fullmatch(r'[A-Za-z_]\w*', node.value):
+        return node.value
+    return ''
 
 
 def text_refs(text):
-    """(modules, path literals) of a shell or JSON file: the Python import lines of its heredocs and the whole text."""
+    """(modules, path literals, paths) of a shell or JSON file: the Python import lines of its heredocs, the whole text,
+    and the paths it names under a variable (SHELL_PATH)."""
     modules = []
     for found in IMPORT_LINE.finditer(text):
         modules += [name.strip() for name in (found['source'] or found['names']).split(',')]
-    return modules, [text]
+    return modules, [text], SHELL_PATH.findall(text)
 
 
-def gate_closure(tree, base):
+def registry_keys(tree, base, files):
+    """{key: owner} of every parameter the base's registry declares (its aggregates, config/registry/<owner>.json)."""
+    keys = {}
+    for name in sorted(files):
+        owner = REGISTRY_AGGREGATE.fullmatch(name)
+        if owner:
+            keys.update({key: owner[1] for key in properties(tree, base, name)})
+    return keys
+
+
+def properties(tree, ref, name):
+    """The parameters of the registry aggregate <name> at <ref> ({} when it is absent or not JSON)."""
+    try:
+        return json.loads(git(tree, 'show', f'{ref}:{name}', check=False) or '{}').get('properties') or {}
+    except (ValueError, AttributeError):
+        return {}
+
+
+def read_keys(text, python, declared):
+    """OVERLAY-REGISTRY (D-335): the registry keys a closure file reads, statically: a Python string literal that is a
+    declared key (config.get('<key>') and the wrappers around it, such as setting('<key>')), a declared key a shell file
+    names (ou_config_value <key>, config.py get <key>)."""
+    if python:
+        try:
+            return {node.value for node in ast.walk(ast.parse(text)) if isinstance(node, ast.Constant)
+                    and isinstance(node.value, str) and node.value in declared}
+        except (SyntaxError, ValueError):
+            pass
+    return {word for word in KEY_WORD.findall(text) if word in declared}
+
+
+def gate_closure(tree, base, keys=None):
     """VULN-gate-judged-by-own-head (D-335): the files the base's gate loads, read from the base's tree. From every
     GATE_FILE of the base, the transitive closure of what it imports from scripts/lib (a static ast read of import and
-    from-import lines; a shell script's heredoc import lines) and of the scripts/lib files it names by path.
-    A module path the base lacks is in it too (a file the change adds there would shadow a standard module)."""
+    from-import lines; a shell script's heredoc import lines; a module name built from a literal start: every scripts/lib
+    module with that start), of the scripts/lib files it names by path, and (OVERLAY-STAGE-SCRIPTS) of the files a shell
+    file runs or reads under a variable ("$root/scripts/generate": the executables the stage commands of the base's
+    scripts/gate-check name, so the stages its plan lists) or a Python file joins under a root (ROOT / 'scripts' / 'x').
+    A module path the base lacks is in it too (a file the change adds there would shadow a standard module).
+    keys, when given, receives {key: owner} of the registry keys the closure's code reads (read_keys)."""
     files = set((git(tree, 'ls-tree', '-r', '--name-only', base) or '').splitlines())
+    declared = registry_keys(tree, base, files) if keys is not None else {}
     directories = {name.rsplit('/', count)[0] for name in files for count in range(1, name.count('/') + 1)}
     closure = set()
     todo = [name for name in sorted(files) if GATE_FILE.match(name) or TOOLCHAIN_FILE.match(name)]
@@ -265,33 +356,67 @@ def gate_closure(tree, base):
         if name in closure or name in directories:
             continue
         closure.add(name)
+        if built(name):
+            start = name[:-len(PREFIX)]
+            todo += [each for each in files if each.startswith(start) and each.count('/') == start.count('/')]
+            continue
         if name.endswith(STEM) or name not in files:
             continue
         text = subprocess.run(['git', '-C', str(tree), 'show', f'{base}:{name}'], capture_output=True).stdout
         text = text.decode('utf-8', 'replace')
+        python = name.endswith('.py') or text.startswith('#!/usr/bin/env python')
+        if declared and not name.endswith('.json'):
+            keys.update({key: declared[key] for key in read_keys(text, python, declared)})
         try:
-            modules, literals = python_refs(text) if name.endswith('.py') or text.startswith('#!/usr/bin/env python') \
-                else text_refs(text)
+            modules, literals, paths = python_refs(text) if python else text_refs(text)
         except (SyntaxError, ValueError):
-            modules, literals = text_refs(text)
+            modules, literals, paths = text_refs(text)
         for module in modules:
             todo += module_paths(module)
         for literal in literals:
             todo += SCRIPT_PATH.findall(literal)
             todo += [f'scripts/{path}' for path in LIB_PATH.findall(literal)]
+        here = name.rsplit('/', 1)[0] if '/' in name else ''
+        for path in paths:
+            local = f'{here}/{path}' if here else path
+            todo += [path] if path in files or path.startswith('scripts/') else [local] if local in files else []
     return closure
+
+
+def registry_pins(tree, base, keys, touched):
+    """OVERLAY-REGISTRY (D-335): the touched files of each registry owner outside GATE_FILE and TOOLCHAIN_FILE whose
+    key the gate reads ({key: owner}) the change base..HEAD alters (its key file, or its entry in the aggregate config.get
+    reads). The owner is put back whole (its aggregate and every key file the change touched), so the base's generated
+    drift stage sees an aggregate that matches its key files; an owner whose read keys the change leaves alone stays
+    the head's, though the change touches its other keys."""
+    pins = []
+    for owner in sorted(set(keys.values())):
+        aggregate, folder = f'{REGISTRY}/{owner}.json', f'{REGISTRY}/{owner}/'
+        if GATE_FILE.match(aggregate) or TOOLCHAIN_FILE.match(aggregate):
+            continue
+        mine = [name for name in touched if name == aggregate or name.startswith(folder)]
+        read = sorted(key for key, of in keys.items() if of == owner)
+        if not mine:
+            continue
+        was, now = properties(tree, base, aggregate), properties(tree, 'HEAD', aggregate)
+        if any(f'{folder}{key}.json' in mine or was.get(key) != now.get(key) for key in read):
+            pins += mine
+    return pins
 
 
 def overlay(tree, base):
     """PINNED-ON-GITHUB (D-070, D-335, VULN-gate-judged-by-own-head): in the checkout tree, put back the base's version of
     every file of the gate's closure (gate_closure: the gate files of GATE_FILE and what they load, this module's: the
-    base's when it runs from the base) that the change base..HEAD touches, and remove one the change added; only the
+    base's when it runs from the base) that the change base..HEAD touches, and of each registry owner whose key the
+    closure reads that the change alters (registry_pins), and remove one the change added; only the
     working tree changes (HEAD and the index stay the head's), so the stages run there judge the head's commits and diff
     with the base's gate. GATE_FILE stays the files whose change asks a decision. Returns the files pinned."""
     names = git(tree, 'diff', '--name-only', '--no-renames', base, 'HEAD') or ''
     touched = names.splitlines()
-    closure = gate_closure(tree, base) if touched else set()
+    keys = {}
+    closure = gate_closure(tree, base, keys) if touched else set()
     pinned = [name for name in touched if in_closure(name, closure)]
+    pinned += [name for name in registry_pins(tree, base, keys, touched) if name not in pinned]
     for name in pinned:
         if git(tree, 'cat-file', '-e', f'{base}:{name}', check=False) is None:
             (Path(tree) / name).unlink(missing_ok=True)

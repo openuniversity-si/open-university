@@ -6,5 +6,7 @@
   "in": [
     "ARC-gate"
   ],
-  "reason": "Fix staged 2026-11-19: the job `pinned` of services/runner/github/tower-gate.yml runs the base's gate_pin.py overlay and verify-commit --stages-only, and tower/gate needs it green. Fixed on the date the owner installs it as .github/workflows/tower-gate.yml, once the overlay is on main."
+  "reason": "Fixed 2026-11-19: the job `pinned` of .github/workflows/tower-gate.yml (installed, c262659) runs the base's gate_pin.py overlay and verify-commit --stages-only, and tower/gate needs it green. The overlay puts back the base's version of what the stages are made of that the change touches, and removes what it adds there: the gate files of GATE_FILE; their import closure in scripts/lib (static ast and heredoc imports, a module name built from a literal start); the top-level scripts and files the base's stage commands run or read by path (scripts/gate-check's \"$root/scripts/generate\" and scripts/schema-compat, \"$(dirname \"$0\")/lib/x.py\", ROOT / 'scripts' / 'x', .gitleaks.toml) with their own closure; the toolchain (TOOLCHAIN_FILE); and every registry owner whose key the closure's code reads (config.get literals, ou_config_value) when the change alters that key. The head's tests still run the head's code, as code under test; a change to the verifier that chooses them is a GATE_FILE change and asks an approved decision, judged by the base's pr metadata stage.",
+  "fixed": "2026-11-19",
+  "verified_by": "scripts/tests/gate-pin.test.sh"
 }
