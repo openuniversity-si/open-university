@@ -2,7 +2,7 @@
 and the aws-spend measure of VAL-aws-200; the supplier-spend measure on a reading checked by hand, its threshold read
 from a registry key (D-342). Hermetic: in-memory answers and temporary folders.
 
-Verifies: REQ-aws-200
+Verifies: REQ-aws-200, REQ-anthropic-budget
 """
 import contextlib
 import io
@@ -124,6 +124,14 @@ class SupplierSpend(unittest.TestCase):
         found = self.state(threshold_key='test.no_such_key')
         self.assertEqual(found['VAL-acme']['problems'], ['its threshold_key test.no_such_key is not a registered parameter'])
         self.assertNotIn('body', found['VAL-acme'])
+
+    def test_the_repositorys_anthropic_budget_is_met_by_its_first_reading(self):
+        item = next(item for item in model.read_validations(ROOT) if item['id'] == 'VAL-anthropic-budget')
+        body = item['body']
+        self.assertEqual(body['threshold'], model.registry_threshold(body['threshold_key'], ROOT))
+        recorded = spend.read_supplier(ROOT, body['measure']['supplier'])
+        model.derive_validations({item['id']: item}, ROOT, recorded['day'])
+        self.assertEqual((item['measured'], item['state']), (recorded['usd'], 'met'))
 
 
 if __name__ == '__main__':

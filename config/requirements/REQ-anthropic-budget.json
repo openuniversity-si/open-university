@@ -1,0 +1,14 @@
+{
+  "id": "REQ-anthropic-budget",
+  "type": "constraint",
+  "statement": "The Anthropic spend stays within the monthly ceiling of supply.anthropic_monthly_usd.",
+  "state": "approved",
+  "owner": "Daniel",
+  "derives_from": [
+    "NEED-cost"
+  ],
+  "basis": [
+    "D-342"
+  ],
+  "source": "docs/domain/decisions/D-342.md"
+}
