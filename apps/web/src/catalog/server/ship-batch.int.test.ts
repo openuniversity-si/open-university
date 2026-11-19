@@ -8,6 +8,7 @@ import {
   call, coverInput, createHarness, seedCatalog, slotText, type Harness,
 } from "../../../test/fixtures/admin-catalog.ts";
 
+// Verifies: D-002
 function youtube(index: number): string {
   return `shipvid${String(index).padStart(4, "0")}`;
 }

@@ -5,6 +5,7 @@ import type { AdapterInput } from "../ports/source-adapter.ts";
 import { assertFiftyPerCall, assertOriginalTitle, ingestRecorded } from "../testing/adapter-contract.ts";
 import { createYouTubePlaylistAdapter } from "./youtube-adapter.ts";
 
+// Verifies: D-018
 const sha = (digit: string) => digit.repeat(64);
 const TRANSLATED = "General Mechanics - Lecture 01";
 const ORIGINAL = "Mecânica Geral - Aula 01";

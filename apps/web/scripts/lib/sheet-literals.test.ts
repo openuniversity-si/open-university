@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
+// Verifies: D-052
 /** Empty. The presentation files are free, so a literal anywhere fails. */
 export const DEFERRED_SHEETS = [] as const;
 

@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { unsharedVideoPairs } from "./video-share.ts";
 
+// Verifies: D-032
 const use = (courseId: string, youtubeId = "abcdefghijk") => ({ courseId, youtubeId });
 
 it("D-032: a video in two courses is refused unless both declare the share", () => {

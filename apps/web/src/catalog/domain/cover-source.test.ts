@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 import { REQUIRED_COVERS } from "./rules/status.ts";
 import { coverDeclarationProblem, coverOwner, missingCoverKinds, reviewedCoverBackfill } from "./cover-source.ts";
 
+// Verifies: D-031
 const kinds = [...REQUIRED_COVERS];
 
 it("D-031: own, the course's subarea, or its area when it has none, are the only declarations", () => {

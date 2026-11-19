@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CuratedV1 } from "./curated.ts";
 import { GENERATOR_ACTOR, REVIEWER_ACTOR, generateTexts, parseFactoryTexts, reviewTexts, textsFromCurated } from "./texts.ts";
 
+// Verifies: D-019
 const courses = [{
   id: "usp-mecanica-geral",
   title: "Mecânica Geral",

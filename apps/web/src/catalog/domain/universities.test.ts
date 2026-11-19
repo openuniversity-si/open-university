@@ -5,6 +5,7 @@ import { publicRouteSnapshot } from "../../catalog/server/public-routes.ts";
 import { publicUniversityPaths } from "../../site/domain/route-registry.ts";
 import { coursesOnUniversityPage, findUniversity, railCards, universities, universityAreas, universityCourseCount, universityRails } from "./universities.ts";
 
+// Verifies: D-017
 // ADR-25: universities are the curated rows; areas follow the release's global order and only non-empty ones show.
 function withAreas() {
   const release = releaseFixture();

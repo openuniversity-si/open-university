@@ -10,6 +10,7 @@ import { MEDIA_PUBLIC_HOST, type AssetInput } from "../../src/media/domain/types
 import { readActiveMedia, swapMedia } from "../../src/media/server/repository.ts";
 import { testDatabaseUrl } from "../fixtures/admin-catalog.ts";
 
+// Verifies: D-015
 /** Migrations up to and including journal idx `last` (0023 is 23; 0024 is the cutover under test). */
 function migrationsUpTo(last: number): string {
   const folder = mkdtempSync(join(tmpdir(), "tower-migrations-"));

@@ -8,6 +8,7 @@ import { normalizeRelease, parseRelease, parseStoredRelease, releaseSchema, rele
 import { releaseSha } from "../../kernel/sha.ts";
 import type { CatalogTables } from "./tables.ts";
 
+// Verifies: D-034
 // Course editions in the release and the site's queries (ADR-21).
 
 const course = () => {

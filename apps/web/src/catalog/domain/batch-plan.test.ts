@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { planBatch, type BatchRefs } from "./batch-plan.ts";
 import { catalogBatchV2Schema, type CatalogBatchV2 } from "./schema/batch-v2.ts";
 
+// Verifies: D-031
 // S07: the pure planner of CatalogBatchV2 over in-memory refs (no database, no network).
 
 const sha = (seed: string) => seed.repeat(64).slice(0, 64);

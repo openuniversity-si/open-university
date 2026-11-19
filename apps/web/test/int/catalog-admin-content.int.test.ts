@@ -19,6 +19,7 @@ import {
   activeRelease, auditRows, call, catalogFingerprint, coverInput, createHarness, insideTransactions, newVideoId, NOW, SECRET, seedCatalog, seedDraftCourse, type AuditData, type CourseDetail, type CourseView, type DoctorData, type Harness, type HomeData, type LessonView, type Seed,
 } from "../fixtures/admin-catalog.ts";
 
+// Verifies: D-029
 describe("admin catalog: texts, Home, imports, redirects, doctor, preview and media on PG18", () => {
   let h: Harness;
   let seed: Seed;
