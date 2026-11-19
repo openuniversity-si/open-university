@@ -1532,12 +1532,16 @@ class RealRepository(unittest.TestCase):
         self.assertEqual(found['D-343']['authority'], 'session')
         self.assertEqual(found['D-344']['authority'], 'session')
         exempt = model.exempted_ids(found, model.utc_today())
-        for ident in ('CTRL-ssdf-pw.2', 'CTRL-ssdf-pw.9', 'THREAT-gate'):
+        unapproved_targets = ('CTRL-ssdf-pw.2', 'CTRL-ssdf-pw.9', 'THREAT-gate')
+        for ident in unapproved_targets:
             self.assertNotIn(ident, exempt)
+        self.assertEqual(found['D-349']['state'], 'proposed')
+        self.assertFalse(model.owner_approved(found['D-349']))
         result = model.measure(ROOT, found=found)
         self.assertFalse(result['systems']['security']['closed'])
         self.assertIn('THREAT-gate', result['systems']['security']['nonconformant'])
-        self.assertGreaterEqual(result['standard_management']['unapproved_exemptions'], 3)
+        self.assertGreaterEqual(result['standard_management']['unapproved_exemptions'], len(unapproved_targets))
+        self.assertGreaterEqual(result['decisions']['by_state'].get('proposed', 0), 1)
         text = model.summary(result)
         self.assertIn('TAIL-gate-fork-workflow: [UNAPPROVED]', text)
         self.assertIn('TAIL-targets-budget-tolerance: [approved]', text)
