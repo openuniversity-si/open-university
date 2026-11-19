@@ -142,6 +142,17 @@ def landed_run(sha, how, landed, live, clock, iso):
             'from': clock}
 
 
+def canary_line(canary, state):
+    """D-346: the canary's line of the status. A verdict older than the newest landing that went live judged a code that
+    is no longer live (the canary judges only the live path, and no canary is fired without a runner since the AWS gate
+    was retired), so it is said as the past, never as the current state."""
+    said = f"{'ok' if canary.get('ok') else 'RED'}: {canary.get('line')} ({canary.get('key')}, at {canary.get('at')})"
+    lives = [live for live, _ in live_at(state).values()]
+    if lives and isinstance(canary.get('at'), (int, float)) and canary['at'] < max(lives):
+        return f'canary: none for the live code (D-346: the canary judges only the live path); the last was {said}'
+    return f'canary: {said}'
+
+
 def record_live(state, root=None, now=None, api=None, repo=None):
     """REQ-deploy-1s: each code-only merge's seconds from its landing to its code live (live_at), in
     config/validation/runs/deploy-live.json, the snapshot VAL-deploy-1s reads; the build seconds stay in deploy.json
@@ -338,8 +349,7 @@ def describe(state, out=None):
     print(f"last_sha: {state.get('last_sha') or 'none'}", file=out)
     canary = (state.get('canary') or [None])[0]  # DEPLOY-CANARY: the newest canary's verdict
     if isinstance(canary, dict):
-        print(f"canary: {'ok' if canary.get('ok') else 'RED'}: {canary.get('line')} ({canary.get('key')}, at {canary.get('at')})",
-              file=out)
+        print(canary_line(canary, state), file=out)
     if not build:
         print('last_build: none recorded', file=out)
         return

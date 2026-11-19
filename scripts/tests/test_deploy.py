@@ -831,6 +831,14 @@ class CliTests(unittest.TestCase):
         self.assertEqual((runs[unsigned]['seconds'], runs[unsigned]['from']), (live - heard, deploy.HEARD))
         self.assertEqual(asked, [], 'every landing heard: the push clock is not asked')
 
+    def test_a_canary_older_than_the_live_code_is_said_as_the_past(self):
+        # D-346: the canary judges only the live path; a red verdict of a code that is no longer live is not the state
+        red = {'ok': False, 'line': 'canary job not dispatched', 'key': 'swap:d:1', 'at': 1}
+        state = {'image_swap': [{'head': 'h', 'swapped': True, 'at': 1 + 1, 'digest': 'd', 'versions': {}}]}
+        self.assertTrue(deploy.canary_line(red, state).startswith('canary: none for the live code (D-346'))
+        self.assertTrue(deploy.canary_line(red, {}).startswith('canary: RED'), 'no newer landing: it is the state')
+        self.assertTrue(deploy.canary_line(dict(red, at=1 + 1 + 1), state).startswith('canary: RED'))
+
     def test_status_says_the_builds_seconds_and_the_reload_in_place(self):
         # FAST-PATH-RELOAD: what a code-only merge's deploy cost, and how long its swap took, from `scripts/deploy status`
         state = {'last_sha': 'a', 'last_build': {
