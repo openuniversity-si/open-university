@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextRequest, type NextResponse } from "next/server";
 import { SESSION_COOKIE_NAMES } from "@/identity/domain/settings";
 import { HOME_REWRITE_HEADER } from "@/site/domain/home-routing";
 import { proxyMatcher } from "@/site/domain/route-registry";
@@ -9,12 +9,8 @@ import { proxy, config } from "./proxy.ts";
 function request(pathname: string, options: { cookie?: string; time?: boolean; rewritten?: boolean } = {}) {
   const url = new URL(`http://127.0.0.1:3999${pathname}${options.time ? "?t=12" : ""}`);
   const headers = new Headers(options.rewritten ? { [HOME_REWRITE_HEADER]: "1" } : {});
-  return {
-    nextUrl: url,
-    url: url.toString(),
-    headers,
-    cookies: { has: (name: string) => name === options.cookie },
-  } as NextRequest;
+  if (options.cookie) headers.set("cookie", `${options.cookie}=1`);
+  return new NextRequest(url, { headers });
 }
 
 const rewritePath = (response: NextResponse) => response.headers.get("x-middleware-rewrite") ?? response.headers.get("location");
