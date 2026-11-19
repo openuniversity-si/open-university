@@ -5,7 +5,8 @@
   "x-unit": "count",
   "description": "Fewest pr.merged events allowed in any slo.merged_window_s window, the pace of 1,000 PRs a day (plan v3 §9.2: the last 42 merges within 60 minutes).",
   "x-readers": [
-    "scripts/lib/slo.py",
-    "docs/process/EVENTS.md"
+    "docs/process/EVENTS.md",
+    "scripts/lib/model.py",
+    "scripts/lib/slo.py"
   ]
 }

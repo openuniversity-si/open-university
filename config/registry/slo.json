@@ -25,8 +25,9 @@
       "x-unit": "percent",
       "description": "Highest share of failed tier-1 gate verdicts among the last slo.sample_window_events (plan v3 §9.2 sets none; first value tuned by a PR when slo.breached asks).",
       "x-readers": [
-        "scripts/lib/slo.py",
-        "docs/process/EVENTS.md"
+        "docs/process/EVENTS.md",
+        "scripts/lib/model.py",
+        "scripts/lib/slo.py"
       ]
     },
     "slo.gate_tier1_p95_s": {
@@ -36,8 +37,9 @@
       "x-unit": "s",
       "description": "Tier-1 gate wall time (sum of its stages) that the 95th percentile of the last slo.sample_window_events tier-1 verdicts may not exceed. First value: the existing target gate.tier1_target_s (D-065 (5)); the reader enforces the smaller of the two, and a test refuses an SLO looser than that target.",
       "x-readers": [
-        "scripts/lib/slo.py",
-        "docs/process/EVENTS.md"
+        "docs/process/EVENTS.md",
+        "scripts/lib/model.py",
+        "scripts/lib/slo.py"
       ]
     },
     "slo.merged_hold_s": {
@@ -57,8 +59,9 @@
       "x-unit": "count",
       "description": "Fewest pr.merged events allowed in any slo.merged_window_s window, the pace of 1,000 PRs a day (plan v3 §9.2: the last 42 merges within 60 minutes).",
       "x-readers": [
-        "scripts/lib/slo.py",
-        "docs/process/EVENTS.md"
+        "docs/process/EVENTS.md",
+        "scripts/lib/model.py",
+        "scripts/lib/slo.py"
       ]
     },
     "slo.merged_window_s": {
@@ -130,8 +133,9 @@
       "x-unit": "s",
       "description": "Queue time (pr.ready to pr.merged of the same head) that the 95th percentile of the last slo.sample_window_events merged PRs may not exceed. First value: three tier-2 runs of about 240 s (premise P-15, plan v3 §9.2) plus margin; tuned by a PR when slo.breached asks.",
       "x-readers": [
-        "scripts/lib/slo.py",
-        "docs/process/EVENTS.md"
+        "docs/process/EVENTS.md",
+        "scripts/lib/model.py",
+        "scripts/lib/slo.py"
       ]
     }
   }
