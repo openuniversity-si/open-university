@@ -110,6 +110,10 @@ class TinyModel(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertTrue(any('REQ-9, which does not exist' in warning for warning in warnings), warnings)
         self.assertTrue(any('REQ-1 is suspect' in warning for warning in warnings), warnings)
+        found['TEST:a']['state'] = 'retired'
+        errors, warnings = model.check(self.meta(), found)
+        self.assertFalse(any('REQ-9' in warning for warning in warnings),
+                         'a retired object is history: what it named and later left is not a broken link')
 
     def test_the_chain_is_verified_only_with_an_element_a_unit_a_change_a_test_and_a_validation(self):
         chain = [{'id': 'REQ-1', 'type': 'REQ', 'state': 'approved'},
@@ -1475,7 +1479,8 @@ class RealRepository(unittest.TestCase):
         holders = {f'TEST:{proof}'} | {item['id'] for item in found.values() if proof in item.get('parts', ())}
         self.assertTrue(holders & {source for kind, source in model.incoming(found).get(number, []) if kind == 'verifies'})
         _, warnings = model.check(model.metamodel(ROOT), found)
-        gone = [item for item in found.values() if item.get('claimed') and item['fingerprint'] is None]
+        gone = [item for item in found.values() if item.get('claimed') and item['fingerprint'] is None
+                and not all(model.historical(found.get(link['target'])) for link in item['links'])]  # history: no warning
         self.assertEqual(len([line for line in warnings if 'no such file exists' in line]), len(gone))
 
     def test_the_measure_counts_every_inventory_source_and_rates_every_system(self):
