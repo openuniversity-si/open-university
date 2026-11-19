@@ -10,9 +10,7 @@
     "REQ-web-home-perf-budget",
     "REQ-web-lgpd-processing"
   ],
-  "depends_on": [
-    "ARC-deploy"
-  ],
+  "depends_on": [],
   "basis": [
     "D-319"
   ],

@@ -1,7 +1,7 @@
 """The Operation system's data stores (DATA) and data subject requests (REQUEST), PADRAO-DEV F7d (D-320, D-321): states
 derived from the records, never written. Hermetic: in-memory records and temporary repositories.
 
-Verifies: REQ-chain-verified
+Verifies: REQ-chain-verified, REQ-web-lgpd-processing
 """
 import json
 from pathlib import Path

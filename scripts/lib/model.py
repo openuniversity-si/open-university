@@ -1253,8 +1253,11 @@ def reflexion(found):
     """The reflexion model (Murphy, Notkin, Sullivan 1995) of the architecture: the dependencies the elements declare
     (depends-on between ARC) against those extracted from the units (a unit of A depends on a unit of B, A and B the
     elements they realize). {convergences, divergences, absences}: declared and present, present and not declared,
-    declared and not present, each a sorted list of (from, to)."""
-    realized = {id: [link['target'] for link in item['links'] if link['type'] == 'realizes']
+    declared and not present, each a sorted list of (from, to). Only components are its nodes: a capability (CAP-NNN)
+    a unit also realizes is what the unit does, not a layer, so it declares no dependency and takes none from its
+    units (they already count through the component the same unit realizes)."""
+    components = {id for id, item in found.items() if item['type'] == 'ARC' and item.get('body', {}).get('kind') == 'component'}
+    realized = {id: [link['target'] for link in item['links'] if link['type'] == 'realizes' and link['target'] in components]
                 for id, item in found.items() if item['type'] == 'UNIT'}
     extracted = set()
     for id, item in found.items():
