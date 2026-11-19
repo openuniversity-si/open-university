@@ -17,6 +17,12 @@
 # (a change of tower_infra/port.py plans 49 tests) took 93 s in one job; split in two halves and the timing-bound tests
 # apart it runs in about half of that. Each building entry of the queue holds four runners at most (three parts and
 # deploy/prepare) of the Free plan's twenty.
+# PINNED-ON-GITHUB (D-070, D-335, VULN-gate-judged-by-own-head): the parts run the head's gate, so a change that
+# rewrites a stage, a gate key or the verifier would judge itself. The job `pinned` runs the base's gate_pin.py, which
+# puts the base's version of every gate file the change touches back in the checkout (scripts/lib/gate_pin.py overlay,
+# GATE_FILE), and then the plan's stages there (verify-commit --stages-only); tower/gate is green only when it is green
+# too. A change that touches no gate file ends the job after the overlay, with no toolchain; it is a fifth runner of a
+# building entry, held seconds unless the change touches the gate.
 
 name: tower-gate
 on:
@@ -39,10 +45,10 @@ jobs:
       matrix:
         part: [main, shard1, alone]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             .toolchain
@@ -70,15 +76,57 @@ jobs:
       - name: keep the green verdict
         if: github.event_name == 'pull_request' && steps.verify.outputs.verdict != ''
         continue-on-error: true  # no record only costs the merge queue's run its reuse, never this verdict
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ steps.verify.outputs.verdict }}
           path: ${{ runner.temp }}/verdict
           retention-days: 7
           if-no-files-found: error
+  pinned:
+    name: gate pinned to the base
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: the base's gate
+        id: pin
+        env:
+          EVENT: ${{ github.event_name }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base="$PR_BASE"
+          if [ "$EVENT" = merge_group ]; then base="$QUEUE_BASE"; fi
+          git worktree add --detach "$RUNNER_TEMP/base" "$base"
+          python3 "$RUNNER_TEMP/base/scripts/lib/gate_pin.py" overlay --root "$GITHUB_WORKSPACE" --base "$base" | tee "$RUNNER_TEMP/pinned"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          if grep -q '^gate: 0 gate file' "$RUNNER_TEMP/pinned"; then echo "changed=" >> "$GITHUB_OUTPUT"; else echo "changed=1" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/cache@v4
+        if: steps.pin.outputs.changed
+        with:
+          path: |
+            .toolchain
+            !.toolchain/pgdata
+            !.toolchain/postgres.log
+            !.toolchain/pgsocket
+            !.toolchain/pghome
+          key: toolchain-bin-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
+      - name: toolchain
+        if: steps.pin.outputs.changed
+        run: bash scripts/cloud/setup.sh
+      - name: verify the stages with the base's gate
+        if: steps.pin.outputs.changed
+        env:
+          BASE: ${{ steps.pin.outputs.base }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source scripts/cloud/env.sh
+          scripts/verify-commit --sha "$GITHUB_SHA" --base "$BASE" --repo "$GITHUB_REPOSITORY" --no-post --stages-only
   gate:
     name: tower/gate
-    needs: part
+    needs: [part, pinned]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -86,6 +134,8 @@ jobs:
       - name: every part green
         env:
           PARTS: ${{ needs.part.result }}
+          PINNED: ${{ needs.pinned.result }}
         run: |
-          echo "the parts of tower/gate: $PARTS"
+          echo "the parts of tower/gate: $PARTS; the gate pinned to the base: $PINNED"
           test "$PARTS" = success
+          test "$PINNED" = success

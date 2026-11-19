@@ -14,22 +14,26 @@
   "threats": [
     {
       "stride": "spoofing",
-      "statement": "A run that did not judge the commit, such as a fork's run or a run of another head, passes its green verdict off as the queue commit's; or a tower/gate status is posted on a commit by a credential other than the gate's own job. Residual: the ruleset requires the check by its name alone, not by the source that reports it (VULN-gate-check-source).",
+      "statement": "A run that did not judge the commit, such as a fork's run or a run of another head, passes its green verdict off as the queue commit's; or a tower/gate status is posted on a commit by a credential other than the gate's own job. The ruleset binds each required check to the GitHub Actions app (integration 15368), so a status of that name from a session's credential (verify-commit without --no-post) or any other writer does not count. Residual: the binding is staged in .github/rulesets/main.json and holds once the owner applies it to the live ruleset (VULN-gate-check-source stays open until then).",
       "mitigated_by": [
         "TEST:scripts/tests/verify-commit.test.sh",
+        "TEST:scripts/tests/security.test.sh",
         "REQ-github-truth",
         ".github/rulesets/main.json"
       ]
     },
     {
       "stride": "tampering",
-      "statement": "A pull request edits the gate itself (its scripts, its rules or a workflow) so that its own change passes. Residual: tower/gate runs scripts/verify-commit from the tree it judges, so the rules below hold a change that keeps them and not one that rewrites them; the pinned gate that judges with the base's tooling (scripts/lib/gate_pin.py, D-070) is not used by the GitHub job (VULN-gate-judged-by-own-head).",
+      "statement": "A pull request edits the gate itself (its scripts, its rules, its registry keys, the verifier or a workflow) so that its own change passes. The gate's files (GATE_FILE: the stages, the structure and commit checks, config/registry/gate/, scripts/verify-commit) ask a decision, and the pinned job of tower/gate judges a change to them with the base's gate: the base's gate_pin.py puts the base's gate files back in the checkout and the plan's stages run there (D-070 on GitHub). Residual: the pinned job is staged in services/runner/github/tower-gate.yml and holds once the owner installs it (VULN-gate-judged-by-own-head stays open until then); the workflow itself is the owner's to change (D-087), and the head's tests run the head's code, as code under test.",
       "mitigated_by": [
         "config/registry/gate/gate.allowed_workflows.json",
         "STD-gate-workflows-refused",
         "TEST:scripts/tests/queue-checks.test.sh",
         "STD-gate-structure-check",
-        "STD-commit-check-gate-errors"
+        "STD-commit-check-gate-errors",
+        "TEST:scripts/tests/gate-pin.test.sh",
+        "TEST:scripts/tests/verify-commit.test.sh",
+        "services/runner/github/tower-gate.yml"
       ]
     },
     {
@@ -91,45 +95,69 @@
     "findings": [
       {
         "about": "spoofing",
-        "finding": "The ruleset requires tower/gate by context only (no source app), and scripts/verify-commit posts that status with the session's own credential when run without --no-post, so a status from any writer of statuses satisfies the queue; neither mitigation listed refuses that.",
+        "finding": "The binding of tower/gate and web to the GitHub Actions app (integration_id 15368) is real in .github/rulesets/main.json and security.test.sh refuses a required check without it, but it is staged: until the owner applies it to the live ruleset a status of that name from any writer counts. The earlier review's 'fixed' was premature while VULN-gate-check-source is open.",
         "disposition": "open",
-        "reason": "VULN-gate-check-source; follow-up: bind the required check to the GitHub Actions app in .github/rulesets/main.json (owner-applied)."
+        "reason": "needs the owner to apply the staged ruleset; the threat's own residual already says so."
       },
       {
-        "about": "tampering",
-        "finding": "The listed rules (allowed workflows, workflows refused, structure check) run from the head under judgment: the GitHub job does not use the base-pinned gate of D-070, so a change that rewrites the gate judges itself.",
+        "about": "spoofing",
+        "finding": "Missing threat: the Actions-app binding does not say which workflow produced the check. A pull_request or merge_group run uses the workflow file of the commit under judgment, so a change that edits .github/workflows/tower-gate.yml (or adds a job named tower/gate to web.yml, an allowed file) gets a green tower/gate from the Actions app by its own definition. gate_workflows.refused only refuses files gate.allowed_workflows does not name, and it runs inside the workflow the change replaced; the .claude/settings.json deny and a token without the workflow scope are client-side, not repository rules.",
         "disposition": "open",
-        "reason": "VULN-gate-judged-by-own-head; follow-up: run the gate's stages from the base's tooling in tower-gate.yml, the head's as advisory, as gate_pin.py does."
+        "reason": "needs a repository-side barrier for .github/workflows (for example a ruleset path restriction or required review on that path, or a required workflow run from a protected ref); not in place."
       },
       {
         "about": "tampering",
-        "finding": "STD-commit-check-gate-errors, the rule that asks a decision of a gate change, was missing from the gate's own tampering threat.",
-        "disposition": "fixed",
-        "reason": "added to mitigated_by."
+        "finding": "The pinned job (services/runner/github/tower-gate.yml) and the overlay (gate_pin.overlay, verify-commit --stages-only) exist and tower/gate needs the job green, but they are staged, not installed (VULN-gate-judged-by-own-head open). The earlier 'fixed' was premature.",
+        "disposition": "open",
+        "reason": "needs the owner to install the staged workflow once the overlay is on main."
       },
       {
         "about": "tampering",
-        "finding": "The third-party actions of tower-gate.yml are pinned by tag (v4), not commit; supply.py counts them unpinned and refuses nothing.",
+        "finding": "Even installed, the overlay as written leaves the head in control: (a) GATE_FILE pins only the entry scripts, not the modules they import (config.py, forge_pr.py, plan_tick.py, decision_wait.py, regime.py, unit_check.py, threshold_check.py and the other structure.py imports), so a change to one of them is not a gate change: the pinned job ends after the overlay and gate_errors asks no decision; (b) in the pinned job the head's scripts/cloud/setup.sh and env.sh run after the overlay in the same checkout, and scripts/verify-commit runs the .toolchain/bin/python3 that setup.sh installs, so head code can undo the overlay; (c) the pinned job runs stages only, while the parts run the head's verify_commit, which chooses and runs the tests and records the verdict the merge queue reuses, so a change to the verifier decides its own tests.",
+        "disposition": "open",
+        "reason": "needs a change to gate_pin.GATE_FILE (or pinning scripts/lib as a whole) and to the pinned job (toolchain from the base, tests planned by the base); not in place."
+      },
+      {
+        "about": "tampering",
+        "finding": "Missing threat: config/registry/regime/regime.exception_active.json is true and regime.exception_kept is [money, people], so regime.lifted('structure') and lifted('commit-plan') are true on every tower/gate run (nothing pins the regime outside the script tests' hermetic hook): structure.py under_regime turns every structure-check refusal into a warning, and gate_discipline.lift does the same to the plan, fix-up, one-commit-per-push, plan-completeness and lane refusals. So STD-gate-structure-check refuses nothing today, and the regime keys are outside GATE_FILE, so a change can turn the regime on or empty its kept list with no decision and no pinning.",
+        "disposition": "open",
+        "reason": "needs the regime ended or the gate locks kept, and config/registry/regime/ added to the gate files; not in place."
+      },
+      {
+        "about": "tampering",
+        "finding": "Supply chain: the installed workflow pins actions by tag; the staged one pins the part job's actions by commit but the pinned job still uses actions/checkout@v4 and actions/cache@v4. No check refuses a tag pin, as the residual says.",
         "disposition": "accepted",
-        "reason": "residual added; the actions are GitHub's own, the party that already runs the runner and the ruleset."
+        "reason": "the residual is honest; the actions are GitHub's own, the party that already runs the runner and the ruleset. The staged pinned job should use the same commit pins as the part job."
+      },
+      {
+        "about": "tampering",
+        "finding": "History rewrite: the ruleset's non_fast_forward and deletion rules and the merge queue (merge commits only) refuse it on main, and force_push_errors is not lifted by the regime.",
+        "disposition": "fixed",
+        "reason": "holds as stated."
+      },
+      {
+        "about": "repudiation",
+        "finding": "The merge commit and the Actions check run trace the verdict; the verdict artifacts expire in 7 days and run logs on GitHub's retention, so the evidence of a reused verdict does not outlive them.",
+        "disposition": "accepted",
+        "reason": "the merge commit and the required check on it are the record; the logs are supporting evidence."
       },
       {
         "about": "information-disclosure",
-        "finding": "The secret scans run after the push, when the commit is already public on its branch.",
+        "finding": "The residual (the gate sees a commit already public; the pre-push scan is client-side and skippable) is honest; the secret stages' output is kept out of the public job log (verify_commit).",
         "disposition": "fixed",
-        "reason": "residual added; the pre-push scan (local-checks) named as the earlier, client-side barrier."
+        "reason": "holds as stated; the earlier disposition stands."
       },
       {
         "about": "denial-of-service",
-        "finding": "REQ-gate-60s is a target, not a mitigation of a hung or flooding change.",
+        "finding": "Job timeout-minutes 30 and the queue's check_response_timeout_minutes 20 bound a hung run; concurrency cancels a superseded run of the same pull request.",
         "disposition": "fixed",
-        "reason": "the job timeout (tower-gate.yml) and the queue's check timeout (rulesets/main.json) added; residual stated."
+        "reason": "holds as stated."
       },
       {
         "about": "elevation-of-privilege",
-        "finding": "The residual is honest; together with the two open findings the checks are not yet the barrier the statement says they are.",
+        "finding": "The residual is honest, but with the regime lifting the structure and commit-plan locks and the overlay gaps above, the checks are a weaker barrier than the statement says.",
         "disposition": "accepted",
-        "reason": "kept as written; it holds once the two VULNs are fixed."
+        "reason": "kept as written; it holds once the open tampering and spoofing findings are fixed."
       }
     ]
   }

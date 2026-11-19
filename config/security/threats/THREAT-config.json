@@ -23,7 +23,7 @@
     },
     {
       "stride": "tampering",
-      "statement": "A change loosens a budget, a threshold or a lock value so that a later change passes a check it should fail. Residual: only the budgets, the SLOs and the exception lists are tighten-only; any other registry value (a gate threshold, a timeout) changes on the gate's checks alone.",
+      "statement": "A change loosens a budget, a threshold or a lock value so that a later change passes a check it should fail. Residual: the budgets, the SLOs and the exception lists are tighten-only, and the structure check's threshold check refuses a loosened numeric default whose name matches config.monotonic_patterns without a `Loosens:` decision; any other registry value changes on the gate's checks alone, and the threshold check is lifted while the exception regime holds.",
       "mitigated_by": [
         "STD-measurement-checks",
         "STD-budgets-schema-errors",
@@ -69,11 +69,12 @@
     },
     {
       "stride": "elevation-of-privilege",
-      "statement": "A change to a key that governs the gate (its allowed workflows, its stages) widens what the gate lets through without a decision. Residual: the rule that asks a gate change for a decision matches the gate's scripts, not config/registry/gate/, and accepts any recorded D-NNN, not one that approves the change.",
+      "statement": "A change to a key that governs the gate (its allowed workflows, its stages) widens what the gate lets through without a decision. The rule that asks a gate change for a decision matches config/registry/gate/ and its aggregate (GATE_FILE), and the pinned gate judges such a change with the base's keys. Residual: the rule accepts any recorded D-NNN, not one that approves the change.",
       "mitigated_by": [
         "STD-commit-check-gate-errors",
         "config/registry/gate/gate.allowed_workflows.json",
-        "TEST:scripts/tests/queue-checks.test.sh"
+        "TEST:scripts/tests/queue-checks.test.sh",
+        "TEST:scripts/tests/gate-pin.test.sh"
       ]
     }
   ],
@@ -83,27 +84,57 @@
     "findings": [
       {
         "about": "spoofing",
-        "finding": "The statement described a malformed value (tampering); the registry's real spoofing case, a key declared under another owner, was missing though config.check refuses it.",
+        "finding": "config.py check refuses an x-owner that is not the file's owner and a key name that does not start with its owner; value_errors checks a value against its schema. The config check is not lifted by the regime.",
         "disposition": "fixed",
-        "reason": "statement widened; config.test.sh covers it."
+        "reason": "holds as stated."
       },
       {
         "about": "tampering",
-        "finding": "Budgets and exception lists are tighten-only, other thresholds are not; the statement implied all are.",
+        "finding": "The residual was wrong: threshold_check (run by the structure check) also refuses a numeric default matching config.monotonic_patterns (timeouts, limits, maxima, budgets, ceilings, tolerances) that loosens against the base without a `Loosens:` line citing a decision. But it runs inside the structure check, which the exception regime lifts today: config/registry/regime/regime.exception_active.json is true and regime.exception_kept is [money, people], so regime.lifted('structure') and lifted('commit-plan') are true on every tower/gate run (nothing pins the regime outside the script tests' hermetic hook): structure.py under_regime turns every structure-check refusal into a warning, and gate_discipline.lift does the same to the plan, fix-up, one-commit-per-push, plan-completeness and lane refusals.",
+        "disposition": "open",
+        "reason": "residual text corrected by this reviewer to name the threshold check; the refusal itself needs the regime ended or the structure lock kept."
+      },
+      {
+        "about": "tampering",
+        "finding": "Generated drift and schema compat are gate stages of scripts/gate-check (generate --check, schema-compat --base) and are not lifted by the regime.",
         "disposition": "fixed",
-        "reason": "residual added."
+        "reason": "holds as stated."
+      },
+      {
+        "about": "repudiation",
+        "finding": "The merge commit and threshold_check's config.changed audit lines in the gate report trace a value change.",
+        "disposition": "accepted",
+        "reason": "the audit lines are printed, not stored; the merge commit is the durable record."
       },
       {
         "about": "information-disclosure",
-        "finding": "The flagged residual (the shape check catches only secret-shaped values) is honest.",
+        "finding": "The residual (only secret-shaped values are caught) is honest.",
         "disposition": "accepted",
-        "reason": "kept; a value that does not look like a secret cannot be told from configuration by a check."
+        "reason": "a value that does not look like a secret cannot be told from configuration by a check."
+      },
+      {
+        "about": "denial-of-service",
+        "finding": "Schema checks and the derived readers test cover a malformed key before merge.",
+        "disposition": "fixed",
+        "reason": "holds as stated."
       },
       {
         "about": "elevation-of-privilege",
-        "finding": "STD-commit-check-gate-errors matches gate_pin.GATE_FILE (scripts/gate-*, scripts/lib/gate*, the structure and commit checks): config/registry/gate/*.json, scripts/verify-commit and scripts/lib/verify_commit.py are outside it, so a change to a gate key needs no decision; and any recorded D-NNN satisfies it.",
+        "finding": "GATE_FILE now matches config/registry/gate/*.json and config/registry/gate.json (verified), but other registry owners govern the gate and stay outside it: gate-pin/, gate-tests/, gate-tier/, gate-carry/, gate-proof/, gate-infra/ and the rest of config/registry/gate-*/, config.monotonic_patterns (the threshold check's own list) and regime/ (which lifts locks). A change to them asks no decision and is not pinned. The pinned gate the statement relies on is staged, not installed.",
         "disposition": "open",
-        "reason": "residual added; follow-up: widen GATE_FILE to the gate's registry keys and its GitHub entry point."
+        "reason": "needs GATE_FILE widened to every registry owner the gate reads, and the pinned job installed; not in place."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "Any recorded D-NNN satisfies the gate-change rule, including one the change itself adds to docs/domain/DECISIONS.md, since decisions() reads the checkout's copy.",
+        "disposition": "accepted",
+        "reason": "the rule asks for a traceable decision, not an approval (D-055); the earlier acceptance stands, with this sharper residual."
+      },
+      {
+        "about": "assets",
+        "finding": "The exception regime's recorded state is a listed asset but no threat covers a change that turns the regime on or widens it; today it is on and lifts the structure and commit-plan locks.",
+        "disposition": "open",
+        "reason": "needs a threat with a real mitigation (regime keys as gate files, or the regime ended)."
       }
     ]
   }
