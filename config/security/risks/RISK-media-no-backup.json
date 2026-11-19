@@ -1,6 +1,6 @@
 {
   "id": "RISK-media-no-backup",
-  "statement": "The site's media bucket on R2 has no backup or second copy: a deletion, a provider failure or a compromised write key loses the course media.",
+  "statement": "The site's media bucket on R2 had no backup or second copy: a deletion, a provider failure or a compromised write key would lose the course media.",
   "state": "closed",
   "owner": "Daniel",
   "assets": [
@@ -11,7 +11,7 @@
   "impact": "high",
   "treatment": {
     "option": "mitigate",
-    "plan": "Cut made on 2026-11-18 (D-323 step 2): the media primary is the versioned S3 bucket of the media stack (noncurrent versions 90 days) and R2 is a second byte-identical copy for 30 days. A deletion or a provider failure no longer loses the media. The live R2 write key can only touch the second copy; its revocation is a credential step of D-323 step 4, left to the owner (the Torre's connector cannot revoke Cloudflare API tokens).",
+    "plan": "Cut made on 2026-11-18 (D-323 step 2): the media primary is the versioned S3 bucket of the media stack (noncurrent versions 90 days). The R2 buckets were then emptied and deleted (2026-11-18 20:57 BRT) and every Cloudflare API token, the R2 write key among them, was revoked (20:42-20:45 BRT), so no R2 copy or key is left; the second copy is the us-west-2 replica that RISK-media-single-account records.",
     "by": [
       "DATA-r2-media"
     ]

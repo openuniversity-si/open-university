@@ -2,7 +2,7 @@
   "id": "ARC-web",
   "kind": "component",
   "name": "Open University's site",
-  "statement": "The course site (apps/web): its pages, its accounts and progress on tower-data, its media on R2, its own suite in the web check, and its Lambda image.",
+  "statement": "The course site (apps/web): its pages, its accounts and progress on tower-data, its media on S3 behind CloudFront, its own suite in the web check, and its Lambda image.",
   "state": "active",
   "owner": "Daniel",
   "satisfies": [

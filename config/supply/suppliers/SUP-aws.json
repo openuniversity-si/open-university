@@ -5,5 +5,5 @@
   "owner": "Daniel",
   "kind": "account",
   "budget": "REQ-aws-200",
-  "note": "The deploy, the site's data and the engine's services."
+  "note": "The deploy, the site's data and media (S3 behind CloudFront, replicated to us-west-2), the DNS (Route 53), the mail (SES) and the engine's services."
 }

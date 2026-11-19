@@ -2,7 +2,7 @@
   "id": "ARC-deploy",
   "kind": "component",
   "name": "Deploy and service",
-  "statement": "The AWS infrastructure, the database, the service and its control plane, the deploy rung by a merge into main, and the production guard.",
+  "statement": "The AWS infrastructure (the stacks of infra/aws, DNS on Route 53 and mail on SES among them), the database, the service, the deploy rung by a merge into main, and the production guard; the control plane, a Cloudflare Worker, was retired (D-323).",
   "state": "active",
   "owner": "efficiency",
   "satisfies": [
