@@ -1,0 +1,10 @@
+{
+  "name": "serves",
+  "from": [
+    "NEED"
+  ],
+  "to": [
+    "NC"
+  ],
+  "description": "A need serves a condition of the Goal Tree."
+}

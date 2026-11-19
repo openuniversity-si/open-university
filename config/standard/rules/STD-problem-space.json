@@ -1,0 +1,17 @@
+{
+  "id": "STD-problem-space",
+  "statement": "The problem space holds together (D-348): the current reality tree has no cycle, every core cause is perpetuated by a conflict and has do-nothing and do-minimum among its candidate injections, every chosen injection is decided with an appraisal whose criteria come from conditions and were fixed before its scores, every node of the strategy and tactics tree is written by its level's role, sits under its parent with a strategy that descends from the parent's and a chosen injection as tactic, and no program with work to do is outside the tree.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/problem_space.py:problem_errors"
+  },
+  "basis": [
+    "D-348"
+  ],
+  "note": "Refused by scripts/model check; what depends on a reading is conformance, never this refusal (problem_space.py)."
+}

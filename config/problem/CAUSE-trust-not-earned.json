@@ -1,0 +1,15 @@
+{
+  "id": "CAUSE-trust-not-earned",
+  "statement": "The performance of the Torre's AI system is not yet shown by measure at the level that would give Daniel the trust to delegate the autonomy he wants; while trust is not built and measured, it is presumed or denied case by case.",
+  "kind": "core",
+  "causes": [
+    "CAUSE-request-driven",
+    "UDE-trust-unmeasured"
+  ],
+  "accepted": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (CRT)"
+}

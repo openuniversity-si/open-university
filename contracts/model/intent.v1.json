@@ -49,14 +49,14 @@
       "minLength": 1,
       "description": "Where it is written (a path and section)."
     },
-    "derives_from": {
+    "serves": {
       "type": "array",
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^OBJ-[a-z0-9][a-z0-9-]*$"
+        "pattern": "^NC-[a-z0-9][a-z0-9-]*$"
       },
-      "description": "For a need: the objectives it derives from (D-347)."
+      "description": "For a need: the conditions of the Goal Tree it serves (D-348)."
     }
   }
 }

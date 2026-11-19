@@ -9,5 +9,8 @@
     "INT-ladder-2",
     "INT-ladder-3"
   ],
+  "serves": [
+    "NC-throughput"
+  ],
   "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
 }

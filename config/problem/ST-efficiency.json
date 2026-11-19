@@ -1,0 +1,25 @@
+{
+  "id": "ST-efficiency",
+  "level": 2,
+  "strategy": "NC-cost",
+  "tactic": "INJ-tree-governance",
+  "assumptions": {
+    "necessary": {
+      "statement": "More fronts spend more AWS minutes."
+    },
+    "parallel": {
+      "statement": "Measure the AWS cost per merged PR before cutting it; the Anthropic quota is raised on evidence, not cut."
+    },
+    "sufficiency": {
+      "statement": "AWS is the only ceiling."
+    }
+  },
+  "child_of": "ST-torre",
+  "owner_role": "manager",
+  "validated": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (S&T)"
+}

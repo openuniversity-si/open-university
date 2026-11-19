@@ -5,6 +5,8 @@
     "scripts/tests/test_model.py",
     "scripts/model",
     "scripts/lib/model.py",
+    "config/problem/**",
+    "scripts/lib/problem_space.py",
     "scripts/lib/json_schema.py",
     "contracts/model/*.json",
     "config/model/**",

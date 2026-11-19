@@ -1,10 +1,11 @@
 {
   "name": "addresses",
   "from": [
-    "OBJ"
+    "INJ"
   ],
   "to": [
-    "PROB"
+    "CAUSE",
+    "CONFLICT"
   ],
-  "description": "An objective addresses a problem or opportunity (D-347)."
+  "description": "An injection addresses a core cause or a conflict."
 }

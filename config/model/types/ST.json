@@ -1,0 +1,27 @@
+{
+  "id": "ST",
+  "name": "strategy and tactics node",
+  "system": "problem",
+  "states": [
+    "proposed",
+    "defined",
+    "measuring",
+    "met",
+    "not-met"
+  ],
+  "derived_states": [
+    "proposed",
+    "defined",
+    "measuring",
+    "met",
+    "not-met"
+  ],
+  "unconformant_states": [
+    "proposed",
+    "defined"
+  ],
+  "must_link": [
+    "aims-at"
+  ],
+  "description": "A node of the strategy and tactics tree: its state is its strategy's condition, proposed until validated at its level (D-348)."
+}

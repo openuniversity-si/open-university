@@ -7,8 +7,8 @@
   "to": [
     "NEED",
     "REQ",
-    "OBJ"
+    "INJ"
   ],
   "oslc": "oslc_rm:elaboratedBy",
-  "description": "A requirement derives from a need or a parent requirement; a need derives from an objective (D-347)."
+  "description": "A requirement derives from a need or a parent requirement; a need about a solution derives from the chosen injection (D-348)."
 }

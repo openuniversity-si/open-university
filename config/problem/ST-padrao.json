@@ -1,0 +1,29 @@
+{
+  "id": "ST-padrao",
+  "level": 3,
+  "strategy": "NC-standard",
+  "tactic": "INJ-tree-governance",
+  "assumptions": {
+    "necessary": {
+      "statement": "The standard and the model are how the system knows itself."
+    },
+    "parallel": {
+      "statement": "Run the standard as programs, measured by the model."
+    },
+    "sufficiency": {
+      "statement": "The standard's programs and the census of manifests cover it."
+    }
+  },
+  "child_of": "ST-administration",
+  "decomposes_into": [
+    "WORK-program-padrao-dev",
+    "WORK-program-censo-no-manifesto"
+  ],
+  "owner_role": "domain-coordinator",
+  "validated": {
+    "by": "manager",
+    "date": "2026-11-19"
+  },
+  "owner": "domain-coordinator",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (S&T)"
+}

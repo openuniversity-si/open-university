@@ -1,0 +1,26 @@
+{
+  "id": "NC-cost",
+  "statement": "AWS costs less than US$ 200 a month (the Anthropic quota is no ceiling: when it is the bottleneck, the session tells Daniel the raise, with why and the expected gain).",
+  "level": "csf",
+  "necessary_for": [
+    "INT-intention-v1",
+    "INT-limits"
+  ],
+  "measure": {
+    "kind": "aws-spend",
+    "max_age_days": 2
+  },
+  "comparator": "lte",
+  "threshold": 200,
+  "baseline": {
+    "value": 0.0,
+    "date": "2026-11-19",
+    "source": "config/validation/spend/aws.json"
+  },
+  "accepted": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

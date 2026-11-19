@@ -1,0 +1,29 @@
+{
+  "id": "NC-throughput",
+  "statement": "Merged PRs a day grow along the ladder without splitting work: step 1, 1,000 a day over 7 days, with no guard worse.",
+  "level": "csf",
+  "necessary_for": [
+    "INT-intention-v1",
+    "INT-ladder-1"
+  ],
+  "measure": {
+    "kind": "merges-per-day"
+  },
+  "comparator": "gte",
+  "threshold": 1000,
+  "window": {
+    "kind": "days",
+    "size": 7
+  },
+  "baseline": {
+    "value": 32.86,
+    "date": "2026-11-19",
+    "source": "scripts/model measure (VAL-ladder-1)"
+  },
+  "accepted": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

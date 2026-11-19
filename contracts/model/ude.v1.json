@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/ude.v1.json",
+  "title": "Undesirable effect v1",
+  "description": "config/problem/UDE-<name>.json (D-348): an undesirable effect, factual and present (TOCICO: a negative effect relative to the goal or a necessary condition), with the evidence that shows it and the conditions it violates. Causes (CAUSE) explain it.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "statement",
+    "violates",
+    "evidence",
+    "state",
+    "owner",
+    "source"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^UDE-[a-z0-9][a-z0-9-]*$"
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "violates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^NC-[a-z0-9][a-z0-9-]*$"
+      },
+      "minItems": 1
+    },
+    "evidence": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "state": {
+      "enum": [
+        "observed",
+        "gone",
+        "returned"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where it is written or argued (a path and section)."
+    }
+  }
+}

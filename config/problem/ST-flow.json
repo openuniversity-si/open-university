@@ -1,0 +1,31 @@
+{
+  "id": "ST-flow",
+  "level": 3,
+  "strategy": "NC-throughput",
+  "tactic": "INJ-tree-governance",
+  "assumptions": {
+    "necessary": {
+      "statement": "The units that feed the fronts come from these programs."
+    },
+    "parallel": {
+      "statement": "Programs already planned are the cheapest supply of ready units."
+    },
+    "sufficiency": {
+      "statement": "With the queue fed, the fronts merge to the ladder's pace."
+    }
+  },
+  "child_of": "ST-capacity",
+  "decomposes_into": [
+    "WORK-program-reach-1000-prs-per-day",
+    "WORK-program-vazao",
+    "WORK-program-fluxo-amplo",
+    "WORK-program-live-planning"
+  ],
+  "owner_role": "domain-coordinator",
+  "validated": {
+    "by": "manager",
+    "date": "2026-11-19"
+  },
+  "owner": "domain-coordinator",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (S&T)"
+}

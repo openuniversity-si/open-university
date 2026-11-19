@@ -1,0 +1,11 @@
+{
+  "name": "necessary-for",
+  "from": [
+    "NC"
+  ],
+  "to": [
+    "INT",
+    "NC"
+  ],
+  "description": "A condition is necessary for an intention or for another condition (the Goal Tree)."
+}

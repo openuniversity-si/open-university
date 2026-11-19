@@ -1,0 +1,10 @@
+{
+  "name": "child-of",
+  "from": [
+    "ST"
+  ],
+  "to": [
+    "ST"
+  ],
+  "description": "A node of the strategy and tactics tree is a child of the node above."
+}

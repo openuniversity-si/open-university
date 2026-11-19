@@ -1,0 +1,10 @@
+{
+  "name": "decomposes-into",
+  "from": [
+    "ST"
+  ],
+  "to": [
+    "WORK"
+  ],
+  "description": "A node decomposes into programs or units of work."
+}

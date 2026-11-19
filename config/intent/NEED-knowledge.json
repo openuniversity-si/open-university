@@ -6,5 +6,8 @@
   "refines": [
     "INT-padrao-dev"
   ],
+  "serves": [
+    "NC-requirements-tested"
+  ],
   "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
 }

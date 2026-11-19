@@ -1,0 +1,11 @@
+{
+  "name": "aims-at",
+  "from": [
+    "ST"
+  ],
+  "to": [
+    "INT",
+    "NC"
+  ],
+  "description": "A node's strategy is a condition of the Goal Tree, or the intention for the level-1 node."
+}

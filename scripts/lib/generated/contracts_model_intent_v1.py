@@ -8,5 +8,5 @@ IntentV1 = TypedDict('IntentV1', {
     'owner': Required[str],
     'refines': NotRequired[list[str]],
     'source': Required[str],
-    'derives_from': NotRequired[list[str]],
+    'serves': NotRequired[list[str]],
 }, total=False)

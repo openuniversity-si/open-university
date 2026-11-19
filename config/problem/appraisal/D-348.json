@@ -1,0 +1,130 @@
+{
+  "id": "D-348",
+  "decision": "D-348",
+  "criteria": [
+    {
+      "nc": "NC-throughput",
+      "weight": 3
+    },
+    {
+      "nc": "NC-trust",
+      "weight": 3
+    },
+    {
+      "nc": "NC-autonomy",
+      "weight": 2
+    },
+    {
+      "nc": "NC-quality",
+      "weight": 2
+    },
+    {
+      "nc": "NC-cost",
+      "weight": 1
+    }
+  ],
+  "criteria_fixed": "2026-11-19",
+  "options": [
+    "INJ-do-nothing",
+    "INJ-do-minimum",
+    "INJ-tree-governance"
+  ],
+  "scores": [
+    {
+      "option": "INJ-do-nothing",
+      "nc": "NC-throughput",
+      "value": 0,
+      "evidence": "the gap stays (VAL-ladder-1)"
+    },
+    {
+      "option": "INJ-do-nothing",
+      "nc": "NC-trust",
+      "value": 2,
+      "evidence": "nothing joins or reads the guards"
+    },
+    {
+      "option": "INJ-do-nothing",
+      "nc": "NC-autonomy",
+      "value": 2,
+      "evidence": "sessions keep waiting for requests (VAL-autonomy)"
+    },
+    {
+      "option": "INJ-do-nothing",
+      "nc": "NC-quality",
+      "value": 8,
+      "evidence": "no change to the gate (VAL-escape-under-1)"
+    },
+    {
+      "option": "INJ-do-nothing",
+      "nc": "NC-cost",
+      "value": 10,
+      "evidence": "no new spend"
+    },
+    {
+      "option": "INJ-do-minimum",
+      "nc": "NC-throughput",
+      "value": 4,
+      "evidence": "more fronts, but no ready units under them (the constraint is the supply of ready units)"
+    },
+    {
+      "option": "INJ-do-minimum",
+      "nc": "NC-trust",
+      "value": 1,
+      "evidence": "more autonomy with no measured trust (P-59 stands)"
+    },
+    {
+      "option": "INJ-do-minimum",
+      "nc": "NC-autonomy",
+      "value": 3,
+      "evidence": "fronts still start from requests"
+    },
+    {
+      "option": "INJ-do-minimum",
+      "nc": "NC-quality",
+      "value": 6,
+      "evidence": "more concurrent work through the same gate, 22.5 % red"
+    },
+    {
+      "option": "INJ-do-minimum",
+      "nc": "NC-cost",
+      "value": 8,
+      "evidence": "more fronts spend more AWS minutes"
+    },
+    {
+      "option": "INJ-tree-governance",
+      "nc": "NC-throughput",
+      "value": 8,
+      "evidence": "units generated under validated nodes feed every front; standing fronts on the gate and the deploy"
+    },
+    {
+      "option": "INJ-tree-governance",
+      "nc": "NC-trust",
+      "value": 8,
+      "evidence": "NC-trust measures the guards and autonomy grows only with it"
+    },
+    {
+      "option": "INJ-tree-governance",
+      "nc": "NC-autonomy",
+      "value": 8,
+      "evidence": "a session always has the next unit of its node"
+    },
+    {
+      "option": "INJ-tree-governance",
+      "nc": "NC-quality",
+      "value": 8,
+      "evidence": "every unit under a measured node; the gate's first pass is a standing front"
+    },
+    {
+      "option": "INJ-tree-governance",
+      "nc": "NC-cost",
+      "value": 8,
+      "evidence": "AWS stays far under its ceiling (US$ 0.00 this month)"
+    }
+  ],
+  "scored": "2026-11-19",
+  "chosen": "INJ-tree-governance",
+  "why": "It alone attacks the core cause (trust not earned by measure) and invalidates the premise that perpetuates it, and it ranks first on the three heaviest criteria; do-minimum adds fronts that have no ready units and no measured trust.",
+  "revert": "A later decision that rejects INJ-tree-governance; the coordinators stop generating units and the flow goes back to requests.",
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (appraisal)"
+}

@@ -1,0 +1,18 @@
+{
+  "script": "scripts/tests/problem.test.sh",
+  "covers": [
+    "scripts/tests/problem.test.sh",
+    "scripts/tests/test_problem.py",
+    "scripts/lib/problem_space.py",
+    "scripts/lib/model.py",
+    "scripts/lib/json_schema.py",
+    "contracts/model/*.json",
+    "config/model/**",
+    "config/problem/**",
+    "config/intent/*.json",
+    "config/validation/*.json",
+    "config/registry/slo.json",
+    "docs/domain/decisions/*.md",
+    "docs/process/premises/*.yml"
+  ]
+}

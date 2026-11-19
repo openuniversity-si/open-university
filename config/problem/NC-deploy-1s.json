@@ -1,0 +1,24 @@
+{
+  "id": "NC-deploy-1s",
+  "statement": "A code-only merge is live within 1 s of its landing (the doorbell's clock, D-345).",
+  "level": "nc",
+  "necessary_for": [
+    "NC-throughput"
+  ],
+  "measure": {
+    "kind": "run-durations",
+    "workflow": "deploy-live",
+    "percentile": 100,
+    "min_runs": 20,
+    "max_age_days": 7
+  },
+  "comparator": "lte",
+  "threshold": 1,
+  "baseline": {
+    "value": 2.264,
+    "date": "2026-11-19",
+    "source": "config/validation/runs/deploy-live.json"
+  },
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

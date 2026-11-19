@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/conflict.v1.json",
+  "title": "Conflict cloud v1",
+  "description": "config/problem/CONFLICT-<name>.json (D-348): the evaporating cloud that perpetuates a core cause: objective A (an NC), requirements B and C, prerequisites D and D' in conflict, and the premises under its arrows.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "a",
+    "b",
+    "c",
+    "d",
+    "d_prime",
+    "objective",
+    "perpetuates",
+    "assumptions",
+    "owner",
+    "source"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^CONFLICT-[a-z0-9][a-z0-9-]*$"
+    },
+    "a": {
+      "type": "string",
+      "minLength": 1
+    },
+    "b": {
+      "type": "string",
+      "minLength": 1
+    },
+    "c": {
+      "type": "string",
+      "minLength": 1
+    },
+    "d": {
+      "type": "string",
+      "minLength": 1
+    },
+    "d_prime": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "type": "string",
+      "pattern": "^NC-[a-z0-9][a-z0-9-]*$"
+    },
+    "perpetuates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^CAUSE-[a-z0-9][a-z0-9-]*$"
+      },
+      "minItems": 1
+    },
+    "assumptions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "arrow",
+          "statement"
+        ],
+        "properties": {
+          "arrow": {
+            "enum": [
+              "A-B",
+              "A-C",
+              "B-D",
+              "C-D'",
+              "D-D'"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "premise": {
+            "type": "string",
+            "pattern": "^P-[0-9]+$",
+            "description": "The register's premise, when it carries a blast radius."
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "accepted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "by",
+        "date"
+      ],
+      "properties": {
+        "by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        }
+      },
+      "description": "For a csf: who accepted it and its target (Daniel)."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where it is written or argued (a path and section)."
+    }
+  }
+}

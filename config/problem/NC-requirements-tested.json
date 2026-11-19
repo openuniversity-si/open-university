@@ -1,0 +1,21 @@
+{
+  "id": "NC-requirements-tested",
+  "statement": "Every requirement is tested.",
+  "level": "nc",
+  "necessary_for": [
+    "NC-standard"
+  ],
+  "measure": {
+    "kind": "model-share",
+    "name": "requirements-tested"
+  },
+  "comparator": "gte",
+  "threshold": 1,
+  "baseline": {
+    "value": 1.0,
+    "date": "2026-11-19",
+    "source": "scripts/model measure (VAL-knowledge)"
+  },
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

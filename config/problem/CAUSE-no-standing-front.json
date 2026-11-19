@@ -1,0 +1,13 @@
+{
+  "id": "CAUSE-no-standing-front",
+  "statement": "No standing front works on the conditions of throughput (the gate, the deploy, the measure): they move only when someone asks.",
+  "kind": "intermediate",
+  "causes": [
+    "UDE-gate-red",
+    "UDE-gate-slow",
+    "UDE-deploy-slow",
+    "UDE-blind-constraint"
+  ],
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (CRT)"
+}

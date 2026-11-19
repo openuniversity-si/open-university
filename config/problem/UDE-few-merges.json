@@ -1,0 +1,17 @@
+{
+  "id": "UDE-few-merges",
+  "statement": "The Torre merges about 33 PRs a day, thirty times fewer than ladder step 1; in the last hour 0 merged with the queue still.",
+  "violates": [
+    "NC-throughput",
+    "NC-throughput-2",
+    "NC-throughput-3"
+  ],
+  "evidence": [
+    "scripts/model measure (VAL-ladder-1: 32.86 a day, 19/11)",
+    "SLO merged-prs-per-hour-min: 2 against a minimum of 42",
+    "scripts/flow-metrics --constraint --base origin/main (19/11): constraint is the supply of ready units"
+  ],
+  "state": "observed",
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

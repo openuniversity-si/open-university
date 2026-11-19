@@ -13,8 +13,8 @@
   ],
   "covered_by": [
     {
-      "type": "PROB",
-      "link": "refines"
+      "type": "NC",
+      "link": "necessary-for"
     }
   ],
   "description": "The owner's intention, a goal of its ladder or a locked constraint."

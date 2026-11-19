@@ -1,8 +1,9 @@
 {
   "name": "measured-by",
   "from": [
-    "VAL",
-    "REQ"
+    "NC",
+    "REQ",
+    "VAL"
   ],
   "to": [
     "MEAS"

@@ -1,0 +1,13 @@
+{
+  "id": "CONFLICT",
+  "name": "conflict cloud",
+  "system": "problem",
+  "states": [
+    "stated"
+  ],
+  "must_link": [
+    "objective-is",
+    "perpetuates"
+  ],
+  "description": "The evaporating cloud that perpetuates a core cause, with the premises under its arrows (D-348)."
+}

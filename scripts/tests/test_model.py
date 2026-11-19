@@ -627,44 +627,6 @@ class Requirements(unittest.TestCase):
         self.assertEqual((found['INT-ladder']['type'], found['NEED-throughput']['type']), ('INT', 'NEED'))
         self.assertEqual(found['NEED-throughput']['links'], [{'type': 'refines', 'target': 'INT-ladder'}])
 
-    def test_the_problem_space_comes_before_the_need_and_an_objective_is_judged_by_its_measure(self):
-        # D-347: INT <- PROB (refines) <- OBJ (addresses, decided by a D) <- NEED (derives from); OBJ's state is its benefit
-        write(self.root, 'config/intent/PROB-slow.json', {
-            'id': 'PROB-slow', 'statement': 'too few merges', 'kind': 'problem', 'refines': ['INT-ladder'], 'owner': 'Daniel',
-            'state': 'open', 'source': 'x', 'current': {'statement': 'a handful a day', 'evidence': ['scripts/flow-metrics']}})
-        objective = {'id': 'OBJ-pace', 'statement': 'merges a day', 'addresses': ['PROB-slow'], 'owner': 'Daniel',
-                     'measure': {'kind': 'unwired', 'source': 'x'}, 'comparator': 'gte', 'threshold': 1,
-                     'baseline': {'value': 0, 'date': '2026-11-19', 'source': 'x'}, 'by': '2026-12-31',
-                     'decided_by': ['D-1'], 'source': 'x'}
-        write(self.root, 'config/intent/OBJ-pace.json', objective)
-        need = self.root / 'config/intent/NEED-throughput.json'
-        write(self.root, 'config/intent/NEED-throughput.json', {**json.loads(need.read_text()), 'derives_from': ['OBJ-pace']})
-        found = self.found()
-        self.assertEqual(found['PROB-slow']['links'], [{'type': 'refines', 'target': 'INT-ladder'}])
-        self.assertEqual(found['OBJ-pace']['links'], [{'type': 'addresses', 'target': 'PROB-slow'},
-                                                      {'type': 'decided-by', 'target': 'D-1'}])
-        self.assertIn({'type': 'derives-from', 'target': 'OBJ-pace'}, found['NEED-throughput']['links'])
-        meta = model.metamodel(self.root)
-        model.derive_validations(found, self.root)
-        self.assertEqual(found['OBJ-pace']['state'], 'defined', 'no source wired: no benefit reading yet')
-        into = model.incoming(found)
-        self.assertTrue(model.covered(meta, found['INT-ladder'], into, found), 'a problem refines the intention')
-        self.assertTrue(model.covered(meta, found['PROB-slow'], into, found), 'an objective addresses the problem')
-        self.assertFalse(model.covered(meta, found['OBJ-pace'], into, found), 'an objective with no measure wired')
-        write(self.root, 'config/intent/OBJ-pace.json', {**objective, 'measure': {'kind': 'merges-per-day'},
-                                                         'threshold': len('a handful')})
-        found = self.found()
-        model.derive_validations(found, self.root)
-        self.assertIn(found['OBJ-pace']['state'], ('met', 'not-met', 'measuring'), 'a wired measure is a reading')
-        self.assertTrue(model.covered(meta, found['OBJ-pace'], model.incoming(found), found), 'a need derives from it')
-        write(self.root, 'config/intent/NEED-throughput.json', json.loads(need.read_text()) | {'derives_from': []})
-        found = self.found()
-        self.assertFalse(model.covered(meta, found['NEED-throughput'], model.incoming(found), found),
-                         'a need that derives from no objective does not conform')
-        write(self.root, 'config/intent/OBJ-pace.json', {**objective, 'baseline': {'value': 0}})
-        errors, _ = model.check(meta, self.found())
-        self.assertTrue(any(error.startswith('OBJ:OBJ-pace: $.baseline') for error in errors), errors)
-
     def test_an_import_reads_a_sources_requirements_where_they_are_with_the_batch_state(self):
         write(self.root, 'config/requirements/imports/contract.json', {'id': 'contract', 'type': 'product',
                                                                        'state': 'obsolete', 'owner': 'Daniel',
@@ -1538,9 +1500,9 @@ class RealRepository(unittest.TestCase):
         groups = {name: system.get('group') for name, system in meta['systems'].items()}
         self.assertEqual([name for name, group in groups.items() if group not in model.GROUPS], [])
         self.assertEqual(sorted(name for name, group in groups.items() if group == 'management'),
-                         ['decisions', 'intent', 'measurement', 'work'])
+                         ['decisions', 'intent', 'measurement', 'problem', 'work'])
         self.assertEqual(sorted(name for name, group in groups.items() if group == 'engineering'),
-                         sorted(set(groups) - {'decisions', 'intent', 'measurement', 'work'}))
+                         sorted(set(groups) - {'decisions', 'intent', 'measurement', 'problem', 'work'}))
         result = model.measure(ROOT, meta=meta)
         self.assertEqual(list(result['groups']), ['management', 'engineering'])
         self.assertEqual({group: sorted(item['systems']) for group, item in result['groups'].items()},

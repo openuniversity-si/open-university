@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/appraisal.v1.json",
+  "title": "Appraisal v1",
+  "description": "config/problem/appraisal/D-<n>.json (D-348): the options appraisal of a business-level decision, the lean core of the business case (ISO 21502 4.3.2, PRINCE2, the Five Case Model): criteria taken from NCs and fixed before the scores, the options (injections, always with do-nothing and do-minimum), a score per option and criterion with its evidence, the chosen option, why, and the revert path.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "decision",
+    "criteria",
+    "criteria_fixed",
+    "options",
+    "scores",
+    "scored",
+    "chosen",
+    "why",
+    "revert",
+    "owner",
+    "source"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^D-[0-9]+$"
+    },
+    "decision": {
+      "type": "string",
+      "pattern": "^D-[0-9]+$"
+    },
+    "criteria": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nc",
+          "weight"
+        ],
+        "properties": {
+          "nc": {
+            "type": "string",
+            "pattern": "^NC-[a-z0-9][a-z0-9-]*$"
+          },
+          "weight": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "criteria_fixed": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "options": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^INJ-[a-z0-9][a-z0-9-]*$"
+      },
+      "minItems": 1
+    },
+    "scores": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "option",
+          "nc",
+          "value",
+          "evidence"
+        ],
+        "properties": {
+          "option": {
+            "type": "string",
+            "pattern": "^INJ-[a-z0-9][a-z0-9-]*$"
+          },
+          "nc": {
+            "type": "string",
+            "pattern": "^NC-[a-z0-9][a-z0-9-]*$"
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "scored": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "chosen": {
+      "type": "string",
+      "pattern": "^INJ-[a-z0-9][a-z0-9-]*$"
+    },
+    "why": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revert": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where it is written or argued (a path and section)."
+    }
+  }
+}

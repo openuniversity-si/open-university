@@ -1,11 +1,13 @@
 {
   "name": "violates",
   "from": [
-    "INC"
+    "INC",
+    "UDE"
   ],
   "to": [
     "REQ",
-    "VAL"
+    "VAL",
+    "NC"
   ],
-  "description": "An incident violated a requirement or a validation."
+  "description": "An incident violated a requirement or a validation; an undesirable effect violates a condition."
 }

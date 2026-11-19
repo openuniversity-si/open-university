@@ -42,7 +42,12 @@
     "scripts/tests/test_runs.py",
     "scripts/tests/test_security.py",
     "scripts/tests/test_spend.py",
-    "scripts/tests/test_supply.py"
+    "scripts/tests/test_supply.py",
+    "scripts/lib/problem_space.py",
+    "scripts/tests/test_problem.py",
+    "scripts/tests/problem.test.sh",
+    "scripts/tests/covers/problem.json",
+    "config/problem/**"
   ],
   "requires": {
     "engine-config": "^1",

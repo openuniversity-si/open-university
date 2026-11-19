@@ -1,0 +1,24 @@
+{
+  "id": "NC-gate-time",
+  "statement": "The gate takes at most 60 s.",
+  "level": "nc",
+  "necessary_for": [
+    "NC-throughput"
+  ],
+  "measure": {
+    "kind": "run-durations",
+    "workflow": "tower-gate",
+    "percentile": 100,
+    "min_runs": 20,
+    "max_age_days": 7
+  },
+  "comparator": "lte",
+  "threshold": 60,
+  "baseline": {
+    "value": 119,
+    "date": "2026-11-19",
+    "source": "scripts/model measure (VAL-gate-60s)"
+  },
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

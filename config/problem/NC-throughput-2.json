@@ -1,0 +1,28 @@
+{
+  "id": "NC-throughput-2",
+  "statement": "Ladder step 2: 10,000 merged PRs a day over 7 days, with no guard worse.",
+  "level": "csf",
+  "necessary_for": [
+    "INT-ladder-2"
+  ],
+  "measure": {
+    "kind": "merges-per-day"
+  },
+  "comparator": "gte",
+  "threshold": 10000,
+  "window": {
+    "kind": "days",
+    "size": 7
+  },
+  "baseline": {
+    "value": 32.86,
+    "date": "2026-11-19",
+    "source": "scripts/model measure (VAL-ladder-1)"
+  },
+  "accepted": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

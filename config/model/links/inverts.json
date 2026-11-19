@@ -1,0 +1,10 @@
+{
+  "name": "inverts",
+  "from": [
+    "INJ"
+  ],
+  "to": [
+    "UDE"
+  ],
+  "description": "A desired effect of an injection inverts an undesirable effect (the future reality tree)."
+}

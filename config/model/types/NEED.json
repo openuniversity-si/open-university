@@ -23,6 +23,6 @@
   ],
   "description": "A need that refines the intention and that requirements and validations answer.",
   "must_link": [
-    "derives-from"
+    "serves"
   ]
 }

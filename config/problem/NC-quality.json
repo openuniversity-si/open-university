@@ -1,0 +1,28 @@
+{
+  "id": "NC-quality",
+  "statement": "No defect escapes to main in the last 1,000 merges.",
+  "level": "csf",
+  "necessary_for": [
+    "INT-intention-v1"
+  ],
+  "measure": {
+    "kind": "escape-rate"
+  },
+  "comparator": "lte",
+  "threshold": 0,
+  "window": {
+    "kind": "merges",
+    "size": 1000
+  },
+  "baseline": {
+    "value": 0,
+    "date": "2026-11-19",
+    "source": "scripts/model measure (VAL-escape-under-1)"
+  },
+  "accepted": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

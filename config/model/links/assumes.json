@@ -3,7 +3,9 @@
   "from": [
     "D",
     "REQ",
-    "STD"
+    "STD",
+    "CONFLICT",
+    "ST"
   ],
   "to": [
     "P"

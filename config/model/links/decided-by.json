@@ -2,10 +2,10 @@
   "name": "decided-by",
   "from": [
     "PROP",
-    "OBJ"
+    "INJ"
   ],
   "to": [
     "D"
   ],
-  "description": "A proposal is decided by a decision; an objective's solution is chosen by one (D-347)."
+  "description": "A proposal is decided by a decision; so is an injection chosen or rejected (D-348)."
 }
