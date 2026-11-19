@@ -22,7 +22,10 @@
 # puts the base's version of every gate file the change touches back in the checkout (scripts/lib/gate_pin.py overlay,
 # GATE_FILE), and then the plan's stages there (verify-commit --stages-only); tower/gate is green only when it is green
 # too. A change that touches no gate file ends the job after the overlay, with no toolchain; it is a fifth runner of a
-# building entry, held seconds unless the change touches the gate.
+# building entry, held seconds unless the change touches the gate. The overlay also puts back the base's toolchain
+# (scripts/cloud, its registry, TOOLCHAIN_FILE), so the toolchain step runs the base's setup.sh; the job restores no
+# cache: an entry under the base's key can be saved from the pull request's own scope by a part that ran the head's
+# setup.sh (a miss on an evicted key), so the pinned job installs from the base's checksums every time.
 
 name: tower-gate
 on:
@@ -103,16 +106,6 @@ jobs:
           python3 "$RUNNER_TEMP/base/scripts/lib/gate_pin.py" overlay --root "$GITHUB_WORKSPACE" --base "$base" | tee "$RUNNER_TEMP/pinned"
           echo "base=$base" >> "$GITHUB_OUTPUT"
           if grep -q '^gate: 0 gate file' "$RUNNER_TEMP/pinned"; then echo "changed=" >> "$GITHUB_OUTPUT"; else echo "changed=1" >> "$GITHUB_OUTPUT"; fi
-      - uses: actions/cache@v4
-        if: steps.pin.outputs.changed
-        with:
-          path: |
-            .toolchain
-            !.toolchain/pgdata
-            !.toolchain/postgres.log
-            !.toolchain/pgsocket
-            !.toolchain/pghome
-          key: toolchain-bin-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
       - name: toolchain
         if: steps.pin.outputs.changed
         run: bash scripts/cloud/setup.sh
