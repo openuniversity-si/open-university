@@ -1060,15 +1060,18 @@ class DoorbellTests(unittest.TestCase):
         return (json.loads(done.stdout), json.loads(invoked.read_text()) if invoked.exists() else None,
                 len(reads.read_text().splitlines()) if reads.exists() else 0)
 
-    def test_a_signed_push_to_main_is_the_queues_landed_with_no_token_and_no_build(self):
+    def test_a_signed_push_to_main_is_forwarded_as_a_hook_word_with_no_token_and_no_build(self):
+        """SIGNED-HOOK: the doorbell forwards the signed push as it came (kind, ref, after, deleted); the port decides that
+        a push to main is the queue's landing (http_port.queue_state), so the doorbell checks no ref of its own."""
         sha = 'b' * 40
         for encoded in (False, True):
             answer, invoked, reads = self.hook_call({'ref': 'refs/heads/main', 'after': sha, 'deleted': False}, encoded=encoded)
-            self.assertEqual((answer['statusCode'], json.loads(answer['body'])), (202, {'queue': 'landed', 'sha': sha}))
+            self.assertEqual((answer['statusCode'], json.loads(answer['body'])), (202, {'queue': 'hook', 'sha': sha}))
             # PUSH-STEPS: the instant the doorbell heard the word (epoch seconds), where the port's step durations start
             self.assertIsInstance(invoked['payload']['detail'].pop('heard'), (int, float))  # PUSH-STEPS: the instant is a number; its value is the doorbell's clock
             self.assertEqual(invoked, {'name': 'tower-port-api:live', 'payload': {
-                'source': 'tower.doorbell', 'detail-type': 'Merge Queue', 'detail': {'event': 'landed', 'sha': sha}}})
+                'source': 'tower.doorbell', 'detail-type': 'Merge Queue',
+                'detail': {'event': 'hook', 'kind': 'push', 'ref': 'refs/heads/main', 'after': sha, 'deleted': False}}})
             self.assertEqual(reads, 1)
         self.assertFalse(self.built.exists())
 
@@ -1085,16 +1088,19 @@ class DoorbellTests(unittest.TestCase):
             self.assertEqual((answer['statusCode'], invoked), (401, None), kind)
         self.assertFalse(self.built.exists())
 
-    def test_anything_else_signed_is_a_204_that_invokes_nothing(self):
+    def test_anything_else_signed_is_forwarded_as_a_hook_word_and_starts_no_build(self):
+        """SIGNED-HOOK: every signed event reaches the port as {event: hook, kind, ...}; the port ignores what is no push
+        to main (test_infra_queue_reload), and the doorbell starts no build for any of them."""
         sha = 'b' * 40
         for body, event in (({'zen': 'hi', 'hook_id': 713861741}, 'ping'),
                             ({'ref': 'refs/heads/gh-readonly-queue/main/pr-1-x', 'after': sha, 'deleted': False}, 'push'),
                             ({'ref': 'refs/heads/main', 'after': '0' * 40, 'deleted': True}, 'push'),
                             ({'ref': 'refs/heads/main', 'after': sha, 'deleted': False}, 'pull_request')):
             answer, invoked, _ = self.hook_call(body, event=event)
-            self.assertEqual((answer, invoked), ({'statusCode': 204}, None), (body, event))
+            self.assertEqual(json.loads(answer['body'])['queue'], 'hook', (body, event))
+            detail = invoked['payload']['detail']
+            self.assertEqual((invoked['name'], detail['event'], detail['kind']), ('tower-port-api:live', 'hook', event))
         self.assertFalse(self.built.exists())
-
 
 if __name__ == '__main__':
     unittest.main()

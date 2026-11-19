@@ -36,6 +36,11 @@ GIT_ENV = {**os.environ, 'GIT_AUTHOR_NAME': 't', 'GIT_AUTHOR_EMAIL': 't@t', 'GIT
            'GIT_COMMITTER_EMAIL': 't@t', 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_CONFIG_NOSYSTEM': '1'}
 
 
+
+def short(text):
+    """The digest or sha prefix the look's reasons print."""
+    return text[:12]
+
 class Log:
     """The log.event statements of queue_deploy and http_port.queue_state, by statement."""
 
@@ -59,7 +64,8 @@ class Log:
 
     def rows(self, sql, params):
         if sql == queue_deploy.QUEUED:
-            return [(each['payload']['event'], each['payload']['sha'], each['at']) for each in self.events
+            return [(each['payload']['event'], each['payload']['sha'], each['at'],
+                     'true' if each['payload'].get('signed') else None) for each in self.events
                     if each['type'] == queue_deploy.QUEUE]
         if sql == queue_deploy.PREPARED_OF:
             return [(json.dumps(each['payload']),) for each in self.events
@@ -88,6 +94,10 @@ class Log:
             self.add(params['id'], 'platform.deploy.image_swap', {**json.loads(params['payload']), 'swapped': True,
                                                                    'by': 'queue', 'roles': ['service']})
             return [(self.pointer[1], 1000.5)]
+        if sql == queue_deploy.HEIR_OF:  # RELOAD-WHY: the heir's beat age (self.beat_age) and the newest queue want
+            wants = [each['payload']['state'] for each in self.events if each['type'] == live_image.SUCCESSOR
+                     and each['payload'].get('branch') == 'queue' and each['payload']['digest'] == params['digest']]
+            return [(getattr(self, 'beat_age', {}).get(params['digest']), wants[-1] if wants else None)]
         if sql == queue_deploy.SWAP_OF:
             return [(1,)] if any(each['type'] == 'platform.deploy.image_swap' and each['payload'].get('head') == params['head']
                                  and each['payload'].get('digest') == params['digest'] for each in self.events) else []
@@ -222,7 +232,7 @@ class Prepared(unittest.TestCase):
         early = queue_deploy.QueueReload(self.ssm.get, self.stored.__setitem__, work=Path(self.directory.name, 'other'),
                                          remote=str(self.remote.bare)).landed(self.log, sha, self.order)
         self.assertEqual(early['state'], 'skipped')
-        self.assertIn(f'not {sha[:12]}', early['why'])  # a claim before main moved orders nothing
+        self.assertIn(f'not {short(sha)}', early['why'])  # a claim before main moved orders nothing
         self.log.events = [each for each in self.log.events if each['type'] != queue_deploy.OUTCOME]
         self.remote.land(sha)
         self.word('landed', sha)
@@ -275,6 +285,28 @@ class Prepared(unittest.TestCase):
         self.assertEqual(self.orders, [(sha, found['sha256'], found['key'])])
         self.assertEqual(self.log.pointer, ('', 0))
         self.assertEqual(self.log.of(live_image.SUCCESSOR)[-1]['state'], 'withdrawn')
+        self.assertEqual(said['why'], f"no swap: no heir of {short(found['sha256'])} beat; want wanted")  # RELOAD-WHY
+
+    def test_an_ordered_fallback_says_how_old_the_heirs_last_beat_was_and_its_want(self):
+        """RELOAD-WHY: a heir that beat, but not within deploy.standby_fresh_s, is named with its age; a bundle the
+        queue never wanted says so; an order that is not made keeps its own reason before the fallback's."""
+        sha = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        found = self.queue.prepare(self.log, sha)
+        fresh = float(queue_deploy.config_data.SPEC['deploy.standby_fresh_s'][1])
+        late, other = fresh * 2, found['sha256'][::-1]  # a beat too old to count; a digest no heir has
+        self.log.beat_age = {found['sha256']: late}
+        self.remote.land(sha)
+        said = self.queue.landed(self.log, sha, self.order)
+        self.assertEqual(said['state'], 'ordered')
+        self.assertEqual(said['why'], f"no swap: the heir of {short(found['sha256'])} last beat {round(late, 3)} s ago "
+                                      f"(fresh: {fresh:g} s); want wanted")
+        self.assertEqual(self.queue.fell(self.log, other), f"no swap: no heir of {short(other)} beat; want none")
+        self.assertEqual(self.queue.fell(None, other), 'no swap: the heir was not read (AttributeError)')
+        self.log.events = [each for each in self.log.events if each['type'] != queue_deploy.OUTCOME]
+        refused = self.queue.landed(self.log, sha, lambda *_: (False, 'c' * 40, False))
+        self.assertEqual(refused['state'], 'skipped')
+        self.assertEqual(refused['why'], f"the order of {short('c' * 40)} is not settled; no swap: the heir of "
+                                         f"{short(found['sha256'])} last beat {round(late, 3)} s ago (fresh: {fresh:g} s); want withdrawn")
 
     def test_a_burst_that_lands_together_swaps_once_onto_the_last_green_commit(self):
         """BURST-SWAP: the queue merged two entries at once, so main went from the deployed base to the second, whose
@@ -475,6 +507,58 @@ class Prepared(unittest.TestCase):
         self.assertEqual(said['state'], 'ordered')
         self.assertEqual([sha for sha, _, _ in self.orders], [second])
 
+    def counted(self):
+        """The look with its git ls-remote of main counted."""
+        queue, calls = self.reload_of(), []
+        head = queue.main_head
+        queue.main_head = lambda: calls.append(1) or head()
+        return queue, calls
+
+    def test_a_signed_landing_skips_the_ls_remote_of_main_and_an_unsigned_one_does_not(self):
+        """SIGNED-HOOK: GitHub's signed push is the word that main is the sha, so the look asks git nothing about main;
+        the doorbell's token word still checks it. The landing is code-only, its parent deployed: ordered both ways."""
+        sha = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        self.remote.land(sha)
+        self.hook(kind='push', ref='refs/heads/main', after=sha, deleted=False)
+        queue, calls = self.counted()
+        queue.look(self.log, self.order)
+        [said] = self.log.of(queue_deploy.OUTCOME)
+        self.assertEqual(calls, [])
+        self.assertEqual((said['state'], said['main_at'], said['main']), ('ordered', None, 'signed'))
+        self.assertEqual(len(self.orders), 1)
+        self.remote.git('checkout', '-q', '-B', 'main', sha)
+        other = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 3\n'}, 2)
+        self.remote.land(other, 2)
+        self.ssm[queue_deploy.LAST_SHA] = sha
+        queue, calls = self.counted()
+        unsigned = queue.landed(self.log, other, self.order)
+        self.assertEqual(calls, [1])
+        self.assertIsInstance(unsigned['main_at'], float)
+        self.assertNotIn('main', unsigned)
+        self.assertEqual(unsigned['state'], 'ordered')
+
+    def test_a_signed_landing_still_refuses_what_is_not_code_only_and_a_burst_off_the_deployed_line(self):
+        """SIGNED-HOOK: the signature replaces the ls-remote alone; the classification and the ancestor check stand."""
+        stack = self.remote.queued({'infra/db/migrations/0002_next.sql': 'select 2;\n'})  # main never moves to it
+        queue, calls = self.counted()
+        said = queue.landed(self.log, stack, self.order, signed=True)
+        self.assertEqual((said['state'], calls), ('skipped', []))
+        self.assertIn('not code-only', said['why'])
+        self.remote.git('checkout', '-q', '-B', 'side', self.remote.main)
+        self.remote.write('infra/service/tower_infra/canary.py', 'SIDE = 1\n')
+        side = self.remote.commit('side')
+        self.remote.git('push', '-q', str(self.remote.bare), 'side:refs/heads/gh-readonly-queue/main/pr-9-side')
+        self.remote.git('checkout', '-q', 'main')
+        self.ssm[queue_deploy.LAST_SHA] = side
+        first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'}, 2)
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        second = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 3\n'}, 3)
+        self.remote.land(second, 3)
+        said = self.reload_of().landed(self.log, second, self.order, signed=True)
+        self.assertEqual(said['state'], 'skipped')
+        self.assertIn('is not an ancestor of', said['why'])
+        self.assertEqual(self.orders, [])
+
     def test_a_burst_with_a_path_the_fast_path_cannot_carry_waits_for_the_deploy_build(self):
         """BURST-SWAP: the classification is of every path since the deployed commit, so a burst whose first entry
         changed a migration is not code-only even though its last entry changes code alone."""
@@ -519,6 +603,27 @@ class Prepared(unittest.TestCase):
         for event, sha in (('deploy', 'b' * 40), ('landed', 'main'), ('', '')):
             self.assertEqual(self.word(event, sha), {'ignored': True})
         self.assertIn('pg_notify(\'tower_deploy\'', http_port.QUEUE_SAID)  # it wakes the look
+
+    def hook(self, **detail):
+        return http_port.handle({'source': 'tower.doorbell', 'detail-type': 'Merge Queue',
+                                 'detail': {'event': 'hook', **detail}}, self.log, '')
+
+    def test_the_port_lands_a_signed_push_to_main_alone_and_still_takes_the_old_word(self):
+        """SIGNED-HOOK: the doorbell forwards every signed GitHub event; a push to main that deletes nothing is a landing,
+        signed; another ref, a deletion, another event or a bad sha is acknowledged and ignored; {landed, sha} stands."""
+        sha = 'd' * 40
+        push = {'kind': 'push', 'ref': 'refs/heads/main', 'after': sha, 'deleted': False, 'heard': float(len(sha))}
+        self.assertEqual(self.hook(**push), {'event_id': f'platform.deploy.queue:landed:{sha}'})
+        [said] = self.log.of(queue_deploy.QUEUE)
+        self.assertEqual((said['event'], said['sha'], said['signed'], said['heard']), ('landed', sha, True, push['heard']))
+        for other in ({'ref': 'refs/heads/feature'}, {'ref': 'refs/tags/v1'}, {'deleted': True, 'after': '0' * 40},
+                      {'kind': 'ping'}, {'kind': 'check_suite'}, {'kind': None}, {'after': 'main'}, {'after': 'E' * 40},
+                      {'after': None}):
+            self.assertEqual(self.hook(**{**push, 'after': 'e' * 40, **other}), {'ignored': True}, other)
+        self.assertEqual(len(self.log.of(queue_deploy.QUEUE)), 1)
+        old = 'f' * 40
+        self.assertEqual(self.word('landed', old), {'event_id': f'platform.deploy.queue:landed:{old}'})
+        self.assertNotIn('signed', self.log.of(queue_deploy.QUEUE)[-1])  # an older doorbell's word lands unsigned
 
     def test_the_look_orders_the_service_alone_by_queue_and_the_key_turns_it_off(self):
         look = autodeploy.AutoDeploy(None, lambda name: None, None)

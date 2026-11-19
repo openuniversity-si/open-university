@@ -80,8 +80,10 @@ CONTROL = ('scripts/lib/deploy_classify.py', 'scripts/lib/lambda_package.py', 's
 CODE_INPUTS = ('infra/service/tower_infra', 'infra/db/migrations', 'infra/service/requirements.txt')
 REFS = ('+refs/heads/main:refs/remotes/origin/main', '+refs/heads/gh-readonly-queue/*:refs/remotes/origin/queue/*')
 
-# the doorbell's words of the last half hour, oldest first: (event, sha, epoch)
-QUEUED = ("select payload->>'event', payload->>'sha', extract(epoch from occurred_at)::float8 from log.event "
+# the doorbell's words of the last half hour, oldest first: (event, sha, epoch, signed); SIGNED-HOOK: signed is 'true' for
+# a landing the port took from GitHub's signed push webhook
+QUEUED = ("select payload->>'event', payload->>'sha', extract(epoch from occurred_at)::float8, payload->>'signed' "
+          "from log.event "
           f"where type = '{QUEUE}' and tenant_id is null and occurred_at > now() - interval '30 minutes' "
           "order by occurred_at")
 PREPARED_OF = (f"select payload::text from log.event where type = '{PREPARED}' and event_id = %(id)s "
@@ -122,6 +124,13 @@ SWAP = ("with w as (insert into work.config_value as v (tenant_id, key, value, a
         "'wrote_at', round(extract(epoch from w.updated_at)::numeric, 3)) from w returning 1) "
         "select version, round(extract(epoch from updated_at)::numeric, 3)::float8 from w")
 # a swap of the merge queue for this head and bundle, in the hour: the swap is in charge (the build orders nothing)
+# RELOAD-WHY (REQ-deploy-1s): why a landing fell to the ordered reload: the seconds since the service heir of the bundle
+# last beat (null: no heir ever beat) and the state of the merge queue's newest want of it (null: never wanted)
+HEIR_OF = ("select (select extract(epoch from clock_timestamp() - max(beat_at))::float8 from work.standby_beat "
+           "where role = 'service' and digest = %(digest)s), "
+           f"(select payload->>'state' from log.event where type = '{live_image.SUCCESSOR}' and tenant_id is null "
+           "and occurred_at > now() - interval '1 day' and payload->>'branch' = 'queue' and payload->>'digest' = %(digest)s "
+           "order by occurred_at desc limit 1)")
 SWAP_OF = ("select 1 from log.event where type = 'platform.deploy.image_swap' and tenant_id is null "
            "and occurred_at > now() - interval '1 hour' and payload->>'swapped' = 'true' and payload->>'by' = 'queue' "
            "and payload->>'head' = %(head)s and payload->>'digest' = %(digest)s limit 1")
@@ -373,6 +382,19 @@ class QueueReload:
         found = db.rows(ADOPTED, {})
         return found[0][0] if found and found[0][0] else None
 
+    def fell(self, db, digest):
+        """RELOAD-WHY (REQ-deploy-1s): why no heir took the landing, for the outcome's `why`: the age of the service heir's
+        last beat against deploy.standby_fresh_s, or no heir, and the merge queue's want of the bundle. Never raises."""
+        try:
+            said = db.rows(HEIR_OF, {'digest': digest}) or [(None, None)]
+            age, want = said[0][0], said[0][1]
+            fresh = float(self.setting('deploy.standby_fresh_s'))
+            heir = (f'no heir of {digest[:12]} beat' if age is None else
+                    f'the heir of {digest[:12]} last beat {round(float(age), 3)} s ago (fresh: {fresh:g} s)')
+            return f'no swap: {heir}; want {want or "none"}'
+        except Exception as error:  # noqa: BLE001 - the reason is a record, never a stop of the reload
+            return f'no swap: the heir was not read ({type(error).__name__})'
+
     def swap(self, db, sha, found):
         """QUEUE-SWAP: the service's pointer to the heir of the merge's bundle when it beats; answers (version, wrote_at)
         or None (no heir ready: the order of the reload in place, as before)."""
@@ -391,16 +413,21 @@ class QueueReload:
                                              'by': 'queue', 'version': version, 'at': wrote_at})})
         return version, wrote_at
 
-    def landed(self, db, sha, order):
-        """The reload of a merge that landed, ordered once its claim is checked; answers the outcome recorded."""
+    def landed(self, db, sha, order, signed=False):
+        """The reload of a merge that landed, ordered once its claim is checked; answers the outcome recorded. SIGNED-HOOK
+        (REQ-deploy-1s): a landing the port took from GitHub's signed push webhook is GitHub's own word that main is the
+        sha, so the git ls-remote of main (a round trip) is skipped: main_at null, main 'signed'. The other checks stand."""
         began = self.clock()
         outcome = {'sha': sha, 'state': 'skipped', 'began_at': round(began, 3)}  # PUSH-STEPS: each step's instant
         on_main = False
         try:
-            head = self.main_head()
-            outcome['main_at'] = round(self.clock(), 3)  # the ls-remote of main answered
-            if head != sha:
-                raise Refused(f'main is {head[:12] or "unknown"}, not {sha[:12]}')
+            if signed:
+                outcome.update(main_at=None, main='signed')
+            else:
+                head = self.main_head()
+                outcome['main_at'] = round(self.clock(), 3)  # the ls-remote of main answered
+                if head != sha:
+                    raise Refused(f'main is {head[:12] or "unknown"}, not {sha[:12]}')
             on_main = True
             found = self.prepare(db, sha)
             if not found.get('code_only'):
@@ -413,11 +440,12 @@ class QueueReload:
             if swapped:
                 outcome.update(digest=found['sha256'], state='swapped', version=swapped[0], wrote_at=swapped[1])
             else:
+                fell = self.fell(db, found['sha256'])  # RELOAD-WHY: read before the withdraw below moves the want
                 made, busy, bad = order(sha, found['sha256'], found['key'])
-                outcome.update(digest=found['sha256'], state='ordered' if made or busy == sha else 'skipped')
+                outcome.update(digest=found['sha256'], state='ordered' if made or busy == sha else 'skipped', why=fell)
                 if not (made or busy == sha):
-                    outcome['why'] = f'a reload onto {found["sha256"][:12]} failed before' if bad else \
-                        f'the order of {str(busy)[:12]} is not settled'
+                    outcome['why'] = (f'a reload onto {found["sha256"][:12]} failed before' if bad else
+                                      f'the order of {str(busy)[:12]} is not settled') + f'; {fell}'
             self.withdraw(db, sha, keep=found['sha256'] if swapped else None)
         except Refused as error:
             outcome['why'] = str(error)
@@ -441,8 +469,9 @@ class QueueReload:
         mid-way (the reloaded one) finds the landing's outcome recorded and only follows the order: AutoDeploy.order
         answers it busy with this head, which makes it the order this look follows. Never raises."""
         try:
-            words = [(event, sha) for event, sha, _ in db.rows(QUEUED, {}) or []
-                     if event in EVENTS and SHA.fullmatch(str(sha or ''))]
+            rows = [tuple(row) + (None,) * (4 - len(row)) for row in db.rows(QUEUED, {}) or []]
+            words = [(event, sha) for event, sha, _, _ in rows if event in EVENTS and SHA.fullmatch(str(sha or ''))]
+            signed = {sha for event, sha, _, said in rows if event == 'landed' and str(said) == 'true'}
             landings = [sha for event, sha in words if event == 'landed']
             waiting = list(dict.fromkeys(sha for event, sha in words if event == 'prepare' and sha not in landings))
             base = str(self.ssm(LAST_SHA) or '').strip() if waiting else ''
@@ -466,6 +495,6 @@ class QueueReload:
                     if found and found.get('code_only') and json.loads(said[0][0]).get('state') == 'ordered':
                         order(sha, found['sha256'], found['key'])  # follow it: the order exists, this answers busy
                     return  # a swap needs no following: the heir and the process it took over from do the rest
-                self.landed(db, sha, order)
+                self.landed(db, sha, order, signed=sha in signed)
         except Exception:  # noqa: BLE001 - the deploy build is the net
             LOG.exception('queue: the look failed')

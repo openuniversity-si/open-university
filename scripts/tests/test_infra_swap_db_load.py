@@ -115,6 +115,7 @@ SWAP_MOMENT = [
                                               'id': 'platform.deploy.image_swap:t', 'payload': '{}'}),
     ('queue_deploy.SWAP_OF', queue_deploy.SWAP_OF, {'head': DIGEST, 'digest': DIGEST}),
     ('queue_deploy.ADOPTED', queue_deploy.ADOPTED, {}),
+    ('queue_deploy.HEIR_OF', queue_deploy.HEIR_OF, {'digest': DIGEST}),  # RELOAD-WHY: why a landing fell to the reload
 ]
 # the idempotency checks by event_id: the primary key leads with occurred_at, so reaching them by it reads the whole index
 BY_ID = ('port.LANDED_ONLY', 'autodeploy.OBSERVE',

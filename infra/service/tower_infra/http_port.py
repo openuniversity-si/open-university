@@ -193,13 +193,22 @@ QUEUE_SAID = ("with said as (insert into log.event (event_id, tenant_id, type, o
 
 def queue_state(event, db):
     """A doorbell's queue word {event: prepare|landed, sha} becomes platform.deploy.queue (QUEUE_SAID); anything else is
-    ignored."""
+    ignored. SIGNED-HOOK (REQ-deploy-1s): the doorbell forwards every GitHub event whose signature it checked as {event:
+    hook, kind, ref, after, deleted}; only a push to main that deletes nothing, with a 40-hex `after`, is a landing, marked
+    signed (the look trusts it and skips its git ls-remote of main). Every other hook is acknowledged and ignored, and an
+    older doorbell's {landed, sha} still lands, unsigned."""
     detail = event.get('detail') if isinstance(event.get('detail'), dict) else {}
-    word, sha = str(detail.get('event') or ''), str(detail.get('sha') or '')
+    word, sha, signed = str(detail.get('event') or ''), str(detail.get('sha') or ''), False
+    if word == 'hook':
+        if detail.get('kind') != 'push' or detail.get('ref') != 'refs/heads/main' or detail.get('deleted'):
+            return {'ignored': True}
+        word, sha, signed = 'landed', str(detail.get('after') or ''), True
     if word not in ('prepare', 'landed') or not re.fullmatch(r'[0-9a-f]{40}', sha):
         return {'ignored': True}
     ident = f'platform.deploy.queue:{word}:{sha}'
     said = {'event': word, 'sha': sha, 'port_at': round(time.time(), 3)}  # PUSH-STEPS: when the port got the word
+    if signed:
+        said['signed'] = True
     heard = detail.get('heard')  # and when the doorbell heard it (absent from an older doorbell)
     if isinstance(heard, (int, float)) and not isinstance(heard, bool):
         said['heard'] = round(float(heard), 3)
