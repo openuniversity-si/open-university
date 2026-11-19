@@ -215,5 +215,31 @@ class Durability(World):
         self.assertEqual(kinds, ['job.created', 'run.started', 'run.ended'])
 
 
+class FullRunRemnants(World):
+    """FULL-RUN-REMNANTS (migration 0024, REQ-deploy-1s): the full run's jobs still open are cancelled, so the service's
+    pass (and a swap's first one) no longer routes and holds each of them, and the slots they hold come back."""
+
+    def test_the_full_runs_open_jobs_are_cancelled_and_their_slots_come_back(self):
+        slots = int(self.db.rows("select sum(slots) from work.capacity where executor = 'script-runner'")[0][0])
+        battery = [self.job(f'full-{n}', selector={'adapter': 'container', 'yield': True}) for n in range(slots + 2)]
+        made = mechanisms.dispatch(self.db)  # the runner's slots all taken, two more wait for one
+        self.assertEqual((len(made), int(self.in_use('script-runner'))), (slots, slots))
+        gate = self.job('gate-check', selector={'adapter': 'container'})
+        done = self.job('full-done', selector={'adapter': 'container', 'yield': True})
+        self.db.rows("update work.job set state = 'succeeded' where id = %(id)s::uuid returning id", {'id': done})
+        migration = (ROOT / 'infra/db/migrations/0024_full_run_remnants.sql').read_text()
+        cancelled = "select count(*) from log.event where type = 'job.cancelled' and producer = 'migration'"
+        self.db.run(migration)
+        self.assertEqual({self.state(job) for job in battery}, {'cancelled'})
+        self.assertEqual((self.state(gate), self.state(done)), ('queued', 'succeeded'))
+        self.assertEqual(int(self.db.rows(cancelled)[0][0]), len(battery))
+        for run in made:  # the runs of the cancelled jobs end (their lease, or their runner), and only give their slot back
+            mechanisms.end(self.db, run['run'], run['fence'], 'cancelled')
+        self.assertEqual(int(self.in_use('script-runner')), 0)
+        self.assertEqual([run['job'] for run in mechanisms.dispatch(self.db)], [gate])
+        self.db.run(migration)  # idempotent: none open
+        self.assertEqual(int(self.db.rows(cancelled)[0][0]), len(battery))
+
+
 if __name__ == '__main__':
     unittest.main()
