@@ -1,6 +1,6 @@
 # ADR-28 — Full local gate within 90 seconds
 
-Status: accepted (PADRAO-DEV F3a: an engine decision in force).
+Status: superseded by D-314 (the gate runs on GitHub Actions and judges the tests a diff touches; the 90 s budget became D-064 (f)'s 180 s warning).
 
 Status: accepted, 2026-10-18. Extends ADR-24. Scope: build/test infrastructure only.
 
