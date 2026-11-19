@@ -37,6 +37,8 @@ _STORE_KEYS = ("config.store_adapter", "config.store_dir", "config.store_cache_t
                "config.store_quarantine_log", "config.store_window_max")  # the store's own location, cache and reach: registry values only
 _replaying = []  # set while the store replays: the port's own settings then read their registry values
 _STORE_ENV = "OU_CONFIG_STORE"  # names the store's adapter for a process tree (the gate, an offline run)
+REGISTRY_ONLY_ENV = "OU_CONFIG_REGISTRY_ONLY"  # D-335: the checkout the gate judges; its change store is never read
+_registry_only_memo = {}  # ($OU_CONFIG_REGISTRY_ONLY, store base) -> whether that base is the judged checkout
 _chosen = []  # (adapter, clock) a caller chose in process with use_adapter (a test's fake forge)
 _pinned = []  # the store kind this process was pinned to (hermetic.install): wins over $OU_CONFIG_STORE
 _shared = []  # set while shared() reads: the registry's own store, whatever the process tree pins
@@ -554,10 +556,26 @@ def overrides(root=None):
         return _overrides(root)
 
 
+def registry_only(root=None):
+    """D-335: whether the change store of `root`'s checkout is ignored, every key then reading its registry default. The
+    gate names the checkout it judges in $OU_CONFIG_REGISTRY_ONLY (scripts/verify-commit, and every process it spawns):
+    a head's own .tower/config (a forced add, or a file a stage wrote) must not override a gate, budget or regime key.
+    Another checkout (a test's temp root) keeps its own store, and an adapter chosen in process (use_adapter) still wins."""
+    judged = os.environ.get(REGISTRY_ONLY_ENV, "")
+    if not judged or _chosen:
+        return False
+    key = (judged, str(_base(root)))
+    if key not in _registry_only_memo:
+        _registry_only_memo[key] = pathlib.Path(judged).resolve() == _base(root).resolve()
+    return _registry_only_memo[key]
+
+
 def _overrides(root, fresh=True):
     """The folded overrides. fresh: a deep copy the caller may change (overrides()); else the held fold itself, which
     the caller only reads (_get copies the one value it returns): a deep copy of every override per registry read was
-    a third of the structure check's time (GATE-SPEED audit R3)."""
+    a third of the structure check's time (GATE-SPEED audit R3). None while the gate judges this checkout (registry_only)."""
+    if registry_only(root):
+        return {}
     _replaying.append(True)
     try:
         # An unchanged local fold is pure data: constructing another journal port cannot refresh it. Observe its

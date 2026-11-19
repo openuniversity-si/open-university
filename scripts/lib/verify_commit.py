@@ -446,6 +446,14 @@ def record(directory, base, planned, sha, run=run, environ=None):
     return VERDICT + key
 
 
+def gate_mode(environ):
+    """D-335: name this checkout in $OU_CONFIG_REGISTRY_ONLY, so the config layer of every stage and test the verifier
+    runs reads registry defaults only, never the checkout's .tower/config (a head's forced add of an override)."""
+    import config
+    environ[config.REGISTRY_ONLY_ENV] = str(ROOT)
+    return environ
+
+
 def main(argv=None, run=run, environ=None):
     parser = argparse.ArgumentParser(prog='verify-commit', description=__doc__.splitlines()[0])
     parser.add_argument('--sha', required=True)
@@ -522,4 +530,5 @@ def main(argv=None, run=run, environ=None):
 
 
 if __name__ == '__main__':
+    gate_mode(os.environ)
     sys.exit(main())

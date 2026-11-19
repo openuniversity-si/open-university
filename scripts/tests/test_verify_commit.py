@@ -798,5 +798,16 @@ class ThePullRequestMetadataAsRecorded(unittest.TestCase):
         self.assertRegex(said, r'FAIL lane undecidable: .*admin \(lane-b\), engine \(lane-a\)')
 
 
+class GateMode(unittest.TestCase):
+    def test_the_verifier_names_its_checkout_so_its_change_store_is_never_read(self):
+        """D-335: what verify-commit runs inherits $OU_CONFIG_REGISTRY_ONLY=<this checkout>; config then ignores
+        the checkout's .tower/config (scripts/tests/test_config_api.py GateMode proves the read)."""
+        import config
+        environ = verify_commit.gate_mode({})
+        self.assertEqual(environ, {config.REGISTRY_ONLY_ENV: str(ROOT)})
+        with mock.patch.dict(os.environ, environ):
+            self.assertTrue(config.registry_only())
+
+
 if __name__ == '__main__':
     unittest.main()
