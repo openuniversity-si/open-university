@@ -923,7 +923,10 @@ def read_changes(root):
         sha, _, subject = line.partition('\x1f')
         number = PR_NUMBER.search(subject)
         ident = f'CHG-{number.group(1)}' if number else f'CHG-{sha[:len("0123456789ab")]}'
-        bodies = _git(root, 'log', '--format=%B', f'{sha}^1..{sha}')
+        records = _git(root, 'log', '--format=%x1e%s%x1f%B', f'{sha}^1..{sha}').split('\x1e')[1:]
+        bodies = ''.join(record.partition('\x1f')[2] for record in records)
+        named = records[0].partition('\x1f')[2] if records else ''  # the merge's own message holds the PR title
+        named += '\n'.join(record.partition('\x1f')[0] for record in records)
         targets = []
         for listed in TRAILER_IMPLEMENTS.findall(bodies):
             targets += [target.strip() for target in listed.split(',') if target.strip()]
@@ -931,7 +934,7 @@ def read_changes(root):
         links += [{'type': 'implements', 'target': unit, 'source': 'diff'} for unit in touched.get(sha, [])
                   if unit not in targets]
         item = _obj(ident, 'CHG', 'merged', f'git:{sha}', sha, links)
-        item['body'] = {'sha': sha, 'subject': subject}
+        item['body'] = {'sha': sha, 'subject': subject, 'names': sorted(set(PHASE_ITEM_NAME.findall(named)))}
         found.append(item)
     return found
 
@@ -1561,10 +1564,191 @@ def read_checks(root):
     return found
 
 
+# The four results slo.evaluate folds from the forge event log, as (registry entry, bound); their limits are the entries.
+SLO_MEASURES = (('slo.gate_tier1_p95_s', 'max'), ('slo.train_queue_time_p95_s', 'max'),
+                ('slo.merged_prs_per_hour_min', 'min'), ('slo.gate_failure_rate_max_percent', 'max'))
+SLO_REGISTRY = 'config/registry/slo.json'
+SLO_CONSUMER = 'docs/process/EVENTS.md'  # slo.breached, the event a breach emits, asks a PR there
+BASE_KINDS = ('incident-count', 'code-scan')  # a count of one attribute (15939 base measure); the rest derive one
+
+
+def _measure_id(val_id, measure):
+    qualifier = next((measure[key] for key in ('name', 'workflow', 'incident', 'trailer') if measure.get(key)),
+                     val_id.removeprefix('VAL-'))
+    return f'MEAS-{measure["kind"]}-{_slug(qualifier)}'
+
+
+def _measure(id, state, source, body):
+    item = _obj(id, 'MEAS', state, source, json.dumps(body, sort_keys=True))
+    item['body'] = body
+    return item
+
+
+def read_measures(root):
+    """Measures (MEAS, the Measurement system) with their ISO/IEC/IEEE 15939 metadata, read from what already defines
+    them: the four SLOs of the registry (config/registry/slo.json, folded by scripts/lib/slo.py), the measure of every
+    validation (config/validation/, computed by measured()) and the cheaper-path measure (D-327, the retrospective
+    samples). Each body says its information need, its consumer, whether it is base or derived, its function and its
+    decision criterion. A validation measure with no function wired (kind `unwired`) is proposed. Freshness is set by
+    derive_measures: an SLO's source is the forge event log, which HEAD does not hold, so it is never fresh here."""
+    root = Path(root)
+    found = []
+    registry = _read_json(root / SLO_REGISTRY).get('properties', {}) if (root / SLO_REGISTRY).is_file() else {}
+    for name, bound in SLO_MEASURES:
+        entry = registry.get(name)
+        if entry is None:
+            continue
+        found.append(_measure(f'MEAS-{_slug(name.removeprefix("slo."))}', 'active', SLO_REGISTRY, {
+            'need': entry.get('description', ''), 'consumer': SLO_CONSUMER if SLO_CONSUMER in entry.get('x-readers', []) else '',
+            'scale': 'derived', 'function': 'scripts/lib/slo.py evaluate', 'unit': entry.get('x-unit', ''),
+            'criterion': f'{bound} {entry.get("default")}', 'source': 'the forge event log', 'fresh': False}))
+    seen = set()
+    for path in sorted(root.glob(VALIDATIONS)):
+        body = _read_json(path)
+        if not isinstance(body, dict) or not isinstance(body.get('measure'), dict) or 'kind' not in body['measure']:
+            continue  # read_validations says what is wrong with the file
+        measure = body['measure']
+        id = _measure_id(body['id'], measure)
+        if id in seen:
+            continue
+        seen.add(id)
+        wired = measure['kind'] != 'unwired'
+        found.append(_measure(id, 'active' if wired else 'proposed', path.relative_to(root).as_posix(), {
+            'need': body.get('statement', ''), 'consumer': body.get('owner', ''),
+            'scale': 'base' if measure['kind'] in BASE_KINDS else 'derived',
+            'function': f'scripts/lib/model.py measured ({measure["kind"]})' if wired else '',
+            'criterion': f'{body.get("comparator", "")} {body.get("threshold", "")}'.strip(), 'validation': body['id'],
+            'fresh': False}))
+    cheaper = cheaper_path_measure(root)
+    found.append(_measure('MEAS-cheaper-path', 'active', RETRO_SAMPLES, {
+        'need': 'D-327: was there a clearly cheaper path that solved it?', 'consumer': 'the retrospective (administration)',
+        'scale': 'derived', 'function': 'scripts/lib/model.py cheaper_path_measure', 'unit': 'share of sampled PRs',
+        'criterion': f'lt {cheaper["target"]}', 'fresh': cheaper['prs'] > 0}))
+    return found
+
+
+def derive_measures(found):
+    """After the validations are derived: each validation is measured by its measure, which is fresh while the
+    validation holds a value (any state but defined)."""
+    for item in found.values():
+        validation = (item.get('body') or {}).get('validation') if item['type'] == 'MEAS' else None
+        if validation in found:
+            item['body']['fresh'] = found[validation]['state'] != 'defined'
+            found[validation]['links'].append({'type': 'measured-by', 'target': item['id']})
+
+
+PHASE_ITEM = re.compile(r'^[0-9]+\. \*\*(F[0-9]+[a-z])\b([^*]*)\*\*(.*)$', re.MULTILINE)  # a Padrão v8 phase plan item
+PHASE_TITLE = re.compile(r'^# (.+)$', re.MULTILINE)
+PHASE_ITEM_NAME = re.compile(r'\b(F[0-9]+[a-z])\b')
+QUEUE_FILE = 'docs/programs/vazao/fila.md'  # lane.QUEUE: its active table starts with `| # |`
+
+
+def _work(id, state, source, body):
+    item = _obj(id, 'WORK', state, source, json.dumps(body, sort_keys=True))
+    item['body'] = body
+    return item
+
+
+def _queue_rows(text):
+    """[(unit, scope)] of the queue's active table (the one whose header starts with `| # |`; lane.queue_rows)."""
+    rows, header = [], None
+    for line in text.splitlines():
+        if line.startswith('| # |'):
+            header = [cell.strip() for cell in line.strip('|').split('|')]
+            continue
+        if header is None:
+            continue
+        if not line.startswith('|'):
+            break
+        cells = [cell.strip() for cell in line.strip('|').split('|')]
+        if cells and cells[0] and not set(cells[0]) <= {'-'}:
+            rows.append((cells[0], dict(zip(header, cells))))
+    return rows
+
+
+def read_work(root):
+    """Work items (WORK, the Work system), read from what already plans the work: every program folder under
+    coordinator.programs_dir (the template excluded), the units of its plan (the coordinator.plan_fence block of
+    plan.md), the numbered items of its phases (`N. **F7e, ...**`, Padrão v8) and the open rows of the queue
+    (docs/programs/vazao/fila.md). Each body says what the item delivers (a unit's done criteria, an item's text, a row's
+    scope). A unit is delivered when its plan records its PR; a phase item when a merge on HEAD names it
+    (derive_work); the rest are queued. A plan that does not parse is a problem of its program."""
+    import config
+    root = Path(root)
+    folder = root / config.get('coordinator.programs_dir')
+    template, plan_file, fence = (config.get(f'coordinator.{key}') for key in ('template_dir', 'plan_file', 'plan_fence'))
+    found = []
+    for program in sorted(path for path in folder.iterdir() if path.is_dir() and path.name != template) if folder.is_dir() else ():
+        items, problems = [], []
+        plan = program / plan_file
+        if plan.is_file():
+            block = re.search(r'^```' + re.escape(fence) + r'[ \t]*\n(.*?)^```[ \t]*$', plan.read_text(), re.M | re.S)
+            try:
+                units = json.loads(block.group(1))['units'] if block else []
+            except (ValueError, KeyError, TypeError) as error:
+                units, problems = [], [f'{plan.name}: its {fence} block does not parse ({error})']
+            for unit in units if isinstance(units, list) else ():
+                if not isinstance(unit, dict) or 'id' not in unit:
+                    continue
+                items.append(_work(f'WORK-{program.name}-{unit["id"]}', 'delivered' if unit.get('pr') else 'queued',
+                                   plan.relative_to(root).as_posix(),
+                                   {'program': program.name, 'kind': 'unit', 'title': unit.get('title', ''),
+                                    'delivers': bool(unit.get('done')), 'pr': unit.get('pr')}))
+        for phase in sorted((program / 'phases').glob('*.md')):
+            text = phase.read_text()
+            listed = PHASE_ITEM.findall(text)
+            for short, named, rest in listed:
+                said = ' '.join(part.strip(' ,:') for part in (named, rest) if part.strip(' ,:'))
+                items.append(_work(f'WORK-{program.name}-{short}', 'queued', phase.relative_to(root).as_posix(),
+                                   {'program': program.name, 'kind': 'phase-item', 'short': short,
+                                    'delivers': bool(said), 'text': said}))
+            if not listed:  # a phase that lists no items is one item itself, its title what it delivers
+                title = PHASE_TITLE.search(text)
+                items.append(_work(f'WORK-{program.name}-{phase.stem}', 'queued', phase.relative_to(root).as_posix(),
+                                   {'program': program.name, 'kind': 'phase', 'delivers': bool(title),
+                                    'text': title.group(1) if title else ''}))
+        queue = root / QUEUE_FILE
+        if queue.parent == program and queue.is_file():
+            for unit, row in _queue_rows(queue.read_text()):
+                items.append(_work(f'WORK-{program.name}-{unit}', 'queued', QUEUE_FILE,
+                                   {'program': program.name, 'kind': 'queue-row',
+                                    'delivers': bool(row.get('Escopo (arquivos)') or row.get('Valor'))}))
+        program_item = _work(f'WORK-program-{program.name}', 'queued', program.relative_to(root).as_posix(),
+                             {'program': program.name, 'kind': 'program', 'delivers': bool(items)})
+        if problems:
+            program_item['problems'] = problems
+        found += [program_item, *items]
+    return found
+
+
+def derive_work(found):
+    """A merge that names a phase item (its PR title or a commit subject, `F7d`) tracks it, and the item is delivered;
+    a name two programs share links nothing. A program is delivered when every item is, in progress when some are."""
+    phase_items = {}
+    for id, item in found.items():
+        if item['type'] == 'WORK' and (item.get('body') or {}).get('kind') == 'phase-item':
+            phase_items.setdefault(item['body']['short'], []).append(id)
+    for id, item in found.items():
+        if item['type'] != 'CHG':
+            continue
+        for name in (item.get('body') or {}).get('names', []):
+            if len(phase_items.get(name, [])) == 1:
+                item['links'].append({'type': 'tracks', 'target': phase_items[name][0]})
+                found[phase_items[name][0]]['state'] = 'delivered'
+    programs = {}
+    for item in found.values():
+        if item['type'] == 'WORK' and item['body']['kind'] != 'program':
+            programs.setdefault(item['body']['program'], []).append(item['state'] == 'delivered')
+    for item in found.values():
+        if item['type'] == 'WORK' and item['body']['kind'] == 'program':
+            done = programs.get(item['body']['program'], [])
+            item['state'] = 'delivered' if done and all(done) else 'in-progress' if any(done) else 'queued'
+
+
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
            read_intent, read_requirements, read_premises, read_changes, read_architecture, read_adrs, read_validations,
            read_suppliers, read_dependencies, read_advisories, read_checks, read_data, read_requests,
-           read_risks, read_controls, read_vulns, read_threats)
+           read_risks, read_controls, read_vulns, read_threats, read_measures, read_work)
 
 
 def objects(root=ROOT, readers=READERS):
@@ -1585,6 +1769,10 @@ def objects(root=ROOT, readers=READERS):
         derive_validations(found, root)
     if read_controls in readers:
         derive_controls(found)
+    if read_measures in readers:
+        derive_measures(found)
+    if read_work in readers:
+        derive_work(found)
     return found
 
 
@@ -1795,6 +1983,28 @@ def management_measure(found, today):
     }
 
 
+def measures_measure(found):
+    """The measurement system's own counts: its measures, those with a value on HEAD, those proposed (no function
+    wired) and those whose source HEAD does not hold (the SLOs' forge event log)."""
+    measures = [item for item in found.values() if item['type'] == 'MEAS']
+    return {'measures': len(measures), 'fresh': sum(1 for item in measures if item['body']['fresh']),
+            'proposed': sum(1 for item in measures if item['state'] == 'proposed'),
+            'unread': sum(1 for item in measures if item['body'].get('source') == 'the forge event log')}
+
+
+def work_measure(found):
+    """The work system's own counts: programs, their items by state, and the items a merge on HEAD tracks."""
+    work = [item for item in found.values() if item['type'] == 'WORK']
+    items = [item for item in work if item['body']['kind'] != 'program']
+    by_state = {}
+    for item in items:
+        by_state[item['state']] = by_state.get(item['state'], 0) + 1
+    tracked = {link['target'] for item in found.values() if item['type'] == 'CHG' for link in item['links']
+               if link['type'] == 'tracks'}
+    return {'programs': len(work) - len(items), 'items': len(items), 'by_state': dict(sorted(by_state.items())),
+            'tracked': len(tracked)}
+
+
 RETRO_SAMPLES = 'docs/programs/*/retro-sample-*.json'
 CHEAPER_TARGET = 0.10  # D-327: under 10 %, reviewed after three retrospectives
 
@@ -1838,6 +2048,57 @@ def utc_today():
     return datetime.now(timezone.utc).date().isoformat()
 
 
+def rate_system(meta, found, into, flagged, name):
+    """One system's conformance: its active objects, those a rule judges and pass every rule, the share, the level
+    (below F while a significant weakness stands), the types no rule judges and the verdict types not read."""
+    kinds = {type_id for type_id, kind in meta['types'].items() if kind['system'] == name}
+    mine = [item for item in found.values() if item['type'] in kinds and is_active(meta, item)
+            and item.get('fingerprint') is not None]
+    unjudged = sorted({item['type'] for item in mine if not judged(meta, item['type'])})
+    good = sum(1 for item in mine if judged(meta, item['type']) and item['id'] not in flagged
+               and covered(meta, item, into, found))
+    share = good / len(mine) if mine else 0
+    level = rate(share, meta['scale'])
+    weak = sum(1 for item in mine if item['state'] in WEAKNESS_STATES.get(item['type'], ()))
+    levels = [step['level'] for step in meta['scale']]
+    if weak and level == levels[-1] and len(levels) > 1:
+        level = levels[levels.index(level) - 1]
+    unread = {type_id: {'verdict': VERDICTS[type_id][0], 'means': VERDICTS[type_id][1]}
+              for type_id in sorted(kinds & set(VERDICTS))
+              if not any(item['type'] == VERDICTS[type_id][0] for item in found.values())}
+    return {'group': meta['systems'][name].get('group', ''), 'objects': len(mine), 'conformant': good,
+            'share': share, 'level': level,
+            'not_judged': sum(1 for item in mine if item['type'] in unjudged), 'unjudged_types': unjudged,
+            'weaknesses': weak, 'verdicts_unread': unread}
+
+
+def assessment(name, rated, sha):
+    """The conformance assessment (ASSESS) of one system on a sha, calculated from its rating: it rests on evidence
+    when at least one of the system's objects is judged by a rule (ISO/IEC 33020 N: little or no evidence otherwise)."""
+    body = {'system': name, 'sha': sha, 'level': rated['level'], 'share': rated['share'], 'objects': rated['objects'],
+            'evidence': rated['objects'] - rated['not_judged'] > 0}
+    item = _obj(f'ASSESS-{name}', 'ASSESS', 'calculated', 'scripts/model measure', json.dumps(body, sort_keys=True))
+    item['body'] = body
+    return item
+
+
+def assess_systems(meta, found, into, flagged, root):
+    """{system: rating} and the found objects with one assessment per system on HEAD. The systems that manage the
+    assessment type (conformance) are rated after the others are assessed, and their own assessment last, so the
+    conformance system's level is the share of systems assessed on evidence."""
+    sha = _git(root, 'rev-parse', 'HEAD').strip()
+    assessors = {meta['types']['ASSESS']['system']} if 'ASSESS' in meta['types'] else set()
+    systems = {name: rate_system(meta, found, into, flagged, name) for name in sorted(meta['systems'])}
+    found = {**found, **{f'ASSESS-{name}': assessment(name, systems[name], sha) for name in systems
+                         if name not in assessors}}
+    for name in sorted(assessors):
+        systems[name] = rate_system(meta, found, into, flagged, name)
+        found[f'ASSESS-{name}'] = assessment(name, systems[name], sha)
+    for name in sorted(assessors):
+        systems[name] = rate_system(meta, found, into, flagged, name)
+    return systems, found
+
+
 def measure(root=ROOT, meta=None, found=None, today=None):
     meta = meta or metamodel(root)
     found = found if found is not None else objects(root)
@@ -1846,27 +2107,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
     into = incoming(found)
     requirements = [item for item in found.values() if item['type'] == 'REQ' and is_active(meta, item)]
     verified = sum(1 for item in requirements if chain_verified(item, into, found))
-    systems = {}
-    for name in sorted(meta['systems']):
-        kinds = {type_id for type_id, kind in meta['types'].items() if kind['system'] == name}
-        mine = [item for item in found.values() if item['type'] in kinds and is_active(meta, item)
-                and item.get('fingerprint') is not None]
-        unjudged = sorted({item['type'] for item in mine if not judged(meta, item['type'])})
-        good = sum(1 for item in mine if judged(meta, item['type']) and item['id'] not in flagged
-                   and covered(meta, item, into, found))
-        share = good / len(mine) if mine else 0
-        level = rate(share, meta['scale'])
-        weak = sum(1 for item in mine if item['state'] in WEAKNESS_STATES.get(item['type'], ()))
-        levels = [step['level'] for step in meta['scale']]
-        if weak and level == levels[-1] and len(levels) > 1:
-            level = levels[levels.index(level) - 1]
-        unread = {type_id: {'verdict': VERDICTS[type_id][0], 'means': VERDICTS[type_id][1]}
-                  for type_id in sorted(kinds & set(VERDICTS))
-                  if not any(item['type'] == VERDICTS[type_id][0] for item in found.values())}
-        systems[name] = {'group': meta['systems'][name].get('group', ''), 'objects': len(mine), 'conformant': good,
-                         'share': share, 'level': level,
-                         'not_judged': sum(1 for item in mine if item['type'] in unjudged), 'unjudged_types': unjudged,
-                         'weaknesses': weak, 'verdicts_unread': unread}
+    systems, found = assess_systems(meta, found, into, flagged, root)
     sources = inventory(meta, found, root)
     cheaper_path = cheaper_path_measure(root)
     return {
@@ -1886,7 +2127,8 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'architecture': architecture_measure(found),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
-        'measurement': {'cheaper_path': cheaper_path},
+        'measurement': {'cheaper_path': cheaper_path, **measures_measure(found)},
+        'work': work_measure(found),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors) + len(cheaper_path['problems']),
         'warnings': len(warnings),
@@ -1976,7 +2218,14 @@ def summary(found):
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')
+    counted = found['measurement']
+    lines.append(f'measurement: {counted["measures"]} measure(s), {counted["fresh"]} fresh on HEAD, {counted["proposed"]} '
+                 f'proposed (no function wired), {counted["unread"]} whose source HEAD does not hold')
     lines.append(cheaper_path_line(found['measurement']['cheaper_path']))
+    planned = found['work']
+    lines.append(f'work: {planned["programs"]} program(s), {planned["items"]} item(s): '
+                 f'{", ".join(f"{count} {state}" for state, count in planned["by_state"].items()) or "none"}; '
+                 f'{planned["tracked"]} tracked by a merge on HEAD')
     lines += [f'  ERROR {problem}' for problem in found['measurement']['cheaper_path']['problems']]
     lines.append(f'check: {found["errors"]} error(s), {found["warnings"]} warning(s)')
     return '\n'.join(lines)
