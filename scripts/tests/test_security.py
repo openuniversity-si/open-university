@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 import model  # noqa: E402
 
+GITHUB_ACTIONS = 15368  # the GitHub Actions app, the source of every check a workflow job reports
 BAR = {'critical': 7, 'high': 30, 'moderate': 90, 'low': 180}
 
 
@@ -90,6 +91,15 @@ class RealRepository(unittest.TestCase):
         self.assertEqual(len({item['body']['control'] for item in controls}), len(['PO.1', 'PO.2', 'PO.3', 'PO.4', 'PO.5',
                          'PS.1', 'PS.2', 'PS.3', 'PW.1', 'PW.2', 'PW.4', 'PW.5', 'PW.6', 'PW.7', 'PW.8', 'PW.9', 'RV.1', 'RV.2', 'RV.3']))
         self.assertTrue(all(item['body']['reason'] for item in controls))
+
+    def test_every_required_check_is_bound_to_the_app_that_reports_it(self):
+        """VULN-gate-check-source: a required check named by its context alone is satisfied by a status of that name from
+        any credential that may write statuses (a session's own, through verify-commit without --no-post); bound to the
+        GitHub Actions app (integration 15368), only the job's check counts."""
+        for path in sorted((ROOT / '.github' / 'rulesets').glob('*.json')):
+            for rule in json.loads(path.read_text()).get('rules', []):
+                for item in (rule.get('parameters') or {}).get('required_status_checks', []):
+                    self.assertEqual(item.get('integration_id'), GITHUB_ACTIONS, f'{path.name}: {item["context"]}')
 
     def test_every_threat_model_covers_stride_on_an_active_element_and_every_mitigation_exists(self):
         """The automated design review of SSDF PW.2.1: each threat model models an active architecture element, names

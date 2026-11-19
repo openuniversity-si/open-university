@@ -557,7 +557,10 @@ class TheVerifier(unittest.TestCase):
         self.assertNotIn('contents: write', staged)
         ruleset = json.loads((ROOT / '.github' / 'rulesets' / 'main.json').read_text(encoding='utf-8'))
         rules = {rule['type']: rule.get('parameters') for rule in ruleset['rules']}
-        self.assertEqual(rules['required_status_checks']['required_status_checks'], [{'context': 'tower/gate'}, {'context': 'web'}])  # web: the site's checks (D-319)
+        # web: the site's checks (D-319); each bound to the GitHub Actions app, so no other status writer satisfies it
+        # (VULN-gate-check-source)
+        self.assertEqual(rules['required_status_checks']['required_status_checks'],
+                         [{'context': 'tower/gate', 'integration_id': 15368}, {'context': 'web', 'integration_id': 15368}])
         self.assertEqual(rules['merge_queue']['merge_method'], 'MERGE')
         # QUEUE-RUN: entries build side by side and merge together, and every one of them must be green to merge
         # (ALLGREEN, never HEADGREEN), so each commit main takes was judged green; an entry whose check never answers
