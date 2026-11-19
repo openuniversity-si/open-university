@@ -19,6 +19,9 @@
     "scripts/lib/agent_env.py",
     "scripts/tests/agent-env.test.sh",
     "scripts/tests/test_agent_env.py",
+    "scripts/lib/agent_env_client.py",
+    "scripts/tests/agent-env-client.test.sh",
+    "scripts/tests/test_agent_env_client.py",
     "contracts/agent-env/**",
     "config/agent-env/**",
     "config/registry/agent-env.json"

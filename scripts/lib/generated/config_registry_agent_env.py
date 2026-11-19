@@ -3,8 +3,12 @@ from typing import Any, Literal, NotRequired, Required, TypedDict  # noqa: F401
 
 Name = Literal[
     'agent-env.denied_names',
+    'agent-env.endpoint',
+    'agent-env.fetch_timeout_s',
 ]
 
 Values = TypedDict('Values', {
     'agent-env.denied_names': list[str],
+    'agent-env.endpoint': str,
+    'agent-env.fetch_timeout_s': int,
 })
