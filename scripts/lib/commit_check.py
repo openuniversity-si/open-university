@@ -12,7 +12,7 @@ commit S (structure-check passes its checkout's HEAD), and refuses:
              or never-updated branch; limit 0 while merge.tier1_requires_base_merge is on, else merge.max_behind_base):
              bring the base in with `git merge <push-guard.remote>/<base>`, a merge commit, never a rebase (FP1);
   gate       the PR changes the gate without citing an approved D-NNN of docs/domain/DECISIONS.md;
-  decision   a PR comment waits on an owner decision and no later comment records a "Decision:" line
+  decision   the PR body or a PR comment waits on an owner decision and no later line records a "Decision:" line
              (DECIDE, THEN REPORT, Daniel 2026-10-26 21:29; scripts/lib/decision_wait.py). Only comments created up to
              the gated head's push are judged (GX-14): a comment during the gate does not change its verdict.
   plan-done  (--pr) a plan item no real commit ticks (GX-21; a draft's is a warning, D-083: plan_verdict);
@@ -211,7 +211,8 @@ def check(pr, known):
             + lift(push_errors(commits, pr.get('pushes', []), pr.get('number')), 'commit-plan')
             + force_push_errors(pr.get('force_pushes', []), pr.get('branch'), pr.get('number'))
             + rebase_errors(pr.get('base'), commits, pr.get('branch')) + gate_errors(pr.get('body', ''), files, known)
-            + decision_wait.errors(decision_wait.before(pr.get('comments', []), gated_push_time(pr)), pr.get('number')))
+            + decision_wait.errors(decision_wait.before(pr.get('comments', []), gated_push_time(pr)), pr.get('number'),
+                                   body=pr.get('body', '')))  # I-c16f2b7c: the body waits on the owner too
 
 
 def plan_completeness_errors(body, commits):

@@ -1,11 +1,13 @@
 """The verifier thread's gate (scripts/verify-commit): the gate's plan run on the exact commit, its verdict published as
 the commit's tower/gate status. Hermetic: a fake run answers git, gate-check and gh."""
 # Verifies: REQ-github-truth
+import io
 import json
 import re
 import os
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -69,15 +71,22 @@ def made(name, head_sha=HEAD_OF_PR, repository=1, head_repository=1, expired=Fal
 
 
 class TheVerifier(unittest.TestCase):
+    def setUp(self):  # hermetic: a run inside tower/gate's own job must not read that job's pull request
+        patched = mock.patch.dict(os.environ)
+        patched.start()
+        self.addCleanup(patched.stop)
+        for name in ('GITHUB_EVENT_PATH', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB_HEAD_REF'):
+            os.environ.pop(name, None)
+
     def test_a_green_commit_is_pending_then_success_on_its_own_sha(self):
         fake = Fake()
         self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=fake), 0)
         url = f'repos/openuniversity-si/open-university/statuses/{SHA}'
         self.assertEqual([(each[0], each[1], each[2]) for each in fake.statuses],
                          [(url, 'pending', 'tower/gate'), (url, 'success', 'tower/gate')])
-        self.assertTrue(fake.statuses[-1][3].startswith('green: 4 check(s)'))  # 2 stages (pr metadata skipped) + 2 tests
+        self.assertTrue(fake.statuses[-1][3].startswith('green: 5 check(s)'))  # 3 stages (pr metadata too, D-329) + 2 tests
 
-    def test_only_the_plans_stages_and_tests_run_and_pr_metadata_is_skipped(self):
+    def test_only_the_plans_stages_and_tests_run_and_pr_metadata_is_not_gate_checks(self):
         fake = Fake()
         verify_commit.main(['--sha', SHA, '--base', BASE], run=fake)
         stages = [call[2] for call in fake.calls if call[:2] == ['scripts/gate-check', 'stage']]
@@ -214,7 +223,7 @@ class TheVerifier(unittest.TestCase):
                                                                           ['scripts/gate-check', 'test'])],
                           planned['judged'], planned['tests'])
         # main starts heavier by its stages (STAGES_S 15): x 10 and y 5 both go to shard1
-        self.assertEqual(seen['main'][:3], (['structure check', 'secret scan (tree)'], [], 2))
+        self.assertEqual(seen['main'][:3], (['structure check', 'secret scan (tree)'], [], len(PLAN['stages'])))  # and pr metadata
         self.assertEqual(seen['shard1'][:3], ([], ['scripts/tests/x.test.sh,scripts/tests/y.test.sh'], 2))
         self.assertEqual(seen['alone'][:3], ([], ['scripts/tests/slow.test.sh'], 1))  # by itself, `gate-check test`
         self.assertEqual({tuple(each[3]) for each in seen.values()}, {tuple(plan['tests'])})  # the key's plan: whole
@@ -241,7 +250,8 @@ class TheVerifier(unittest.TestCase):
         self.assertFalse(green)
         self.assertEqual(red, ['structure check', 'scripts/tests/y.test.sh'])
         self.assertEqual((stage_seen_batch, fake.workers), ([True, True], '3'))
-        self.assertEqual(sorted(name for name, _ in paces), ['secret scan (tree)', 'structure check', 'the batch of tests'])
+        self.assertEqual(sorted(name for name, _ in paces), ['pr metadata', 'secret scan (tree)', 'structure check',
+                                                             'the batch of tests'])
         unparted = Fake(plan=plan)
         verify_commit.judge(BASE, run=unparted, isolated=list, cpus=lambda: 4)  # local and full-suite: in order
         kinds = [call[1] for call in unparted.calls if call[0] == 'scripts/gate-check' and call[1] in ('stage', 'tests')]
@@ -377,7 +387,7 @@ class TheVerifier(unittest.TestCase):
         self.assertRegex(said, r'^verdict=tower-gate-green-[0-9a-f]{64}\n$')
         self.assertEqual(said.strip().split('-')[-1], record['key'])
         self.assertEqual((record['tree'], record['parents'], record['base'], record['sha']), (TREE, [BASE, HEAD_OF_PR], BASE, SHA))
-        self.assertEqual(record['stages'], ['secret scan (tree)', 'structure check'])  # pr metadata never runs here
+        self.assertEqual(record['stages'], ['pr metadata', 'secret scan (tree)', 'structure check'])  # D-329: it runs
         self.assertEqual(record['tests'], PLAN['tests'])
         self.assertEqual(record['runner'], IMAGE)
         for red in ('structure check', 'scripts/tests/y.test.sh'):
@@ -519,6 +529,127 @@ class TheVerifier(unittest.TestCase):
         self.assertEqual((queue['min_entries_to_merge'], queue['min_entries_to_merge_wait_minutes']), (1, 0))
         timeout = re.search(r'timeout-minutes: (\d+)', staged)
         self.assertLess(queue['check_response_timeout_minutes'], int(timeout.group(1)))
+
+
+REPO = 'openuniversity-si/open-university'
+ONE, TWO, MERGE_BASE = '1' * len(SHA), '2' * len(SHA), '3' * len(SHA)
+NUMBER = len(REPO)  # the fake gh's pull request: any number (no new literal, the census LT1)
+BODY = '## Commit plan\n- [ ] 1. The rule.\n- [ ] 2. Its use.\n'
+
+
+class GitHub(Fake):
+    """A fake gh for PR-METADATA-GITHUB (D-329): pull request NUMBER on GitHub, two commits pushed one by one."""
+
+    def __init__(self, body=BODY, messages=('The rule\n\nPlan: 1', 'Its use\n\nPlan: 2'), files=(['src/a.py'], ['src/b.py']),
+                 comments=(), forced=(), broken=None, **fake):
+        super().__init__(**fake)
+        self.body, self.messages, self.files, self.comments, self.forced = body, messages, files, list(comments), list(forced)
+        self.broken, self.read = broken, []
+
+    def lines(self, items):
+        return 0, ''.join(json.dumps(item) + '\n' for item in items)
+
+    def __call__(self, args, cwd=None, env=None):
+        said = ' '.join(args)
+        if not said.startswith('gh api ') or '-X' in args or 'actions/artifacts' in said:
+            return super().__call__(args, cwd, env)
+        path = next(arg for arg in args if arg.startswith('repos/'))
+        self.read.append(path)
+        if self.broken and self.broken in path:
+            return 1, 'HTTP 403: Resource not accessible by integration'
+        pull = f'repos/{REPO}/pulls/{NUMBER}'
+        if path == pull:
+            return 0, json.dumps({'number': NUMBER, 'body': self.body, 'draft': False, 'created_at': '2026-11-18T20:00:00Z',
+                                  'head': {'ref': 'claude/d-329', 'sha': TWO}, 'base': {'ref': 'main', 'sha': BASE}})
+        if path.startswith(f'{pull}/commits'):
+            return self.lines([{'sha': ONE, 'message': self.messages[0], 'parents': [MERGE_BASE]},
+                               {'sha': TWO, 'message': self.messages[1], 'parents': [ONE]}])
+        if path.startswith(f'{pull}/files'):
+            return self.lines(sorted({name for each in self.files for name in each}))
+        if path.startswith(f'repos/{REPO}/activity?ref=refs%2Fheads%2Fclaude%2Fd-329&activity_type=push'):
+            return self.lines([{'before': '0' * len(SHA), 'after': ONE, 'timestamp': '2026-11-18T20:01:00Z'},
+                               {'before': ONE, 'after': TWO, 'timestamp': '2026-11-18T20:02:00Z'}])
+        if path.startswith(f'repos/{REPO}/activity?ref=refs%2Fheads%2Fclaude%2Fd-329&activity_type=force_push'):
+            return self.lines(self.forced)
+        if path.startswith(f'repos/{REPO}/issues/{NUMBER}/comments'):
+            return self.lines([{'body': each, 'created_at': '2026-11-18T20:01:30Z'} for each in self.comments])
+        if path == f'repos/{REPO}/compare/main...{TWO}':
+            return 0, json.dumps({'behind_by': 0, 'merge_base_commit': {'sha': MERGE_BASE}})
+        if path.startswith(f'repos/{REPO}/commits/'):
+            return self.lines(self.files[[ONE, TWO].index(path.rsplit('/', 1)[1])])
+        raise AssertionError(path)
+
+
+QUEUE = {'GITHUB_EVENT_NAME': 'merge_group', 'GITHUB_REF': f'refs/heads/gh-readonly-queue/main/pr-{NUMBER}-{BASE}'}
+
+
+class ThePullRequestMetadata(unittest.TestCase):
+    """D-329 (PR-METADATA-GITHUB): tower/gate runs `pr metadata` on the GitHub pull request, read with gh, not Origin."""
+
+    def setUp(self):
+        import commit_check
+        lanes = mock.patch.object(commit_check, 'lane_errors', return_value=[])  # no lane: the fake shas are not here
+        regime = mock.patch.object(commit_check, 'regime', None)  # no exception regime lifts a lock here (D-260)
+        for patched in (lanes, regime):
+            patched.start()
+            self.addCleanup(patched.stop)
+
+    def judged(self, environ=QUEUE, argv=(), **fake):
+        fake = GitHub(**fake)
+        code = verify_commit.main(['--sha', SHA, '--base', BASE, '--repo', REPO, *argv], run=fake, environ=environ)
+        return code, fake
+
+    def test_the_stage_runs_on_the_merge_queue_commit_reading_the_pull_request_its_branch_names(self):
+        code, fake = self.judged()
+        self.assertEqual(code, 0, fake.statuses)
+        self.assertIn(f'repos/{REPO}/pulls/{NUMBER}', fake.read)
+        self.assertTrue(fake.statuses[-1][-1].startswith('green: 5 check(s)'))  # pr metadata is one of them
+        self.assertNotIn(['scripts/gate-check', 'stage', 'pr metadata', '--base', BASE], fake.calls)  # in process
+
+    def test_the_pull_request_is_the_events_else_the_queue_branchs_else_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            event = Path(tmp) / 'event.json'
+            event.write_text(json.dumps({'pull_request': {'number': NUMBER, 'head': {'sha': TWO}}}))
+            self.assertEqual(verify_commit.pull_request({'GITHUB_EVENT_NAME': 'pull_request',
+                                                         'GITHUB_EVENT_PATH': str(event)}), (NUMBER, TWO, True))
+            event.write_text(json.dumps({'merge_group': {'head_ref': f'refs/heads/gh-readonly-queue/main/pr-{len(BASE)}-{BASE}'}}))
+            self.assertEqual(verify_commit.pull_request({'GITHUB_EVENT_NAME': 'merge_group',
+                                                         'GITHUB_EVENT_PATH': str(event)}), (len(BASE), None, True))
+        self.assertEqual(verify_commit.pull_request(QUEUE), (NUMBER, None, True))
+        self.assertEqual(verify_commit.pull_request({'GITHUB_REF': f'refs/pull/{NUMBER}/merge'}), (NUMBER, None, False))
+        self.assertEqual(verify_commit.pull_request({'GITHUB_EVENT_NAME': 'merge_group'}), (None, None, True))
+        self.assertEqual(verify_commit.pull_request({'GITHUB_REF': 'refs/heads/main'}), (None, None, False))
+        self.assertEqual(verify_commit.pull_request({}, given=NUMBER), (NUMBER, None, False))
+
+    def test_the_machine_decided_rules_are_red_on_the_github_pull_request(self):
+        for fake, rule in (({'body': 'No plan here.'}, 'plan'),
+                           ({'messages': ('The rule\n\nPlan: 1', 'fixup! The rule\n\nPlan: 2')}, 'fixup'),
+                           ({'files': (['src/a.py'], ['scripts/gate-dev'])}, 'gate'),
+                           ({'comments': ['The merge is held for Daniel.']}, 'decision-wait'),
+                           ({'body': BODY + 'Item 2 waits on Daniel.\n'}, 'decision-wait'),
+                           ({'forced': [{'before': ONE, 'after': TWO, 'timestamp': '2026-11-18T20:03:00Z'}]}, 'force-push')):
+            out = io.StringIO()
+            with mock.patch('sys.stderr', out), mock.patch('sys.stdout', io.StringIO()):
+                code, ran = self.judged(**fake)
+            self.assertEqual(code, 1, (rule, ran.statuses))
+            self.assertEqual(ran.statuses[-1][-1], 'red: pr metadata', rule)
+            self.assertRegex(out.getvalue(), rf'FAIL {rule}: ', rule)
+
+    def test_a_pull_request_github_cannot_answer_or_an_event_naming_none_is_red(self):
+        for environ, fake in ((QUEUE, {'broken': '/activity'}), ({'GITHUB_EVENT_NAME': 'merge_group'}, {})):
+            out = io.StringIO()
+            with mock.patch('sys.stderr', out), mock.patch('sys.stdout', io.StringIO()):
+                code, ran = self.judged(environ=environ, **fake)
+            self.assertEqual((code, ran.statuses[-1][-1]), (1, 'red: pr metadata'))
+            self.assertRegex(out.getvalue(), r'not readable on GitHub|names no pull request')
+
+    def test_a_local_run_naming_no_pull_request_judges_nothing_and_pr_names_one(self):
+        code, ran = self.judged(environ={})
+        self.assertEqual(code, 0)
+        self.assertEqual(ran.read, [])
+        code, ran = self.judged(environ={}, argv=('--pr', str(NUMBER)))
+        self.assertEqual(code, 0)
+        self.assertIn(f'repos/{REPO}/pulls/{NUMBER}', ran.read)
 
 
 if __name__ == '__main__':

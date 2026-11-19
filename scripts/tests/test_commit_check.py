@@ -170,6 +170,20 @@ class CommitCheck(unittest.TestCase):
         code, out = self.run_check({**CLEAN, 'number': 505, 'comments': comments})
         self.assertIn('DECIDE, THEN REPORT (Daniel 2026-10-26 21:29): pick the safest reversible option', out)
 
+    def test_refuses_a_wait_on_daniel_by_name_in_a_comment_or_in_the_body(self):
+        """I-c16f2b7c: the owner named, in English or Portuguese, waits on him too, and the PR body is read as well."""
+        for phrase in ('held for Daniel', 'waits on Daniel', 'awaiting Daniel', 'espera o Daniel', 'aguarda Daniel'):
+            line = f'The merge is {phrase.lower()} until the quota resets.'
+            self.refused({**CLEAN, 'comments': [line]}, 'decision-wait')
+            self.refused({**CLEAN, 'body': CLEAN['body'] + line + '\n'}, 'decision-wait')
+        code, out = self.run_check({**CLEAN, 'body': CLEAN['body'] + 'Item 3 waits on Daniel.\n'})
+        self.assertIn('decision-wait: the body of PR #? waits on an owner decision', out)
+        for cleared in ({'body': CLEAN['body'] + 'Item 3 waits on Daniel.\n', 'comments': ['Decision: took item 3 (D-325).']},
+                        {'body': CLEAN['body'] + 'Item 3 waits on Daniel.\nDecision: took item 3 myself.\n'},
+                        {'body': CLEAN['body'] + 'The check reads `held for Daniel` outside code only.\n'}):
+            code, out = self.run_check({**CLEAN, **cleared})
+            self.assertEqual(code, 0, f'{cleared}: {out}')
+
     def test_a_later_decision_line_clears_the_owner_wait(self):
         for comments in (['BLOCKED: refused push.', 'Decision: replayed with scripts/replay-branch 505.'],
                          ['Waiting for your decision on X.\nDecision: took the reversible option X.'],

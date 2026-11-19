@@ -6,8 +6,7 @@ commit status `tower/gate` on GitHub, the check the merge queue of `main` requir
 The commit must be the checkout's HEAD (the verifier checks out what it judges: a pull request's head, or the merge
 queue's `gh-readonly-queue/main/...` commit, which is main plus the pull requests ahead of it). The plan is the gate's
 own (scripts/gate-check plan checks: the stages and only the script tests whose covers the diff base...HEAD touches);
-every stage of it runs but `pr metadata`, which reads the pull request on Origin, and the tests run in one
-`gate-check tests` batch. The status is `pending` while it runs, then `success` or `failure` with what was red. No
+every stage of it runs, and the tests run in one `gate-check tests` batch. The status is `pending` while it runs, then `success` or `failure` with what was red. No
 GitHub Actions and no runner of its own: the verifier is a Claude Code thread, the session that publishes is the one
 that ran the checks. Standard library, the registry's scripts/lib/config.py (GATE-ISOLATED) and the `gh` CLI (the
 session's GitHub credential) only.
@@ -19,22 +18,37 @@ commit's tree, its parents, the base, the plan's stages and tests and the hosted
 same verifier, gate and toolchain pins (all tracked), the same parents make the history below the commit the same, and
 the stages, which also read the commit itself (its message), run again. Only a run of this repository on one of the
 commit's parents counts, never a fork's; any error of the lookup is a miss, and the tests run.
+
+PR-METADATA-GITHUB (D-329): the `pr metadata` stage reads the pull request from GitHub with `gh api` (its body, commits,
+the branch's pushes and force pushes from the repository activity, its comments and its head against its base), not
+from Origin, and judges it with commit_check.pr_errors: the commit plan, fix-ups, one commit per push, force pushes, a
+head behind its base without a merge of it, a gate change citing no decision, an owner wait (decision_wait, D-325), the
+plan completeness and the lanes. The pull request is the event's (GITHUB_EVENT_PATH), else the number in the merge
+queue's branch name (gh-readonly-queue/<base>/pr-<n>-<sha>), else --pr; it is judged on the head the event names, else
+its live head (the queue commit is not a commit of the pull request). A pull request or merge queue event that names
+none, and any read error, is red (fail closed); a local run that names none judges nothing.
 """
 import hashlib
 import argparse
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+import urllib.parse
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 CONTEXT = 'tower/gate'
 TAIL = 6000  # VERIFY-TAIL: the characters of a red stage's or test batch's output the verifier prints (the job log)
-SKIPPED = ('pr metadata',)  # reads the pull request on Origin; the GitHub pull request is judged by its own reviewers
+SKIPPED = ()  # D-329: no stage of the plan is skipped; `pr metadata` reads the GitHub pull request (PR-METADATA-GITHUB)
+METADATA = 'pr metadata'
+QUEUE_BRANCH = re.compile(r'(?:^|refs/heads/)gh-readonly-queue/[^/]+/pr-(\d+)-[0-9a-f]+$')  # the merge queue's branch
+PULL_REF = re.compile(r'^refs/pull/(\d+)/(?:merge|head)$')
+PR_EVENTS = ('pull_request', 'pull_request_target', 'merge_group')  # an event that always names a pull request
 VERDICT = 'tower-gate-green-'  # VERDICT-REUSE: the artifact name of a recorded green verdict, its key after it
 KEY_VERSION = 1  # VERDICT-REUSE: a change to what the key covers bumps it, so no older record matches
 RUNNER = ('RUNNER_OS', 'RUNNER_ARCH', 'ImageOS', 'ImageVersion')  # the hosted runner's image, part of the key
@@ -157,7 +171,7 @@ def reuser(repo, base, run=run, environ=None, parts=None):
 
 
 def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=False, reuse=None, isolated=isolated_tests,
-          cpus=os.cpu_count, part=None, hints=costs, paces=None):
+          cpus=os.cpu_count, part=None, hints=costs, paces=None, metadata=None):
     """(green, red names, the plan, seconds): every stage of the plan but SKIPPED, then its tests in one batch.
     VERIFY-TAIL: tails, when given, receives (name, the end of its output) for each red stage and each test still red.
     VERIFY-ALONE (the engine's FULL-RUN-ALONE): a test red in the batch runs again alone, and that verdict is its own; a
@@ -195,7 +209,10 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
             if stage in SKIPPED:
                 continue
             at = clock()
-            code, said = run(['scripts/gate-check', 'stage', stage, '--base', base])
+            if stage == METADATA:  # PR-METADATA-GITHUB: the GitHub pull request, not gate-check (D-329)
+                code, said = (metadata or pr_metadata)()
+            else:
+                code, said = run(['scripts/gate-check', 'stage', stage, '--base', base])
             paces.append((stage, clock() - at))
             if code != 0:
                 staged_red.append(stage)
@@ -267,6 +284,105 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
     return not red, red, planned, clock() - began
 
 
+def pull_request(environ=None, given=None):
+    """PR-METADATA-GITHUB: (number, head sha or None, must) of the pull request this run judges: --pr (given), else the
+    event's pull request (GITHUB_EVENT_PATH: its number and head), else the number in the merge queue's branch name
+    (merge_group.head_ref, GITHUB_REF), else a refs/pull/<n>/ ref. must: the event always names one (PR_EVENTS)."""
+    environ = os.environ if environ is None else environ
+    must = environ.get('GITHUB_EVENT_NAME') in PR_EVENTS
+    if given:
+        return int(given), None, must
+    event = {}
+    if environ.get('GITHUB_EVENT_PATH'):
+        try:
+            event = json.loads(Path(environ['GITHUB_EVENT_PATH']).read_text(encoding='utf-8')) or {}
+        except (OSError, ValueError):
+            event = {}
+    pull = event.get('pull_request') if isinstance(event.get('pull_request'), dict) else {}
+    if pull.get('number'):
+        return int(pull['number']), (pull.get('head') or {}).get('sha'), must
+    for ref in ((event.get('merge_group') or {}).get('head_ref'), environ.get('GITHUB_REF'), environ.get('GITHUB_HEAD_REF')):
+        found = QUEUE_BRANCH.search(ref or '') or PULL_REF.match(ref or '')
+        if found:
+            return int(found.group(1)), None, must
+    return None, None, must
+
+
+def gh_json(run, path, lines=None):
+    """`gh api` of path as JSON; with lines (a jq filter) it reads every page and answers the list of its lines' values."""
+    args = ['gh', 'api', path] if lines is None else ['gh', 'api', '--paginate', path, '--jq', lines]
+    code, said = run(args)
+    if code != 0:
+        raise RuntimeError(f'gh api {path}: {(said.strip().splitlines() or [""])[-1]}')  # gh says why on its last line
+    try:
+        return json.loads(said) if lines is None else [json.loads(line) for line in said.splitlines() if line.strip()]
+    except ValueError as error:
+        raise RuntimeError(f'gh api {path}: not JSON ({error})') from None
+
+
+def github_pr(repo, number, head=None, run=run, root=ROOT):
+    """PR-METADATA-GITHUB: the pull request in the shape forge_pr.fetch answers (what commit_check judges), read from
+    GitHub and judged on head (the event's), else on its live head. Commit and PR file names come from the checkout
+    when it holds the commits, else from GitHub."""
+    import forge_pr  # scripts/lib, beside this file
+    pull = gh_json(run, f'repos/{repo}/pulls/{number}')
+    branch, base, live = pull['head']['ref'], pull['base']['ref'], pull['head']['sha']
+    gated = head or live
+    page = gh_json(run, f'repos/{repo}/pulls/{number}/commits?per_page=100',
+                   '.[] | {sha, message: .commit.message, parents: [.parents[].sha]}')
+    ref = urllib.parse.quote(f'refs/heads/{branch}', safe='')
+    pushes = gh_json(run, f'repos/{repo}/activity?ref={ref}&activity_type=push&per_page=100',
+                     '.[] | {before, after, timestamp}')
+    forced = gh_json(run, f'repos/{repo}/activity?ref={ref}&activity_type=force_push&per_page=100',
+                     '.[] | {before, after, timestamp}')
+    comments = gh_json(run, f'repos/{repo}/issues/{number}/comments?per_page=100', '.[] | {body, created_at}')
+    compare = gh_json(run, f'repos/{repo}/compare/{urllib.parse.quote(base, safe="")}...{gated}')
+    merge_base = (compare.get('merge_base_commit') or {}).get('sha')
+    if gated in {item['sha'] for item in page}:
+        commits = forge_pr.gated_commits(page, gated)
+    else:
+        commits = forge_pr.local_commits(root, merge_base, gated)
+        if commits is None:
+            raise RuntimeError(f'head {gated} is neither on the pull request\'s commits nor in the checkout')
+    names = forge_pr.local_files(root, [commit['sha'] for commit in commits])
+    for commit in commits:
+        commit['files'] = (names[commit['sha']] if names is not None
+                           else gh_json(run, f'repos/{repo}/commits/{commit["sha"]}', '.files[].filename'))
+    diff = forge_pr.git(root, 'diff', '--name-only', merge_base, gated) if merge_base and merge_base != gated else None
+    files = (sorted(name for name in diff.splitlines() if name.strip()) if diff is not None
+             else gh_json(run, f'repos/{repo}/pulls/{number}/files?per_page=100', '.[].filename'))
+    moves = ('before', 'after', 'timestamp')
+    return {'number': number, 'body': pull.get('body') or '', 'branch': branch, 'commits': commits,
+            'created_at': pull.get('created_at'), 'draft': bool(pull.get('draft')), 'files': files,
+            'comments': [{'body': item.get('body') or '', 'created_at': item.get('created_at')} for item in comments],
+            'gated': {'sha': gated, 'live': live},
+            'pushes': [{key: push.get(key) for key in moves} for push in pushes],
+            'force_pushes': [{key: push.get(key) for key in moves} for push in forced],
+            'base': {'ref': base, 'behind_by': compare.get('behind_by'), 'merge_base': merge_base}}
+
+
+def pr_metadata(repo=None, number=None, head=None, must=False, run=run, root=ROOT, judge_pr=None):
+    """PR-METADATA-GITHUB (D-329): (code, output) of the `pr metadata` stage on the GitHub pull request: the refusals
+    and warnings of commit_check.pr_errors (judge_pr), one per line. No pull request: red when the event must name one,
+    else nothing judged. A read error is red and never lifted (commit-check's blind read)."""
+    if number is None:
+        if must:
+            return 1, 'FAIL pr metadata: the event names no pull request (no pull_request, no merge queue branch)\n'
+        return 0, 'pr metadata: no pull request named: nothing judged\n'
+    if judge_pr is None:
+        import commit_check  # scripts/lib, beside this file
+        judge_pr = commit_check.pr_errors
+    try:
+        pr = github_pr(repo, number, head, run, root)
+    except (RuntimeError, KeyError, TypeError, AttributeError) as error:
+        return 1, f'FAIL commit-check: PR #{number} not readable on GitHub ({error})\n'
+    errors, warnings = judge_pr(pr, root)
+    said = [f'FAIL {line}' for line in errors] + [f'WARN {line}' for line in warnings]
+    said.append(f'pr metadata: PR #{number} at {pr["gated"]["sha"]}: {len(pr["commits"])} commit(s); '
+                f'{len(errors)} refusal(s)')
+    return (1 if errors else 0), '\n'.join(said) + '\n'
+
+
 def post(repo, sha, state, description, run=run):
     """The commit status, through the session's `gh` (repository-scoped)."""
     code, said = run(['gh', 'api', '-X', 'POST', f'repos/{repo}/statuses/{sha}', '-f', f'state={state}',
@@ -303,6 +419,8 @@ def main(argv=None, run=run, environ=None):
     parser.add_argument('--sha', required=True)
     parser.add_argument('--base', required=True)
     parser.add_argument('--repo')
+    parser.add_argument('--pr', type=int, help='PR-METADATA-GITHUB: the pull request `pr metadata` judges (default: the '
+                        'event\'s, or the merge queue branch\'s)')
     parser.add_argument('--no-post', action='store_true', help='judge and print; publish nothing')
     parser.add_argument('--all', action='store_true', help='every script test, not only the diff\'s (FULL-SUITE-MAIN)')
     parser.add_argument('--reuse', action='store_true',
@@ -327,8 +445,10 @@ def main(argv=None, run=run, environ=None):
         # shard1's), so asking one run for all three under one key was a miss even for an exact duplicate
         reuse = reuser(repo, args.base, run, environ, (args.part,) if args.part else None) if args.reuse else None
         paces = []
+        number, head, must = pull_request(environ, args.pr)  # PR-METADATA-GITHUB (D-329)
+        metadata = lambda: pr_metadata(repo, number, head, must, run)  # noqa: E731 - run in the stages' thread
         green, red, planned, seconds = judge(args.base, run, tails=tails, alone=alone, every=args.all, reuse=reuse,
-                                             part=args.part, paces=paces)
+                                             part=args.part, paces=paces, metadata=metadata)
     except Exception as error:  # noqa: BLE001 - a verifier that could not judge says so on the commit
         if not args.no_post:
             post(repo, args.sha, 'error', f'not judged: {error}', run)
