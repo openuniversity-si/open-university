@@ -10,6 +10,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
   UNIT  units/<id>/unit.json (active; `requires` are depends-on links)
   TEST  scripts/tests/*.test.sh (active), each with the test files it runs as its parts, and the test files under
         scripts/tests/ that no script test runs (active, a test of their own)
+  INC   an escape (read_escapes): each pull request a later merge's commits name in `Fixes-PR:` is INC-escape-<n>,
+        resolved, introduced by CHG-<n>, fixed by the merges that name it, violating REQ-escape-under-1
 
   scripts/model check [--strict]   errors (exit 1) for a metamodel or object that breaks the model; warnings (a link to an
                                    object that does not exist, such as a decision proof that is gone) are counted, and
@@ -917,6 +919,44 @@ def _changed_units(root):
     return result
 
 
+def _change_id(sha, subject):
+    """The change id of one merge: CHG-<pull request number> its subject names, else CHG-<sha>."""
+    number = PR_NUMBER.search(subject)
+    return f'CHG-{number.group(1)}' if number else f'CHG-{sha[:len("0123456789ab")]}'
+
+
+TRAILER_FIXES = re.compile(r'^Fixes-PR:\s*(.+)$', re.MULTILINE)
+ESCAPE_REQUIREMENT = 'REQ-escape-under-1'
+
+
+def read_escapes(root):
+    """Escapes (INC, F4d): a defect a merged change brought to main that a later merge repaired. Each pull request the
+    commits of a first-parent merge name in `Fixes-PR:` (comma-separated numbers, `#` optional) is one incident,
+    INC-escape-<n>, resolved: introduced by CHG-<n> (the change that let it through), fixed by every merge that names
+    it, violating REQ-escape-under-1. A number no merge of HEAD carries leaves a link to a change that does not exist
+    (a warning of check), never a guessed target."""
+    found = {}
+    for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
+        sha, _, subject = line.partition('\x1f')
+        fixer = _change_id(sha, subject)
+        for listed in TRAILER_FIXES.findall(_git(root, 'log', '--format=%B', f'{sha}^1..{sha}')):
+            for number in re.findall(r'#?([0-9]+)', listed):
+                escaped = f'CHG-{number}'
+                if escaped == fixer:
+                    continue
+                item = found.get(number)
+                if item is None:
+                    links = [{'type': 'introduced-by', 'target': escaped},
+                             {'type': 'violates', 'target': ESCAPE_REQUIREMENT}]
+                    item = found[number] = _obj(f'INC-escape-{number}', 'INC', 'resolved', f'git:{sha}', escaped,
+                                                links)
+                    item['body'] = {'escaped': escaped, 'fixed_by': []}
+                if fixer not in item['body']['fixed_by']:
+                    item['body']['fixed_by'].append(fixer)
+                    item['links'].append({'type': 'fixed-by', 'target': fixer})
+    return list(found.values())
+
+
 def read_changes(root):
     """Changes (CHG): every merge on the first-parent line of HEAD, one per pull request (CHG-<number>, else
     CHG-<sha>), merged; the `Implements:` trailers of its commits become implements links (requirements, decisions
@@ -928,8 +968,7 @@ def read_changes(root):
     touched = _changed_units(Path(root))
     for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
         sha, _, subject = line.partition('\x1f')
-        number = PR_NUMBER.search(subject)
-        ident = f'CHG-{number.group(1)}' if number else f'CHG-{sha[:len("0123456789ab")]}'
+        ident = _change_id(sha, subject)
         records = _git(root, 'log', '--format=%x1e%s%x1f%B', f'{sha}^1..{sha}').split('\x1e')[1:]
         bodies = ''.join(record.partition('\x1f')[2] for record in records)
         named = records[0].partition('\x1f')[2] if records else ''  # the merge's own message holds the PR title
@@ -1817,7 +1856,7 @@ def derive_work(found):
 
 
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
-           read_intent, read_requirements, read_premises, read_changes, read_architecture, read_adrs, read_validations,
+           read_intent, read_requirements, read_premises, read_changes, read_escapes, read_architecture, read_adrs, read_validations,
            read_suppliers, read_dependencies, read_advisories, read_checks, read_data, read_requests,
            read_risks, read_controls, read_vulns, read_threats, read_measures, read_work)
 

@@ -542,6 +542,26 @@ class Changes(unittest.TestCase):
         self.assertEqual(found['CHG-5']['links'], [{'type': 'implements', 'target': 'REQ-a'},
                                                    {'type': 'implements', 'target': 'UNIT:x'}])
 
+    def merge(self, number, message):
+        self.git('checkout', '-q', '-b', f'b{number}')
+        write(self.root, f'f{number}.txt', str(number))
+        self.git('add', '.')
+        self.git('commit', '-q', '-m', message)
+        self.git('checkout', '-q', 'main')
+        self.git('merge', '-q', '--no-ff', f'b{number}', '-m', f'Merge pull request #{number} from org/b{number}')
+
+    def test_a_fixes_pr_trailer_is_an_escape_introduced_by_the_change_it_names_and_fixed_by_its_own(self):
+        self.merge(6, 'fix: a\n\nFixes-PR: #5')
+        self.merge(7, 'fix: a again, and an unknown one\n\nFixes-PR: 5, 99, 7')
+        self.merge(8, 'docs: n')
+        found = {item['id']: item for item in model.read_escapes(self.root)}
+        self.assertEqual(sorted(found), ['INC-escape-5', 'INC-escape-99'], 'one escape per escaped change; none of itself')
+        self.assertEqual(found['INC-escape-5']['state'], 'resolved')
+        self.assertEqual(found['INC-escape-5']['links'], [
+            {'type': 'introduced-by', 'target': 'CHG-5'}, {'type': 'violates', 'target': 'REQ-escape-under-1'},
+            {'type': 'fixed-by', 'target': 'CHG-7'}, {'type': 'fixed-by', 'target': 'CHG-6'}])
+        self.assertEqual(found['INC-escape-99']['body'], {'escaped': 'CHG-99', 'fixed_by': ['CHG-7']})
+
     def test_the_units_a_merges_diff_touched_are_implements_links_from_the_diff_that_implement_no_requirement(self):
         import units
         shutil.copytree(ROOT / 'config/registry', self.root / 'config/registry')
