@@ -1,0 +1,88 @@
+{
+  "id": "THREAT-measurement",
+  "models": "ARC-measurement",
+  "assets": [
+    "the flow metrics and the throughput measure (merged PRs per hour)",
+    "the budgets, the SLOs and their tighten-only rule",
+    "the census and its hash-chained records",
+    "the session usage counts"
+  ],
+  "boundaries": [
+    "main's history and the metrics read from it",
+    "a pull request that changes a budget or a measure",
+    "a session transcript and the usage read from it"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "Merge envelopes, empty or fix-up commits are counted as delivered work, so the measure reports throughput that did not happen.",
+      "mitigated_by": [
+        "STD-flow-metrics-refused",
+        "TEST:scripts/tests/flow-metrics.test.sh"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A change loosens a budget or an SLO, or grows the exception list, to make a measure pass.",
+      "mitigated_by": [
+        "STD-measurement-checks",
+        "REQ-slo-budgets-budgets-tighten-only",
+        "TEST:scripts/tests/measurement-checks.test.sh",
+        "TEST:scripts/tests/slo.test.sh"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "A census record is edited or removed so the measure's history no longer shows what it held.",
+      "mitigated_by": [
+        "STD-census-shape-errors",
+        "STD-audit-chain-chain-errors",
+        "TEST:scripts/tests/census.test.sh"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "A measure or a usage report copies a secret or a transcript's private content into the repository.",
+      "mitigated_by": [
+        "STD-gate-secret-scan-tree",
+        "STD-gate-secret-scan-history",
+        "TEST:scripts/tests/usage.test.sh"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A measure that reads all of history grows without bound and stalls the gate stage that runs it. Residual: the gate's ceiling only warns; a slow stage is stopped by the job's timeout.",
+      "mitigated_by": [
+        "REQ-gate-60s",
+        "STD-gate-script-tests",
+        ".github/workflows/tower-gate.yml"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "A measure is read as a decision, so a wrong number steers the fronts without an owner's decision. Residual: the measures inform the manager; nothing in the tree stops a session from acting on a wrong one.",
+      "mitigated_by": [
+        "D-294"
+      ]
+    }
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "denial-of-service",
+        "finding": "REQ-gate-60s and the 180 s ceiling are targets; the ceiling only warns (D-064 f).",
+        "disposition": "fixed",
+        "reason": "the job timeout (tower-gate.yml) added; residual added."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "STD-measurement-checks keeps budgets from loosening; it does not stop a wrong number from steering the fronts. No stronger reference exists in the tree.",
+        "disposition": "fixed",
+        "reason": "reference removed; the residual, already honest, carries the threat with D-294."
+      }
+    ]
+  },
+  "reviewed": "2026-11-19"
+}

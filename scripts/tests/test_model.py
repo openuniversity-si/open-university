@@ -465,6 +465,16 @@ class Requirements(unittest.TestCase):
         self.assertNotIn('REQ-slo-slo-producer', found)
         self.assertEqual(model.requirement_findings(found), [])
 
+    def test_an_import_override_carries_implemented_by_into_its_requirement(self):
+        # D-332: an import's overrides.<id> may name the merged change that implements that requirement
+        write(self.root, 'config/requirements/imports/slo.json', {
+            'id': 'slo', 'type': 'quality', 'state': 'approved', 'owner': 'administration',
+            'derives_from': {'*': 'NEED-throughput'},
+            'overrides': {'slo.gate_p95_s': {'state': 'approved', 'implemented_by': ['CHG-initial']}}})
+        found = self.found()
+        self.assertEqual(found['REQ-slo-slo-gate-p95-s']['body']['implemented_by'], ['CHG-initial'])
+        self.assertNotIn('problems', found['REQ-slo-slo-gate-p95-s'])
+
     def test_a_requirement_file_links_its_need_and_decision_and_gaps_are_warnings(self):
         write(self.root, 'config/requirements/REQ-gate-60s.json', {
             'id': 'REQ-gate-60s', 'type': 'constraint', 'statement': 'The gate answers in 60 s.', 'state': 'approved',
@@ -509,7 +519,7 @@ class Changes(unittest.TestCase):
 
     def test_a_merge_is_a_change_and_its_commits_implements_trailers_are_links(self):
         found = {item['id']: item for item in model.read_changes(self.root)}
-        self.assertEqual(list(found), ['CHG-5'])
+        self.assertEqual(list(found), ['CHG-5', 'CHG-initial'], 'the root commit is the initial tree (D-332)')
         self.assertEqual(found['CHG-5']['state'], 'merged')
         self.assertEqual(found['CHG-5']['links'], [{'type': 'implements', 'target': 'REQ-a'},
                                                    {'type': 'implements', 'target': 'UNIT:x'}])
@@ -677,6 +687,106 @@ class Changes(unittest.TestCase):
         self.assertTrue(model.chain_verified(chain['REQ-1'], model.incoming(chain), chain))
         del chain['REQ-1']['body']['verification']
         self.assertFalse(model.chain_verified(chain['REQ-1'], model.incoming(chain), chain))
+
+    def test_a_link_whose_only_open_validation_is_measured_after_the_stop_holds_while_it_is_measuring(self):
+        # D-331: VAL-ladder-1 and VAL-escape-under-1 count in no stop condition while measuring, never while not met
+        def chain(validations, verification=None):
+            found = {'REQ-1': {'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f',
+                               'links': [{'type': 'derives-from', 'target': 'NEED-1'}],
+                               'body': {'verification': verification} if verification else {}},
+                     'NEED-1': {'id': 'NEED-1', 'type': 'NEED', 'state': 'active', 'fingerprint': 'f', 'links': []},
+                     'CHG-1': {'id': 'CHG-1', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f',
+                               'links': [{'type': 'implements', 'target': 'REQ-1'}]},
+                     'ARC-1': {'id': 'ARC-1', 'type': 'ARC', 'state': 'active', 'fingerprint': 'f',
+                               'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
+                     'UNIT:a': {'id': 'UNIT:a', 'type': 'UNIT', 'state': 'active', 'fingerprint': 'f',
+                                'links': [{'type': 'realizes', 'target': 'ARC-1'}]}}
+            if not verification:
+                found['TEST:a'] = {'id': 'TEST:a', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
+                                   'links': [{'type': 'verifies', 'target': 'REQ-1'}]}
+            for ident, (state, target) in validations.items():
+                found[ident] = {'id': ident, 'type': 'VAL', 'state': state, 'fingerprint': 'f',
+                                'links': [{'type': 'validates', 'target': target}]}
+            return model.chain_verified(found['REQ-1'], model.incoming(found), found)
+        self.assertTrue(chain({'VAL-escape-under-1': ('measuring', 'NEED-1')}))
+        self.assertTrue(chain({'VAL-ladder-1': ('measuring', 'NEED-1'), 'VAL-2': ('met', 'REQ-1')}))
+        self.assertFalse(chain({'VAL-escape-under-1': ('not-met', 'NEED-1')}), 'never while it is not met')
+        self.assertFalse(chain({'VAL-2': ('measuring', 'NEED-1')}), 'only the two of D-331')
+        self.assertFalse(chain({'VAL-ladder-1': ('measuring', 'NEED-1'), 'VAL-2': ('not-met', 'REQ-1')}),
+                         'another validation not met keeps the link open')
+        self.assertTrue(chain({'VAL-escape-under-1': ('measuring', 'REQ-1')}, verification='validation'))
+        self.assertFalse(chain({'VAL-escape-under-1': ('defined', 'REQ-1')}, verification='validation'))
+
+    def test_the_intention_ladder_waits_on_the_ladder_while_it_is_measuring_and_counts_once_it_is_not(self):
+        # D-332: VAL-intention-ladder-1 is every ladder validation met at once, so it cannot be met while VAL-ladder-1 is
+        # measuring; it joins MEASURED_AFTER and waits on VAL-ladder-1, never on its own state
+        def chain(intention, ladder=None, ladder_validates='NEED-1'):
+            found = {'REQ-1': {'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f',
+                               'links': [{'type': 'derives-from', 'target': 'NEED-1'}], 'body': {}},
+                     'NEED-1': {'id': 'NEED-1', 'type': 'NEED', 'state': 'active', 'fingerprint': 'f', 'links': []},
+                     'CHG-1': {'id': 'CHG-1', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f',
+                               'links': [{'type': 'implements', 'target': 'REQ-1'}]},
+                     'ARC-1': {'id': 'ARC-1', 'type': 'ARC', 'state': 'active', 'fingerprint': 'f',
+                               'links': [{'type': 'satisfies', 'target': 'REQ-1'}]},
+                     'UNIT:a': {'id': 'UNIT:a', 'type': 'UNIT', 'state': 'active', 'fingerprint': 'f',
+                                'links': [{'type': 'realizes', 'target': 'ARC-1'}]},
+                     'TEST:a': {'id': 'TEST:a', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
+                                'links': [{'type': 'verifies', 'target': 'REQ-1'}]},
+                     'VAL-intention-ladder-1': {'id': 'VAL-intention-ladder-1', 'type': 'VAL', 'state': intention,
+                                                'fingerprint': 'f', 'links': [{'type': 'validates', 'target': 'NEED-1'}]}}
+            if ladder:
+                found['VAL-ladder-1'] = {'id': 'VAL-ladder-1', 'type': 'VAL', 'state': ladder, 'fingerprint': 'f',
+                                         'links': [{'type': 'validates', 'target': ladder_validates}]}
+            return model.chain_verified(found['REQ-1'], model.incoming(found), found)
+        self.assertIn('VAL-intention-ladder-1', model.MEASURED_AFTER)
+        self.assertTrue(chain('not-met', 'measuring'))
+        self.assertTrue(chain('not-met', 'measuring', ladder_validates='NEED-2'),
+                        'it waits on the ladder even when the ladder validates another need')
+        self.assertFalse(chain('not-met', 'met', ladder_validates='NEED-2'), 'once the ladder is met, the intention counts')
+        self.assertFalse(chain('not-met', 'not-met'))
+        self.assertFalse(chain('not-met'), 'no ladder measuring, nothing to wait on')
+        self.assertTrue(chain('met', 'met'))
+
+    def test_the_initial_tree_is_a_merged_change_and_implemented_by_is_an_implements_link_from_a_merged_one(self):
+        # D-332: a requirement names the merged change that implements it when no trailer does; CHG-initial is the root
+        shutil.copytree(ROOT / 'contracts/model', self.root / 'contracts/model')
+        shutil.copytree(ROOT / 'config/model', self.root / 'config/model')
+        def req(ident, changes):
+            write(self.root, f'config/requirements/{ident}.json', {
+                'id': ident, 'type': 'quality', 'statement': 's', 'state': 'approved', 'owner': 'o', 'source': 'x',
+                'implemented_by': changes})
+        req('REQ-old', ['CHG-initial', 'CHG-5'])
+        req('REQ-gone', ['CHG-9'])
+        found = model.objects(self.root, readers=(model.read_requirements, model.read_changes))
+        self.assertEqual((found['CHG-initial']['state'], found['CHG-initial']['body']['subject']), ('merged', 'start'))
+        self.assertIn({'type': 'implements', 'target': 'REQ-old', 'source': 'requirement'}, found['CHG-initial']['links'])
+        self.assertIn({'type': 'implements', 'target': 'REQ-old', 'source': 'requirement'}, found['CHG-5']['links'])
+        into = model.incoming(found)
+        self.assertTrue(model.implemented(found['REQ-old'], into, found))
+        self.assertFalse(model.implemented(found['REQ-gone'], into, found))
+        self.assertEqual(found['REQ-gone']['problems'], ['implemented_by CHG-9, which is not a merged change'])
+        errors, _ = model.check(model.metamodel(self.root), found)
+        self.assertIn('REQ-gone: implemented_by CHG-9, which is not a merged change', errors)
+        self.assertFalse([error for error in errors if error.startswith('REQ-old')], errors)
+        req('REQ-bad', ['PR-5'])
+        found = model.objects(self.root, readers=(model.read_requirements, model.read_changes))
+        self.assertTrue(any('implemented_by' in problem for problem in found['REQ:REQ-bad']['problems']),
+                        'the contract names a change by CHG-<number> or CHG-initial')
+
+    def test_a_shallow_clone_reads_no_initial_tree(self):
+        import subprocess
+        for branch in ('wa', 'wb'):
+            self.git('checkout', '-q', '-b', branch)
+            write(self.root, f'{branch}.txt', 'c')
+            self.git('add', '.')
+            self.git('commit', '-q', '-m', branch)
+            self.git('checkout', '-q', 'main')
+            self.git('merge', '-q', '--no-ff', branch, '-m', f'Merge branch {branch}')
+        shallow = Path(tempfile.mkdtemp(prefix='model-shallow-'))
+        self.addCleanup(shutil.rmtree, shallow)
+        subprocess.run(['git', 'clone', '-q', '--depth', '2', f'file://{self.root}', str(shallow)], check=True,
+                       capture_output=True)
+        self.assertNotIn('CHG-initial', {item['id'] for item in model.read_changes(shallow)})
 
     def test_a_verified_requirement_that_no_merged_change_implements_is_not_verified_end_to_end(self):
         chain = {'REQ-1': {'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': []},

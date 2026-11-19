@@ -16,25 +16,29 @@
   "threats": [
     {
       "stride": "spoofing",
-      "statement": "A visitor signs in as someone else, or reaches an admin route without its secret.",
+      "statement": "A visitor signs in as someone else, or reaches an admin route without its secret. Residual: the admin API has one shared bearer secret, so whoever holds it is the admin.",
       "mitigated_by": [
         "CTRL-ssdf-pw.8",
-        "CHK-web"
+        "CHK-web",
+        "apps/web/src/admin/auth.ts"
       ]
     },
     {
       "stride": "tampering",
-      "statement": "A cross-site request, an open redirect after sign-in or an injected script acts with a learner's session. Residual: the content security policy only reports for now, so injected script is held by the framework's escaping, not by an enforced policy.",
+      "statement": "A cross-site request, an open redirect after sign-in or an injected script acts with a learner's session. Residual: the content security policy only reports for now, with 'unsafe-inline' scripts, so injected script is held by the framework's escaping, not by an enforced policy; the site sends no HSTS header, so a first visit over plain HTTP can be downgraded.",
       "mitigated_by": [
         "CTRL-ssdf-pw.8",
-        "CHK-web"
+        "CHK-web",
+        "CTRL-ssdf-pw.9"
       ]
     },
     {
       "stride": "repudiation",
-      "statement": "A catalog change made through the admin routes cannot be traced to the call that made it.",
+      "statement": "A catalog change made through the admin routes cannot be traced to the call that made it. Residual: each change writes a catalog_audit row in its own transaction, but the shared admin secret names no person, and the rows live in the database the site itself writes.",
       "mitigated_by": [
-        "CHK-web"
+        "CHK-web",
+        "apps/web/src/catalog/server/mutation.ts",
+        "apps/web/src/platform/db/schema.ts"
       ]
     },
     {
@@ -51,7 +55,8 @@
       "statement": "The media bucket is read directly, bypassing the site and the CDN.",
       "mitigated_by": [
         "DATA-r2-media",
-        "infra/aws/stacks/60-media.json"
+        "infra/aws/stacks/60-media.json",
+        "TEST:scripts/tests/infra-aws.test.sh"
       ]
     },
     {
@@ -69,6 +74,51 @@
         "CTRL-ssdf-pw.4",
         "TEST:scripts/tests/supply.test.sh"
       ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "The site's Lambda role, or the secrets it holds as environment variables, reach more of the account or the database than the site needs. Residual: the Lambda and its role are not defined in this tree's stacks, so no test here bounds them.",
+      "mitigated_by": [
+        "CTRL-ssdf-pw.9",
+        "CTRL-ssdf-po.5"
+      ]
     }
-  ]
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "spoofing",
+        "finding": "The admin routes are guarded by one shared bearer secret (apps/web/src/admin/auth.ts), not by a person's identity; the model did not say so.",
+        "disposition": "accepted",
+        "reason": "residual added; per-person admin identity is a change of the site."
+      },
+      {
+        "about": "tampering",
+        "finding": "Besides the report-only policy (stated), the site sends no HSTS header (SECURE-DEFAULTS, CTRL-ssdf-pw.9).",
+        "disposition": "accepted",
+        "reason": "residual added; both gaps are recorded in CTRL-ssdf-pw.9 and are changes of the site."
+      },
+      {
+        "about": "repudiation",
+        "finding": "CHK-web alone does not trace a change; the trace is the catalog_audit row each mutation writes, and it names no person.",
+        "disposition": "fixed",
+        "reason": "the audit's code and table named; residual added."
+      },
+      {
+        "about": "information-disclosure",
+        "finding": "The media bucket's private access is proved by MediaStackTests, not named.",
+        "disposition": "fixed",
+        "reason": "infra-aws.test.sh added."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "An asset (the site's secrets in its Lambda's environment) had no threat, and the Lambda's role is outside this tree's stacks.",
+        "disposition": "fixed",
+        "reason": "threat added with its residual."
+      }
+    ]
+  },
+  "reviewed": "2026-11-19"
 }

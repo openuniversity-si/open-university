@@ -22,7 +22,49 @@
     "slo.train_queue_time_p95_s": {
       "state": "obsolete",
       "retired_by": "D-316"
+    },
+    "budgets.pr_changed_lines": {
+      "state": "approved",
+      "implemented_by": [
+        "CHG-initial"
+      ]
+    },
+    "budgets.pr_commits_min": {
+      "state": "approved",
+      "implemented_by": [
+        "CHG-initial"
+      ]
+    },
+    "budgets.pr_commits_max": {
+      "state": "approved",
+      "implemented_by": [
+        "CHG-initial"
+      ]
+    },
+    "budgets.regression_tolerance_percent": {
+      "state": "approved",
+      "implemented_by": [
+        "CHG-initial"
+      ]
+    },
+    "budgets.tighten_only": {
+      "state": "approved",
+      "implemented_by": [
+        "CHG-initial"
+      ]
+    },
+    "slo.gate_failure_rate_max_percent": {
+      "state": "approved",
+      "implemented_by": [
+        "CHG-initial"
+      ]
+    },
+    "slo.merged_prs_per_hour_min": {
+      "state": "approved",
+      "implemented_by": [
+        "CHG-initial"
+      ]
     }
   },
-  "note": "slo.gate_tier1_p95_s (10 s) was the gate of the engine's own box; on GitHub (D-314) the gate's ceiling is REQ-gate-60s. slo.train_queue_time_p95_s measured the train, dormant since D-316."
+  "note": "slo.gate_tier1_p95_s (10 s) was the gate of the engine's own box; on GitHub (D-314) the gate's ceiling is REQ-gate-60s. slo.train_queue_time_p95_s measured the train, dormant since D-316. D-332: the seven approved keys are implemented by the initial public tree (CHG-initial): structure.py (budgets.pr_changed_lines), commit_check.py (budgets.pr_commits_min/max), budget_check.py (budgets.regression_tolerance_percent, budgets.tighten_only) and slo.py (the two SLOs)."
 }

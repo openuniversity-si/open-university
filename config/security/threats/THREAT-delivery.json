@@ -1,0 +1,114 @@
+{
+  "id": "THREAT-delivery",
+  "models": "ARC-delivery",
+  "assets": [
+    "main's history (DATA-repository) and the merge commits that carry each change",
+    "the commit plan and its Plan trailers, the proof of what each commit delivered",
+    "the push credentials of a cloud session"
+  ],
+  "boundaries": [
+    "a session's branch and the GitHub remote it pushes to",
+    "the pull request and the merge queue",
+    "a merge and the regeneration of the generated files it carries"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "A pull request claims a plan item, a lane or a review it did not deliver, so a merge looks justified by work or approval it does not carry.",
+      "mitigated_by": [
+        "STD-structure-plan-completeness-errors",
+        "STD-structure-review-errors",
+        "STD-structure-lane-errors",
+        "TEST:scripts/tests/commit-check.test.sh"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A pushed history is rewritten or rebased, or several commits arrive in one push, so what lands is not what was judged commit by commit.",
+      "mitigated_by": [
+        "STD-commit-check-force-push-errors",
+        "STD-commit-check-rebase-errors",
+        "STD-commit-check-push-errors",
+        "CTRL-ssdf-ps.1"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A merge of two branches leaves a generated file that matches neither generator run, or a change skips the local checks by pushing past the hook. Residual: the hook runs on the client, so a push that bypasses it is caught only by the gate, after the push.",
+      "mitigated_by": [
+        "TEST:scripts/tests/merge-regenerate.test.sh",
+        "STD-gate-generated-drift",
+        "TEST:scripts/tests/prepush.test.sh",
+        "TEST:scripts/tests/push-guard.test.sh",
+        "CHK-tower-gate"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "A merge cannot be traced to its pull request, its commit plan and the verdict that let it in.",
+      "mitigated_by": [
+        "CHK-tower-gate",
+        "CTRL-ssdf-ps.2",
+        "STD-commit-check-plan-errors"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "A secret in a commit is pushed to the public remote before the gate sees it. Residual: the pre-push scan is the only barrier before the push and runs on the client; a secret the gate finds is already public and must be rotated.",
+      "mitigated_by": [
+        "TEST:scripts/tests/local-checks.test.sh",
+        "STD-gate-secret-scan-tree",
+        "STD-gate-secret-scan-history"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A head behind its base, or one that never merged its base, sits in the queue and keeps the changes behind it from landing. Residual: the merge queue's own capacity is GitHub's.",
+      "mitigated_by": [
+        "STD-commit-check-rebase-errors",
+        "TEST:scripts/tests/merge-behind.test.sh"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "A session merges into main or deploys by hand, outside the merge queue. Residual: GitHub's ruleset, not this tree, is what refuses a direct push to main; .github/rulesets/main.json is the copy the owner applies, and no test reads back the ruleset GitHub enforces.",
+      "mitigated_by": [
+        "REQ-github-truth",
+        ".github/rulesets/main.json",
+        "TEST:scripts/tests/queue-checks.test.sh",
+        "D-054"
+      ]
+    }
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "tampering",
+        "finding": "prepush.test.sh and push-guard.test.sh prove the hook works, not that it cannot be skipped.",
+        "disposition": "fixed",
+        "reason": "residual added; CHK-tower-gate named as the server-side repeat."
+      },
+      {
+        "about": "information-disclosure",
+        "finding": "local-checks runs on the client; a bypassed hook leaves the secret public before the gate.",
+        "disposition": "fixed",
+        "reason": "residual added."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "STD-release-policy-refuse-merge and release-policy.test.sh judge a merge in the Origin adapter (forge_origin.py), which the GitHub flow does not use; they mitigate nothing today.",
+        "disposition": "fixed",
+        "reason": "replaced by the staged ruleset (.github/rulesets/main.json) and queue-checks.test.sh, which reads its required checks."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "The flagged residual (GitHub's ruleset is the barrier) is honest.",
+        "disposition": "accepted",
+        "reason": "kept and sharpened: the tree holds the applied copy, not a read-back."
+      }
+    ]
+  },
+  "reviewed": "2026-11-19"
+}

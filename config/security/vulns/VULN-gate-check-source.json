@@ -1,0 +1,9 @@
+{
+  "id": "VULN-gate-check-source",
+  "statement": "The ruleset of main requires the tower/gate check by its name alone, not by the source that reports it, so a commit status of that name from any credential that may write statuses counts as the gate's verdict. Found in the independent review of THREAT-gate (spoofing); the fix binds the required check to the GitHub Actions job in .github/rulesets/main.json, which the owner applies.",
+  "severity": "moderate",
+  "found": "2026-11-19",
+  "in": [
+    "ARC-gate"
+  ]
+}

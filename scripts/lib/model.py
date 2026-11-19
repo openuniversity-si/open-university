@@ -26,7 +26,11 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
                                    it first rebuilds a day-old run-durations snapshot from GitHub's checks (scripts/runs)
 
 A requirement's chain is verified when an architecture element satisfies it, a unit realizes that element, a test
-verifies the requirement, and a validation validates it or the need it derives from. An object is conformant when a
+verifies the requirement, and a validation validates it or the need it derives from; a link whose only validations not
+met are VAL-ladder-1 or VAL-escape-under-1, measuring, holds (D-331), and so does VAL-intention-ladder-1 while
+VAL-ladder-1 is measuring (D-332). A merged change implements a requirement when one of its commits' `Implements:`
+trailers names it, or when the requirement names it in `implemented_by` (D-332: history the trailer rule did not reach;
+CHG-initial is the initial public tree, the root commit of HEAD). An object is conformant when a
 rule judges it (a rule of its type, or the findings of its system), it breaks no check, every coverage rule of its
 type (`covered_by`) holds and it is in no state or condition its type calls unconformant; an object no rule judges is known, not judged, and is not conformant. A system's conformance
 is the share of its objects that are conformant, rated on the scale; a system with a significant weakness (a dependency
@@ -829,7 +833,8 @@ def read_requirements(root):
             retired = own.get('retired_by', body.get('retired_by'))
             fields = {'type': body['type'], 'statement': statement, 'state': own.get('state', body['state']),
                       'owner': body['owner'], 'source': where, **({'retired_by': retired} if retired else {}),
-                      **({'derives_from': [need]} if need else {})}
+                      **({'derives_from': [need]} if need else {}),
+                      **({'implemented_by': own['implemented_by']} if 'implemented_by' in own else {})}
             item = _obj(f'REQ-{path.stem}-{_slug(source_id)}', 'REQ', fields['state'], where, statement,
                         _requirement_links(fields))
             item.update(body=fields, source_id=source_id)
@@ -915,8 +920,9 @@ def read_changes(root):
     """Changes (CHG): every merge on the first-parent line of HEAD, one per pull request (CHG-<number>, else
     CHG-<sha>), merged; the `Implements:` trailers of its commits become implements links (requirements, decisions
     or units, comma-separated: intent), and each unit its diff touched becomes an implements link marked
-    `source: diff` (a fact: the link type's "changes a unit"). Only a trailer names a requirement, so a diff-derived
-    link never implements one (`implemented`)."""
+    `source: diff` (a fact: the link type's "changes a unit"). Only a trailer or the requirement's own
+    `implemented_by` (link_implemented_by, D-332) names a requirement, so a diff-derived link never implements one
+    (`implemented`). The initial public tree is CHG-initial."""
     found = []
     touched = _changed_units(Path(root))
     for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
@@ -936,7 +942,31 @@ def read_changes(root):
         item = _obj(ident, 'CHG', 'merged', f'git:{sha}', sha, links)
         item['body'] = {'sha': sha, 'subject': subject, 'names': sorted(set(PHASE_ITEM_NAME.findall(named)))}
         found.append(item)
+    # D-332: the initial public tree (the one root commit of HEAD, never a merge) is one merged change, CHG-initial;
+    # a shallow clone's boundary is no root, so it reads none
+    roots = _git(root, 'rev-list', '--max-parents=0', 'HEAD').split()
+    if len(roots) == 1 and _git(root, 'rev-parse', '--is-shallow-repository').strip() == 'false':
+        item = _obj(INITIAL_CHANGE, 'CHG', 'merged', f'git:{roots[0]}', roots[0], [])
+        item['body'] = {'sha': roots[0], 'subject': _git(root, 'log', '-1', '--format=%s', roots[0]).strip()}
+        found.append(item)
     return found
+
+
+INITIAL_CHANGE = 'CHG-initial'
+
+
+def link_implemented_by(found):
+    """D-332: a requirement's `implemented_by` becomes an implements link from each change it names; a change that does
+    not exist or is not merged is a problem of the requirement (an error of the model)."""
+    for item in list(found.values()):
+        if item['type'] != 'REQ':
+            continue
+        for target in item.get('body', {}).get('implemented_by', []):
+            change = found.get(target, {})
+            if change.get('type') == 'CHG' and change.get('state') in ('merged', 'deployed'):
+                change['links'].append({'type': 'implements', 'target': item['id'], 'source': 'requirement'})
+            else:
+                item.setdefault('problems', []).append(f'implemented_by {target}, which is not a merged change')
 
 
 VALIDATIONS = 'config/validation/VAL-*.json'
@@ -1765,6 +1795,8 @@ def objects(root=ROOT, readers=READERS):
             else:
                 current['links'] += item['links']
     fold_parts(found)
+    if read_requirements in readers and read_changes in readers:
+        link_implemented_by(found)
     if read_validations in readers:
         derive_validations(found, root)
     if read_controls in readers:
@@ -1901,18 +1933,48 @@ def covered(meta, item, into, found):
     return True
 
 
+# D-331: these validations are measured after the program's stop criterion; while one is measuring (never while it
+# is not met) a requirement whose only open link is that validation counts as verified end to end.
+MEASURED_AFTER = ('VAL-ladder-1', 'VAL-escape-under-1', 'VAL-intention-ladder-1')
+# D-332: a validation of MEASURED_AFTER named here waits on the one it names instead of its own state:
+# VAL-intention-ladder-1 is all of the ladder's validations met at once, so it cannot be met while VAL-ladder-1 is
+# measuring, and it counts (met or not) once VAL-ladder-1 is no longer measuring.
+WAITS_ON = {'VAL-intention-ladder-1': 'VAL-ladder-1'}
+
+
+def _waiting(source, found):
+    """Whether a validation is one of MEASURED_AFTER still waiting: measuring, or, for one of WAITS_ON, not met while
+    the validation it waits on is measuring."""
+    if source not in MEASURED_AFTER:
+        return False
+    if source in WAITS_ON:
+        return found[source]['state'] != 'met' and found.get(WAITS_ON[source], {}).get('state') == 'measuring'
+    return found[source]['state'] == 'measuring'
+
+
+def _only_measured_after(validations, found):
+    """Whether every validation of the list is met or one of MEASURED_AFTER that is waiting, and one of them is."""
+    waiting = [source for source in validations if _waiting(source, found)]
+    return bool(waiting) and all(found[source]['state'] == 'met' or source in waiting for source in validations)
+
+
 def chain_verified(item, into, found):
     """A requirement's chain: element satisfies it, a unit realizes the element, a merged change implements it, it is
-    verified (requirement_tested), a validation validates it or the need it derives from."""
+    verified (requirement_tested), a validation validates it or the need it derives from. D-331: a validation link
+    (or, for a requirement verified by validation, the verification link) whose only validations not met are of
+    MEASURED_AFTER and measuring holds."""
     def sources(target, link, kind):
         return [source for name, source in into.get(target, []) if name == link and found.get(source, {}).get('type') == kind]
     elements = sources(item['id'], 'satisfies', 'ARC')
     realized = any(sources(element, 'realizes', 'UNIT') for element in elements)
-    tested = implemented(item, into, found) and requirement_tested(item, into, found)
+    own = sources(item['id'], 'validates', 'VAL')
+    tested = requirement_tested(item, into, found) or (
+        item.get('body', {}).get('verification') == 'validation' and _only_measured_after(own, found))
     needs = [link['target'] for link in item['links'] if link['type'] == 'derives-from']
-    validated = any(found[source]['state'] == 'met' for target in [item['id'], *needs]
-                    for source in sources(target, 'validates', 'VAL'))
-    return bool(elements) and realized and tested and validated
+    validations = list(dict.fromkeys(source for target in [item['id'], *needs]
+                                     for source in sources(target, 'validates', 'VAL')))
+    validated = any(found[source]['state'] == 'met' for source in validations) or _only_measured_after(validations, found)
+    return bool(elements) and realized and implemented(item, into, found) and tested and validated
 
 
 def inventory(meta, found, root=ROOT):

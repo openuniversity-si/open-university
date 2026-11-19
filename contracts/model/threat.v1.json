@@ -73,7 +73,69 @@
     },
     "reviewed": {
       "type": "string",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "The date (UTC) a reviewer other than the model's author accepted the model as it stands: set only when no finding of `review` is open."
+    },
+    "review": {
+      "type": "object",
+      "description": "The latest independent review of the model (SSDF PW.2): who reviewed it, on which date, and every finding with its disposition. A model with an open finding carries `review` and no `reviewed`, so it stays written (under review).",
+      "additionalProperties": false,
+      "required": [
+        "by",
+        "on",
+        "findings"
+      ],
+      "properties": {
+        "by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "on": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "about",
+              "finding",
+              "disposition"
+            ],
+            "properties": {
+              "about": {
+                "enum": [
+                  "assets",
+                  "boundaries",
+                  "spoofing",
+                  "tampering",
+                  "repudiation",
+                  "information-disclosure",
+                  "denial-of-service",
+                  "elevation-of-privilege"
+                ]
+              },
+              "finding": {
+                "type": "string",
+                "minLength": 1
+              },
+              "disposition": {
+                "enum": [
+                  "fixed",
+                  "accepted",
+                  "open"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

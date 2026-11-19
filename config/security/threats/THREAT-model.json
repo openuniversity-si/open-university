@@ -1,0 +1,83 @@
+{
+  "id": "THREAT-model",
+  "models": "ARC-model",
+  "assets": [
+    "the metamodel and the rules of the standard (config/standard/)",
+    "scripts/model and its conformance measure of each system",
+    "the security system's own objects (controls, threat models, risks, vulnerabilities)"
+  ],
+  "boundaries": [
+    "a pull request that adds a refusal, a stage or an object and the model check that judges it",
+    "the model's measure and the people who read it as the system's posture"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "An object claims a state it has not earned, such as a threat model marked reviewed or a control marked implemented by something that does not exist. Residual: a review date and its reviewer are fields anyone can write; nothing in the tree proves the reviewer was not the author.",
+      "mitigated_by": [
+        "TEST:scripts/tests/security.test.sh",
+        "TEST:scripts/tests/model.test.sh"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A change adds a refusal or a gate stage with no rule, or makes a rule name a stage the gate skips, so the standard says more than the gate enforces.",
+      "mitigated_by": [
+        "STD-model-complete",
+        "STD-model-skipped-stage-errors",
+        "TEST:scripts/tests/model.test.sh"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "A rule or an object changes and nobody can tell which decision justified it.",
+      "mitigated_by": [
+        "STD-model-complete",
+        "CHK-tower-gate"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "A threat model or a risk records an exploitable detail of production (an endpoint's secret, a credential's location) in the public repository. Residual: the secret scans find a secret, not a described weakness; that a statement stays general, and an unfixed weakness goes to a VULN, is the reviewer's judgment.",
+      "mitigated_by": [
+        "STD-gate-secret-scan-tree",
+        "STD-gate-secret-scan-history"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A malformed object makes scripts/model fail, so every change that needs the model check is refused.",
+      "mitigated_by": [
+        "STD-json-schema-errors",
+        "TEST:scripts/tests/model.test.sh"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "An element depends on a higher layer, so a lower component gains a path into one that judges it (the gate, the deploy).",
+      "mitigated_by": [
+        "STD-architecture-layers",
+        "TEST:scripts/tests/model.test.sh"
+      ]
+    }
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "spoofing",
+        "finding": "The security test proves a review date exists, not that someone other than the author set it.",
+        "disposition": "accepted",
+        "reason": "residual added; the review object now names the reviewer."
+      },
+      {
+        "about": "information-disclosure",
+        "finding": "The secret scans do not judge an exploitable description.",
+        "disposition": "fixed",
+        "reason": "residual added."
+      }
+    ]
+  },
+  "reviewed": "2026-11-19"
+}

@@ -19,7 +19,7 @@
       "mitigated_by": [
         "TEST:scripts/tests/infra-port.test.sh",
         "TEST:scripts/tests/deploy.test.sh",
-        "STD-service-credentials-refused-sentence"
+        "TEST:scripts/tests/infra-aws.test.sh"
       ]
     },
     {
@@ -30,7 +30,8 @@
         "STD-gate-production-guard",
         "STD-production-guard-refusal",
         "TEST:scripts/tests/production-guard.test.sh",
-        "CTRL-ssdf-ps.2"
+        "CTRL-ssdf-ps.2",
+        "TEST:scripts/tests/infra-aws.test.sh"
       ]
     },
     {
@@ -43,11 +44,12 @@
     },
     {
       "stride": "information-disclosure",
-      "statement": "A production credential or database URL leaks to a cloud session, a log or the repository.",
+      "statement": "A production credential or database URL leaks to a cloud session, a log or the repository. Residual: the merge queue's prepare job runs the queued commit's scripts/lib/deploy.py with the doorbell's token, so code not yet merged holds that token; its role can only start the deploy and call the port's alias.",
       "mitigated_by": [
         "CTRL-ssdf-po.5",
         "STD-gate-secret-scan-tree",
-        "STD-gate-secret-scan-history"
+        "STD-gate-secret-scan-history",
+        "TEST:scripts/tests/infra-aws.test.sh"
       ]
     },
     {
@@ -62,12 +64,59 @@
       ]
     },
     {
-      "stride": "elevation-of-privilege",
-      "statement": "The doorbell's token, held in GitHub's secrets, or a deploy role reaches more than ringing the deploy. Residual: no test bounds the IAM policies of the stacks; their scope is read only in review of the templates.",
+      "stride": "denial-of-service",
+      "statement": "A flood of calls to the public doorbell or the service's port starts builds or work that spend the account's budget or keep the real deploy waiting.",
       "mitigated_by": [
+        "TEST:scripts/tests/infra-aws.test.sh",
+        "TEST:scripts/tests/infra-port.test.sh",
+        "REQ-aws-200"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "The doorbell's token, held in GitHub's secrets, or a deploy role reaches more than ringing the deploy. Residual: the tests bound the roles of infra/aws/bootstrap.json (a permissions boundary on every role, the doorbell only starts the deploy, the deployer only the app stacks) and pin the file to the hash the Torre applied; what the account runs between a change and its re-apply, or after a change made outside the tree, is not read back by any test.",
+      "mitigated_by": [
+        "TEST:scripts/tests/infra-aws.test.sh",
         "config/registry/gate/gate.allowed_workflows.json",
         "TEST:scripts/tests/queue-checks.test.sh"
       ]
     }
-  ]
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "spoofing",
+        "finding": "STD-service-credentials-refused-sentence only words the message of a refused token; it refuses nothing.",
+        "disposition": "fixed",
+        "reason": "replaced by infra-aws.test.sh, which proves the doorbell compares its token in constant time over SHA-256."
+      },
+      {
+        "about": "tampering",
+        "finding": "The proof that the build deploys main's head (BootstrapTests) was not named.",
+        "disposition": "fixed",
+        "reason": "infra-aws.test.sh added."
+      },
+      {
+        "about": "information-disclosure",
+        "finding": "The doorbell's token is handed to the queued commit's own deploy.py in the merge queue's prepare job, before that commit is merged.",
+        "disposition": "accepted",
+        "reason": "residual added; the token's role is bounded by test_the_doorbell_can_only_start_the_deploy, and entering the queue takes write access."
+      },
+      {
+        "about": "denial-of-service",
+        "finding": "No threat covered a flood of the public doorbell or the port (cost and starvation).",
+        "disposition": "fixed",
+        "reason": "threat added, mitigated by the doorbell's throttle, alarm and dead letters (infra-aws), the port's limits (infra-port) and REQ-aws-200."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "The residual \"no test bounds the IAM policies of the stacks\" is out of date: test_infra_aws.py BootstrapTests bounds every role, the doorbell and the deployer.",
+        "disposition": "fixed",
+        "reason": "residual rewritten to what is left (the account's applied state is not read back); infra-aws.test.sh added."
+      }
+    ]
+  },
+  "reviewed": "2026-11-19"
 }
