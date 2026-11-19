@@ -80,8 +80,10 @@ CONTROL = ('scripts/lib/deploy_classify.py', 'scripts/lib/lambda_package.py', 's
 CODE_INPUTS = ('infra/service/tower_infra', 'infra/db/migrations', 'infra/service/requirements.txt')
 REFS = ('+refs/heads/main:refs/remotes/origin/main', '+refs/heads/gh-readonly-queue/*:refs/remotes/origin/queue/*')
 
-# the doorbell's words of the last half hour, oldest first: (event, sha, epoch)
-QUEUED = ("select payload->>'event', payload->>'sha', extract(epoch from occurred_at)::float8 from log.event "
+# the doorbell's words of the last half hour, oldest first: (event, sha, epoch, signed); SIGNED-HOOK: signed is 'true' for
+# a landing the port took from GitHub's signed push webhook
+QUEUED = ("select payload->>'event', payload->>'sha', extract(epoch from occurred_at)::float8, payload->>'signed' "
+          "from log.event "
           f"where type = '{QUEUE}' and tenant_id is null and occurred_at > now() - interval '30 minutes' "
           "order by occurred_at")
 PREPARED_OF = (f"select payload::text from log.event where type = '{PREPARED}' and event_id = %(id)s "
@@ -391,16 +393,21 @@ class QueueReload:
                                              'by': 'queue', 'version': version, 'at': wrote_at})})
         return version, wrote_at
 
-    def landed(self, db, sha, order):
-        """The reload of a merge that landed, ordered once its claim is checked; answers the outcome recorded."""
+    def landed(self, db, sha, order, signed=False):
+        """The reload of a merge that landed, ordered once its claim is checked; answers the outcome recorded. SIGNED-HOOK
+        (REQ-deploy-1s): a landing the port took from GitHub's signed push webhook is GitHub's own word that main is the
+        sha, so the git ls-remote of main (a round trip) is skipped: main_at null, main 'signed'. The other checks stand."""
         began = self.clock()
         outcome = {'sha': sha, 'state': 'skipped', 'began_at': round(began, 3)}  # PUSH-STEPS: each step's instant
         on_main = False
         try:
-            head = self.main_head()
-            outcome['main_at'] = round(self.clock(), 3)  # the ls-remote of main answered
-            if head != sha:
-                raise Refused(f'main is {head[:12] or "unknown"}, not {sha[:12]}')
+            if signed:
+                outcome.update(main_at=None, main='signed')
+            else:
+                head = self.main_head()
+                outcome['main_at'] = round(self.clock(), 3)  # the ls-remote of main answered
+                if head != sha:
+                    raise Refused(f'main is {head[:12] or "unknown"}, not {sha[:12]}')
             on_main = True
             found = self.prepare(db, sha)
             if not found.get('code_only'):
@@ -441,8 +448,9 @@ class QueueReload:
         mid-way (the reloaded one) finds the landing's outcome recorded and only follows the order: AutoDeploy.order
         answers it busy with this head, which makes it the order this look follows. Never raises."""
         try:
-            words = [(event, sha) for event, sha, _ in db.rows(QUEUED, {}) or []
-                     if event in EVENTS and SHA.fullmatch(str(sha or ''))]
+            rows = [tuple(row) + (None,) * (4 - len(row)) for row in db.rows(QUEUED, {}) or []]
+            words = [(event, sha) for event, sha, _, _ in rows if event in EVENTS and SHA.fullmatch(str(sha or ''))]
+            signed = {sha for event, sha, _, said in rows if event == 'landed' and str(said) == 'true'}
             landings = [sha for event, sha in words if event == 'landed']
             waiting = list(dict.fromkeys(sha for event, sha in words if event == 'prepare' and sha not in landings))
             base = str(self.ssm(LAST_SHA) or '').strip() if waiting else ''
@@ -466,6 +474,6 @@ class QueueReload:
                     if found and found.get('code_only') and json.loads(said[0][0]).get('state') == 'ordered':
                         order(sha, found['sha256'], found['key'])  # follow it: the order exists, this answers busy
                     return  # a swap needs no following: the heir and the process it took over from do the rest
-                self.landed(db, sha, order)
+                self.landed(db, sha, order, signed=sha in signed)
         except Exception:  # noqa: BLE001 - the deploy build is the net
             LOG.exception('queue: the look failed')

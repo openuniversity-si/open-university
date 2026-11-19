@@ -59,7 +59,8 @@ class Log:
 
     def rows(self, sql, params):
         if sql == queue_deploy.QUEUED:
-            return [(each['payload']['event'], each['payload']['sha'], each['at']) for each in self.events
+            return [(each['payload']['event'], each['payload']['sha'], each['at'],
+                     'true' if each['payload'].get('signed') else None) for each in self.events
                     if each['type'] == queue_deploy.QUEUE]
         if sql == queue_deploy.PREPARED_OF:
             return [(json.dumps(each['payload']),) for each in self.events
@@ -474,6 +475,58 @@ class Prepared(unittest.TestCase):
         said = self.queue.landed(self.log, second, self.order)  # last-sha is still the base: first's build has not ended
         self.assertEqual(said['state'], 'ordered')
         self.assertEqual([sha for sha, _, _ in self.orders], [second])
+
+    def counted(self):
+        """The look with its git ls-remote of main counted."""
+        queue, calls = self.reload_of(), []
+        head = queue.main_head
+        queue.main_head = lambda: calls.append(1) or head()
+        return queue, calls
+
+    def test_a_signed_landing_skips_the_ls_remote_of_main_and_an_unsigned_one_does_not(self):
+        """SIGNED-HOOK: GitHub's signed push is the word that main is the sha, so the look asks git nothing about main;
+        the doorbell's token word still checks it. The landing is code-only, its parent deployed: ordered both ways."""
+        sha = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        self.remote.land(sha)
+        self.hook(kind='push', ref='refs/heads/main', after=sha, deleted=False)
+        queue, calls = self.counted()
+        queue.look(self.log, self.order)
+        [said] = self.log.of(queue_deploy.OUTCOME)
+        self.assertEqual(calls, [])
+        self.assertEqual((said['state'], said['main_at'], said['main']), ('ordered', None, 'signed'))
+        self.assertEqual(len(self.orders), 1)
+        self.remote.git('checkout', '-q', '-B', 'main', sha)
+        other = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 3\n'}, 2)
+        self.remote.land(other, 2)
+        self.ssm[queue_deploy.LAST_SHA] = sha
+        queue, calls = self.counted()
+        unsigned = queue.landed(self.log, other, self.order)
+        self.assertEqual(calls, [1])
+        self.assertIsInstance(unsigned['main_at'], float)
+        self.assertNotIn('main', unsigned)
+        self.assertEqual(unsigned['state'], 'ordered')
+
+    def test_a_signed_landing_still_refuses_what_is_not_code_only_and_a_burst_off_the_deployed_line(self):
+        """SIGNED-HOOK: the signature replaces the ls-remote alone; the classification and the ancestor check stand."""
+        stack = self.remote.queued({'infra/db/migrations/0002_next.sql': 'select 2;\n'})  # main never moves to it
+        queue, calls = self.counted()
+        said = queue.landed(self.log, stack, self.order, signed=True)
+        self.assertEqual((said['state'], calls), ('skipped', []))
+        self.assertIn('not code-only', said['why'])
+        self.remote.git('checkout', '-q', '-B', 'side', self.remote.main)
+        self.remote.write('infra/service/tower_infra/canary.py', 'SIDE = 1\n')
+        side = self.remote.commit('side')
+        self.remote.git('push', '-q', str(self.remote.bare), 'side:refs/heads/gh-readonly-queue/main/pr-9-side')
+        self.remote.git('checkout', '-q', 'main')
+        self.ssm[queue_deploy.LAST_SHA] = side
+        first = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'}, 2)
+        self.remote.git('checkout', '-q', '-B', 'main', first)
+        second = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 3\n'}, 3)
+        self.remote.land(second, 3)
+        said = self.reload_of().landed(self.log, second, self.order, signed=True)
+        self.assertEqual(said['state'], 'skipped')
+        self.assertIn('is not an ancestor of', said['why'])
+        self.assertEqual(self.orders, [])
 
     def test_a_burst_with_a_path_the_fast_path_cannot_carry_waits_for_the_deploy_build(self):
         """BURST-SWAP: the classification is of every path since the deployed commit, so a burst whose first entry
