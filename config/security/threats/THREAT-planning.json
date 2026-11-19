@@ -67,16 +67,40 @@
     "on": "2026-11-19",
     "findings": [
       {
+        "about": "spoofing",
+        "finding": "Neither mitigation runs in tower/gate: train_ownership.refusals runs only in the stopped train and is a no-op with no lane manifest; structure.review_errors runs only with structure-check --review, which gate-check's structure stage does not pass, and it matches a comment's text, not its author. Impact is low (no step grants anything on an approved trailer, D-055; claims coordinate lanes), but the stated mitigation is not real.",
+        "disposition": "open",
+        "reason": "needs the threat restated with its residual, or the review check wired into the gate; not in place."
+      },
+      {
+        "about": "tampering",
+        "finding": "plan_completeness_errors is real in the GitHub pr metadata stage (gate_discipline.pr_errors), but it is under the structure lock, which the regime lifts today: config/registry/regime/regime.exception_active.json is true and regime.exception_kept is [money, people], so regime.lifted('structure') and lifted('commit-plan') are true on every tower/gate run (nothing pins the regime outside the script tests' hermetic hook): structure.py under_regime turns every structure-check refusal into a warning, and gate_discipline.lift does the same to the plan, fix-up, one-commit-per-push, plan-completeness and lane refusals.",
+        "disposition": "open",
+        "reason": "needs the regime ended or the structure lock kept."
+      },
+      {
+        "about": "repudiation",
+        "finding": "unit_check.companion_errors runs inside the structure check, so the regime turns its refusals into warnings today.",
+        "disposition": "open",
+        "reason": "same cause as the tampering finding."
+      },
+      {
         "about": "information-disclosure",
-        "finding": "No check finds a person's data.",
+        "finding": "The residual (no check finds a person's data) is honest.",
         "disposition": "fixed",
-        "reason": "residual added."
+        "reason": "the earlier disposition stands."
+      },
+      {
+        "about": "denial-of-service",
+        "finding": "lane_errors is lifted by the regime and train_ownership finds no lanes without manifests; GitHub's merge queue does not place changes by lane, so the threat as stated no longer applies to the queue the flow uses.",
+        "disposition": "accepted",
+        "reason": "the remaining harm is lane collision, a coordination cost, not a blocked queue."
       },
       {
         "about": "elevation-of-privilege",
-        "finding": "Both mitigations run from the head under judgment on GitHub, so a change that edits the structure check judges itself; and any recorded D-NNN satisfies the gate-change rule.",
-        "disposition": "fixed",
-        "reason": "VULN-gate-judged-by-own-head: the pinned job staged in services/runner/github/tower-gate.yml (D-087: the owner installs it, after gate_pin.py overlay is on main, since the job runs the base's copy). Any recorded D-NNN: accepted: the rule asks a gate change for a traceable decision, not for an approval; with no review step (D-055) whether a decision approves this change takes a reader, and the barrier against a gate change that weakens a rule is the pinned gate, where the base's rules judge it."
+        "finding": "The structure check is a gate file and the pinned job would run the base's, but the job is staged, not installed, and the overlay does not pin the modules structure.py imports (premises, unit_check, threshold_check, forge_pr, config, regime and others), so a change to one of them judges the structure check with the head's code and asks no decision. The earlier 'fixed' was premature.",
+        "disposition": "open",
+        "reason": "VULN-gate-judged-by-own-head is open; needs the pinned job installed and GATE_FILE widened to the structure check's imports."
       }
     ]
   }
