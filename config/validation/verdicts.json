@@ -1,8 +1,20 @@
 {
  "source": "GitHub check runs full-suite of main's last merges",
  "check": "full-suite",
- "at": "2026-11-19T05:50:24Z",
+ "at": "2026-11-19T06:37:04Z",
  "runs": [
+  {
+   "sha": "d083e42674b5b0ae631a8ffb523bcd2b1f80e6ef",
+   "id": 135386128404,
+   "conclusion": "success",
+   "completed": "2026-11-19T06:36:16Z"
+  },
+  {
+   "sha": "b0e02b2577518cb45c22e3ebf7e875656dfe7f7a",
+   "id": 135383267865,
+   "conclusion": "success",
+   "completed": "2026-11-19T06:29:25Z"
+  },
   {
    "sha": "408b52668f34a062cde73c1d510c2ff1022798a7",
    "id": 135368446852,
