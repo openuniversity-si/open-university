@@ -2209,7 +2209,8 @@ def check(meta, found, root=None, today=None):
             errors.append(f'{id}: state {item["state"]} is not a state of {item["type"]}')
         for missing in (item.get('proof') or {}).get('missing', []):
             warnings.append(f'{id}: its proof names {missing}, which does not exist ({item["source"]})')
-        if item.get('claimed') and item.get('fingerprint') is None:
+        if item.get('claimed') and item.get('fingerprint') is None and \
+                not all(historical(found.get(link['target'])) for link in item['links']):
             warnings.append(f'{id}: named by a link but no such file exists ({", ".join(link["target"] for link in item["links"])})')
         for link in item['links']:
             rule = meta['links'].get(link['type'])
@@ -2220,13 +2221,24 @@ def check(meta, found, root=None, today=None):
                 errors.append(f'{id}: a {item["type"]} cannot hold a {link["type"]} link')
             target = found.get(link['target'])
             if target is None:
-                warnings.append(f'{id}: {link["type"]} {link["target"]}, which does not exist')
+                if not historical(item):
+                    warnings.append(f'{id}: {link["type"]} {link["target"]}, which does not exist')
                 continue
             if target['type'] not in rule['to']:
                 errors.append(f'{id}: {link["type"]} cannot point to a {target["type"]} ({link["target"]})')
             if link.get('fingerprint') and link['fingerprint'] != target['fingerprint']:
                 warnings.append(f'{id}: {link["type"]} {link["target"]} is suspect (the target changed)')
     return errors, warnings
+
+
+HISTORY = ('superseded', 'deprecated', 'rejected', 'obsolete', 'retired', 'replaced')
+
+
+def historical(item):
+    """An object kept only as history (a superseded or deprecated decision, a rejected proposal, a retired test): it is
+    written once (D-217), so a file or object it names that later left the tree is the record of that time, not a
+    broken link to repair; check warns only for links of objects still in force."""
+    return bool(item) and item.get('state') in HISTORY
 
 
 def incoming(found):
