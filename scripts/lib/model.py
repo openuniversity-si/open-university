@@ -22,7 +22,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
   scripts/model measure [--json F] the main metric (the share of active requirements whose chain is verified end to
                                    end), the requirement inventory, and each system's objects and calculated conformance,
                                    under a heading per group of systems (management, engineering: D-330), and the
-                                   measurement system's share of sampled PRs with a clearly cheaper path (D-327)
+                                   measurement system's share of sampled PRs with a clearly cheaper path (D-327);
+                                   it first rebuilds a day-old run-durations snapshot from GitHub's checks (scripts/runs)
 
 A requirement's chain is verified when an architecture element satisfies it, a unit realizes that element, a test
 verifies the requirement, and a validation validates it or the need it derives from. An object is conformant when a
@@ -992,6 +993,22 @@ def measured(body, found, root, today):
     if measure['kind'] == 'code-scan':
         return len(polling_left(root, measure['paths'], measure.get('exclude', []))), True
     return None, False
+
+
+def refresh_runs(found, root):
+    """Before a measure (the CLI's, never check's or the gate's): each run-durations snapshot of a workflow GitHub's
+    check runs hold (runs.CHECKS) is rebuilt from them when it is a day old (runs.refresh), so VAL-gate-60s does not go
+    stale with no hand. Offline it keeps the recorded snapshot. The workflows whose snapshot was rewritten."""
+    import runs
+    done = []
+    for item in found.values():
+        measure = (item.get('body') or {}).get('measure') or {}
+        if item['type'] != 'VAL' or measure.get('kind') != 'run-durations' or measure.get('workflow') not in runs.CHECKS:
+            continue
+        before = (runs.read(root, measure['workflow']) or {}).get('at')
+        if (runs.refresh(root, measure['workflow']) or {}).get('at') != before:
+            done.append(measure['workflow'])
+    return done
 
 
 INCIDENT_FIELD = re.compile(r'^(kind|time): (\S+)$', re.MULTILINE)
@@ -2006,6 +2023,8 @@ def main(argv=None):
                 print(f'WARN {line}')
             print(f'model check: {len(found)} object(s), {len(errors)} error(s), {len(warnings)} warning(s)')
             return 1 if errors or (args.strict and warnings) else 0
+        if refresh_runs(found, ROOT):
+            derive_validations(found, ROOT)  # the states objects() derived read the snapshot before it was renewed
         result = measure(meta=meta, found=found)
         if args.json:
             Path(args.json).write_text(json.dumps(result, indent=1) + '\n')

@@ -43,6 +43,7 @@
   "requires": {
     "engine-config": "^1",
     "engine-config-check": "^1",
+    "engine-gate-infra": "^1",
     "engine-gate-plan": "^1",
     "engine-gate-tests": "^1",
     "engine-premises": "^1",
