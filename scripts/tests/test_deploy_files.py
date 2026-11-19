@@ -29,8 +29,10 @@ class DeployFiles(unittest.TestCase):
         self.assertFalse([n for n, r in resources.items()
                           if r['Type'].startswith('AWS::SQS') or r['Type'] == 'AWS::Lambda::EventSourceMapping'])
         self.assertFalse([n for n in resources if n.startswith(('Webhook', 'Ingress', 'Ack'))])
-        self.assertEqual(sorted(port['Outputs']), ['PortUrl'])
+        self.assertEqual(sorted(port['Outputs']), ['PortApiId', 'PortUrl'])  # AGENT-ENV (D-341): its routes join this API
         self.assertEqual(port['Outputs']['PortUrl']['Export'], {'Name': 'tower-port-url'})
+        self.assertEqual(port['Outputs']['PortApiId'], {'Description': port['Outputs']['PortApiId']['Description'],
+                                                        'Value': {'Ref': 'HttpApi'}, 'Export': {'Name': 'tower-port-api-id'}})
         self.assertFalse({'AckPath', 'IngressCode', 'WebhookCode', 'ForgeKeys', 'IngressMemory', 'IngressAckLimitS'}
                          & set(port['Parameters']))
         self.assertNotIn('AckBySqs', port.get('Conditions', {}))

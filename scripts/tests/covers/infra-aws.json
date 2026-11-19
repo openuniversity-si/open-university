@@ -14,6 +14,13 @@
     "config/registry/toolchain/toolchain.postgres_version.json",
     "infra/service/tower_infra/live_image.py",
     "scripts/lib/dns_zone.py",
-    "docs/programs/padrao-dev/fornecimento-cloudflare.md"
+    "docs/programs/padrao-dev/fornecimento-cloudflare.md",
+    "scripts/lib/agent_env_stack.py",
+    "scripts/lib/agent_env.py",
+    "scripts/lib/agent_env_client.py",
+    "config/agent-env/**",
+    "contracts/agent-env/environment.v1.json",
+    "config/registry/agent-env/agent-env.denied_names.json",
+    "config/registry/structure/structure.retired_vendor_terms.json"
   ]
 }

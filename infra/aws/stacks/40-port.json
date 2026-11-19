@@ -438,6 +438,15 @@
       "Export": {
         "Name": "tower-port-url"
       }
+    },
+    "PortApiId": {
+      "Description": "AGENT-ENV (D-341): the agent-env stack adds its routes to this API",
+      "Value": {
+        "Ref": "HttpApi"
+      },
+      "Export": {
+        "Name": "tower-port-api-id"
+      }
     }
   }
 }

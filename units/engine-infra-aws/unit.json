@@ -20,6 +20,7 @@
     "scripts/tests/covers/lambda-package.json",
     "scripts/dns-zone",
     "scripts/lib/dns_zone.py",
+    "scripts/lib/agent_env_stack.py",
     "scripts/tests/dns-zone.test.sh",
     "scripts/tests/test_dns_zone.py",
     "scripts/tests/covers/dns-zone.json",
@@ -43,6 +44,7 @@
     "ARC-deploy"
   ],
   "requires": {
+    "engine-env": "^1",
     "engine-gate-infra": "^1"
   }
 }
