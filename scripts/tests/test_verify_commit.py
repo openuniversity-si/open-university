@@ -385,11 +385,23 @@ class TheVerifier(unittest.TestCase):
     def test_the_staged_gate_is_three_parts_and_a_tower_gate_job_green_only_when_every_part_is(self):
         staged = (ROOT / 'services' / 'runner' / 'github' / 'tower-gate.yml').read_text(encoding='utf-8')
         for line in ('    name: gate part (${{ matrix.part }})', '      fail-fast: false', '        part: [main, shard1, alone]',
-                     '    name: tower/gate', '    needs: part', '    if: always()', '          PARTS: ${{ needs.part.result }}',
-                     '          test "$PARTS" = success'):
+                     '    name: tower/gate', '    needs: [part, pinned]', '    if: always()', '          PARTS: ${{ needs.part.result }}',
+                     '          test "$PARTS" = success', '          PINNED: ${{ needs.pinned.result }}',
+                     '          test "$PINNED" = success'):
             self.assertIn(line, staged)
         self.assertEqual(staged.count('    name: tower/gate'), 1)  # only the job the merge queue requires has the name
         self.assertEqual(list(verify_commit.PARTS), ['main', 'shard1', 'alone'])
+
+    def test_the_staged_gate_judges_a_gate_change_with_the_bases_gate_too(self):
+        """PINNED-ON-GITHUB (D-070, D-335, VULN-gate-judged-by-own-head): the base's gate_pin.py, run from a worktree of
+        the base, puts the base's gate files back in the head's checkout, and the plan's stages run there."""
+        staged = (ROOT / 'services' / 'runner' / 'github' / 'tower-gate.yml').read_text(encoding='utf-8')
+        for line in ('  pinned:', 'git worktree add --detach "$RUNNER_TEMP/base" "$base"',
+                     'python3 "$RUNNER_TEMP/base/scripts/lib/gate_pin.py" overlay --root "$GITHUB_WORKSPACE" --base "$base"',
+                     'scripts/verify-commit --sha "$GITHUB_SHA" --base "$BASE" --repo "$GITHUB_REPOSITORY" --no-post --stages-only'):
+            self.assertIn(line, staged)
+        pinned = staged.split('  pinned:', 1)[1].split('\n  gate:', 1)[0]
+        self.assertLess(pinned.index('gate_pin.py" overlay'), pinned.index('--stages-only'))  # the overlay first
 
     def test_a_commit_that_is_not_the_checkout_is_never_judged_nor_published(self):
         fake = Fake(head='c' * 40)
