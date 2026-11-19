@@ -34,8 +34,8 @@ class Record(unittest.TestCase):
         import io
         with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(io.StringIO()), \
                 contextlib.redirect_stderr(io.StringIO()):
-            self.assertEqual(decision_record.main(['--text', 't', '--proof', 'p.py', '--supersedes', 'the old one'],
-                                                  root=Path(directory)), 2)
+            with self.assertRaises(SystemExit):
+                decision_record.main(['--text', 't', '--proof', 'p.py', '--supersedes', 'the old one'], root=Path(directory))
             self.assertFalse((Path(directory) / 'docs/domain/decisions').exists())
 
     def test_a_record_is_written_once_and_never_rewritten(self):

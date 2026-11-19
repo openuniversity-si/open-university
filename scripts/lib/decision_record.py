@@ -58,8 +58,7 @@ def main(argv=None, root=ROOT):
     number = next_number(root)
     when = decision_next.brt()
     if args.supersedes and not re.fullmatch(r'D-[0-9]+(?:, ?D-[0-9]+)*', args.supersedes.strip()):
-        print(f'--supersedes takes D-NNN, comma separated, not {args.supersedes!r}', file=sys.stderr)
-        return 2
+        parser.error(f'--supersedes takes D-NNN, comma separated, not {args.supersedes!r}')
     path = write(root, f'D-{number}', when, args.text, args.premises, args.proof, args.supersedes.strip())
     print(path)
     if not (Path(root) / decision_table.TABLE).is_file():
