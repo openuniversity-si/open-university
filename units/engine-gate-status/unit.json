@@ -19,7 +19,11 @@
     "scripts/tests/test_gate_report_skips.py",
     "scripts/tests/test_gate_report_v4.py",
     "scripts/tests/test_gate_status.py",
-    "scripts/tests/test_gate_timing_report.py"
+    "scripts/tests/test_gate_timing_report.py",
+    "scripts/tests/gate-forge-budget.test.sh",
+    "scripts/tests/test_gate_forge_budget.py",
+    "scripts/tests/covers/gate-forge-budget.json",
+    "scripts/tests/fixtures/gate-forge-budget.json"
   ],
   "realizes": [
     "ARC-gate"

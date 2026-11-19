@@ -8,7 +8,10 @@
     "scripts/lib/forge_origin.py",
     "scripts/lib/source_remote.py",
     "scripts/lib/forge_origin_client.py",
-    "scripts/lib/forge_origin_history.py"
+    "scripts/lib/forge_origin_history.py",
+    "scripts/tests/pr-observation-judge.test.sh",
+    "scripts/tests/test_pr_observation_judge.py",
+    "scripts/tests/covers/pr-observation-judge.json"
   ],
   "realizes": [
     "ARC-environment"

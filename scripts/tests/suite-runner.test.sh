@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # The directory suite runner (scripts/tests/lib/suite.sh, TX-PROGRAM, D-070) on fixture parts: counts are summed, and a
 # failed check, a part that stops before check_done, a part with no check and an empty suite each fail the suite.
+# Verifies: UNIT:engine-test-support
 set -uo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT

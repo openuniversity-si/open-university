@@ -4,6 +4,8 @@
     "scripts/tests/gate-local.test.sh",
     "scripts/tests/gate-local/**",
     "scripts/tests/lib/**",
-    "scripts/lib/gate-budget.sh"
+    "scripts/lib/gate-budget.sh",
+    "scripts/lib/gate-hooks/**",
+    "scripts/lib/gate-runner.sh"
   ]
 }

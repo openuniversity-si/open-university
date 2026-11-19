@@ -22,7 +22,8 @@
     "scripts/tests/test_gate_result_cache.py",
     "scripts/tests/test_gate_test_cache.py",
     "scripts/tests/test_gate_test_cache_env.py",
-    "scripts/tests/test_shared_results.py"
+    "scripts/tests/test_shared_results.py",
+    ".github/workflows/full-suite.yml"
   ],
   "realizes": [
     "ARC-gate"

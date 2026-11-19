@@ -671,6 +671,101 @@ class Changes(unittest.TestCase):
         into = model.incoming(found)
         self.assertFalse(model.implemented(found['REQ-x'], into, found), 'a diff-derived unit link implements no REQ')
 
+    def test_a_script_tests_pass_state_on_head_is_read_from_the_newest_full_suite_run_on_a_commit_head_contains(self):
+        import runs
+        import subprocess
+        def head():
+            return subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root, capture_output=True, text=True).stdout.strip()
+        judged = head()
+        self.merge(6, 'six')
+        tests = {f'TEST:scripts/tests/{name}.test.sh': {'id': f'TEST:scripts/tests/{name}.test.sh', 'type': 'TEST',
+                                                        'state': 'active', 'source': f'scripts/tests/{name}.test.sh',
+                                                        'fingerprint': 'f', 'links': []} for name in ('a', 'b')}
+        asked = []
+        def select(paths):
+            asked.append(paths)
+            return ['scripts/tests/b.test.sh']
+        def verdicts(*conclusions, select=select):
+            shas = [head(), judged, 'f' * len(judged)]
+            write(self.root, runs.VERDICTS_FILE, {'check': 'full-suite', 'at': '2026-01-01T00:00:00Z', 'runs': [
+                {'sha': sha, 'id': index, 'conclusion': conclusion, 'completed': '2026-01-01T00:00:00Z'}
+                for index, (sha, conclusion) in enumerate(zip(shas, conclusions)) if conclusion]})
+            found = copy.deepcopy(tests)
+            model.derive_verdicts(found, self.root, select=select)
+            return {id: (item['state'], item['body']['sha'], item['links']) for id, item in found.items() if item['type'] == 'VERD'}
+        self.assertEqual(verdicts('success'), {
+            f'VERD:scripts/tests/{name}.test.sh': ('pass', head(), [{'type': 'evidences', 'target': f'TEST:scripts/tests/{name}.test.sh'}])
+            for name in ('a', 'b')}, 'a green run on HEAD itself: every script test passes, nothing is selected again')
+        self.assertEqual(asked, [])
+        self.assertEqual(list(verdicts(None, 'success')), ['VERD:scripts/tests/a.test.sh'],
+                         'a green run on an older commit: the tests the diff to HEAD selects again have no verdict')
+        self.assertEqual(asked, [['f6.txt']])
+        self.assertEqual(verdicts(None, 'failure'), {}, 'the newest run is red: it names no red test')
+        self.assertEqual(verdicts('failure', 'success'), {}, 'an older green run is no evidence past a newer red one')
+        self.assertEqual(verdicts(None, None, 'success'), {}, 'a run on a commit HEAD does not contain is not read')
+        found = {**copy.deepcopy(tests), 'VERD:x': {'id': 'VERD:x', 'type': 'VERD', 'state': 'pass', 'fingerprint': 'v',
+                                                    'links': [{'type': 'evidences', 'target': 'TEST:scripts/tests/a.test.sh'}]}}
+        meta, into = model.metamodel(), model.incoming(found)
+        self.assertTrue(model.covered(meta, found['VERD:x'], into, found))
+        found['VERD:x']['state'] = 'fail'
+        self.assertFalse(model.covered(meta, found['VERD:x'], into, found), 'a red verdict is not conformant')
+        self.assertIn('VERD', {kind for kind in meta['types'] if model.judged(meta, kind)})
+
+    def test_an_erratum_corrects_a_wrong_implements_trailer_and_one_that_matches_nothing_is_an_error(self):
+        import subprocess
+        sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root, capture_output=True, text=True).stdout.strip()
+        def read(*errata):
+            write(self.root, model.ERRATA, {'errata': [{'change': 'CHG-5', 'sha': sha, 'why': 'a typo', **entry}
+                                                       for entry in errata]})
+            return {item['id']: item for item in model.read_changes(self.root)}['CHG-5']
+        dropped = read({'was': 'REQ-a', 'is': None})
+        self.assertEqual((dropped['links'], dropped.get('problems')), ([{'type': 'implements', 'target': 'UNIT:x'}], None))
+        renamed = read({'was': 'REQ-a', 'is': 'REQ-b'})
+        self.assertEqual(renamed['links'][0], {'type': 'implements', 'target': 'REQ-b'})
+        for wrong in ({'was': 'REQ-none', 'is': None}, {'was': 'REQ-a', 'is': None, 'why': ' '},
+                      {'was': 'REQ-a', 'is': None, 'change': 'CHG-9'}):
+            stale = read(wrong)
+            self.assertEqual(len(stale['problems']), 1, wrong)
+            self.assertIn({'type': 'implements', 'target': 'REQ-a'}, stale['links'], 'a wrong erratum corrects nothing')
+        meta, found = model.metamodel(), {'CHG-5': stale}
+        self.assertTrue(any(line.startswith('CHG-5: erratum') for line in model.check(meta, found)[0]))
+
+    def test_a_retired_unit_is_read_from_the_commit_that_deleted_it_and_its_earlier_changes_still_implement_it(self):
+        import units
+        shutil.copytree(ROOT / 'config/registry', self.root / 'config/registry')
+        (self.root / 'contracts/units').mkdir(parents=True)
+        shutil.copy(ROOT / 'contracts/units/unit.v1.json', self.root / 'contracts/units/unit.v1.json')
+        gone = {'id': 'gone', 'purpose': 'p', 'cell': 'engine', 'owner': 'engine-lane', 'paths': ['src/gone/**'],
+                'requires': {}}
+        write(self.root, 'units/x/unit.json', {'id': 'x', 'purpose': 'p', 'cell': 'engine', 'owner': 'engine-lane',
+                                               'paths': ['src/x/**'], 'requires': {}})
+        write(self.root, 'units/gone/unit.json', gone)
+        units.reset()
+        self.addCleanup(units.reset)
+        self.git('add', 'units')
+        self.git('commit', '-q', '-m', 'units')
+        self.git('checkout', '-q', '-b', 'old')
+        write(self.root, 'src/gone/a.py', 'v')
+        self.git('add', 'src')
+        self.git('commit', '-q', '-m', 'old: gone')
+        self.git('checkout', '-q', 'main')
+        self.git('merge', '-q', '--no-ff', 'old', '-m', 'Merge pull request #6 from org/old')
+        self.git('rm', '-q', '-r', 'units/gone', 'src/gone')
+        self.git('commit', '-q', '-m', 'retire gone')
+        units.reset()
+        read = {item['id']: item for item in model.read_units(self.root)}
+        self.assertEqual((read['UNIT:gone']['state'], read['UNIT:gone']['links']), ('retired', []))
+        self.assertEqual(read['UNIT:x']['state'], 'active')
+        self.assertTrue(read['UNIT:gone']['source'].endswith('^:units/gone/unit.json'))
+        found = {item['id']: item for item in model.read_changes(self.root)}
+        self.assertEqual(found['CHG-6']['links'], [{'type': 'implements', 'target': 'UNIT:gone', 'source': 'diff'}])
+        meta = model.metamodel()
+        self.assertFalse(model.is_active(meta, read['UNIT:gone']), 'a retired unit is counted by no system')
+        restored = {**gone, 'purpose': 'back'}
+        write(self.root, 'units/gone/unit.json', restored)
+        self.assertEqual([item['state'] for item in model.read_units(self.root) if item['id'] == 'UNIT:gone'], ['active'],
+                         'a manifest the tree holds again is the live unit, never a second, retired one')
+
     def test_a_requirement_is_implemented_by_a_merged_change_and_verified_when_a_test_also_verifies_it(self):
         found = {item['id']: item for item in model.read_changes(self.root)}
         found['REQ-a'] = {'id': 'REQ-a', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],

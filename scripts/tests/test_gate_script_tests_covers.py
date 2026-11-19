@@ -1,5 +1,6 @@
 """TX26: a covers manifest change selects its own script test, the map check and the tests whose covers match the
 manifest path, not the whole suite (T3)."""
+# Verifies: UNIT:engine-gate-tests
 import json
 import sys
 import tempfile

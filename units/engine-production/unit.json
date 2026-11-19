@@ -7,7 +7,8 @@
     "config/registry/production.json",
     "scripts/lib/production_guard.py",
     "scripts/tests/production-guard.test.sh",
-    "scripts/tests/test_production_guard.py"
+    "scripts/tests/test_production_guard.py",
+    "docs/process/host-swap-queue.md"
   ],
   "requires": {
     "engine-config": "^1"

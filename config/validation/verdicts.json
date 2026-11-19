@@ -1,0 +1,241 @@
+{
+ "source": "GitHub check runs full-suite of main's last merges",
+ "check": "full-suite",
+ "at": "2026-11-19T05:50:24Z",
+ "runs": [
+  {
+   "sha": "408b52668f34a062cde73c1d510c2ff1022798a7",
+   "id": 135368446852,
+   "conclusion": "failure",
+   "completed": "2026-11-19T05:49:59Z"
+  },
+  {
+   "sha": "ead7f7a910f3904f743bb33359349af9f8e75bc8",
+   "id": 135365750800,
+   "conclusion": "failure",
+   "completed": "2026-11-19T05:44:55Z"
+  },
+  {
+   "sha": "0742bc8c425c7e61c1c42266a91f8b4e9f020f6a",
+   "id": 135360873405,
+   "conclusion": "failure",
+   "completed": "2026-11-19T05:29:51Z"
+  },
+  {
+   "sha": "eda322f27f9855d99ab0d60e580d780bdbae97bf",
+   "id": 135358653126,
+   "conclusion": "failure",
+   "completed": "2026-11-19T05:25:48Z"
+  },
+  {
+   "sha": "bb92a14bbf14107ec380b34ddc7eda455d42ffbf",
+   "id": 135352494294,
+   "conclusion": "failure",
+   "completed": "2026-11-19T05:08:41Z"
+  },
+  {
+   "sha": "a528a014061ca2cf494e2ec17266bdbcc43a6c06",
+   "id": 135346354922,
+   "conclusion": "failure",
+   "completed": "2026-11-19T04:52:36Z"
+  },
+  {
+   "sha": "456243fee8bfff7d026a0817d17abaa1a5d225fb",
+   "id": 135344329764,
+   "conclusion": "failure",
+   "completed": "2026-11-19T04:45:30Z"
+  },
+  {
+   "sha": "00a69986bfd07bed370845ecd3730c86bbd7d8f8",
+   "id": 135342620506,
+   "conclusion": "failure",
+   "completed": "2026-11-19T04:41:29Z"
+  },
+  {
+   "sha": "874de4e3919bc8c789648df1c560e389b9cb4528",
+   "id": 135338601063,
+   "conclusion": "failure",
+   "completed": "2026-11-19T04:30:05Z"
+  },
+  {
+   "sha": "9cd4abc52b0496b27406c2b54f5207a254040ea6",
+   "id": 135336923993,
+   "conclusion": "failure",
+   "completed": "2026-11-19T04:25:49Z"
+  },
+  {
+   "sha": "0ae93eb849cb6c45577c91e9fae2d78076af6f22",
+   "id": 135322336529,
+   "conclusion": "failure",
+   "completed": "2026-11-19T03:46:34Z"
+  },
+  {
+   "sha": "bdb9b97cdbe3ac1a9f88685d3f1cd3e2c3e3e4e0",
+   "id": 135318874396,
+   "conclusion": "failure",
+   "completed": "2026-11-19T03:37:31Z"
+  },
+  {
+   "sha": "432ab3f74f9d283ad9386c4fbb374b1948d3d0c4",
+   "id": 135312748442,
+   "conclusion": "failure",
+   "completed": "2026-11-19T03:22:09Z"
+  },
+  {
+   "sha": "f1c8cdbbeb7a6b8123abb65fbafae1b9af750a06",
+   "id": 135305285276,
+   "conclusion": "failure",
+   "completed": "2026-11-19T03:02:51Z"
+  },
+  {
+   "sha": "0bda68aef21523ff2ab30bdc19805884cb782ada",
+   "id": 135295429235,
+   "conclusion": "failure",
+   "completed": "2026-11-19T02:38:22Z"
+  },
+  {
+   "sha": "4ac12ec088bb2776eb82de85d40f6854f6c1a14b",
+   "id": 135291562071,
+   "conclusion": "failure",
+   "completed": "2026-11-19T02:29:29Z"
+  },
+  {
+   "sha": "2a79ea51132e1dcb9f86026373862a94ece839c7",
+   "id": 135286834033,
+   "conclusion": "failure",
+   "completed": "2026-11-19T02:18:02Z"
+  },
+  {
+   "sha": "89c7a3965f387f06c6815b75dfb58b7af8be4ab0",
+   "id": 135283037142,
+   "conclusion": "failure",
+   "completed": "2026-11-19T02:08:05Z"
+  },
+  {
+   "sha": "f37efbd927af53bbb79ddb32193ca15c96e92fb6",
+   "id": 135280700389,
+   "conclusion": "failure",
+   "completed": "2026-11-19T02:03:16Z"
+  },
+  {
+   "sha": "9b1299646ff7f551463633a2b160d77d591fdd7c",
+   "id": 135275161245,
+   "conclusion": "failure",
+   "completed": "2026-11-19T01:49:18Z"
+  },
+  {
+   "sha": "ba5e0d51b8d552efc0e0c46260f9cfc16ee25b3b",
+   "id": 135272702365,
+   "conclusion": "failure",
+   "completed": "2026-11-19T01:42:30Z"
+  },
+  {
+   "sha": "99cc491792bcedbb584a141bf20afaf98cc427c7",
+   "id": 135270438253,
+   "conclusion": "failure",
+   "completed": "2026-11-19T01:36:58Z"
+  },
+  {
+   "sha": "e2a4ee01bb0e571529a05adbbbfacbc9e574055d",
+   "id": 135244450944,
+   "conclusion": "failure",
+   "completed": "2026-11-19T00:37:37Z"
+  },
+  {
+   "sha": "e43b40a40291ea6dedee1e122dc3b5ae4b1b3fd0",
+   "id": 135239447800,
+   "conclusion": "failure",
+   "completed": "2026-11-19T00:26:32Z"
+  },
+  {
+   "sha": "4b1cb7d8ef7ae09cee21d07b89b65c55921f3b97",
+   "id": 135232048144,
+   "conclusion": "failure",
+   "completed": "2026-11-19T00:10:25Z"
+  },
+  {
+   "sha": "3668c6102fef389d16fd28cf019bbb83ddb0f73d",
+   "id": 135229463939,
+   "conclusion": "failure",
+   "completed": "2026-11-19T00:06:47Z"
+  },
+  {
+   "sha": "4871c5ef232ec3954c7c418254ca792cbc69d815",
+   "id": 135224583955,
+   "conclusion": "failure",
+   "completed": "2026-11-18T23:55:22Z"
+  },
+  {
+   "sha": "28be3420f278ba573b9598b184f4cd5e9027a838",
+   "id": 135218086290,
+   "conclusion": "success",
+   "completed": "2026-11-18T23:41:59Z"
+  },
+  {
+   "sha": "1893b57ac8915db14103417a44a8b76152ff9481",
+   "id": 135213970931,
+   "conclusion": "success",
+   "completed": "2026-11-18T23:34:29Z"
+  },
+  {
+   "sha": "28f2284f783962d3e145f29476bc564e546e9f8f",
+   "id": 135210883292,
+   "conclusion": "success",
+   "completed": "2026-11-18T23:28:01Z"
+  },
+  {
+   "sha": "6e4498710878039d333b520e4de06a23b5a36561",
+   "id": 135187551740,
+   "conclusion": "success",
+   "completed": "2026-11-18T22:42:41Z"
+  },
+  {
+   "sha": "f5fae6d41330ffa7a80c242afbde293d88f6e8a6",
+   "id": 135184457486,
+   "conclusion": "success",
+   "completed": "2026-11-18T22:38:26Z"
+  },
+  {
+   "sha": "9ba596dca3cb05c22e61d8d09a16e42f5a33e442",
+   "id": 135181699704,
+   "conclusion": "success",
+   "completed": "2026-11-18T22:32:54Z"
+  },
+  {
+   "sha": "78d87812e366e218e6ab7237320fc6a1ef47a0ef",
+   "id": 135175747920,
+   "conclusion": "success",
+   "completed": "2026-11-18T22:21:13Z"
+  },
+  {
+   "sha": "97cd7693b236c7b09775ccbaf7ac16e75e6b6238",
+   "id": 135159539672,
+   "conclusion": "success",
+   "completed": "2026-11-18T21:54:37Z"
+  },
+  {
+   "sha": "854b5b09870bedd3795c143dc1cf1a2947c3fa0f",
+   "id": 135153830000,
+   "conclusion": "success",
+   "completed": "2026-11-18T21:44:13Z"
+  },
+  {
+   "sha": "0916d35d897b5d55933d32bb20b8adb31f8fb895",
+   "id": 135142402788,
+   "conclusion": "success",
+   "completed": "2026-11-18T21:27:12Z"
+  },
+  {
+   "sha": "715391c8ec8540354df2ef7a3738ede9317bceaa",
+   "id": 135137897239,
+   "conclusion": "success",
+   "completed": "2026-11-18T21:19:46Z"
+  },
+  {
+   "sha": "24afce32dba0423f3fe8b65d54b7e937df0efe7d",
+   "id": 135134484605,
+   "conclusion": "success",
+   "completed": "2026-11-18T21:14:24Z"
+  }
+ ]
+}

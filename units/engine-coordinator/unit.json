@@ -1,6 +1,6 @@
 {
   "id": "engine-coordinator",
-  "purpose": "The program coordinator: programs as first-class objects, the event-driven decision function, the launch adapter and Padr\u00e3o, the program gate and retro (D-069 CO1).",
+  "purpose": "The program coordinator: programs as first-class objects, the event-driven decision function, the launch adapter and Padrão, the program gate and retro (D-069 CO1).",
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
@@ -30,7 +30,11 @@
     "scripts/tests/test_coordinator_launch.py",
     "scripts/tests/test_plan_live.py",
     "scripts/tests/test_program.py",
-    "scripts/tests/test_program_gate.py"
+    "scripts/tests/test_program_gate.py",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "docs/RETOMAR.md"
   ],
   "requires": {
     "engine-config": "^1",

@@ -23,7 +23,8 @@
     "scripts/tests/dns-zone.test.sh",
     "scripts/tests/test_dns_zone.py",
     "scripts/tests/covers/dns-zone.json",
-    "scripts/tests/fixtures/dns/**"
+    "scripts/tests/fixtures/dns/**",
+    "docs/architecture/AWS-REVIEW.md"
   ],
   "battery": {
     "command": "scripts/unit-battery engine-infra-aws"

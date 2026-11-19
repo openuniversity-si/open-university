@@ -1,4 +1,5 @@
 """`.claude/settings.json`: the SessionStart hook stays, sessions never stall on a prompt, forbidden stays forbidden (D-070)."""
+# Verifies: UNIT:engine-cloud
 import json
 from pathlib import Path
 import unittest

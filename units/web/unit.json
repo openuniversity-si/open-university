@@ -4,7 +4,8 @@
   "cell": "web",
   "owner": "site-lane",
   "paths": [
-    "apps/web/**"
+    "apps/web/**",
+    ".github/workflows/web.yml"
   ],
   "realizes": [
     "ARC-web",

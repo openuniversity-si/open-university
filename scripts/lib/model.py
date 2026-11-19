@@ -7,10 +7,12 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
   D     docs/domain/decisions/D-NNN.md (state accepted; its `proof:` file verifies it; the decisions its `supersedes:`
         names are superseded) and the older rows of docs/domain/DECISIONS.md (the state its Status cell says, the test
         files and cases its Proof cell names verify it when they all exist; row_proof)
-  UNIT  units/<id>/unit.json (active; `requires` are depends-on links)
+  UNIT  units/<id>/unit.json (active; `requires` are depends-on links); a manifest a commit deleted is a retired unit
   TEST  scripts/tests/*.test.sh (active), each with the test files it runs as its parts, and the test files under
         scripts/tests/ that no script test runs (active, a test of their own)
-  INC   an escape (read_escapes): each pull request a later merge's commits name in `Fixes-PR:` is INC-escape-<n>,
+  VERD  a script test's pass state on HEAD (derive_verdicts): the newest full-suite run on a commit HEAD contains, when
+        green, for each test the gate's selection would not run again (config/validation/verdicts.json, scripts/runs)
+  INC  an escape (read_escapes): each pull request a later merge's commits name in `Fixes-PR:` is INC-escape-<n>,
         resolved, introduced by CHG-<n>, fixed by the merges that name it, violating REQ-escape-under-1
 
   scripts/model check [--strict]   errors (exit 1) for a metamodel or object that breaks the model; warnings (a link to an
@@ -362,7 +364,34 @@ def read_units(root):
         links = [{'type': 'depends-on', 'target': f'UNIT:{name}'} for name in sorted(manifest.get('requires') or {})]
         links += [{'type': 'realizes', 'target': element} for element in manifest.get('realizes', [])]
         objects.append(_obj(f'UNIT:{manifest["id"]}', 'UNIT', 'active', path.relative_to(root).as_posix(), text, links))
+    live = {item['id'] for item in objects}
+    for path, (sha, text, manifest) in sorted(retired_units(root).items()):
+        if f'UNIT:{manifest["id"]}' not in live:
+            live.add(f'UNIT:{manifest["id"]}')
+            objects.append(_obj(f'UNIT:{manifest["id"]}', 'UNIT', 'retired', f'git:{sha}^:{path}', text))
     return objects
+
+
+def retired_units(root):
+    """{manifest path: (sha, text, manifest)}: each unit whose manifest a commit of HEAD deleted and the working tree no
+    longer holds, read from the deleting commit's parent (the unit's retirement). A retired unit keeps its id, so the
+    changes that touched its paths before it left still implement it (_changed_units); it is inactive, links nothing
+    and is judged by no rule. Outside a git checkout it reads none."""
+    found = {}
+    listed = _git(root, 'log', '--diff-filter=D', '--format=%x1e%H', '--name-only', 'HEAD', '--', UNIT_MANIFESTS)
+    for block in listed.split('\x1e')[1:]:
+        sha, *paths = block.strip().split('\n')
+        for path in filter(None, paths):
+            if path in found or (Path(root) / path).exists():
+                continue
+            text = _git(root, 'show', f'{sha}^:{path}')
+            try:
+                manifest = json.loads(text)
+            except ValueError:
+                continue
+            if isinstance(manifest, dict) and isinstance(manifest.get('id'), str):
+                found[path] = (sha, text, manifest)
+    return found
 
 
 VERIFIES = re.compile(r'^\s*(?:(?:#|//|\*)\s*)?Verifies:\s*(.+)$', re.MULTILINE)
@@ -903,8 +932,9 @@ def _git(root, *args):
 
 def _changed_units(root):
     """{merge sha: [UNIT:<id>]}: the units whose paths each first-parent merge's diff (against its first parent)
-    touched, matched with the unit graph's own matcher (units.units_of, the manifests of the working tree). One git
-    call for every merge; a tree with no valid unit map derives nothing."""
+    touched, matched with the unit graph's own matcher (units.units_of, the manifests of the working tree); a path no
+    live unit claims is matched against the paths of the retired units (retired_units). One git call for every merge;
+    a tree with no valid unit map derives nothing."""
     import units
     from config import ConfigError
     listed = _git(root, 'log', '--first-parent', '--merges', '--diff-merges=first-parent', '--name-only',
@@ -915,13 +945,17 @@ def _changed_units(root):
         units.manifests(root)
     except (units.UnitError, ConfigError):
         return {}
+    retired = [(manifest['id'], manifest.get('paths') or []) for _, _, manifest in retired_units(root).values()]
     owners, result = {}, {}
     for block in listed.split('\x1e')[1:]:
         sha, *paths = block.split('\n')
         hit = []
         for path in filter(None, paths):
             if path not in owners:
-                owners[path] = units.units_of(path, root)
+                # a path no live unit claims was a retired unit's when that unit's manifest claimed it
+                owners[path] = units.units_of(path, root) or [
+                    unit for unit, globs in retired if any(isinstance(glob, str) and units.match(glob, path)
+                                                           for glob in globs)]
             hit += owners[path]
         result[sha.strip()] = [f'UNIT:{unit}' for unit in sorted(set(hit))]
     return result
@@ -968,12 +1002,14 @@ def read_escapes(root):
 def read_changes(root):
     """Changes (CHG): every merge on the first-parent line of HEAD, one per pull request (CHG-<number>, else
     CHG-<sha>), merged; the `Implements:` trailers of its commits become implements links (requirements, decisions
-    or units, comma-separated: intent), and each unit its diff touched becomes an implements link marked
+    or units, comma-separated: intent; a trailer an erratum corrects reads as corrected, read_errata), and each unit
+    its diff touched becomes an implements link marked
     `source: diff` (a fact: the link type's "changes a unit"). Only a trailer or the requirement's own
     `implemented_by` (link_implemented_by, D-332) names a requirement, so a diff-derived link never implements one
     (`implemented`). The initial public tree is CHG-initial."""
     found = []
     touched = _changed_units(Path(root))
+    errata = read_errata(root)
     for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
         sha, _, subject = line.partition('\x1f')
         ident = _change_id(sha, subject)
@@ -984,11 +1020,14 @@ def read_changes(root):
         targets = []
         for listed in TRAILER_IMPLEMENTS.findall(bodies):
             targets += [target.strip() for target in listed.split(',') if target.strip()]
+        targets, problems = _corrected(ident, targets, errata.pop(sha, []))
         links = [{'type': 'implements', 'target': target} for target in dict.fromkeys(targets)]
         links += [{'type': 'implements', 'target': unit, 'source': 'diff'} for unit in touched.get(sha, [])
                   if unit not in targets]
         item = _obj(ident, 'CHG', 'merged', f'git:{sha}', sha, links)
         item['body'] = {'sha': sha, 'subject': subject, 'names': sorted(set(PHASE_ITEM_NAME.findall(named)))}
+        if problems:
+            item['problems'] = problems
         found.append(item)
     # D-332: the initial public tree (the one root commit of HEAD, never a merge) is one merged change, CHG-initial;
     # a shallow clone's boundary is no root, so it reads none
@@ -1001,6 +1040,34 @@ def read_changes(root):
 
 
 INITIAL_CHANGE = 'CHG-initial'
+ERRATA = 'config/model/errata.json'
+
+
+def read_errata(root):
+    """{merge sha: [erratum]}: the corrections of an `Implements:` trailer a merged commit got wrong (config/model/errata.json,
+    `{"errata": [{change, sha, was, is, why}]}`). History is never rewritten: the erratum, like git's .mailmap, says what
+    the trailer should have named (`is`, or null when it should have named nothing) and why; every erratum's
+    change id, sha and the target it corrects are checked against the merge (_corrected)."""
+    path = Path(root) / ERRATA
+    if not path.is_file():
+        return {}
+    found = {}
+    for entry in _read_json(path).get('errata', []):
+        found.setdefault(entry['sha'], []).append(entry)
+    return found
+
+
+def _corrected(ident, targets, errata):
+    """(targets, problems): the trailer targets of one merge with its errata applied; an erratum that names another
+    change, a target the merge's trailers do not name, or no reason is a problem of the change (an error of the model)."""
+    problems = []
+    for entry in errata:
+        if entry.get('change') != ident or entry.get('was') not in targets or not str(entry.get('why', '')).strip():
+            problems.append(f'erratum {entry.get("was")} -> {entry.get("is")} matches no trailer of its merge or gives no why')
+            continue
+        targets = [entry['is'] if target == entry['was'] else target for target in targets]
+        targets = [target for target in targets if target]
+    return targets, problems
 
 
 def link_implemented_by(found):
@@ -1431,7 +1498,7 @@ def architecture_measure(found):
     for item in elements:
         kind = item.get('body', {}).get('kind', '?')
         by_kind[kind] = by_kind.get(kind, 0) + 1
-    units = [item for item in found.values() if item['type'] == 'UNIT']
+    units = [item for item in found.values() if item['type'] == 'UNIT' and item['state'] == 'active']
     adrs = {}
     for item in found.values():
         if item.get('body', {}).get('adr'):
@@ -1894,6 +1961,44 @@ READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, r
            read_risks, read_controls, read_vulns, read_threats, read_measures, read_work)
 
 
+def derive_verdicts(found, root, select=None):
+    """Verdicts (VERD): the pass state of each script test on HEAD, from the full-suite check runs of main's merges
+    (runs.VERDICTS_FILE, renewed where scripts/model measures; the gate reads the snapshot, never the network). The
+    newest run on a commit HEAD contains judged every script test there. When it is green, a test the gate's own
+    selection (gate_script_tests.select) would not run for that commit's diff to HEAD reads the same declared files
+    there and here, so its verdict on that commit is its verdict on HEAD: VERD:<script>, pass, evidencing
+    TEST:<script>, with the sha and the run. A test that selection would run again has no verdict. When the newest run
+    is red, no test has one: the run names no red test (they are in the job's log, which only the Actions API
+    serves), and an older green run is no evidence past it, since a red after it means some test's declared files
+    did not cover what broke it. `select(paths)` answers the tests to run again (the gate's selection by default)."""
+    import runs
+    recorded = runs.read_verdicts(root) or {}
+    green = next((item for item in recorded.get('runs', [])
+                  if subprocess.run(['git', 'merge-base', '--is-ancestor', item['sha'], 'HEAD'], cwd=root,
+                                    capture_output=True).returncode == 0), None)
+    if green is None or green.get('conclusion') != 'success':
+        return []
+    paths = _git(root, 'diff', '--name-only', green['sha'], 'HEAD').split()
+    if select is None:
+        import gate_script_tests
+        mapping = gate_script_tests.load(root)
+        select = lambda changed: gate_script_tests.select(changed, mapping)[0]  # noqa: E731
+    again = set(select(paths)) if paths else set()
+    made = []
+    for id, item in sorted(found.items()):
+        script = item['source'] if item['type'] == 'TEST' else ''
+        if not script.endswith('.test.sh') or script in again or item.get('fingerprint') is None:
+            continue
+        body = {'sha': green['sha'], 'check': recorded.get('check', runs.VERDICTS_CHECK), 'run': green['id'],
+                'completed': green['completed'], 'test': id}
+        verdict = _obj(f'VERD:{script}', 'VERD', 'pass', f'{runs.VERDICTS_FILE} run {green["id"]}',
+                       json.dumps(body, sort_keys=True), [{'type': 'evidences', 'target': id}])
+        verdict['body'] = body
+        made.append(verdict)
+    found.update({item['id']: item for item in made})
+    return made
+
+
 def objects(root=ROOT, readers=READERS):
     """Every object the readers find, by id. A decision's proof becomes a link on the test it names; a proof that names
     no test file stays as a test object of its own, claimed but without a source, so the link to it can be judged."""
@@ -1908,6 +2013,8 @@ def objects(root=ROOT, readers=READERS):
             else:
                 current['links'] += item['links']
     fold_parts(found)
+    if read_tests in readers:
+        derive_verdicts(found, root)
     if read_requirements in readers and read_changes in readers:
         link_implemented_by(found)
     if read_validations in readers:
@@ -2497,6 +2604,7 @@ def main(argv=None):
         if args.command == 'measure':
             import runs
             runs.slo_refresh(ROOT)  # a day-old SLO snapshot is rebuilt before objects() folds it; offline it is kept
+            runs.verdicts_refresh(ROOT)  # so is the full-suite's verdicts snapshot (derive_verdicts)
         found = objects()
         if args.command == 'check':
             errors, warnings = check(meta, found, ROOT)

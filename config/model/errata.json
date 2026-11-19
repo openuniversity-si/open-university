@@ -1,0 +1,11 @@
+{
+  "errata": [
+    {
+      "change": "CHG-256",
+      "sha": "89c7a3965f387f06c6815b75dfb58b7af8be4ab0",
+      "was": "REQ-changeability",
+      "is": null,
+      "why": "REQ-changeability never existed: the commit (509d2e4, Plan: 2) brought the reflexion to 97 % so that VAL-changeability is met, and a change implements a requirement, a decision or a unit, never a validation; the change still implements UNIT:engine-model through its diff."
+    }
+  ]
+}
