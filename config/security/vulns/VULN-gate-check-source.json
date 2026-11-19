@@ -6,5 +6,7 @@
   "in": [
     "ARC-gate"
   ],
-  "reason": "Fix staged 2026-11-19: .github/rulesets/main.json names integration_id 15368 (GitHub Actions) on each required check, refused otherwise by security.test.sh. Fixed on the date the owner applies it to ruleset 27250343."
+  "reason": "Fixed 2026-11-19 05:17 BRT: the owner applied .github/rulesets/main.json to ruleset 27250343 (PUT, enforcement active); tower/gate and web are required with integration_id 15368 (GitHub Actions), so a commit status of that name from another writer no longer counts. security.test.sh refuses a required check that names no source app.",
+  "fixed": "2026-11-19",
+  "verified_by": "scripts/tests/security.test.sh"
 }

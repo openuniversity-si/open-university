@@ -274,6 +274,81 @@ class Overlay(Fixture):
         self.assertEqual(git(self.repo, "rev-parse", "HEAD"), head)
         self.assertEqual(git(self.repo, "diff", "--cached", "--name-only"), "")
 
+    def closure_base(self):
+        """A base whose gate imports helpers: gate_x.py (import helper, from pkg import mod, json, an optional module)
+        and the shell entry point gate-local (runs scripts/lib/runner.py by path, a heredoc imports heredoc_mod)."""
+        git(self.repo, "checkout", "-q", self.base)
+        return self.commit({
+            "scripts/lib/gate_x.py": "import json\nimport helper\nfrom pkg import mod\ntry:\n    import optional\n"
+                                     "except ImportError:\n    optional = None\n",
+            "scripts/lib/helper.py": "import deep\nVALUE = 'base'\n",
+            "scripts/lib/deep.py": "VALUE = 'base'\n",
+            "scripts/lib/pkg/__init__.py": "",
+            "scripts/lib/pkg/mod.py": "VALUE = 'base'\n",
+            "scripts/lib/runner.py": "VALUE = 'base'\n",
+            "scripts/lib/heredoc_mod.py": "VALUE = 'base'\n",
+            "scripts/lib/other.py": "VALUE = 'base'\n",
+            "scripts/gate-local": "#!/usr/bin/env bash\npython3 \"$root/scripts/lib/runner.py\"\n"
+                                  "python3 - <<'PY'\nimport heredoc_mod\nPY\n",
+        }, "base with helpers")
+
+    def test_a_changed_helper_of_the_gate_is_the_bases(self):
+        """VULN-gate-judged-by-own-head (D-335): a module the gate imports (directly, transitively, from a package, by
+        path or from a heredoc) is the base's after the overlay, though GATE_FILE does not name it."""
+        base = self.closure_base()
+        changed = {name: "VALUE = 'head'\n" for name in ("scripts/lib/helper.py", "scripts/lib/deep.py",
+                                                         "scripts/lib/pkg/mod.py", "scripts/lib/runner.py",
+                                                         "scripts/lib/heredoc_mod.py")}
+        self.commit(changed, "head changes helpers")
+        self.assertEqual(sorted(gate_pin.overlay(self.repo, base)), sorted(changed))
+        self.assertEqual((self.repo / "scripts/lib/helper.py").read_text(), "import deep\nVALUE = 'base'\n")
+        for name in changed:
+            if name != "scripts/lib/helper.py":
+                self.assertEqual((self.repo / name).read_text(), "VALUE = 'base'\n", name)
+        self.assertFalse(gate_pin.GATE_FILE.match("scripts/lib/helper.py"))  # no decision asked of a helper
+
+    def test_a_module_the_change_adds_where_the_gate_imports_is_removed(self):
+        """A file the change adds that the base's gate would import (a module it tries, one shadowing a standard
+        module, a compiled one, a package over a module, a site start-up module) is gone after the overlay."""
+        base = self.closure_base()
+        added = ("scripts/lib/optional.py", "scripts/lib/json.py", "scripts/lib/helper.cpython-312-x86_64-linux-gnu.so",
+                 "scripts/lib/deep/__init__.py", "scripts/lib/sitecustomize.py")
+        self.commit({name: "raise SystemExit(0)\n" for name in added}, "head adds modules")
+        self.assertEqual(sorted(gate_pin.overlay(self.repo, base)), sorted(added))
+        for name in added:
+            self.assertFalse((self.repo / name).exists(), name)
+
+    def test_a_module_outside_the_closure_is_the_heads(self):
+        base = self.closure_base()
+        self.commit({"scripts/lib/other.py": "VALUE = 'head'\n", "scripts/lib/new_tool.py": "x = 1\n"}, "head")
+        self.assertEqual(gate_pin.overlay(self.repo, base), [])
+        self.assertEqual((self.repo / "scripts/lib/other.py").read_text(), "VALUE = 'head'\n")
+        self.assertTrue((self.repo / "scripts/lib/new_tool.py").exists())
+
+    def test_the_toolchain_the_job_runs_after_the_overlay_is_the_bases(self):
+        """D-335: setup.sh, env.sh, the scripts/cloud helpers they run and what those import, the toolchain and cloud
+        registry and a tracked .toolchain file are the base's after the overlay, so the job's toolchain step and its
+        `source scripts/cloud/env.sh` run the base's."""
+        git(self.repo, "checkout", "-q", self.base)
+        base = self.commit({"scripts/cloud/setup.sh": "base setup\n", "scripts/cloud/env.sh": "base env\n",
+                            "scripts/cloud/toolchain.py": "import toolchain_manifest\n",
+                            "scripts/lib/toolchain_manifest.py": "VALUE = 'base'\n",
+                            "config/registry/toolchain.json": "{}\n",
+                            "config/registry/toolchain/toolchain.python_version.json": "{}\n"}, "base toolchain")
+        changed = {"scripts/cloud/setup.sh": "head setup\n", "scripts/cloud/env.sh": "head env\n",
+                   "scripts/lib/toolchain_manifest.py": "VALUE = 'head'\n",
+                   "config/registry/toolchain/toolchain.python_version.json": "{\"value\": 1}\n"}
+        added = ("scripts/cloud/json.py", ".toolchain/bin/python3")
+        self.commit({**changed, **{name: "head\n" for name in added}}, "head toolchain")
+        self.assertEqual(sorted(gate_pin.overlay(self.repo, base)), sorted([*changed, *added]))
+        self.assertEqual((self.repo / "scripts/cloud/setup.sh").read_text(), "base setup\n")
+        self.assertEqual((self.repo / "scripts/cloud/env.sh").read_text(), "base env\n")
+        self.assertEqual((self.repo / "scripts/lib/toolchain_manifest.py").read_text(), "VALUE = 'base'\n")
+        self.assertEqual((self.repo / "config/registry/toolchain/toolchain.python_version.json").read_text(), "{}\n")
+        for name in added:
+            self.assertFalse((self.repo / name).exists(), name)
+        self.assertFalse(gate_pin.GATE_FILE.match("scripts/cloud/setup.sh"))  # no decision asked of the toolchain
+
     def test_a_change_that_touches_no_gate_file_pins_nothing(self):
         git(self.repo, "checkout", "-q", self.base)
         self.commit({"app.txt": "other\n"}, "app only")
