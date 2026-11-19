@@ -1,0 +1,9 @@
+# The image of the infrastructure's service (P3 F1) and of its port's Lambda (P3 F2): the direct requirements. The image
+# installs requirements.txt, their whole closure locked with every file's hash (D-335: a pip requirement is pinned only
+# by its hash), compiled from this file by the command in its header; the image tag follows the tree of requirements.txt.
+dbos==3.4.0
+psycopg[binary]==3.3.8
+boto3==1.43.123
+awslambdaric==4.2.3
+# Claude through the official SDK, on the Anthropic API and on Claude in Amazon Bedrock (D-310, D-311).
+anthropic[bedrock]==2.3.0

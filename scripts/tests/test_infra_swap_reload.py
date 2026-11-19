@@ -609,7 +609,7 @@ class TheServicesWorkflows(unittest.TestCase):
         self.assertIn("DBOS.list_workflows(\n            status=['PENDING', 'ENQUEUED'], app_version=version, load_input=False, "
                       'load_output=False)] if launch.done else []', pending)  # never launched: nothing of its own
         # the argument reads dbos 3.4.0 (recovery at launch: the pending workflows of the executor and version): a bump re-reads it
-        self.assertIn('dbos==3.4.0\n', (ROOT / 'infra/service/requirements.txt').read_text(encoding='utf-8'))
+        self.assertRegex((ROOT / 'infra/service/requirements.txt').read_text(encoding='utf-8'), r'(?m)^dbos==3\.4\.0 \\$')
 
     def test_the_reloaded_service_is_another_application_version_than_the_one_it_left(self):
         with tempfile.TemporaryDirectory() as root:

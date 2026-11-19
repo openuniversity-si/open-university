@@ -343,12 +343,21 @@ class ImageTests(unittest.TestCase):
         # INFRA-EXE 1f: the box's C compiler, which the gate's fork server builds its shim with (fork-server.test.sh)
         self.assertEqual(config.get('gate.fork_server_compiler'), 'cc')
         self.assertIn(' gcc libc6-dev ', dockerfile)
-        wanted = [line for line in (SERVICE / 'requirements.txt').read_text(encoding='utf-8').splitlines()
+        wanted = [line for line in (SERVICE / 'requirements.in').read_text(encoding='utf-8').splitlines()
                   if line.strip() and not line.startswith('#')]
         self.assertEqual({line.split('==')[0].split('[')[0] for line in wanted},
                          {'dbos', 'psycopg', 'boto3', 'awslambdaric', 'anthropic'})
         for line in wanted:
             self.assertRegex(line, r'^[a-z0-9-]+(\[[a-z]+\])?==\d+(\.\d+)+$')
+        # D-335: the image installs the closure of requirements.in, each requirement pinned by its hashes
+        import supply
+        for name in ('requirements', 'requirements-lambda'):
+            direct = {line.split('==')[0].split('[')[0]: line.split('==')[1] for line in
+                      (SERVICE / f'{name}.in').read_text(encoding='utf-8').splitlines()
+                      if line.strip() and not line.startswith('#')}
+            locked = supply.pip_parts((SERVICE / f'{name}.txt').read_text(encoding='utf-8'), name)
+            self.assertTrue(locked and all(entry['pinned'] for entry in locked), name)
+            self.assertLessEqual(direct.items(), {entry['name']: entry['version'] for entry in locked}.items(), name)
 
     def test_one_workflow_per_run_registered_before_the_launch(self):
         # DBOS is not in the gate: these read the source. The run id is the workflow id, so a run reaches its executor
