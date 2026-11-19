@@ -1,5 +1,6 @@
 """The AWS spend as a validation source (D-331): the snapshot recorded from the deploy build's daily Cost Explorer reading
-and the aws-spend measure of VAL-aws-200. Hermetic: in-memory answers and temporary folders.
+and the aws-spend measure of VAL-aws-200; the supplier-spend measure on a reading checked by hand, its threshold read
+from a registry key (D-342). Hermetic: in-memory answers and temporary folders.
 
 Verifies: REQ-aws-200
 """
@@ -71,6 +72,58 @@ class Measure(unittest.TestCase):
 
     def test_no_snapshot_is_no_source(self):
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-20'), (None, False))
+
+
+# a supplier-spend validation whose ceiling is a registry key of the temporary root (D-342)
+CEILING = json.loads('{"type": "number", "default": 100, "x-unit": "usd", "description": "d"}')
+SUPPLIER = json.loads('{"id": "VAL-acme", "statement": "s", "validates": ["NEED-cost"], "owner": "o", "comparator": "lte",'
+                      ' "measure": {"kind": "supplier-spend", "supplier": "acme", "max_age_days": 35},'
+                      ' "threshold_key": "test.ceiling_usd"}')
+INVOICE = json.loads('{"usd": 100, "day": "2026-11-19", "source": "the invoice"}')
+STALE_DAY = '2027-01-01'
+
+
+class SupplierSpend(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='spend-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        self.put('contracts/model/validation.v1.json', json.loads((ROOT / 'contracts/model/validation.v1.json').read_text()))
+        self.put('config/registry/test.json', {'properties': {'test.ceiling_usd': CEILING}})
+
+    def put(self, path, body):
+        target = self.root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(body))
+
+    def state(self, today=INVOICE['day'], **body):
+        self.put('config/validation/VAL-acme.json', {**SUPPLIER, **body})
+        found = {item['id']: item for item in model.read_validations(self.root)}
+        model.derive_validations(found, self.root, today)
+        return found
+
+    def test_the_threshold_is_read_from_the_registry_key(self):
+        self.put('config/validation/spend/acme.json', INVOICE)
+        found = self.state()
+        self.assertEqual(found['VAL-acme']['body']['threshold'], CEILING['default'])
+        self.assertEqual((found['VAL-acme']['measured'], found['VAL-acme']['state']), (INVOICE['usd'], 'met'))
+
+    def test_over_the_keys_value_is_not_met_and_at_or_under_it_is_met(self):
+        for usd, state in ((CEILING['default'] + 1, 'not-met'), (CEILING['default'], 'met'), (CEILING['default'] - 1, 'met')):
+            self.put('config/validation/spend/acme.json', {**INVOICE, 'usd': usd})
+            self.assertEqual(self.state()['VAL-acme']['state'], state, usd)
+
+    def test_a_stale_reading_is_measuring_and_no_reading_is_defined(self):
+        self.assertEqual(self.state()['VAL-acme']['state'], 'defined')
+        self.put('config/validation/spend/acme.json', INVOICE)
+        self.assertEqual(self.state(STALE_DAY)['VAL-acme']['state'], 'measuring')
+
+    def test_threshold_and_threshold_key_together_or_an_unknown_key_is_an_error(self):
+        found = self.state(threshold=CEILING['default'])
+        self.assertEqual(found['VAL-acme']['problems'], ['carries threshold or threshold_key, exactly one'])
+        self.assertNotIn('body', found['VAL-acme'])
+        found = self.state(threshold_key='test.no_such_key')
+        self.assertEqual(found['VAL-acme']['problems'], ['its threshold_key test.no_such_key is not a registered parameter'])
+        self.assertNotIn('body', found['VAL-acme'])
 
 
 if __name__ == '__main__':
