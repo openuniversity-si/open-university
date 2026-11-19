@@ -62,7 +62,7 @@ const nextConfig: NextConfig = {
     return Promise.resolve(alternateHostRedirects());
   },
   headers() {
-    const csp = { key: "Content-Security-Policy-Report-Only", value: reportOnlyContentSecurityPolicy(mediaPublicHosts(process.env), playbackContentSources()) };
+    const csp = { key: "Content-Security-Policy", value: reportOnlyContentSecurityPolicy(mediaPublicHosts(process.env), playbackContentSources()) };
     const robots = isSiteIndexable(indexingFacts(process.env)) ? [] : [{ key: "X-Robots-Tag", value: NOINDEX_HEADER_VALUE }];
     const reporting = { key: "Reporting-Endpoints", value: `csp="${CSP_REPORT_PATH}"` };
     // public/ files keep stable, unversioned names: cache them a day and revalidate in the background, never immutable.

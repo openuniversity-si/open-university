@@ -10,7 +10,7 @@ describe("media origins in next.config.ts", () => {
   it("lists only the public media host in the CSP img-src", async () => {
     if (nextConfig.headers === undefined) throw new Error("next.config.ts must define headers()");
     const rules = await nextConfig.headers();
-    const policies = rules.flatMap((rule) => rule.headers).filter((header) => header.key === "Content-Security-Policy-Report-Only").map((header) => header.value);
+    const policies = rules.flatMap((rule) => rule.headers).filter((header) => header.key === "Content-Security-Policy").map((header) => header.value);
     expect(policies.length).toBeGreaterThan(0);
     for (const policy of policies) {
       const imgSrc = policy.split("; ").find((entry) => entry.startsWith("img-src "));
