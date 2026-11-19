@@ -1,0 +1,17 @@
+{
+  "id": "STD-repo-hygiene-tower-store-errors",
+  "statement": "One error per tracked path under the change store's top directory (the first part of config.store_dir, `.tower/`): the store holds machine-local overrides over the registry, and a forced add of it would let a head override a gate, budget or regime key without touching a gate file.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/repo_hygiene.py:tower_store_errors"
+  },
+  "basis": [
+    "D-335"
+  ],
+  "note": "Closes the committed .tower/config override (VULN-gate-tower-config-override), layer 1 of three: the gate also reads registry defaults only (config.py) and the pinned overlay deletes .tower/ from the checkout (gate_pin.py)."
+}

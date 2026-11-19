@@ -147,7 +147,8 @@
       "x-unit": "path",
       "description": "Directory of the file adapter's log, relative to the checkout (gitignored). Read from this file, never from the store itself.",
       "x-readers": [
-        "scripts/lib/config.py"
+        "scripts/lib/config.py",
+        "scripts/lib/repo_hygiene.py"
       ],
       "x-source": "D-068 (3)"
     },

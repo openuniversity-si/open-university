@@ -10,6 +10,9 @@ it, and every word of them is a registry entry (config/registry/structure/):
   - no tracked text file under structure.conflict_marker_roots holds a merge conflict marker line
     (structure.conflict_marker_pattern; D-189): a committed block in DECISIONS.md once stayed green.
   - no git write passes a variable as its message on the command line (C1, D-206): it goes through stdin.
+  - no tracked file under the change store's directory (the first part of config.store_dir, `.tower/`; D-335): the
+    store holds machine-local overrides over the registry, and one committed with `git add -f` would change a gate key
+    for every checkout of the head (tower_store_errors).
 check(root) returns the errors, one per offending file and address. The address scan is one `git grep -P` (tens of
 milliseconds); a git without PCRE gets the same scan in Python.
 """
@@ -81,13 +84,22 @@ def source_check(root):
     return errors, []
 
 
+def tower_store_errors(paths, store_dir):
+    """One error per tracked path under the change store's top directory (the first part of `store_dir`): the store is
+    gitignored, and a forced add of it would override the registry's gate, budget or regime keys from the head (D-335)."""
+    top = Path(store_dir).parts[0] + '/'
+    return [f'{path}: a tracked file of the change store ({top}, config.store_dir); it is machine-local and never '
+            f'committed: git rm --cached it' for path in paths if path.startswith(top)]
+
+
 def tree_check(root):
     root = Path(root)
     exempt = set(config.get('structure.legacy_email_exempt'))
     raster = re.compile(config.get('structure.raster_pattern'), re.IGNORECASE)
     allowed = [re.compile(pattern) for pattern in config.get('structure.raster_allowed')]
     paths = tracked(root)
-    errors = [f'{path}: a tracked raster image; images live in object storage, never in git (structure.raster_allowed)'
+    errors = tower_store_errors(paths, config.get('config.store_dir'))
+    errors += [f'{path}: a tracked raster image; images live in object storage, never in git (structure.raster_allowed)'
               for path in paths if raster.search(path) and not any(pattern.search(path) for pattern in allowed)]
     hits = addresses(root, config.get('structure.legacy_email_pattern'), [path for path in paths if path not in exempt])
     errors += [f'{path}: holds {found}, an address on the legacy domain (structure.legacy_email_pattern)'
