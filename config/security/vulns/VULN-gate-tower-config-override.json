@@ -1,0 +1,14 @@
+{
+  "id": "VULN-gate-tower-config-override",
+  "statement": "The config layer (scripts/lib/config.py) reads a checkout's change store, .tower/config, as overrides of the registry's defaults. .tower/ is gitignored, but a forced add commits it and nothing refused that, and the pinned job's overlay neither restored nor removed it, so a pull request could ship an override that turns regime.exception_active back on (lifting every lock) or loosens any gate, budget or threshold key without touching a gate file; the threshold check compares registry defaults only and missed it. Found in the independent review of THREAT-gate, THREAT-config and THREAT-planning (tampering, elevation of privilege).",
+  "severity": "high",
+  "found": "2026-11-19",
+  "in": [
+    "ARC-gate",
+    "ARC-config",
+    "ARC-planning"
+  ],
+  "reason": "Fixed 2026-11-19 in three layers (D-335): (1) the structure check's hygiene scan refuses any tracked file under the change store's directory (repo_hygiene.tower_store_errors, rule STD-repo-hygiene-tower-store-errors; test_repo_hygiene.TowerStore); (2) scripts/verify-commit names its checkout in $OU_CONFIG_REGISTRY_ONLY, which every stage and test it spawns inherits, and config.registry_only then reads registry defaults only for that checkout (test_config_api.GateMode, test_verify_commit.GateMode); (3) gate_pin.overlay deletes .tower/ from the pinned job's checkout (gate_pin.remove_store; test_gate_pin.Overlay.test_the_change_store_the_head_brings_is_deleted).",
+  "fixed": "2026-11-19",
+  "verified_by": "scripts/tests/repo-hygiene.test.sh"
+}

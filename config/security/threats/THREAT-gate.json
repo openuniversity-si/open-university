@@ -126,8 +126,8 @@
       {
         "about": "tampering",
         "finding": "Missing threat: The registry's effective value is the latest change in the file store, and the gate reads that store from the checkout it judges (OU_CONFIG_STORE=file; config.store_dir .tower/config, so .tower/config/<repo>/repository.jsonl). The path is gitignored (/.tower/), but `git add -f` tracks it, and nothing refuses a tracked file there; the overlay of the pinned job restores registry files, not that store. Reproduced in a scratch copy: config.set_value('regime.exception_active', true) wrote that file and config.get then returned true. So a pull request that commits a config.changed line can turn the exception regime on (every structure and commit-plan lock warns), loosen a budget or threshold that threshold_check judges only by registry default, or change any gate.* key, with no GATE_FILE change, no decision and no pinning.",
-        "disposition": "open",
-        "reason": "needs the gate to ignore or refuse a tracked change store: for example the gate reading registry defaults only (an empty or memory store), or a stage that refuses any tracked file under config.store_dir; not in place."
+        "disposition": "fixed",
+        "reason": "Fixed 2026-11-19 in three layers: the structure check's hygiene refuses any tracked path under .tower/ (repo_hygiene.tower_store_errors, STD-repo-hygiene-tower-store-errors, test_repo_hygiene.TowerStore); verify-commit sets OU_CONFIG_REGISTRY_ONLY to its checkout, so every stage and test it runs reads registry defaults only (test_config_api.GateMode, test_verify_commit.GateMode); the pinned overlay deletes .tower/ from the checkout (gate_pin.remove_store, test_gate_pin.Overlay). VULN-gate-tower-config-override."
       },
       {
         "about": "tampering",
