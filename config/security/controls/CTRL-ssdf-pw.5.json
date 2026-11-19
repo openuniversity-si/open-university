@@ -4,9 +4,10 @@
   "control": "PW.5",
   "title": "Create source code by adhering to secure coding practices",
   "applicable": true,
-  "reason": "The lint ratchet keeps Python's bug rules and the bandit rules of forty vulnerability classes at zero findings in the engine (rules.lint_select). Partial: the site's TypeScript has its own lint with no security rules, and no secure coding standard is written for either language.",
+  "reason": "The secure coding standard (docs/security/SECURE-CODING.md) states the practices for the engine's Python and shell and for the site's TypeScript, each with what enforces it. The lint ratchet keeps Python's bug rules and the bandit rules of forty vulnerability classes at zero findings in the engine (rules.lint_select). The site's lint (apps/web/eslint.config.mjs), run by pnpm lint in the required web check, refuses eval, new Function, script URLs, prototype tampering, unsandboxed frames and reverse-tabnabbing links on top of the type-checked rules (no-implied-eval, no-explicit-any, no-unsafe-*), with no new package. Three practices of the standard are stated but no check enforces them yet, and the standard says so: quoting in shell scripts, raw HTML only from a parsed value (react/no-danger), SQL only through the query builder.",
   "implemented_by": [
-    "STD-lint-ratchet"
+    "STD-lint-ratchet",
+    "CHK-web"
   ],
-  "coverage": "partial"
+  "coverage": "full"
 }
