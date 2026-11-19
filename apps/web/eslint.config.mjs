@@ -41,6 +41,30 @@ export default tseslint.config(
       "@typescript-eslint/ban-ts-comment": ["error", { "ts-expect-error": "allow-with-description", "ts-ignore": true, "ts-nocheck": true }],
     },
   },
+  // Security (SSDF PW.5, docs/security/SECURE-CODING.md): no string runs as code, no script URL, no unsandboxed
+  // frame, no reverse-tabnabbing link, no prototype tampering. Core and eslint-plugin-react rules only, no new package.
+  {
+    rules: {
+      "no-eval": "error",
+      "no-new-func": "error",
+      "no-script-url": "error",
+      "no-proto": "error",
+      "no-extend-native": "error",
+    },
+  },
+  {
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
+    rules: {
+      "react/jsx-no-script-url": "error",
+      "react/jsx-no-target-blank": "error",
+      "react/iframe-missing-sandbox": "error",
+    },
+  },
+  // Tests feed javascript: URLs as hostile input to prove the site refuses them.
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: { "no-script-url": "off" },
+  },
   // §3: UI never reaches the progress repository directly.
   {
     files: ["src/ui/**"],
