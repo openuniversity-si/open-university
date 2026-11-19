@@ -60,7 +60,12 @@ STAGES_S = 15.0
 # GATE-PER-WORKER (18/11/2026): what each part's batch runs at once, the load a part's share is weighed by: main keeps one
 # worker for its stages beside the batch (GATE-PACE), shard1 has the runner's four. Constants, not the machine's CPUs:
 # every job of one run must split alike. #217's gate: main's three deploy parts 54.7-60.7 s, shard1's three 48.2-49.8 s.
-PART_WORKERS = {'main': 3, 'shard1': 4}  # GATE-PARTS: what main's stages weigh in the split (#130's commit: main 41 s, shard1 24 s with none)
+PART_WORKERS = {'main': 3, 'shard1': 4, 'alone': 4}  # GATE-PARTS: what main's stages weigh in the split (#130's commit: main 41 s, shard1 24 s with none)
+# GATE-ALONE-SHARE (REQ-gate-60s, 19/11/2026): alone ran its two timing-bound tests (~15 s) and then sat idle while main and
+# shard1 ran a wide plan's seven ~40 s deploy tests on seven workers (~70 s gates); it now takes a share of the others
+# after its own, on its runner's four workers. GATE-SPLIT-BY-WORKER: each test goes to the least loaded of the eleven
+# workers (the batch runs longest first, so that is its wall), not to the part lighter on average: by the average, a part
+# took two ~25 s tests on one worker while another part's worker sat idle.
 
 
 def costs():
@@ -73,21 +78,23 @@ def costs():
 
 
 def split(tests, named, hints):
-    """GATE-PARTS: the planned tests of each part. alone: the timing-bound ones (named); main and shard1: the others,
-    longest first into the one it leaves lighter per worker (by the cost hints, ties by name; main starts STAGES_S heavier,
-    for its stages, and has PART_WORKERS one fewer), so every job computes the same split."""
+    """GATE-PARTS: the planned tests of each part. alone: the timing-bound ones (named) first; then the others, longest
+    first (by the cost hints, ties by name), each to the least loaded worker of every part (GATE-SPLIT-BY-WORKER; ties
+    main, shard1, alone, then the worker's number): main's PART_WORKERS start STAGES_S heavier between them, for its
+    stages, and alone's after its timing-bound tests (GATE-ALONE-SHARE), so every job computes the same split."""
     parts = {'main': [], 'shard1': [], 'alone': [test for test in tests if test in named]}
-    load = {'main': STAGES_S, 'shard1': 0.0}  # main runs the stages too
     known = sorted(float(value) for value in hints.values() if value)
     usual = known[len(known) // 2] if known else 1.0  # a test with no hint weighs the median hint, never nothing
 
     def weight(test):
         return float(hints.get(test) or usual)
+    # main runs the stages too; alone's timing-bound tests hold its whole runner before its share starts
+    start = {'main': STAGES_S / PART_WORKERS['main'], 'shard1': 0.0, 'alone': sum(map(weight, parts['alone']))}
+    workers = [[start[part], PARTS.index(part), number, part] for part in PARTS for number in range(PART_WORKERS[part])]
     for test in sorted((test for test in tests if test not in named), key=lambda test: (-weight(test), test)):
-        lighter = min(('main', 'shard1'),
-                      key=lambda part: ((load[part] + weight(test)) / PART_WORKERS[part], part != 'main'))
-        parts[lighter].append(test)
-        load[lighter] += weight(test)
+        worker = min(workers)
+        parts[worker[3]].append(test)
+        worker[0] += weight(test)
     return parts
 
 
@@ -186,9 +193,9 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
     its rerun alone made the gate 98-146 s (32 of 150 runs); beside a 3-worker batch it passed in 14 s and the batch of
     a service change's 27 other tests took 42 s.
     GATE-PARTS (the Torre, 16/11/2026): part, when given, is this job's share of the plan, the others judged by the other
-    jobs of the same tower/gate: main the stages and half the tests, shard1 the other half, alone the timing-bound tests
-    by themselves on a runner of their own (split()). planned['part'] names it and planned['judged'] its checks; the
-    plan, and the verdict's key, stay the whole plan's.
+    jobs of the same tower/gate: main the stages and a share of the tests, shard1 another, alone the timing-bound tests
+    by themselves on a runner of their own and then a share of the others (split(), GATE-ALONE-SHARE). planned['part']
+    names it and planned['judged'] its checks; the plan, and the verdict's key, stay the whole plan's.
     GATE-PACE (the Torre's AWS review, 16/11/2026): in the main part the stages run one after another in a thread beside
     the batch, which keeps one worker fewer for them, instead of before it: on the hosted runner they were ~35 of main's
     57 s (#146's queue commit: main 57 s, shard1 22 s with more of the tests), and the queue gate waits for its slowest
@@ -236,7 +243,8 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
         apart = [test for test in tests if test in named]
         batch = [test for test in tests if test not in named]
         if part:  # GATE-PARTS: this job's share; the timing-bound tests have a runner of their own, so no worker is kept
-            apart, batch = (shares['alone'], []) if part == 'alone' else ([], shares[part])
+            apart = [test for test in shares[part] if test in named]
+            batch = [test for test in shares[part] if test not in named]
         verdicts = {}
 
         def by_themselves():
@@ -245,12 +253,14 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
         beside = threading.Thread(target=by_themselves, name='verify-isolated', daemon=True) if apart else None
         if beside:
             beside.start()
+            if part:  # GATE-ALONE-SHARE: alone's timing-bound tests by themselves first, then its share on the whole runner
+                beside.join()
         failed = []
         with tempfile.TemporaryDirectory() as tmp:
             if batch:
                 answer = Path(tmp) / 'tests.json'
                 env = {**os.environ, 'TOWER_ANSWER_FILE': str(answer)}
-                if apart or staging:  # GATE-ISOLATED, GATE-PACE: one CPU of the runner is the isolated tests' or the stages'
+                if (apart and not part) or staging:  # GATE-ISOLATED, GATE-PACE: one CPU of the runner is the isolated tests' or the stages'
                     env[WORKERS] = str(max(1, int(os.environ.get(WORKERS) or cpus() or 1) - 1))
                 at = clock()
                 code, out = run(['scripts/gate-check', 'tests', ','.join(batch)], env=env)

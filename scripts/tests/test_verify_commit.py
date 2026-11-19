@@ -190,18 +190,19 @@ class TheVerifier(unittest.TestCase):
             self.assertTrue((ROOT / test).is_file(), test)
 
     def test_the_parts_split_the_plan_whole_and_the_same_way_in_every_job(self):
-        """GATE-PARTS: alone holds the timing-bound tests; main and shard1 the others, longest first into the lighter."""
-        tests = ['scripts/tests/a.test.sh', 'scripts/tests/b.test.sh', 'scripts/tests/c.test.sh',
-                 'scripts/tests/d.test.sh', 'scripts/tests/slow.test.sh']
+        """GATE-PARTS: alone holds the timing-bound tests first; every part the others, longest first to the least loaded
+        worker (GATE-SPLIT-BY-WORKER, GATE-ALONE-SHARE)."""
         hints = {'scripts/tests/a.test.sh': 50, 'scripts/tests/b.test.sh': 30, 'scripts/tests/c.test.sh': 25,
-                 'scripts/tests/d.test.sh': 4, 'scripts/tests/slow.test.sh': 37}
+                 'scripts/tests/d.test.sh': 20, 'scripts/tests/e.test.sh': 10, 'scripts/tests/f.test.sh': 8,
+                 'scripts/tests/g.test.sh': 7, 'scripts/tests/h.test.sh': 4, 'scripts/tests/slow.test.sh': 6}
+        tests = sorted(hints)
         parts = verify_commit.split(tests, {'scripts/tests/slow.test.sh'}, hints)
-        # GATE-PER-WORKER: main starts STAGES_S (15) heavier and has 3 workers, shard1 4; each test goes where it leaves the
-        # lighter load per worker: a 50 -> shard1 (12.5 against 21.7); b 30 -> main (15 against 20); c 25 -> shard1 (18.75
-        # against 23.3); d 4 -> main (16.3 against 19.75)
-        self.assertEqual(parts, {'main': ['scripts/tests/b.test.sh', 'scripts/tests/d.test.sh'],
-                                 'shard1': ['scripts/tests/a.test.sh', 'scripts/tests/c.test.sh'],
-                                 'alone': ['scripts/tests/slow.test.sh']})
+        # main's 3 workers start at 5 (STAGES_S 15 between them), shard1's 4 at 0, alone's 4 at 6 (its slow test): a, b, c
+        # and d take shard1's four; e, f and g main's three (5 against alone's 6); h alone's first (6 against main's 12)
+        self.assertEqual(parts, {'main': ['scripts/tests/e.test.sh', 'scripts/tests/f.test.sh', 'scripts/tests/g.test.sh'],
+                                 'shard1': ['scripts/tests/a.test.sh', 'scripts/tests/b.test.sh', 'scripts/tests/c.test.sh',
+                                            'scripts/tests/d.test.sh'],
+                                 'alone': ['scripts/tests/slow.test.sh', 'scripts/tests/h.test.sh']})
         unhinted = verify_commit.split(['scripts/tests/e.test.sh', 'scripts/tests/f.test.sh', 'scripts/tests/g.test.sh'],
                                        set(), {'scripts/tests/a.test.sh': 10})  # no hint weighs the median, never 0
         self.assertEqual((len(unhinted['main']), len(unhinted['shard1'])), (0, 3))  # 10 each: shard1's 4 workers hold the three
@@ -228,6 +229,29 @@ class TheVerifier(unittest.TestCase):
         self.assertEqual(seen['alone'][:3], ([], ['scripts/tests/slow.test.sh'], 1))  # by itself, `gate-check test`
         self.assertEqual({tuple(each[3]) for each in seen.values()}, {tuple(plan['tests'])})  # the key's plan: whole
 
+    def test_alone_runs_its_timing_bound_tests_by_themselves_and_then_its_share_on_every_worker(self):
+        """GATE-ALONE-SHARE: alone's slow test first, by itself; then its share of the batch, with no worker kept."""
+        others = [f'scripts/tests/{name}.test.sh' for name in 'abcdefgh']
+        hints = {**dict.fromkeys(others, 10), 'scripts/tests/i.test.sh': 1, 'scripts/tests/slow.test.sh': 1}
+        plan = {'stages': PLAN['stages'], 'tests': sorted(hints)}
+
+        class Alone(Fake):
+            def __call__(self, args, cwd=None, env=None):
+                if args[:2] == ['scripts/gate-check', 'tests']:
+                    self.workers = env.get(verify_commit.WORKERS)
+                return super().__call__(args, cwd, env)
+        fake = Alone(plan=plan)
+        green, _, planned, _ = verify_commit.judge(BASE, run=fake, part='alone', hints=hints.copy,
+                                                   isolated=lambda: ['scripts/tests/slow.test.sh'], cpus=lambda: 4)
+        self.assertTrue(green)
+        # a-d take shard1's four workers (at 0), e-h alone's (at 1, before main's 5), i main's first
+        self.assertEqual([call[1:3] for call in fake.calls if call[:2] in (['scripts/gate-check', 'test'],
+                                                                         ['scripts/gate-check', 'tests'])],
+                         [['test', 'scripts/tests/slow.test.sh'], ['tests', ','.join(others[4:])]])
+        self.assertEqual((fake.workers, planned['judged']), (None, 5))  # the whole runner: no worker kept for slow
+        shares = verify_commit.split(plan['tests'], {'scripts/tests/slow.test.sh'}, hints)
+        self.assertEqual((shares['shard1'], shares['main']), (others[:4], ['scripts/tests/i.test.sh']))
+
     def test_the_main_part_runs_its_stages_beside_its_batch_and_says_the_pace(self):
         """GATE-PACE: the stages of the main part run while its batch runs (one worker fewer), not before it; a red stage
         is still named first, and the job log names what each one took."""
@@ -244,9 +268,10 @@ class TheVerifier(unittest.TestCase):
                 return super().__call__(args, cwd, env)
         plan = {'stages': PLAN['stages'], 'tests': ['scripts/tests/x.test.sh', 'scripts/tests/y.test.sh']}
         fake, paces = Beside(plan=plan, red={'structure check', 'scripts/tests/y.test.sh'}), []
-        hints = {'scripts/tests/x.test.sh': 40, 'scripts/tests/y.test.sh': 20}.copy  # x to shard1, y to main (GATE-PER-WORKER)
-        green, red, _, _ = verify_commit.judge(BASE, run=fake, part='main', hints=hints, isolated=list,
-                                               cpus=lambda: 4, paces=paces)
+        hints = {'scripts/tests/x.test.sh': 40, 'scripts/tests/y.test.sh': 20}.copy  # with no stages' head start, both to main
+        with mock.patch.object(verify_commit, 'STAGES_S', 0):
+            green, red, _, _ = verify_commit.judge(BASE, run=fake, part='main', hints=hints, isolated=list,
+                                                   cpus=lambda: 4, paces=paces)
         self.assertFalse(green)
         self.assertEqual(red, ['structure check', 'scripts/tests/y.test.sh'])
         self.assertEqual((stage_seen_batch, fake.workers), ([True, True], '3'))
