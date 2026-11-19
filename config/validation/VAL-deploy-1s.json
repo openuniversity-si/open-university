@@ -6,8 +6,11 @@
   ],
   "owner": "efficiency",
   "measure": {
-    "kind": "unwired",
-    "source": "the AWS deploy's events (scripts/deploy status); no reader is wired into scripts/model yet"
+    "kind": "run-durations",
+    "workflow": "deploy",
+    "percentile": 50,
+    "min_runs": 20,
+    "max_age_days": 7
   },
   "comparator": "lte",
   "threshold": 1

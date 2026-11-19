@@ -52,6 +52,18 @@ class Measure(unittest.TestCase):
         self.body['measure']['min_runs'] = len('abcd')
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-18')[1], False)
 
+    def test_val_deploy_1s_reads_the_median_of_the_deploys_snapshot(self):
+        # the snapshot scripts/deploy status records (deploy.record): the same reader as the gate's, at its median
+        body = json.loads((ROOT / 'config/validation/VAL-deploy-1s.json').read_text())
+        builds = [{'id': f'p:b{i}', 'event': 'deploy', 'conclusion': 'success', 'started': '2026-11-19T01:00:00Z',
+                   'seconds': seconds} for i, seconds in enumerate((26, 17, 9))]
+        (self.root / runs.FOLDER / 'deploy.json').write_text(json.dumps({'workflow': 'deploy', 'at': '2026-11-19T02:00:00Z',
+                                                                         'runs': builds}))
+        self.assertEqual(model.measured(body, {}, self.root, '2026-11-19'), (17, False))  # fewer than min_runs: measuring
+        body['measure']['min_runs'] = len(builds)
+        self.assertEqual(model.measured(body, {}, self.root, '2026-11-19'), (17, True))
+        self.assertEqual(model.measured(body, {}, self.root, '2026-11-30')[1], False)
+
     def test_no_snapshot_is_no_source(self):
         self.body['measure']['workflow'] = 'other'
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-18'), (None, False))
