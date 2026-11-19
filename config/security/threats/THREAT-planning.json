@@ -91,7 +91,7 @@
         "about": "tampering",
         "finding": "Missing threat: the plan, lane, review and companion refusals sit under the structure lock, and a pull request can lift it by committing a config.changed line for regime.exception_active to the tracked change store .tower/config (see THREAT-config, tampering), which no gate file change, decision or pinning catches.",
         "disposition": "fixed",
-        "reason": "Fixed 2026-11-19 in three layers: the structure check's hygiene refuses any tracked path under .tower/ (repo_hygiene.tower_store_errors, STD-repo-hygiene-tower-store-errors, test_repo_hygiene.TowerStore); verify-commit sets OU_CONFIG_REGISTRY_ONLY to its checkout, so every stage and test it runs reads registry defaults only (test_config_api.GateMode, test_verify_commit.GateMode); the pinned overlay deletes .tower/ from the checkout (gate_pin.remove_store, test_gate_pin.Overlay). VULN-gate-tower-config-override."
+        "reason": "Confirmed by an independent reproduction 2026-11-19: a scratch commit with a forced .tower/config setting regime.exception_active true is refused by the structure check under OU_CONFIG_REGISTRY_ONLY (FAIL, exit 1), config.get reads the registry default false there, and gate_pin.py overlay deletes .tower/; residual: layer 1 misses a tracked symlink named .tower (git lists `.tower`, not `.tower/...`), which layers 2 and 3 still close (registry default read, symlink unlinked), and outside gate mode the override itself lowers the hygiene error to a warning."
       },
       {
         "about": "repudiation",
@@ -118,5 +118,6 @@
         "reason": "verified in gate_pin.py, the workflow and the test."
       }
     ]
-  }
+  },
+  "reviewed": "2026-11-19"
 }
