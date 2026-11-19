@@ -11,6 +11,24 @@ import unittest
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 import model  # noqa: E402
+import copy  # noqa: E402
+
+# MODEL-TEST-READ-ONCE (gate-60s): this checkout's objects are read once per run, not once per test (about 3 s each on a
+# GitHub runner, fifteen reads in RealRepository and its neighbours): the checkout is read-only here and no test patches
+# a reader, so every test still judges the objects the real readers find on it. A temporary checkout (self.root) or
+# other readers read afresh; each caller gets its own copy.
+_read_objects, _checkout_objects = model.objects, {}
+
+
+def _objects_once(root=model.ROOT, readers=model.READERS):
+    if readers is not model.READERS or Path(root).resolve() != ROOT:
+        return _read_objects(root, readers)
+    if 'found' not in _checkout_objects:
+        _checkout_objects['found'] = _read_objects(root, readers)
+    return copy.deepcopy(_checkout_objects['found'])
+
+
+model.objects = _objects_once
 
 
 def write(root, path, data):
