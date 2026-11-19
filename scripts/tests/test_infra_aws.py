@@ -2465,6 +2465,13 @@ class AgentEnvStackTests(unittest.TestCase):
             self.assertEqual([call[0] for call in ssm.calls], ['get_parameter'])
             self.assertEqual(json.loads(out), {'env': 'the-tower', 'status': HTTPStatus.UNAUTHORIZED, 'names': []})
 
+    def test_an_environment_whose_token_is_not_put_answers_401_and_reads_no_secret(self):
+        ssm = FakeSsm({key: value for key, value in self.store().items() if not key.endswith('token-sha256')})
+        answer, out = self.call(self.handler_scope(ssm, lambda: 0), 'Bearer ' + TOKEN)
+        self.assertEqual((answer['statusCode'], json.loads(answer['body'])), (HTTPStatus.UNAUTHORIZED, {}))
+        self.assertEqual([call[0] for call in ssm.calls], ['get_parameter'])
+        self.assertEqual(json.loads(out)['status'], HTTPStatus.UNAUTHORIZED)
+
     def test_the_right_token_answers_the_declared_names_and_values_and_logs_no_value(self):
         answer, out, ssm = self.run_handler('Bearer ' + TOKEN, variables={'MODE': 'cloud'})
         self.assertEqual(answer['statusCode'], HTTPStatus.OK)

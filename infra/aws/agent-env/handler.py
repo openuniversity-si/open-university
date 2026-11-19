@@ -22,7 +22,11 @@ def cached(key, read):
 
 
 def read_token(ssm, prefix):
-    return ssm.get_parameter(Name=prefix + TOKEN)['Parameter']['Value']
+    """The environment's token hash; '' while the operator has not put it, so no credential matches (401, not 500)."""
+    try:
+        return ssm.get_parameter(Name=prefix + TOKEN)['Parameter']['Value']
+    except ssm.exceptions.ParameterNotFound:
+        return ''
 
 
 def read_path(ssm, prefix):
@@ -60,7 +64,7 @@ def handler(event, context):
         header = (event.get('headers') or {}).get('authorization', '')
         bearer = header[7:] if header[:7].lower() == 'bearer ' else ''
         given = hashlib.sha256(bearer.encode()).hexdigest()
-        if not bearer or not hmac.compare_digest(given, want.strip().lower()):
+        if not want or not bearer or not hmac.compare_digest(given, want.strip().lower()):
             return answer(ident, 401, [])
         body, bad = bundle(variables, secrets, denied, cached('path', lambda: read_path(ssm, prefix)))
     except Exception:
