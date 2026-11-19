@@ -227,7 +227,15 @@ class BootstrapTests(unittest.TestCase):
     # get, put, delete of that one parameter), and DeployStateRule's second target, the doorbell, starts it at the running
     # build's end; deploy.py's push ring takes that queued 409 as final and loops no more. One re-apply with AWS-SPEND,
     # BEFORE the merge (UsePreviousValue for every parameter). 53,556 bytes.
-    APPLIED = '4a516f0181d9ca93a88a542d6a55c3bffa12dbc365fc4ae09346d037bcf2fe9f'
+    # GITHUB-HOOK (POLL-scripts-lib-deploy-py-queue): the owner's repository webhook 713861741 (push only, JSON) posts to
+    # the doorbell's Function URL; the doorbell checks X-Hub-Signature-256 (HMAC-SHA256 of the raw body, constant time)
+    # with the secret of SecureString /tower/deploy/github-webhook-secret, read once per container (ReadTheGitHubHookSecret:
+    # ssm:GetParameter of that one parameter; the AWS-managed aws/ssm key's policy allows the decrypt through SSM and the
+    # boundary allows kms:Decrypt, so the role names no key), and a push to main is the queue's `landed`; anything else
+    # signed is a 204. deploy.py queue rings `prepare` and ends, with no watch. The code was trimmed to 4,059 of the 4,096
+    # characters a ZipFile may be (the next change of it moves it to S3). The Torre applies it BEFORE the merge, then turns
+    # the webhook on (the runbook's "Aplicar o bootstrap pelo S3"). 54,065 bytes.
+    APPLIED = 'cbb372a65025a7ef0c2a74794169fd4c910b037f5939f0fe7ebbed3289076db9'
 
     # MEDIA-REPLICA: the workload services in the stack region and in the media replica's, nowhere else
     REGIONS = {'StringEquals': {'aws:RequestedRegion': [{'Ref': 'AWS::Region'}, {'Ref': 'ReplicaRegion'}]}}
@@ -510,9 +518,15 @@ class BootstrapTests(unittest.TestCase):
         invoke = [item for item in self.policy('DoorbellRole') if 'lambda:InvokeFunction' in as_list(item['Action'])]
         self.assertEqual([item['Resource'] for item in invoke], [
             {'Fn::Sub': 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live'}])
+        # GITHUB-HOOK: and read the webhook's secret, that one parameter alone
+        [hook] = [item for item in self.policy('DoorbellRole') if item['Sid'] == 'ReadTheGitHubHookSecret']
+        self.assertEqual((hook['Action'], hook['Resource']), ('ssm:GetParameter', {
+            'Fn::Sub': 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/deploy/github-webhook-secret'}))
         code = self.resources['DoorbellFunction']['Properties']['Code']['ZipFile']
         self.assertIn('timingSafeEqual', code)
         self.assertIn("createHash('sha256')", code)
+        self.assertIn("createHmac('sha256', secret)", code)
+        self.assertLessEqual(len(code), 4096)  # CloudFormation's ZipFile limit
         token = self.template['Parameters']['DoorbellTokenSha256']
         self.assertTrue(token['NoEcho'])
         self.assertEqual(token['AllowedPattern'], '^[0-9a-f]{64}$')
