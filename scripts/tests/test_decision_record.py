@@ -78,6 +78,25 @@ class TableRowTests(unittest.TestCase):
             self.assertIn('| D-291 |', table)
             self.assertLess(table.index('| D-291 |'), table.index('After.'))
 
+    def test_status_proposed_is_written_to_front_matter_and_table_row(self):
+        import contextlib
+        import io
+        plain = decision_record.record_text('D-9', 't', 'x', 'none', 'p.py')
+        self.assertNotIn('status:', plain)
+        proposed = decision_record.record_text('D-9', 't', 'x', 'none', 'p.py', status='proposed')
+        self.assertIn('\nstatus: proposed\nproof: p.py\n---\n', proposed)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'docs/domain').mkdir(parents=True)
+            (root / 'docs/domain/DECISIONS.md').write_text('# Decisions\n\n| Id | Date | Decision | Invariant | Proof | Status |\n'
+                                                           '|---|---|---|---|---|---|\n| D-290 | x | y | z | t | ok |\n')
+            with contextlib.redirect_stdout(io.StringIO()):
+                code = decision_record.main(['--text', 'pending rule', '--proof', 'scripts/tests/x.test.sh', '--status', 'proposed'],
+                                            root=root)
+            self.assertEqual(code, 0)
+            self.assertIn('status: proposed\n', (root / 'docs/domain/decisions/D-291.md').read_text())
+            self.assertIn('| proposed |', (root / 'docs/domain/DECISIONS.md').read_text())
+
     def test_main_without_a_table_keeps_the_record_and_says_so(self):
         import contextlib
         import io
