@@ -1027,6 +1027,8 @@ class DoorbellTests(unittest.TestCase):
         for encoded in (False, True):
             answer, invoked = self.queue_call({'event': 'landed', 'sha': sha}, encoded=encoded)
             self.assertEqual((answer['statusCode'], json.loads(answer['body'])), (202, {'queue': 'landed', 'sha': sha}))
+            # PUSH-STEPS: the instant the doorbell heard the word (epoch seconds), where the port's step durations start
+            self.assertIsInstance(invoked['payload']['detail'].pop('heard'), (int, float))  # PUSH-STEPS: the instant is a number; its value is the doorbell's clock
             self.assertEqual(invoked, {'name': 'tower-port-api:live', 'payload': {
                 'source': 'tower.doorbell', 'detail-type': 'Merge Queue', 'detail': {'event': 'landed', 'sha': sha}}})
         self.assertEqual(self.queue_call({'event': 'prepare', 'sha': sha}, fails=True)[0]['statusCode'], 502)
@@ -1063,6 +1065,8 @@ class DoorbellTests(unittest.TestCase):
         for encoded in (False, True):
             answer, invoked, reads = self.hook_call({'ref': 'refs/heads/main', 'after': sha, 'deleted': False}, encoded=encoded)
             self.assertEqual((answer['statusCode'], json.loads(answer['body'])), (202, {'queue': 'landed', 'sha': sha}))
+            # PUSH-STEPS: the instant the doorbell heard the word (epoch seconds), where the port's step durations start
+            self.assertIsInstance(invoked['payload']['detail'].pop('heard'), (int, float))  # PUSH-STEPS: the instant is a number; its value is the doorbell's clock
             self.assertEqual(invoked, {'name': 'tower-port-api:live', 'payload': {
                 'source': 'tower.doorbell', 'detail-type': 'Merge Queue', 'detail': {'event': 'landed', 'sha': sha}}})
             self.assertEqual(reads, 1)

@@ -520,3 +520,51 @@ isso a ordem é aplicar e ativar antes do merge.
 permissão e as ações de SSM e de Cost Explorer; um `/tower/deploy/ring-pending` que sobrar é apagado à mão
 (`aws ssm delete-parameter --name /tower/deploy/ring-pending`). O webhook volta a inativo com o mesmo `PATCH` e
 `-F active=false`.
+
+## Os passos do pouso medidos (19/11, PUSH-STEPS, REQ-deploy-1s)
+
+REQ-deploy-1s passa a contar do push do commit de merge em `main` (a API de atividade do repositório, `timestamp`; o
+`merged_at` do PR vem 1-2 s depois), escolha reversível tomada sob D-325: reverter é voltar a ler `merged_at`. Com esse
+relógio a mediana das 20 últimas é 2,24 s (1,99 s nas trocas). Para escolher o próximo corte por número, cada passo do pouso
+grava o seu instante nos eventos que já escreve, sem armazenamento novo: o doorbell passa ao port o instante em que ouviu
+a palavra (`heard`); o port grava `heard` e `port_at` em `platform.deploy.queue`; o look grava `began_at`, `main_at` (o
+`git ls-remote` respondeu) e `verified_at` em `platform.deploy.queue_reload`, ao lado do `wrote_at` que já tinha; o status
+mostra os dois em `queue_landed`; e `scripts/deploy status` imprime `steps <sha> (swap): push -> heard +x -> port +x ->
+look +x -> ls-remote +x -> verified +x -> swap +x -> live +x = N s`. O código do port e do look sai no deploy da PR; o do
+doorbell é do bootstrap, que só a Torre aplica: 4.088 dos 4.096 caracteres de um `ZipFile` (o corpo do 400 virou `not
+JSON`; a próxima mudança dele vai para o S3). Código novo e antigo dos dois lados se leem (o port aceita a palavra sem
+`heard`; o doorbell antigo só não diz o instante), então **não há ordem com o merge**: até a aplicação, `steps` começa no
+`port`, e o primeiro passo (push até o port) junta a entrega do GitHub e o doorbell.
+
+**Passos da Torre**, do checkout da cabeça da PR (ou de `main` depois do merge), em `us-east-1`:
+1. **Conferir o arquivo e subir o modelo.**
+   ```
+   ACCT=$(aws sts get-caller-identity --query Account --output text)
+   sha256sum infra/aws/bootstrap.json   # 8665a7264e94653d6657451e45a30f138efc0c28aacb8e367e6e6b9a04248184
+   aws s3 cp infra/aws/bootstrap.json s3://tower-outputs-$ACCT-us-east-1/artifacts/bootstrap/bootstrap-bc7e34b0.json \
+     --region us-east-1 --only-show-errors
+   ```
+2. **Ver o que muda e reaplicar o `tower-bootstrap`** com `UsePreviousValue` em todos os parâmetros:
+   ```
+   URL=https://tower-outputs-$ACCT-us-east-1.s3.us-east-1.amazonaws.com/artifacts/bootstrap/bootstrap-bc7e34b0.json
+   PARAMS="ParameterKey=OriginRepoUrl,UsePreviousValue=true ParameterKey=BaseBranch,UsePreviousValue=true \
+     ParameterKey=DoorbellTokenSha256,UsePreviousValue=true ParameterKey=AlertEmail,UsePreviousValue=true \
+     ParameterKey=ReplicaRegion,UsePreviousValue=true"
+   aws cloudformation create-change-set --region us-east-1 --stack-name tower-bootstrap --change-set-name req-push-steps \
+     --template-url $URL --capabilities CAPABILITY_NAMED_IAM --parameters $PARAMS
+   aws cloudformation describe-change-set --region us-east-1 --stack-name tower-bootstrap --change-set-name req-push-steps \
+     --query 'Changes[].ResourceChange.[Action,LogicalResourceId,Replacement]'
+   # [["Modify","DoorbellFunction","False"]]: nada mais
+   aws cloudformation execute-change-set --region us-east-1 --stack-name tower-bootstrap --change-set-name req-push-steps
+   aws cloudformation wait stack-update-complete --region us-east-1 --stack-name tower-bootstrap
+   ```
+3. **Conferir o hash canônico** do que a conta tem; tem de ser o `APPLIED` de `test_infra_aws.py`:
+   ```
+   aws cloudformation get-template --region us-east-1 --stack-name tower-bootstrap --query TemplateBody --output json \
+     | python3 -c 'import hashlib,json,sys; t=json.load(sys.stdin); t=json.loads(t) if isinstance(t,str) else t; print(hashlib.sha256(json.dumps(t,sort_keys=True,separators=(",",":")).encode()).hexdigest())'
+   # bc7e34b0a3aebd3944a98bc6b8a431f59169e0b2b211c97f19c78b09c7a64619
+   ```
+4. **Conferir no próximo pouso só de código:** `scripts/deploy status` imprime a linha `steps` com `heard`.
+
+**Reverter.** O mesmo caminho com o `bootstrap.json` anterior (hash canônico `cbb372a6…`): o doorbell deixa de dizer
+`heard` e `steps` volta a começar no `port`; nada mais muda.

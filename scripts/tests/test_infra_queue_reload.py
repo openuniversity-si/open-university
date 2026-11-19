@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import urllib.error
 
@@ -174,9 +175,9 @@ class Prepared(unittest.TestCase):
         self.orders.append((sha, digest, key))
         return (len(self.orders) == 1, sha, False)  # the first makes it; then it is busy with this head
 
-    def word(self, event, sha):
+    def word(self, event, sha, **more):
         return http_port.handle({'source': 'tower.doorbell', 'detail-type': 'Merge Queue',
-                                 'detail': {'event': event, 'sha': sha}}, self.log, '')
+                                 'detail': {'event': event, 'sha': sha, **more}}, self.log, '')
 
     def test_a_code_only_merge_is_prepared_with_the_deploy_builds_own_bundle(self):
         sha = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
@@ -507,7 +508,14 @@ class Prepared(unittest.TestCase):
         sha = 'b' * 40
         self.assertEqual(self.word('landed', sha), {'event_id': f'platform.deploy.queue:landed:{sha}'})
         self.word('landed', sha)
-        self.assertEqual(self.log.of(queue_deploy.QUEUE), [{'event': 'landed', 'sha': sha}])
+        [said] = self.log.of(queue_deploy.QUEUE)
+        self.assertIsInstance(said.pop('port_at'), (int, float))  # PUSH-STEPS: when the port got the word, on the port's clock
+        self.assertEqual(said, {'event': 'landed', 'sha': sha})  # an older doorbell says no `heard`
+        other = 'c' * 40
+        self.word('landed', other, heard=1795000000.1234)  # the doorbell's instant, kept to the millisecond
+        self.assertEqual(self.log.of(queue_deploy.QUEUE)[-1]['heard'], 1795000000.123)
+        self.word('prepare', other, heard='soon')  # what is no number is not kept
+        self.assertNotIn('heard', self.log.of(queue_deploy.QUEUE)[-1])
         for event, sha in (('deploy', 'b' * 40), ('landed', 'main'), ('', '')):
             self.assertEqual(self.word(event, sha), {'ignored': True})
         self.assertIn('pg_notify(\'tower_deploy\'', http_port.QUEUE_SAID)  # it wakes the look

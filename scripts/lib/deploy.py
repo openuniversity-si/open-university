@@ -9,7 +9,8 @@
   scripts/deploy status                the port's GET /v1/deploy/status: last_sha, the last build with its tail and the last
                                        ring/skip decision, as the service observed them (DEP3: it publishes them to the log);
                                        a succeeded build's seconds go into config/validation/runs/deploy.json (record),
-                                       a code-only merge's landing-to-live seconds into deploy-live.json (record_live)
+                                       a code-only merge's push-to-live seconds into deploy-live.json (record_live, the push clock),
+                                       and the newest one's steps (PUSH-STEPS: push, doorbell, port, look, ls-remote, swap, live)
   scripts/deploy status --json         the same answer as JSON (`| scripts/spend record`: the month's AWS spend, D-331)
   scripts/deploy follow [--target SHA] [--build ID] [--since EPOCH]
                                        follow the status until the deploy ends (the port's long poll; pauses with an old
@@ -99,20 +100,35 @@ def live_at(state):
     return found
 
 
-def merged_at(sha, api, repo):
-    """The epoch GitHub merged the pull request whose merge commit is `sha` (merged_at, whole seconds), else None."""
+PUSH_PAGE = 100  # the activity API's largest page: the last 100 pushes to main, one call per status read
+
+
+def iso_epoch(text):
     import datetime as clock
-    for pull in api(f'repos/{repo}/commits/{sha}/pulls') or []:
-        if isinstance(pull, dict) and pull.get('merged_at') and pull.get('merge_commit_sha') == sha:
-            return clock.datetime.strptime(pull['merged_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=clock.timezone.utc).timestamp()
-    return None
+    return clock.datetime.strptime(text, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=clock.timezone.utc).timestamp()
+
+
+def pushed_at(api, repo, ref='refs/heads/main'):
+    """The push clock: {commit sha: epoch of the push that put it on `ref`}, from GitHub's repository activity API (its
+    `timestamp`): the push of the merge commit, the earliest true landing (a pull request's merged_at is set 1-2 s
+    later). A reversible choice taken under D-325; its revert is reading merged_at again. The timestamp has whole
+    seconds while the live instant has milliseconds, so a run's seconds carry up to 1 s of that resolution (long when
+    GitHub truncates, as the 1-2 s gap to merged_at suggests; unproved). One page: the last PUSH_PAGE pushes."""
+    found = {}
+    for push in api(f'repos/{repo}/activity?ref={ref}&per_page={PUSH_PAGE}') or []:
+        if isinstance(push, dict) and push.get('after') and push.get('timestamp'):
+            found.setdefault(push['after'], iso_epoch(push['timestamp']))
+    return found
 
 
 def record_live(state, root=None, now=None, api=None, repo=None):
-    """REQ-deploy-1s: each code-only merge's seconds from its landing (GitHub's merged_at, so up to 1 s early) to its code
-    live (live_at), in config/validation/runs/deploy-live.json, the snapshot VAL-deploy-1s reads; the build seconds stay
-    in deploy.json (record), the slow path's cost. A merge already recorded is not read again; offline (TOWER_OFFLINE,
-    no gh, the API refusing) nothing new is added. Answers the runs recorded, or None when there is nothing to record."""
+    """REQ-deploy-1s: each code-only merge's seconds from its landing to its code live (live_at), in
+    config/validation/runs/deploy-live.json, the snapshot VAL-deploy-1s reads; the build seconds stay in deploy.json
+    (record), the slow path's cost. The landing is the push of the merge commit to main (pushed_at, whole seconds),
+    and such a run carries `from: push`. A run recorded before the push clock (from the pull request's merged_at, no
+    `from`) is re-based on its push while the activity page still holds it (live = started + seconds), else kept and
+    marked `from: merged_at` (1-2 s short). A run recorded from its push is not read again; offline (TOWER_OFFLINE, no
+    gh, the API refusing) nothing changes. Answers the runs recorded, or None when there is nothing to record."""
     import datetime as clock
     seen = live_at(state)
     if not seen:
@@ -124,32 +140,75 @@ def record_live(state, root=None, now=None, api=None, repo=None):
             before = json.load(handle).get('runs') or []
     except (OSError, ValueError):
         before = []
-    known, added = {run.get('id') for run in before}, []
+    runs = {run.get('id'): run for run in before if isinstance(run, dict)}
     if api is None and not os.environ.get('TOWER_OFFLINE'):
         import verify_commit  # the gate's github adapter (gh api), as runs.fetch reads GitHub
         api = lambda path: verify_commit.gh_json(verify_commit.run, path)  # noqa: E731
     if repo is None and api is not None:  # the repository runs.repository() names, without the model's unit
         repo = os.environ.get('GITHUB_REPOSITORY') or config.get('forge-events.repo')
-    for sha, (live, how) in seen.items():
-        if sha in known or api is None:
-            continue
+    lives = {sha: (run.get('event'), iso_epoch(run['started']) + run['seconds']) for sha, run in runs.items()
+             if 'from' not in run and isinstance(run.get('started'), str)
+             and isinstance(run.get('seconds'), (int, float))}  # the runs from merged_at: live = merged_at + seconds
+    lives.update({sha: (how, live) for sha, (live, how) in seen.items() if (runs.get(sha) or {}).get('from') != 'push'})
+    pushes = None
+    if lives and api is not None:
         try:
-            merged = merged_at(sha, api, repo)
+            pushes = pushed_at(api, repo)
         except (OSError, RuntimeError, ValueError):
-            break
-        if merged is not None and live >= merged:
-            added.append({'id': sha, 'event': how, 'conclusion': 'success', 'started': iso(merged),
-                          'seconds': round(live - merged, 3)})
-    made = {'workflow': LIVE_RUNS, 'source': "code-only merges' landing (GitHub merged_at) to code live "
-                                             '(image_swap/image_live, image_reload of GET /v1/deploy/status)',
+            pushes = None
+    for sha, (how, live) in lives.items() if pushes is not None else ():
+        if sha in pushes and live >= pushes[sha]:
+            runs[sha] = {'id': sha, 'event': how, 'conclusion': 'success', 'started': iso(pushes[sha]),
+                         'seconds': round(live - pushes[sha], 3), 'from': 'push'}
+        elif sha in runs and 'from' not in runs[sha]:  # its push left the page: kept from merged_at, said, not asked again
+            runs[sha] = dict(runs[sha], **{'from': 'merged_at'})
+    made = {'workflow': LIVE_RUNS, 'source': "code-only merges' landing (the push of the merge commit to main, GitHub's "
+                                             "activity API) to code live (image_swap/image_live, image_reload of "
+                                             'GET /v1/deploy/status)',
             'at': iso(now if now is not None else time.time()),
-            'runs': sorted(before + added, key=lambda run: run['started'], reverse=True)[:DEPLOY_KEEP]}
+            'runs': sorted(runs.values(), key=lambda run: run['started'], reverse=True)[:DEPLOY_KEEP]}
     if not made['runs']:
         return None
     os.makedirs(os.path.dirname(target), exist_ok=True)
     with open(target, 'w') as handle:
         handle.write(json.dumps(made, indent=1) + '\n')
     return made['runs']
+
+
+STEPS = ('push', 'heard', 'port', 'look', 'ls-remote', 'verified', 'swap', 'live')
+
+
+def steps(state, runs):
+    """PUSH-STEPS (REQ-deploy-1s): the newest code-only merge that went live (live_at), split at each step's instant, so
+    the next cut is chosen by numbers: push (its run in deploy-live.json, `from: push`, whole seconds), heard (the doorbell
+    got the word), port (the port recorded it), look (the queue's look took the landing), ls-remote (main answered),
+    verified (the claim checked), swap (the pointer written, or the reload ordered), live. Answers (sha, how,
+    [(step, instant)]) with the steps the events said, in that order, or None when no merge went live."""
+    number = lambda value: isinstance(value, (int, float)) and not isinstance(value, bool)  # noqa: E731
+    seen = live_at(state)
+    if not seen:
+        return None
+    sha, (live, how) = max(seen.items(), key=lambda item: item[1][0])
+    said = [each for each in state.get('queue_landed') or [] if isinstance(each, dict) and each.get('sha') == sha]
+    word = next((each for each in said if each.get('type') == 'platform.deploy.queue'), {})
+    outcome = next((each for each in said if each.get('type') == 'platform.deploy.queue_reload'), {})
+    run = next((each for each in runs or [] if isinstance(each, dict) and each.get('id') == sha
+                and each.get('from') == 'push'), None)
+    ordered = next((each.get('at') for each in state.get('image_reload') or [] if isinstance(each, dict)
+                    and each.get('state') == 'ordered' and each.get('head') == sha), None)
+    at = {'push': iso_epoch(run['started']) if run else None, 'heard': word.get('heard'),
+          'port': word.get('port_at', word.get('at')), 'look': outcome.get('began_at'), 'ls-remote': outcome.get('main_at'),
+          'verified': outcome.get('verified_at'), 'swap': outcome.get('wrote_at', ordered), 'live': live}
+    return sha, how, [(name, at[name]) for name in STEPS if number(at[name])]
+
+
+def say_steps(found, out=None):
+    """`steps <sha> (<how>): push -> heard +0.8 -> ... -> live +0.4 = 1.7 s`: each step's seconds since the step before."""
+    if not found or len(found[2]) < 2:
+        return
+    sha, how, marks = found
+    parts = [marks[0][0]] + [f'{name} +{round(at - before, 3)}' for (_, before), (name, at) in zip(marks, marks[1:])]
+    print(f"steps {sha[:12]} ({how}): {' -> '.join(parts)} = {round(marks[-1][1] - marks[0][1], 3)} s", file=out or sys.stdout)
 
 
 def missing(names, environ):
@@ -401,6 +460,13 @@ def main(argv=None, environ=None):
         if live:
             print(f'recorded: {len(live)} landing(s) in {LIVE_RUNS}.json, the snapshot VAL-deploy-1s reads',
                   file=sys.stderr if args.json else sys.stdout)
+        if live is None:  # PUSH-STEPS: the push of the last landing is in the snapshot even when nothing new was recorded
+            try:
+                with open(os.path.join(RUNS_ROOT, RUNS_FOLDER, LIVE_RUNS + '.json')) as handle:
+                    live = json.load(handle).get('runs') or []
+            except (OSError, ValueError):
+                live = []
+        say_steps(steps(state, live), sys.stderr if args.json else sys.stdout)
         return 0
     return follow(port, args.target, args.build, args.since)
 

@@ -653,6 +653,13 @@ def deploy_status(db, who, landings=None):
     reloads = db.rows("select payload::text from log.event where type = 'platform.deploy.image_reload' and tenant_id is null "
                       "and occurred_at > now() - interval '30 days' order by occurred_at desc limit %(limit)s",
                       {'limit': RELOAD_ROWS})
+    # PUSH-STEPS (REQ-deploy-1s): the merge queue's landings as the port and the look said them, newest first, each with
+    # the log's time and its type: platform.deploy.queue {event: landed, sha, heard, port_at} and platform.deploy.
+    # queue_reload {sha, state, began_at, main_at, verified_at, wrote_at}, what deploy.steps splits a landing by
+    landings = db.rows("select (jsonb_build_object('at', round(extract(epoch from occurred_at)::numeric, 3), 'type', type) "
+                       "|| payload)::text from log.event where tenant_id is null and occurred_at > now() - interval '30 days' "
+                       "and (type = 'platform.deploy.queue_reload' or (type = 'platform.deploy.queue' "
+                       "and payload->>'event' = 'landed')) order by occurred_at desc limit %(limit)s", {'limit': SWAP_ROWS})
     # MIGRATED-EVENT (D-331): platform.deploy.migrated {bundle, build, state, applied, newest | why} (tenant_id null: the live
     # service's autodeploy.migrate), newest first: the end deploy.sh's migrate_wait holds the status for
     migrated = db.rows("select (jsonb_build_object('at', round(extract(epoch from occurred_at)::numeric, 3)) || payload)::text "
@@ -697,6 +704,7 @@ def deploy_status(db, who, landings=None):
             'image_swap': [json.loads(row[0]) for row in swaps or []],  # IMAGE-PREWARM-C
             'image_retired': [json.loads(row[0]) for row in retired or []],
             'image_reload': [json.loads(row[0]) for row in reloads or []],  # IMAGE-SWAP-RELOAD
+            'queue_landed': [json.loads(row[0]) for row in landings or []],  # PUSH-STEPS
             'migrated': [json.loads(row[0]) for row in migrated or []],  # MIGRATED-EVENT
             'ecs': [json.loads(row[0]) for row in ecs or []],  # ECS-STOPS-READ
             'runner_life': lives[:ECS_ROWS * 2],  # SPOT-KEEP

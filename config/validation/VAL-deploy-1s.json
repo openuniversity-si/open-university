@@ -1,6 +1,6 @@
 {
   "id": "VAL-deploy-1s",
-  "statement": "A code-only merge into main is live with a median of 1 s from its landing (GitHub merged_at) to its code running (the queue swap's pointer seen by the heir, or an ordered reload done); the deploy builds' seconds stay in runs/deploy.json as the slow path's cost.",
+  "statement": "A code-only merge into main is live with a median of 1 s from its landing (the push of the merge commit to main, GitHub's activity API; merged_at comes 1-2 s later) to its code running (the queue swap's pointer seen by the heir, or an ordered reload done); the deploy builds' seconds stay in runs/deploy.json as the slow path's cost.",
   "validates": [
     "REQ-deploy-1s"
   ],

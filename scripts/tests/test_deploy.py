@@ -406,6 +406,9 @@ class FakeDb:
         if "type = 'platform.deploy.migrated'" in sql:  # MIGRATED-EVENT: the live service's migrate() ends
             assert 'tenant_id is null' in sql
             return []
+        if "type = 'platform.deploy.queue_reload'" in sql:  # PUSH-STEPS: the installation's landings and their outcomes
+            assert 'tenant_id is null' in sql and "payload->>'event' = 'landed'" in sql
+            return []
         if "v.key = 'deploy.live_code'" in sql:  # SLOW-PATH-NO-ROLLOUT-WAIT: the live code datum; none written yet
             assert params == {'tenant': 'torre'}  # the installation's configuration, whoever asks
             return []
@@ -501,7 +504,7 @@ class StatusEndpointTests(unittest.TestCase):
             self.assertEqual(json.loads(answered['body']), {'last_sha': 'a0bd4d1', 'last_build': record, 'observed_at': 2,
                                                             'ring': ring, 'head': None, 'pending': None,
                                                             'source': 'registry', 'cycle': None, 'cycles': [], 'config_version': {},
-                                                            'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'successor': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'migrated': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None, 'culprit': None,
+                                                            'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'successor': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'queue_landed': [], 'migrated': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None, 'culprit': None,
                                                             'bisect_note': None, 'in_progress': None, 'lost': None})
 
     def test_another_tenants_observation_is_never_served(self):
@@ -517,7 +520,7 @@ class StatusEndpointTests(unittest.TestCase):
         self.assertEqual(answered['statusCode'], 200)
         self.assertEqual(json.loads(answered['body']), {'last_sha': None, 'last_build': None, 'observed_at': None,
                                                         'ring': None, 'head': None, 'pending': None, 'source': 'registry',
-                                                        'cycle': None, 'cycles': [], 'config_version': {}, 'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'successor': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'migrated': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None,
+                                                        'cycle': None, 'cycles': [], 'config_version': {}, 'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'successor': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'queue_landed': [], 'migrated': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None,
                                                     'culprit': None, 'bisect_note': None, 'in_progress': None, 'lost': None})
 
     def test_no_token_or_an_unknown_one_is_refused_before_anything_is_read(self):
@@ -730,18 +733,21 @@ class CliTests(unittest.TestCase):
                  'image_reload': [{'state': 'done', 'head': b, 'digest': 'd2', 'at': 1794990021.5},
                                   {'state': 'ordered', 'head': b, 'digest': 'd2', 'at': 1794990000.0, 'landed_s': 0.007}]}
         self.assertEqual(deploy.live_at(state), {a: (1795000000.45, 'swap'), b: (1794990021.5, 'reload')})
-        merged = {a: '2026-11-18T11:06:40Z', b: '2026-11-18T08:20:00Z'}  # 1795000000 and 1794990000
+        # the push clock: the landing is the push of the merge commit (the activity API), not the later merged_at
+        pushed = [{'after': a, 'timestamp': '2026-11-18T11:06:40Z', 'activity_type': 'merge_queue_merge'},  # 1795000000
+                  {'after': b, 'timestamp': '2026-11-18T08:20:00Z'}, {'after': c}]  # 1794990000; c: no timestamp
         asked = []
 
         def api(path):
-            sha = path.split('/')[-2]
-            asked.append(sha)
-            return [{'merged_at': merged[sha], 'merge_commit_sha': sha}]
+            asked.append(path)
+            self.assertEqual(path, 'repos/o/r/activity?ref=refs/heads/main&per_page=100')
+            return pushed
         runs = deploy.record_live(state, root, now=1795000100, api=api, repo='o/r')
-        reload_s = state['image_reload'][0]['at'] - state['image_reload'][1]['at']  # merged at the order, live at its done
-        self.assertEqual([(run['id'], run['event'], run['seconds']) for run in runs], [(a, 'swap', 0.45), (b, 'reload', reload_s)])
+        reload_s = state['image_reload'][0]['at'] - state['image_reload'][1]['at']  # pushed at the order, live at its done
+        self.assertEqual([(run['id'], run['event'], run['seconds'], run['from']) for run in runs],
+                         [(a, 'swap', 0.45, 'push'), (b, 'reload', reload_s, 'push')])
         self.assertEqual(len(deploy.record_live(state, root, now=1795000200, api=api, repo='o/r')), 2)
-        self.assertEqual(len(asked), 2)  # the second read asked nothing
+        self.assertEqual(len(asked), 1)  # the second read asked nothing
 
         def refused(path):
             raise RuntimeError('gh api: offline')
@@ -751,6 +757,50 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(deploy.record_live({}, root, api=api, repo='o/r'))
         written = json.loads((Path(root) / deploy.RUNS_FOLDER / 'deploy-live.json').read_text())
         self.assertEqual((written['workflow'], written['at']), ('deploy-live', '2026-11-18T11:10:00Z'))
+
+    def test_status_says_the_newest_landings_steps_from_its_push_to_live(self):
+        # PUSH-STEPS: each step's instant from the events the landing path already writes, the push from the snapshot
+        sha, old = 'a' * 40, 'b' * 40
+        state = {'image_swap': [{'head': sha, 'swapped': True, 'at': 1795000001.3, 'digest': 'd', 'versions': {'k': 'v2'}},
+                                {'head': old, 'swapped': True, 'at': 1794000000.0, 'digest': 'e', 'versions': {}}],
+                 'image_live': [{'digest': 'd', 'version': 'v2', 'at': 1795000001.7}],
+                 'queue_landed': [{'type': 'platform.deploy.queue_reload', 'sha': sha, 'state': 'swapped',
+                                   'began_at': 1795000000.9, 'main_at': 1795000001.2, 'verified_at': 1795000001.25,
+                                   'wrote_at': 1795000001.3},
+                                  {'type': 'platform.deploy.queue', 'event': 'landed', 'sha': sha, 'heard': 1795000000.8,
+                                   'port_at': 1795000000.85, 'at': 1795000000.86}]}
+        runs = [{'id': sha, 'started': '2026-11-18T11:06:40Z', 'seconds': 1.7, 'from': 'push'}]  # pushed at 1795000000
+        sha_, how, marks = deploy.steps(state, runs)
+        self.assertEqual((sha_, how, [name for name, _ in marks]), (sha, 'swap', list(deploy.STEPS)))
+        out = io.StringIO()
+        deploy.say_steps((sha_, how, marks), out)
+        self.assertEqual(out.getvalue(), f'steps {sha[:12]} (swap): push -> heard +0.8 -> port +0.05 -> look +0.05 -> '
+                                         'ls-remote +0.3 -> verified +0.05 -> swap +0.05 -> live +0.4 = 1.7 s\n')
+        # an older port or doorbell says fewer steps: those it said, the seconds between them
+        bare = {key: value for key, value in state.items() if key != 'queue_landed'}
+        self.assertEqual([name for name, _ in deploy.steps(bare, runs)[2]], ['push', 'live'])
+        self.assertEqual([name for name, _ in deploy.steps(bare, [])[2]], ['live'])
+        out = io.StringIO()
+        deploy.say_steps(deploy.steps(bare, []), out)
+        self.assertEqual(out.getvalue(), '')  # one instant is no step
+        self.assertIsNone(deploy.steps({}, runs))
+
+    def test_a_run_recorded_from_merged_at_is_rebased_on_its_push_or_marked_when_the_push_left_the_page(self):
+        # the push clock: a run recorded before it (merged_at, no `from`) keeps its live instant (started + seconds) and starts at the push
+        root = tempfile.mkdtemp(prefix='deploy-live-')
+        self.addCleanup(shutil.rmtree, root)
+        old, gone, new = (hashlib.sha1(letter.encode()).hexdigest() for letter in 'xyz')
+        folder = Path(root) / deploy.RUNS_FOLDER
+        folder.mkdir(parents=True)
+        (folder / 'deploy-live.json').write_text(json.dumps({'workflow': 'deploy-live', 'runs': [
+            {'id': old, 'event': 'swap', 'conclusion': 'success', 'started': '2026-11-18T11:06:41Z', 'seconds': 0.5},
+            {'id': gone, 'event': 'swap', 'conclusion': 'success', 'started': '2026-11-17T11:06:41Z', 'seconds': 0.4}]}))
+        state = {'image_swap': [{'head': new, 'swapped': True, 'at': 1795000100.2, 'digest': 'd', 'versions': {}}]}
+        pushed = [{'after': old, 'timestamp': '2026-11-18T11:06:40Z'}, {'after': new, 'timestamp': '2026-11-18T11:08:20Z'}]
+        runs = {run['id']: run for run in deploy.record_live(state, root, now=1795000200, api=lambda path: pushed, repo='o/r')}
+        self.assertEqual((runs[old]['started'], runs[old]['seconds'], runs[old]['from']), ('2026-11-18T11:06:40Z', 1.5, 'push'))
+        self.assertEqual((runs[new]['seconds'], runs[new]['from']), (0.2, 'push'))
+        self.assertEqual((runs[gone]['seconds'], runs[gone]['from']), (0.4, 'merged_at'))
 
     def test_status_says_the_builds_seconds_and_the_reload_in_place(self):
         # FAST-PATH-RELOAD: what a code-only merge's deploy cost, and how long its swap took, from `scripts/deploy status`

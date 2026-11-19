@@ -28,7 +28,10 @@ records platform.deploy.queue {event, sha} and wakes this look on tower_deploy (
            takes the pointer once, and the merges before it in the burst need no deploy of their own. Then the swap below, or, with no heir
            ready, the order of the reload in place of the service alone (AutoDeploy.order, by: queue): the same order,
            proof and deploy.live_code as FAST-PATH-RELOAD. Recorded as platform.deploy.queue_reload {sha, state:
-           swapped|ordered|skipped, why, verify_s, version, wrote_at}.
+           swapped|ordered|skipped, why, verify_s, version, wrote_at}. PUSH-STEPS (REQ-deploy-1s, 19/11): and the
+           instant of each step, epoch seconds: began_at (the look took the landing), main_at (git ls-remote answered),
+           verified_at (the claim checked); with the word's heard (the doorbell) and port_at (the port) of
+           platform.deploy.queue, `scripts/deploy status` prints the landing's steps (deploy.steps).
 
 QUEUE-SWAP (the Torre, 15/11: the deploy is the pointer's move). A prepared code-only bundle is also wanted
 (platform.deploy.successor {digest, key, branch: queue, state: wanted}, and tower_config woken): each
@@ -391,10 +394,11 @@ class QueueReload:
     def landed(self, db, sha, order):
         """The reload of a merge that landed, ordered once its claim is checked; answers the outcome recorded."""
         began = self.clock()
-        outcome = {'sha': sha, 'state': 'skipped'}
+        outcome = {'sha': sha, 'state': 'skipped', 'began_at': round(began, 3)}  # PUSH-STEPS: each step's instant
         on_main = False
         try:
             head = self.main_head()
+            outcome['main_at'] = round(self.clock(), 3)  # the ls-remote of main answered
             if head != sha:
                 raise Refused(f'main is {head[:12] or "unknown"}, not {sha[:12]}')
             on_main = True
@@ -403,7 +407,8 @@ class QueueReload:
                 raise Refused(f"not code-only: {found.get('why')}")
             if found.get('parent') != found.get('base'):  # BURST-SWAP: the deployed commit is behind the sha on main
                 self.ancestor(found['base'], sha)
-            outcome['verify_s'] = round(self.clock() - began, 3)
+            verified = self.clock()
+            outcome.update(verify_s=round(verified - began, 3), verified_at=round(verified, 3))
             swapped = self.swap(db, sha, found)  # QUEUE-SWAP: the pointer's move to the heir already up
             if swapped:
                 outcome.update(digest=found['sha256'], state='swapped', version=swapped[0], wrote_at=swapped[1])

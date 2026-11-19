@@ -235,7 +235,12 @@ class BootstrapTests(unittest.TestCase):
     # signed is a 204. deploy.py queue rings `prepare` and ends, with no watch. The code was trimmed to 4,059 of the 4,096
     # characters a ZipFile may be (the next change of it moves it to S3). The Torre applies it BEFORE the merge, then turns
     # the webhook on (the runbook's "Aplicar o bootstrap pelo S3"). 54,065 bytes.
-    APPLIED = 'cbb372a65025a7ef0c2a74794169fd4c910b037f5939f0fe7ebbed3289076db9'
+    # PUSH-STEPS (REQ-deploy-1s, 19/11/2026): the doorbell passes the port the instant it heard a queue word (`heard`,
+    # epoch seconds), so `scripts/deploy status` splits the push-to-live seconds into steps; the 400's body says "not
+    # JSON" to make room: 4,088 of the 4,096 characters (the next change of it moves it to S3). Old and new code on either
+    # side read each other (the port ignores a missing `heard`), so the Torre applies it with no order to the merge
+    # (the runbook's "PUSH-STEPS"). 54,095 bytes.
+    APPLIED = 'bc7e34b0a3aebd3944a98bc6b8a431f59169e0b2b211c97f19c78b09c7a64619'
 
     # MEDIA-REPLICA: the workload services in the stack region and in the media replica's, nowhere else
     REGIONS = {'StringEquals': {'aws:RequestedRegion': [{'Ref': 'AWS::Region'}, {'Ref': 'ReplicaRegion'}]}}

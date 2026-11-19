@@ -1,147 +1,167 @@
 {
  "workflow": "deploy-live",
- "source": "code-only merges' landing (GitHub merged_at) to code live (image_swap/image_live, image_reload of GET /v1/deploy/status)",
- "at": "2026-11-19T04:47:49Z",
+ "source": "code-only merges' landing (the push of the merge commit to main, GitHub's activity API, D-325) to code live (image_swap/image_live, image_reload of GET /v1/deploy/status)",
+ "at": "2026-11-19T05:27:09Z",
  "runs": [
   {
    "id": "06c93eca9251d4dc9de1be9b8e956fddd15475fd",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-18T02:39:09Z",
-   "seconds": 0.484
+   "started": "2026-11-18T02:39:08Z",
+   "seconds": 1.484,
+   "from": "push"
   },
   {
    "id": "1d5693eef7fdb801f65eebe09121d105e609d811",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-18T02:17:51Z",
-   "seconds": 0.683
+   "started": "2026-11-18T02:17:50Z",
+   "seconds": 1.683,
+   "from": "push"
   },
   {
    "id": "917f69f2c5710dfd05b87a93bc9000118b1612f9",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-18T01:10:03Z",
-   "seconds": 1.09
+   "started": "2026-11-18T01:10:02Z",
+   "seconds": 2.09,
+   "from": "push"
   },
   {
    "id": "a195adb48129586633016c29017f28582216d0da",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T05:52:00Z",
-   "seconds": 0.264
+   "started": "2026-11-16T05:51:58Z",
+   "seconds": 2.264,
+   "from": "push"
   },
   {
    "id": "3880995ead3c425cd7c8a1618f2843ae3a40b269",
    "event": "reload",
    "conclusion": "success",
-   "started": "2026-11-16T05:11:29Z",
-   "seconds": 23.215
+   "started": "2026-11-16T05:11:28Z",
+   "seconds": 24.215,
+   "from": "push"
   },
   {
    "id": "b5a99664fbeb1261c55eb66b693704bd1c767bce",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T04:32:27Z",
-   "seconds": 1.211
+   "started": "2026-11-16T04:32:26Z",
+   "seconds": 2.211,
+   "from": "push"
   },
   {
    "id": "80a0bc3d2293b13bcc26618d66c6aa5f8613c5bf",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T04:11:06Z",
-   "seconds": 0.484
+   "started": "2026-11-16T04:11:05Z",
+   "seconds": 1.484,
+   "from": "push"
   },
   {
    "id": "a3643d461717f9f6946fd9843174ce4ae12113de",
    "event": "reload",
    "conclusion": "success",
-   "started": "2026-11-16T03:49:58Z",
-   "seconds": 203.535
+   "started": "2026-11-16T03:49:57Z",
+   "seconds": 204.535,
+   "from": "push"
   },
   {
    "id": "ca92b402791b8bd51588ae7ee4eb10a394492872",
    "event": "reload",
    "conclusion": "success",
-   "started": "2026-11-16T03:41:48Z",
-   "seconds": 17.262
+   "started": "2026-11-16T03:41:47Z",
+   "seconds": 18.262,
+   "from": "push"
   },
   {
    "id": "21e7cac98af41bf303e6b108de04233d9099ecdd",
    "event": "reload",
    "conclusion": "success",
-   "started": "2026-11-16T03:24:25Z",
-   "seconds": 20.442
+   "started": "2026-11-16T03:24:24Z",
+   "seconds": 21.442,
+   "from": "push"
   },
   {
    "id": "80bb3105c6278b771e108c16e00afebb5efc05f6",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T03:24:08Z",
-   "seconds": 1.618
+   "started": "2026-11-16T03:24:07Z",
+   "seconds": 2.618,
+   "from": "push"
   },
   {
    "id": "0731a68df96d92c2682fd10a76ea17788b562bc9",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T03:22:18Z",
-   "seconds": 0.756
+   "started": "2026-11-16T03:22:17Z",
+   "seconds": 1.756,
+   "from": "push"
   },
   {
    "id": "e2915b9ac44262dc6fc19f3616d9530e3549178a",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T03:17:58Z",
-   "seconds": 0.458
+   "started": "2026-11-16T03:17:57Z",
+   "seconds": 1.458,
+   "from": "push"
   },
   {
    "id": "a532fb7c34218de4c36a8b4158da974feda656bb",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T02:48:05Z",
-   "seconds": 0.607
+   "started": "2026-11-16T02:48:04Z",
+   "seconds": 1.607,
+   "from": "push"
   },
   {
    "id": "c9785f80bb10c01a430a1a1b96b84e7f5ca955f1",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T02:41:20Z",
-   "seconds": 1.308
+   "started": "2026-11-16T02:41:19Z",
+   "seconds": 2.308,
+   "from": "push"
   },
   {
    "id": "f804259ac8f7d62012163d53d38875fb4d05bbb8",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T02:32:04Z",
-   "seconds": 1.407
+   "started": "2026-11-16T02:32:02Z",
+   "seconds": 3.407,
+   "from": "push"
   },
   {
    "id": "b92a0e0c233d00227151abedd5d2722459e0d99f",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T02:25:05Z",
-   "seconds": 2.388
+   "started": "2026-11-16T02:25:04Z",
+   "seconds": 3.388,
+   "from": "push"
   },
   {
    "id": "716a54fe4925ff4d64194637e030704b25b1e6fd",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T02:08:07Z",
-   "seconds": 2.524
+   "started": "2026-11-16T02:08:06Z",
+   "seconds": 3.524,
+   "from": "push"
   },
   {
    "id": "31733995ba25921aa2b5542ea2368db1399f8747",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-16T00:20:57Z",
-   "seconds": 0.891
+   "started": "2026-11-16T00:20:56Z",
+   "seconds": 1.891,
+   "from": "push"
   },
   {
    "id": "41b7a4b998ca9e5b91c1c00c11f58f95473c29be",
    "event": "swap",
    "conclusion": "success",
-   "started": "2026-11-15T23:44:02Z",
-   "seconds": 0.219
+   "started": "2026-11-15T23:44:01Z",
+   "seconds": 1.219,
+   "from": "push"
   }
  ]
 }
