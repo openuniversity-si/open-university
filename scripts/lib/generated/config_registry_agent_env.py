@@ -5,10 +5,16 @@ Name = Literal[
     'agent-env.denied_names',
     'agent-env.endpoint',
     'agent-env.fetch_timeout_s',
+    'agent-env.torre_max_bytes',
+    'agent-env.torre_timeout_s',
+    'agent-env.torre_window_s',
 ]
 
 Values = TypedDict('Values', {
     'agent-env.denied_names': list[str],
     'agent-env.endpoint': str,
     'agent-env.fetch_timeout_s': int,
+    'agent-env.torre_max_bytes': int,
+    'agent-env.torre_timeout_s': int,
+    'agent-env.torre_window_s': int,
 })

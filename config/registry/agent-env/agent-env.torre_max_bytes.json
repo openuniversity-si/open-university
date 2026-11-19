@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 4096,
+  "minimum": 1,
+  "x-unit": "bytes",
+  "description": "The largest request body, in bytes, the Torre relay (D-341) accepts: JSON {text}; a larger one answers 400. Embedded in tower-app-torre-relay's environment by scripts/lib/agent_env_stack.py.",
+  "x-readers": [
+    "scripts/lib/agent_env_stack.py"
+  ],
+  "x-source": "D-341"
+}

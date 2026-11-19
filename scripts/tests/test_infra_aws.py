@@ -12,6 +12,7 @@ import shutil
 import sys
 import types
 import unittest
+import urllib.error
 from fnmatch import fnmatchcase
 from pathlib import Path
 
@@ -2290,6 +2291,7 @@ SECRETS = {'gh-token': 'GH_TOKEN', 'api-key': 'API_KEY'}
 
 class FakeSsm:
     """SSM in process: a parameter store, one parameter a page, and the calls it answered."""
+    exceptions = types.SimpleNamespace(ParameterNotFound=KeyError)  # boto3's client.exceptions, as get_parameter raises it
 
     def __init__(self, parameters):
         self.parameters, self.calls = parameters, []
@@ -2297,6 +2299,10 @@ class FakeSsm:
     def get_parameter(self, Name):
         self.calls.append(('get_parameter', Name))
         return {'Parameter': {'Name': Name, 'Value': self.parameters[Name]}}
+
+    def put_parameter(self, Name, Value, Type, Overwrite):
+        self.calls.append(('put_parameter', Name, Value, Type, Overwrite))
+        self.parameters[Name] = Value
 
     def get_parameters_by_path(self, Path, WithDecryption, NextToken='0'):
         self.calls.append(('get_parameters_by_path', Path, WithDecryption))
@@ -2316,10 +2322,18 @@ class AgentEnvStackTests(unittest.TestCase):
     def setUp(self):
         self.template = load(self.PATH)
         self.resources = self.template['Resources']
-        self.functions = {name: item for name, item in self.resources.items() if item['Type'] == 'AWS::Lambda::Function'}
+        prefix = agent_env_stack.NAME.format(id='')
+        self.functions = {name: item for name, item in self.resources.items() if item['Type'] == 'AWS::Lambda::Function'
+                          and item['Properties']['FunctionName'].startswith(prefix)}
 
     def of_type(self, kind):
         return [item['Properties'] for item in self.resources.values() if item['Type'] == kind]
+
+    def environment_roles(self):
+        """The logical ids of the roles one per declaration (tower-app-agent-env-<id>)."""
+        name = agent_env_stack.NAME.format(id='')
+        return sorted(key for key, item in self.resources.items()
+                      if item['Type'] == 'AWS::IAM::Role' and item['Properties']['RoleName'].startswith(name))
 
     def test_the_committed_stack_is_its_generation(self):
         self.assertEqual(self.PATH.read_text(encoding='utf-8'), agent_env_stack.render(ROOT))
@@ -2329,7 +2343,7 @@ class AgentEnvStackTests(unittest.TestCase):
         self.assertTrue(ids)
         want = sorted(agent_env_stack.NAME.format(id=ident) for ident in ids)
         self.assertEqual(sorted(item['Properties']['FunctionName'] for item in self.functions.values()), want)
-        self.assertEqual(sorted(role['RoleName'] for role in self.of_type('AWS::IAM::Role')), want)
+        self.assertEqual(sorted(self.resources[name]['Properties']['RoleName'] for name in self.environment_roles()), want)
         self.assertEqual(sorted(item['Properties']['Environment']['Variables']['ENV_ID'] for item in self.functions.values()), ids)
         port = load(INFRA / 'stacks/40-port.json')['Resources']['PortFunction']['Properties']
         for function in self.functions.values():
@@ -2344,7 +2358,7 @@ class AgentEnvStackTests(unittest.TestCase):
 
     def test_each_role_reads_its_own_prefix_alone_under_the_boundary(self):
         boundary = load(INFRA / 'stacks/40-port.json')['Resources']['PortRole']['Properties']['PermissionsBoundary']
-        for role in self.of_type('AWS::IAM::Role'):
+        for role in (self.resources[name]['Properties'] for name in self.environment_roles()):
             ident = role['RoleName'][len(agent_env_stack.NAME.format(id='')):]
             self.assertEqual(role['PermissionsBoundary'], boundary)
             [policy] = role['Policies']
@@ -2359,15 +2373,23 @@ class AgentEnvStackTests(unittest.TestCase):
             key = 'arn:aws-partition:kms:REGION:ACCOUNT:key/k'
             self.assertEqual(decide(statements, 'kms:Decrypt', key, {'kms:ViaService': 'ssm.REGION.amazonaws.com'}), 'allow')
             self.assertEqual(decide(statements, 'kms:Decrypt', key, {'kms:ViaService': 's3.REGION.amazonaws.com'}), 'implicit')
-            actions = {action for item in statements for action in as_list(item['Action'])}
+            actions = {action for item in statements if item['Effect'] == 'Allow' for action in as_list(item['Action'])}
             self.assertEqual(actions, {'logs:CreateLogStream', 'logs:PutLogEvents', 'ssm:GetParameter',
                                        'ssm:GetParametersByPath', 'kms:Decrypt'})
             [condition] = [item['Condition'] for item in statements if item['Action'] == 'kms:Decrypt']
             self.assertEqual(condition, {'StringEquals': {'kms:ViaService': {'Fn::Sub': 'ssm.${AWS::Region}.amazonaws.com'}}})
 
-    def test_no_secrets_manager_and_no_literal_account_id(self):
+    def test_no_environment_role_may_read_secrets_manager_and_no_literal_account_id(self):
         text = self.PATH.read_text(encoding='utf-8')
-        self.assertNotIn('secretsmanager', text)
+        webhook = 'arn:aws-partition:secretsmanager:REGION:ACCOUNT:secret:tower/torre-webhook-'
+        for name in self.environment_roles():
+            [policy] = self.resources[name]['Properties']['Policies']
+            statements = policy['PolicyDocument']['Statement']
+            allowed = [item for item in statements if item['Effect'] == 'Allow'
+                       if any(action.startswith('secretsmanager:') for action in as_list(item['Action']))]
+            self.assertEqual(allowed, [], name)
+            for secret in ('key-AbCdEf', 'url-AbCdEf'):
+                self.assertEqual(decide(statements, 'secretsmanager:GetSecretValue', webhook + secret), 'deny', name)
         self.assertIsNone(ACCOUNT_ID.search(text))
         self.assertIsNone(REGION_CODE.search(text))
         for secret in ({'name': 'A', 'store': 'secretsmanager', 'ref': 'tower/agent-env/x/a'},
@@ -2386,7 +2408,9 @@ class AgentEnvStackTests(unittest.TestCase):
         self.assertIn(agent_env_stack.API_EXPORT, exports)
         self.assertEqual(load(INFRA / 'order.json')['agent-env'], ['port'])
         routes = sorted(route['RouteKey'] for route in self.of_type('AWS::ApiGatewayV2::Route'))
-        self.assertEqual(routes, sorted(agent_env_stack.ROUTE.format(id=path.stem) for path in agent_env.declarations(ROOT)))
+        ids = [path.stem for path in agent_env.declarations(ROOT)]
+        want = [agent_env_stack.ROUTE.format(id=ident) for ident in ids] + [agent_env_stack.TORRE_ROUTE.format(id=ident) for ident in ids]
+        self.assertEqual(routes, sorted(want))
         for route in self.of_type('AWS::ApiGatewayV2::Route') + self.of_type('AWS::ApiGatewayV2::Integration'):
             self.assertEqual(route['ApiId'], {'Fn::ImportValue': agent_env_stack.API_EXPORT})
 
@@ -2472,6 +2496,244 @@ class AgentEnvStackTests(unittest.TestCase):
             now[0] = at
             self.assertEqual(self.call(scope, 'Bearer ' + TOKEN)[0]['statusCode'], HTTPStatus.OK)
             self.assertEqual(len(ssm.calls), calls, at)
+
+
+WEBHOOK_URL = 'https://' + 'torre.invalid/hook/sentinel-url-path'  # fake values; neither may reach a response or a log
+START = int(timedelta(days=1).total_seconds())  # the fake clock's epoch at the first call
+WEBHOOK_KEY = 'sentinel-webhook-key'
+
+
+class FakeSecrets:
+    """Secrets Manager in process: the two webhook secrets and the reads it answered."""
+
+    def __init__(self):
+        self.calls = []
+
+    def get_secret_value(self, SecretId):
+        self.calls.append(SecretId)
+        values = {agent_env_stack.WEBHOOK_SECRETS['URL_SECRET']: WEBHOOK_URL,
+                  agent_env_stack.WEBHOOK_SECRETS['KEY_SECRET']: WEBHOOK_KEY}
+        return {'SecretString': values[SecretId] + '\n'}
+
+
+class Opened:
+    """A context manager over one answer, as urlopen's response."""
+
+    def __init__(self, answer):
+        self.answer = answer
+
+    def __enter__(self):
+        return self.answer
+
+    def __exit__(self, *_):
+        return False
+
+
+class FakeUpstream:
+    """The Torre's webhook in process (the relay's OPEN): records each request and answers `status`, no socket."""
+    BODY = b'upstream-body-' + WEBHOOK_KEY.encode()
+
+    def __init__(self, status):
+        self.status, self.requests = status, []
+
+    def __call__(self, request, timeout):
+        self.requests.append((request, timeout))
+        if self.status >= HTTPStatus.BAD_REQUEST:
+            raise urllib.error.HTTPError(request.full_url, self.status, 'upstream', {}, None)
+        return Opened(types.SimpleNamespace(status=self.status, read=lambda: self.BODY))
+
+
+class TorreRelayTests(unittest.TestCase):
+    """AGENT-ENV (D-341): the Torre relay. Its role alone reads tower/torre-webhook-*, every other role is denied them;
+    the handler authenticates the caller by its environment's token-sha256, bounds the body, keeps one call a window per
+    environment in SSM and answers only the upstream's status, never the key, the URL or the upstream body."""
+    PATH = INFRA / 'stacks/45-agent-env.json'
+    SECRET = 'arn:aws-partition:secretsmanager:REGION:ACCOUNT:secret:'
+    WEBHOOK = SECRET + 'tower/torre-webhook-'
+    ROUTE = agent_env_stack.TORRE_ROUTE.format(id='the-tower')
+
+    def setUp(self):
+        self.resources = load(self.PATH)['Resources']
+        self.function = self.resources['TorreRelayFunction']['Properties']
+        self.environment = self.function['Environment']['Variables']
+
+    def statements(self, name):
+        [policy] = self.resources[name]['Properties']['Policies']
+        return policy['PolicyDocument']['Statement']
+
+    def roles(self):
+        return [name for name, item in self.resources.items() if item['Type'] == 'AWS::IAM::Role']
+
+    def test_the_relay_is_one_function_one_at_a_time_outside_the_vpc_under_the_boundary(self):
+        port = load(INFRA / 'stacks/40-port.json')['Resources']
+        role = self.resources[agent_env_stack.RELAY_ROLE]['Properties']
+        self.assertEqual((self.function['FunctionName'], role['RoleName']), (agent_env_stack.RELAY, agent_env_stack.RELAY))
+        self.assertEqual(self.function['ReservedConcurrentExecutions'], 1)
+        self.assertNotIn('VpcConfig', self.function)
+        self.assertEqual(role['PermissionsBoundary'], port['PortRole']['Properties']['PermissionsBoundary'])
+        logs = self.resources['TorreRelayLogs']['Properties']
+        self.assertEqual(logs['RetentionInDays'], port['Logs']['Properties']['RetentionInDays'])  # 14 days, as the port's
+        self.assertEqual(self.function['LoggingConfig'], {'LogGroup': {'Ref': 'TorreRelayLogs'}})
+        self.assertLess(len(self.function['Code']['ZipFile'].encode('utf-8')), agent_env_stack.skeleton()['zipfile_limit'])
+        self.assertGreater(self.function['Timeout'], int(self.environment['TIMEOUT']))  # the upstream wait fits in it
+
+    def test_the_window_limit_and_timeout_are_the_registry_s(self):
+        for variable, key in (('WINDOW', 'agent-env.torre_window_s'), ('LIMIT', 'agent-env.torre_max_bytes'),
+                              ('TIMEOUT', 'agent-env.torre_timeout_s')):
+            self.assertEqual(int(self.environment[variable]), agent_env_stack.config.get(key, ROOT), variable)
+
+    def test_the_relay_role_alone_has_any_secrets_manager_action_and_only_on_the_webhook(self):
+        holders = {}
+        for name in self.roles():
+            for statement in self.statements(name):
+                actions = [action for action in as_list(statement['Action']) if action.startswith('secretsmanager:')]
+                if actions and statement['Effect'] == 'Allow':
+                    holders.setdefault(name, []).append((actions, resolved(statement['Resource'])))
+        self.assertEqual(holders, {agent_env_stack.RELAY_ROLE: [(['secretsmanager:GetSecretValue'], self.WEBHOOK + '*')]})
+        statements = self.statements(agent_env_stack.RELAY_ROLE)
+        for secret in agent_env_stack.WEBHOOK_SECRETS.values():
+            self.assertEqual(decide(statements, 'secretsmanager:GetSecretValue', self.SECRET + secret + '-AbCdEf'), 'allow')
+        for other in ('tower/agent-env/the-tower/x-AbCdEf', 'tower/torre-webhooks', 'other/torre-webhook-key'):
+            self.assertEqual(decide(statements, 'secretsmanager:GetSecretValue', self.SECRET + other), 'implicit', other)
+        self.assertEqual(decide(statements, 'secretsmanager:PutSecretValue', self.WEBHOOK + 'key-AbCdEf'), 'implicit')
+
+    def test_every_other_role_carries_the_explicit_deny_and_the_relay_does_not(self):
+        roles = self.roles()
+        self.assertIn(agent_env_stack.RELAY_ROLE, roles)
+        self.assertTrue(set(roles) - {agent_env_stack.RELAY_ROLE})
+        for name in roles:
+            denies = [(item['Action'], resolved(item['Resource'])) for item in self.statements(name) if item['Effect'] == 'Deny']
+            want = [] if name == agent_env_stack.RELAY_ROLE else [('secretsmanager:*', self.WEBHOOK + '*')]
+            self.assertEqual(denies, want, name)
+
+    def test_the_relay_reads_each_token_and_keeps_its_window_and_nothing_else(self):
+        statements = self.statements(agent_env_stack.RELAY_ROLE)
+        parameters = 'arn:aws-partition:ssm:REGION:ACCOUNT:parameter/tower/'
+        for ident in (path.stem for path in agent_env.declarations(ROOT)):
+            token = f'{parameters}agent-env/{ident}/token-sha256'
+            self.assertEqual(decide(statements, 'ssm:GetParameter', token), 'allow', ident)
+            self.assertEqual(decide(statements, 'ssm:PutParameter', token), 'implicit', ident)
+            self.assertEqual(decide(statements, 'ssm:GetParameter', f'{parameters}agent-env/{ident}/gh-token'), 'implicit')
+            for action in ('ssm:GetParameter', 'ssm:PutParameter'):
+                self.assertEqual(decide(statements, action, f'{parameters}torre-relay/last-{ident}'), 'allow', action)
+        actions = {action for item in statements for action in as_list(item['Action'])}
+        self.assertEqual(actions, {'logs:CreateLogStream', 'logs:PutLogEvents', 'secretsmanager:GetSecretValue',
+                                   'ssm:GetParameter', 'ssm:PutParameter'})
+        self.assertIsNone(ACCOUNT_ID.search(json.dumps(self.resources[agent_env_stack.RELAY_ROLE])))
+        for statement in statements:
+            for resource in as_list(statement['Resource']):
+                self.assertTrue('Fn::Sub' in resource or 'Fn::GetAtt' in resource, resource)
+
+    def test_one_post_route_per_environment_on_the_port_s_api(self):
+        ids = sorted(path.stem for path in agent_env.declarations(ROOT))
+        routes = {item['Properties']['RouteKey']: item['Properties'] for item in self.resources.values()
+                  if item['Type'] == 'AWS::ApiGatewayV2::Route' and item['Properties']['RouteKey'].startswith('POST ')}
+        want = {agent_env_stack.TORRE_ROUTE.format(id=ident): ident for ident in ids}
+        self.assertEqual(sorted(routes), sorted(want))
+        self.assertEqual(json.loads(self.environment['ROUTES']), want)
+        for route in routes.values():
+            self.assertEqual(route['ApiId'], {'Fn::ImportValue': agent_env_stack.API_EXPORT})
+            self.assertEqual(route['Target'], {'Fn::Sub': 'integrations/${TorreRelayIntegration}'})
+        invokes = [item['Properties']['SourceArn']['Fn::Sub'][0] for item in self.resources.values()
+                   if item['Type'] == 'AWS::Lambda::Permission'
+                   and item['Properties']['FunctionName'] == {'Ref': 'TorreRelayFunction'}]
+        self.assertEqual(sorted(arn.split('/*/')[1] for arn in invokes), sorted(key.replace(' ', '') for key in routes))
+
+    def scope(self, ssm, secrets, upstream, now):
+        stub = types.ModuleType('boto3')
+        stub.client = lambda name: {'ssm': ssm, 'secretsmanager': secrets}[name]
+        saved = sys.modules.get('boto3')
+        sys.modules['boto3'] = stub
+        try:
+            scope = {}
+            exec(compile(self.function['Code']['ZipFile'], 'index.py', 'exec'), scope)
+        finally:
+            if saved is None:
+                del sys.modules['boto3']
+            else:
+                sys.modules['boto3'] = saved
+        scope['CLOCK'], scope['OPEN'] = (lambda: now[0]), upstream
+        return scope
+
+    def call(self, scope, header, body, route=None):
+        event = {'routeKey': route or self.ROUTE, 'headers': {'authorization': header} if header else {}, 'body': body}
+        saved = {key: os.environ.get(key) for key in self.environment}
+        os.environ.update(self.environment)
+        try:
+            with contextlib_redirect() as out:
+                answer = scope['handler'](event, types.SimpleNamespace(aws_request_id='request-1'))
+        finally:
+            for key, value in saved.items():
+                if value is None:
+                    os.environ.pop(key)
+                else:
+                    os.environ[key] = value
+        return answer, out.getvalue()
+
+    def fakes(self, status=HTTPStatus.ACCEPTED, at=START):
+        self.ssm = FakeSsm({PREFIX + 'token-sha256': hashlib.sha256(TOKEN.encode()).hexdigest()})
+        self.secrets, self.upstream, self.now = FakeSecrets(), FakeUpstream(status), [at]
+        return self.scope(self.ssm, self.secrets, self.upstream, self.now)
+
+    def assert_clean(self, answer, out, status):
+        self.assertEqual(answer['statusCode'], status)
+        self.assertEqual(json.loads(out), {'env': 'the-tower', 'status': status, 'request_id': 'request-1'})
+        for text in (answer['body'], out):
+            for secret in (WEBHOOK_URL, WEBHOOK_KEY, 'torre.invalid', 'sentinel-url-path', 'upstream-body', TOKEN):
+                self.assertNotIn(secret, text)
+
+    def test_a_wrong_or_missing_token_answers_401_and_reads_no_secret(self):
+        scope = self.fakes()
+        for header in ('Bearer wrong', '', TOKEN, 'Basic ' + TOKEN, 'Bearer '):
+            answer, out = self.call(scope, header, json.dumps({'text': 'hi'}))
+            self.assert_clean(answer, out, HTTPStatus.UNAUTHORIZED)
+            self.assertEqual(json.loads(answer['body']), {})
+        answer, out = self.call(scope, 'Bearer ' + TOKEN, json.dumps({'text': 'hi'}), route='POST /agent-env/x/v1/torre')
+        self.assertEqual(json.loads(out)['status'], HTTPStatus.UNAUTHORIZED)
+        self.assertEqual((self.secrets.calls, self.upstream.requests), ([], []))
+
+    def test_a_body_over_the_limit_or_not_a_json_text_answers_400(self):
+        scope = self.fakes()
+        limit = int(self.environment['LIMIT'])
+        exact = json.dumps({'text': 'x' * (limit - len(json.dumps({'text': ''})))})
+        self.assertEqual(len(exact.encode()), limit)
+        over = json.dumps({'text': 'x' * limit})
+        for body in (over, 'not json', json.dumps(['text']), json.dumps({'text': ''}), json.dumps({'text': 1}), None):
+            answer, out = self.call(scope, 'Bearer ' + TOKEN, body)
+            self.assert_clean(answer, out, HTTPStatus.BAD_REQUEST)
+        self.assertEqual(self.upstream.requests, [])
+        self.assertEqual(self.call(scope, 'Bearer ' + TOKEN, exact)[0]['statusCode'], HTTPStatus.OK)
+
+    def test_a_2xx_is_forwarded_with_the_key_and_the_window_is_recorded(self):
+        scope = self.fakes()
+        answer, out = self.call(scope, 'Bearer ' + TOKEN, json.dumps({'text': 'hello Torre'}))
+        self.assert_clean(answer, out, HTTPStatus.OK)
+        self.assertEqual(json.loads(answer['body']), {'forwarded': HTTPStatus.ACCEPTED})
+        [(request, timeout)] = self.upstream.requests
+        self.assertEqual((request.full_url, request.get_method(), timeout),
+                         (WEBHOOK_URL, 'POST', int(self.environment['TIMEOUT'])))
+        self.assertEqual(request.get_header('Authorization'), 'Bearer ' + WEBHOOK_KEY)
+        self.assertEqual(json.loads(request.data), {'env': 'the-tower', 'text': 'hello Torre'})
+        self.assertIn(('put_parameter', '/tower/torre-relay/last-the-tower', str(START), 'String', True), self.ssm.calls)
+        self.assertEqual(sorted(self.secrets.calls), sorted(agent_env_stack.WEBHOOK_SECRETS.values()))
+
+    def test_a_call_inside_the_window_answers_429_and_one_after_it_is_forwarded(self):
+        scope = self.fakes()
+        window = int(self.environment['WINDOW'])
+        self.assertEqual(self.call(scope, 'Bearer ' + TOKEN, json.dumps({'text': 'one'}))[0]['statusCode'], HTTPStatus.OK)
+        self.now[0] = START + window - 1
+        answer, out = self.call(scope, 'Bearer ' + TOKEN, json.dumps({'text': 'two'}))
+        self.assert_clean(answer, out, HTTPStatus.TOO_MANY_REQUESTS)
+        self.now[0] = START + window
+        self.assertEqual(self.call(scope, 'Bearer ' + TOKEN, json.dumps({'text': 'three'}))[0]['statusCode'], HTTPStatus.OK)
+        self.assertEqual([json.loads(request.data)['text'] for request, _ in self.upstream.requests], ['one', 'three'])
+        self.assertEqual(len(self.secrets.calls), len(agent_env_stack.WEBHOOK_SECRETS))  # read once per container
+
+    def test_an_upstream_error_answers_502_with_its_status_only(self):
+        scope = self.fakes(status=HTTPStatus.INTERNAL_SERVER_ERROR)
+        answer, out = self.call(scope, 'Bearer ' + TOKEN, json.dumps({'text': 'hi'}))
+        self.assert_clean(answer, out, HTTPStatus.BAD_GATEWAY)
+        self.assertEqual(json.loads(answer['body']), {'forwarded': HTTPStatus.INTERNAL_SERVER_ERROR})
 
 
 def contextlib_redirect():

@@ -11,7 +11,14 @@ API (the export tower-port-api-id), so the client's agent-env.endpoint is <port 
 infra/aws/agent-env/handler.py inline (a ZipFile, as the mail stack's forwarder); the declaration's non-secret variables,
 its SSM secret map (last segment -> name) and the deny list are embedded as its environment at deploy time. Values come
 only from SSM, never from the tree. A Secrets Manager reference is refused here until the boundary reads tower/agent-env/
-(a later PR). Stdlib only, deterministic (no clock).
+(a later PR). Every role of the stack carries an explicit Deny of secretsmanager:* on the Torre's webhook secrets
+(WEBHOOK), so no environment's role can read them whatever its allows say.
+
+The Torre relay (infra/aws/agent-env/relay.json, rendered once): a Lambda tower-app-torre-relay (RELAY) outside the VPC,
+one at a time (ReservedConcurrentExecutions 1), whose role alone reads tower/torre-webhook-* (GetSecretValue), keeps
+the rate limit in /tower/torre-relay/* and reads each environment's token-sha256; plus, per declaration, a route POST
+/agent-env/<id>/v1/torre on the port's API. Its code is infra/aws/agent-env/relay.py inline; its window, body limit and
+upstream timeout are the registry's agent-env.torre_* values, embedded at generation. Stdlib only, deterministic.
 """
 import argparse
 import json
@@ -20,6 +27,7 @@ import sys
 
 import agent_env
 import agent_env_client
+import config
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 STACK = 'infra/aws/stacks/45-agent-env.json'
@@ -29,15 +37,30 @@ NAME = 'tower-app-agent-env-{id}'
 BASE = '/agent-env/{id}'  # the environment's agent-env.endpoint is <port url> + BASE
 ROUTE = 'GET ' + BASE + agent_env_client.ROUTE
 API_EXPORT = 'tower-port-api-id'
+RELAY_SKELETON = 'infra/aws/agent-env/relay.json'
+RELAY_HANDLER = 'infra/aws/agent-env/relay.py'
+RELAY = 'tower-app-torre-relay'
+RELAY_ROLE = 'TorreRelayRole'
+TORRE_ROUTE = 'POST ' + BASE + agent_env_client.TORRE_ROUTE
+WEBHOOK_SECRETS = {'URL_SECRET': 'tower/torre-webhook-url', 'KEY_SECRET': 'tower/torre-webhook-key'}
 STORE = 'ssm'  # the one store served until the boundary reads Secrets Manager
+WEBHOOK = 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:tower/torre-webhook-*'
+DENY_SID = 'NeverTheTorreWebhook'
 
 
 class StackError(Exception):
     """A declaration the stack cannot serve yet; the message names it."""
 
 
-def skeleton(root=ROOT):
-    return json.loads((Path(root) / SKELETON).read_text(encoding='utf-8'))
+def skeleton(root=ROOT, path=SKELETON):
+    return json.loads((Path(root) / path).read_text(encoding='utf-8'))
+
+
+def code_of(root, path, limit):
+    code = (Path(root) / path).read_text(encoding='utf-8')
+    if len(code.encode('utf-8')) >= limit:
+        raise StackError(f'{path} is over the ZipFile limit of {limit} bytes')
+    return code
 
 
 def logical(ident):
@@ -84,21 +107,50 @@ def rendered(declaration, shape, code, denied):
     return (filled(shape['Resources'], words, code, environment), filled(shape['Outputs'], words, code, environment))
 
 
+def deny_webhook(resources, allowed=()):
+    """Append the explicit Deny of the Torre's webhook secrets to every role of the stack but the `allowed` ones."""
+    deny = {'Sid': DENY_SID, 'Effect': 'Deny', 'Action': 'secretsmanager:*', 'Resource': {'Fn::Sub': WEBHOOK}}
+    for name, item in resources.items():
+        if item['Type'] == 'AWS::IAM::Role' and name not in allowed:
+            for policy in item['Properties']['Policies']:
+                policy['PolicyDocument']['Statement'].append(dict(deny))
+
+
+def relay(ids, root, limit):
+    """The Torre relay's resources: its function, role, logs and integration once, a route and a permission per id."""
+    shape = skeleton(root, RELAY_SKELETON)
+    tokens = [{'Fn::Sub': f'arn:${{AWS::Partition}}:ssm:${{AWS::Region}}:${{AWS::AccountId}}:parameter'
+                          f'{agent_env.PREFIXES[STORE].format(id=ident)}token-sha256'} for ident in ids]
+    environment = {'ROUTES': json.dumps({TORRE_ROUTE.format(id=ident): ident for ident in ids}, sort_keys=True),
+                   'WINDOW': str(config.get('agent-env.torre_window_s', root)),
+                   'LIMIT': str(config.get('agent-env.torre_max_bytes', root)),
+                   'TIMEOUT': str(config.get('agent-env.torre_timeout_s', root)), **WEBHOOK_SECRETS}
+    code = code_of(root, RELAY_HANDLER, limit)
+    words = {'@RELAY@': RELAY, '@WEBHOOK@': WEBHOOK}
+    resources = filled(shape['Resources'], words, code, environment)
+    resources[RELAY_ROLE]['Properties']['Policies'][0]['PolicyDocument']['Statement'][-1]['Resource'] = tokens
+    for ident in ids:
+        resources.update(filled(shape['PerEnvironment'], {'@ID@': ident, '@KEY@': logical(ident)}, code, environment))
+    return resources
+
+
 def template(root=ROOT):
     root = Path(root)
     errors = agent_env.check(root)
     if errors:
         raise StackError('; '.join(errors))
     shape = skeleton(root)
-    code = (root / HANDLER).read_text(encoding='utf-8')
-    if len(code.encode('utf-8')) >= shape['zipfile_limit']:
-        raise StackError(f'{HANDLER} is over the ZipFile limit of {shape["zipfile_limit"]} bytes')
+    code = code_of(root, HANDLER, shape['zipfile_limit'])
     denied = agent_env.denied_patterns(root)
-    resources, outputs = {}, {}
+    resources, outputs, ids = {}, {}, []
     for path in agent_env.declarations(root):
-        found, given = rendered(json.loads(path.read_text(encoding='utf-8')), shape, code, denied)
+        declaration = json.loads(path.read_text(encoding='utf-8'))
+        found, given = rendered(declaration, shape, code, denied)
         resources.update(found)
         outputs.update(given)
+        ids.append(declaration['id'])
+    deny_webhook(resources)
+    resources.update(relay(ids, root, shape['zipfile_limit']))
     return {'AWSTemplateFormatVersion': '2010-09-09', 'Description': shape['Description'],
             'Resources': resources, 'Outputs': outputs}
 

@@ -1,6 +1,7 @@
 """The AGENT-ENV client (D-341): it fetches the declared bundle from a local stub on 127.0.0.1 (no network), refuses a
 denied or undeclared name as a whole, writes shell-quoted exports at mode 600, prints names only, and is inert and
-non-fatal while the endpoint is empty or the credential is missing.
+non-fatal while the endpoint is empty or the credential is missing; `torre` POSTs a text to the relay and prints only
+the status it answers.
 
 Verifies: REQ-agent-env-single-source
 """
@@ -51,6 +52,15 @@ class Stub(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
         self.wfile.write(body)
+
+    def do_POST(self):  # noqa: N802 (http.server's name): the Torre relay's route
+        body = self.rfile.read(int(self.headers.get('Content-Length') or 0))
+        Stub.seen.append((self.path, self.headers.get('Authorization'), json.loads(body)))
+        status, answer = Stub.answer
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(answer)
 
     def log_message(self, *_args):
         pass
@@ -172,6 +182,32 @@ class ClientTests(unittest.TestCase):
             self.assertEqual(preflight.main([]), 0)
         self.assertEqual((stderr.getvalue(), stdout.getvalue()), ('WARN agent-env: not provisioned\n', 'preflight: ok\n'))
 
+    def run_torre(self, text, environ=None):
+        lines = []
+        self.assertEqual(client.torre(text, self.environ if environ is None else environ, out=lines.append), 0)
+        self.assertEqual(len(lines), 1, lines)
+        return lines[0]
+
+    def test_torre_posts_the_text_with_the_starting_credential_and_prints_the_status(self):
+        self.serve({'forwarded': HTTPStatus.ACCEPTED})
+        line = self.run_torre('hello Torre')
+        self.assertIn(f'forwarded, the Torre answered {HTTPStatus.ACCEPTED.value}', line)
+        self.assertEqual(Stub.seen, [(client.TORRE_ROUTE, f'Bearer {TOKEN}', {'text': 'hello Torre'})])
+        self.assertNotIn(TOKEN, line)
+
+    def test_torre_prints_the_relay_s_own_refusal_and_exits_0(self):
+        for status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.BAD_REQUEST, HTTPStatus.TOO_MANY_REQUESTS):
+            self.serve({}, status=status)
+            self.assertIn(f'answered {status.value}', self.run_torre('hi'))
+        self.serve(['not', 'an', 'object'])
+        self.assertIn('did not answer JSON', self.run_torre('hi'))
+
+    def test_torre_is_inert_unprovisioned_or_without_the_credential(self):
+        with mock.patch.object(client, 'endpoint', return_value=''):
+            self.assertIn('torre: not provisioned', self.run_torre('hi'))
+        self.assertIn(f'no starting credential is set ({CREDENTIAL})', self.run_torre('hi', {}))
+        self.assertEqual(Stub.seen, [])
+
     def test_the_wrapper_is_inert_with_the_registry_default(self):
         self.assertEqual(client.config.get('agent-env.endpoint', ROOT), '')
         env = {key: value for key, value in os.environ.items() if key != client.ENV_FILE}
@@ -180,6 +216,11 @@ class ClientTests(unittest.TestCase):
         self.assertEqual((done.returncode, done.stderr), (0, ''))
         self.assertEqual(len(done.stdout.splitlines()), 1)
         self.assertIn('not provisioned', done.stdout)
+        done = subprocess.run([str(ROOT / 'scripts/cloud/agent-env'), 'torre', 'hi'], capture_output=True, text=True,
+                              check=False, env=env)
+        self.assertEqual((done.returncode, done.stderr), (0, ''))
+        self.assertIn('torre: not provisioned', done.stdout)
+        self.assertEqual(Stub.seen, [])
 
 
 if __name__ == '__main__':

@@ -21,6 +21,9 @@
     "config/agent-env/**",
     "contracts/agent-env/environment.v1.json",
     "config/registry/agent-env/agent-env.denied_names.json",
+    "config/registry/agent-env/agent-env.torre_window_s.json",
+    "config/registry/agent-env/agent-env.torre_max_bytes.json",
+    "config/registry/agent-env/agent-env.torre_timeout_s.json",
     "config/registry/structure/structure.retired_vendor_terms.json"
   ]
 }
