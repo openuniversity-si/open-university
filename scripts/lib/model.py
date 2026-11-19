@@ -23,7 +23,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
                                    end), the requirement inventory, and each system's objects and calculated conformance,
                                    under a heading per group of systems (management, engineering: D-330), and the
                                    measurement system's share of sampled PRs with a clearly cheaper path (D-327);
-                                   it first rebuilds a day-old run-durations snapshot from GitHub's checks (scripts/runs)
+                                   it first rebuilds a day-old run-durations snapshot from GitHub's checks and the
+                                   SLOs' snapshot from GitHub's pull requests and check runs (scripts/runs)
 
 A requirement's chain is verified when an architecture element satisfies it, a unit realizes that element, a test
 verifies the requirement, and a validation validates it or the need it derives from; a link whose only validations not
@@ -1600,6 +1601,23 @@ SLO_MEASURES = (('slo.gate_tier1_p95_s', 'max'), ('slo.train_queue_time_p95_s', 
 SLO_REGISTRY = 'config/registry/slo.json'
 SLO_CONSUMER = 'docs/process/EVENTS.md'  # slo.breached, the event a breach emits, asks a PR there
 BASE_KINDS = ('incident-count', 'code-scan')  # a count of one attribute (15939 base measure); the rest derive one
+SLO_SOURCE = 'config/validation/slo.json'  # runs.SLO_FILE: GitHub's merges, merge queue waits and tower/gate runs
+
+
+def slo_values(root, registry, today=None):
+    """{SLO entry: its slo.py result plus `fresh`} folded from the SLOs' GitHub snapshot (runs.SLO_FILE, renewed by
+    `scripts/model measure` when a day old), the limits from the root's registry over the engine's; {} with no snapshot.
+    A value is fresh while the snapshot is at most runs.SLO_MAX_AGE_DAYS old and the SLO has enough samples."""
+    import runs
+    import slo
+    from datetime import date
+    recorded = runs.read_slo(root)
+    if not recorded:
+        return {}
+    conf = slo.settings({name: entry['default'] for name, entry in registry.items() if 'default' in entry})
+    age = (date.fromisoformat(today or utc_today()) - date.fromisoformat(recorded['at'][:len('2026-01-01')])).days
+    return {item['slo']: {**item, 'fresh': age <= runs.SLO_MAX_AGE_DAYS and item['state'] != 'no_data'}
+            for item in slo.evaluate_series(runs.slo_series(recorded), conf)}
 
 
 def _measure_id(val_id, measure):
@@ -1619,19 +1637,24 @@ def read_measures(root):
     them: the four SLOs of the registry (config/registry/slo.json, folded by scripts/lib/slo.py), the measure of every
     validation (config/validation/, computed by measured()) and the cheaper-path measure (D-327, the retrospective
     samples). Each body says its information need, its consumer, whether it is base or derived, its function and its
-    decision criterion. A validation measure with no function wired (kind `unwired`) is proposed. Freshness is set by
-    derive_measures: an SLO's source is the forge event log, which HEAD does not hold, so it is never fresh here."""
+    decision criterion. A validation measure with no function wired (kind `unwired`) is proposed. An SLO is folded from
+    its GitHub snapshot (slo_values) and fresh while that has its value; a validation's freshness is set by
+    derive_measures."""
     root = Path(root)
     found = []
     registry = _read_json(root / SLO_REGISTRY).get('properties', {}) if (root / SLO_REGISTRY).is_file() else {}
+    values = slo_values(root, registry)
     for name, bound in SLO_MEASURES:
         entry = registry.get(name)
         if entry is None:
             continue
+        value = values.get(name)
         found.append(_measure(f'MEAS-{_slug(name.removeprefix("slo."))}', 'active', SLO_REGISTRY, {
             'need': entry.get('description', ''), 'consumer': SLO_CONSUMER if SLO_CONSUMER in entry.get('x-readers', []) else '',
-            'scale': 'derived', 'function': 'scripts/lib/slo.py evaluate', 'unit': entry.get('x-unit', ''),
-            'criterion': f'{bound} {entry.get("default")}', 'source': 'the forge event log', 'fresh': False}))
+            'scale': 'derived', 'function': 'scripts/lib/slo.py evaluate_series', 'unit': entry.get('x-unit', ''),
+            'criterion': f'{bound} {entry.get("default")}', 'source': SLO_SOURCE, 'unread': value is None,
+            **({'value': value['value'], 'state': value['state'], 'samples': value['samples']} if value else {}),
+            'fresh': bool(value) and value['fresh']}))
     seen = set()
     for path in sorted(root.glob(VALIDATIONS)):
         body = _read_json(path)
@@ -2047,11 +2070,14 @@ def management_measure(found, today):
 
 def measures_measure(found):
     """The measurement system's own counts: its measures, those with a value on HEAD, those proposed (no function
-    wired) and those whose source HEAD does not hold (the SLOs' forge event log)."""
+    wired) and those whose source HEAD does not hold (an SLO with no GitHub snapshot)."""
     measures = [item for item in found.values() if item['type'] == 'MEAS']
     return {'measures': len(measures), 'fresh': sum(1 for item in measures if item['body']['fresh']),
             'proposed': sum(1 for item in measures if item['state'] == 'proposed'),
-            'unread': sum(1 for item in measures if item['body'].get('source') == 'the forge event log')}
+            'unread': sum(1 for item in measures if item['body'].get('unread')),
+            'slos': {item['id']: {key: item['body'][key] for key in ('value', 'criterion', 'state', 'samples')}
+                     for item in sorted(measures, key=lambda item: item['id'])
+                     if item['body'].get('source') == SLO_SOURCE and 'value' in item['body']}}
 
 
 def work_measure(found):
@@ -2283,6 +2309,10 @@ def summary(found):
     counted = found['measurement']
     lines.append(f'measurement: {counted["measures"]} measure(s), {counted["fresh"]} fresh on HEAD, {counted["proposed"]} '
                  f'proposed (no function wired), {counted["unread"]} whose source HEAD does not hold')
+    if counted.get('slos'):
+        lines.append('measurement: SLOs from GitHub: ' + ', '.join(
+            f'{id.removeprefix("MEAS-")} {item["value"]} ({item["criterion"]}, {item["state"]}, {item["samples"]} sample(s))'
+            for id, item in counted['slos'].items()))
     lines.append(cheaper_path_line(found['measurement']['cheaper_path']))
     planned = found['work']
     lines.append(f'work: {planned["programs"]} program(s), {planned["items"]} item(s): '
@@ -2324,6 +2354,9 @@ def main(argv=None):
             print(show(args.id))
             return 0
         meta = metamodel()
+        if args.command == 'measure':
+            import runs
+            runs.slo_refresh(ROOT)  # a day-old SLO snapshot is rebuilt before objects() folds it; offline it is kept
         found = objects()
         if args.command == 'check':
             errors, warnings = check(meta, found, ROOT)
