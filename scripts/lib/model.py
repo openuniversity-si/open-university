@@ -2711,6 +2711,15 @@ def summary(found):
     return '\n'.join(lines)
 
 
+def full_history(root):
+    """A shallow clone reads only the merges inside its depth: CHG-initial and the older changes a requirement's
+    implemented_by names would read as missing, so check and measure would report errors of the clone, not of the
+    model. They refuse it and name the fix instead (the gate's checkouts fetch the whole history)."""
+    if _git(root, 'rev-parse', '--is-shallow-repository').strip() == 'true':
+        raise ModelError('a shallow clone holds only part of the merges, so the changes (CHG) and the links read from '
+                         'them would be wrong; run git fetch --unshallow and try again')
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='scripts/model', description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -2741,6 +2750,7 @@ def main(argv=None):
         if args.command == 'show':
             print(show(args.id))
             return 0
+        full_history(ROOT)
         meta = metamodel()
         if args.command == 'measure':
             import runs

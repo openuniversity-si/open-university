@@ -809,6 +809,15 @@ class Changes(unittest.TestCase):
         self.assertFalse(model.covered(meta, found['VERD:x'], into, found), 'a red verdict is not conformant')
         self.assertIn('VERD', {kind for kind in meta['types'] if model.judged(meta, kind)})
 
+    def test_a_shallow_clone_is_refused_with_the_fix_named_not_judged(self):
+        import subprocess
+        model.full_history(self.root)
+        clone = self.root.parent / (self.root.name + '-shallow')
+        self.addCleanup(shutil.rmtree, clone, True)
+        subprocess.run(['git', 'clone', '-q', '--depth', '1', f'file://{self.root}', str(clone)], check=True)
+        with self.assertRaisesRegex(model.ModelError, 'fetch --unshallow'):
+            model.full_history(clone)
+
     def test_an_erratum_corrects_a_wrong_implements_trailer_and_one_that_matches_nothing_is_an_error(self):
         import subprocess
         sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root, capture_output=True, text=True).stdout.strip()
