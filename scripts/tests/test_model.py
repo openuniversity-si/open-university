@@ -1224,5 +1224,93 @@ class CheaperPath(unittest.TestCase):
         self.assertIn('measurement: cheaper path (D-327)', model.summary(model.measure(ROOT)))
 
 
+class SupportSystems(unittest.TestCase):
+    """F7e: the measures (MEAS), the work items (WORK) and the assessments (ASSESS) read from data that exists."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-support-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        shutil.copytree(ROOT / 'contracts' / 'model', self.root / 'contracts' / 'model')
+        self.meta = model.metamodel(ROOT)
+
+    def conformant(self, item, found):
+        return model.covered(self.meta, item, model.incoming(found), found)
+
+    def test_measures_come_from_the_slo_registry_the_validations_and_the_cheaper_path(self):
+        write(self.root, model.SLO_REGISTRY, {'properties': {
+            'slo.gate_tier1_p95_s': {'default': 10, 'description': 'need', 'x-unit': 's',
+                                     'x-readers': ['scripts/lib/slo.py', model.SLO_CONSUMER]},
+            'slo.merged_prs_per_hour_min': {'default': 42, 'description': 'need', 'x-readers': ['scripts/lib/slo.py']}}})
+        write(self.root, 'config/validation/VAL-a.json', {'id': 'VAL-a', 'statement': 's', 'owner': 'capacity',
+                                                          'measure': {'kind': 'run-durations', 'workflow': 'deploy'},
+                                                          'comparator': 'lte', 'threshold': 1})
+        write(self.root, 'config/validation/VAL-b.json', {'id': 'VAL-b', 'statement': 's', 'owner': 'efficiency',
+                                                          'measure': {'kind': 'unwired', 'source': 'x'},
+                                                          'comparator': 'lte', 'threshold': 200})
+        found = {item['id']: item for item in model.read_measures(self.root)}
+        self.assertEqual(sorted(found), ['MEAS-cheaper-path', 'MEAS-gate-tier1-p95-s', 'MEAS-merged-prs-per-hour-min',
+                                         'MEAS-run-durations-deploy', 'MEAS-unwired-b'])
+        self.assertEqual(found['MEAS-unwired-b']['state'], 'proposed')
+        self.assertEqual(found['MEAS-merged-prs-per-hour-min']['body']['consumer'], '')
+        self.assertEqual(found['MEAS-gate-tier1-p95-s']['body']['criterion'], 'max 10')
+        self.assertEqual(found['MEAS-run-durations-deploy']['body']['scale'], 'derived')
+        found['VAL-a'] = {'id': 'VAL-a', 'type': 'VAL', 'state': 'met', 'links': [], 'fingerprint': 'f'}
+        found['VAL-b'] = {'id': 'VAL-b', 'type': 'VAL', 'state': 'defined', 'links': [], 'fingerprint': 'f'}
+        model.derive_measures(found)
+        self.assertEqual(found['VAL-a']['links'], [{'type': 'measured-by', 'target': 'MEAS-run-durations-deploy'}])
+        judged = {id: self.conformant(item, found) for id, item in found.items() if item['type'] == 'MEAS'}
+        # wired, with a need, a consumer, a criterion and a value on HEAD; an SLO's forge log is not on HEAD
+        self.assertEqual(judged, {'MEAS-cheaper-path': False, 'MEAS-gate-tier1-p95-s': False,
+                                  'MEAS-merged-prs-per-hour-min': False, 'MEAS-run-durations-deploy': True,
+                                  'MEAS-unwired-b': False})
+        CheaperPath.sample(self, 'retro-sample-1', [False])
+        fresh = {item['id']: item for item in model.read_measures(self.root)}['MEAS-cheaper-path']
+        self.assertTrue(self.conformant(fresh, {fresh['id']: fresh}))
+
+    def test_work_items_come_from_the_plans_the_phases_and_the_queue(self):
+        units = [{'id': 'U1', 'done': ['x'], 'pr': 7}, {'id': 'U2', 'done': []}]
+        write(self.root, 'docs/programs/p/plan.md', '# p\n\n```json program.v1\n' + json.dumps({'units': units}) + '\n```\n')
+        write(self.root, 'docs/programs/p/phases/F1.md', '## Plano\n1. **F1a** (esta PR): a.\n2. **F1b, the b:** b.\n')
+        write(self.root, 'docs/programs/q/phases/F2.md', '# q — F2: the target\n\nNo items.\n')
+        write(self.root, 'docs/programs/r/plan.md', '```json program.v1\n{"units": \n```\n')
+        write(self.root, model.QUEUE_FILE, '| # | Unidade | Valor | Escopo (arquivos) |\n|---|---|---|---|\n'
+                                           '| F9 | u | v | scripts/x |\n\nafter\n')
+        write(self.root, 'docs/programs/_template/plan.md', 'template')
+        found = {item['id']: item for item in model.read_work(self.root)}
+        self.assertEqual(sorted(found), ['WORK-p-F1a', 'WORK-p-F1b', 'WORK-p-U1', 'WORK-p-U2', 'WORK-program-p',
+                                         'WORK-program-q', 'WORK-program-r', 'WORK-program-vazao', 'WORK-q-F2',
+                                         'WORK-vazao-F9'])
+        self.assertEqual(found['WORK-p-F1b']['body']['text'], 'the b b.')
+        self.assertEqual((found['WORK-p-U1']['state'], found['WORK-p-U2']['state']), ('delivered', 'queued'))
+        self.assertIn('does not parse', found['WORK-program-r']['problems'][0])
+        found['CHG-1'] = {'id': 'CHG-1', 'type': 'CHG', 'state': 'merged', 'links': [], 'fingerprint': 'f',
+                          'body': {'names': ['F1a', 'F7z']}}
+        model.derive_work(found)
+        self.assertEqual(found['CHG-1']['links'], [{'type': 'tracks', 'target': 'WORK-p-F1a'}])
+        self.assertEqual((found['WORK-p-F1a']['state'], found['WORK-p-F1b']['state']), ('delivered', 'queued'))
+        self.assertEqual((found['WORK-program-p']['state'], found['WORK-program-q']['state']), ('in-progress', 'queued'))
+        judged = {id: self.conformant(item, found) for id, item in found.items() if item['type'] == 'WORK'}
+        self.assertEqual([id for id, ok in sorted(judged.items()) if not ok], ['WORK-p-U2', 'WORK-program-r'])
+
+    def test_an_assessment_rests_on_evidence_only_when_a_rule_judges_an_object_of_its_system(self):
+        rated = {'level': 'N', 'share': 0, 'objects': 3, 'not_judged': 3}
+        empty = model.assessment('s', rated, 'abc')
+        self.assertEqual((empty['id'], empty['state'], empty['body']['evidence']), ('ASSESS-s', 'calculated', False))
+        self.assertFalse(self.conformant(empty, {empty['id']: empty}))
+        judged = model.assessment('s', {**rated, 'not_judged': 1}, 'abc')
+        self.assertTrue(self.conformant(judged, {judged['id']: judged}))
+
+    def test_the_tree_reads_the_three_systems_and_assesses_every_system_on_head(self):
+        found = model.measure(ROOT)
+        systems = found['systems']
+        for name in ('measurement', 'work', 'conformance'):
+            self.assertGreater(systems[name]['objects'], 0, name)
+            self.assertEqual(systems[name]['not_judged'], 0, name)
+        self.assertEqual(systems['conformance']['objects'], len(systems))
+        self.assertEqual(found['measurement']['unread'], len(model.SLO_MEASURES))  # their forge log is not on HEAD
+        self.assertGreater(found['measurement']['fresh'], 0)
+        self.assertIn('work: ', model.summary(found))
+
+
 if __name__ == '__main__':
     unittest.main()

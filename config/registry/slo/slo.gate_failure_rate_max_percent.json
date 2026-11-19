@@ -6,7 +6,8 @@
   "x-unit": "percent",
   "description": "Highest share of failed tier-1 gate verdicts among the last slo.sample_window_events (plan v3 §9.2 sets none; first value tuned by a PR when slo.breached asks).",
   "x-readers": [
-    "scripts/lib/slo.py",
-    "docs/process/EVENTS.md"
+    "docs/process/EVENTS.md",
+    "scripts/lib/model.py",
+    "scripts/lib/slo.py"
   ]
 }

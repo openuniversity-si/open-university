@@ -4,6 +4,7 @@
   "x-unit": "path",
   "description": "Where each program keeps brief.md, audit.md, plan.md and retro.md.",
   "x-readers": [
+    "scripts/lib/model.py",
     "scripts/lib/program.py"
   ]
 }
