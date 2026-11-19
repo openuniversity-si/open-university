@@ -163,6 +163,25 @@ def _obj(id, type, state, source, text, links=()):
 
 
 REFUTES = re.compile(r'\brefutes (P-[0-9]+)\b')  # a decision that names the premise it refutes (D-320 refutes P-58)
+SESSION_DECISION = re.compile(r'\bdecided by the session\b', re.I)  # session self-decision under D-325
+RECORD_STATES = {'proposed': 'proposed', 'accepted': 'accepted', 'recorded': 'accepted',
+                 'deprecated': 'deprecated', 'superseded': 'superseded'}
+
+
+def decision_authority(text, fields=None):
+    """Who decided a decision record or row: `session` when front matter says `authority: session` or the text marks a
+    session self-decision (`decided by the session`), else `owner`."""
+    explicit = (fields or {}).get('authority', '').strip().lower()
+    if explicit in ('session', 'owner'):
+        return explicit
+    return 'session' if SESSION_DECISION.search(text or '') else 'owner'
+
+
+def owner_approved(decision):
+    """Whether a decision object is an accepted decision approved by the owner (never proposed, inactive, or
+    session-decided under D-325)."""
+    return (bool(decision) and decision.get('type') == 'D' and decision.get('state') == 'accepted'
+            and decision.get('authority') != 'session')
 
 
 def read_decisions(root):
@@ -173,11 +192,14 @@ def read_decisions(root):
         fields = dict(line.split(':', 1) for line in head.group(1).splitlines() if ':' in line) if head else {}
         number = fields.get('number', path.stem).strip()
         seen.add(number)
+        state = RECORD_STATES.get(fields.get('status', '').strip().lower(), 'accepted')
         refuted = set(REFUTES.findall(text))
         assumed = [{'type': 'refutes' if ident in refuted else 'assumes', 'target': ident}
                    for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
         replaced = [{'type': 'supersedes', 'target': ident} for ident in re.findall(r'\bD-[0-9]+\b', fields.get('supersedes', ''))]
-        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed + replaced))
+        item = _obj(number, 'D', state, path.relative_to(root).as_posix(), text, assumed + replaced)
+        item['authority'] = decision_authority(text, fields)
+        objects.append(item)
         proof = fields.get('proof', '').strip().strip('`')
         if proof:
             objects.append({'id': f'TEST:{proof}', 'type': 'TEST', 'state': 'active', 'source': proof, 'claimed': True,
@@ -193,6 +215,7 @@ def read_decisions(root):
             state = row_state(row.get('Status', ''))
             proof = row_proof(root, row.get('Proof', ''), index)
             item = _obj(number, 'D', state, DECISION_TABLE, row['line'])
+            item['authority'] = decision_authority(row['line'])
             item['proof'] = {key: proof[key] for key in ('outcome', 'missing', 'outside')}
             objects.append(item)
             if state == 'accepted' and proof['outcome'] == 'proven':
@@ -200,10 +223,10 @@ def read_decisions(root):
                     objects.append({'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name,
                                     'claimed': True, 'fingerprint': None,
                                     'links': [{'type': 'verifies', 'target': number}]})
-    # A record is written once (D-217), so it changes only by a later one: a record whose `supersedes:` names a
-    # decision makes that decision superseded, a record or a row alike (the row's Status cell is the older path).
-    superseded = {link['target'] for item in objects if item['type'] == 'D' for link in item['links']
-                  if link['type'] == 'supersedes'}
+    # A record is written once (D-217), so it changes only by a later accepted one: a record whose `supersedes:` names
+    # a decision makes that decision superseded, a record or a row alike (a proposed decision does not supersede yet).
+    superseded = {link['target'] for item in objects if item['type'] == 'D' and item['state'] == 'accepted'
+                  for link in item['links'] if link['type'] == 'supersedes'}
     for item in objects:
         if item['type'] == 'D' and item['id'] in superseded and item['state'] == 'accepted':
             item['state'] = 'superseded'
@@ -239,14 +262,15 @@ def table_rows(text):
 
 INACTIVE_ROW = {'superseded': 'superseded', 'replaced': 'superseded', 'retired': 'deprecated',
                 'deprecated': 'deprecated'}
+ROW_STATES = {**INACTIVE_ROW, 'proposed': 'proposed'}
 
 
 def row_state(status):
     """A row's state from its Status cell: one that starts with superseded or replaced is superseded, one that starts
-    with retired or deprecated is deprecated (the D type's inactive states); any other status (proven, recorded, test
-    pending, rite, implemented) is accepted."""
+    with retired or deprecated is deprecated (the D type's inactive states), one that starts with proposed is proposed;
+    any other status (proven, recorded, test pending, rite, implemented) is accepted."""
     word = re.match(r'\W*([a-z]+)', status.lower())
-    return INACTIVE_ROW.get(word.group(1), 'accepted') if word else 'accepted'
+    return ROW_STATES.get(word.group(1), 'accepted') if word else 'accepted'
 
 
 PROOF_FILE = re.compile(r'(?<![\w./-])((?:[\w.-]+/)*(?:test_\w+\.py|[\w-]+(?:\.[\w-]+)*\.(?:test|spec)\.(?:sh|ts|tsx|js|mjs)))'
@@ -774,9 +798,21 @@ def read_tailoring(root):
         {'type': 'exempts', 'target': body['exempts']}, {'type': 'authorized-by', 'target': body['authorized_by']}])
 
 
+def active_tailoring(found, today):
+    """Active, in-date TAIL exemptions split into (approved, unapproved) by owner_approved(authorized_by)."""
+    approved, unapproved = [], []
+    for item in sorted(found.values(), key=lambda entry: entry['id']):
+        body = item.get('body', {})
+        if item['type'] != 'TAIL' or item['state'] != 'active' or body.get('valid_until', '') < today:
+            continue
+        (approved if owner_approved(found.get(body.get('authorized_by'))) else unapproved).append(item)
+    return approved, unapproved
+
+
 def management_findings(found, today):
     """Warnings of the standard's management: an open proposal with no deadline or past it, a decided or applied
-    proposal with no decision, an active exemption past its validity; an error for more than one effective version."""
+    proposal with no decision, an active exemption past its validity or not approved by the owner; an error for more
+    than one effective version."""
     warnings, errors = [], []
     for item in found.values():
         body = item.get('body', {})
@@ -787,8 +823,17 @@ def management_findings(found, today):
                 warnings.append(f'{item["id"]}: past its deadline {body["deadline"]}')
         if item['type'] == 'PROP' and item['state'] in ('decided', 'applied') and not body.get('decided_by'):
             warnings.append(f'{item["id"]}: {item["state"]} with no decision')
-        if item['type'] == 'TAIL' and item['state'] == 'active' and body.get('valid_until', today) < today:
-            warnings.append(f'{item["id"]}: active past its validity {body["valid_until"]}')
+        if item['type'] == 'TAIL' and item['state'] == 'active':
+            if body.get('valid_until', today) < today:
+                warnings.append(f'{item["id"]}: active past its validity {body["valid_until"]}')
+            else:
+                auth = body.get('authorized_by')
+                decision = found.get(auth)
+                if not owner_approved(decision):
+                    why = ('no such decision' if decision is None else
+                           f'state {decision["state"]}' if decision.get('state') != 'accepted' else
+                           'session-decided, not owner-approved')
+                    warnings.append(f'{item["id"]}: active exemption not approved by the owner ({auth}: {why})')
     effective = sorted(id for id, item in found.items() if item['type'] == 'VER' and item['state'] == 'effective')
     if len(effective) > 1:
         errors.append(f'{", ".join(effective)}: more than one effective version of the standard')
@@ -808,10 +853,11 @@ REGISTRY_KEYS = 'config/registry/*/*.json'
 
 
 def target_exempt(found, today):
-    """The scopes of the exemptions from STD-targets-full in force: active, inside their validity, with an owner."""
-    return [item['body']['scope'] for item in found.values()
-            if item['type'] == 'TAIL' and item.get('body', {}).get('exempts') == TARGETS_RULE
-            and item['state'] == 'active' and item['body']['valid_until'] >= today and item['body'].get('owner')]
+    """The scopes of the exemptions from STD-targets-full in force: active, inside their validity, with an owner,
+    and authorized by an owner-approved decision."""
+    approved, _ = active_tailoring(found, today)
+    return [item['body']['scope'] for item in approved
+            if item['body'].get('exempts') == TARGETS_RULE and item['body'].get('owner')]
 
 
 def target_errors(found, root, today=None):
@@ -2436,16 +2482,26 @@ def standard_measure(found, today):
 
 def management_measure(found, today):
     """The standard management's own measure: its proposals by state, those open with no deadline or past it, the
-    exemptions in force, and the version in effect."""
+    owner-approved and unapproved active exemptions (with scope, decision and expiry), and the version in effect."""
     proposals = [item for item in found.values() if item['type'] == 'PROP']
     open_ones = [item for item in proposals if item['state'] in ('open', 'warning')]
+    approved, unapproved = active_tailoring(found, today)
+
+    def detail(item, is_approved):
+        body = item['body']
+        return {'id': item['id'], 'exempts': body.get('exempts'), 'scope': body.get('scope'),
+                'authorized_by': body.get('authorized_by'), 'valid_until': body.get('valid_until'),
+                'owner': body.get('owner'), 'approved': is_approved}
+
     return {
         'proposals': len(proposals),
         'open': len(open_ones),
         'closed': sum(1 for item in proposals if item['state'] in ('decided', 'applied', 'rejected')),
         'undated': sum(1 for item in open_ones if not item.get('body', {}).get('deadline')),
         'overdue': sum(1 for item in open_ones if item.get('body', {}).get('deadline', today) < today),
-        'exemptions': sum(1 for item in found.values() if item['type'] == 'TAIL' and item['state'] == 'active'),
+        'exemptions': len(approved),
+        'unapproved_exemptions': len(unapproved),
+        'active_exemptions': [detail(item, True) for item in approved] + [detail(item, False) for item in unapproved],
         'effective': sorted(id for id, item in found.items() if item['type'] == 'VER' and item['state'] == 'effective'),
     }
 
@@ -2520,14 +2576,12 @@ def utc_today():
 
 def exempted_ids(found, today):
     """D-335: the objects an exemption in force covers (config/standard/tailoring, TAIL): an active exemption not past
-    its validity, granted by a decision of the model (`authorized_by`), covers every object whose id or source its
-    `scope` matches (a glob)."""
+    its validity, granted by an owner-approved accepted decision (`authorized_by`), covers every object whose id or
+    source its `scope` matches (a glob)."""
     from fnmatch import fnmatchcase
-    granted = [item['body'] for item in found.values() if item['type'] == 'TAIL' and item['state'] == 'active'
-               and item.get('body', {}).get('valid_until', '') >= today
-               and found.get(item['body'].get('authorized_by'), {}).get('type') == 'D']
-    return {id for id, item in found.items() for body in granted
-            if fnmatchcase(id, body['scope']) or fnmatchcase(item.get('source', ''), body['scope'])}
+    approved, _ = active_tailoring(found, today)
+    return {id for id, item in found.items() for tail in approved
+            if fnmatchcase(id, tail['body']['scope']) or fnmatchcase(item.get('source', ''), tail['body']['scope'])}
 
 
 def closed_shown():
@@ -2707,14 +2761,23 @@ def summary(found):
                   for name in item['systems']]
     if 'stop' in found:  # D-331, D-335: the program's stop counts the systems closed, not the systems at F
         lines.append(f'stop (D-335): {len(found["stop"]["closed"])} of {found["stop"]["systems"]} system(s) closed')
+    managed = found['standard_management']
+    active_tails = managed.get('active_exemptions', [])
+    if active_tails:
+        lines.append(f'exemptions (TAIL): {managed["exemptions"]} owner-approved, '
+                     f'{managed.get("unapproved_exemptions", 0)} unapproved (not in force):')
+        for tail in active_tails:
+            tag = 'approved' if tail['approved'] else 'UNAPPROVED'
+            lines.append(f'  {tail["id"]}: [{tag}] {tail["exempts"]} on {tail["scope"]} '
+                         f'by {tail["authorized_by"]} until {tail["valid_until"]}')
     rules = found['standard']
     lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
                  f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
                  f'their deadline; {rules["dormant"]} dormant (D-326)')
-    managed = found['standard_management']
     lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '
                  f'with no deadline, {managed["overdue"]} past it), {managed["closed"]} closed; {managed["exemptions"]} '
-                 f'exemption(s) in force; effective version {", ".join(managed["effective"]) or "none"}')
+                 f'owner-approved exemption(s) in force ({managed.get("unapproved_exemptions", 0)} unapproved); '
+                 f'effective version {", ".join(managed["effective"]) or "none"}')
     wanted = found['requirements']
     lines.append(f'requirements: {wanted["active"]} active ({", ".join(f"{count} {kind}" for kind, count in wanted["by_type"].items())}); '
                  f'{wanted["implemented"]} implemented, {wanted["verified"]} verified, {wanted["with_element"]} with an '

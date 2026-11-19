@@ -223,6 +223,12 @@ class TinyModel(unittest.TestCase):
         self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'an exemption that is not active')
         found = self.objects(tail(authorized_by='D-8'), decision, {'id': 'CHG-10', 'type': 'CHG'})
         self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'no decision of the model granted it')
+        session_dec = {**decision, 'authority': 'session'}
+        found = self.objects(tail(), session_dec, {'id': 'CHG-10', 'type': 'CHG'})
+        self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'a session-decided record cannot exempt')
+        proposed_dec = {**decision, 'state': 'proposed'}
+        found = self.objects(tail(), proposed_dec, {'id': 'CHG-10', 'type': 'CHG'})
+        self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'a proposed decision cannot exempt')
 
     def test_an_object_that_meets_an_unconformant_condition_of_its_type_is_judged_and_not_conformant(self):
         write(self.root, 'config/model/types/VAL.json', {'id': 'VAL', 'name': 'val', 'system': 'reqs', 'states': ['defined'],
@@ -431,11 +437,16 @@ class TargetsFull(unittest.TestCase):
         write(self.root, f'config/registry/{name.split(".", 1)[0]}/{name}.json', {'type': 'number', 'default': default,
                                                                                  **schema})
 
-    def tail(self, scope, **body):
+    def tail(self, scope, decision=None, **body):
         body = {'id': 'TAIL-x', 'exempts': model.TARGETS_RULE, 'scope': scope, 'reason': 'r', 'owner': 'administration',
                 'authorized_by': 'D-337', 'valid_until': '2026-12-31', 'state': 'active', **body}
-        return {'TAIL-x': {'id': 'TAIL-x', 'type': 'TAIL', 'state': body['state'], 'source': 'x', 'links': [],
-                           'body': body}}
+        dec = ({'id': 'D-337', 'type': 'D', 'state': 'accepted', 'authority': 'owner', 'links': []}
+               if decision is None else decision)
+        out = {'TAIL-x': {'id': 'TAIL-x', 'type': 'TAIL', 'state': body['state'], 'source': 'x', 'links': [],
+                          'body': body}}
+        if dec:
+            out[dec['id']] = dec
+        return out
 
     def errors(self, found):
         return model.target_errors(found, self.root, '2026-11-19')
@@ -492,6 +503,9 @@ class TargetsFull(unittest.TestCase):
         self.assertEqual(self.errors(self.tail('config/registry/slo/*')), [], 'a scope is a glob of the path too')
         for late in ({'valid_until': '2026-11-18'}, {'state': 'expired'}, {'owner': ''}, {'exempts': 'STD-other'}):
             self.assertEqual(len(self.errors(self.tail('slo.percentile', **late))), 1, late)
+        for bad in ({}, {'id': 'D-337', 'type': 'D', 'state': 'accepted', 'authority': 'session', 'links': []},
+                    {'id': 'D-337', 'type': 'D', 'state': 'proposed', 'authority': 'owner', 'links': []}):
+            self.assertEqual(len(self.errors(self.tail('slo.percentile', decision=bad))), 1, bad)
 
     def test_this_checkout_holds_every_target_at_the_whole_or_exempted(self):
         found = model.objects(ROOT)
@@ -588,6 +602,24 @@ class StandardManagement(unittest.TestCase):
         found['VER-v99'] = {**found[f'VER-{self.current}'], 'id': 'VER-v99'}
         errors, _ = model.management_findings(found, '2026-11-16')
         self.assertEqual(len(errors), 1)
+
+    def test_unapproved_active_exemption_warns_and_is_reported_separately_from_owner_approved(self):
+        write(self.root, 'config/standard/tailoring/TAIL-owner.json', {
+            'id': 'TAIL-owner', 'exempts': 'STD-padrao-save-often', 'scope': 'units/engine-a/**', 'reason': 'r',
+            'owner': 'administration', 'authorized_by': 'D-10', 'valid_until': '2026-12-31', 'state': 'active'})
+        write(self.root, 'config/standard/tailoring/TAIL-self.json', {
+            'id': 'TAIL-self', 'exempts': 'STD-padrao-save-often', 'scope': 'units/engine-b/**', 'reason': 'r',
+            'owner': 'administration', 'authorized_by': 'D-11', 'valid_until': '2026-12-31', 'state': 'active'})
+        found = self.found()
+        found['D-10'] = {'id': 'D-10', 'type': 'D', 'state': 'accepted', 'authority': 'owner', 'links': []}
+        found['D-11'] = {'id': 'D-11', 'type': 'D', 'state': 'accepted', 'authority': 'session', 'links': []}
+        _, warnings = model.management_findings(found, '2026-11-19')
+        self.assertTrue(any('TAIL-self: active exemption not approved by the owner (D-11: session-decided' in w for w in warnings), warnings)
+        self.assertFalse(any(w.startswith('TAIL-owner:') for w in warnings), warnings)
+        counted = model.management_measure(found, '2026-11-19')
+        self.assertEqual((counted['exemptions'], counted['unapproved_exemptions']), (1, 1))
+        self.assertEqual([(item['id'], item['approved'], item['valid_until']) for item in counted['active_exemptions']],
+                         [('TAIL-owner', True, '2026-12-31'), ('TAIL-self', False, '2026-12-31')])
 
 
 class Requirements(unittest.TestCase):
@@ -1492,6 +1524,23 @@ class RealRepository(unittest.TestCase):
         self.assertTrue(all(item['level'] in levels for item in result['systems'].values()))
         self.assertEqual(set(result['systems']), set(meta['systems']))
         self.assertIn('chain:', model.summary(result))
+        self.assertIn('exemptions (TAIL):', model.summary(result))
+
+    def test_session_decided_exemptions_do_not_close_security_in_this_checkout(self):
+        found = model.objects(ROOT)
+        self.assertEqual(found['D-337']['authority'], 'owner')
+        self.assertEqual(found['D-343']['authority'], 'session')
+        self.assertEqual(found['D-344']['authority'], 'session')
+        exempt = model.exempted_ids(found, model.utc_today())
+        for ident in ('CTRL-ssdf-pw.2', 'CTRL-ssdf-pw.9', 'THREAT-gate'):
+            self.assertNotIn(ident, exempt)
+        result = model.measure(ROOT, found=found)
+        self.assertFalse(result['systems']['security']['closed'])
+        self.assertIn('THREAT-gate', result['systems']['security']['nonconformant'])
+        self.assertGreaterEqual(result['standard_management']['unapproved_exemptions'], 3)
+        text = model.summary(result)
+        self.assertIn('TAIL-gate-fork-workflow: [UNAPPROVED]', text)
+        self.assertIn('TAIL-targets-budget-tolerance: [approved]', text)
 
     def test_the_systems_split_into_a_management_and_an_engineering_group_reported_apart(self):
         # D-330: management holds intent, work, decisions and measurement; every other system is engineering
@@ -1598,6 +1647,18 @@ class DecisionTable(unittest.TestCase):
         self.assertEqual({id: item['state'] for id, item in decisions.items()},
                          {'D-1': 'superseded', 'D-2': 'deprecated', 'D-3': 'superseded', 'D-4': 'deprecated',
                           'D-5': 'accepted', 'D-6': 'accepted'})
+
+    def test_proposed_records_and_rows_stay_proposed_and_do_not_supersede_accepted_decisions(self):
+        decisions, _ = self.rows('| D-1 | d | x | - | prose | proposed |')
+        self.assertEqual(decisions['D-1']['state'], 'proposed')
+        folder = self.root / Path(model.DECISION_RECORDS).parent
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / 'D-900.md').write_text('---\nnumber: D-900\npremises: none\n---\nOwner rule.\n')
+        (folder / 'D-901.md').write_text('---\nnumber: D-901\npremises: none\nstatus: proposed\nsupersedes: D-900\n---\n'
+                                         'Proposed change (decided by the session under D-325).\n')
+        by_id = {item['id']: item for item in model.read_decisions(self.root) if item['type'] == 'D'}
+        self.assertEqual((by_id['D-900']['state'], by_id['D-900']['authority']), ('accepted', 'owner'))
+        self.assertEqual((by_id['D-901']['state'], by_id['D-901']['authority']), ('proposed', 'session'))
         self.assertEqual(set(model.metamodel(ROOT)['types']['D']['inactive_states']), {'deprecated', 'superseded'})
 
     def test_a_record_that_names_what_it_supersedes_makes_those_records_and_rows_superseded(self):
