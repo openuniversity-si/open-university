@@ -1,42 +1,8 @@
 {
  "generated_by": "scripts/supply audit",
- "at": "2026-11-18T03:35:43Z",
+ "at": "2026-11-19T06:03:10Z",
  "lockfiles": {
-  "apps/web/pnpm-lock.yaml": "658365e49ef343bbfa41cd649770a1fad1e70d2be8ceb24172f4dc9e221963fe"
+  "apps/web/pnpm-lock.yaml": "a8cf8b201b56a1dff19523279395742a32e321c00bb56fb369dba5f1ec9301e6"
  },
- "advisories": [
-  {
-   "id": "ADV-ghsa-fc5q-39xc-vjpf",
-   "ghsa": "GHSA-fc5q-39xc-vjpf",
-   "package": "picomatch",
-   "versions": [
-    "2.3.2",
-    "4.0.7"
-   ],
-   "vulnerable": "<=4.0.7",
-   "patched": "<0.0.0",
-   "severity": "high",
-   "title": "picomatch vulnerable to ReDoS through single-branch repeated extglobs",
-   "url": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
-   "lockfiles": [
-    "apps/web/pnpm-lock.yaml"
-   ]
-  },
-  {
-   "id": "ADV-ghsa-g3hv-75wg-m249",
-   "ghsa": "GHSA-g3hv-75wg-m249",
-   "package": "minimatch",
-   "versions": [
-    "10.2.6"
-   ],
-   "vulnerable": ">=7.0.0 <11.0.1",
-   "patched": ">=11.0.1",
-   "severity": "moderate",
-   "title": "minimatch has potential denial of service via globparts amplification",
-   "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
-   "lockfiles": [
-    "apps/web/pnpm-lock.yaml"
-   ]
-  }
- ]
+ "advisories": []
 }
