@@ -54,10 +54,11 @@
     },
     {
       "stride": "elevation-of-privilege",
-      "statement": "A planning change edits the structure check itself so its own body passes. Residual: tower/gate runs the structure check from the head it judges (VULN-gate-judged-by-own-head), and the decision the gate-change rule asks for may be any recorded D-NNN.",
+      "statement": "A planning change edits the structure check itself so its own body passes. The structure check is a gate file: the change asks a decision, and the pinned job of tower/gate runs the base's structure check on it. Residual: the pinned job holds once the owner installs it (VULN-gate-judged-by-own-head), and the decision the gate-change rule asks for may be any recorded D-NNN.",
       "mitigated_by": [
         "STD-commit-check-gate-errors",
-        "STD-gate-structure-check"
+        "STD-gate-structure-check",
+        "TEST:scripts/tests/gate-pin.test.sh"
       ]
     }
   ],
@@ -74,8 +75,8 @@
       {
         "about": "elevation-of-privilege",
         "finding": "Both mitigations run from the head under judgment on GitHub, so a change that edits the structure check judges itself; and any recorded D-NNN satisfies the gate-change rule.",
-        "disposition": "open",
-        "reason": "VULN-gate-judged-by-own-head; residual added."
+        "disposition": "fixed",
+        "reason": "VULN-gate-judged-by-own-head: the pinned job staged in services/runner/github/tower-gate.yml (D-087: the owner installs it, after gate_pin.py overlay is on main, since the job runs the base's copy). Any recorded D-NNN: accepted: the rule asks a gate change for a traceable decision, not for an approval; with no review step (D-055) whether a decision approves this change takes a reader, and the barrier against a gate change that weakens a rule is the pinned gate, where the base's rules judge it."
       }
     ]
   }

@@ -69,11 +69,12 @@
     },
     {
       "stride": "elevation-of-privilege",
-      "statement": "A change to a key that governs the gate (its allowed workflows, its stages) widens what the gate lets through without a decision. Residual: the rule that asks a gate change for a decision matches the gate's scripts, not config/registry/gate/, and accepts any recorded D-NNN, not one that approves the change.",
+      "statement": "A change to a key that governs the gate (its allowed workflows, its stages) widens what the gate lets through without a decision. The rule that asks a gate change for a decision matches config/registry/gate/ and its aggregate (GATE_FILE), and the pinned gate judges such a change with the base's keys. Residual: the rule accepts any recorded D-NNN, not one that approves the change.",
       "mitigated_by": [
         "STD-commit-check-gate-errors",
         "config/registry/gate/gate.allowed_workflows.json",
-        "TEST:scripts/tests/queue-checks.test.sh"
+        "TEST:scripts/tests/queue-checks.test.sh",
+        "TEST:scripts/tests/gate-pin.test.sh"
       ]
     }
   ],
@@ -102,8 +103,8 @@
       {
         "about": "elevation-of-privilege",
         "finding": "STD-commit-check-gate-errors matches gate_pin.GATE_FILE (scripts/gate-*, scripts/lib/gate*, the structure and commit checks): config/registry/gate/*.json, scripts/verify-commit and scripts/lib/verify_commit.py are outside it, so a change to a gate key needs no decision; and any recorded D-NNN satisfies it.",
-        "disposition": "open",
-        "reason": "residual added; follow-up: widen GATE_FILE to the gate's registry keys and its GitHub entry point."
+        "disposition": "fixed",
+        "reason": "GATE_FILE (scripts/lib/gate_pin.py) now matches config/registry/gate/*.json, config/registry/gate.json, scripts/verify-commit and scripts/lib/verify_commit.py (gate-pin test). Any recorded D-NNN: accepted: the rule asks a gate change for a traceable decision, not for an approval; with no review step (D-055) whether a decision approves this change takes a reader, and the barrier against a gate change that weakens a rule is the pinned gate, where the base's rules judge it."
       }
     ]
   }

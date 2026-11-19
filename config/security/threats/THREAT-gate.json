@@ -14,22 +14,26 @@
   "threats": [
     {
       "stride": "spoofing",
-      "statement": "A run that did not judge the commit, such as a fork's run or a run of another head, passes its green verdict off as the queue commit's; or a tower/gate status is posted on a commit by a credential other than the gate's own job. Residual: the ruleset requires the check by its name alone, not by the source that reports it (VULN-gate-check-source).",
+      "statement": "A run that did not judge the commit, such as a fork's run or a run of another head, passes its green verdict off as the queue commit's; or a tower/gate status is posted on a commit by a credential other than the gate's own job. The ruleset binds each required check to the GitHub Actions app (integration 15368), so a status of that name from a session's credential (verify-commit without --no-post) or any other writer does not count. Residual: the binding is staged in .github/rulesets/main.json and holds once the owner applies it to the live ruleset (VULN-gate-check-source stays open until then).",
       "mitigated_by": [
         "TEST:scripts/tests/verify-commit.test.sh",
+        "TEST:scripts/tests/security.test.sh",
         "REQ-github-truth",
         ".github/rulesets/main.json"
       ]
     },
     {
       "stride": "tampering",
-      "statement": "A pull request edits the gate itself (its scripts, its rules or a workflow) so that its own change passes. Residual: tower/gate runs scripts/verify-commit from the tree it judges, so the rules below hold a change that keeps them and not one that rewrites them; the pinned gate that judges with the base's tooling (scripts/lib/gate_pin.py, D-070) is not used by the GitHub job (VULN-gate-judged-by-own-head).",
+      "statement": "A pull request edits the gate itself (its scripts, its rules, its registry keys, the verifier or a workflow) so that its own change passes. The gate's files (GATE_FILE: the stages, the structure and commit checks, config/registry/gate/, scripts/verify-commit) ask a decision, and the pinned job of tower/gate judges a change to them with the base's gate: the base's gate_pin.py puts the base's gate files back in the checkout and the plan's stages run there (D-070 on GitHub). Residual: the pinned job is staged in services/runner/github/tower-gate.yml and holds once the owner installs it (VULN-gate-judged-by-own-head stays open until then); the workflow itself is the owner's to change (D-087), and the head's tests run the head's code, as code under test.",
       "mitigated_by": [
         "config/registry/gate/gate.allowed_workflows.json",
         "STD-gate-workflows-refused",
         "TEST:scripts/tests/queue-checks.test.sh",
         "STD-gate-structure-check",
-        "STD-commit-check-gate-errors"
+        "STD-commit-check-gate-errors",
+        "TEST:scripts/tests/gate-pin.test.sh",
+        "TEST:scripts/tests/verify-commit.test.sh",
+        "services/runner/github/tower-gate.yml"
       ]
     },
     {
@@ -92,14 +96,14 @@
       {
         "about": "spoofing",
         "finding": "The ruleset requires tower/gate by context only (no source app), and scripts/verify-commit posts that status with the session's own credential when run without --no-post, so a status from any writer of statuses satisfies the queue; neither mitigation listed refuses that.",
-        "disposition": "open",
-        "reason": "VULN-gate-check-source; follow-up: bind the required check to the GitHub Actions app in .github/rulesets/main.json (owner-applied)."
+        "disposition": "fixed",
+        "reason": "VULN-gate-check-source; .github/rulesets/main.json binds tower/gate and web to the GitHub Actions app (integration_id 15368) and security.test.sh refuses a required check without it; the owner applies it to ruleset 27250343, and the VULN is fixed on that date."
       },
       {
         "about": "tampering",
         "finding": "The listed rules (allowed workflows, workflows refused, structure check) run from the head under judgment: the GitHub job does not use the base-pinned gate of D-070, so a change that rewrites the gate judges itself.",
-        "disposition": "open",
-        "reason": "VULN-gate-judged-by-own-head; follow-up: run the gate's stages from the base's tooling in tower-gate.yml, the head's as advisory, as gate_pin.py does."
+        "disposition": "fixed",
+        "reason": "VULN-gate-judged-by-own-head; gate_pin.py overlay and verify-commit --stages-only (gate-pin and verify-commit tests), run by the pinned job staged in services/runner/github/tower-gate.yml (D-087: the owner installs it, after gate_pin.py overlay is on main, since the job runs the base's copy); the VULN is fixed on the date it is installed."
       },
       {
         "about": "tampering",
