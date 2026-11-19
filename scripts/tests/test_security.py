@@ -71,6 +71,29 @@ class RealRepository(unittest.TestCase):
                          'PS.1', 'PS.2', 'PS.3', 'PW.1', 'PW.2', 'PW.4', 'PW.5', 'PW.6', 'PW.7', 'PW.8', 'PW.9', 'RV.1', 'RV.2', 'RV.3']))
         self.assertTrue(all(item['body']['reason'] for item in controls))
 
+    def test_every_threat_model_covers_stride_on_an_active_element_and_every_mitigation_exists(self):
+        """The automated design review of SSDF PW.2.1: each threat model models an active architecture element, names
+        all six STRIDE categories, and each of its threats is mitigated by something that exists (an object of the
+        model, or a file of the tree). It reviews the models' structure and references, not whether the threats are
+        the right ones."""
+        meta = model.metamodel(ROOT)
+        found = model.objects(ROOT)
+        threats = [item for item in model.read_threats(ROOT) if 'body' in item]
+        self.assertTrue(threats)
+        stride = {'spoofing', 'tampering', 'repudiation', 'information-disclosure', 'denial-of-service',
+                  'elevation-of-privilege'}
+        for item in threats:
+            body = item['body']
+            element = found.get(body['models'])
+            self.assertTrue(element and element['type'] == 'ARC' and model.is_active(meta, element), body['models'])
+            self.assertEqual({threat['stride'] for threat in body['threats']}, stride, item['id'])
+            for threat in body['threats']:
+                self.assertTrue(threat.get('mitigated_by'), f'{item["id"]}: {threat["statement"]}')
+                for target in threat['mitigated_by']:
+                    exists = (target in found and found[target].get('fingerprint') is not None
+                              and model.is_active(meta, found[target])) or (ROOT / target).is_file()
+                    self.assertTrue(exists, f'{item["id"]}: {target}')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -587,9 +587,9 @@ class ThePullRequestMetadata(unittest.TestCase):
     """D-329 (PR-METADATA-GITHUB): tower/gate runs `pr metadata` on the GitHub pull request, read with gh, not Origin."""
 
     def setUp(self):
-        import commit_check
-        lanes = mock.patch.object(commit_check, 'lane_errors', return_value=[])  # no lane: the fake shas are not here
-        regime = mock.patch.object(commit_check, 'regime', None)  # no exception regime lifts a lock here (D-260)
+        import gate_discipline
+        lanes = mock.patch.object(gate_discipline, 'lane_errors', return_value=[])  # no lane: the fake shas are not here
+        regime = mock.patch.object(gate_discipline, 'regime', None)  # no exception regime lifts a lock here (D-260)
         for patched in (lanes, regime):
             patched.start()
             self.addCleanup(patched.stop)

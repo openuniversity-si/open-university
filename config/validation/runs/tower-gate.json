@@ -1,147 +1,147 @@
 {
  "workflow": "tower-gate",
- "source": "GitHub Actions API, workflow tower-gate",
- "at": "2026-11-17T20:53:31Z",
+ "source": "GitHub check runs of main's last merges, check tower/gate",
+ "at": "2026-11-19T02:05:13Z",
  "runs": [
   {
-   "id": 44172971092,
+   "id": 135282443924,
    "event": "merge_group",
    "conclusion": "success",
-   "started": "2026-11-17T20:47:19Z",
-   "seconds": 33
+   "started": "2026-11-19T02:01:21Z",
+   "seconds": 32
   },
   {
-   "id": 44172184183,
+   "id": 135282058354,
    "event": "pull_request",
    "conclusion": "success",
-   "started": "2026-11-17T20:42:49Z",
+   "started": "2026-11-19T02:00:13Z",
    "seconds": 46
   },
   {
-   "id": 44171521916,
-   "event": "pull_request",
-   "conclusion": "success",
-   "started": "2026-11-17T20:39:01Z",
-   "seconds": 46
-  },
-  {
-   "id": 44164970841,
+   "id": 135280642386,
    "event": "merge_group",
    "conclusion": "success",
-   "started": "2026-11-17T20:02:09Z",
-   "seconds": 34
+   "started": "2026-11-19T01:56:25Z",
+   "seconds": 63
   },
   {
-   "id": 44164759993,
+   "id": 135280073173,
    "event": "pull_request",
    "conclusion": "success",
-   "started": "2026-11-17T20:00:59Z",
-   "seconds": 45
+   "started": "2026-11-19T01:55:07Z",
+   "seconds": 56
   },
   {
-   "id": 44163590477,
+   "id": 135274922710,
    "event": "merge_group",
    "conclusion": "success",
-   "started": "2026-11-17T19:54:24Z",
-   "seconds": 40
+   "started": "2026-11-19T01:42:15Z",
+   "seconds": 62
   },
   {
-   "id": 44163404179,
+   "id": 135274365988,
    "event": "pull_request",
    "conclusion": "success",
-   "started": "2026-11-17T19:53:21Z",
-   "seconds": 41
+   "started": "2026-11-19T01:40:58Z",
+   "seconds": 59
   },
   {
-   "id": 44162336437,
+   "id": 135272551866,
    "event": "merge_group",
    "conclusion": "success",
-   "started": "2026-11-17T19:47:18Z",
-   "seconds": 52
+   "started": "2026-11-19T01:36:58Z",
+   "seconds": 31
   },
   {
-   "id": 44162140560,
+   "id": 135272177828,
    "event": "pull_request",
    "conclusion": "success",
-   "started": "2026-11-17T19:46:12Z",
-   "seconds": 46
+   "started": "2026-11-19T01:36:00Z",
+   "seconds": 35
   },
   {
-   "id": 44160356327,
+   "id": 135270354992,
    "event": "merge_group",
    "conclusion": "success",
-   "started": "2026-11-17T19:36:15Z",
-   "seconds": 36
+   "started": "2026-11-19T01:30:20Z",
+   "seconds": 114
   },
   {
-   "id": 44159288325,
+   "id": 135257582655,
    "event": "pull_request",
    "conclusion": "success",
-   "started": "2026-11-17T19:30:23Z",
-   "seconds": 41
+   "started": "2026-11-19T01:00:57Z",
+   "seconds": 110
   },
   {
-   "id": 44158469922,
+   "id": 135244345628,
    "event": "merge_group",
    "conclusion": "success",
-   "started": "2026-11-17T19:25:42Z",
-   "seconds": 34
+   "started": "2026-11-19T00:32:18Z",
+   "seconds": 61
   },
   {
-   "id": 44158233333,
+   "id": 135243721415,
    "event": "pull_request",
    "conclusion": "success",
-   "started": "2026-11-17T19:24:25Z",
-   "seconds": 49
+   "started": "2026-11-19T00:31:09Z",
+   "seconds": 47
   },
   {
-   "id": 44157465397,
+   "id": 135239189297,
    "event": "merge_group",
    "conclusion": "success",
-   "started": "2026-11-17T19:20:10Z",
-   "seconds": 37
+   "started": "2026-11-19T00:21:24Z",
+   "seconds": 44
   },
   {
-   "id": 44157244859,
+   "id": 135238683981,
    "event": "pull_request",
    "conclusion": "success",
-   "started": "2026-11-17T19:18:57Z",
-   "seconds": 48
+   "started": "2026-11-19T00:20:19Z",
+   "seconds": 43
   },
   {
-   "id": 44154035120,
+   "id": 135231035244,
    "event": "merge_group",
    "conclusion": "success",
-   "started": "2026-11-17T19:01:08Z",
-   "seconds": 33
+   "started": "2026-11-19T00:03:51Z",
+   "seconds": 57
   },
   {
-   "id": 44153857338,
+   "id": 135230442748,
    "event": "pull_request",
    "conclusion": "success",
-   "started": "2026-11-17T19:00:12Z",
-   "seconds": 34
+   "started": "2026-11-19T00:02:32Z",
+   "seconds": 58
   },
   {
-   "id": 44152355962,
+   "id": 135229279312,
    "event": "merge_group",
    "conclusion": "success",
-   "started": "2026-11-17T18:51:37Z",
-   "seconds": 34
+   "started": "2026-11-19T00:00:32Z",
+   "seconds": 32
   },
   {
-   "id": 44151861498,
-   "event": "merge_group",
-   "conclusion": "success",
-   "started": "2026-11-17T18:48:51Z",
-   "seconds": 36
-  },
-  {
-   "id": 44151674050,
+   "id": 135228836516,
    "event": "pull_request",
    "conclusion": "success",
-   "started": "2026-11-17T18:47:45Z",
-   "seconds": 33
+   "started": "2026-11-18T23:58:12Z",
+   "seconds": 119
+  },
+  {
+   "id": 135224395262,
+   "event": "merge_group",
+   "conclusion": "success",
+   "started": "2026-11-18T23:49:24Z",
+   "seconds": 68
+  },
+  {
+   "id": 135223674570,
+   "event": "pull_request",
+   "conclusion": "success",
+   "started": "2026-11-18T23:47:52Z",
+   "seconds": 71
   }
  ]
 }

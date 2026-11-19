@@ -4,9 +4,9 @@
   "control": "RV.2",
   "title": "Assess, prioritize, and remediate vulnerabilities",
   "applicable": true,
-  "reason": "High and critical advisories block until updated or exempted with a deadline, and the bug bar sets deadlines for the repository's own vulnerabilities; no vulnerability of our own code is recorded yet.",
+  "reason": "High and critical advisories block until updated or exempted with a deadline (supply), and each vulnerability of the repository's own code is a VULN record whose deadline the bug bar sets by severity and which is unconformant once overdue, accepted only until a date, and verified only by a test (security); none is recorded yet, which is a state of the record, not a gap of the process.",
   "implemented_by": [
-    "TEST:scripts/tests/supply.test.sh"
-  ],
-  "coverage": "partial"
+    "TEST:scripts/tests/supply.test.sh",
+    "TEST:scripts/tests/security.test.sh"
+  ]
 }

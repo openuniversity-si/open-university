@@ -211,14 +211,14 @@ class RegimeLift(Repo):
         commit(self.root, 'a.txt')
         second = commit(self.root, 'b.txt')
         ctx = self.ctx(refs=[('refs/heads/work', second, 'refs/heads/work', self.base)])
-        import commit_check
-        with mock.patch.object(commit_check, 'regime', FakeRegime({'commit-plan'})), mock.patch('sys.stderr', io.StringIO()):
+        import gate_discipline
+        with mock.patch.object(gate_discipline, 'regime', FakeRegime({'commit-plan'})), mock.patch('sys.stderr', io.StringIO()):
             self.assertEqual(local_checks._lift_of('one_push_per_commit', local_checks.one_push_per_commit(ctx)), [])
 
     def test_an_active_regime_lifts_the_literal_census_lock(self):
-        import commit_check
+        import gate_discipline
         errors = ['number 9 is written 6 times']
-        with mock.patch.object(commit_check, 'regime', FakeRegime({'literals'})), mock.patch('sys.stderr', io.StringIO()):
+        with mock.patch.object(gate_discipline, 'regime', FakeRegime({'literals'})), mock.patch('sys.stderr', io.StringIO()):
             self.assertEqual(local_checks._lift_of('literal_census', errors), [])
             self.assertEqual(local_checks._lift_of('no_registered_literals', errors), errors)
 
@@ -226,8 +226,8 @@ class RegimeLift(Repo):
         commit(self.root, 'a.txt')
         second = commit(self.root, 'b.txt')
         ctx = self.ctx(refs=[('refs/heads/work', second, 'refs/heads/work', self.base)])
-        import commit_check
-        with mock.patch.object(commit_check, 'regime', None):
+        import gate_discipline
+        with mock.patch.object(gate_discipline, 'regime', None):
             self.assertEqual(len(local_checks._lift_of('one_push_per_commit', local_checks.one_push_per_commit(ctx))), 1)
 
 

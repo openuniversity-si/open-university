@@ -8,7 +8,7 @@
   ],
   "check": {
     "kind": "function",
-    "ref": "scripts/lib/commit_check.py:rebase_errors"
+    "ref": "scripts/lib/gate_discipline.py:rebase_errors"
   },
   "basis": [
     "D-070"

@@ -18,6 +18,9 @@
     "config/registry/gate-infra/**",
     "units/engine-gate-infra/unit.json",
     "scripts/tests/test_deploy_sh.py",
-    "scripts/lib/port_http.py"
+    "scripts/lib/port_http.py",
+    "scripts/lib/runs.py",
+    "config/validation/VAL-deploy-1s.json",
+    "config/validation/runs/deploy.json"
   ]
 }

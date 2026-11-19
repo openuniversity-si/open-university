@@ -24,7 +24,7 @@
       "stride": "tampering",
       "statement": "A pull request edits the gate itself (its scripts, its rules or a workflow) so that its own change passes.",
       "mitigated_by": [
-        "D-087",
+        "config/registry/gate/gate.allowed_workflows.json",
         "STD-gate-workflows-refused",
         "TEST:scripts/tests/queue-checks.test.sh",
         "STD-gate-structure-check"

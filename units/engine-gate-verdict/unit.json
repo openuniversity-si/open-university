@@ -1,6 +1,6 @@
 {
   "id": "engine-gate-verdict",
-  "purpose": "The gate verdict: the batch and pinned-result judgement of a head.",
+  "purpose": "The gate verdict: the batch and pinned-result judgement of a head, and the PR discipline the gate judges (gate_discipline, decision_wait; D-322, D-329).",
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
@@ -8,7 +8,9 @@
     "scripts/gate-batch",
     "scripts/gate-shadow",
     "scripts/gate-verdict",
+    "scripts/lib/decision_wait.py",
     "scripts/lib/gate_batch.py",
+    "scripts/lib/gate_discipline.py",
     "scripts/lib/gate_pin.py",
     "scripts/lib/gate_shadow.py",
     "scripts/lib/gate_verdict.py",
@@ -32,6 +34,8 @@
     "engine-gate-ops": "^1",
     "engine-gate-plan": "^1",
     "engine-gate-report": "^1",
-    "engine-gate-status": "^1"
+    "engine-gate-status": "^1",
+    "engine-git-ref": "^1",
+    "engine-regime": "^1"
   }
 }

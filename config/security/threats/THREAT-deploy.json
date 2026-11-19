@@ -65,7 +65,7 @@
       "stride": "elevation-of-privilege",
       "statement": "The doorbell's token, held in GitHub's secrets, or a deploy role reaches more than ringing the deploy. Residual: no test bounds the IAM policies of the stacks; their scope is read only in review of the templates.",
       "mitigated_by": [
-        "D-087",
+        "config/registry/gate/gate.allowed_workflows.json",
         "TEST:scripts/tests/queue-checks.test.sh"
       ]
     }

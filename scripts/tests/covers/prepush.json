@@ -17,6 +17,7 @@
     "scripts/lib/machine_refs.py",
     "scripts/lib/registry_readers.py",
     "scripts/lib/commit_check.py",
+    "scripts/lib/gate_discipline.py",
     "scripts/lib/local_checks.py",
     "scripts/tests/fixture_copy.py",
     "scripts/lib/entrypoint_mentions.py",

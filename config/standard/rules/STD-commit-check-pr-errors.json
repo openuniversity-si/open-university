@@ -8,7 +8,7 @@
   ],
   "check": {
     "kind": "function",
-    "ref": "scripts/lib/commit_check.py:pr_errors"
+    "ref": "scripts/lib/gate_discipline.py:pr_errors"
   },
   "basis": [
     "D-022",

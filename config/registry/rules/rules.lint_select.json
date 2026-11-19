@@ -4,10 +4,30 @@
     "F",
     "E9",
     "PLE",
-    "B"
+    "B",
+    "S104",
+    "S113",
+    "S2",
+    "S30",
+    "S312",
+    "S313",
+    "S314",
+    "S315",
+    "S316",
+    "S317",
+    "S318",
+    "S319",
+    "S321",
+    "S323",
+    "S5",
+    "S601",
+    "S605",
+    "S609",
+    "S61",
+    "S7"
   ],
   "x-unit": "names",
-  "description": "The ruff rule families the lint ratchet requires at zero findings (PADRAO-DEV F4b): pyflakes, syntax errors, pylint errors, bugbear.",
+  "description": "The ruff rule families the lint ratchet requires at zero findings (PADRAO-DEV F4b): pyflakes, syntax errors, pylint errors, bugbear, and the bandit (S) rules of vulnerability classes the engine has none of (SSDF PW.7, 19/11/2026: binding all interfaces, requests without a timeout, unsafe tar members, pickle, marshal, insecure hashes and ciphers, mktemp, eval, telnet, ftp, XML parsers, unverified TLS, weak keys, unsafe YAML, SSH without host keys, paramiko, a shell started by os.system/popen, wildcard injection, Django raw SQL, insecure logging listeners, templates without autoescape). The other bandit rules stay out by triage, each with its reason: S603, S607 (subprocess with an argument list, the safe form the engine uses everywhere, 932 findings), S101 (asserts), S108 (temporary paths, in tests), S110, S112 (an except that passes is not a vulnerability), S105-S107 (test fixtures; real secrets are the secret scan's), S324, S311 (hashes and randomness for fingerprints and jitter, not for security), S310 (urlopen on configured HTTPS URLs), S102, S103, S602, S604, S606 (exec of the engine's own source, chmod of its own executables, the gate's declared stage commands run with bash, a test helper's keyword named shell, a self re-exec) and S608 (SQL built from identifiers the engine validates, 113 findings, most in the stopped AWS gate's service).",
   "x-readers": [
     "scripts/lib/lint_ratchet.py"
   ]

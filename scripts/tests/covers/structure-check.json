@@ -17,6 +17,7 @@
     "scripts/lib/ship_verify.py",
     "scripts/lib/delivery.py",
     "scripts/lib/commit_check.py",
+    "scripts/lib/gate_discipline.py",
     "scripts/lib/premises.py",
     "scripts/lib/json_schema.py",
     "scripts/lib/config.py",

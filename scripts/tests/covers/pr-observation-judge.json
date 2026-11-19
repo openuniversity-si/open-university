@@ -8,6 +8,7 @@
     "scripts/lib/forge_events.py",
     "scripts/lib/operation_demands.py",
     "scripts/lib/commit_check.py",
+    "scripts/lib/gate_discipline.py",
     "scripts/lib/forge_pr.py",
     "scripts/lib/structure.py",
     "scripts/lib/gate_infra.py",

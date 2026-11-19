@@ -13,7 +13,7 @@
       "x-unit": "commits",
       "description": "GX-22 (B-18, D-070): most commits a gated head may be behind the current base tip. merge-phase re-gates a head beyond it (or behind with overlapping changes, merge.regate_on_overlap); with merge.tier1_requires_base_merge off it is also the commit-check limit for a head that carries no merge of the base. Shown as \"N behind, limit M\".",
       "x-readers": [
-        "scripts/lib/commit_check.py",
+        "scripts/lib/gate_discipline.py",
         "scripts/lib/merge_behind.py",
         "scripts/lib/train.py"
       ],
@@ -58,7 +58,7 @@
       "x-unit": "flag",
       "description": "P-G3 switch (GA-PG3 = P-47, D-070). Off (default since GX-27, after the train merged a real batch): a head behind by at most merge.max_behind_base passes without a merge of the base, because the train re-proves the batch on the tip. On (the earlier rule, one-key rollback): a tier-1 head behind its base must carry a merge commit of the base (commit_check.rebase_errors). Merge commits only, never a rebase, either way (FP1).",
       "x-readers": [
-        "scripts/lib/commit_check.py"
+        "scripts/lib/gate_discipline.py"
       ],
       "x-flag": true,
       "x-source": "D-070"

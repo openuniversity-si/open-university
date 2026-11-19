@@ -5,7 +5,8 @@
                                        QUEUE-RELOAD, the merge_group job: ring `prepare` for the merge queue's commit, watch
                                        main (git ls-remote) and ring `landed` the moment main is that commit
   scripts/deploy status                the port's GET /v1/deploy/status: last_sha, the last build with its tail and the last
-                                       ring/skip decision, as the service observed them (DEP3: it publishes them to the log)
+                                       ring/skip decision, as the service observed them (DEP3: it publishes them to the log);
+                                       a succeeded build's seconds go into config/validation/runs/deploy.json (record)
   scripts/deploy follow [--target SHA] [--build ID] [--since EPOCH]
                                        follow the status until the deploy ends (the port's long poll; pauses with an old
                                        port); a failure prints the failed names and tail
@@ -35,6 +36,39 @@ DOORBELL_VARS = ('TOWER_DEPLOY_DOORBELL_URL', 'TOWER_DEPLOY_DOORBELL_TOKEN')
 PORT_VARS = ('TOWER_PORT_URL', 'TOWER_PORT_TOKEN')
 ENDED = ('succeeded', 'nothing_new')
 STALE_S = 300  # an observation older than this while a ring was made: the service is not reporting
+RUNS_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+RUNS_FOLDER = 'config/validation/runs'  # the run snapshots scripts/model's run-durations measure reads (scripts/lib/runs.py)
+DEPLOY_RUNS = 'deploy'  # config/validation/runs/deploy.json: the snapshot VAL-deploy-1s reads
+DEPLOY_KEEP = 20
+
+
+def record(state, root=None, now=None):
+    """PADRAO-DEV F8d: the deploy's build seconds recorded the way the gate's runs are (config/validation/runs/,
+    read by scripts/model's run-durations measure), so VAL-deploy-1s has a source. The port answers only the last
+    build, so each read adds it to the snapshot (by build id, the newest DEPLOY_KEEP kept); only a succeeded build with
+    its own clock counts. The snapshot's `at` is the read's time, which keeps it fresh while sessions read the status.
+    Answers the runs recorded, or None when the build is not one to count."""
+    import datetime as clock
+    build = state.get('last_build') or {}
+    if build.get('status') != 'succeeded' or not isinstance(build.get('seconds'), (int, float)) or not build.get('build_id'):
+        return None
+    iso = lambda epoch: clock.datetime.fromtimestamp(epoch, clock.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    target = os.path.join(root or RUNS_ROOT, RUNS_FOLDER, DEPLOY_RUNS + '.json')
+    try:
+        with open(target) as handle:
+            before = json.load(handle).get('runs') or []
+    except (OSError, ValueError):
+        before = []
+    kept = [run for run in before if run.get('id') != build['build_id']]
+    entry = {'id': build['build_id'], 'event': 'deploy', 'conclusion': 'success',
+             'started': iso(build.get('started') or build.get('ended') or 0), 'seconds': int(build['seconds'])}
+    made = {'workflow': DEPLOY_RUNS, 'source': 'the AWS deploy builds of GET /v1/deploy/status (scripts/deploy status)',
+            'at': iso(now if now is not None else time.time()),
+            'runs': sorted(kept + [entry], key=lambda run: run['started'], reverse=True)[:DEPLOY_KEEP]}
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    with open(target, 'w') as handle:
+        handle.write(json.dumps(made, indent=1) + '\n')
+    return made['runs']
 
 
 def missing(names, environ):
@@ -370,10 +404,14 @@ def main(argv=None, environ=None):
     port = gate_infra.Port(environ['TOWER_PORT_URL'], environ['TOWER_PORT_TOKEN'])
     if args.command == 'status':
         try:
-            describe(read_status(port))
+            state = read_status(port)
         except gate_infra.Refused as error:
             print(f'deploy: the status could not be read ({error})', file=sys.stderr)
             return 2
+        describe(state)
+        recorded = record(state)
+        if recorded:
+            print(f'recorded: {len(recorded)} build(s) in {DEPLOY_RUNS}.json, the snapshot VAL-deploy-1s reads')
         return 0
     return follow(port, args.target, args.build, args.since)
 

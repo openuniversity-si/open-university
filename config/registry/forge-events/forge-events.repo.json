@@ -39,6 +39,7 @@
     "scripts/lib/quarantine.py",
     "scripts/lib/release_policy.py",
     "scripts/lib/replay_branch.py",
+    "scripts/lib/runs.py",
     "scripts/lib/service_runner.py",
     "scripts/lib/service_status.py",
     "scripts/lib/slo.py",

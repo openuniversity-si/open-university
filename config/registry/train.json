@@ -233,7 +233,8 @@
         "scripts/lib/pr_ready.py",
         "scripts/lib/service_runner.py",
         "scripts/lib/train_git.py",
-        "scripts/lib/train_serve.py"
+        "scripts/lib/train_serve.py",
+        "scripts/lib/gate_discipline.py"
       ]
     },
     "train.halt_classes": {

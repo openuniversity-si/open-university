@@ -565,7 +565,9 @@ class CliTests(unittest.TestCase):
 
     def run_main(self, *argv, environ=None):
         out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        runs_root = tempfile.mkdtemp(prefix='deploy-runs-')  # status records a succeeded build: never into the tree
+        self.addCleanup(shutil.rmtree, runs_root)
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), mock.patch.object(deploy, 'RUNS_ROOT', runs_root):
             code = deploy.main(list(argv), self.environ if environ is None else environ)
         self.assertNotIn(TOKEN, out.getvalue() + err.getvalue())
         return code, out.getvalue(), err.getvalue()
@@ -685,6 +687,23 @@ class CliTests(unittest.TestCase):
         out = io.StringIO()
         deploy.describe(rolling, out)
         self.assertIn('rolling: runner service started and not waited', out.getvalue())
+
+    def test_status_records_a_succeeded_builds_seconds_for_val_deploy_1s(self):
+        # PADRAO-DEV F8d: each read adds the last succeeded build to the snapshot by its id; another status adds nothing
+        # (the measure that reads it is test_runs.py's, in the model's unit)
+        root = tempfile.mkdtemp(prefix='deploy-runs-')
+        self.addCleanup(shutil.rmtree, root)
+        build = {'status': 'succeeded', 'build_id': 'p:b1', 'started': 1795052641, 'ended': 1795052658, 'seconds': 17}
+        self.assertEqual(len(deploy.record({'last_build': build}, root, now=1795052700)), 1)
+        self.assertEqual(len(deploy.record({'last_build': build}, root, now=1795052800)), 1)
+        later = dict(build, build_id='p:b2', started=1795053641, seconds=9)
+        self.assertEqual([run['id'] for run in deploy.record({'last_build': later}, root, now=1795053700)], ['p:b2', 'p:b1'])
+        for status in ('failed', 'rolling', 'nothing_new'):
+            self.assertIsNone(deploy.record({'last_build': dict(build, status=status, build_id='p:x')}, root))
+        self.assertIsNone(deploy.record({'last_build': dict(build, seconds=None)}, root))
+        written = json.loads((Path(root) / deploy.RUNS_FOLDER / 'deploy.json').read_text())
+        self.assertEqual((written['workflow'], written['at'], [run['seconds'] for run in written['runs']]),
+                         ('deploy', '2026-11-19T02:01:40Z', [9, 17]))
 
     def test_status_says_the_builds_seconds_and_the_reload_in_place(self):
         # FAST-PATH-RELOAD: what a code-only merge's deploy cost, and how long its swap took, from `scripts/deploy status`

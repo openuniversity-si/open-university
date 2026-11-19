@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 4,
+  "x-unit": "count",
+  "description": "D-025, D-329: gate files that the refusal of a gate change citing no decision names before it writes \" ...\".",
+  "x-readers": [
+    "scripts/lib/gate_discipline.py"
+  ],
+  "minimum": 1
+}

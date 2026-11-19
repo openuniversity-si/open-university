@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 7,
+  "x-unit": "count",
+  "description": "D-022, D-329: characters of a commit sha that the PR discipline (pr metadata, commit-check) prints in a refusal.",
+  "x-readers": [
+    "scripts/lib/gate_discipline.py"
+  ],
+  "minimum": 1
+}

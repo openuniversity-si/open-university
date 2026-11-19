@@ -21,7 +21,7 @@ commit's parents counts, never a fork's; any error of the lookup is a miss, and 
 
 PR-METADATA-GITHUB (D-329): the `pr metadata` stage reads the pull request from GitHub with `gh api` (its body, commits,
 the branch's pushes and force pushes from the repository activity, its comments and its head against its base), not
-from Origin, and judges it with commit_check.pr_errors: the commit plan, fix-ups, one commit per push, force pushes, a
+from Origin, and judges it with gate_discipline.pr_errors: the commit plan, fix-ups, one commit per push, force pushes, a
 head behind its base without a merge of it, a gate change citing no decision, an owner wait (decision_wait, D-325), the
 plan completeness and the lanes. The pull request is the event's (GITHUB_EVENT_PATH), else the number in the merge
 queue's branch name (gh-readonly-queue/<base>/pr-<n>-<sha>), else --pr; it is judged on the head the event names, else
@@ -363,15 +363,15 @@ def github_pr(repo, number, head=None, run=run, root=ROOT):
 
 def pr_metadata(repo=None, number=None, head=None, must=False, run=run, root=ROOT, judge_pr=None):
     """PR-METADATA-GITHUB (D-329): (code, output) of the `pr metadata` stage on the GitHub pull request: the refusals
-    and warnings of commit_check.pr_errors (judge_pr), one per line. No pull request: red when the event must name one,
+    and warnings of gate_discipline.pr_errors (judge_pr), one per line. No pull request: red when the event must name one,
     else nothing judged. A read error is red and never lifted (commit-check's blind read)."""
     if number is None:
         if must:
             return 1, 'FAIL pr metadata: the event names no pull request (no pull_request, no merge queue branch)\n'
         return 0, 'pr metadata: no pull request named: nothing judged\n'
     if judge_pr is None:
-        import commit_check  # scripts/lib, beside this file
-        judge_pr = commit_check.pr_errors
+        import gate_discipline  # scripts/lib, beside this file: the gate's own PR discipline (D-322)
+        judge_pr = gate_discipline.pr_errors
     try:
         pr = github_pr(repo, number, head, run, root)
     except (RuntimeError, KeyError, TypeError, AttributeError) as error:

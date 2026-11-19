@@ -496,6 +496,26 @@
       ],
       "x-source": "D-092; docs/units/GATE-SPEED/plan.md"
     },
+    "gate.pr_gate_files_listed": {
+      "type": "integer",
+      "default": 4,
+      "x-unit": "count",
+      "description": "D-025, D-329: gate files that the refusal of a gate change citing no decision names before it writes \" ...\".",
+      "x-readers": [
+        "scripts/lib/gate_discipline.py"
+      ],
+      "minimum": 1
+    },
+    "gate.pr_sha_chars": {
+      "type": "integer",
+      "default": 7,
+      "x-unit": "count",
+      "description": "D-022, D-329: characters of a commit sha that the PR discipline (pr metadata, commit-check) prints in a refusal.",
+      "x-readers": [
+        "scripts/lib/gate_discipline.py"
+      ],
+      "minimum": 1
+    },
     "gate.preflight_enabled": {
       "type": "boolean",
       "default": true,
