@@ -1,7 +1,7 @@
 """QUEUE-RELOAD (the Torre, 15/11/2026; Daniel's target of 09/11): a code-only merge is live about a second after it lands.
 
-1. The merge_group job (scripts/lib/deploy.py queue) rings `prepare` at once, watches main and rings `landed` the moment
-   main is the queue's commit; a group that leaves the queue rings nothing more.
+1. The merge_group job (scripts/lib/deploy.py queue) rings `prepare` at once and ends; GitHub's push webhook on main rings
+   `landed` at the doorbell (GITHUB-HOOK); a group that leaves the queue pushes nothing to main, so nothing more rings.
 2. The doorbell's word reaches the port as a direct invocation and becomes one platform.deploy.queue event that wakes the
    look (http_port.queue_state); anything else is ignored.
 3. prepare: the service fetches the repository, checks that the sha is the head of main or of a merge-queue branch,
@@ -11,6 +11,7 @@
    starts after it (the reloaded one) follows the order and records nothing twice.
 Hermetic: a bare repository on disk as the remote, the log as a list.
 """
+import contextlib
 import hashlib
 import io
 import json
@@ -21,6 +22,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.error
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'infra' / 'service'))
@@ -625,84 +627,37 @@ class OnPostgres(unittest.TestCase):
 
 
 class Watch(unittest.TestCase):
-    """deploy.py queue: the merge_group job's part."""
+    """deploy.py queue: the merge_group job's part. GITHUB-HOOK: it rings `prepare` and ends; the landing is GitHub's push."""
 
-    def run_queue(self, sequence, status=202, warm_s=deploy.WARM_S):
-        rung, clock = [], [0.0]
-        heads = iter(sequence)
+    def opener(self, status=202, rung=None):
+        def opener(request, timeout=None):
+            rung.append((request.full_url, json.loads(request.data), request.get_header('Authorization')))
+            if status != 202:
+                raise urllib.error.HTTPError('u', status, 'no', {}, io.BytesIO(b'{}'))
+            return contextlib.closing(type('A', (), {'status': 202, 'read': lambda self: b'{}', 'close': lambda self: None})())
+        return opener
 
-        class Bell:
-            closed = False
+    ENV = {'TOWER_DEPLOY_DOORBELL_URL': 'https://door.example/', 'TOWER_DEPLOY_DOORBELL_TOKEN': 't'}
 
-            def send(self, word):
-                rung.append(word['event'])
-                return status
+    def test_it_rings_prepare_once_and_ends_with_no_watch(self):
+        import inspect
+        rung = []
+        code = deploy.queue('c' * 40, 'refs/heads/gh-readonly-queue/main/pr-1-x', self.ENV, opener=self.opener(rung=rung))
+        self.assertEqual((code, rung), (0, [('https://door.example/', {'event': 'prepare', 'sha': 'c' * 40}, 'Bearer t')]))
+        source = inspect.getsource(deploy.queue)
+        for gone in ('sleep', 'while', 'heads', "'landed'"):
+            self.assertNotIn(gone, source)
+        self.assertFalse(hasattr(deploy, 'Bell') or hasattr(deploy, 'WARM_S'))
+        self.assertFalse((ROOT / 'config/validation/polling/POLL-scripts-lib-deploy-py-queue.json').exists())
 
-            def close(self):
-                Bell.closed = True
-
-        def tick(seconds):
-            clock[0] += seconds
-        code = deploy.queue('c' * 40, 'refs/heads/gh-readonly-queue/main/pr-1-x', {}, bell=Bell(),
-                            heads=lambda: next(heads), clock=lambda: clock[0], sleep=tick, limit_s=60, warm_s=warm_s)
-        self.assertTrue(Bell.closed)
-        return code, rung
-
-    def test_it_rings_prepare_at_once_and_landed_when_main_is_the_commit(self):
-        ref = 'refs/heads/gh-readonly-queue/main/pr-1-x'
-        code, rung = self.run_queue([{'refs/heads/main': 'a' * 40, ref: 'c' * 40}, {},
-                                     {'refs/heads/main': 'c' * 40}])
-        self.assertEqual((code, rung), (0, ['prepare', 'landed']))
-
-    def test_it_rings_prepare_again_while_it_waits_so_the_landing_finds_everything_warm(self):
-        # QUEUE-BELL: every warm_s a prepare again (the port records it once and wakes nobody for the repeats)
-        ref = 'refs/heads/gh-readonly-queue/main/pr-1-x'
-        waiting = [{'refs/heads/main': 'a' * 40, ref: 'c' * 40}] * 41  # 41 looks 0.25 s apart: 10 s of waiting
-        code, rung = self.run_queue(waiting + [{'refs/heads/main': 'c' * 40}], warm_s=5.0)
-        self.assertEqual((code, rung), (0, ['prepare', 'prepare', 'prepare', 'landed']))
-        self.assertEqual(self.run_queue([{'refs/heads/main': 'c' * 40}], status=None)[0], 2)  # no answer: undecided
-        self.assertEqual(self.run_queue([{'refs/heads/main': 'c' * 40}], status=401)[0], 1)
-
-    def test_the_bell_keeps_one_connection_and_opens_it_again_once_when_the_server_closed_it(self):
-        import http.client
-        made, sent = [], []
-
-        class Connection:
-            def __init__(self, host, timeout=None):
-                made.append((host, timeout))
-                self.fail = len(made) == 1 and len(sent) > 0
-
-            def request(self, method, path, body=None, headers=None):
-                if getattr(self, 'drop', False):
-                    raise http.client.RemoteDisconnected('closed')
-                sent.append((method, path, json.loads(body)['event'], headers['Authorization'] == 'Bearer t'))
-
-            def getresponse(self):
-                class Answer:
-                    status = 202
-
-                    def read(self):
-                        return b''
-                return Answer()
-
-            def close(self):
-                pass
-        bell = deploy.Bell({'TOWER_DEPLOY_DOORBELL_URL': 'https://door.example/', 'TOWER_DEPLOY_DOORBELL_TOKEN': 't'},
-                           connect=Connection)
-        self.assertEqual(bell.send({'event': 'prepare', 'sha': 's'}), 202)
-        self.assertEqual(bell.send({'event': 'prepare', 'sha': 's'}), 202)
-        self.assertEqual(len(made), 1)  # one connection for both words
-        bell.connection.drop = True  # the server closed the idle connection
-        self.assertEqual(bell.send({'event': 'landed', 'sha': 's'}), 202)
-        self.assertEqual(len(made), 2)  # opened again once, the word sent again on it
-        self.assertEqual(sent, [('POST', '/', 'prepare', True), ('POST', '/', 'prepare', True), ('POST', '/', 'landed', True)])
-        self.assertEqual(made[0], ('door.example', 10.0))
+    def test_a_refused_or_unanswered_prepare_is_said_by_its_exit_code(self):
+        self.assertEqual(deploy.queue('c' * 40, 'r', self.ENV, opener=self.opener(401, [])), 1)
+        self.assertEqual(deploy.queue('c' * 40, 'r', {}), 2)  # no doorbell in the environment
 
     def test_the_push_ring_takes_a_queued_409_as_final_and_rings_once(self):
         # RING-RETRY (#41: its push ring got 409 while #40's build ran, and nobody rang again for it), then RING-QUEUE: the
         # doorbell keeps the refused ring and the running build's end starts the next build, so nobody rings twice
         import inspect
-        import urllib.error
         rung = []
 
         def answering(status, body):
@@ -718,24 +673,6 @@ class Watch(unittest.TestCase):
         self.assertEqual(rung, ['https://door'] * 3)
         self.assertFalse(hasattr(deploy, 'ring_until_free'))
         self.assertNotIn('sleep', inspect.getsource(deploy.ring))
-
-    def test_the_watch_reads_the_repository_through_the_forges_adapter(self):
-        import source_remote
-
-        class Out:
-            returncode, stdout = 0, f"{'a' * 40}\trefs/heads/main\n{'c' * 40}\trefs/heads/gh-readonly-queue/main/pr-1-x\n"
-        asked = []
-        found = source_remote.heads('https://h/o/r.git', ['refs/heads/main'], run=lambda cmd, **_: asked.append(cmd) or Out())
-        self.assertEqual(found, {'refs/heads/main': 'a' * 40, 'refs/heads/gh-readonly-queue/main/pr-1-x': 'c' * 40})
-        self.assertEqual(asked, [['git', 'ls-remote', 'https://h/o/r.git', 'refs/heads/main']])
-        self.assertEqual(source_remote.heads('u', [], run=lambda cmd, **_: type('E', (), {'returncode': 2})()), {})
-        self.assertEqual(source_remote.repo_url({'GITHUB_REPOSITORY': 'o/r'}), 'https://github.com/o/r.git')
-        self.assertEqual(source_remote.repo_url({'GITHUB_SERVER_URL': 'https://ghe', 'GITHUB_REPOSITORY': 'o/r'}),
-                         'https://ghe/o/r.git')
-
-    def test_a_group_that_leaves_the_queue_rings_nothing_more(self):
-        code, rung = self.run_queue([{'refs/heads/main': 'a' * 40}] * 200)
-        self.assertEqual((code, set(rung)), (0, {'prepare'}))  # the warm prepares, never a landing
 
 
 if __name__ == '__main__':

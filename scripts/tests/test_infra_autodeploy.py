@@ -879,6 +879,8 @@ Module.prototype.require = function (name) {
     const fs = require('fs');
     const command = (kind) => class { constructor(x) { this.kind = kind; this.x = x; } };
     return { SSMClient: class { async send(c) {
+      if (c.x.Name === '/tower/deploy/github-webhook-secret' && c.kind === 'get' && c.x.WithDecryption) {  // GITHUB-HOOK
+        fs.appendFileSync(process.env.HOOK_READS, 'read\n'); return { Parameter: { Value: process.env.HOOK_SECRET } }; }
       if (c.x.Name !== '/tower/deploy/ring-pending') { throw new Error('another parameter: ' + c.x.Name); }
       if (c.kind === 'put') { fs.writeFileSync(process.env.PENDING, c.x.Value); return {}; }
       if (!fs.existsSync(process.env.PENDING)) { const e = new Error('none'); e.name = 'ParameterNotFound'; throw e; }
@@ -899,8 +901,9 @@ Module.prototype.require = function (name) {
 const source = require('fs').readFileSync(process.argv[2], 'utf8');
 const mod = { exports: {} };
 new Function('require', 'exports', 'module', source)(require, mod.exports, mod);
-mod.exports.handler(JSON.parse(process.argv[3])).then(r => console.log(JSON.stringify(r)),
-  e => console.log(JSON.stringify({ thrown: e.message })));
+const once = () => mod.exports.handler(JSON.parse(process.argv[3]));  // TWICE: two calls in one container
+(process.env.TWICE ? once().then(first => once().then(second => [first, second])) : once()).then(
+  r => console.log(JSON.stringify(r)), e => console.log(JSON.stringify({ thrown: e.message })));
 '''
 
 
@@ -1032,6 +1035,61 @@ class DoorbellTests(unittest.TestCase):
         for body in ({'event': 'deploy', 'sha': 'a' * 40}, {'event': 'landed', 'sha': 'main'}, {'event': 'landed'}):
             answer, invoked = self.queue_call(body)
             self.assertEqual((answer['statusCode'], invoked), (400, None), body)
+
+    def hook_call(self, body, event='push', signed_with='hook-secret-of-the-test', encoded=False, twice=False, signature=None):
+        """GITHUB-HOOK (POLL-scripts-lib-deploy-py-queue): GitHub's delivery to the Function URL, signed with signed_with
+        (X-Hub-Signature-256, the raw body's HMAC-SHA256), no bearer: (answer, the port's invocation or None, secret reads)."""
+        import base64
+        import hmac
+        invoked, reads = Path(self.directory.name, 'invoked.json'), Path(self.directory.name, 'hook-reads')
+        invoked.unlink(missing_ok=True)
+        reads.unlink(missing_ok=True)
+        raw = json.dumps(body).encode()
+        mac = 'sha256=' + hmac.new(signed_with.encode(), raw, 'sha256').hexdigest()
+        env = {**os.environ, 'PROJECT': 'p', 'TOKEN_SHA256': '0' * 63 + '1', 'PORT': 'tower-port-api:live',
+               'INVOKED': str(invoked), 'HOOK_READS': str(reads), 'HOOK_SECRET': 'hook-secret-of-the-test',
+               'BUILT': str(self.built), 'PENDING': str(self.pending), **({'TWICE': '1'} if twice else {})}
+        request = {'requestContext': {'http': {'method': 'POST'}},
+                   'headers': {'x-github-event': event, 'x-hub-signature-256': mac if signature is None else signature,
+                               'content-type': 'application/json'},
+                   'body': base64.b64encode(raw).decode() if encoded else raw.decode(), 'isBase64Encoded': encoded}
+        done = subprocess.run([self.node, str(self.harness), str(self.code), json.dumps(request)], capture_output=True,
+                              text=True, env=env, timeout=30, check=True)
+        return (json.loads(done.stdout), json.loads(invoked.read_text()) if invoked.exists() else None,
+                len(reads.read_text().splitlines()) if reads.exists() else 0)
+
+    def test_a_signed_push_to_main_is_the_queues_landed_with_no_token_and_no_build(self):
+        sha = 'b' * 40
+        for encoded in (False, True):
+            answer, invoked, reads = self.hook_call({'ref': 'refs/heads/main', 'after': sha, 'deleted': False}, encoded=encoded)
+            self.assertEqual((answer['statusCode'], json.loads(answer['body'])), (202, {'queue': 'landed', 'sha': sha}))
+            self.assertEqual(invoked, {'name': 'tower-port-api:live', 'payload': {
+                'source': 'tower.doorbell', 'detail-type': 'Merge Queue', 'detail': {'event': 'landed', 'sha': sha}}})
+            self.assertEqual(reads, 1)
+        self.assertFalse(self.built.exists())
+
+    def test_the_hook_secret_is_read_once_per_container(self):
+        answers, _, reads = self.hook_call({'ref': 'refs/heads/main', 'after': 'b' * 40, 'deleted': False}, twice=True)
+        self.assertEqual([each['statusCode'] for each in answers], [202, 202])
+        self.assertEqual(reads, 1)
+
+    def test_a_wrong_or_malformed_signature_is_401_and_invokes_nothing(self):
+        body = {'ref': 'refs/heads/main', 'after': 'b' * 40, 'deleted': False}
+        for kind in ({'signed_with': 'another-secret'}, {'signature': ''}, {'signature': 'sha256=' + 'b' * 64},
+                     {'signature': 'sha1=nope'}):
+            answer, invoked, _ = self.hook_call(body, **kind)
+            self.assertEqual((answer['statusCode'], invoked), (401, None), kind)
+        self.assertFalse(self.built.exists())
+
+    def test_anything_else_signed_is_a_204_that_invokes_nothing(self):
+        sha = 'b' * 40
+        for body, event in (({'zen': 'hi', 'hook_id': 713861741}, 'ping'),
+                            ({'ref': 'refs/heads/gh-readonly-queue/main/pr-1-x', 'after': sha, 'deleted': False}, 'push'),
+                            ({'ref': 'refs/heads/main', 'after': '0' * 40, 'deleted': True}, 'push'),
+                            ({'ref': 'refs/heads/main', 'after': sha, 'deleted': False}, 'pull_request')):
+            answer, invoked, _ = self.hook_call(body, event=event)
+            self.assertEqual((answer, invoked), ({'statusCode': 204}, None), (body, event))
+        self.assertFalse(self.built.exists())
 
 
 if __name__ == '__main__':
