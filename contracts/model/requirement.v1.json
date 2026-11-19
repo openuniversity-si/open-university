@@ -79,6 +79,16 @@
         "validation"
       ],
       "description": "How the requirement is verified: by a test (the default), or, for a runtime property no unit test proves (a duration, a rate, the absence of polling), by its own validation met in use (PADRAO-DEV F8a, as F5 planned)."
+    },
+    "implemented_by": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^CHG-([0-9]+|initial)$"
+      },
+      "description": "D-332: the merged changes that implement the requirement when no commit's Implements: trailer names it (history the trailer rule of D-317 did not reach); CHG-initial is the initial public tree. The model reads each as an implements link from that change, which must exist and be merged."
     }
   }
 }
