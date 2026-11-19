@@ -359,9 +359,10 @@ Daniel mandou não esperar as 48 h nem os 30 dias. Pela Torre:
   20:57 BRT, depois que a listagem do S3 bateu (SHA-256 `f9eaf5c8…e581f`) e a única chave que faltava foi copiada.
   Às 21:01 BRT, com o ok de Daniel, `the-tower-fidelity` (1.178 objetos, máscaras da era Origin) foi apagado sem cópia
   (job `8f37a878-593c-470b-9219-d3ca012ea9f8`). O R2 está vazio (GET /r2/buckets: lista vazia).
-- **Não revogados:** os tokens `open-university-ci-ro`, `tower-ro`, `tower-rw` e `Editar Cloudflare Workers`. O conector
-  da Torre não tem permissão de API Tokens (403), então isso pede o login de Daniel no painel. As zonas ficam até o fim da
-  propagação dos NS.
+- **Tokens revogados:** o conector da Torre não tinha permissão de API Tokens (403), e os quatro tokens
+  (`Editar Cloudflare Workers`, de usuário, e `open-university-ci-ro`, `tower-ro` e `tower-rw`, da conta) foram apagados
+  no painel às 20:42–20:45 BRT; as duas listas ficaram vazias (a Torre, 18/11 22:29 BRT). Nenhuma cópia armazenada
+  restou para um teste em `/user/tokens/verify`. As zonas ficam até o fim da propagação dos NS.
 - **O risco que nasce:** sem o R2, a mídia tem uma cópia só, numa conta e numa região. O versionamento cobre apagar ou
   sobrescrever, mas não uma conta comprometida. `RISK-media-single-account` registra isso. O tratamento é replicar para
   outra região (menos de um dólar por mês) e espera o ok de Daniel, porque é gasto.
