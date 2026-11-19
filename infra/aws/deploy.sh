@@ -61,6 +61,11 @@ if [[ -z "${DEPLOY_ROLLOUT_WAIT:-}" && "${ORIGIN_REPO_URL:-}" == https://github.
 fi
 
 repo="${DEPLOY_REPO:-repo}"
+# MEDIA-REPLICA (RISK-media-single-account, 19/11): a stack named in infra/aws/regions.json (name -> region) lives in that
+# region, and every CloudFormation call of the apply, the wait, the events and the rollback says so for it (--region;
+# deploy_stacks fills this); every other stack is in the build's own region, as before. The service and runner stacks'
+# own readers (prev_params, code_live_stacks, port_fast_owned) name no region: those ECS stacks are never moved
+declare -A at_region=()
 tail_chars="${DEPLOY_TAIL_CHARS:-1500}"
 max_bytes="${DEPLOY_RECORD_MAX_BYTES:-3900}"
 (( max_bytes > 4000 )) && max_bytes=4000  # DEP-WATCHDOG: last-build is ALWAYS <= 4000 bytes (SSM Standard refuses > 4096)
@@ -353,6 +358,8 @@ stack_hash() {
     # PARAMS-IN-HASH (#220, 18/11): the stack's values in infra/aws/parameters.json are part of what it is applied with,
     # so a change there alone (media's Cdn off -> on) deploys the stack instead of skipping it as unchanged
     jq -cS --arg n "$1" '.[$n] // empty' "$repo/infra/aws/parameters.json" 2>/dev/null
+    # MEDIA-REPLICA: and its region, when regions.json names one (nothing for the others, whose hashes stay as they were)
+    [[ -n "${at_region[$1]:-}" ]] && printf 'Region=%s' "${at_region[$1]}"
     [[ ($1 = service || $1 = runner) && -s "$work/livecode" ]] && printf 'LiveCode=%s' "$(<"$work/livecode")"; } | sha256sum | cut -c1-20
 }
 
@@ -765,7 +772,7 @@ failed_events() {
   local since_iso; since_iso="$(date -u -d "@$2" +%Y-%m-%dT%H:%M:%S 2>/dev/null || echo 0000)"
   echo "failed events of tower-app-$1 (since $since_iso):"
   grep -E 'An error occurred|^(Error|Failed)|botocore|ValidationError' "$work/res/$1.log" 2>/dev/null | head -n 5 | cut -c1-400 | redact | sed 's/^/cli: /'
-  aws cloudformation describe-stack-events --stack-name "tower-app-$1" --output text \
+  aws cloudformation describe-stack-events ${at_region[$1]:+--region "${at_region[$1]}"} --stack-name "tower-app-$1" --output text \
     --query 'StackEvents[].[Timestamp,LogicalResourceId,ResourceStatus,ResourceStatusReason]' 2>&1 \
     | awk -F'\t' -v since="$since_iso" '$1 >= since' | grep '_FAILED' | head -n 12 | cut -c1-400 | redact
   echo
@@ -776,7 +783,7 @@ failed_events() {
 # One JSON object {"<LogicalId>": seconds, ..., "cleanup": seconds}; nothing when the events cannot be read (the deployer already
 # reads them: failed_events, port_fast_owned). Live 11/11: the port stack took 222 s for one property of its integration.
 slow_parts() {
-  aws cloudformation describe-stack-events --stack-name "tower-app-$1" --max-items 300 --output json \
+  aws cloudformation describe-stack-events ${at_region[$1]:+--region "${at_region[$1]}"} --stack-name "tower-app-$1" --max-items 300 --output json \
     --query 'StackEvents[].[Timestamp,LogicalResourceId,ResourceStatus]' 2>/dev/null \
     | jq -c --argjson t0 "$2" --arg stack "tower-app-$1" '
         [.[] | {at: (.[0] | sub("\\.[0-9]+"; "") | sub("\\+00:00$"; "Z") | fromdateiso8601), id: .[1], st: .[2]} | select(.at >= $t0 - 2)] as $e
@@ -791,7 +798,7 @@ slow_parts() {
 # (res/<n>.roll, the end in .rollend); nothing when the event cannot be read.
 rolled_out() {
   local end
-  end="$(aws cloudformation describe-stack-events --stack-name "tower-app-$1" --max-items 1 --query 'StackEvents[0].Timestamp' --output text 2>/dev/null | head -n 1)"
+  end="$(aws cloudformation describe-stack-events ${at_region[$1]:+--region "${at_region[$1]}"} --stack-name "tower-app-$1" --max-items 1 --query 'StackEvents[0].Timestamp' --output text 2>/dev/null | head -n 1)"
   end="$(date -u -d "$end" +%s 2>/dev/null)" || return 0
   (( end >= $2 )) || return 0
   echo "$(( end - $2 ))" >"$work/res/$1.roll"; echo "$end" >"$work/res/$1.rollend"
@@ -848,6 +855,10 @@ deploy_stacks() {
     state[$name]=pending
     names+=("$name")
   done
+  at_region=()  # MEDIA-REPLICA: the regions of this tree's stacks, read once (one jq, DEPLOY-FEWER-FORKS)
+  while read -r n d; do [[ -n "$d" && -n "${tpl[$n]:-}" ]] && at_region[$n]="$d"; done \
+    < <(jq -r 'to_entries[] | select(.value | test("^[a-z]{2}(-gov)?-[a-z]+-[0-9]$")) | "\(.key) \(.value)"' \
+          "$repo/infra/aws/regions.json" 2>/dev/null)
   # DEP7: the targeted stacks, and every stack that needs one of them (order.json), are the ones to deploy
   if [[ "$(slurp "$work/targets" || echo all)" = all ]]; then for n in "${names[@]}"; do want[$n]=1; done
   else for n in $(<"$work/targets"); do want[$n]=1; done
@@ -942,7 +953,7 @@ deploy_stacks() {
       # STACK-COMMIT-OFF-TAGS: the stack's status alone. Its commit tag is gone: a stack tag is copied to every resource that
       # takes tags, and one that changed at every apply made every apply update them all (the port stack, 11/11: 122 of its
       # 183 s on its two queues, 61 s each, one after the other; then its roles and the queue's mapping)
-      read -r status _ <<<"$(aws cloudformation describe-stacks --stack-name "tower-app-$n" \
+      read -r status _ <<<"$(aws cloudformation describe-stacks ${at_region[$n]:+--region "${at_region[$n]}"} --stack-name "tower-app-$n" \
         --query 'Stacks[0].StackStatus' --output text 2>/dev/null)"
       # SLOW-PATH-NO-ROLLOUT-WAIT: a stack in an operation (a rollout an earlier build started, and this build came before its end)
       # is waited, off the scheduler: a job polls its status, and the stack is looked at again when it ended. A status that
@@ -967,7 +978,7 @@ deploy_stacks() {
         state[$n]=waiting; running=$((running + 1)); changed=1
         step_begin "wait:$n"
         echo "$(TZ=UTC printf '%(%T)T' -1) wait  tower-app-$n: ${status:-status unreadable}, an operation an earlier build started: this build waits for its end${settle:+ or the up of its new task}"
-        ( while read -r status _ <<<"$(aws cloudformation describe-stacks --stack-name "tower-app-$n" --query 'Stacks[0].StackStatus' --output text 2>/dev/null)"
+        ( while read -r status _ <<<"$(aws cloudformation describe-stacks ${at_region[$n]:+--region "${at_region[$n]}"} --stack-name "tower-app-$n" --query 'Stacks[0].StackStatus' --output text 2>/dev/null)"
                 [[ -z "$status" || "$status" == *_IN_PROGRESS ]]; do
             if [[ -n "$settle" && "$status" == *_IN_PROGRESS ]] && up_seen "$n" "${rolled[$n]%% *}" "${rolled_img[$n]}" >"$work/res/$n.up.tmp" \
                 && [[ -s "$work/res/$n.up.tmp" ]]; then
@@ -1038,7 +1049,7 @@ deploy_stacks() {
         if (( ${#file_params[@]} )); then
           if (( ${#overrides[@]} )); then overrides+=("${file_params[@]}"); else overrides=(--parameter-overrides "${file_params[@]}"); fi
         fi
-        aws cloudformation deploy --stack-name "tower-app-$n" --template-file "${tpl[$n]}" --role-arn "$CFN_EXEC_ROLE_ARN" \
+        aws cloudformation deploy ${at_region[$n]:+--region "${at_region[$n]}"} --stack-name "tower-app-$n" --template-file "${tpl[$n]}" --role-arn "$CFN_EXEC_ROLE_ARN" \
           --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset ${det:+--no-execute-changeset} ${overrides[@]+"${overrides[@]}"} --tags project=tower 2>&1 \
           | tee "$work/res/$n.log" | sed -u "s/^/[$n] /"
         code="${PIPESTATUS[0]}"
@@ -1047,7 +1058,7 @@ deploy_stacks() {
         if [[ $code = 0 && -n "$det" ]] && ! grep -q 'No changes to deploy' "$work/res/$n.log"; then
           arn="$(grep -o 'arn:aws[^ ]*:cloudformation:[^ ]*:changeSet/[^ ]*' "$work/res/$n.log" | tail -n 1)"
           if [[ -z "$arn" ]]; then echo "[$n] no change set to execute in the output of the deploy"; code=1
-          else aws cloudformation execute-change-set --change-set-name "$arn" 2>&1 | tee -a "$work/res/$n.log" | sed -u "s/^/[$n] /"; code="${PIPESTATUS[0]}"; fi
+          else aws cloudformation execute-change-set ${at_region[$n]:+--region "${at_region[$n]}"} --change-set-name "$arn" 2>&1 | tee -a "$work/res/$n.log" | sed -u "s/^/[$n] /"; code="${PIPESTATUS[0]}"; fi
           [[ $code = 0 ]] && echo "$EPOCHSECONDS $hash" >"$work/res/$n.rolling"
         fi
         # a failed stack: its FAILED events (ResourceStatusReason) go to the build log, so GET /v1/deploy/status shows why
@@ -1176,12 +1187,12 @@ rollback() {
     if [[ -z "$file" ]] || ! git -C "$repo" cat-file -e "$last:$file" 2>/dev/null; then echo "rollback: tower-app-$n has no template at $last, left as it is"; continue; fi
     git -C "$repo" show "$last:$file" >"$work/rollback-$n.json"
     # VERIFY-AT-UP: a stack this build settled at its new task's up may still be in its operation: its end first
-    while read -r status _ <<<"$(aws cloudformation describe-stacks --stack-name "tower-app-$n" --query 'Stacks[0].StackStatus' --output text 2>/dev/null)"
+    while read -r status _ <<<"$(aws cloudformation describe-stacks ${at_region[$n]:+--region "${at_region[$n]}"} --stack-name "tower-app-$n" --query 'Stacks[0].StackStatus' --output text 2>/dev/null)"
           [[ "$status" == *_IN_PROGRESS ]]; do sleep "${DEPLOY_ROLL_POLL_S:-5}"; done
     back=()  # LIVECODE-NOT-REFUSED: the parameters the stack had before the deploy that is undone (prev_params)
     [[ -f "$work/prev_param.$n" ]] && mapfile -t back <"$work/prev_param.$n" && back=(--parameter-overrides "${back[@]}")
     echo "rollback: tower-app-$n to $last${back[1]:+ (${back[1]:0:21})}"
-    if aws cloudformation deploy --stack-name "tower-app-$n" --template-file "$work/rollback-$n.json" --role-arn "$CFN_EXEC_ROLE_ARN" \
+    if aws cloudformation deploy ${at_region[$n]:+--region "${at_region[$n]}"} --stack-name "tower-app-$n" --template-file "$work/rollback-$n.json" --role-arn "$CFN_EXEC_ROLE_ARN" \
         --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset ${back[@]+"${back[@]}"} --tags project=tower 2>&1 | sed -u "s/^/[rollback $n] /"; [[ "${PIPESTATUS[0]}" = 0 ]]; then
       echo "tower-app-$n" >>"$work/rolled"
     else
