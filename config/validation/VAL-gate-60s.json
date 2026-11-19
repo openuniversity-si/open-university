@@ -1,6 +1,6 @@
 {
   "id": "VAL-gate-60s",
-  "statement": "The tower/gate check finishes within 60 s at the 99th percentile of its last completed runs on GitHub Actions (the median under it).",
+  "statement": "Every one of the tower/gate check's last completed runs on GitHub Actions finishes within 60 s (D-337: the whole sample, its maximum; the median and the 99th percentile only report).",
   "validates": [
     "REQ-gate-60s"
   ],
@@ -8,7 +8,7 @@
   "measure": {
     "kind": "run-durations",
     "workflow": "tower-gate",
-    "percentile": 99,
+    "percentile": 100,
     "min_runs": 20,
     "max_age_days": 7
   },

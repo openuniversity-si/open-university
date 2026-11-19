@@ -52,9 +52,10 @@ class Measure(unittest.TestCase):
         self.body['measure']['min_runs'] = len('abcd')
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-18')[1], False)
 
-    def test_val_deploy_1s_reads_the_median_of_the_landing_to_live_snapshot(self):
+    def test_val_deploy_1s_reads_the_slowest_landing_to_live_of_the_snapshot(self):
         # REQ-deploy-1s counts a code-only merge's landing to live (QUEUE-RELOAD), the snapshot scripts/deploy status
-        # records (deploy.record_live), not the builds' seconds (deploy.json): the same reader as the gate's, at its median
+        # records (deploy.record_live), not the builds' seconds (deploy.json): the same reader as the gate's, on the whole
+        # sample, its maximum (D-337)
         body = json.loads((ROOT / 'config/validation/VAL-deploy-1s.json').read_text())
         self.assertEqual(body['measure']['workflow'], 'deploy-live')
         builds = [{'id': f'm{i}', 'event': 'swap', 'conclusion': 'success', 'started': '2026-11-19T01:00:00Z',
@@ -64,9 +65,10 @@ class Measure(unittest.TestCase):
         slow = [dict(builds[0], seconds=sum(run['seconds'] for run in builds))]  # a build's seconds: not what it reads
         (self.root / runs.FOLDER / 'deploy.json').write_text(json.dumps({'workflow': 'deploy', 'at': '2026-11-19T02:00:00Z',
                                                                          'runs': slow}))
-        self.assertEqual(model.measured(body, {}, self.root, '2026-11-19'), (17, False))  # fewer than min_runs: measuring
+        slowest = max(run['seconds'] for run in builds)
+        self.assertEqual(model.measured(body, {}, self.root, '2026-11-19'), (slowest, False))  # fewer than min_runs
         body['measure']['min_runs'] = len(builds)
-        self.assertEqual(model.measured(body, {}, self.root, '2026-11-19'), (17, True))
+        self.assertEqual(model.measured(body, {}, self.root, '2026-11-19'), (slowest, True))
         self.assertEqual(model.measured(body, {}, self.root, '2026-11-30')[1], False)
 
     def test_no_snapshot_is_no_source(self):

@@ -1,7 +1,7 @@
 {
   "id": "REQ-escape-under-1",
   "type": "quality",
-  "statement": "Fewer than 1 % of the merged PRs over a window of at least 1,000 bring to main a defect found after the merge.",
+  "statement": "None of the merged PRs over a window of at least 1,000 brings to main a defect found after the merge (D-337: the whole; it was fewer than 1 %).",
   "state": "approved",
   "owner": "Daniel",
   "derives_from": [

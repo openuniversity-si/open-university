@@ -1,6 +1,6 @@
 {
   "id": "VAL-escape-under-1",
-  "statement": "Fewer than 1 % of the last 1,000 merged changes let through an escape: a defect a later PR repaired (its commits carry Fixes-PR: naming the change).",
+  "statement": "None of the last 1,000 merged changes lets through an escape: a defect a later PR repaired (its commits carry Fixes-PR: naming the change). D-337 sets the whole as the target; it was under 1 %, and the id keeps its old name.",
   "validates": [
     "REQ-escape-under-1",
     "NEED-quality"
@@ -10,7 +10,7 @@
     "kind": "escape-rate"
   },
   "comparator": "lte",
-  "threshold": 0.01,
+  "threshold": 0,
   "window": {
     "kind": "merges",
     "size": 1000
