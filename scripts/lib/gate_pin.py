@@ -410,7 +410,9 @@ def overlay(tree, base):
     base's when it runs from the base) that the change base..HEAD touches, and of each registry owner whose key the
     closure reads that the change alters (registry_pins), and remove one the change added; only the
     working tree changes (HEAD and the index stay the head's), so the stages run there judge the head's commits and diff
-    with the base's gate. GATE_FILE stays the files whose change asks a decision. Returns the files pinned."""
+    with the base's gate. GATE_FILE stays the files whose change asks a decision. The change store's directory (.tower/,
+    config.store_dir) is then deleted whole, tracked or not (remove_store): the base's config layer would read it as
+    overrides of the gate's keys (D-335). Returns the files pinned and the store files removed."""
     names = git(tree, 'diff', '--name-only', '--no-renames', base, 'HEAD') or ''
     touched = names.splitlines()
     keys = {}
@@ -422,7 +424,22 @@ def overlay(tree, base):
             (Path(tree) / name).unlink(missing_ok=True)
         else:
             git(tree, 'restore', f'--source={base}', '--worktree', '--', name)
-    return pinned
+    return pinned + [name for name in remove_store(tree) if name not in pinned]
+
+
+def remove_store(tree):
+    """D-335: delete the change store's top directory (the first part of config.store_dir) from the checkout tree, a
+    file or link of that name too; the pinned job's checkout is the head's, so whatever it holds came from the head.
+    Returns the paths removed, relative to the tree."""
+    top = Path(tree) / Path(config.entry('config.store_dir')['default']).parts[0]
+    if top.is_symlink() or top.is_file():
+        top.unlink()
+        return [top.name]
+    if not top.is_dir():
+        return []
+    removed = sorted(str(path.relative_to(tree)) for path in top.rglob('*') if not path.is_dir())
+    shutil.rmtree(top)
+    return removed
 
 
 def clean_at(root, sha):
