@@ -48,7 +48,8 @@ SHA = re.compile(r'[0-9a-f]{40}')
 # its GitHub entry point (scripts/verify-commit, scripts/lib/verify_commit.py) are the gate too: a change to a key such
 # as gate.allowed_workflows or to the verifier the merge queue's check runs asks a decision like a change to a stage.
 GATE_FILE = re.compile(r'^(scripts/(gate-[^/]+|lib/gate[^/]*|structure-check|lib/structure\.py|commit-check|lib/commit_check\.py'
-                       r'|verify-commit|lib/verify_commit\.py)|config/registry/gate/[^/]+\.json|config/registry/gate\.json)$')
+                       r'|verify-commit|lib/verify_commit\.py|lib/regime\.py)'
+                       r'|config/registry/(gate[^/]*|regime)/[^/]+\.json|config/registry/(gate[^/]*|regime)\.json)$')
 REF = re.compile(r'(?!-)[A-Za-z0-9._/-]+')
 CONSUMER = 'scripts/lib/gate_pin.py'  # this module's demand on the forge port (operation_demands.json)
 PRODUCER = 'gate-pin'
