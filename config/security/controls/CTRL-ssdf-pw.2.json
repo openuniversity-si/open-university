@@ -4,5 +4,11 @@
   "control": "PW.2",
   "title": "Review the software design to verify compliance with security requirements and risk information",
   "applicable": true,
-  "reason": "No design review against security requirements is recorded."
+  "reason": "The design of the gate, the deploy and the site is checked against the security requirements and risks in their threat models, and a model turns suspect when its element changes, which is the automated half of PW.2.1. Partial: the models were written by the session that designs the elements and are not yet reviewed by anyone else (no review step, D-055), so they stay written until a review date is recorded.",
+  "implemented_by": [
+    "THREAT-gate",
+    "THREAT-deploy",
+    "THREAT-web"
+  ],
+  "coverage": "partial"
 }

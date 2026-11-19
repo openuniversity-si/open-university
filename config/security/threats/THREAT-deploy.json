@@ -1,0 +1,73 @@
+{
+  "id": "THREAT-deploy",
+  "models": "ARC-deploy",
+  "assets": [
+    "the AWS account and its stacks (infra/aws/stacks)",
+    "the database tower-data (DATA-tower-data)",
+    "the media bucket and its replica (DATA-r2-media)",
+    "the doorbell's bearer token and the service's tokens"
+  ],
+  "boundaries": [
+    "GitHub Actions (the doorbell workflow) and the AWS deploy it rings",
+    "the internet and the service's HTTP port",
+    "a cloud session and production"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "Someone rings the doorbell or calls the service's port without being the merge's workflow or a known tenant.",
+      "mitigated_by": [
+        "TEST:scripts/tests/infra-port.test.sh",
+        "TEST:scripts/tests/deploy.test.sh",
+        "STD-service-credentials-refused-sentence"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A deploy runs code that is not main's merged commit, or a session changes production by hand.",
+      "mitigated_by": [
+        "D-054",
+        "STD-gate-production-guard",
+        "STD-production-guard-refusal",
+        "TEST:scripts/tests/production-guard.test.sh",
+        "CTRL-ssdf-ps.2"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "A deploy or a production change cannot be traced to the merge that rang it.",
+      "mitigated_by": [
+        "CHK-tower-gate",
+        "TEST:scripts/tests/deploy.test.sh"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "A production credential or database URL leaks to a cloud session, a log or the repository.",
+      "mitigated_by": [
+        "CTRL-ssdf-po.5",
+        "STD-gate-secret-scan-tree",
+        "STD-gate-secret-scan-history"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A deletion, a provider failure or a regional loss takes the database or the media. Residual: a compromised or closed account loses both copies (RISK-media-single-account).",
+      "mitigated_by": [
+        "infra/aws/stacks/20-data.json",
+        "infra/aws/stacks/58-media-replica.json",
+        "DATA-tower-data",
+        "DATA-r2-media",
+        "RISK-media-single-account"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "The doorbell's token, held in GitHub's secrets, or a deploy role reaches more than ringing the deploy. Residual: no test bounds the IAM policies of the stacks; their scope is read only in review of the templates.",
+      "mitigated_by": [
+        "D-087",
+        "TEST:scripts/tests/queue-checks.test.sh"
+      ]
+    }
+  ]
+}

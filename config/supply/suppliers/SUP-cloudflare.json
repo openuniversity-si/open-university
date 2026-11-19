@@ -1,8 +1,8 @@
 {
   "id": "SUP-cloudflare",
   "name": "Cloudflare",
-  "state": "active",
+  "state": "retired",
   "owner": "Daniel",
   "kind": "account",
-  "note": "The DNS, the domains and the control plane's Worker."
+  "note": "Retired on 2026-11-18 (D-323): the control plane's Worker was retired, the R2 buckets were emptied and deleted (20:57 and 21:01 BRT, R2 empty), the four API tokens were revoked (20:42-20:45 BRT), the DNS moved to Route 53 (infra/aws/stacks/70-dns.json) and the mail to SES (infra/aws/stacks/65-mail.json); the zones stay only until the NS change propagates, then are deleted. Record: docs/programs/padrao-dev/fornecimento-cloudflare.md."
 }

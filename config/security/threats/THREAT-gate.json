@@ -1,0 +1,83 @@
+{
+  "id": "THREAT-gate",
+  "models": "ARC-gate",
+  "assets": [
+    "the tower/gate verdict on a commit, the only proof the merge queue takes",
+    "main's history (DATA-repository)",
+    "the gate's rules, scripts and workflows"
+  ],
+  "boundaries": [
+    "a pull request's code (a session's, or a fork's) and the GitHub-hosted runner that judges it",
+    "the pull request run and the merge queue run that reuses its tests' verdict",
+    "the staged workflows of this tree and the ones the owner installs in .github/workflows"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "A run that did not judge the commit, such as a fork's run or a run of another head, passes its green verdict off as the queue commit's.",
+      "mitigated_by": [
+        "TEST:scripts/tests/verify-commit.test.sh",
+        "REQ-github-truth"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A pull request edits the gate itself (its scripts, its rules or a workflow) so that its own change passes.",
+      "mitigated_by": [
+        "D-087",
+        "STD-gate-workflows-refused",
+        "TEST:scripts/tests/queue-checks.test.sh",
+        "STD-gate-structure-check"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A dependency or tool the gate runs is swapped for a malicious version between two runs.",
+      "mitigated_by": [
+        "CTRL-ssdf-po.3",
+        "CTRL-ssdf-pw.4",
+        "STD-env-manifest-toolchain-errors",
+        "TEST:scripts/tests/supply.test.sh"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A pushed history is rewritten so that what merged is not what was judged.",
+      "mitigated_by": [
+        "CTRL-ssdf-ps.1",
+        "STD-commit-check-force-push-errors"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "A merge cannot be traced to the verdict and the commit that justified it.",
+      "mitigated_by": [
+        "CHK-tower-gate",
+        "CTRL-ssdf-ps.2"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "A secret committed in a change reaches the public repository and its history.",
+      "mitigated_by": [
+        "STD-gate-secret-scan-tree",
+        "STD-gate-secret-scan-history"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A change floods the queue or hangs the gate, so no other change lands.",
+      "mitigated_by": [
+        "REQ-gate-60s"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "The ruleset requires no approving review (D-055), so any account that may push a branch and enqueue it lands whatever passes the gate's checks; the checks, not a person, are the whole barrier. Residual: a change that is malicious but passes every rule is not caught.",
+      "mitigated_by": [
+        "CTRL-ssdf-ps.1",
+        "D-054"
+      ]
+    }
+  ]
+}

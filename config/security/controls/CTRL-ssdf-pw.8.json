@@ -4,5 +4,9 @@
   "control": "PW.8",
   "title": "Test executable code to identify vulnerabilities",
   "applicable": true,
-  "reason": "No dynamic security test or fuzzing runs."
+  "reason": "Executable code is tested for vulnerabilities on every pull request by the required web check, whose integration suite (pnpm test:int, on real PostgreSQL) runs the site's handlers against hostile inputs: external callback destinations and cross-origin sign-out refused with 403 (apps/web/test/int/auth.int.test.ts), admin routes answering 401 without or with a wrong Bearer and 429 over the limit (catalog-admin-routes.int.test.ts, admin-rate-limit.int.test.ts). The scope (PW.8.1) is the site's authentication, authorization and rate limits, its only surface open to the internet; the engine has no public endpoint since the control plane left (D-323). No fuzzing or scanner runs.",
+  "implemented_by": [
+    "CHK-web"
+  ],
+  "coverage": "full"
 }
