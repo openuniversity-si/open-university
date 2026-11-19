@@ -1,7 +1,9 @@
 {
   "id": "the-tower",
   "provider": "claude-code",
-  "variables": {},
+  "variables": {
+    "OU_CREDENTIALS": "network"
+  },
   "secrets": [
     {
       "name": "TOWER_PORT_TOKEN",

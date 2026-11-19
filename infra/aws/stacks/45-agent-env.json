@@ -121,7 +121,7 @@
           "Variables": {
             "ENV_ID": "the-tower",
             "PREFIX": "/tower/agent-env/the-tower/",
-            "VARIABLES": "{}",
+            "VARIABLES": "{\"OU_CREDENTIALS\": \"network\"}",
             "SECRETS": "{\"port-token\": \"TOWER_PORT_TOKEN\"}",
             "DENIED": "[\"*DATABASE_URL*\", \"R2_*\", \"AUTH_*\", \"OU_GOOGLE_*\", \"MUX_*\", \"FIGMA_*\", \"*BLOB*\"]"
           }
