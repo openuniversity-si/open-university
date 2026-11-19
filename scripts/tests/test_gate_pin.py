@@ -325,6 +325,58 @@ class Overlay(Fixture):
         self.assertEqual((self.repo / "scripts/lib/other.py").read_text(), "VALUE = 'head'\n")
         self.assertTrue((self.repo / "scripts/lib/new_tool.py").exists())
 
+    def stage_base(self):
+        """A base whose scripts/gate-check stages run top-level scripts by path: "$root/scripts/generate" (which runs
+        "$(dirname "$0")/lib/gen.py", a renderer importer and an optional import) and a Python stage that runs
+        ROOT / 'scripts' / 'budgets'; scripts/other-tool is run by no stage."""
+        git(self.repo, "checkout", "-q", self.base)
+        return self.commit({
+            "scripts/gate-check": "#!/usr/bin/env bash\ncase \"$name\" in\n"
+                                  "  \"generated drift\") \"$root/scripts/generate\" --check ;;\n"
+                                  "  \"budgets\") \"$py\" \"$root/scripts/lib/stage_py.py\" ;;\nesac\n",
+            "scripts/generate": "#!/usr/bin/env bash\nexec python3 \"$(dirname \"$0\")/lib/gen.py\" \"$@\"\n",
+            "scripts/lib/gen.py": "import importlib\ntry:\n    import gen_extra\nexcept ImportError:\n    gen_extra = None\n"
+                                  "def renderer(name):\n    return importlib.import_module('render_' + name)\n",
+            "scripts/lib/render_registry.py": "VALUE = 'base'\n",
+            "scripts/lib/stage_py.py": "import subprocess\nfrom pathlib import Path\nROOT = Path('.')\n"
+                                       "subprocess.run([str(ROOT / 'scripts' / 'budgets'), 'check'])\n",
+            "scripts/budgets": "#!/usr/bin/env bash\necho base\n",
+            "scripts/other-tool": "#!/usr/bin/env bash\necho base\n",
+        }, "base with stage scripts")
+
+    def test_a_top_level_script_a_stage_runs_is_the_bases(self):
+        """OVERLAY-STAGE-SCRIPTS (D-335): a top-level script a stage command of the base's scripts/gate-check runs, the
+        scripts/lib file it runs, a renderer it imports by a built name and a script a Python stage runs by a joined path
+        are the base's after the overlay, though GATE_FILE names none of them."""
+        base = self.stage_base()
+        changed = {"scripts/generate": "#!/usr/bin/env bash\nexit 0\n", "scripts/lib/gen.py": "raise SystemExit(0)\n",
+                   "scripts/lib/render_registry.py": "VALUE = 'head'\n", "scripts/budgets": "#!/usr/bin/env bash\nexit 0\n"}
+        self.commit(changed, "head edits the stage scripts")
+        self.assertEqual(sorted(gate_pin.overlay(self.repo, base)), sorted(changed))
+        self.assertEqual((self.repo / "scripts/generate").read_text(),
+                         "#!/usr/bin/env bash\nexec python3 \"$(dirname \"$0\")/lib/gen.py\" \"$@\"\n")
+        self.assertEqual((self.repo / "scripts/budgets").read_text(), "#!/usr/bin/env bash\necho base\n")
+        self.assertEqual((self.repo / "scripts/lib/render_registry.py").read_text(), "VALUE = 'base'\n")
+        for name in changed:
+            self.assertFalse(gate_pin.GATE_FILE.match(name), name)  # no decision asked of a stage's helper
+
+    def test_a_module_the_change_adds_where_a_stage_script_imports_is_removed(self):
+        """A module the change adds that a stage's script would import (an optional import, a renderer its built name
+        reaches) is gone after the overlay."""
+        base = self.stage_base()
+        added = ("scripts/lib/gen_extra.py", "scripts/lib/render_new.py")
+        self.commit({name: "raise SystemExit(0)\n" for name in added}, "head adds modules")
+        self.assertEqual(sorted(gate_pin.overlay(self.repo, base)), sorted(added))
+        for name in added:
+            self.assertFalse((self.repo / name).exists(), name)
+
+    def test_a_script_no_stage_runs_is_the_heads(self):
+        base = self.stage_base()
+        self.commit({"scripts/other-tool": "#!/usr/bin/env bash\necho head\n", "scripts/lib/rendering.py": "x = 1\n"},
+                    "head")
+        self.assertEqual(gate_pin.overlay(self.repo, base), [])
+        self.assertEqual((self.repo / "scripts/other-tool").read_text(), "#!/usr/bin/env bash\necho head\n")
+
     def test_the_toolchain_the_job_runs_after_the_overlay_is_the_bases(self):
         """D-335: setup.sh, env.sh, the scripts/cloud helpers they run and what those import, the toolchain and cloud
         registry and a tracked .toolchain file are the base's after the overlay, so the job's toolchain step and its
