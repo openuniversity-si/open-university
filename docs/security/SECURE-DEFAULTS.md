@@ -55,12 +55,13 @@ breaks the test named next to it.
 
 ## Gaps (not secure by default yet)
 
-1. **The content security policy only reports.** The site sends `Content-Security-Policy-Report-Only`
-   (`apps/web/next.config.ts:64`, `apps/web/src/platform/security/csp.ts`), so an injected script is reported, not
-   blocked, and `script-src` allows `'unsafe-inline'`. Switching it to enforce changes the site's behaviour and needs
-   the reports read first (F09); it is not done here.
-2. **No HSTS, `X-Content-Type-Options` or `Referrer-Policy` header** is set by the site, and the site's Lambda and its
-   front door are not defined in this tree's stacks, so no test here proves what they add.
+1. **The content security policy allows `'unsafe-inline'` scripts.** Since 19/11 the site enforces its policy
+   (`Content-Security-Policy`, `apps/web/next.config.ts`, `apps/web/src/platform/security/csp.ts`) after seven days of
+   reports showed only browser-extension origins (Typekit fonts, a `data:` font, an `eval`); `script-src` still allows
+   `'unsafe-inline'`, because the policy has no nonces yet and `layout.tsx` carries an inline theme `<style>`.
+2. **The site's Lambda and its front door are outside this tree's stacks**, so no test here proves what CloudFront
+   adds; the HSTS, `nosniff`, referrer and frame headers are set by the site (`apps/web/src/platform/security/headers.ts`,
+   `apps/web/test/site/security-headers.test.ts`) and were seen live on 19/11.
 3. **The redirect distribution accepts HTTP** (`infra/aws/stacks/62-redirect.json`, `ViewerProtocolPolicy:
    allow-all`): it only answers a 301 to the HTTPS origin and reaches no origin, so it serves no content over HTTP.
 4. **The services' defaults are not listed**: the engine has no public endpoint since the control plane left (D-323),

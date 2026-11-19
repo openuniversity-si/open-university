@@ -1,5 +1,5 @@
 /**
- * Report-only CSP (F09): observe what the Player needs before enforcing anything.
+ * The site's CSP (F09), enforced since 19/11 after seven days of reports showed only browser-extension origins
  * Production plays the embed. Frame, script and thumbnail origins come from the playback driver.
  */
 export const CSP_REPORT_PATH = "/api/csp-report";

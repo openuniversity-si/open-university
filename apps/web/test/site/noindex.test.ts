@@ -17,7 +17,7 @@ async function robotsHeaders(): Promise<unknown> {
   // The report-only CSP (F09) is sent on every path regardless of indexing. Host-conditioned rules (alternate hosts, src/site/domain/hosts.ts)
   // stack on top of it and carry only their canonical Link header, never a robots header.
   for (const rule of rules.filter((entry) => entry.has !== undefined)) expect(rule.headers.map((header) => header.key)).toEqual(["Link"]);
-  for (const rule of rules.filter((entry) => entry.has === undefined)) expect(rule.headers.map((header) => header.key)).toContain("Content-Security-Policy-Report-Only");
+  for (const rule of rules.filter((entry) => entry.has === undefined)) expect(rule.headers.map((header) => header.key)).toContain("Content-Security-Policy");
   return rules.map((rule) => ({ source: rule.source, headers: rule.headers.filter((header) => header.key === "X-Robots-Tag") })).filter((rule) => rule.headers.length > 0);
 }
 

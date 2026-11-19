@@ -22,9 +22,9 @@ describe("security headers in next.config.ts", () => {
     expect(headers.get("X-Frame-Options")).toBe("DENY");
   });
 
-  it("keeps the CSP report-only, with frame-ancestors 'none'", async () => {
+  it("enforces the CSP, with frame-ancestors 'none', and sends no report-only copy", async () => {
     const headers = await catchAllHeaders();
-    expect(headers.has("Content-Security-Policy")).toBe(false);
-    expect(headers.get("Content-Security-Policy-Report-Only")).toContain("frame-ancestors 'none'");
+    expect(headers.has("Content-Security-Policy-Report-Only")).toBe(false);
+    expect(headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
   });
 });
