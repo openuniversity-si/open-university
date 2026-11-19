@@ -1,8 +1,15 @@
 {
  "workflow": "deploy",
  "source": "the AWS deploy builds of GET /v1/deploy/status (scripts/deploy status)",
- "at": "2026-11-19T05:41:39Z",
+ "at": "2026-11-19T12:20:38Z",
  "runs": [
+  {
+   "id": "tower-infra-deploy:c1940f40-3cfa-464c-8d84-d496f0d73516",
+   "event": "deploy",
+   "conclusion": "success",
+   "started": "2026-11-19T12:19:27Z",
+   "seconds": 31
+  },
   {
    "id": "tower-infra-deploy:dd606393-c04e-48a5-8fa2-bb522326f80b",
    "event": "deploy",

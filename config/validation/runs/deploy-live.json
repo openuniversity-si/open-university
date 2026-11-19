@@ -1,7 +1,7 @@
 {
  "workflow": "deploy-live",
- "source": "code-only merges' landing (the push of the merge commit to main, GitHub's activity API, D-325) to code live (image_swap/image_live, image_reload of GET /v1/deploy/status)",
- "at": "2026-11-19T05:27:09Z",
+ "source": "code-only merges' landing (the push of the merge commit to main, GitHub's activity API) to code live (image_swap/image_live, image_reload of GET /v1/deploy/status)",
+ "at": "2026-11-19T12:20:39Z",
  "runs": [
   {
    "id": "06c93eca9251d4dc9de1be9b8e956fddd15475fd",

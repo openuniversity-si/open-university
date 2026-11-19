@@ -1089,7 +1089,8 @@ def read_changes(root):
         targets = []
         for listed in TRAILER_IMPLEMENTS.findall(bodies):
             targets += [target.strip() for target in listed.split(',') if target.strip()]
-        targets, problems = _corrected(ident, targets, errata.pop(sha, []))
+        held = _git(root, 'log', '--format=%H', f'{sha}^1..{sha}').split()
+        targets, problems = _corrected(ident, targets, [entry for one in held for entry in errata.pop(one, [])])
         links = [{'type': 'implements', 'target': target} for target in dict.fromkeys(targets)]
         links += [{'type': 'implements', 'target': unit, 'source': 'diff'} for unit in touched.get(sha, [])
                   if unit not in targets]
@@ -1116,13 +1117,15 @@ def read_errata(root):
     """{merge sha: [erratum]}: the corrections of an `Implements:` trailer a merged commit got wrong (config/model/errata.json,
     `{"errata": [{change, sha, was, is, why}]}`). History is never rewritten: the erratum, like git's .mailmap, says what
     the trailer should have named (`is`, or null when it should have named nothing) and why; every erratum's
-    change id, sha and the target it corrects are checked against the merge (_corrected)."""
+    change id, sha and the target it corrects are checked against the merge (_corrected). An erratum may name the
+    `commit` that carries the trailer instead of `{change, sha}`: a pull request's own commit is known before the merge
+    queue writes the merge, so the correction lands with the change it corrects."""
     path = Path(root) / ERRATA
     if not path.is_file():
         return {}
     found = {}
     for entry in _read_json(path).get('errata', []):
-        found.setdefault(entry['sha'], []).append(entry)
+        found.setdefault(entry.get('commit') or entry['sha'], []).append(entry)
     return found
 
 
@@ -1131,7 +1134,8 @@ def _corrected(ident, targets, errata):
     change, a target the merge's trailers do not name, or no reason is a problem of the change (an error of the model)."""
     problems = []
     for entry in errata:
-        if entry.get('change') != ident or entry.get('was') not in targets or not str(entry.get('why', '')).strip():
+        if ('commit' not in entry and entry.get('change') != ident) or entry.get('was') not in targets or \
+                not str(entry.get('why', '')).strip():
             problems.append(f'erratum {entry.get("was")} -> {entry.get("is")} matches no trailer of its merge or gives no why')
             continue
         targets = [entry['is'] if target == entry['was'] else target for target in targets]

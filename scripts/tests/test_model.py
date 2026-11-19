@@ -827,6 +827,11 @@ class Changes(unittest.TestCase):
             self.assertIn({'type': 'implements', 'target': 'REQ-a'}, stale['links'], 'a wrong erratum corrects nothing')
         meta, found = model.metamodel(), {'CHG-5': stale}
         self.assertTrue(any(line.startswith('CHG-5: erratum') for line in model.check(meta, found)[0]))
+        commit = subprocess.run(['git', 'rev-parse', 'HEAD^2'], cwd=self.root, capture_output=True, text=True).stdout.strip()
+        write(self.root, model.ERRATA, {'errata': [{'commit': commit, 'was': 'REQ-a', 'is': None, 'why': 'a typo'}]})
+        held = {item['id']: item for item in model.read_changes(self.root)}['CHG-5']
+        self.assertEqual((held['links'], held.get('problems')), ([{'type': 'implements', 'target': 'UNIT:x'}], None),
+                         'an erratum by the commit that carries the trailer corrects whichever merge holds it')
 
     def test_a_retired_unit_is_read_from_the_commit_that_deleted_it_and_its_earlier_changes_still_implement_it(self):
         import units
