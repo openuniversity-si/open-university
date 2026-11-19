@@ -160,7 +160,8 @@ class TinyModel(unittest.TestCase):
         self.assertEqual(result['systems']['reqs']['not_judged'], 1)
 
     def test_d335_a_system_closes_only_at_full_conformance_and_lists_what_keeps_it_open(self):
-        many = model.CLOSED_SHOWN + 2
+        most = model.closed_shown()
+        many = most + len('ab')
         found = self.objects({'id': 'ARC-1', 'type': 'ARC'}, {'id': 'UNIT:a', 'type': 'UNIT',
                                                                'links': [{'type': 'realizes', 'target': 'ARC-1'}]},
                              *[{'id': f'UNIT:b{n:02}', 'type': 'UNIT'} for n in range(many)])
@@ -169,9 +170,9 @@ class TinyModel(unittest.TestCase):
         self.assertFalse(build['closed'])
         self.assertEqual(build['nonconformant'], [f'UNIT:b{n:02}' for n in range(many)])
         line = next(line for line in model.summary(result).splitlines() if line.lstrip().startswith('build:'))
-        self.assertIn(f'open: UNIT:b00, ', line)
-        self.assertIn(f'UNIT:b{model.CLOSED_SHOWN - 1:02} and 2 more)', line)
-        self.assertNotIn(f'UNIT:b{model.CLOSED_SHOWN:02}', line)
+        self.assertIn('open: UNIT:b00, ', line)
+        self.assertIn(f'UNIT:b{most - 1:02} and {many - most} more)', line)
+        self.assertNotIn(f'UNIT:b{most:02}', line)
         self.assertIn('stop (D-335): 0 of 2 system(s) closed', model.summary(result))
         one = self.objects({'id': 'ARC-1', 'type': 'ARC'}, {'id': 'UNIT:a', 'type': 'UNIT',
                                                              'links': [{'type': 'realizes', 'target': 'ARC-1'}]},

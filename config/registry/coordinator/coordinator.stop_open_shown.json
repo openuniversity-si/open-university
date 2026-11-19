@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 10,
+  "minimum": 1,
+  "x-unit": "objects",
+  "description": "How many ids of the objects that keep a system open scripts/model measure lists before it gives only the count of the rest (D-335: per system, closed, or open with its non-conformant objects). A display bound: it changes no verdict.",
+  "x-readers": [
+    "scripts/lib/model.py"
+  ],
+  "x-source": "D-335 (PADRAO-DEV stop criterion)"
+}

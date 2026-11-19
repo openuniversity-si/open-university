@@ -2215,7 +2215,10 @@ def exempted_ids(found, today):
             if fnmatchcase(id, body['scope']) or fnmatchcase(item.get('source', ''), body['scope'])}
 
 
-CLOSED_SHOWN = 10  # D-335: the non-conformant ids a system lists before it gives only the count
+def closed_shown():
+    """D-335: how many non-conformant ids a system lists before it gives only the count (coordinator.stop_open_shown)."""
+    import config
+    return config.get('coordinator.stop_open_shown', ROOT)
 
 
 def deferred(meta, item, into, found):
@@ -2367,9 +2370,8 @@ def system_line(item):
     if item.get('measured_after'):
         parts.append(f'{", ".join(item["measured_after"])} measured after the stop (D-331)')
     if 'closed' in item:  # D-335
-        failing = item['nonconformant']
-        shown = ', '.join(failing[:CLOSED_SHOWN]) + (f' and {len(failing) - CLOSED_SHOWN} more'
-                                                       if len(failing) > CLOSED_SHOWN else '')
+        failing, most = item['nonconformant'], closed_shown()
+        shown = ', '.join(failing[:most]) + (f' and {len(failing) - most} more' if len(failing) > most else '')
         parts.append('closed' if item['closed'] else 'open' + (f': {shown}' if failing else ''))
     return '; '.join(parts)
 
