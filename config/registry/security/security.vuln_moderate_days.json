@@ -2,7 +2,7 @@
   "type": "integer",
   "default": 90,
   "x-unit": "days",
-  "description": "The bug bar: days from finding a moderate vulnerability of the repository's own code to its fix; past it the vulnerability is overdue. A ceiling: raising it loosens the Segurança system.",
+  "description": "The bug bar: days from finding a moderate vulnerability of the repository's own code to its fix; past it the vulnerability is overdue, the alarm that its fix is late. An open vulnerability is not conformant at any age (D-336), so raising it only delays the alarm.",
   "x-readers": [
     "scripts/lib/model.py"
   ],

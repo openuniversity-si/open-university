@@ -957,9 +957,11 @@ class Supply(unittest.TestCase):
         self.assertEqual(model.rate(supply['share'], meta['scale']), 'F', 'the share alone would rate it F')
         self.assertEqual((supply['weaknesses'], supply['level']), (1, 'L'))
         write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2099-01-01'})
+        self.assertEqual(self.measure()['level'], 'L', 'D-336: an exemption no decision accepts leaves the advisory affecting')
+        write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2099-01-01', 'authorized_by': 'D-9'})
         supply = self.measure()
         self.assertEqual((supply['weaknesses'], supply['level']), (0, 'F'))
-        write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2000-01-01'})
+        write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2000-01-01', 'authorized_by': 'D-9'})
         self.assertEqual(self.measure()['level'], 'L', 'an exemption past its deadline is not in force')
 
 
@@ -1105,6 +1107,23 @@ class Architecture(unittest.TestCase):
         self.assertIn('ARC_a --> ARC_b', drawn)
         self.assertIn('ARC_b -.-> ARC_c', drawn)
         self.assertIn('ARC_a --x ARC_c', drawn)
+
+    def test_changeability_needs_every_dependency_convergent_so_one_divergence_fails_it(self):
+        """D-336 (1): VAL-changeability requires the whole reflexion convergent; one divergence among many fails it."""
+        body = json.loads((ROOT / 'config/validation/VAL-changeability.json').read_text())
+        self.assertEqual((body['measure'], body['comparator'], body['threshold']), ({'kind': 'model-share', 'name': 'reflexion'}, 'gte', 1.0))
+        def element(id, *deps):
+            return {'id': id, 'type': 'ARC', 'state': 'active', 'fingerprint': 'f', 'body': {'kind': 'component', 'name': id},
+                    'links': [{'type': 'depends-on', 'target': dep} for dep in deps]}
+        def unit(id, realizes, *deps):
+            return {'id': id, 'type': 'UNIT', 'state': 'active', 'fingerprint': 'f',
+                    'links': [{'type': 'realizes', 'target': realizes}, *({'type': 'depends-on', 'target': dep} for dep in deps)]}
+        found = {item['id']: item for item in (element('ARC-a', 'ARC-b'), element('ARC-b'), element('ARC-c'),
+                                               unit('UNIT:a', 'ARC-a', 'UNIT:b'), unit('UNIT:b', 'ARC-b'), unit('UNIT:c', 'ARC-c'))}
+        self.assertEqual(model.measured(body, found, ROOT, '2026-11-19'), (1.0, True))
+        found['UNIT:b'] = unit('UNIT:b', 'ARC-b', 'UNIT:c')  # undeclared: ARC-b -> ARC-c
+        value, _ = model.measured(body, found, ROOT, '2026-11-19')
+        self.assertLess(value, body['threshold'])
 
     def test_a_test_file_declares_what_it_verifies_on_a_verifies_line(self):
         root = Path(tempfile.mkdtemp(prefix='model-verifies-'))

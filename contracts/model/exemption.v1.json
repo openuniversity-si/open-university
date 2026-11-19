@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contracts/model/exemption.v1.json",
   "title": "Advisory exemption v1",
-  "description": "config/supply/exemptions/<ADV id>.json (PADRAO-DEV F7c, D-320): an advisory of the Fornecimento system accepted for a time: why it does not reach the repository's use of the package, or why no fix can be taken yet, until when, and who answers for it. Past its deadline the advisory is affecting again.",
+  "description": "config/supply/exemptions/<ADV id>.json (PADRAO-DEV F7c, D-320): an advisory of the Fornecimento system accepted for a time: why it does not reach the repository's use of the package, or why no fix can be taken yet, until when, and who answers for it. Past its deadline the advisory is affecting again. It keeps the supply check from refusing the advisory; the model counts the advisory conformant (exempted) only when a decision accepts it too (authorized_by, D-336).",
   "x-owner": "model",
   "x-schema-version": 1,
   "type": "object",
@@ -29,6 +29,10 @@
     "owner": {
       "type": "string",
       "minLength": 1
+    },
+    "authorized_by": {
+      "type": "string",
+      "pattern": "^D-[0-9]+$"
     }
   }
 }

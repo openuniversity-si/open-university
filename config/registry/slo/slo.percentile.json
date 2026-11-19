@@ -1,10 +1,10 @@
 {
   "type": "integer",
-  "default": 95,
+  "default": 100,
   "minimum": 1,
   "maximum": 100,
   "x-unit": "percent",
-  "description": "Percentile the *_p95_s SLOs measure (nearest rank).",
+  "description": "Percentile the *_p95_s SLOs judge (nearest rank): 100, the whole sample, so the slowest value of the window decides (D-336, D-337: the target is always the whole; a percentile below 100 only reports, never accepts). The key names keep p95 as identifiers.",
   "x-readers": [
     "scripts/lib/budgets.py",
     "scripts/lib/slo.py"

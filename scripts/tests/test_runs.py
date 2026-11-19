@@ -229,8 +229,8 @@ class Slo(unittest.TestCase):
         registry = {'slo.merged_prs_per_hour_min': {'default': 4}, 'slo.min_samples': {'default': 20}}
         values = model.slo_values(self.root, registry, today='2026-11-20')
         self.assertEqual({name: (item['value'], item['state'], item['fresh']) for name, item in values.items()}, {
-            'slo.gate_tier1_p95_s': (23, 'breached', True),  # the engine's limit is the smaller of 10 and its target
-            'slo.train_queue_time_p95_s': (1140, 'breached', True),
+            'slo.gate_tier1_p95_s': (24, 'breached', True),  # the maximum (D-337); the limit is the smaller of 10 and its target
+            'slo.train_queue_time_p95_s': (1200, 'breached', True),
             'slo.merged_prs_per_hour_min': (5, 'ok', True),  # five merges in every hour, ends included
             'slo.gate_failure_rate_max_percent': (25.0, 'breached', True)})
         stale = model.slo_values(self.root, registry, today='2026-11-25')

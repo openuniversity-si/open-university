@@ -35,7 +35,7 @@
       "default": 10,
       "exclusiveMinimum": 0,
       "x-unit": "s",
-      "description": "Tier-1 gate wall time (sum of its stages) that the 95th percentile of the last slo.sample_window_events tier-1 verdicts may not exceed. First value: the existing target gate.tier1_target_s (D-065 (5)); the reader enforces the smaller of the two, and a test refuses an SLO looser than that target.",
+      "description": "Tier-1 gate wall time (sum of its stages) that the slo.percentile percentile (100, the slowest, D-337) of the last slo.sample_window_events tier-1 verdicts may not exceed. First value: the existing target gate.tier1_target_s (D-065 (5)); the reader enforces the smaller of the two, and a test refuses an SLO looser than that target.",
       "x-readers": [
         "docs/process/EVENTS.md",
         "scripts/lib/model.py",
@@ -86,11 +86,11 @@
     },
     "slo.percentile": {
       "type": "integer",
-      "default": 95,
+      "default": 100,
       "minimum": 1,
       "maximum": 100,
       "x-unit": "percent",
-      "description": "Percentile the *_p95_s SLOs measure (nearest rank).",
+      "description": "Percentile the *_p95_s SLOs judge (nearest rank): 100, the whole sample, so the slowest value of the window decides (D-336, D-337: the target is always the whole; a percentile below 100 only reports, never accepts). The key names keep p95 as identifiers.",
       "x-readers": [
         "scripts/lib/budgets.py",
         "scripts/lib/slo.py"
@@ -131,7 +131,7 @@
       "default": 900,
       "exclusiveMinimum": 0,
       "x-unit": "s",
-      "description": "Queue time (pr.ready to pr.merged of the same head) that the 95th percentile of the last slo.sample_window_events merged PRs may not exceed. First value: three tier-2 runs of about 240 s (premise P-15, plan v3 §9.2) plus margin; tuned by a PR when slo.breached asks.",
+      "description": "Queue time (pr.ready to pr.merged of the same head) that the slo.percentile percentile (100, the slowest, D-337) of the last slo.sample_window_events merged PRs may not exceed. First value: three tier-2 runs of about 240 s (premise P-15, plan v3 §9.2) plus margin; tuned by a PR when slo.breached asks.",
       "x-readers": [
         "docs/process/EVENTS.md",
         "scripts/lib/model.py",

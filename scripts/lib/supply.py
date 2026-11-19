@@ -155,9 +155,15 @@ def exemptions(root):
     return {path.stem: json.loads(path.read_text()) for path in sorted(folder.glob('ADV-*.json'))} if folder.is_dir() else {}
 
 
+def in_force(exempt, today):
+    """Whether an exemption holds: it has a reason and its deadline has not passed. It keeps the check from refusing
+    the advisory; it alone does not make the advisory conformant (advisory_state)."""
+    return bool(exempt and exempt.get('reason') and exempt.get('deadline', '') >= today)
+
+
 def advisory_state(advisory, exempt, today):
-    """affecting, or exempted while its exemption's deadline has not passed."""
-    if exempt and exempt.get('deadline', '') >= today:
+    """exempted while its exemption is in force and a decision accepts it (authorized_by, D-336), else affecting."""
+    if in_force(exempt, today) and exempt.get('authorized_by'):
         return 'exempted'
     return 'affecting'
 
@@ -205,7 +211,7 @@ def check(root, today=None):
     blocking = set(setting('supply.blocking_severities'))
     for advisory in snapshot.get('advisories', []):
         exempt = granted.get(advisory['id'])
-        if advisory['severity'] in blocking and advisory_state(advisory, exempt, today) == 'affecting':
+        if advisory['severity'] in blocking and not in_force(exempt, today):
             errors.append(f'{advisory["id"]}: {advisory["severity"]} advisory on {advisory["package"]} '
                           f'{", ".join(advisory["versions"])} is affecting (patched: {advisory["patched"]}); update the '
                           f'package or exempt it with a reason and a deadline')

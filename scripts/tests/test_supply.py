@@ -134,6 +134,11 @@ class Check(unittest.TestCase):
         write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa-bbbb-cccc.json', exemption)
         self.assertEqual(supply.check(self.root, today='2026-11-30'), [])
         self.assertIn('is affecting', supply.check(self.root, today='2026-12-01')[0])
+        # D-336: in force it keeps the check quiet, but only a decision that accepts it makes the advisory exempted
+        advisory_ = supply.read_snapshot(self.root)['advisories'][0]
+        self.assertEqual(supply.advisory_state(advisory_, exemption, '2026-11-30'), 'affecting')
+        self.assertEqual(supply.advisory_state(advisory_, {**exemption, 'authorized_by': 'D-9'}, '2026-11-30'), 'exempted')
+        self.assertEqual(supply.advisory_state(advisory_, {**exemption, 'authorized_by': 'D-9'}, '2026-12-01'), 'affecting')
         write(self.root, 'config/supply/exemptions/ADV-ghsa-gone.json', {**exemption, 'id': 'ADV-ghsa-gone'})
         self.assertTrue(any('does not have; remove it' in error for error in supply.check(self.root, today='2026-11-30')))
 

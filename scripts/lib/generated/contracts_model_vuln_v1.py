@@ -11,4 +11,5 @@ VulnV1 = TypedDict('VulnV1', {
     'verified_by': NotRequired[str],
     'accepted_until': NotRequired[str],
     'reason': NotRequired[str],
+    'accepted_by': NotRequired[str],
 }, total=False)

@@ -17,7 +17,8 @@
     "accepted"
   ],
   "unconformant_states": [
+    "open",
     "overdue"
   ],
-  "description": "A vulnerability of the repository's own code, with its deadline from the bug bar."
+  "description": "A vulnerability of the repository's own code, with its deadline from the bug bar. Conformant only when fixed, or accepted by a decision with its reason and an expiry; an open one is not, inside its deadline or past it (D-336), and the deadline is the alarm that the fix is late."
 }

@@ -16,5 +16,5 @@
   "must_link": [
     "affects"
   ],
-  "description": "A security advisory against a component, from the audit snapshot; exempted while an exemption with a reason and a deadline holds."
+  "description": "A security advisory against a component, from the audit snapshot; exempted while an exemption with a reason, a deadline and the decision that accepts it holds (D-336); one without that decision leaves it affecting."
 }
