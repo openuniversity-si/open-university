@@ -509,7 +509,7 @@ class Prepared(unittest.TestCase):
         self.assertEqual(self.word('landed', sha), {'event_id': f'platform.deploy.queue:landed:{sha}'})
         self.word('landed', sha)
         [said] = self.log.of(queue_deploy.QUEUE)
-        self.assertLess(abs(said.pop('port_at') - time.time()), 60)  # PUSH-STEPS: when the port got the word
+        self.assertIsInstance(said.pop('port_at'), (int, float))  # PUSH-STEPS: when the port got the word, on the port's clock
         self.assertEqual(said, {'event': 'landed', 'sha': sha})  # an older doorbell says no `heard`
         other = 'c' * 40
         self.word('landed', other, heard=1795000000.1234)  # the doorbell's instant, kept to the millisecond
