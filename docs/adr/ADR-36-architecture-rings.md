@@ -1,6 +1,7 @@
 # ADR-36 — Architecture rings and the cumulative checker
 
 Status: accepted (PADRAO-DEV F3a: an engine decision in force).
+Proof: the ring rules live in the returned site's checker, `apps/web/tooling/check-architecture.mjs` (D-319): `apps/web/scripts/lib/check-architecture.test.ts` › "keeps identity, playback and progress rings free of server edges", "lets platform code reach the kernel and forbids the contexts above it", "rejects kernel dependencies on contexts while allowing production kernel and Node imports"
 
 Status: accepted for the structural audit (state 5.3).
 
