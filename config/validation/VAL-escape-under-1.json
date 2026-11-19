@@ -1,14 +1,13 @@
 {
   "id": "VAL-escape-under-1",
-  "statement": "Fewer than 1 % of the last 1,000 merges are escapes repaired by a later PR (its commits carry Fixes-PR:).",
+  "statement": "Fewer than 1 % of the last 1,000 merged changes let through an escape: a defect a later PR repaired (its commits carry Fixes-PR: naming the change).",
   "validates": [
     "REQ-escape-under-1",
     "NEED-quality"
   ],
   "owner": "administration",
   "measure": {
-    "kind": "trailer-rate",
-    "trailer": "Fixes-PR"
+    "kind": "escape-rate"
   },
   "comparator": "lte",
   "threshold": 0.01,

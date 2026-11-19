@@ -1040,6 +1040,16 @@ def measured(body, found, root, today):
         marked = sum(1 for sha, _ in merges if re.search(rf'^{re.escape(measure["trailer"])}:',
                                                          _git(root, 'log', '--format=%B', f'{sha}^1..{sha}'), re.MULTILINE))
         return marked / len(merges), len(merges) >= window['size']
+    if measure['kind'] == 'escape-rate':
+        # the share of the window's merged changes an escape (INC, read_escapes) was introduced by: the objects, so a
+        # change repaired by several fixes counts once and a fix counts against the change that let the defect through
+        lines = _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines()
+        changes = [_change_id(*line.split('\x1f', 1)) for line in lines if '\x1f' in line][:window['size']]
+        if not changes:
+            return None, False
+        escaped = {link['target'] for item in found.values() if item['type'] == 'INC'
+                   for link in item['links'] if link['type'] == 'introduced-by'}
+        return sum(1 for change in changes if change in escaped) / len(changes), len(changes) >= window['size']
     if measure['kind'] == 'model-share':
         if measure['name'] == 'reflexion':
             return reflexion_share(found)['share'], True
