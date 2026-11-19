@@ -1,7 +1,7 @@
 {
   "id": "REQ-gate-60s",
   "type": "constraint",
-  "statement": "The required tower/gate check finishes within 60 s of its start, at the median and at the 99th percentile.",
+  "statement": "The required tower/gate check finishes within 60 s of its start on every run (D-337: the whole sample; the median and the 99th percentile only report).",
   "state": "approved",
   "owner": "Daniel",
   "derives_from": [

@@ -1,10 +1,10 @@
 {
   "type": "number",
-  "default": 20,
+  "default": 0,
   "minimum": 0,
   "maximum": 100,
   "x-unit": "percent",
-  "description": "Highest share of failed tier-1 gate verdicts among the last slo.sample_window_events (plan v3 §9.2 sets none; first value tuned by a PR when slo.breached asks).",
+  "description": "Highest share of failed tier-1 gate verdicts among the last slo.sample_window_events: none (D-337, the target is the whole; it was 20, a first value plan v3 §9.2 never set). A red verdict breaches it, and slo.breached asks the PR that removes the cause.",
   "x-readers": [
     "docs/process/EVENTS.md",
     "scripts/lib/model.py",

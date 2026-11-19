@@ -6,6 +6,7 @@ TailoringV1 = TypedDict('TailoringV1', {
     'exempts': Required[str],
     'scope': Required[str],
     'reason': Required[str],
+    'owner': NotRequired[str],
     'authorized_by': Required[str],
     'valid_until': Required[str],
     'state': Required[Literal['active', 'expired', 'revoked']],

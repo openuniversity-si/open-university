@@ -1,7 +1,7 @@
 {
   "id": "REQ-deploy-1s",
   "type": "constraint",
-  "statement": "When a merge lands on main, its deploy completes with a median of 1 s.",
+  "statement": "When a merge lands on main, its deploy completes within 1 s, every one of them (D-337: the whole sample; the median only reports).",
   "state": "approved",
   "owner": "Daniel",
   "derives_from": [
