@@ -84,8 +84,13 @@ def throughput(series, conf):
 
 def evaluate(events, conf=None):
     """The four SLO results (slo, bound, limit, value, samples, state ok|breached|no_data, evidence)."""
+    return evaluate_series(fold(events), conf)
+
+
+def evaluate_series(series, conf=None):
+    """The four SLO results of series shaped as fold() makes them (tier1, queue, merges, span), whatever their source:
+    the event log here, GitHub's pull requests and check runs in runs.slo_series (scripts/model)."""
     conf = conf or settings()
-    series = fold(events)
     window, floor, percent = conf['slo.sample_window_events'], conf['slo.min_samples'], conf['slo.percentile']
     newest = series['span'][2] if series['span'] else None
     results = []

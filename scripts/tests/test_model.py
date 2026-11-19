@@ -1369,7 +1369,7 @@ class SupportSystems(unittest.TestCase):
         model.derive_measures(found)
         self.assertEqual(found['VAL-a']['links'], [{'type': 'measured-by', 'target': 'MEAS-run-durations-deploy'}])
         judged = {id: self.conformant(item, found) for id, item in found.items() if item['type'] == 'MEAS'}
-        # wired, with a need, a consumer, a criterion and a value on HEAD; an SLO's forge log is not on HEAD
+        # wired, with a need, a consumer, a criterion and a value on HEAD; an SLO with no GitHub snapshot has no value
         self.assertEqual(judged, {'MEAS-cheaper-path': False, 'MEAS-gate-tier1-p95-s': False,
                                   'MEAS-merged-prs-per-hour-min': False, 'MEAS-run-durations-deploy': True,
                                   'MEAS-unwired-b': False})
@@ -1417,7 +1417,8 @@ class SupportSystems(unittest.TestCase):
             self.assertGreater(systems[name]['objects'], 0, name)
             self.assertEqual(systems[name]['not_judged'], 0, name)
         self.assertEqual(systems['conformance']['objects'], len(systems))
-        self.assertEqual(found['measurement']['unread'], len(model.SLO_MEASURES))  # their forge log is not on HEAD
+        self.assertEqual(found['measurement']['unread'], 0)  # the SLOs read their GitHub snapshot (runs.SLO_FILE)
+        self.assertEqual(len(found['measurement']['slos']), len(model.SLO_MEASURES))
         self.assertGreater(found['measurement']['fresh'], 0)
         self.assertIn('work: ', model.summary(found))
 

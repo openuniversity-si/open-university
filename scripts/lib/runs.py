@@ -3,6 +3,7 @@ run-durations measure of scripts/model. The gate runs with no network, so it rea
 
     scripts/runs record <workflow> < runs.json    writes config/validation/runs/<workflow>.json from an API answer
     scripts/runs refresh <workflow>               rebuilds it from GitHub's checks of main's last merges
+    scripts/runs refresh-slo                      rebuilds config/validation/slo.json, the four SLOs' samples
 
 `record` takes an Actions API answer (an object with `workflow_runs`, or the list itself); each run lasts from
 `run_started_at` to `updated_at`. Only completed runs count; a cancelled run was superseded, not judged.
@@ -14,6 +15,11 @@ verify_commit.gh_json) for main's last merges: the merge queue's commit (merge_g
 `scripts/model measure` refreshes a snapshot older than a day, so it is renewed where it is read, with no hand; the
 renewed file travels with the session's next PR. Offline (no `gh`, TOWER_OFFLINE set, the API refusing) the recorded
 snapshot stays, and the measure judges it by its age as before.
+
+`refresh-slo` reads the four SLOs of config/registry/slo.json from GitHub the same way (slo_fetch), not from the
+Origin-era forge event log: merge times of the newest merged pull requests, the merge queue's wait in their timelines,
+and the tower/gate check runs of the commits they pushed. scripts/model folds them with slo.evaluate_series and renews
+the snapshot where it measures, when a day old.
 """
 import argparse
 from datetime import datetime, timezone
@@ -161,6 +167,99 @@ def refresh(root, workflow, now=None, reader=None):
     return made
 
 
+SLO_FILE = 'config/validation/slo.json'  # the SLOs' GitHub snapshot (not a VAL-*.json: read_validations skips it)
+SLO_MERGES = 100  # the newest merged pull requests whose merge times the pace reads (one page)
+SLO_PRS = 30  # the newest pull requests whose timelines give queue times and the commits the gate judged
+SLO_VERDICTS = 100  # the newest of those commits whose tower/gate check runs are read (slo.sample_window_events)
+SLO_MAX_AGE_DAYS = 2  # an older snapshot gives no fresh SLO value
+SLO_WORKERS = 8  # GitHub reads in flight while a snapshot is rebuilt
+
+
+def slo_fetch(repo=None, api=None):
+    """The SLO samples from GitHub, never the Actions API and never the forge event log (the Origin-era source):
+    merges: [{pr, at}] of the newest merged pull requests (merged_at);
+    queue: [{pr, at, seconds}] from the last added_to_merge_queue to merged in a pull request's timeline (the merge
+        queue replaced the train, D-314; the train's pr.ready to pr.merged is that same wait);
+    verdicts: [{pr, sha, id, at, passed, seconds}] the tower/gate run (from_checks) of each commit the newest pull
+        requests pushed, one gate per push (commit-check refuses several commits in one push); a cancelled or
+        skipped run was superseded, not judged.
+    None offline or when the API refuses."""
+    if os.environ.get('TOWER_OFFLINE'):
+        return None
+    if api is None:
+        import verify_commit  # the gate's github adapter: tower/gate's own reads of GitHub's REST API
+        api = lambda path: verify_commit.gh_json(verify_commit.run, path)  # noqa: E731
+    from concurrent.futures import ThreadPoolExecutor
+    repo, (final, parts) = repo or repository(), CHECKS['tower-gate']
+    try:
+        closed = api(f'repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page={SLO_MERGES}')
+        recent = api(f'repos/{repo}/pulls?state=all&sort=created&direction=desc&per_page={SLO_PRS}')
+        numbers = [pull['number'] for pull in recent]
+        with ThreadPoolExecutor(SLO_WORKERS) as pool:
+            timelines = list(pool.map(lambda n: api(f'repos/{repo}/issues/{n}/timeline?per_page=100'), numbers))
+        queue, commits = [], []
+        for number, timeline in zip(numbers, timelines):
+            added = [item['created_at'] for item in timeline if item.get('event') == 'added_to_merge_queue']
+            merged = [item['created_at'] for item in timeline if item.get('event') == 'merged']
+            if added and merged and max(added) <= merged[-1]:
+                queue.append({'pr': number, 'at': merged[-1],
+                              'seconds': int((stamp(merged[-1]) - stamp(max(added))).total_seconds())})
+            commits += [(number, item['sha'], (item.get('committer') or {}).get('date', '')) for item in timeline
+                        if item.get('event') == 'committed' and item.get('sha')]
+        commits = sorted(commits, key=lambda commit: commit[2], reverse=True)[:SLO_VERDICTS]
+        with ThreadPoolExecutor(SLO_WORKERS) as pool:
+            answers = list(pool.map(lambda c: api(f'repos/{repo}/commits/{c[1]}/check-runs?per_page=100'), commits))
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError):
+        return None
+    verdicts = []
+    for (number, sha, _), answer in zip(commits, answers):
+        made = from_checks('pull_request', answer.get('check_runs', []), final, parts)
+        if made:
+            verdicts.append({'pr': number, 'sha': sha, 'id': made['id'], 'at': made['started'],
+                             'passed': made['conclusion'] == 'success', 'seconds': made['seconds']})
+    newest = lambda items: sorted(items, key=lambda item: item['at'], reverse=True)  # noqa: E731
+    return {'merges': newest({'pr': pull['number'], 'at': pull['merged_at']} for pull in closed if pull.get('merged_at')),
+            'queue': newest(queue), 'verdicts': newest(verdicts)}
+
+
+def read_slo(root):
+    path = Path(root) / SLO_FILE
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def slo_refresh(root, now=None, reader=None):
+    """Rebuilds the SLO snapshot from GitHub when it is missing or older than REFRESH_DAYS and the API answers; the
+    snapshot (new or kept) or None. `reader()` answers the samples (slo_fetch by default)."""
+    now = now or datetime.now(timezone.utc)
+    recorded = read_slo(root)
+    if recorded and age_days(recorded, now) < REFRESH_DAYS:
+        return recorded
+    found = (reader or slo_fetch)()
+    return slo_write(root, found, now) if found else recorded
+
+
+def slo_write(root, found, now):
+    made = {'source': "GitHub's pull requests, their timelines and the tower/gate check runs of their commits",
+            'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), **found}
+    target = Path(root) / SLO_FILE
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(made, indent=1) + '\n')
+    return made
+
+
+def slo_series(recorded):
+    """The snapshot as the series slo.evaluate_series folds (the shape slo.fold makes from the event log)."""
+    def series(items, label=lambda item: f'PR #{item["pr"]}', **fields):
+        return sorted(({'at': stamp(item['at']), 'event_id': label(item),
+                        **{key: item[name] for key, name in fields.items()}} for item in items),
+                      key=lambda item: item['at'])
+    tier1 = series(recorded.get('verdicts', []), lambda item: f'check run {item["id"]}', value='seconds', passed='passed')
+    queue, merges = series(recorded.get('queue', []), value='seconds'), series(recorded.get('merges', []))
+    every = sorted(tier1 + queue + merges, key=lambda item: item['at'])
+    return {'tier1': tier1, 'queue': queue, 'merges': merges,
+            'span': (every[0]['at'], every[-1]['at'], every[-1]['event_id']) if every else None}
+
+
 def main(argv=None, root=ROOT):
     parser = argparse.ArgumentParser(prog='scripts/runs', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -168,7 +267,17 @@ def main(argv=None, root=ROOT):
     recorded.add_argument('workflow')
     again = commands.add_parser('refresh', help="rebuild the snapshot from GitHub's checks of main's last merges")
     again.add_argument('workflow', choices=sorted(CHECKS))
+    commands.add_parser('refresh-slo', help="rebuild the SLOs' samples from GitHub's pull requests and check runs")
     args = parser.parse_args(argv)
+    if args.command == 'refresh-slo':
+        found = slo_fetch()
+        if not found:
+            print('runs: no SLO samples read (offline, gh missing or the API refused); snapshot kept', file=sys.stderr)
+            return 2
+        made = slo_write(root, found, datetime.now(timezone.utc))
+        print(f"runs: {len(made['merges'])} merge(s), {len(made['queue'])} queue time(s), "
+              f"{len(made['verdicts'])} gate verdict(s) at {made['at']} -> {SLO_FILE}")
+        return 0
     if args.command == 'refresh':
         found = fetch(root, args.workflow)
         if not found:

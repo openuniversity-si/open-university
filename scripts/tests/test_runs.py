@@ -153,5 +153,85 @@ class Refresh(unittest.TestCase):
             self.assertEqual(model.refresh_runs(found, self.root), [])
 
 
+def at(minutes):
+    return f'2026-11-19T{minutes // 60:02d}:{minutes % 60:02d}:00Z'
+
+
+class Slo(unittest.TestCase):
+    """The four SLOs of config/registry/slo.json read from GitHub (never the Actions API, never the forge event log):
+    merge times, the merge queue's wait and the tower/gate runs of the commits the pull requests pushed."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='runs-slo-'))
+        self.addCleanup(shutil.rmtree, self.root)
+
+    def api(self, paths):
+        timelines = {
+            7: [{'event': 'committed', 'sha': 'a', 'committer': {'date': at(1)}},
+                {'event': 'committed', 'sha': 'b', 'committer': {'date': at(5)}},
+                {'event': 'added_to_merge_queue', 'created_at': at(6)},
+                {'event': 'removed_from_merge_queue', 'created_at': at(7)},
+                {'event': 'added_to_merge_queue', 'created_at': at(8)},
+                {'event': 'merged', 'created_at': at(10)}],
+            8: [{'event': 'committed', 'sha': 'c', 'committer': {'date': at(3)}}]}
+        checks = {'a': [check(1, 'tower/gate', at(2), '2026-11-19T00:02:20Z', 'failure')],
+                  'b': [check(2, 'gate part (main)', at(5), at(5)), check(3, 'tower/gate', at(6), '2026-11-19T00:06:30Z')],
+                  'c': [check(4, 'tower/gate', at(4), at(4), 'cancelled')]}
+
+        def answer(path):
+            paths.append(path)
+            if '/pulls?state=closed' in path:
+                return [{'number': 7, 'merged_at': at(10)}, {'number': 6, 'merged_at': None}]
+            if '/pulls?state=all' in path:
+                return [{'number': 8}, {'number': 7}]
+            if '/timeline' in path:
+                return timelines[int(path.split('/issues/')[1].split('/')[0])]
+            return {'check_runs': checks[path.split('/commits/')[1].split('/')[0]]}
+        return answer
+
+    def test_the_samples_are_the_merges_the_queue_wait_and_each_pushed_commits_gate(self):
+        paths = []
+        found = runs.slo_fetch(repo='o/r', api=self.api(paths))
+        self.assertEqual(found['merges'], [{'pr': 7, 'at': at(10)}])
+        self.assertEqual(found['queue'], [{'pr': 7, 'at': at(10), 'seconds': 120}])  # the last enqueue to the merge
+        self.assertEqual([(item['sha'], item['passed'], item['seconds']) for item in found['verdicts']],
+                         [('b', True, 90), ('a', False, 20)])  # c's run was cancelled: superseded, not judged
+        self.assertFalse(any('/actions/' in path for path in paths))
+
+    def test_an_api_that_refuses_or_an_offline_session_reads_nothing(self):
+        def refused(path):
+            raise RuntimeError('gh api: 403')
+        self.assertIsNone(runs.slo_fetch(repo='o/r', api=refused))
+        with unittest.mock.patch.dict('os.environ', {'TOWER_OFFLINE': '1'}):
+            self.assertIsNone(runs.slo_fetch(repo='o/r', api=self.api([])))
+
+    def test_a_day_old_snapshot_is_rebuilt_and_a_fresh_one_is_kept(self):
+        asked = []
+        samples = {'merges': [], 'queue': [], 'verdicts': []}
+        made = runs.slo_refresh(self.root, now=runs.stamp('2026-11-19T12:00:00Z'),
+                                reader=lambda: asked.append(1) or samples)
+        runs.slo_refresh(self.root, now=runs.stamp('2026-11-19T20:00:00Z'), reader=lambda: asked.append(2) or samples)
+        kept = runs.slo_refresh(self.root, now=runs.stamp('2026-11-21T12:00:00Z'), reader=lambda: asked.append(3))
+        self.assertEqual((asked, made['at'], kept['at'], runs.read_slo(self.root)['at']),
+                         ([1, 3], '2026-11-19T12:00:00Z', '2026-11-19T12:00:00Z', '2026-11-19T12:00:00Z'))
+
+    def test_the_model_folds_the_snapshot_with_the_slo_reader_and_judges_its_age(self):
+        verdicts = [{'pr': i, 'sha': str(i), 'id': i, 'at': at(i), 'passed': i % 4 != 0, 'seconds': 5 + i}
+                    for i in range(20)]
+        merges = [{'pr': i, 'at': at(i * 15)} for i in range(17)]  # one every 15 minutes over four hours
+        queue = [{'pr': i, 'at': at(i * 12), 'seconds': 60 * (i + 1)} for i in range(20)]
+        runs.slo_write(self.root, {'merges': merges, 'queue': queue, 'verdicts': verdicts}, runs.stamp(at(0)))
+        registry = {'slo.merged_prs_per_hour_min': {'default': 4}, 'slo.min_samples': {'default': 20}}
+        values = model.slo_values(self.root, registry, today='2026-11-20')
+        self.assertEqual({name: (item['value'], item['state'], item['fresh']) for name, item in values.items()}, {
+            'slo.gate_tier1_p95_s': (23, 'breached', True),  # the engine's limit is the smaller of 10 and its target
+            'slo.train_queue_time_p95_s': (1140, 'breached', True),
+            'slo.merged_prs_per_hour_min': (5, 'ok', True),  # five merges in every hour, ends included
+            'slo.gate_failure_rate_max_percent': (25.0, 'breached', True)})
+        stale = model.slo_values(self.root, registry, today='2026-11-25')
+        self.assertFalse(any(item['fresh'] for item in stale.values()))
+        self.assertEqual(model.slo_values(Path(tempfile.mkdtemp(dir=self.root)), registry), {})
+
+
 if __name__ == '__main__':
     unittest.main()
