@@ -5,6 +5,9 @@
   "statement": "The program and unit plans, the coordinator, idea-to-production, intake, operations, the unit map and the structure check.",
   "state": "active",
   "owner": "administration",
+  "satisfies": [
+    "REQ-owner-stop-closed-list"
+  ],
   "depends_on": [
     "ARC-config",
     "ARC-events",

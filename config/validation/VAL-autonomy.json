@@ -2,7 +2,8 @@
   "id": "VAL-autonomy",
   "statement": "No stop of the flow asks Daniel for anything but a login, a credential, money or other people.",
   "validates": [
-    "NEED-autonomy"
+    "NEED-autonomy",
+    "REQ-owner-stop-closed-list"
   ],
   "owner": "Daniel",
   "measure": {

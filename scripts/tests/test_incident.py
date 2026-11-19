@@ -1,5 +1,7 @@
 """Incidents (D-231): an opened incident is listed as open, closing it with its fix removes it from the list, and the same kind,
 text and time give the same id (no second record). A temporary folder; no git, no network.
+
+Verifies: REQ-owner-stop-closed-list
 """
 from pathlib import Path
 import json
