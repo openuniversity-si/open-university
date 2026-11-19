@@ -21,7 +21,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
                                    and the method that has no rule yet (never rewrites a rule)
   scripts/model measure [--json F] the main metric (the share of active requirements whose chain is verified end to
                                    end), the requirement inventory, and each system's objects and calculated conformance,
-                                   under a heading per group of systems (management, engineering: D-330)
+                                   under a heading per group of systems (management, engineering: D-330), and the
+                                   measurement system's share of sampled PRs with a clearly cheaper path (D-327)
 
 A requirement's chain is verified when an architecture element satisfies it, a unit realizes that element, a test
 verifies the requirement, and a validation validates it or the need it derives from. An object is conformant when a
@@ -1774,6 +1775,44 @@ def management_measure(found, today):
     }
 
 
+RETRO_SAMPLES = 'docs/programs/*/retro-sample-*.json'
+CHEAPER_TARGET = 0.10  # D-327: under 10 %, reviewed after three retrospectives
+
+
+def cheaper_path_measure(root=ROOT):
+    """The measurement system's D-327 measure (management group, D-330): over the PRs the retrospectives sample
+    (docs/programs/<program>/retro-sample-<n>.json, contracts/model/retro-sample.v1.json), the share whose answer to
+    "was there a clearly cheaper path that solved it?" is yes; share None when there is no sample yet. A sample that
+    breaks its contract is a problem, counted as a model error, and left out of the share."""
+    root = Path(root)
+    schema = _read_json(root / CONTRACTS_DIR / 'retro-sample.v1.json')
+    samples, problems = [], []
+    for path in sorted(root.glob(RETRO_SAMPLES)):
+        body = _read_json(path)
+        broken = list(json_schema.validate(schema, body))
+        if isinstance(body, dict) and body.get('id') != path.stem:
+            broken.append(f'its id must equal the file name {path.stem}')
+        if broken:
+            problems += [f'{path.relative_to(root).as_posix()}: {problem}' for problem in broken]
+            continue
+        samples.append(body)
+    prs = [pr for body in samples for pr in body['prs']]
+    cheaper = sum(1 for pr in prs if pr['cheaper'])
+    share = cheaper / len(prs) if prs else None
+    return {'samples': len(samples), 'prs': len(prs), 'cheaper': cheaper, 'share': share, 'target': CHEAPER_TARGET,
+            'met': None if share is None else share < CHEAPER_TARGET, 'problems': problems}
+
+
+def cheaper_path_line(item):
+    """The summary line of cheaper_path_measure."""
+    head = 'measurement: cheaper path (D-327): '
+    if item['share'] is None:
+        return head + f'no sample (target under {item["target"]:.0%})'
+    return head + (f'{item["cheaper"]} of {item["prs"]} sampled PR(s) in {item["samples"]} retrospective(s) had a '
+                   f'clearly cheaper path ({item["share"]:.0%}), target under {item["target"]:.0%}: '
+                   f'{"met" if item["met"] else "not met"}')
+
+
 def utc_today():
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).date().isoformat()
@@ -1809,6 +1848,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
                          'not_judged': sum(1 for item in mine if item['type'] in unjudged), 'unjudged_types': unjudged,
                          'weaknesses': weak, 'verdicts_unread': unread}
     sources = inventory(meta, found, root)
+    cheaper_path = cheaper_path_measure(root)
     return {
         'chain': {'active_requirements': len(requirements), 'verified': verified,
                   'share': verified / len(requirements) if requirements else 0},
@@ -1826,8 +1866,9 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'architecture': architecture_measure(found),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
+        'measurement': {'cheaper_path': cheaper_path},
         'objects': len(found),
-        'errors': len(meta['errors']) + len(errors),
+        'errors': len(meta['errors']) + len(errors) + len(cheaper_path['problems']),
         'warnings': len(warnings),
     }
 
@@ -1915,6 +1956,8 @@ def summary(found):
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')
+    lines.append(cheaper_path_line(found['measurement']['cheaper_path']))
+    lines += [f'  ERROR {problem}' for problem in found['measurement']['cheaper_path']['problems']]
     lines.append(f'check: {found["errors"]} error(s), {found["warnings"]} warning(s)')
     return '\n'.join(lines)
 

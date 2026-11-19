@@ -1171,5 +1171,53 @@ class DecisionTable(unittest.TestCase):
         self.assertEqual(decisions['D-2']['proof']['outcome'], 'proven')
 
 
+class CheaperPath(unittest.TestCase):
+    """D-327: the retrospective samples merged PRs and the measurement system reads the share with a cheaper path."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-cheaper-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        shutil.copytree(ROOT / 'contracts' / 'model', self.root / 'contracts' / 'model')
+
+    def sample(self, name, answers, **extra):
+        prs = [{'number': index + 1, 'title': f't{index}', 'cheaper': answer, 'why': 'w'}
+               for index, answer in enumerate(answers)]
+        write(self.root, f'docs/programs/p/{name}.json',
+              {'id': name, 'program': 'p', 'date': '2026-11-19', 'base': 'abc1234', 'prs': prs, **extra})
+
+    def test_with_no_sample_the_measure_reports_no_sample(self):
+        found = model.cheaper_path_measure(self.root)
+        self.assertEqual((found['prs'], found['share'], found['met']), (0, None, None))
+        self.assertIn('no sample', model.cheaper_path_line(found))
+
+    def test_the_share_of_yes_over_every_sampled_pr_against_the_target_under_10_percent(self):
+        self.sample('retro-sample-1', [True] + [False] * 9)
+        self.sample('retro-sample-2', [False] * 10)
+        found = model.cheaper_path_measure(self.root)
+        self.assertEqual((found['samples'], found['prs'], found['cheaper']), (2, 20, 1))
+        self.assertAlmostEqual(found['share'], 0.05)
+        self.assertTrue(found['met'])
+        self.sample('retro-sample-2', [True, False])
+        found = model.cheaper_path_measure(self.root)
+        self.assertEqual((found['share'], found['met']), (2 / 12, False))
+        self.assertIn('2 of 12 sampled PR(s)', model.cheaper_path_line(found))
+
+    def test_a_sample_that_breaks_its_contract_is_a_problem_left_out_of_the_share(self):
+        self.sample('retro-sample-1', [False], extra='x')
+        self.sample('retro-sample-2', [True], id='retro-sample-9')
+        found = model.cheaper_path_measure(self.root)
+        self.assertEqual((found['samples'], found['share']), (0, None))
+        self.assertEqual(len([line for line in found['problems'] if 'retro-sample-1' in line]), 1)
+        self.assertTrue(any('its id must equal the file name retro-sample-2' in line for line in found['problems']))
+
+    def test_the_tree_samples_ten_prs_per_retrospective_and_the_measure_reports_it(self):
+        found = model.cheaper_path_measure(ROOT)
+        self.assertEqual(found['problems'], [])
+        self.assertGreaterEqual(found['samples'], 1)
+        for path in sorted(ROOT.glob(model.RETRO_SAMPLES)):
+            self.assertEqual(len(json.loads(path.read_text())['prs']), 10, path)
+        self.assertIn('measurement: cheaper path (D-327)', model.summary(model.measure(ROOT)))
+
+
 if __name__ == '__main__':
     unittest.main()

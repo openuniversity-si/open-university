@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/retro-sample.v1.json",
+  "title": "Retrospective sample v1",
+  "description": "docs/programs/<program>/retro-sample-<n>.json (D-327): a retrospective's sample of merged PRs, 10 per retrospective, each with the answer to \"was there a clearly cheaper path that solved it?\" (yes or no and one line). The share of yes is the measure scripts/model reads, target under 10 %; never a field a PR fills.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "program",
+    "date",
+    "base",
+    "prs"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^retro-sample-[0-9]+$"
+    },
+    "program": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "base": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$"
+    },
+    "prs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "number",
+          "title",
+          "cheaper",
+          "why"
+        ],
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "cheaper": {
+            "type": "boolean"
+          },
+          "why": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
