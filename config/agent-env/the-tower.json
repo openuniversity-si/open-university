@@ -2,7 +2,13 @@
   "id": "the-tower",
   "provider": "claude-code",
   "variables": {},
-  "secrets": [],
+  "secrets": [
+    {
+      "name": "TOWER_PORT_TOKEN",
+      "store": "ssm",
+      "ref": "/tower/agent-env/the-tower/port-token"
+    }
+  ],
   "network": {
     "hosts": []
   },
