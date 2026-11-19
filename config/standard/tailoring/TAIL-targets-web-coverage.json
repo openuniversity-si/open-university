@@ -1,0 +1,10 @@
+{
+  "id": "TAIL-targets-web-coverage",
+  "exempts": "STD-targets-full",
+  "scope": "apps/web/vitest.config.ts",
+  "reason": "The lesson slug rule, its course-wide form, the batch planner and the redirect verifier are held at 90 % of lines, branches, functions and statements (P7); on 19/11 they cover 100 % of lines and functions but 90 to 97 % of branches and 98 to 100 % of statements, so 100 % fails today. Ends when their tests reach every branch and the four files join the progress rules at 100.",
+  "owner": "administration",
+  "authorized_by": "D-337",
+  "valid_until": "2026-12-19",
+  "state": "active"
+}

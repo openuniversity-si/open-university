@@ -1,0 +1,18 @@
+{
+  "id": "STD-targets-full",
+  "statement": "Every target, limit and conformance criterion accepts only the whole (D-337): a validation on a share (model-share, trailer-rate, escape-rate) passes only at 1 (gte) or 0 (lte), a run-durations validation judges its whole sample (percentile 100), a registry key that accepts against a share (a percentile, a coverage minimum, a failure share, a tolerance, the flake excuse) is at its whole, and no acceptance names an ISO/IEC 33020 level; the only exceptions are exemptions in force (config/standard/tailoring) with their reason and owner.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "VAL",
+    "STD"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/model.py:target_errors"
+  },
+  "basis": [
+    "D-337"
+  ],
+  "note": "Thresholds that are not shares (seconds, dollars, counts) are not judged. scripts/model check reports a slack as an error, and the model test the gate selects holds the checkout at no error (STD-model-complete). An object outside what the function reads (apps/web's coverage thresholds) is exempted here too, so its slack is recorded, never silent."
+}

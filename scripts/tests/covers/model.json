@@ -18,6 +18,8 @@
     "docs/capabilities/*.md",
     "docs/process/premises/*.yml",
     "config/registry/slo.json",
+    "config/registry/*/*.json",
+    "config/management/**",
     "config/registry/budgets.json",
     "units/*/unit.json",
     "scripts/tests/*.test.sh",

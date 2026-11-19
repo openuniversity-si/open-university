@@ -1,0 +1,10 @@
+{
+  "id": "TAIL-targets-flake-excuse",
+  "exempts": "STD-targets-full",
+  "scope": "gate-flake.enabled",
+  "reason": "A test the PR did not touch that fails and then passes on its one re-run at the same head (D-070) turns its stage PASS. The flake is not hidden: it is listed as a known defect, emits test.flaked and is quarantined after gate-flake.quarantine_after sightings. Turning the excuse off now would turn every lane's PRs red on tests they did not change while the flake rate has no measure. Ends when the flakes are measured and fixed at their tests and gate-flake.enabled goes false.",
+  "owner": "capacity",
+  "authorized_by": "D-337",
+  "valid_until": "2026-12-19",
+  "state": "active"
+}

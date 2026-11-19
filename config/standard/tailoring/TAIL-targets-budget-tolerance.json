@@ -1,0 +1,10 @@
+{
+  "id": "TAIL-targets-budget-tolerance",
+  "exempts": "STD-targets-full",
+  "scope": "budgets.regression_tolerance_percent",
+  "reason": "A measured time (the battery per unit, the page latency) jitters between runs of the same tree; at 0 % the budget check would fail on noise, not on a regression. The limits themselves (battery.unit_time_limit, the bundle and latency budgets) are seconds and bytes, which D-337 does not touch. Ends when the budget check compares the whole sample against its limit instead of a p95 against a baseline.",
+  "owner": "efficiency",
+  "authorized_by": "D-337",
+  "valid_until": "2026-12-19",
+  "state": "active"
+}

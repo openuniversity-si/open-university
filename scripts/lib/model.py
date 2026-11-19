@@ -794,8 +794,77 @@ def management_findings(found, today):
     return errors, warnings
 
 
+TARGETS_RULE = 'STD-targets-full'  # D-337: the target is always the whole
+SHARE_MEASURES = ('trailer-rate', 'escape-rate', 'model-share')  # the validation measures that are a share, 0 to 1
+# D-337: the registry keys that accept against a share, by name, and the bound the whole puts on each: `whole`, the
+# key's maximum (a percentile, a coverage minimum); `none`, no part (a failure share, a tolerance); `off`, a flag that
+# excuses a failure stays false. Report-only scales (*quantiles, eta_quantile, the conformance levels) are not listed.
+TARGET_KEYS = ((re.compile(r'percentile'), 'whole'), (re.compile(r'coverage\w*_min|min\w*_coverage'), 'whole'),
+               (re.compile(r'(fail|failure|error|escape)\w*_(rate|share)'), 'none'),
+               (re.compile(r'tolerance_(percent|ratio|share)'), 'none'), (re.compile(r'^gate-flake\.enabled$'), 'off'))
+LEVEL_FIELD = re.compile(r'"(\w*level\w*)"\s*:\s*"([A-Z])"')
+REGISTRY_KEYS = 'config/registry/*/*.json'
+
+
+def target_exempt(found, today):
+    """The scopes of the exemptions from STD-targets-full in force: active, inside their validity, with an owner."""
+    return [item['body']['scope'] for item in found.values()
+            if item['type'] == 'TAIL' and item.get('body', {}).get('exempts') == TARGETS_RULE
+            and item['state'] == 'active' and item['body']['valid_until'] >= today and item['body'].get('owner')]
+
+
+def target_errors(found, root, today=None):
+    """D-337: a limit below the whole with no exemption in force is an error. A validation on a share accepted below
+    it (gte under 1, lte over 0) or a run-durations validation on a percentile under the maximum; a registry key of
+    TARGET_KEYS short of its bound; an acceptance that names a conformance level (ISO/IEC 33020's N, P, L or F only
+    report). An exemption is a TAIL of the rule whose scope matches the object's id, key or path."""
+    from fnmatch import fnmatchcase
+    root, today = Path(root), today or utc_today()
+    scopes = target_exempt(found, today)
+    found_errors = []
+
+    def short_of(names, what):
+        if not any(fnmatchcase(name, scope) for name in names for scope in scopes):
+            found_errors.append(f'{names[0]}: {what} accepts less than the whole with no exemption in force '
+                                f'(D-337, {TARGETS_RULE}); set it to the whole or record a tailoring with its reason and owner')
+
+    contract = _read_json(root / CONTRACTS_DIR / 'validation.v1.json')
+    top = contract['properties']['measure']['properties']['percentile']['maximum']
+    for id, item in sorted(found.items()):
+        body = item.get('body') or {}
+        if item['type'] != 'VAL' or 'measure' not in body:
+            continue
+        measure, comparator, threshold = body['measure'], body['comparator'], body['threshold']
+        if measure['kind'] in SHARE_MEASURES and (threshold < 1 if comparator == 'gte' else threshold > 0):
+            short_of([id, item['source']], f'its share {measure["kind"]} {comparator} {threshold}')
+        if measure.get('percentile', top) < top:
+            short_of([id, item['source']], f'its percentile {measure["percentile"]}')
+    for path in sorted(root.glob(REGISTRY_KEYS)):
+        if path.name.startswith('_'):
+            continue
+        key, entry, source = path.stem, _read_json(path), path.relative_to(root).as_posix()
+        value = entry.get('default')
+        for pattern, bound in TARGET_KEYS:
+            if not pattern.search(key) or isinstance(value, (list, dict, str)):
+                continue
+            whole = entry.get('maximum', 1 if entry.get('x-unit') in ('ratio', 'fraction') else None)
+            short = ((whole is None or value < whole) if bound == 'whole' else
+                     value > 0 if bound == 'none' else value is True)
+            if short:
+                short_of([key, source], f'{value} ({bound} is its bound)')
+    levels = {step['level'] for step in _read_json(root / MODEL_DIR / 'conformance.json').get('scale', [])}
+    for path in sorted(root.glob('config/**/*.json')):
+        source = path.relative_to(root).as_posix()
+        if source == f'{MODEL_DIR}/conformance.json':
+            continue
+        for field, level in LEVEL_FIELD.findall(path.read_text()):
+            if level in levels:
+                short_of([source], f'{field} {level}, a conformance level instead of full conformance,')
+    return found_errors
+
+
 INTENT = 'config/intent/*.json'
-REQUIREMENTS = 'config/requirements/REQ-*.json'
+REQUIREMENTS ='config/requirements/REQ-*.json'
 IMPORTS = 'config/requirements/imports/*.json'
 
 
@@ -2085,6 +2154,7 @@ def check(meta, found, root=None, today=None):
         managed_errors, managed_warnings = management_findings(found, today or utc_today())
         errors += managed_errors
         warnings += managed_warnings
+        errors += target_errors(found, root, today)
     errors += layer_errors(found)
     for id, item in sorted(found.items()):
         kind = meta['types'].get(item['type'])

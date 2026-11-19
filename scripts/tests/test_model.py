@@ -405,6 +405,96 @@ class Rules(unittest.TestCase):
         self.assertEqual(model.skipped_stage_errors(self.found(), self.root), [])
 
 
+class TargetsFull(unittest.TestCase):
+    """D-337 on a temporary checkout: a limit below the whole with no exemption in force is an error of the model."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-targets-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        shutil.copytree(ROOT / 'contracts' / 'model', self.root / 'contracts' / 'model')
+        write(self.root, 'config/model/conformance.json', json.loads((ROOT / 'config/model/conformance.json').read_text()))
+        self.top = json.loads((ROOT / 'contracts/model/validation.v1.json').read_text())[
+            'properties']['measure']['properties']['percentile']['maximum']
+        self.gate = json.loads((ROOT / 'config/validation/VAL-gate-60s.json').read_text())  # seconds, at the whole
+        self.half = 1 / len('ab')
+
+    def val(self, id, **body):
+        return {id: {'id': id, 'type': 'VAL', 'state': 'defined', 'source': f'config/validation/{id}.json', 'links': [],
+                     'body': {'id': id, 'measure': {'kind': 'model-share', 'name': 'reflexion'}, 'comparator': 'gte',
+                              'threshold': 1, **body}}}
+
+    def key(self, name, default, **schema):
+        write(self.root, f'config/registry/{name.split(".", 1)[0]}/{name}.json', {'type': 'number', 'default': default,
+                                                                                 **schema})
+
+    def tail(self, scope, **body):
+        body = {'id': 'TAIL-x', 'exempts': model.TARGETS_RULE, 'scope': scope, 'reason': 'r', 'owner': 'administration',
+                'authorized_by': 'D-337', 'valid_until': '2026-12-31', 'state': 'active', **body}
+        return {'TAIL-x': {'id': 'TAIL-x', 'type': 'TAIL', 'state': body['state'], 'source': 'x', 'links': [],
+                           'body': body}}
+
+    def errors(self, found):
+        return model.target_errors(found, self.root, '2026-11-19')
+
+    def test_a_threshold_below_1_on_a_share_in_a_config_validation_fails_and_the_whole_passes(self):
+        errors = self.errors(self.val('VAL-share', threshold=1 - self.half))
+        self.assertEqual(len(errors), 1)
+        self.assertTrue(errors[0].startswith('VAL-share: its share model-share gte 0.5 accepts less than the whole'),
+                        errors)
+        self.assertIn('D-337, STD-targets-full', errors[0])
+        self.assertEqual(self.errors(self.val('VAL-share')), [])
+
+    def test_a_failure_share_accepted_above_0_fails_and_none_passes(self):
+        escape = {'measure': {'kind': 'escape-rate'}, 'comparator': 'lte'}
+        self.assertEqual(len(self.errors(self.val('VAL-escape', **escape, threshold=self.half))), 1)
+        self.assertEqual(self.errors(self.val('VAL-escape', **escape, threshold=0)), [])
+
+    def test_a_run_durations_percentile_below_the_whole_fails_and_its_seconds_are_not_judged(self):
+        sample = {key: self.gate[key] for key in ('measure', 'comparator', 'threshold')}
+        self.assertEqual(self.errors(self.val('VAL-gate', **sample)), [], 'seconds at the whole sample pass')
+        sample['measure'] = {**sample['measure'], 'percentile': self.top - 1}
+        errors = self.errors(self.val('VAL-gate', **sample))
+        self.assertEqual(len(errors), 1)
+        self.assertIn(f'its percentile {self.top - 1}', errors[0])
+        spend = {'measure': {'kind': 'aws-spend', 'max_age_days': 1}, 'comparator': 'lte', 'threshold': self.top}
+        self.assertEqual(self.errors(self.val('VAL-spend', **spend)), [], 'dollars are not a share')
+
+    def test_a_registry_percentile_a_failure_share_a_tolerance_and_the_flake_excuse_short_of_the_whole_fail(self):
+        self.key('slo.percentile', self.top - 1, maximum=self.top)
+        self.key('slo.gate_failure_rate_max_percent', 1, maximum=self.top)
+        self.key('budgets.regression_tolerance_percent', 1)
+        write(self.root, 'config/registry/gate-flake/gate-flake.enabled.json', {'type': 'boolean', 'default': True})
+        self.key('slo.gate_tier1_p95_s', self.top)  # seconds: not a share
+        self.key('medir.quantiles', [self.half])  # a report-only scale
+        errors = self.errors({})
+        self.assertEqual(sorted(line.split(':', 1)[0] for line in errors),
+                         ['budgets.regression_tolerance_percent', 'gate-flake.enabled', 'slo.gate_failure_rate_max_percent',
+                          'slo.percentile'], errors)
+        self.key('slo.percentile', self.top, maximum=self.top)
+        self.key('slo.gate_failure_rate_max_percent', 0, maximum=self.top)
+        self.key('budgets.regression_tolerance_percent', 0)
+        write(self.root, 'config/registry/gate-flake/gate-flake.enabled.json', {'type': 'boolean', 'default': False})
+        self.assertEqual(self.errors({}), [])
+
+    def test_an_acceptance_that_names_a_conformance_level_fails(self):
+        write(self.root, 'config/programs/x.json', {'accept_level': 'L'})
+        errors = self.errors({})
+        self.assertEqual(len(errors), 1)
+        self.assertIn('accept_level L, a conformance level instead of full conformance', errors[0])
+
+    def test_only_an_exemption_in_force_with_an_owner_lets_a_slack_stand(self):
+        self.key('slo.percentile', self.top - 1, maximum=self.top)
+        self.assertEqual(self.errors(self.tail('slo.percentile')), [])
+        self.assertEqual(self.errors(self.tail('config/registry/slo/*')), [], 'a scope is a glob of the path too')
+        for late in ({'valid_until': '2026-11-18'}, {'state': 'expired'}, {'owner': ''}, {'exempts': 'STD-other'}):
+            self.assertEqual(len(self.errors(self.tail('slo.percentile', **late))), 1, late)
+
+    def test_this_checkout_holds_every_target_at_the_whole_or_exempted(self):
+        found = model.objects(ROOT)
+        self.assertEqual(model.target_errors(found, ROOT), [])
+        self.assertEqual(found[model.TARGETS_RULE]['state'], 'blocking')
+
+
 class StandardManagement(unittest.TestCase):
     """Proposals, versions and exemptions of the standard on a temporary checkout with the real metamodel."""
 
