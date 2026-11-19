@@ -36,6 +36,7 @@ Name = Literal[
     'coordinator.retro_section_lines',
     'coordinator.retry_budget',
     'coordinator.router_by',
+    'coordinator.stop_open_shown',
     'coordinator.template_dir',
     'coordinator.unit_retro_path',
 ]
@@ -75,6 +76,7 @@ Values = TypedDict('Values', {
     'coordinator.retro_section_lines': int,
     'coordinator.retry_budget': int,
     'coordinator.router_by': str,
+    'coordinator.stop_open_shown': int,
     'coordinator.template_dir': str,
     'coordinator.unit_retro_path': str,
 })
