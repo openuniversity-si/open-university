@@ -23,6 +23,7 @@ from pathlib import Path
 import re
 import shlex
 import stat
+from string import Template
 import sys
 from urllib.error import HTTPError
 from urllib.parse import urlparse
@@ -46,8 +47,16 @@ class Refused(Exception):
     """The bundle is refused as a whole; the message names the reason and never a value."""
 
 
-def endpoint(root=ROOT):
-    return config.get('agent-env.endpoint', root).strip().rstrip('/')
+def endpoint(root=ROOT, environ=None, env_id=''):
+    """The delivery endpoint: the registry key, a template that may name the environment ({id}) and variables of the
+    session ($TOWER_PORT_URL), so no host of the account is written in the repository. Empty, or naming a variable the
+    session does not have, is not provisioned ('')."""
+    raw = config.get('agent-env.endpoint', root).strip()
+    if not raw:
+        return ''
+    environ = os.environ if environ is None else environ
+    filled = Template(raw.replace('{id}', env_id)).safe_substitute(environ)
+    return '' if '$' in filled else filled.rstrip('/')
 
 
 def load_declarations(root=ROOT):
@@ -158,9 +167,9 @@ def send(url, token, text, timeout):
 def torre(text, environ=None, root=ROOT, out=print):
     """Send `text` to the Torre through the relay; one line on `out` in every case; always 0."""
     environ = os.environ if environ is None else environ
-    base = endpoint(root)
+    base = endpoint(root, environ)
     if not base:
-        out(f'{LABEL}: torre: not provisioned (agent-env.endpoint is empty); nothing sent')
+        out(f'{LABEL}: torre: not provisioned (agent-env.endpoint is empty or names an unset variable); nothing sent')
         return 0
     declarations = load_declarations(root)
     declaration = select(declarations, environ)
@@ -169,6 +178,7 @@ def torre(text, environ=None, root=ROOT, out=print):
         out(f'{LABEL}: torre: no starting credential is set ({names}); nothing sent')
         return 0
     timeout = config.get('agent-env.torre_timeout_s', root) + config.get('agent-env.fetch_timeout_s', root)
+    base = endpoint(root, environ, declaration['id'])
     answer = send(base + TORRE_ROUTE, environ[credential_variable(declaration)], text, timeout)
     out(f'{LABEL}: torre: {declaration["id"]}: {answer}')
     return 0
@@ -177,9 +187,9 @@ def torre(text, environ=None, root=ROOT, out=print):
 def fetch(environ=None, root=ROOT, out=print):
     """One line on `out` in every case; always 0."""
     environ = os.environ if environ is None else environ
-    base = endpoint(root)
+    base = endpoint(root, environ)
     if not base:
-        out(f'{LABEL}: not provisioned (agent-env.endpoint is empty); nothing fetched')
+        out(f'{LABEL}: not provisioned (agent-env.endpoint is empty or names an unset variable); nothing fetched')
         return 0
     declarations = load_declarations(root)
     declaration = select(declarations, environ)
@@ -188,7 +198,7 @@ def fetch(environ=None, root=ROOT, out=print):
         out(f'{LABEL}: no starting credential is set ({names}); nothing fetched')
         return 0
     try:
-        bundle = request(base + ROUTE, environ[credential_variable(declaration)],
+        bundle = request(endpoint(root, environ, declaration['id']) + ROUTE, environ[credential_variable(declaration)],
                          config.get('agent-env.fetch_timeout_s', root))
         accepted = check_bundle(bundle, declaration, agent_env.denied_patterns(root), agent_env.vendor_terms(root))
         path = write(render(accepted), environ, root)
@@ -208,7 +218,7 @@ def preflight_lines(environ=None, root=ROOT):
     """(warnings, gaps) for scripts/cloud/preflight: an empty endpoint is a warning only; with an endpoint, a missing
     starting credential is a gap. No network."""
     environ = os.environ if environ is None else environ
-    if not endpoint(root):
+    if not endpoint(root, environ):
         return [f'{LABEL}: not provisioned'], []
     if select(load_declarations(root), environ) is None:
         return [], [f'{LABEL}: no starting credential is set']
