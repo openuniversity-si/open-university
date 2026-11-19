@@ -6,6 +6,7 @@
     "scripts/lib/gate_pin.py",
     "config/registry/gate-pin.json",
     "scripts/gate-local",
-    "scripts/lib/commit_check.py"
+    "scripts/lib/commit_check.py",
+    "scripts/lib/gate_discipline.py"
   ]
 }

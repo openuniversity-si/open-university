@@ -65,7 +65,7 @@
       "x-unit": "commits",
       "description": "Most items of a PR's commit plan; 0, the default, sets no maximum (D-307: a PR is split by its content, never by a counter).",
       "x-readers": [
-        "scripts/lib/commit_check.py"
+        "scripts/lib/gate_discipline.py"
       ],
       "x-source": "D-022, D-025, D-307"
     },
@@ -79,7 +79,7 @@
       "x-unit": "commits",
       "description": "Fewest items of a PR's commit plan.",
       "x-readers": [
-        "scripts/lib/commit_check.py"
+        "scripts/lib/gate_discipline.py"
       ],
       "x-source": "D-022, D-025, D-219"
     },

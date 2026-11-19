@@ -5,7 +5,7 @@
   "x-unit": "name",
   "description": "Git remote a session publishes its work branch to: the hook pushes there and sets the branch's upstream to <remote>/<branch>.",
   "x-readers": [
-    "scripts/lib/commit_check.py",
+    "scripts/lib/gate_discipline.py",
     "scripts/lib/deliver.py",
     "scripts/lib/gate_bypass.py",
     "scripts/lib/lane_collect.py",

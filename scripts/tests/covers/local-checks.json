@@ -5,6 +5,7 @@
     "scripts/tests/test_local_checks.py",
     "scripts/commit-check",
     "scripts/lib/commit_check.py",
+    "scripts/lib/gate_discipline.py",
     "scripts/lib/local_checks.py",
     "scripts/lib/decision_table.py",
     "scripts/lib/config_check.py",

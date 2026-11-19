@@ -6,6 +6,7 @@
     ".githooks/*",
     "scripts/lib/push_guard.py",
     "scripts/lib/commit_check.py",
+    "scripts/lib/gate_discipline.py",
     "scripts/lib/config.py",
     "scripts/cloud/env.sh",
     "config/registry/push-guard.json",

@@ -5,7 +5,7 @@
     "scripts/tests/test_verify_commit.py",
     "scripts/verify-commit",
     "scripts/lib/verify_commit.py",
-    "scripts/lib/commit_check.py",
+    "scripts/lib/gate_discipline.py",
     "scripts/lib/forge_pr.py",
     "scripts/lib/decision_wait.py",
     "services/runner/github/tower-gate.yml",

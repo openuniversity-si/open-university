@@ -7,6 +7,7 @@
     "scripts/lib/parallel_tests.py",
     "scripts/lib/threshold_check.py",
     "scripts/lib/commit_check.py",
+    "scripts/lib/gate_discipline.py",
     "scripts/lib/forge_events.py",
     "scripts/lib/units.py",
     "scripts/lib/structure.py",

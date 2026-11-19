@@ -8,7 +8,7 @@
   ],
   "check": {
     "kind": "function",
-    "ref": "scripts/lib/commit_check.py:fixup_errors"
+    "ref": "scripts/lib/gate_discipline.py:fixup_errors"
   },
   "basis": [
     "D-025"

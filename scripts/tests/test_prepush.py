@@ -42,11 +42,11 @@ def git(cwd, *args, check=True):
 
 class Regime(unittest.TestCase):
     def test_the_repeated_census_obeys_the_same_lock_as_the_local_check(self):
-        import commit_check
+        import gate_discipline
         findings = ['an unregistered value']
         for lifted in (False, True):
             with self.subTest(lifted=lifted), mock.patch.object(literal_census, 'check', return_value=(findings, [])), \
-                    mock.patch.object(commit_check, 'lifted', return_value=lifted), mock.patch('sys.stdout'):
+                    mock.patch.object(gate_discipline, 'lifted', return_value=lifted), mock.patch('sys.stdout'):
                 self.assertEqual(prepush.check_literals(ROOT, 'HEAD'), [] if lifted else [(findings[0], [])])
 
 
@@ -69,8 +69,8 @@ class Fixture(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        import commit_check
-        cls.enterClassContext(mock.patch.object(commit_check, 'lifted', return_value=False))
+        import gate_discipline
+        cls.enterClassContext(mock.patch.object(gate_discipline, 'lifted', return_value=False))
         saved = dict(os.environ)
         cls.addClassCleanup(lambda: (os.environ.clear(), os.environ.update(saved)))
         # a hook's GIT_INDEX_FILE must not reach the fixtures; the suite's git configuration does (D-118)

@@ -13,6 +13,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts/lib'))
 import commit_check  # noqa: E402
+import gate_discipline  # noqa: E402
 import forge_events  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # the tests' own helpers
 import forge_doubles  # noqa: E402
@@ -49,9 +50,9 @@ class CommitCheck(unittest.TestCase):
     @contextlib.contextmanager
     def switch(self, value):
         """The P-G3 switch through the store (GA-PG8); the registry default is off since GX-27."""
-        with commit_check.config.use_adapter(forge_events.MemoryAdapter()):
-            if commit_check.config.get('merge.tier1_requires_base_merge') != value:  # set_value refuses a no-op
-                commit_check.config.set_value('merge.tier1_requires_base_merge', value, actor='gx27-fixture',
+        with gate_discipline.config.use_adapter(forge_events.MemoryAdapter()):
+            if gate_discipline.config.get('merge.tier1_requires_base_merge') != value:  # set_value refuses a no-op
+                gate_discipline.config.set_value('merge.tier1_requires_base_merge', value, actor='gx27-fixture',
                                               reason='switch in a fixture', now=hermetic.clock().now())
             yield
 
@@ -133,13 +134,13 @@ class CommitCheck(unittest.TestCase):
     def test_the_p_g3_switch_off_allows_a_head_behind_up_to_the_registry_limit(self):
         """GX-22: merge.tier1_requires_base_merge off removes the rebase refusal up to merge.max_behind_base; beyond it the
         refusal names the registry limit. FP1 is untouched: a force push is refused either way."""
-        limit = commit_check.config.get('merge.max_behind_base')
+        limit = gate_discipline.config.get('merge.max_behind_base')
         rebased = [commit('a', 'Add the rule', ['src/a.py']), commit('b', 'Use the rule', ['src/b.py'])]
         within = {**CLEAN, 'branch': 'mod/x', 'commits': rebased, 'pushes': CLEAN['pushes'][:len(rebased)],
                   'base': {'ref': 'mod/roadmap-integration', 'behind_by': limit, 'merge_base': CLEAN['commits'][-1]['sha'][::-1]}}
         beyond = {**within, 'base': {**within['base'], 'behind_by': limit + 1}}
         forced = {**within, 'force_pushes': [{'before': rebased[0]['sha'], 'after': rebased[-1]['sha']}]}
-        self.assertFalse(commit_check.config.get('merge.tier1_requires_base_merge'), 'GX-27: the registry default is off')
+        self.assertFalse(gate_discipline.config.get('merge.tier1_requires_base_merge'), 'GX-27: the registry default is off')
         code, out = self.run_check(within)
         self.assertEqual(code, 0, out)
         with self.switch(True):  # the old rule back: one key
@@ -525,7 +526,7 @@ class PlanCompletenessAtGate(unittest.TestCase):
         """What the structure check judged of a read PR before D-322 is commit-check's pr_errors, its locks unchanged."""
         pr = {'body': self.BODY, 'draft': False, 'files': ['a.py'],
               'commits': [dict(commit('a', 'a', ['a.py']), message='a\n\nPlan: 1')]}
-        with mock.patch.object(commit_check, 'regime', None), tempfile.TemporaryDirectory() as tmp:
+        with mock.patch.object(gate_discipline, 'regime', None), tempfile.TemporaryDirectory() as tmp:
             errors, warnings = commit_check.pr_errors(pr, Path(tmp))
             self.assertIn('item(s) 2, 3 not ticked', ' '.join(errors))
             self.assertEqual(warnings, [])
@@ -533,7 +534,7 @@ class PlanCompletenessAtGate(unittest.TestCase):
             self.assertNotIn('not ticked', ' '.join(errors))
             self.assertIn('D-083', ' '.join(warnings))
         lifting = type('Regime', (), {'lifted': staticmethod(lambda lock: lock == 'structure')})()
-        with mock.patch.object(commit_check, 'regime', lifting), contextlib.redirect_stderr(io.StringIO()):
+        with mock.patch.object(gate_discipline, 'regime', lifting), contextlib.redirect_stderr(io.StringIO()):
             self.assertNotIn('not ticked', ' '.join(commit_check.pr_errors(pr, Path(tmp))[0]))
 
     def test_d322_the_pr_body_file_is_refused_without_a_plan_and_judged_against_its_base(self):
@@ -553,7 +554,7 @@ class PlanCompletenessAtGate(unittest.TestCase):
                 self.assertEqual(commit_check.main(['--pr-body', str(body), '--root', tmp]), 1)
             self.assertIn('FAIL plan: the PR body needs a D-022 commit plan checklist', out.getvalue())
             body.write_text(self.BODY)
-            with mock.patch.object(commit_check, 'regime', None):
+            with mock.patch.object(gate_discipline, 'regime', None):
                 self.assertEqual(commit_check.body_errors(self.BODY, root), ([], []))  # no base: the plan alone
                 errors, _ = commit_check.body_errors(self.BODY, root, 'base')
             self.assertEqual(len(errors), 1)
@@ -580,14 +581,14 @@ class RegimeLock(unittest.TestCase):
     PR = {'body': '', 'commits': [], 'number': 1}
 
     def test_without_the_regime_a_missing_plan_is_refused(self):
-        with mock.patch.object(commit_check, 'regime', None):
+        with mock.patch.object(gate_discipline, 'regime', None):
             self.assertTrue(commit_check.check(self.PR, {}))
 
     def test_an_active_regime_lifts_the_commit_plan_lock(self):
-        with mock.patch.object(commit_check, 'regime', FakeRegime({'commit-plan'})), contextlib.redirect_stderr(io.StringIO()) as err:
+        with mock.patch.object(gate_discipline, 'regime', FakeRegime({'commit-plan'})), contextlib.redirect_stderr(io.StringIO()) as err:
             self.assertEqual(commit_check.check(self.PR, {}), [])
         self.assertIn('lock commit-plan lifted by the exception regime', err.getvalue())
 
     def test_an_active_regime_keeps_the_other_locks(self):
-        with mock.patch.object(commit_check, 'regime', FakeRegime({'literals'})):
+        with mock.patch.object(gate_discipline, 'regime', FakeRegime({'literals'})):
             self.assertTrue(commit_check.check(self.PR, {}))

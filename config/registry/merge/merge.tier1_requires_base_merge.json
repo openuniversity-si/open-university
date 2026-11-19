@@ -4,7 +4,7 @@
   "x-unit": "flag",
   "description": "P-G3 switch (GA-PG3 = P-47, D-070). Off (default since GX-27, after the train merged a real batch): a head behind by at most merge.max_behind_base passes without a merge of the base, because the train re-proves the batch on the tip. On (the earlier rule, one-key rollback): a tier-1 head behind its base must carry a merge commit of the base (commit_check.rebase_errors). Merge commits only, never a rebase, either way (FP1).",
   "x-readers": [
-    "scripts/lib/commit_check.py"
+    "scripts/lib/gate_discipline.py"
   ],
   "x-flag": true,
   "x-source": "D-070"

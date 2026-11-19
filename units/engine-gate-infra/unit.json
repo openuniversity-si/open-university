@@ -57,7 +57,6 @@
   ],
   "requires": {
     "engine-cloud": "^1",
-    "engine-commit-plan": "^1",
     "engine-config": "^1",
     "engine-events": "^1",
     "engine-forge-origin": "^1",
@@ -65,6 +64,7 @@
     "engine-gate-plan": "^1",
     "engine-gate-run": "^1",
     "engine-gate-status": "^1",
-    "engine-gate-tests": "^1"
+    "engine-gate-tests": "^1",
+    "engine-gate-verdict": "^1"
   }
 }
