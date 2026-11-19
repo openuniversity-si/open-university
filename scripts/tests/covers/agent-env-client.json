@@ -3,6 +3,7 @@
   "covers": [
     "scripts/tests/agent-env-client.test.sh",
     "scripts/tests/test_agent_env_client.py",
+    "scripts/tests/rest_fake.py",
     "scripts/lib/agent_env_client.py",
     "scripts/cloud/agent-env",
     "scripts/lib/preflight.py",
