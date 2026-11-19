@@ -44,7 +44,11 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 SHA = re.compile(r'[0-9a-f]{40}')
 # The gate's own files (D-025): a change to one needs an approved D-NNN (commit_check) and runs the head's tooling as
 # advisory here (gate_changed). Moved from commit_check, which re-exports it (D-322: the gate reads no delivery module).
-GATE_FILE = re.compile(r'^scripts/(gate-[^/]+|lib/gate[^/]*|structure-check|lib/structure\.py|commit-check|lib/commit_check\.py)$')
+# GATE-FILE-REACH (D-335, THREAT-config): the gate's registry keys (config/registry/gate/, its aggregate gate.json) and
+# its GitHub entry point (scripts/verify-commit, scripts/lib/verify_commit.py) are the gate too: a change to a key such
+# as gate.allowed_workflows or to the verifier the merge queue's check runs asks a decision like a change to a stage.
+GATE_FILE = re.compile(r'^(scripts/(gate-[^/]+|lib/gate[^/]*|structure-check|lib/structure\.py|commit-check|lib/commit_check\.py'
+                       r'|verify-commit|lib/verify_commit\.py)|config/registry/gate/[^/]+\.json|config/registry/gate\.json)$')
 REF = re.compile(r'(?!-)[A-Za-z0-9._/-]+')
 CONSUMER = 'scripts/lib/gate_pin.py'  # this module's demand on the forge port (operation_demands.json)
 PRODUCER = 'gate-pin'
