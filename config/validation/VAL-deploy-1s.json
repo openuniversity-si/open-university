@@ -1,13 +1,13 @@
 {
   "id": "VAL-deploy-1s",
-  "statement": "The deploy of a merge into main completes with a median of 1 s.",
+  "statement": "A code-only merge into main is live with a median of 1 s from its landing (GitHub merged_at) to its code running (the queue swap's pointer seen by the heir, or an ordered reload done); the deploy builds' seconds stay in runs/deploy.json as the slow path's cost.",
   "validates": [
     "REQ-deploy-1s"
   ],
   "owner": "efficiency",
   "measure": {
     "kind": "run-durations",
-    "workflow": "deploy",
+    "workflow": "deploy-live",
     "percentile": 50,
     "min_runs": 20,
     "max_age_days": 7

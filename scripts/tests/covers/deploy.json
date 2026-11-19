@@ -21,6 +21,7 @@
     "scripts/lib/port_http.py",
     "scripts/lib/runs.py",
     "config/validation/VAL-deploy-1s.json",
-    "config/validation/runs/deploy.json"
+    "config/validation/runs/deploy.json",
+    "config/validation/runs/deploy-live.json"
   ]
 }

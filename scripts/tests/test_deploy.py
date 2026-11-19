@@ -718,6 +718,40 @@ class CliTests(unittest.TestCase):
         self.assertEqual((written['workflow'], written['at'], [run['seconds'] for run in written['runs']]),
                          ('deploy', '2026-11-19T02:01:40Z', [9, 17]))
 
+    def test_status_records_a_code_only_merges_landing_to_live_for_val_deploy_1s(self):
+        # REQ-deploy-1s (QUEUE-RELOAD): from GitHub's merged_at to the heir seeing the swapped pointer, or to an ordered
+        # reload's done; a merge already recorded is not asked again, and an API that refuses adds nothing
+        root = tempfile.mkdtemp(prefix='deploy-live-')
+        self.addCleanup(shutil.rmtree, root)
+        a, b, c = (hashlib.sha1(letter.encode()).hexdigest() for letter in 'abc')  # three merge shas
+        state = {'image_swap': [{'head': a, 'swapped': True, 'at': 1795000000.1, 'digest': 'd1', 'versions': {'k': 'v7'}},
+                                {'head': c, 'swapped': False, 'at': 1795000000.0, 'why': 'no heir'}],
+                 'image_live': [{'digest': 'd1', 'version': 'v7', 'at': 1795000000.45}, {'digest': 'd1', 'version': 'v6', 'at': 1}],
+                 'image_reload': [{'state': 'done', 'head': b, 'digest': 'd2', 'at': 1794990021.5},
+                                  {'state': 'ordered', 'head': b, 'digest': 'd2', 'at': 1794990000.0, 'landed_s': 0.007}]}
+        self.assertEqual(deploy.live_at(state), {a: (1795000000.45, 'swap'), b: (1794990021.5, 'reload')})
+        merged = {a: '2026-11-18T11:06:40Z', b: '2026-11-18T08:20:00Z'}  # 1795000000 and 1794990000
+        asked = []
+
+        def api(path):
+            sha = path.split('/')[-2]
+            asked.append(sha)
+            return [{'merged_at': merged[sha], 'merge_commit_sha': sha}]
+        runs = deploy.record_live(state, root, now=1795000100, api=api, repo='o/r')
+        reload_s = state['image_reload'][0]['at'] - state['image_reload'][1]['at']  # merged at the order, live at its done
+        self.assertEqual([(run['id'], run['event'], run['seconds']) for run in runs], [(a, 'swap', 0.45), (b, 'reload', reload_s)])
+        self.assertEqual(len(deploy.record_live(state, root, now=1795000200, api=api, repo='o/r')), 2)
+        self.assertEqual(len(asked), 2)  # the second read asked nothing
+
+        def refused(path):
+            raise RuntimeError('gh api: offline')
+        other = tempfile.mkdtemp(prefix='deploy-live-')
+        self.addCleanup(shutil.rmtree, other)
+        self.assertIsNone(deploy.record_live(state, other, api=refused, repo='o/r'))
+        self.assertIsNone(deploy.record_live({}, root, api=api, repo='o/r'))
+        written = json.loads((Path(root) / deploy.RUNS_FOLDER / 'deploy-live.json').read_text())
+        self.assertEqual((written['workflow'], written['at']), ('deploy-live', '2026-11-18T11:10:00Z'))
+
     def test_status_says_the_builds_seconds_and_the_reload_in_place(self):
         # FAST-PATH-RELOAD: what a code-only merge's deploy cost, and how long its swap took, from `scripts/deploy status`
         state = {'last_sha': 'a', 'last_build': {

@@ -8,7 +8,8 @@
                                        end; GitHub's push webhook on main rings `landed` at the doorbell (GITHUB-HOOK)
   scripts/deploy status                the port's GET /v1/deploy/status: last_sha, the last build with its tail and the last
                                        ring/skip decision, as the service observed them (DEP3: it publishes them to the log);
-                                       a succeeded build's seconds go into config/validation/runs/deploy.json (record)
+                                       a succeeded build's seconds go into config/validation/runs/deploy.json (record),
+                                       a code-only merge's landing-to-live seconds into deploy-live.json (record_live)
   scripts/deploy status --json         the same answer as JSON (`| scripts/spend record`: the month's AWS spend, D-331)
   scripts/deploy follow [--target SHA] [--build ID] [--since EPOCH]
                                        follow the status until the deploy ends (the port's long poll; pauses with an old
@@ -39,13 +40,15 @@ ENDED = ('succeeded', 'nothing_new')
 STALE_S = 300  # an observation older than this while a ring was made: the service is not reporting
 RUNS_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RUNS_FOLDER = 'config/validation/runs'  # the run snapshots scripts/model's run-durations measure reads (scripts/lib/runs.py)
-DEPLOY_RUNS = 'deploy'  # config/validation/runs/deploy.json: the snapshot VAL-deploy-1s reads
+DEPLOY_RUNS = 'deploy'  # config/validation/runs/deploy.json: the deploy builds' seconds (the slow path's cost)
+LIVE_RUNS = 'deploy-live'  # config/validation/runs/deploy-live.json: a code-only merge's landing to live, VAL-deploy-1s
 DEPLOY_KEEP = 20
 
 
 def record(state, root=None, now=None):
     """PADRAO-DEV F8d: the deploy's build seconds recorded the way the gate's runs are (config/validation/runs/,
-    read by scripts/model's run-durations measure), so VAL-deploy-1s has a source. The port answers only the last
+    read by scripts/model's run-durations measure): the slow path's cost, kept beside deploy-live.json (record_live),
+    which VAL-deploy-1s reads since REQ-deploy-1s counts a code-only merge's landing to live. The port answers only the last
     build, so each read adds it to the snapshot (by build id, the newest DEPLOY_KEEP kept); only a succeeded build with
     its own clock counts. The snapshot's `at` is the read's time, which keeps it fresh while sessions read the status.
     Answers the runs recorded, or None when the build is not one to count."""
@@ -66,6 +69,83 @@ def record(state, root=None, now=None):
     made = {'workflow': DEPLOY_RUNS, 'source': 'the AWS deploy builds of GET /v1/deploy/status (scripts/deploy status)',
             'at': iso(now if now is not None else time.time()),
             'runs': sorted(kept + [entry], key=lambda run: run['started'], reverse=True)[:DEPLOY_KEEP]}
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    with open(target, 'w') as handle:
+        handle.write(json.dumps(made, indent=1) + '\n')
+    return made['runs']
+
+
+def live_at(state):
+    """REQ-deploy-1s: {merge sha: (epoch the merge's code went live, how)} for the code-only merges the status shows
+    going live (QUEUE-RELOAD, infra/service/tower_infra/queue_deploy.py: "a code-only merge is live about a second after
+    it lands"). A queue swap is live when the heir's task saw its pointer (image_live of the same digest and version),
+    else at the pointer's write; an ordered reload (no heir ready) when it is done (its proof ended)."""
+    number = lambda value: isinstance(value, (int, float)) and not isinstance(value, bool)  # noqa: E731
+    found, lives, reloads = {}, state.get('image_live') or [], state.get('image_reload') or []
+    for swap in state.get('image_swap') or []:
+        if not isinstance(swap, dict) or swap.get('swapped') is not True or not swap.get('head') or not number(swap.get('at')):
+            continue
+        versions = set((swap.get('versions') or {}).values()) if isinstance(swap.get('versions'), dict) else set()
+        heard = [each['at'] for each in lives if isinstance(each, dict) and number(each.get('at')) and each['at'] >= swap['at']
+                 and each.get('digest') == swap.get('digest') and each.get('version') in versions]
+        found.setdefault(swap['head'], (min(heard) if heard else swap['at'], 'swap'))
+    for order in reloads:
+        if not isinstance(order, dict) or order.get('state') != 'ordered' or not order.get('head') or not number(order.get('at')):
+            continue
+        done = [each['at'] for each in reloads if isinstance(each, dict) and each.get('state') == 'done'
+                and each.get('digest') == order.get('digest') and number(each.get('at')) and each['at'] >= order['at']]
+        if done:
+            found.setdefault(order['head'], (min(done), 'reload'))
+    return found
+
+
+def merged_at(sha, api, repo):
+    """The epoch GitHub merged the pull request whose merge commit is `sha` (merged_at, whole seconds), else None."""
+    import datetime as clock
+    for pull in api(f'repos/{repo}/commits/{sha}/pulls') or []:
+        if isinstance(pull, dict) and pull.get('merged_at') and pull.get('merge_commit_sha') == sha:
+            return clock.datetime.strptime(pull['merged_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=clock.timezone.utc).timestamp()
+    return None
+
+
+def record_live(state, root=None, now=None, api=None, repo=None):
+    """REQ-deploy-1s: each code-only merge's seconds from its landing (GitHub's merged_at, so up to 1 s early) to its code
+    live (live_at), in config/validation/runs/deploy-live.json, the snapshot VAL-deploy-1s reads; the build seconds stay
+    in deploy.json (record), the slow path's cost. A merge already recorded is not read again; offline (TOWER_OFFLINE,
+    no gh, the API refusing) nothing new is added. Answers the runs recorded, or None when there is nothing to record."""
+    import datetime as clock
+    seen = live_at(state)
+    if not seen:
+        return None
+    iso = lambda epoch: clock.datetime.fromtimestamp(epoch, clock.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')  # noqa: E731
+    target = os.path.join(root or RUNS_ROOT, RUNS_FOLDER, LIVE_RUNS + '.json')
+    try:
+        with open(target) as handle:
+            before = json.load(handle).get('runs') or []
+    except (OSError, ValueError):
+        before = []
+    known, added = {run.get('id') for run in before}, []
+    if api is None and not os.environ.get('TOWER_OFFLINE'):
+        import verify_commit  # the gate's github adapter (gh api), as runs.fetch reads GitHub
+        api = lambda path: verify_commit.gh_json(verify_commit.run, path)  # noqa: E731
+    if repo is None and api is not None:  # the repository runs.repository() names, without the model's unit
+        repo = os.environ.get('GITHUB_REPOSITORY') or config.get('forge-events.repo')
+    for sha, (live, how) in seen.items():
+        if sha in known or api is None:
+            continue
+        try:
+            merged = merged_at(sha, api, repo)
+        except (OSError, RuntimeError, ValueError):
+            break
+        if merged is not None and live >= merged:
+            added.append({'id': sha, 'event': how, 'conclusion': 'success', 'started': iso(merged),
+                          'seconds': round(live - merged, 3)})
+    made = {'workflow': LIVE_RUNS, 'source': "code-only merges' landing (GitHub merged_at) to code live "
+                                             '(image_swap/image_live, image_reload of GET /v1/deploy/status)',
+            'at': iso(now if now is not None else time.time()),
+            'runs': sorted(before + added, key=lambda run: run['started'], reverse=True)[:DEPLOY_KEEP]}
+    if not made['runs']:
+        return None
     os.makedirs(os.path.dirname(target), exist_ok=True)
     with open(target, 'w') as handle:
         handle.write(json.dumps(made, indent=1) + '\n')
@@ -314,9 +394,12 @@ def main(argv=None, environ=None):
             print(f'deploy: the status could not be read ({error})', file=sys.stderr)
             return 2
         print(json.dumps(state)) if args.json else describe(state)
-        recorded = record(state)
+        recorded, live = record(state), record_live(state)
         if recorded:  # stderr under --json, so the answer stays one JSON document for scripts/spend record
-            print(f'recorded: {len(recorded)} build(s) in {DEPLOY_RUNS}.json, the snapshot VAL-deploy-1s reads',
+            print(f'recorded: {len(recorded)} build(s) in {DEPLOY_RUNS}.json, the slow path builds\' seconds',
+                  file=sys.stderr if args.json else sys.stdout)
+        if live:
+            print(f'recorded: {len(live)} landing(s) in {LIVE_RUNS}.json, the snapshot VAL-deploy-1s reads',
                   file=sys.stderr if args.json else sys.stdout)
         return 0
     return follow(port, args.target, args.build, args.since)

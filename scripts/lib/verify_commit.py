@@ -66,6 +66,11 @@ PART_WORKERS = {'main': 3, 'shard1': 4, 'alone': 4}  # GATE-PARTS: what main's s
 # after its own, on its runner's four workers. GATE-SPLIT-BY-WORKER: each test goes to the least loaded of the eleven
 # workers (the batch runs longest first, so that is its wall), not to the part lighter on average: by the average, a part
 # took two ~25 s tests on one worker while another part's worker sat idle.
+# GATE-PER-RUNNER (REQ-gate-60s, 19/11/2026): by the worker alone, #279's queue gate put four deploy-slow parts on alone's
+# four workers and four on shard1's while main sat at 30 s; four at once on GitHub's 4-vCPU runner took 1.3-1.9x their
+# hints (40-55 s, alone 71 s). A part's wall is now also its runner's load over RUNNER_LOAD (main's stages counted), and
+# each test goes to the part it ends earliest on: the heavy tests spread 3/3/2.
+RUNNER_LOAD = 3.0  # GATE-PER-RUNNER: the test-seconds a runner does per second (shard1: four deploy-slow, 126 s of hints in 44 s)
 
 
 def costs():
@@ -79,22 +84,33 @@ def costs():
 
 def split(tests, named, hints):
     """GATE-PARTS: the planned tests of each part. alone: the timing-bound ones (named) first; then the others, longest
-    first (by the cost hints, ties by name), each to the least loaded worker of every part (GATE-SPLIT-BY-WORKER; ties
-    main, shard1, alone, then the worker's number): main's PART_WORKERS start STAGES_S heavier between them, for its
-    stages, and alone's after its timing-bound tests (GATE-ALONE-SHARE), so every job computes the same split."""
+    first (by the cost hints, ties by name), each to the part it ends earliest on (GATE-PER-RUNNER; ties main, shard1,
+    alone): the later of its least loaded worker's end (GATE-SPLIT-BY-WORKER) and its runner's load over RUNNER_LOAD,
+    main's STAGES_S in its load and its floor, alone's after its timing-bound tests (GATE-ALONE-SHARE), so every job
+    computes the same split."""
     parts = {'main': [], 'shard1': [], 'alone': [test for test in tests if test in named]}
     known = sorted(float(value) for value in hints.values() if value)
     usual = known[len(known) // 2] if known else 1.0  # a test with no hint weighs the median hint, never nothing
 
     def weight(test):
         return float(hints.get(test) or usual)
-    # main runs the stages too; alone's timing-bound tests hold its whole runner before its share starts
-    start = {'main': STAGES_S / PART_WORKERS['main'], 'shard1': 0.0, 'alone': sum(map(weight, parts['alone']))}
-    workers = [[start[part], PARTS.index(part), number, part] for part in PARTS for number in range(PART_WORKERS[part])]
+    # alone's timing-bound tests hold its whole runner before its share starts; main's stages run beside its batch on the
+    # CPU it keeps, so they weigh on its runner's load, not on its workers
+    before = {'main': 0.0, 'shard1': 0.0, 'alone': sum(map(weight, parts['alone']))}
+    load = {'main': STAGES_S, 'shard1': 0.0, 'alone': 0.0}
+    workers = {part: [0.0] * PART_WORKERS[part] for part in PARTS}
+
+    def wall(part, seconds):  # GATE-PER-RUNNER: the part's wall with this test, by its runner and by its workers (main's
+        # stages, one after another, hold it STAGES_S at least)
+        return before[part] + max(STAGES_S if part == 'main' else 0.0, (load[part] + seconds) / RUNNER_LOAD,
+                                  min(workers[part]) + seconds)
     for test in sorted((test for test in tests if test not in named), key=lambda test: (-weight(test), test)):
-        worker = min(workers)
-        parts[worker[3]].append(test)
-        worker[0] += weight(test)
+        seconds = weight(test)
+        part = min(PARTS, key=lambda part: (wall(part, seconds), PARTS.index(part)))
+        parts[part].append(test)
+        load[part] += seconds
+        slot = workers[part]
+        slot[slot.index(min(slot))] += seconds
     return parts
 
 

@@ -13,6 +13,7 @@
     "scripts/lib/defect_detect.py",
     "scripts/lib/defect_router.py",
     "scripts/lib/defects.py",
+    "scripts/lib/deploy.py",
     "scripts/lib/forge_events.py",
     "scripts/lib/forge_origin.py",
     "scripts/lib/forge_pr.py",
