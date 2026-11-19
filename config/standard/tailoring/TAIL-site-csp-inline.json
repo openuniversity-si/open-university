@@ -1,0 +1,10 @@
+{
+  "id": "TAIL-site-csp-inline",
+  "exempts": "STD-targets-full",
+  "scope": "CTRL-ssdf-pw.9",
+  "reason": "The site's content security policy keeps 'unsafe-inline' for scripts and styles: each page's RSC payload script differs per page and per build, and the course, lesson and catalog pages are rendered or regenerated at run time from the database, so no build step can hash what the browser gets; a nonce would make every page render per request (no static generation, no ISR, no PPR, Next 16.4.6's own docs). Measured on 19/11 with two builds of main (D-343). The control's other gap, the site Lambda and its front door defined outside this tree's stacks, is covered by the site's own header test and the headers seen live. Ends when Next can emit the RSC payload outside an inline script, or the site renders per request for another reason.",
+  "owner": "administration",
+  "authorized_by": "D-343",
+  "valid_until": "2027-02-19",
+  "state": "active"
+}

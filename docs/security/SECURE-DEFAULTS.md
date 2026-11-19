@@ -58,7 +58,7 @@ breaks the test named next to it.
 1. **The content security policy allows `'unsafe-inline'` scripts.** Since 19/11 the site enforces its policy
    (`Content-Security-Policy`, `apps/web/next.config.ts`, `apps/web/src/platform/security/csp.ts`) after seven days of
    reports showed only browser-extension origins (Typekit fonts, a `data:` font, an `eval`); `script-src` still allows
-   `'unsafe-inline'`, because the policy has no nonces yet and `layout.tsx` carries an inline theme `<style>`.
+   `'unsafe-inline'`: each page's RSC payload script differs per page and per build, and most pages are rendered or regenerated at run time, so no build step can hash them, and a nonce would make every page render per request. It is a dated exemption, `config/standard/tailoring/TAIL-site-csp-inline.json` (D-343, until 2027-02-19).
 2. **The site's Lambda and its front door are outside this tree's stacks**, so no test here proves what CloudFront
    adds; the HSTS, `nosniff`, referrer and frame headers are set by the site (`apps/web/src/platform/security/headers.ts`,
    `apps/web/test/site/security-headers.test.ts`) and were seen live on 19/11.
