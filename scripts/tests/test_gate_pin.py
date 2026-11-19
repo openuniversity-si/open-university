@@ -259,6 +259,17 @@ class GateFiles(unittest.TestCase):
                      "config/registry/gate/sub/x.json", "docs/scripts/gate-local", "scripts/verify-commit.bak/x"):
             self.assertFalse(gate_pin.GATE_FILE.match(name), name)
 
+    def test_the_structure_checks_imports_are_in_this_repositorys_gate_closure(self):
+        """THREAT-planning elevation of privilege (D-335, VULN-gate-judged-by-own-head): every scripts/lib module the
+        structure check imports (premises, unit_check, threshold_check, forge_pr, config, regime, ...) is in the closure
+        the pinned job's overlay restores from the base, so a change to one is judged by the base's structure check."""
+        closure = gate_pin.gate_closure(ROOT, "HEAD")
+        modules = gate_pin.python_refs((ROOT / "scripts/lib/structure.py").read_text(encoding="utf-8"))[0]
+        loaded = [path for module in modules for path in gate_pin.module_paths(module) if (ROOT / path).is_file()]
+        self.assertGreater(len(loaded), len(("premises", "unit_check", "threshold_check", "forge_pr", "config", "regime")))
+        for path in loaded:
+            self.assertTrue(gate_pin.in_closure(path, closure), path)
+
 
 class Overlay(Fixture):
     def test_the_base_gate_is_put_back_in_the_working_tree_only(self):
