@@ -2321,6 +2321,12 @@ class AgentEnvStackTests(unittest.TestCase):
     def of_type(self, kind):
         return [item['Properties'] for item in self.resources.values() if item['Type'] == kind]
 
+    def environment_roles(self):
+        """The logical ids of the roles one per declaration (tower-app-agent-env-<id>)."""
+        name = agent_env_stack.NAME.format(id='')
+        return sorted(key for key, item in self.resources.items()
+                      if item['Type'] == 'AWS::IAM::Role' and item['Properties']['RoleName'].startswith(name))
+
     def test_the_committed_stack_is_its_generation(self):
         self.assertEqual(self.PATH.read_text(encoding='utf-8'), agent_env_stack.render(ROOT))
 
@@ -2359,15 +2365,23 @@ class AgentEnvStackTests(unittest.TestCase):
             key = 'arn:aws-partition:kms:REGION:ACCOUNT:key/k'
             self.assertEqual(decide(statements, 'kms:Decrypt', key, {'kms:ViaService': 'ssm.REGION.amazonaws.com'}), 'allow')
             self.assertEqual(decide(statements, 'kms:Decrypt', key, {'kms:ViaService': 's3.REGION.amazonaws.com'}), 'implicit')
-            actions = {action for item in statements for action in as_list(item['Action'])}
+            actions = {action for item in statements if item['Effect'] == 'Allow' for action in as_list(item['Action'])}
             self.assertEqual(actions, {'logs:CreateLogStream', 'logs:PutLogEvents', 'ssm:GetParameter',
                                        'ssm:GetParametersByPath', 'kms:Decrypt'})
             [condition] = [item['Condition'] for item in statements if item['Action'] == 'kms:Decrypt']
             self.assertEqual(condition, {'StringEquals': {'kms:ViaService': {'Fn::Sub': 'ssm.${AWS::Region}.amazonaws.com'}}})
 
-    def test_no_secrets_manager_and_no_literal_account_id(self):
+    def test_no_environment_role_may_read_secrets_manager_and_no_literal_account_id(self):
         text = self.PATH.read_text(encoding='utf-8')
-        self.assertNotIn('secretsmanager', text)
+        webhook = 'arn:aws-partition:secretsmanager:REGION:ACCOUNT:secret:tower/torre-webhook-'
+        for name in self.environment_roles():
+            [policy] = self.resources[name]['Properties']['Policies']
+            statements = policy['PolicyDocument']['Statement']
+            allowed = [item for item in statements if item['Effect'] == 'Allow'
+                       if any(action.startswith('secretsmanager:') for action in as_list(item['Action']))]
+            self.assertEqual(allowed, [], name)
+            for secret in ('key-AbCdEf', 'url-AbCdEf'):
+                self.assertEqual(decide(statements, 'secretsmanager:GetSecretValue', webhook + secret), 'deny', name)
         self.assertIsNone(ACCOUNT_ID.search(text))
         self.assertIsNone(REGION_CODE.search(text))
         for secret in ({'name': 'A', 'store': 'secretsmanager', 'ref': 'tower/agent-env/x/a'},

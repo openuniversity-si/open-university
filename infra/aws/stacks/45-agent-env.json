@@ -81,6 +81,14 @@
                       }
                     }
                   }
+                },
+                {
+                  "Sid": "NeverTheTorreWebhook",
+                  "Effect": "Deny",
+                  "Action": "secretsmanager:*",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:tower/torre-webhook-*"
+                  }
                 }
               ]
             }

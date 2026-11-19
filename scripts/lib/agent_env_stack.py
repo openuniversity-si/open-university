@@ -11,7 +11,8 @@ API (the export tower-port-api-id), so the client's agent-env.endpoint is <port 
 infra/aws/agent-env/handler.py inline (a ZipFile, as the mail stack's forwarder); the declaration's non-secret variables,
 its SSM secret map (last segment -> name) and the deny list are embedded as its environment at deploy time. Values come
 only from SSM, never from the tree. A Secrets Manager reference is refused here until the boundary reads tower/agent-env/
-(a later PR). Stdlib only, deterministic (no clock).
+(a later PR). Every role of the stack carries an explicit Deny of secretsmanager:* on the Torre's webhook secrets
+(WEBHOOK), so no environment's role can read them whatever its allows say. Stdlib only, deterministic (no clock).
 """
 import argparse
 import json
@@ -30,6 +31,8 @@ BASE = '/agent-env/{id}'  # the environment's agent-env.endpoint is <port url> +
 ROUTE = 'GET ' + BASE + agent_env_client.ROUTE
 API_EXPORT = 'tower-port-api-id'
 STORE = 'ssm'  # the one store served until the boundary reads Secrets Manager
+WEBHOOK = 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:tower/torre-webhook-*'
+DENY_SID = 'NeverTheTorreWebhook'
 
 
 class StackError(Exception):
@@ -84,6 +87,15 @@ def rendered(declaration, shape, code, denied):
     return (filled(shape['Resources'], words, code, environment), filled(shape['Outputs'], words, code, environment))
 
 
+def deny_webhook(resources, allowed=()):
+    """Append the explicit Deny of the Torre's webhook secrets to every role of the stack but the `allowed` ones."""
+    deny = {'Sid': DENY_SID, 'Effect': 'Deny', 'Action': 'secretsmanager:*', 'Resource': {'Fn::Sub': WEBHOOK}}
+    for name, item in resources.items():
+        if item['Type'] == 'AWS::IAM::Role' and name not in allowed:
+            for policy in item['Properties']['Policies']:
+                policy['PolicyDocument']['Statement'].append(dict(deny))
+
+
 def template(root=ROOT):
     root = Path(root)
     errors = agent_env.check(root)
@@ -99,6 +111,7 @@ def template(root=ROOT):
         found, given = rendered(json.loads(path.read_text(encoding='utf-8')), shape, code, denied)
         resources.update(found)
         outputs.update(given)
+    deny_webhook(resources)
     return {'AWSTemplateFormatVersion': '2010-09-09', 'Description': shape['Description'],
             'Resources': resources, 'Outputs': outputs}
 
