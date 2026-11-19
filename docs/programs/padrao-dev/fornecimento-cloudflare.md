@@ -536,17 +536,27 @@ JSON`; a próxima mudança dele vai para o S3). Código novo e antigo dos dois l
 `heard`; o doorbell antigo só não diz o instante), então **não há ordem com o merge**: até a aplicação, `steps` começa no
 `port`, e o primeiro passo (push até o port) junta a entrega do GitHub e o doorbell.
 
-**Passos da Torre**, do checkout da cabeça da PR (ou de `main` depois do merge), em `us-east-1`:
+**O webhook assinado (19/11, SIGNED-HOOK, REQ-deploy-1s, opção (a) do desenho do deploy de 1 s, US$ 0).** O doorbell passa
+ao port todo evento do GitHub cuja assinatura conferiu, como `{event: hook, kind, ref, after, deleted}`, sem a sua própria
+checagem de push e de ref (o comentário D-303 saiu para dar lugar: 4.018 dos 4.096 caracteres); o caminho do token não
+muda. O port só pousa `kind: push` em `refs/heads/main`, sem `deleted`, com `after` de 40 hex, marcado `signed: true`; todo
+outro hook é aceito e ignorado, e a palavra antiga `{landed, sha}` continua pousando, sem assinatura. Num pouso assinado o
+look não faz o `git ls-remote` de `main` (`main_at` nulo, `main: 'signed'`); o resto da checagem fica. E um pouso que cai
+no reload ordenado grava o `why` (a idade do último beat do herdeiro, ou que nenhum bateu, e o estado do want). **Agora há
+ordem:** o port antigo ignora a palavra `hook`, então a Torre aplica este modelo **depois do deploy da PR** do port; uma
+aplicação só para PUSH-STEPS e SIGNED-HOOK.
+
+**Passos da Torre**, do checkout de `main` depois do merge e do seu deploy, em `us-east-1`:
 1. **Conferir o arquivo e subir o modelo.**
    ```
    ACCT=$(aws sts get-caller-identity --query Account --output text)
-   sha256sum infra/aws/bootstrap.json   # 8665a7264e94653d6657451e45a30f138efc0c28aacb8e367e6e6b9a04248184
-   aws s3 cp infra/aws/bootstrap.json s3://tower-outputs-$ACCT-us-east-1/artifacts/bootstrap/bootstrap-bc7e34b0.json \
+   sha256sum infra/aws/bootstrap.json   # 71b5b2b141f71a4d5c12da8fe66332ae5803b6ccd5f32a27e8ed115bdb520a12
+   aws s3 cp infra/aws/bootstrap.json s3://tower-outputs-$ACCT-us-east-1/artifacts/bootstrap/bootstrap-96926148.json \
      --region us-east-1 --only-show-errors
    ```
 2. **Ver o que muda e reaplicar o `tower-bootstrap`** com `UsePreviousValue` em todos os parâmetros:
    ```
-   URL=https://tower-outputs-$ACCT-us-east-1.s3.us-east-1.amazonaws.com/artifacts/bootstrap/bootstrap-bc7e34b0.json
+   URL=https://tower-outputs-$ACCT-us-east-1.s3.us-east-1.amazonaws.com/artifacts/bootstrap/bootstrap-96926148.json
    PARAMS="ParameterKey=OriginRepoUrl,UsePreviousValue=true ParameterKey=BaseBranch,UsePreviousValue=true \
      ParameterKey=DoorbellTokenSha256,UsePreviousValue=true ParameterKey=AlertEmail,UsePreviousValue=true \
      ParameterKey=ReplicaRegion,UsePreviousValue=true"
@@ -562,9 +572,11 @@ JSON`; a próxima mudança dele vai para o S3). Código novo e antigo dos dois l
    ```
    aws cloudformation get-template --region us-east-1 --stack-name tower-bootstrap --query TemplateBody --output json \
      | python3 -c 'import hashlib,json,sys; t=json.load(sys.stdin); t=json.loads(t) if isinstance(t,str) else t; print(hashlib.sha256(json.dumps(t,sort_keys=True,separators=(",",":")).encode()).hexdigest())'
-   # bc7e34b0a3aebd3944a98bc6b8a431f59169e0b2b211c97f19c78b09c7a64619
+   # 96926148a75f7150e417b780fff70132da521f50d169a99096ea370b03cea084
    ```
-4. **Conferir no próximo pouso só de código:** `scripts/deploy status` imprime a linha `steps` com `heard`.
+4. **Conferir no próximo pouso só de código:** `scripts/deploy status` imprime a linha `steps` com `heard` e sem
+   `ls-remote`, e o `platform.deploy.queue_reload` do pouso diz `main: signed`.
 
 **Reverter.** O mesmo caminho com o `bootstrap.json` anterior (hash canônico `cbb372a6…`): o doorbell deixa de dizer
-`heard` e `steps` volta a começar no `port`; nada mais muda.
+`heard` e `steps` volta a começar no `port`, e o pouso volta a vir na palavra `{landed, sha}`, sem assinatura (com o
+`ls-remote`); nada mais muda.

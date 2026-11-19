@@ -240,7 +240,12 @@ class BootstrapTests(unittest.TestCase):
     # JSON" to make room: 4,088 of the 4,096 characters (the next change of it moves it to S3). Old and new code on either
     # side read each other (the port ignores a missing `heard`), so the Torre applies it with no order to the merge
     # (the runbook's "PUSH-STEPS"). 54,095 bytes.
-    APPLIED = 'bc7e34b0a3aebd3944a98bc6b8a431f59169e0b2b211c97f19c78b09c7a64619'
+    # SIGNED-HOOK (REQ-deploy-1s, 19/11/2026): the doorbell forwards every signed GitHub event to the port as {event: hook,
+    # kind, ref, after, deleted} and drops its own push/ref check; the port lands a push to main alone, signed, and the
+    # look skips its git ls-remote of main for it. The D-303 comment went to make room: 4,018 of the 4,096 characters. The
+    # old port ignores a hook word, so the Torre applies it AFTER the merge's deploy (the runbook's "PUSH-STEPS", one
+    # apply for both changes). 54,021 bytes.
+    APPLIED = '96926148a75f7150e417b780fff70132da521f50d169a99096ea370b03cea084'
 
     # MEDIA-REPLICA: the workload services in the stack region and in the media replica's, nowhere else
     REGIONS = {'StringEquals': {'aws:RequestedRegion': [{'Ref': 'AWS::Region'}, {'Ref': 'ReplicaRegion'}]}}
@@ -532,6 +537,10 @@ class BootstrapTests(unittest.TestCase):
         self.assertIn("createHash('sha256')", code)
         self.assertIn("createHmac('sha256', secret)", code)
         self.assertLessEqual(len(code), 4096)  # CloudFormation's ZipFile limit
+        # SIGNED-HOOK: every signed event goes to the port as a hook word; the port, not the doorbell, picks the push to main
+        self.assertIn("said = { event: 'hook', kind: h['x-github-event'], ref: said.ref, after: said.after, deleted: !!said.deleted }",
+                      code)
+        self.assertNotIn("!== 'push'", code)
         token = self.template['Parameters']['DoorbellTokenSha256']
         self.assertTrue(token['NoEcho'])
         self.assertEqual(token['AllowedPattern'], '^[0-9a-f]{64}$')
