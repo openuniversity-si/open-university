@@ -1,0 +1,93 @@
+{
+  "id": "THREAT-knowledge",
+  "models": "ARC-knowledge",
+  "assets": [
+    "the premise register and its confirmations",
+    "the lessons and their hash-chained audit trail",
+    "the known-defect registry and the postmortems"
+  ],
+  "boundaries": [
+    "a session that proposes a premise or a lesson and the gate that judges it",
+    "a premise's confirmation and the owner it quotes"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "A premise is marked confirmed without the owner's literal quote, so a high-radius change rests on a confirmation nobody gave. Residual: the check requires a quote, not proof that the owner said it; the quote is text the session writes.",
+      "mitigated_by": [
+        "STD-premises-record-errors",
+        "TEST:scripts/tests/premises.test.sh",
+        "D-066"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A lesson or a known defect is edited or removed after it was recorded.",
+      "mitigated_by": [
+        "STD-audit-chain-chain-errors",
+        "STD-defects-chain-errors",
+        "TEST:scripts/tests/lessons.test.sh",
+        "TEST:scripts/tests/defects.test.sh"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "A postmortem names no check that prevents its class, so nobody can tell what closed it.",
+      "mitigated_by": [
+        "STD-postmortem-check-errors-for",
+        "TEST:scripts/tests/postmortem-check.test.sh"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "A lesson, a defect or a premise quotes a secret or a person's data into the public repository. Residual: the secret scans find a secret by its shape; no check finds a person's data, so that half rests on whoever writes the record.",
+      "mitigated_by": [
+        "STD-gate-secret-scan-tree",
+        "STD-gate-secret-scan-history"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A malformed record makes the readers of the register fail, so the structure check refuses every change.",
+      "mitigated_by": [
+        "STD-lessons-vocabulary-errors",
+        "STD-premises-record-errors",
+        "TEST:scripts/tests/lessons.test.sh"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "A lesson or a premise is taken as an instruction that widens what a session may do. Residual: the records are text a session reads; the session's deny rules (production commands, force push, workflows) hold whatever it reads, and beyond them only its judgment and the gate bound what it does.",
+      "mitigated_by": [
+        "TEST:scripts/tests/claude-settings.test.sh",
+        "D-294",
+        "CTRL-ssdf-ps.1"
+      ]
+    }
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "spoofing",
+        "finding": "record_errors checks that a confirmation carries a quote, not that the owner gave it.",
+        "disposition": "accepted",
+        "reason": "residual added; the owner's word reaches the tree only through a session."
+      },
+      {
+        "about": "information-disclosure",
+        "finding": "No check finds a person's data; the secret scans find secret shapes only.",
+        "disposition": "fixed",
+        "reason": "residual added."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "STD-lessons-vocabulary-errors checks the enumerated fields, not the free text that could carry an instruction; it does not mitigate this. A stronger reference exists: the session's deny rules.",
+        "disposition": "fixed",
+        "reason": "replaced by claude-settings.test.sh and D-294; residual kept."
+      }
+    ]
+  },
+  "reviewed": "2026-11-19"
+}

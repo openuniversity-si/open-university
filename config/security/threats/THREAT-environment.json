@@ -1,0 +1,102 @@
+{
+  "id": "THREAT-environment",
+  "models": "ARC-environment",
+  "assets": [
+    "the pinned toolchain in .toolchain/ (versions in config/registry/toolchain.json, checksums in scripts/cloud/toolchain.json)",
+    "the credentials a cloud session holds in its environment",
+    "the session settings and hooks (.claude/settings.json, .githooks)"
+  ],
+  "boundaries": [
+    "the internet (tool downloads) and the cloud container",
+    "the cloud session and the credentials its proxy injects",
+    "the engine and the forges it adapts (GitHub; Origin dormant)"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "A download claims to be a pinned tool but comes from another source or is another build.",
+      "mitigated_by": [
+        "CTRL-ssdf-po.3",
+        "TEST:scripts/tests/toolchain-pins.test.sh",
+        "STD-env-manifest-toolchain-errors"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "An installed tool drifts from its pin, or the session settings drop the hooks that run the local checks.",
+      "mitigated_by": [
+        "STD-env-manifest-toolchain-errors",
+        "TEST:scripts/tests/env.test.sh",
+        "TEST:scripts/tests/claude-settings.test.sh",
+        "TEST:scripts/tests/hooks-path.test.sh"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "What a session ran, and with which tools, cannot be told after the fact. Residual: the session's transcript is kept by the provider, not this tree; the tree keeps what the commits and the gate's record carry.",
+      "mitigated_by": [
+        "TEST:scripts/tests/usage.test.sh",
+        "TEST:scripts/tests/env.test.sh"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "The preflight or an environment check prints a credential's value to the console or a log.",
+      "mitigated_by": [
+        "TEST:scripts/tests/preflight.test.sh",
+        "CTRL-ssdf-po.5"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A failed or partial download leaves the toolchain broken, so no session can run the gate.",
+      "mitigated_by": [
+        "TEST:scripts/tests/toolchain-download.test.sh",
+        "TEST:scripts/tests/cloud.test.sh"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "A session runs as root or in a bypass permission mode and reaches beyond its worktree. Residual: the cloud session does run as uid 0, and its permission mode is set by whoever launches it; the tests prove the settings file (no bypass, the deny rules) and the drop of root for the steps that do it, not the session's own identity. The barrier is the ephemeral container with no production credential (CTRL-ssdf-po.5).",
+      "mitigated_by": [
+        "TEST:scripts/tests/root-identity.test.sh",
+        "TEST:scripts/tests/claude-settings.test.sh",
+        "CTRL-ssdf-po.5"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "A change to the session's hooks or to scripts/cloud/setup.sh runs its code in every later session that checks it out, with that session's credentials. Residual: a session that checks out an unmerged branch runs that branch's hooks before any gate has judged them.",
+      "mitigated_by": [
+        "CHK-tower-gate",
+        "TEST:scripts/tests/claude-settings.test.sh",
+        "TEST:scripts/tests/cloud.test.sh"
+      ]
+    }
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "repudiation",
+        "finding": "usage.test.sh and env.test.sh prove the usage count and the tool versions, not a record of what a session ran.",
+        "disposition": "accepted",
+        "reason": "residual added; the transcript is the provider's."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "The flagged residual understated it: the session runs as root today (uid 0), so the threat is realized and bounded only by the container.",
+        "disposition": "accepted",
+        "reason": "residual rewritten to state it; the container and CTRL-ssdf-po.5 are the barrier."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "No threat covered the hooks and the setup script that every session runs from its checkout.",
+        "disposition": "fixed",
+        "reason": "threat added."
+      }
+    ]
+  },
+  "reviewed": "2026-11-19"
+}

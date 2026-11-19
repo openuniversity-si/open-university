@@ -1,0 +1,110 @@
+{
+  "id": "THREAT-config",
+  "models": "ARC-config",
+  "assets": [
+    "the configuration registry (config/registry/<owner>/<key>.json) and each owner's generated aggregate",
+    "the JSON contracts and their generated types (contracts/)",
+    "the exception regime's recorded state"
+  ],
+  "boundaries": [
+    "a pull request's change to a registry key and the gate that judges it",
+    "the registry and the scripts that read it at run time",
+    "a committed generated file and its generator"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "A key is declared under another owner's name, or written by hand outside scripts/config with a value its schema refuses, so a reader takes a value its owner never set or the registry's API would not have accepted.",
+      "mitigated_by": [
+        "STD-config-value-errors",
+        "STD-json-schema-errors",
+        "TEST:scripts/tests/config.test.sh"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A change loosens a budget, a threshold or a lock value so that a later change passes a check it should fail. Residual: only the budgets, the SLOs and the exception lists are tighten-only; any other registry value (a gate threshold, a timeout) changes on the gate's checks alone.",
+      "mitigated_by": [
+        "STD-measurement-checks",
+        "STD-budgets-schema-errors",
+        "TEST:scripts/tests/budgets.test.sh",
+        "CTRL-ssdf-ps.1"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A generated aggregate or type is edited by hand, or a contract changes incompatibly, so readers and writers disagree on what a key or an event holds.",
+      "mitigated_by": [
+        "STD-gate-generated-drift",
+        "STD-gate-schema-compat",
+        "TEST:scripts/tests/schema-compat.test.sh",
+        "TEST:scripts/tests/generate.test.sh"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "A value changes and nobody can tell which change set it or why.",
+      "mitigated_by": [
+        "CTRL-ssdf-ps.2",
+        "CHK-tower-gate"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "A secret is stored as a registry value and reaches the public repository. Residual: the shape check catches only values that look like a secret.",
+      "mitigated_by": [
+        "STD-config-value-errors",
+        "STD-gate-secret-scan-tree",
+        "STD-gate-secret-scan-history"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A malformed key or an unreadable value makes every script that loads the registry fail, so the gate and the delivery stop.",
+      "mitigated_by": [
+        "STD-json-schema-errors",
+        "STD-registry-readers-derived",
+        "TEST:scripts/tests/config-readers.test.sh"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "A change to a key that governs the gate (its allowed workflows, its stages) widens what the gate lets through without a decision. Residual: the rule that asks a gate change for a decision matches the gate's scripts, not config/registry/gate/, and accepts any recorded D-NNN, not one that approves the change.",
+      "mitigated_by": [
+        "STD-commit-check-gate-errors",
+        "config/registry/gate/gate.allowed_workflows.json",
+        "TEST:scripts/tests/queue-checks.test.sh"
+      ]
+    }
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "spoofing",
+        "finding": "The statement described a malformed value (tampering); the registry's real spoofing case, a key declared under another owner, was missing though config.check refuses it.",
+        "disposition": "fixed",
+        "reason": "statement widened; config.test.sh covers it."
+      },
+      {
+        "about": "tampering",
+        "finding": "Budgets and exception lists are tighten-only, other thresholds are not; the statement implied all are.",
+        "disposition": "fixed",
+        "reason": "residual added."
+      },
+      {
+        "about": "information-disclosure",
+        "finding": "The flagged residual (the shape check catches only secret-shaped values) is honest.",
+        "disposition": "accepted",
+        "reason": "kept; a value that does not look like a secret cannot be told from configuration by a check."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "STD-commit-check-gate-errors matches gate_pin.GATE_FILE (scripts/gate-*, scripts/lib/gate*, the structure and commit checks): config/registry/gate/*.json, scripts/verify-commit and scripts/lib/verify_commit.py are outside it, so a change to a gate key needs no decision; and any recorded D-NNN satisfies it.",
+        "disposition": "open",
+        "reason": "residual added; follow-up: widen GATE_FILE to the gate's registry keys and its GitHub entry point."
+      }
+    ]
+  }
+}

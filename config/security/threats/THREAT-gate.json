@@ -14,25 +14,27 @@
   "threats": [
     {
       "stride": "spoofing",
-      "statement": "A run that did not judge the commit, such as a fork's run or a run of another head, passes its green verdict off as the queue commit's.",
+      "statement": "A run that did not judge the commit, such as a fork's run or a run of another head, passes its green verdict off as the queue commit's; or a tower/gate status is posted on a commit by a credential other than the gate's own job. Residual: the ruleset requires the check by its name alone, not by the source that reports it (VULN-gate-check-source).",
       "mitigated_by": [
         "TEST:scripts/tests/verify-commit.test.sh",
-        "REQ-github-truth"
+        "REQ-github-truth",
+        ".github/rulesets/main.json"
       ]
     },
     {
       "stride": "tampering",
-      "statement": "A pull request edits the gate itself (its scripts, its rules or a workflow) so that its own change passes.",
+      "statement": "A pull request edits the gate itself (its scripts, its rules or a workflow) so that its own change passes. Residual: tower/gate runs scripts/verify-commit from the tree it judges, so the rules below hold a change that keeps them and not one that rewrites them; the pinned gate that judges with the base's tooling (scripts/lib/gate_pin.py, D-070) is not used by the GitHub job (VULN-gate-judged-by-own-head).",
       "mitigated_by": [
         "config/registry/gate/gate.allowed_workflows.json",
         "STD-gate-workflows-refused",
         "TEST:scripts/tests/queue-checks.test.sh",
-        "STD-gate-structure-check"
+        "STD-gate-structure-check",
+        "STD-commit-check-gate-errors"
       ]
     },
     {
       "stride": "tampering",
-      "statement": "A dependency or tool the gate runs is swapped for a malicious version between two runs.",
+      "statement": "A dependency or tool the gate runs is swapped for a malicious version between two runs. Residual: the workflow's actions are pinned by a tag, not a commit; the supply measure counts them unpinned and no check refuses one.",
       "mitigated_by": [
         "CTRL-ssdf-po.3",
         "CTRL-ssdf-pw.4",
@@ -58,17 +60,20 @@
     },
     {
       "stride": "information-disclosure",
-      "statement": "A secret committed in a change reaches the public repository and its history.",
+      "statement": "A secret committed in a change reaches the public repository and its history. Residual: the gate sees a pushed commit, already public on its branch; the earlier barrier is the pre-push scan, which runs on the client and is skipped by a push that bypasses the hook.",
       "mitigated_by": [
         "STD-gate-secret-scan-tree",
-        "STD-gate-secret-scan-history"
+        "STD-gate-secret-scan-history",
+        "TEST:scripts/tests/local-checks.test.sh"
       ]
     },
     {
       "stride": "denial-of-service",
-      "statement": "A change floods the queue or hangs the gate, so no other change lands.",
+      "statement": "A change floods the queue or hangs the gate, so no other change lands. Residual: the 60 s requirement is a target, not a bound; a hung run is stopped by the job's timeout and the queue's check timeout.",
       "mitigated_by": [
-        "REQ-gate-60s"
+        "REQ-gate-60s",
+        ".github/workflows/tower-gate.yml",
+        ".github/rulesets/main.json"
       ]
     },
     {
@@ -79,5 +84,53 @@
         "D-054"
       ]
     }
-  ]
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "spoofing",
+        "finding": "The ruleset requires tower/gate by context only (no source app), and scripts/verify-commit posts that status with the session's own credential when run without --no-post, so a status from any writer of statuses satisfies the queue; neither mitigation listed refuses that.",
+        "disposition": "open",
+        "reason": "VULN-gate-check-source; follow-up: bind the required check to the GitHub Actions app in .github/rulesets/main.json (owner-applied)."
+      },
+      {
+        "about": "tampering",
+        "finding": "The listed rules (allowed workflows, workflows refused, structure check) run from the head under judgment: the GitHub job does not use the base-pinned gate of D-070, so a change that rewrites the gate judges itself.",
+        "disposition": "open",
+        "reason": "VULN-gate-judged-by-own-head; follow-up: run the gate's stages from the base's tooling in tower-gate.yml, the head's as advisory, as gate_pin.py does."
+      },
+      {
+        "about": "tampering",
+        "finding": "STD-commit-check-gate-errors, the rule that asks a decision of a gate change, was missing from the gate's own tampering threat.",
+        "disposition": "fixed",
+        "reason": "added to mitigated_by."
+      },
+      {
+        "about": "tampering",
+        "finding": "The third-party actions of tower-gate.yml are pinned by tag (v4), not commit; supply.py counts them unpinned and refuses nothing.",
+        "disposition": "accepted",
+        "reason": "residual added; the actions are GitHub's own, the party that already runs the runner and the ruleset."
+      },
+      {
+        "about": "information-disclosure",
+        "finding": "The secret scans run after the push, when the commit is already public on its branch.",
+        "disposition": "fixed",
+        "reason": "residual added; the pre-push scan (local-checks) named as the earlier, client-side barrier."
+      },
+      {
+        "about": "denial-of-service",
+        "finding": "REQ-gate-60s is a target, not a mitigation of a hung or flooding change.",
+        "disposition": "fixed",
+        "reason": "the job timeout (tower-gate.yml) and the queue's check timeout (rulesets/main.json) added; residual stated."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "The residual is honest; together with the two open findings the checks are not yet the barrier the statement says they are.",
+        "disposition": "accepted",
+        "reason": "kept as written; it holds once the two VULNs are fixed."
+      }
+    ]
+  }
 }

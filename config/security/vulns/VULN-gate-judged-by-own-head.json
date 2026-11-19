@@ -1,0 +1,9 @@
+{
+  "id": "VULN-gate-judged-by-own-head",
+  "statement": "The tower/gate job runs the gate's tooling from the commit it judges, so a change to the gate's scripts or rules is judged by its own version; the pinned gate (scripts/lib/gate_pin.py, D-070), which judges with the base's tooling and runs the head's only as advisory, is not used on GitHub. Found in the independent review of THREAT-gate (tampering) and THREAT-planning (elevation of privilege); entering the merge queue takes write access to the repository.",
+  "severity": "moderate",
+  "found": "2026-11-19",
+  "in": [
+    "ARC-gate"
+  ]
+}

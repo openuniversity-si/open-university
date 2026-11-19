@@ -1,0 +1,93 @@
+{
+  "id": "THREAT-events",
+  "models": "ARC-events",
+  "assets": [
+    "the event contracts (contracts/) and the events written against them",
+    "the decision records (docs/domain/DECISIONS.md, docs/domain/decisions/)",
+    "the hash-chained audit trails and the git-ref diary"
+  ],
+  "boundaries": [
+    "a script that writes an event and the reader that trusts it",
+    "a pull request and the records it adds",
+    "a session and the lock refs on the remote"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "An event is written that does not match its contract, or names a producer that did not write it, so a reader acts on a field nobody defined or trusts a source that never spoke. Residual: an envelope's producer is a field its writer sets; nothing authenticates it but the writer's access to the store.",
+      "mitigated_by": [
+        "TEST:scripts/tests/event-contracts.test.sh",
+        "STD-json-schema-errors"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A locked contract is changed or removed, or a recorded entry of a trail is edited or removed. Residual: the hash chain is unkeyed, so a rewritten tail recomputes clean; an edit is caught against the base's copy (the lessons and defects checks), and lock and diary refs outside main are kept by the forge's permissions alone.",
+      "mitigated_by": [
+        "STD-gate-schema-compat",
+        "TEST:scripts/tests/event-contracts.test.sh",
+        "STD-audit-chain-chain-errors",
+        "STD-defects-chain-errors",
+        "TEST:scripts/tests/lessons.test.sh",
+        "TEST:scripts/tests/defects.test.sh"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "A decision number is reused or written with a time later than its record, so nobody can tell which decision held when.",
+      "mitigated_by": [
+        "STD-structure-clock-errors",
+        "TEST:scripts/tests/decision-record.test.sh"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "An event or a record carries a secret or a person's data into the public repository. Residual: the secret scans find a secret by its shape; no check finds a person's data, so that half rests on whoever writes the record.",
+      "mitigated_by": [
+        "STD-gate-secret-scan-tree",
+        "STD-gate-secret-scan-history"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A reader waits on a clock or polls a state instead of an event, so the flow stalls when the event never comes.",
+      "mitigated_by": [
+        "REQ-events-no-polling",
+        "TEST:scripts/tests/polling.test.sh"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "A session takes a lock ref it does not hold, or writes git data by a path that skips the forge's checks.",
+      "mitigated_by": [
+        "TEST:scripts/tests/forge-git-ref.test.sh",
+        "TEST:scripts/tests/no-rest-git-write.test.sh"
+      ]
+    }
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "spoofing",
+        "finding": "The statement was a contract violation (tampering); the spoofing case, a forged producer, was missing.",
+        "disposition": "fixed",
+        "reason": "statement widened; residual added."
+      },
+      {
+        "about": "tampering",
+        "finding": "STD-audit-chain-chain-errors and STD-defects-chain-errors check a chain's internal consistency only; an unkeyed chain rewritten from an entry on passes them. The append-only proof is the base comparison of lessons.check and defects.check.",
+        "disposition": "fixed",
+        "reason": "lessons and defects tests added; residual added."
+      },
+      {
+        "about": "information-disclosure",
+        "finding": "STD-config-value-errors judges registry values, not events or records; and no check finds a person's data.",
+        "disposition": "fixed",
+        "reason": "reference removed; residual added."
+      }
+    ]
+  },
+  "reviewed": "2026-11-19"
+}

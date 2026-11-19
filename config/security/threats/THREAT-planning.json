@@ -1,0 +1,82 @@
+{
+  "id": "THREAT-planning",
+  "models": "ARC-planning",
+  "assets": [
+    "the program and unit plans and the unit map (units/)",
+    "the structure check and its trailers",
+    "the coordinator's queue and the lanes' claims"
+  ],
+  "boundaries": [
+    "a session that claims a unit and the lane that owns it",
+    "a pull request body and the structure check that reads it"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "A session works a unit another lane owns, or a body carries an approved trailer with no review of that head.",
+      "mitigated_by": [
+        "STD-train-ownership-refusals",
+        "STD-structure-review-errors",
+        "TEST:scripts/tests/structure-check.test.sh"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A plan is ticked by hand instead of by real commits, so a ready pull request hides an undelivered item.",
+      "mitigated_by": [
+        "STD-structure-plan-completeness-errors",
+        "TEST:scripts/tests/plan-tick.test.sh"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "A unit or a companion file is claimed by two units, so nobody can tell who owns a change.",
+      "mitigated_by": [
+        "STD-unit-check-companion-errors",
+        "TEST:scripts/tests/units.test.sh"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "A plan, a brief or an intake copies a secret or a person's data into the repository. Residual: the secret scans find a secret by its shape; no check finds a person's data, so that half rests on whoever writes the record.",
+      "mitigated_by": [
+        "STD-gate-secret-scan-tree",
+        "STD-gate-secret-scan-history"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A change touches the units of several lanes, so the queue cannot place it and blocks the lanes behind it.",
+      "mitigated_by": [
+        "STD-structure-lane-errors",
+        "TEST:scripts/tests/coordinator.test.sh"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "A planning change edits the structure check itself so its own body passes. Residual: tower/gate runs the structure check from the head it judges (VULN-gate-judged-by-own-head), and the decision the gate-change rule asks for may be any recorded D-NNN.",
+      "mitigated_by": [
+        "STD-commit-check-gate-errors",
+        "STD-gate-structure-check"
+      ]
+    }
+  ],
+  "review": {
+    "by": "independent reviewer agent, D-333",
+    "on": "2026-11-19",
+    "findings": [
+      {
+        "about": "information-disclosure",
+        "finding": "No check finds a person's data.",
+        "disposition": "fixed",
+        "reason": "residual added."
+      },
+      {
+        "about": "elevation-of-privilege",
+        "finding": "Both mitigations run from the head under judgment on GitHub, so a change that edits the structure check judges itself; and any recorded D-NNN satisfies the gate-change rule.",
+        "disposition": "open",
+        "reason": "VULN-gate-judged-by-own-head; residual added."
+      }
+    ]
+  }
+}
