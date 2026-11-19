@@ -4,6 +4,7 @@
  "DeployShTests.test_the_data_stack_is_deployed_with_the_class_the_file_names": 1.05,
  "DeployShTests.test_the_bootstrap_stack_is_read_back_and_compared_with_its_mirror_in_the_record": 2.09,
  "DeployShTests.test_the_months_spend_is_read_at_most_once_a_day_and_kept_in_the_record": 2.53,
+ "DeployShTests.test_a_refused_spend_read_records_its_class_once_a_day_and_never_the_text": 3.73,
  "DeployShTests.test_a_failed_stack_blocks_what_needs_it_and_not_the_rest": 0.92,
  "DeployShTests.test_a_failed_stack_prints_only_this_operations_events_and_the_cli_error": 0.99,
  "DeployShTests.test_a_last_sha_that_cannot_be_written_fails_the_build_and_says_so": 0.69,

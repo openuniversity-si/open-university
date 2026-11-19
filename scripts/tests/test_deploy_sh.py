@@ -62,7 +62,8 @@ case "$1 $2" in
     case "$*" in *"--output json"*) [ -n "${STUB_EVENTS_JSON:-}" ] && { echo "$STUB_EVENTS_JSON"; exit 0; } || exit 255 ;; esac  # SLOW-PATH-STACK-PARTS
     printf '2020-01-01T04:03:00.000000+00:00\tAckIntegration\tCREATE_FAILED\tOLD PORT7 failure\n'
     printf '%s\tNewResource\tUPDATE_FAILED\tTHIS build failure\n' "$(date -u +%Y-%m-%dT%H:%M:%S.000000+00:00)" ;;
-  "ce get-cost-and-usage") [ -n "${STUB_SPEND:-}" ] && { echo "$STUB_SPEND"; exit 0; } || exit 254 ;;  # AWS-SPEND
+  "ce get-cost-and-usage") [ -n "${STUB_SPEND:-}" ] && { echo "$STUB_SPEND"; exit 0; }  # AWS-SPEND
+    echo "${STUB_SPEND_ERR:-An error occurred}" >&2; exit 254 ;;
   "cloudformation get-template") [ -f "$STUB_DIR/bootstrap.json" ] && { cat "$STUB_DIR/bootstrap.json"; exit 0; } || exit 255 ;;  # BOOTSTRAP-DRIFT
   "ecr describe-repositories") exit 0 ;;
   "ecr describe-images")  # IMAGE-STAGE-CACHE: ecr_tags lists the tags that exist (none by default)
@@ -280,6 +281,28 @@ class DeployShTests(unittest.TestCase):
         self.assertEqual((done.returncode, self.build()['status']), (0, 'succeeded'), done.stderr)
         self.assertEqual(self.build()['spend'], json.loads(earlier)['spend'])
         self.assertIn('aws ce get-cost-and-usage', (self.state / 'calls').read_text())
+
+    def test_a_refused_spend_read_records_its_class_once_a_day_and_never_the_text(self):
+        """SPEND-WHY (VAL-aws-200): a refused Cost Explorer read records why (access-denied, not-enabled, timeout, other),
+        never the CLI's words; a later build of the same day calls nothing; a reading clears the reason."""
+        today = time.strftime('%Y-%m-%d', time.gmtime())
+        for said, why in (('An error occurred (AccessDeniedException) when calling GetCostAndUsage: User arn:x is not '
+                           'authorized', 'access-denied'),
+                          ('An error occurred (DataUnavailableException): user not enabled for cost explorer access',
+                           'not-enabled'),
+                          ('something else entirely', 'other')):
+            done = self.run_deploy(STUB_LAST='old', STUB_SPEND_ERR=said)
+            self.assertEqual((done.returncode, self.build()['status']), (0, 'succeeded'), done.stderr)
+            self.assertEqual(self.build()['spend_error'], {'day': today, 'why': why})
+            self.assertNotIn('arn:x', json.dumps(self.build()))
+        (self.state / 'calls').write_text('')
+        done = self.run_deploy(STUB_LAST='old', STUB_SPEND_ERR='x', STUB_LAST_BUILD=self.recorded('/tower/deploy/last-build'))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn('aws ce ', (self.state / 'calls').read_text())
+        self.assertEqual(self.build()['spend_error']['why'], 'other')
+        done = self.run_deploy(STUB_LAST='old', STUB_SPEND='12.5')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn('spend_error', self.build())
 
     def test_a_record_over_4000_bytes_is_shrunk_in_order_and_still_written(self):
         prev = json.dumps({'hashes': {f'stack{i}': 'h' * 20 for i in range(60)}, 'stacks': {f'tower-app-s{i}': 100 + i for i in range(80)}})
