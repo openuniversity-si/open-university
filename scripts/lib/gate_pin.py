@@ -190,6 +190,12 @@ IMPLICIT = ('sitecustomize', 'usercustomize')
 SCRIPT_PATH = re.compile(r'(?<![\w.-])scripts/lib/[\w./-]*[\w-]')
 LIB_PATH = re.compile(r'(?<![\w.-])lib/[\w-]+\.(?:py|sh)')
 # A Python import line inside a shell script (a heredoc run with scripts/lib on sys.path).
+# The toolchain the pinned job runs after the overlay (D-335, VULN-gate-judged-by-own-head): `bash scripts/cloud/setup.sh`
+# and `source scripts/cloud/env.sh` with every scripts/cloud file they source or run, the registry they read (the cloud and
+# toolchain owners: versions; checksums are scripts/cloud/toolchain.json), the hermetic harness, and any .toolchain file
+# a change tracks. The overlay puts the base's back, so the job's toolchain step runs the base's with no workflow change.
+TOOLCHAIN_FILE = re.compile(r'^(scripts/cloud/[^/]+|scripts/lib/hermetic/.+|config/registry/(toolchain|cloud)(\.json|/[^/]+\.json)'
+                            r'|\.toolchain/.+)$')
 STEM = '.*'  # the closure entry of an imported top-level name (in_closure)
 IMPORT_LINE = re.compile(r'^\s*(?:from\s+(?P<source>[A-Za-z_][\w.]*)\s+import\b|import\s+(?P<names>[A-Za-z_][\w.]*(?:\s*,\s*[A-Za-z_][\w.]*)*))',
                          re.M)
@@ -209,7 +215,7 @@ def module_paths(name):
 def in_closure(name, closure):
     """True when the change's file <name> is the gate's: a gate file, a closure file, or a scripts/lib file an import of
     the closure could load (its first component's stem is an imported top-level name: a .pyc, a .so, a package file)."""
-    if GATE_FILE.match(name) or name in closure:
+    if GATE_FILE.match(name) or TOOLCHAIN_FILE.match(name) or name in closure:
         return True
     rest = name.removeprefix(f'{LIB}/')
     return rest != name and f'{LIB}/{rest.split("/")[0].split(".")[0]}{STEM}' in closure
@@ -251,7 +257,7 @@ def gate_closure(tree, base):
     files = set((git(tree, 'ls-tree', '-r', '--name-only', base) or '').splitlines())
     directories = {name.rsplit('/', count)[0] for name in files for count in range(1, name.count('/') + 1)}
     closure = set()
-    todo = [name for name in sorted(files) if GATE_FILE.match(name)]
+    todo = [name for name in sorted(files) if GATE_FILE.match(name) or TOOLCHAIN_FILE.match(name)]
     for name in IMPLICIT:
         todo += module_paths(name)
     while todo:

@@ -325,6 +325,30 @@ class Overlay(Fixture):
         self.assertEqual((self.repo / "scripts/lib/other.py").read_text(), "VALUE = 'head'\n")
         self.assertTrue((self.repo / "scripts/lib/new_tool.py").exists())
 
+    def test_the_toolchain_the_job_runs_after_the_overlay_is_the_bases(self):
+        """D-335: setup.sh, env.sh, the scripts/cloud helpers they run and what those import, the toolchain and cloud
+        registry and a tracked .toolchain file are the base's after the overlay, so the job's toolchain step and its
+        `source scripts/cloud/env.sh` run the base's."""
+        git(self.repo, "checkout", "-q", self.base)
+        base = self.commit({"scripts/cloud/setup.sh": "base setup\n", "scripts/cloud/env.sh": "base env\n",
+                            "scripts/cloud/toolchain.py": "import toolchain_manifest\n",
+                            "scripts/lib/toolchain_manifest.py": "VALUE = 'base'\n",
+                            "config/registry/toolchain.json": "{}\n",
+                            "config/registry/toolchain/toolchain.python_version.json": "{}\n"}, "base toolchain")
+        changed = {"scripts/cloud/setup.sh": "head setup\n", "scripts/cloud/env.sh": "head env\n",
+                   "scripts/lib/toolchain_manifest.py": "VALUE = 'head'\n",
+                   "config/registry/toolchain/toolchain.python_version.json": "{\"value\": 1}\n"}
+        added = ("scripts/cloud/json.py", ".toolchain/bin/python3")
+        self.commit({**changed, **{name: "head\n" for name in added}}, "head toolchain")
+        self.assertEqual(sorted(gate_pin.overlay(self.repo, base)), sorted([*changed, *added]))
+        self.assertEqual((self.repo / "scripts/cloud/setup.sh").read_text(), "base setup\n")
+        self.assertEqual((self.repo / "scripts/cloud/env.sh").read_text(), "base env\n")
+        self.assertEqual((self.repo / "scripts/lib/toolchain_manifest.py").read_text(), "VALUE = 'base'\n")
+        self.assertEqual((self.repo / "config/registry/toolchain/toolchain.python_version.json").read_text(), "{}\n")
+        for name in added:
+            self.assertFalse((self.repo / name).exists(), name)
+        self.assertFalse(gate_pin.GATE_FILE.match("scripts/cloud/setup.sh"))  # no decision asked of the toolchain
+
     def test_a_change_that_touches_no_gate_file_pins_nothing(self):
         git(self.repo, "checkout", "-q", self.base)
         self.commit({"app.txt": "other\n"}, "app only")
