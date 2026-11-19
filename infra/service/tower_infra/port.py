@@ -508,6 +508,7 @@ LIVE_ROWS = 20  # IMAGE-PREWARM-A: the image swaps the deploy status keeps
 # landing found no standby of its premerge's bundle (13/11 23:41:11 UTC; the swap by the order 13.97 s later)
 SUCCESSOR_ROWS = 200
 STACK_ROWS = 20  # ROLLOUT-PARTS: the app stacks' ends the deploy status keeps
+MIGRATED_ROWS = 10  # MIGRATED-EVENT: the live service's migrate() ends the deploy status keeps
 SWAP_ROWS = 20  # IMAGE-PREWARM-C: the landings' image swaps (or why not) and the pointers' retirements the status keeps
 CANARY_ROWS = 20  # DEPLOY-CANARY: the canaries' verdicts the deploy status keeps
 ECS_ROWS = 20  # ECS-STOPS-READ: the stopped tasks and the services' actions the deploy status keeps
@@ -652,6 +653,12 @@ def deploy_status(db, who, landings=None):
     reloads = db.rows("select payload::text from log.event where type = 'platform.deploy.image_reload' and tenant_id is null "
                       "and occurred_at > now() - interval '30 days' order by occurred_at desc limit %(limit)s",
                       {'limit': RELOAD_ROWS})
+    # MIGRATED-EVENT (D-331): platform.deploy.migrated {bundle, build, state, applied, newest | why} (tenant_id null: the live
+    # service's autodeploy.migrate), newest first: the end deploy.sh's migrate_wait holds the status for
+    migrated = db.rows("select (jsonb_build_object('at', round(extract(epoch from occurred_at)::numeric, 3)) || payload)::text "
+                       "from log.event where type = 'platform.deploy.migrated' and tenant_id is null "
+                       "and occurred_at > now() - interval '30 days' order by occurred_at desc limit %(limit)s",
+                       {'limit': MIGRATED_ROWS})
     code = db.rows("select v.value #>> '{}' from work.config_value v join work.tenant t on t.id = v.tenant_id "
                    "where t.name = %(tenant)s and v.key = 'deploy.live_code'",
                    {'tenant': os.environ.get('TOWER_CONFIG_TENANT', config_data.TENANT)})
@@ -690,6 +697,7 @@ def deploy_status(db, who, landings=None):
             'image_swap': [json.loads(row[0]) for row in swaps or []],  # IMAGE-PREWARM-C
             'image_retired': [json.loads(row[0]) for row in retired or []],
             'image_reload': [json.loads(row[0]) for row in reloads or []],  # IMAGE-SWAP-RELOAD
+            'migrated': [json.loads(row[0]) for row in migrated or []],  # MIGRATED-EVENT
             'ecs': [json.loads(row[0]) for row in ecs or []],  # ECS-STOPS-READ
             'runner_life': lives[:ECS_ROWS * 2],  # SPOT-KEEP
             'task_up': ups,  # VERIFY-AT-UP: each ECS task of the two roles that said it is up ({stack, role, task, image, code})

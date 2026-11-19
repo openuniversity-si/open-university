@@ -80,6 +80,9 @@ LOST = 'platform.deploy.lost'  # DEP-WATCHDOG: a ring whose build never reported
 MODE = 'platform.deploy.mode_changed'
 FAST, ROLLEDBACK = 'platform.deploy.fast', 'platform.deploy.rolledback'
 LANDED = 'platform.deploy.landed'  # FAST-ON-LANDED: the delivery's word on what a merge changed (Origin's pushes list no files)
+# MIGRATED-EVENT (D-331): the migrations a build asked for, applied or not ({bundle, build, state: applied|failed, applied,
+# newest}), which deploy.sh's migrate_wait waits for on the status's long poll (a platform.deploy.* insert wakes tower_status)
+MIGRATED = 'platform.deploy.migrated'
 EVENTS_REF = 'refs/heads/train/events'
 LAST_SHA, LAST_BUILD = '/tower/deploy/last-sha', '/tower/deploy/last-build'
 DEPLOYER_BUDGET_S = 2400  # DEPLOY_BUDGET_S of the deployer (bootstrap.json): no stack starts after it, so an in_progress build silent for longer is lost
@@ -676,8 +679,22 @@ class AutoDeploy:
             names = migrations.migrate_bundle(db, code_bundle.fetch(self.bundles, {}, key, sha), PRODUCER)
             self.say('migrate', f"applied {', '.join(names) or 'nothing: the database already had them'}", self.clock(),
                      bundle=sha[:12], build=build.get('build_id'))
-        except Exception:  # noqa: BLE001 - the build then keeps the old order: the new service migrates at its boot
+            self.said_migrated(db, sha, build, 'applied', applied=list(names), newest=max(names) if names else None)
+        except Exception as error:  # noqa: BLE001 - the build then keeps the old order: the new service migrates at its boot
             LOG.exception('autodeploy: the migrations a build asked for were not applied')
+            if sha:
+                self.said_migrated(db, sha, build, 'failed', why=f'{type(error).__name__}: {error}'[:300])
+
+    def said_migrated(self, db, sha, build, state, **fields):
+        """MIGRATED-EVENT: platform.deploy.migrated {bundle, build, state, ...}: the end of migrate(), which the build that
+        asked waits for (deploy.sh migrate_wait, on GET /v1/deploy/status's long poll). Never raises: without it the build
+        waits its own bound and keeps the old order."""
+        build = build if isinstance(build, dict) else {}
+        try:
+            self.record(db, MIGRATED, f'{MIGRATED}:{sha}:{build.get("build_id")}:{self.clock():.3f}',
+                        {'bundle': sha, 'build': build.get('build_id'), 'state': state, **fields})
+        except Exception:  # noqa: BLE001 - the wait is bounded; the record is its cue, not its verdict
+            LOG.exception('autodeploy: the migrations\' end was not recorded')
 
     # --- IMAGE-PREWARM-C: the image-only swap on landing --------------------------------------------------------------------
     def image(self, db, pushes, cfg):

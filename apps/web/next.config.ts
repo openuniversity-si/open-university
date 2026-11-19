@@ -4,6 +4,7 @@ import { mediaPublicHosts } from "./src/media/server/public-hosts.ts";
 import type { NextConfig } from "next";
 import { playbackContentSources } from "./src/playback/server/source-registry.ts";
 import { CSP_REPORT_PATH, reportOnlyContentSecurityPolicy } from "./src/platform/security/csp.ts";
+import { SECURITY_HEADERS } from "./src/platform/security/headers.ts";
 import { alternateHostRedirects } from "./src/site/domain/hosts.ts";
 import { hostCommit, indexingFacts } from "./src/platform/host/env.ts";
 import { isSiteIndexable, NOINDEX_HEADER_VALUE } from "./src/site/domain/indexing.ts";
@@ -68,7 +69,7 @@ const nextConfig: NextConfig = {
     // (/_next/static is already immutable; next/font serves Inter from there.)
     const publicCache = [csp, reporting, { key: "Cache-Control", value: PUBLIC_ASSET_CACHE_CONTROL }];
     return Promise.resolve([
-      { source: "/:path*", headers: [csp, reporting, ...robots] },
+      { source: "/:path*", headers: [csp, reporting, ...SECURITY_HEADERS, ...robots] },
       ...["/icons/:path*", "/brand/:path*", "/fonts/:path*", "/favicon.ico"].map((source) => ({ source, headers: publicCache })),
     ]);
   },

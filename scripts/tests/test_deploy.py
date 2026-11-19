@@ -403,6 +403,9 @@ class FakeDb:
         if "type = 'platform.deploy.image_reload'" in sql:  # IMAGE-SWAP-RELOAD: the installation's reloads in place
             assert 'tenant_id is null' in sql
             return []
+        if "type = 'platform.deploy.migrated'" in sql:  # MIGRATED-EVENT: the live service's migrate() ends
+            assert 'tenant_id is null' in sql
+            return []
         if "v.key = 'deploy.live_code'" in sql:  # SLOW-PATH-NO-ROLLOUT-WAIT: the live code datum; none written yet
             assert params == {'tenant': 'torre'}  # the installation's configuration, whoever asks
             return []
@@ -498,7 +501,7 @@ class StatusEndpointTests(unittest.TestCase):
             self.assertEqual(json.loads(answered['body']), {'last_sha': 'a0bd4d1', 'last_build': record, 'observed_at': 2,
                                                             'ring': ring, 'head': None, 'pending': None,
                                                             'source': 'registry', 'cycle': None, 'cycles': [], 'config_version': {},
-                                                            'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'successor': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None, 'culprit': None,
+                                                            'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'successor': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'migrated': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None, 'culprit': None,
                                                             'bisect_note': None, 'in_progress': None, 'lost': None})
 
     def test_another_tenants_observation_is_never_served(self):
@@ -514,7 +517,7 @@ class StatusEndpointTests(unittest.TestCase):
         self.assertEqual(answered['statusCode'], 200)
         self.assertEqual(json.loads(answered['body']), {'last_sha': None, 'last_build': None, 'observed_at': None,
                                                         'ring': None, 'head': None, 'pending': None, 'source': 'registry',
-                                                        'cycle': None, 'cycles': [], 'config_version': {}, 'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'successor': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None,
+                                                        'cycle': None, 'cycles': [], 'config_version': {}, 'cost': None, 'fast': [], 'runner_warm': [], 'image_live': [], 'successor': [], 'stacks': [], 'image_swap': [], 'image_retired': [], 'image_reload': [], 'migrated': [], 'ecs': [], 'runner_life': [], 'task_up': [], 'prune': [], 'live_code': '', 'canary': [], 'bisect': None,
                                                     'culprit': None, 'bisect_note': None, 'in_progress': None, 'lost': None})
 
     def test_no_token_or_an_unknown_one_is_refused_before_anything_is_read(self):

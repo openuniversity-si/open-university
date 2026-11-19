@@ -19,6 +19,8 @@ export const CACHE = {
   publicAssetStaleSeconds: 604_800,
   /** Content-addressed media objects, and the image optimizer floor. The bytes do not change. */
   immutableObjectSeconds: 31_536_000,
+  /** How long a browser keeps the site HTTPS-only after one visit (HSTS, SSDF PW.9). */
+  strictTransportSeconds: 31_536_000,
   /** Course pages, lesson pages, and catalog Data Cache entries. No clock; a tag expires them. */
   untilTagged: false,
   /** Next.js Data Cache refuses an entry above this. */

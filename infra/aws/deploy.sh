@@ -418,14 +418,69 @@ port_fast_owned() {
 # fast_status <stack json>: the port's GET /v1/deploy/status, authenticated as scripts/deploy-smoke does (DEPLOY_SMOKE_TOKEN or the
 # SecureString /tower/deploy/smoke-token, inside the /tower/deploy/* read the deployer has; the URL is the stack's PortUrl). No token
 # or no answer: nothing (then no swap is known and the port stack is deployed). The token goes to curl on stdin, never in argv or the log.
+# STATUS-HOLD (D-331): with STATUS_HOLD_S (and STATUS_SEEN) in its environment, the read is the port's long poll (port.long_poll,
+# ?wait_s=N&seen=D): held until the status is not the answer D names or N s pass; DEPLOY_FAST_STATUS_CMD sees the two variables.
 fast_status() {
-  local url token
+  local url token query="" hold="${STATUS_HOLD_S:-0}"
   if [[ -n "${DEPLOY_FAST_STATUS_CMD:-}" ]]; then bash -c "$DEPLOY_FAST_STATUS_CMD"; return; fi
   url="$(jq -r '[(.Outputs // [])[] | select(.OutputKey == "PortUrl") | .OutputValue][0] // empty' <<<"$1")"
   token="${DEPLOY_SMOKE_TOKEN:-}"
   [[ -n "$token" ]] || token="$(aws ssm get-parameter --name /tower/deploy/smoke-token --with-decryption --query Parameter.Value --output text 2>/dev/null)" || token=""
   [[ -n "$url" && -n "$token" && "$token" != None ]] || return 1
-  curl -sS -m 10 -K - "${url%/}/v1/deploy/status" 2>/dev/null <<<"header = \"Authorization: Bearer $token\""
+  [[ "$hold" =~ ^[0-9]+$ ]] || hold=0
+  (( hold > 0 )) && query="?wait_s=$hold${STATUS_SEEN:+&seen=$STATUS_SEEN}"
+  curl -sS -m $(( hold + 10 )) -K - "${url%/}/v1/deploy/status$query" 2>/dev/null <<<"header = \"Authorization: Bearer $token\""
+}
+
+# STATUS-HOLD (D-331: a wait on a state is an event, never a read on an interval): status_wait <stack json> <seen> [<hold s>] [<file>]:
+# the port's GET /v1/deploy/status held as a long poll (port.long_poll, PORT-LONG-POLL) on the LISTEN of tower_status, which
+# every platform.deploy.* event wakes (migration 0023): a stack's end (the EventBridge rule tower-app-stack-state ->
+# platform.deploy.ended, source cloudformation, the status's stacks), a new task's up (task_up), a reload's step (image_reload),
+# the migrations the live service applied (migrated). It answers at once when the status is not the one <seen> names (none:
+# at once), else at the first event that changed it, or after <hold> s (STATUS_HOLD_S_MAX, the port's canary.WAIT_MAX_S, at most:
+# a lost event costs that bound, never a verdict). Writes the answer to <file> ($work/status.json) and echoes its seen; 1 (and an
+# empty <file>) when the status cannot be read or comes unmarked (a port older than PORT-LONG-POLL: there is nothing to wait on).
+STATUS_HOLD_S_MAX=20
+status_wait() {
+  local said hold="${3:-$STATUS_HOLD_S_MAX}" out="${4:-$work/status.json}"
+  [[ "$hold" =~ ^[0-9]+$ ]] || hold=$STATUS_HOLD_S_MAX
+  (( hold < 1 )) && hold=1; (( hold > STATUS_HOLD_S_MAX )) && hold=$STATUS_HOLD_S_MAX
+  said="$(STATUS_HOLD_S="$hold" STATUS_SEEN="${2:-}" fast_status "$1" 2>/dev/null)" || said=""
+  if ! jq -e '.long_poll.seen | strings | test("^[0-9a-f]{8,64}$")' <<<"$said" >/dev/null 2>&1; then : >"$out"; return 1; fi
+  printf '%s\n' "$said" >"$out"
+  jq -r '.long_poll.seen' <<<"$said"
+}
+
+# STACK-END-BY-EVENT (D-331): stack_event <name> <status> [<seen>]: waits for the next event that may end tower-app-<name>'s
+# operation and echoes the long poll's seen, for the caller to read the stack's status again. A stack of the home region:
+# CloudFormation's Stack Status Change of its end reaches the port (the bootstrap's EventBridge rule tower-app-stack-state ->
+# http_port.stack_state: platform.deploy.ended, source cloudformation, the status's stacks), as does the up of a rollout's new
+# task (platform.deploy.task_up), and each wakes the port's long poll, so the status is held (status_wait) until one of them, or
+# STATUS_HOLD_S_MAX at most (a lost event costs that bound). A stack of another region (MEDIA-REPLICA: the rule is the home
+# region's), or a status the port does not hold (no token, a port older than PORT-LONG-POLL): CloudFormation's own waiter for the
+# operation <status> names, once (its fixed 30 s is the net's, not the event path's); any exit of it is only a cue to read again.
+stack_event() {
+  local n="$1" status="$2" seen="${3:-}" waiter
+  if [[ -z "${at_region[$n]:-}" ]] && seen="$(status_wait "$(port_stack)" "$seen" "" "$work/stack_event.$n")"; then
+    printf '%s' "$seen"; return 0
+  fi
+  case "$status" in
+    CREATE_*|ROLLBACK_*) waiter=stack-create-complete ;;  # ROLLBACK_COMPLETE is one of its failures: the create's end
+    DELETE_*) waiter=stack-delete-complete ;;
+    IMPORT_*) waiter=stack-import-complete ;;
+    *) waiter=stack-update-complete ;;  # UPDATE_ROLLBACK_COMPLETE and UPDATE_*_FAILED are its failures: the update's end
+  esac
+  aws cloudformation wait "$waiter" ${at_region[$n]:+--region "${at_region[$n]}"} --stack-name "tower-app-$n" >/dev/null 2>&1 || :
+}
+
+# port_stack: the tower-app-port stack (its PortUrl), read once per build into $work/port_stack.json; nothing when unreadable.
+port_stack() {
+  if [[ ! -s "$work/port_stack.json" ]]; then
+    aws cloudformation describe-stacks --stack-name tower-app-port --query 'Stacks[0]' --output json >"$work/port_stack.json.$BASHPID" 2>/dev/null \
+      && mv "$work/port_stack.json.$BASHPID" "$work/port_stack.json"
+    rm -f "$work/port_stack.json.$BASHPID"
+  fi
+  slurp "$work/port_stack.json"
 }
 
 # SLOW-PATH-NO-ROLLOUT-WAIT: code_live: 0 when this batch is a code-only landing whose code is ALREADY LIVE AND DURABLE, so nothing
@@ -535,14 +590,15 @@ code_live() {
 #     event) and reads last-build every 2 s meanwhile, orders the service alone to load it (autodeploy.build_reload);
 #  2. the service drains, execs the bundle, says reloaded at its first good tick and proven after its own good ticks
 #     (live_image.PROVE_*); its autodeploy then writes deploy.live_code = <sha256>@<head>;
-#  3. this build reads the port's GET /v1/deploy/status as the order's records arrive, every DEPLOY_RELOAD_POLL_S (2 s): done
+#  3. this build reads the port's GET /v1/deploy/status as the order's records arrive, held on its long poll (STATUS-HOLD,
+#     status_wait: each record wakes it; an answer the port does not hold ends the wait as `unheld`, never a pause): done
 #     when live_code is the head's bundle; given up at once when the service says the reload failed or declined it; and
 #     DEPLOY_RELOAD_WAIT_S (default 150) only bounds that wait, and DEPLOY_RELOAD_ORDER_S (default 30) the wait for the order
 #     itself (a live service of an older code, or one that did not hear the build start, orders nothing). Then code_live is
 #     asked again: yes, no image and no ECS
 #     stack, and the smoke runs (smoke: $work/reloaded). Any other outcome: the image path, in this same build, as before:
 #     the build is green only if that succeeds. last-build.reload keeps the outcome {state: live|failed|declined|timeout|
-#     unordered|unproven, s: the ask to the verdict, reloaded/proven: what the service said}.
+#     unordered|unheld|unproven, s: the ask to the verdict, reloaded/proven: what the service said}.
 # Not in a bisection or with DEPLOY_TARGETS (code_live's own rule), not when a reload onto the bundle failed before, nor when the
 # service stack would not boot the bundle once it is the datum; DEPLOY_RELOAD_WAIT_S=0 turns it off. DEPLOY_CODE_BUNDLE_CMD
 # replaces the publish (a test), as for migrate_ask.
@@ -552,7 +608,7 @@ reload_states() {  # what the status says of this head's order and of this bundl
     | sort_by(.at // 0)[] | "\(.state)\(if .why then " " + (.why | tostring | .[0:200]) else "" end)"' "$work/status.json" 2>/dev/null
 }
 reload_live() {
-  local digest limit out asked deadline datum seen="" said state="" why="" t s port_stack order_limit="${DEPLOY_RELOAD_ORDER_S:-30}"
+  local digest limit out asked deadline datum seen="" said="" state="" why="" t s port_stack held="" hold order_limit="${DEPLOY_RELOAD_ORDER_S:-30}"
   digest="$(slurp "$work/code_digest")"
   [[ "$digest" =~ ^[0-9a-f]{64}$ && -z "${bgood:-}" && -z "${DEPLOY_TARGETS:-}" ]] || return 1
   limit="${DEPLOY_RELOAD_WAIT_S:-150}"
@@ -571,9 +627,16 @@ reload_live() {
   jq -c --arg h "$head" --argjson t "$asked" '{key, sha256, head: $h, state: "asked", at: $t}' <<<"$out" >"$work/reload"
   echo "reload: asked the live service to load ${digest:0:12} in place (last-build.reload); waiting for deploy.live_code=${digest:0:12}@${head:0:10} (${limit}s at most)"
   progress  # the ask is the live service's to read now
-  port_stack="$(aws cloudformation describe-stacks --stack-name tower-app-port --query 'Stacks[0]' --output json 2>/dev/null)" || port_stack=""
+  port_stack="$(port_stack)"
   while :; do
-    fast_status "$port_stack" >"$work/status.json" 2>/dev/null || : >"$work/status.json"  # read afresh: the order's records as they arrive
+    # STATUS-HOLD (D-331): the status held until the service's next word on the order (an image_reload step, deploy.live_code:
+    # both platform.deploy.* events that wake the long poll), never read on an interval; within the deadline and, while the
+    # service said nothing of it, within the order's limit
+    hold=$(( deadline - EPOCHSECONDS ))
+    [[ -z "$said" ]] && (( asked + order_limit - EPOCHSECONDS < hold )) && hold=$(( asked + order_limit - EPOCHSECONDS ))
+    if ! held="$(status_wait "$port_stack" "$held" "$hold")"; then
+      state=unheld; why="the status could not be held (the port unreadable, or older than PORT-LONG-POLL)"; break
+    fi
     datum="$(jq -r '.live_code // empty' "$work/status.json" 2>/dev/null)"
     said="$(reload_states "$digest" "$head" "$asked")"
     [[ -n "$said" && "$said" != "$seen" ]] && { echo "reload: the service says: $(printf '%s' "$said" | cut -d' ' -f1 | tr '\n' ' ')"; seen="$said"; }
@@ -582,7 +645,6 @@ reload_live() {
     if [[ -n "$t" ]]; then state="${t%% *}"; why="${t#* }"; [[ "$why" = "$t" ]] && why=""; break; fi
     (( $EPOCHSECONDS < deadline )) || { state=timeout; break; }
     if [[ -z "$said" ]] && (( $EPOCHSECONDS - asked >= order_limit )); then state=unordered; why="no order of it in ${order_limit}s"; break; fi
-    sleep "${DEPLOY_RELOAD_POLL_S:-2}"
   done
   s=$(( $EPOCHSECONDS - asked ))
   if [[ "$state" = live ]] && code_live; then
@@ -593,9 +655,10 @@ reload_live() {
     echo "reload: $state after ${s}s${why:+: $why}: the image path, in this build"
     code_live_no "the reload in place was $state after ${s}s${why:+: $why}" >/dev/null
   fi
-  jq -c --arg st "$state" --argjson s "$s" --arg w "$why" --argjson said "$(jq -c --arg d "$digest" --arg h "$head" \
+  t="$(jq -c --arg d "$digest" --arg h "$head" \
       '[(.image_reload // [])[] | select(type == "object" and .digest == $d and (.order // "") == $h and (.state == "reloaded" or .state == "proven"))]
-       | map({(.state): ({reload_s, boot_s, ticks, window_s, order_s} | with_entries(select(.value != null)))}) | add // {}' "$work/status.json" 2>/dev/null || echo '{}')" \
+       | map({(.state): ({reload_s, boot_s, ticks, window_s, order_s} | with_entries(select(.value != null)))}) | add // {}' "$work/status.json" 2>/dev/null)" || t=""
+  jq -c --arg st "$state" --argjson s "$s" --arg w "$why" --argjson said "${t:-{\}}" \
     '. + {state: $st, s: $s} + (if $w != "" then {why: ($w | .[0:200])} else {} end) + $said' "$work/reload" >"$work/reload.tmp" \
     && mv "$work/reload.tmp" "$work/reload"
   [[ "$state" = live ]]
@@ -648,11 +711,7 @@ deploy_status() {
 # none did or the status cannot be read (the stack's end is then waited, as before). The deployer reads ECS through the port:
 # its role has no ecs:Describe*, and needs none for this
 up_seen() {
-  if [[ ! -s "$work/port_stack.json" ]]; then
-    aws cloudformation describe-stacks --stack-name tower-app-port --query 'Stacks[0]' --output json >"$work/port_stack.json.$$" 2>/dev/null \
-      && mv "$work/port_stack.json.$$" "$work/port_stack.json"
-  fi
-  fast_status "$(slurp "$work/port_stack.json")" 2>/dev/null | jq -r --arg s "tower-app-$1" --argjson t0 "$2" --arg i "$3" \
+  fast_status "$(port_stack)" 2>/dev/null | jq -r --arg s "tower-app-$1" --argjson t0 "$2" --arg i "$3" \
     '[(.task_up // [])[] | select(type == "object" and .stack == $s and .image == $i and ((.at // 0) >= $t0 - 30)) | .at] | min // empty' 2>/dev/null
 }
 
@@ -735,19 +794,31 @@ migrated() {
   [[ -n "$url" && "$url" != None ]] || return 1
   curl -sS -m 10 "${url%/}/v1/health?migration=1" 2>/dev/null | jq -r '.migration // empty' 2>/dev/null
 }
+# MIGRATED-EVENT (D-331): migrate_wait: the end of the live service's migrate() for this bundle (platform.deploy.migrated, the
+# status's migrated: applied or failed) is waited on the status's long poll (status_wait: its insert wakes tower_status), never
+# read on an interval, within DEPLOY_MIGRATE_WAIT_S; then the database is read once (migrated) and is the proof. A status the
+# port does not hold (no token, a port older than PORT-LONG-POLL, or DEPLOY_FAST_STATUS_CMD in a test) ends the wait at once:
+# the one read decides, and a database behind keeps the old order (the runner waits for the service), as a timeout does.
+migrate_ended() {  # the state the status says this bundle's migrate() ended in (applied|failed), nothing while it has not
+  jq -r --arg b "$1" '[(.migrated // [])[] | select(type == "object" and .bundle == $b) | .state | strings] | first // empty' \
+    "$work/migrate_status.json" 2>/dev/null
+}
 migrate_wait() {
-  local want got="" limit="${DEPLOY_MIGRATE_WAIT_S:-90}" deadline
+  local want got="" limit="${DEPLOY_MIGRATE_WAIT_S:-90}" deadline bundle held="" ended="" port_stack
   [[ -s "$work/migrate" ]] || return 0
-  want="$(jq -r .want "$work/migrate")"; deadline=$(( $EPOCHSECONDS + limit ))
+  want="$(jq -r .want "$work/migrate")"; bundle="$(jq -r .sha256 "$work/migrate")"; deadline=$(( $EPOCHSECONDS + limit ))
   step_begin migrate
-  while :; do
-    got="$(migrated)" || got=""
-    [[ -n "$got" && ! "$got" < "$want" ]] && { : >"$work/migrated"; break; }
-    (( $EPOCHSECONDS < deadline )) || break
-    sleep "${DEPLOY_MIGRATE_POLL_S:-3}"
+  port_stack="$(port_stack)"
+  while (( $EPOCHSECONDS < deadline )) && held="$(status_wait "$port_stack" "$held" $(( deadline - EPOCHSECONDS )) "$work/migrate_status.json")"; do
+    ended="$(migrate_ended "$bundle")"
+    [[ -n "$ended" ]] && break
   done
+  got="$(migrated)" || got=""
+  [[ -n "$got" && ! "$got" < "$want" ]] && : >"$work/migrated"
   if [[ -f "$work/migrated" ]]; then echo "migrate: the live service applied the migrations (the database is at $got): the runner does not wait for the service"
-  else echo "migrate: $want is not applied after ${limit}s (the database is at ${got:-unknown}): the new service applies it at its boot, the runner waits for the service"; fi
+  else
+    [[ -n "$ended" ]] && ended=": the service says its migrate() $ended" || ended=" after ${limit}s"
+    echo "migrate: $want is not applied$ended (the database is at ${got:-unknown}): the new service applies it at its boot, the runner waits for the service"; fi
   step_end migrate 0
 }
 
@@ -956,8 +1027,8 @@ deploy_stacks() {
       read -r status _ <<<"$(aws cloudformation describe-stacks ${at_region[$n]:+--region "${at_region[$n]}"} --stack-name "tower-app-$n" \
         --query 'Stacks[0].StackStatus' --output text 2>/dev/null)"
       # SLOW-PATH-NO-ROLLOUT-WAIT: a stack in an operation (a rollout an earlier build started, and this build came before its end)
-      # is waited, off the scheduler: a job polls its status, and the stack is looked at again when it ended. A status that
-      # cannot be read (a throttled call) is not an end: the job keeps polling, under the build's own deadline; and a stack the
+      # is waited, off the scheduler: a job reads its status at each event that may end it (stack_event). A status that
+      # cannot be read (a throttled call) is not an end: the job keeps waiting, under the build's own deadline; and a stack the
       # earlier build left rolling whose status cannot be read is waited the same way, never applied on a guess.
       # VERIFY-AT-UP: a rollout still in its operation whose new task said it is up on the image the rollout deployed is SETTLED,
       # not waited: its hash is the head's, the smoke runs and last-sha moves now; the stack's end (the old task's exit, Fargate's
@@ -978,13 +1049,14 @@ deploy_stacks() {
         state[$n]=waiting; running=$((running + 1)); changed=1
         step_begin "wait:$n"
         echo "$(TZ=UTC printf '%(%T)T' -1) wait  tower-app-$n: ${status:-status unreadable}, an operation an earlier build started: this build waits for its end${settle:+ or the up of its new task}"
-        ( while read -r status _ <<<"$(aws cloudformation describe-stacks ${at_region[$n]:+--region "${at_region[$n]}"} --stack-name "tower-app-$n" --query 'Stacks[0].StackStatus' --output text 2>/dev/null)"
+        ( seen=""  # STACK-END-BY-EVENT (D-331): each look is the answer to an event (stack_event), never a read on an interval
+          while read -r status _ <<<"$(aws cloudformation describe-stacks ${at_region[$n]:+--region "${at_region[$n]}"} --stack-name "tower-app-$n" --query 'Stacks[0].StackStatus' --output text 2>/dev/null)"
                 [[ -z "$status" || "$status" == *_IN_PROGRESS ]]; do
             if [[ -n "$settle" && "$status" == *_IN_PROGRESS ]] && up_seen "$n" "${rolled[$n]%% *}" "${rolled_img[$n]}" >"$work/res/$n.up.tmp" \
                 && [[ -s "$work/res/$n.up.tmp" ]]; then
               mv "$work/res/$n.up.tmp" "$work/res/$n.up"; break
             fi
-            sleep "${DEPLOY_ROLL_POLL_S:-5}"
+            seen="$(stack_event "$n" "$status" "$seen")"
           done
           : >"$work/res/$n.waited" ) &
         continue
@@ -1174,7 +1246,7 @@ smoke() {
 # deploy that the smoke refused; changed_stacks). Lists the stacks it restored in $work/rolled; a stack with no template at <last>
 # (a new one) is left and named in the output.
 rollback() {
-  local last="$1" f n name file old failed_back=""
+  local last="$1" f n name file old failed_back="" seen
   local -a back
   [[ "$last" != none ]] && git -C "$repo" cat-file -e "$last^{commit}" 2>/dev/null || { echo "rollback: no previous sha, nothing to restore"; return 1; }
   for f in "$work"/prev_image.*; do
@@ -1187,8 +1259,10 @@ rollback() {
     if [[ -z "$file" ]] || ! git -C "$repo" cat-file -e "$last:$file" 2>/dev/null; then echo "rollback: tower-app-$n has no template at $last, left as it is"; continue; fi
     git -C "$repo" show "$last:$file" >"$work/rollback-$n.json"
     # VERIFY-AT-UP: a stack this build settled at its new task's up may still be in its operation: its end first
+    # STACK-END-BY-EVENT (D-331): looked at again at each event that may end it (stack_event), never on an interval
+    seen=""
     while read -r status _ <<<"$(aws cloudformation describe-stacks ${at_region[$n]:+--region "${at_region[$n]}"} --stack-name "tower-app-$n" --query 'Stacks[0].StackStatus' --output text 2>/dev/null)"
-          [[ "$status" == *_IN_PROGRESS ]]; do sleep "${DEPLOY_ROLL_POLL_S:-5}"; done
+          [[ "$status" == *_IN_PROGRESS ]]; do seen="$(stack_event "$n" "$status" "$seen")"; done
     back=()  # LIVECODE-NOT-REFUSED: the parameters the stack had before the deploy that is undone (prev_params)
     [[ -f "$work/prev_param.$n" ]] && mapfile -t back <"$work/prev_param.$n" && back=(--parameter-overrides "${back[@]}")
     echo "rollback: tower-app-$n to $last${back[1]:+ (${back[1]:0:21})}"
