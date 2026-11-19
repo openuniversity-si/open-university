@@ -198,6 +198,10 @@ SHELL_PATH = re.compile(r'(?:\$\{?\w+\}?|\))/((?:[\w.-]+/)*[\w.-]*\w)')
 # and `source scripts/cloud/env.sh` with every scripts/cloud file they source or run, the registry they read (the cloud and
 # toolchain owners: versions; checksums are scripts/cloud/toolchain.json), the hermetic harness, and any .toolchain file
 # a change tracks. The overlay puts the base's back, so the job's toolchain step runs the base's with no workflow change.
+# OVERLAY-REGISTRY (D-335): an owner's aggregate (what config.get reads), its folder of key files, a key word of a shell file.
+REGISTRY = 'config/registry'
+REGISTRY_AGGREGATE = re.compile(r'config/registry/([\w-]+)\.json')
+KEY_WORD = re.compile(r'(?<![\w.-])[a-z][\w-]*(?:\.[\w-]+)+')
 TOOLCHAIN_FILE = re.compile(r'^(scripts/cloud/[^/]+|scripts/lib/hermetic/.+|config/registry/(toolchain|cloud)(\.json|/[^/]+\.json)'
                             r'|\.toolchain/.+)$')
 STEM = '.*'  # the closure entry of an imported top-level name (in_closure)
@@ -300,15 +304,48 @@ def text_refs(text):
     return modules, [text], SHELL_PATH.findall(text)
 
 
-def gate_closure(tree, base):
+def registry_keys(tree, base, files):
+    """{key: owner} of every parameter the base's registry declares (its aggregates, config/registry/<owner>.json)."""
+    keys = {}
+    for name in sorted(files):
+        owner = REGISTRY_AGGREGATE.fullmatch(name)
+        if owner:
+            keys.update({key: owner[1] for key in properties(tree, base, name)})
+    return keys
+
+
+def properties(tree, ref, name):
+    """The parameters of the registry aggregate <name> at <ref> ({} when it is absent or not JSON)."""
+    try:
+        return json.loads(git(tree, 'show', f'{ref}:{name}', check=False) or '{}').get('properties') or {}
+    except (ValueError, AttributeError):
+        return {}
+
+
+def read_keys(text, python, declared):
+    """OVERLAY-REGISTRY (D-335): the registry keys a closure file reads, statically: a Python string literal that is a
+    declared key (config.get('<key>') and the wrappers around it, such as setting('<key>')), a declared key a shell file
+    names (ou_config_value <key>, config.py get <key>)."""
+    if python:
+        try:
+            return {node.value for node in ast.walk(ast.parse(text)) if isinstance(node, ast.Constant)
+                    and isinstance(node.value, str) and node.value in declared}
+        except (SyntaxError, ValueError):
+            pass
+    return {word for word in KEY_WORD.findall(text) if word in declared}
+
+
+def gate_closure(tree, base, keys=None):
     """VULN-gate-judged-by-own-head (D-335): the files the base's gate loads, read from the base's tree. From every
     GATE_FILE of the base, the transitive closure of what it imports from scripts/lib (a static ast read of import and
     from-import lines; a shell script's heredoc import lines; a module name built from a literal start: every scripts/lib
     module with that start), of the scripts/lib files it names by path, and (OVERLAY-STAGE-SCRIPTS) of the files a shell
     file runs or reads under a variable ("$root/scripts/generate": the executables the stage commands of the base's
     scripts/gate-check name, so the stages its plan lists) or a Python file joins under a root (ROOT / 'scripts' / 'x').
-    A module path the base lacks is in it too (a file the change adds there would shadow a standard module)."""
+    A module path the base lacks is in it too (a file the change adds there would shadow a standard module).
+    keys, when given, receives {key: owner} of the registry keys the closure's code reads (read_keys)."""
     files = set((git(tree, 'ls-tree', '-r', '--name-only', base) or '').splitlines())
+    declared = registry_keys(tree, base, files) if keys is not None else {}
     directories = {name.rsplit('/', count)[0] for name in files for count in range(1, name.count('/') + 1)}
     closure = set()
     todo = [name for name in sorted(files) if GATE_FILE.match(name) or TOOLCHAIN_FILE.match(name)]
@@ -327,9 +364,11 @@ def gate_closure(tree, base):
             continue
         text = subprocess.run(['git', '-C', str(tree), 'show', f'{base}:{name}'], capture_output=True).stdout
         text = text.decode('utf-8', 'replace')
+        python = name.endswith('.py') or text.startswith('#!/usr/bin/env python')
+        if declared and not name.endswith('.json'):
+            keys.update({key: declared[key] for key in read_keys(text, python, declared)})
         try:
-            modules, literals, paths = python_refs(text) if name.endswith('.py') or text.startswith('#!/usr/bin/env python') \
-                else text_refs(text)
+            modules, literals, paths = python_refs(text) if python else text_refs(text)
         except (SyntaxError, ValueError):
             modules, literals, paths = text_refs(text)
         for module in modules:
@@ -344,16 +383,40 @@ def gate_closure(tree, base):
     return closure
 
 
+def registry_pins(tree, base, keys, touched):
+    """OVERLAY-REGISTRY (D-335): the touched files of each registry owner outside GATE_FILE and TOOLCHAIN_FILE whose
+    key the gate reads ({key: owner}) the change base..HEAD alters (its key file, or its entry in the aggregate config.get
+    reads). The owner is put back whole (its aggregate and every key file the change touched), so the base's generated
+    drift stage sees an aggregate that matches its key files; an owner whose read keys the change leaves alone stays
+    the head's, though the change touches its other keys."""
+    pins = []
+    for owner in sorted(set(keys.values())):
+        aggregate, folder = f'{REGISTRY}/{owner}.json', f'{REGISTRY}/{owner}/'
+        if GATE_FILE.match(aggregate) or TOOLCHAIN_FILE.match(aggregate):
+            continue
+        mine = [name for name in touched if name == aggregate or name.startswith(folder)]
+        read = sorted(key for key, of in keys.items() if of == owner)
+        if not mine:
+            continue
+        was, now = properties(tree, base, aggregate), properties(tree, 'HEAD', aggregate)
+        if any(f'{folder}{key}.json' in mine or was.get(key) != now.get(key) for key in read):
+            pins += mine
+    return pins
+
+
 def overlay(tree, base):
     """PINNED-ON-GITHUB (D-070, D-335, VULN-gate-judged-by-own-head): in the checkout tree, put back the base's version of
     every file of the gate's closure (gate_closure: the gate files of GATE_FILE and what they load, this module's: the
-    base's when it runs from the base) that the change base..HEAD touches, and remove one the change added; only the
+    base's when it runs from the base) that the change base..HEAD touches, and of each registry owner whose key the
+    closure reads that the change alters (registry_pins), and remove one the change added; only the
     working tree changes (HEAD and the index stay the head's), so the stages run there judge the head's commits and diff
     with the base's gate. GATE_FILE stays the files whose change asks a decision. Returns the files pinned."""
     names = git(tree, 'diff', '--name-only', '--no-renames', base, 'HEAD') or ''
     touched = names.splitlines()
-    closure = gate_closure(tree, base) if touched else set()
+    keys = {}
+    closure = gate_closure(tree, base, keys) if touched else set()
     pinned = [name for name in touched if in_closure(name, closure)]
+    pinned += [name for name in registry_pins(tree, base, keys, touched) if name not in pinned]
     for name in pinned:
         if git(tree, 'cat-file', '-e', f'{base}:{name}', check=False) is None:
             (Path(tree) / name).unlink(missing_ok=True)

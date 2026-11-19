@@ -377,6 +377,49 @@ class Overlay(Fixture):
         self.assertEqual(gate_pin.overlay(self.repo, base), [])
         self.assertEqual((self.repo / "scripts/other-tool").read_text(), "#!/usr/bin/env bash\necho head\n")
 
+    def registry_base(self):
+        """A base whose stages read registry keys of the `deploy` owner (outside GATE_FILE): a Python stage reads
+        deploy.region through config.get and a shell stage deploy.zone through ou_config_value; deploy.other is read by
+        no stage."""
+        git(self.repo, "checkout", "-q", self.base)
+        keys = ("deploy.region", "deploy.zone", "deploy.other")
+        return self.commit({
+            "scripts/gate-check": "#!/usr/bin/env bash\n\"$py\" \"$root/scripts/lib/stage_py.py\"\n"
+                                  "zone=\"$(ou_config_value deploy.zone)\"\n",
+            "scripts/lib/stage_py.py": "import config\nREGION = config.get('deploy.region')\n",
+            "config/registry/deploy.json": json.dumps({"properties": {key: {"default": "base"} for key in keys}}),
+            **{f"config/registry/deploy/{key}.json": json.dumps({"default": "base"}) for key in keys},
+        }, "base with registry keys")
+
+    def head_registry(self, key):
+        """The head changes <key> in its key file and in the owner's aggregate, as scripts/generate would."""
+        aggregate = json.loads((self.repo / "config/registry/deploy.json").read_text())
+        aggregate["properties"][key] = {"default": "head"}
+        self.commit({f"config/registry/deploy/{key}.json": json.dumps({"default": "head"}),
+                     "config/registry/deploy.json": json.dumps(aggregate)}, f"head changes {key}")
+
+    def test_a_registry_key_a_stage_reads_is_the_bases(self):
+        """OVERLAY-REGISTRY (D-335): a key a stage reads (config.get in Python, ou_config_value in shell) of an owner
+        outside GATE_FILE is the base's after the overlay: its key file and the aggregate config.get reads."""
+        for key in ("deploy.region", "deploy.zone"):
+            with self.subTest(key=key):
+                base = self.registry_base()
+                self.head_registry(key)
+                self.assertEqual(sorted(gate_pin.overlay(self.repo, base)),
+                                 ["config/registry/deploy.json", f"config/registry/deploy/{key}.json"])
+                aggregate = json.loads((self.repo / "config/registry/deploy.json").read_text())
+                self.assertEqual(aggregate["properties"][key], {"default": "base"})
+                git(self.repo, "checkout", "-q", "--", ".")
+        self.assertFalse(gate_pin.GATE_FILE.match("config/registry/deploy/deploy.region.json"))
+
+    def test_a_registry_key_no_stage_reads_is_the_heads(self):
+        """A change to a key of that owner that no stage reads leaves the owner the head's (its aggregate too)."""
+        base = self.registry_base()
+        self.head_registry("deploy.other")
+        self.assertEqual(gate_pin.overlay(self.repo, base), [])
+        aggregate = json.loads((self.repo / "config/registry/deploy.json").read_text())
+        self.assertEqual(aggregate["properties"]["deploy.other"], {"default": "head"})
+
     def test_the_toolchain_the_job_runs_after_the_overlay_is_the_bases(self):
         """D-335: setup.sh, env.sh, the scripts/cloud helpers they run and what those import, the toolchain and cloud
         registry and a tracked .toolchain file are the base's after the overlay, so the job's toolchain step and its
