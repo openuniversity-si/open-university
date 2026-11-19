@@ -1,6 +1,6 @@
 {
   "id": "VAL-changeability",
-  "statement": "The architecture holds: at least 85 % of the dependencies between components are convergent (the reflexion model), so a change stays inside the components it means to touch.",
+  "statement": "The architecture holds: every dependency between components is convergent (the reflexion model, D-336), so a change stays inside the components it means to touch. No decision records a divergence as accepted, so none counts as convergent; a divergence is fixed by declaring the dependency or removing it.",
   "validates": [
     "NEED-changeability"
   ],
@@ -10,5 +10,5 @@
     "name": "reflexion"
   },
   "comparator": "gte",
-  "threshold": 0.85
+  "threshold": 1.0
 }
