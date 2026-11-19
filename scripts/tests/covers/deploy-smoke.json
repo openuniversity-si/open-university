@@ -1,7 +1,7 @@
 {
   "script": "scripts/tests/deploy-smoke.test.sh",
   "covers": [
-    "scripts/tests/deploy-smoke.test.sh",
+    "scripts/tests/deploy.test.sh",
     "scripts/tests/test_deploy.py",
     "scripts/deploy",
     "scripts/deploy-smoke",
@@ -21,6 +21,7 @@
     "scripts/lib/port_http.py",
     "scripts/lib/runs.py",
     "config/validation/VAL-deploy-1s.json",
-    "config/validation/runs/deploy.json"
+    "config/validation/runs/deploy.json",
+    "config/validation/runs/deploy-live.json"
   ]
 }
