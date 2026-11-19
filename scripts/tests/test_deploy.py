@@ -730,18 +730,21 @@ class CliTests(unittest.TestCase):
                  'image_reload': [{'state': 'done', 'head': b, 'digest': 'd2', 'at': 1794990021.5},
                                   {'state': 'ordered', 'head': b, 'digest': 'd2', 'at': 1794990000.0, 'landed_s': 0.007}]}
         self.assertEqual(deploy.live_at(state), {a: (1795000000.45, 'swap'), b: (1794990021.5, 'reload')})
-        merged = {a: '2026-11-18T11:06:40Z', b: '2026-11-18T08:20:00Z'}  # 1795000000 and 1794990000
+        # the push clock: the landing is the push of the merge commit (the activity API), not the later merged_at
+        pushed = [{'after': a, 'timestamp': '2026-11-18T11:06:40Z', 'activity_type': 'merge_queue_merge'},  # 1795000000
+                  {'after': b, 'timestamp': '2026-11-18T08:20:00Z'}, {'after': c}]  # 1794990000; c: no timestamp
         asked = []
 
         def api(path):
-            sha = path.split('/')[-2]
-            asked.append(sha)
-            return [{'merged_at': merged[sha], 'merge_commit_sha': sha}]
+            asked.append(path)
+            self.assertEqual(path, 'repos/o/r/activity?ref=refs/heads/main&per_page=100')
+            return pushed
         runs = deploy.record_live(state, root, now=1795000100, api=api, repo='o/r')
-        reload_s = state['image_reload'][0]['at'] - state['image_reload'][1]['at']  # merged at the order, live at its done
-        self.assertEqual([(run['id'], run['event'], run['seconds']) for run in runs], [(a, 'swap', 0.45), (b, 'reload', reload_s)])
+        reload_s = state['image_reload'][0]['at'] - state['image_reload'][1]['at']  # pushed at the order, live at its done
+        self.assertEqual([(run['id'], run['event'], run['seconds'], run['from']) for run in runs],
+                         [(a, 'swap', 0.45, 'push'), (b, 'reload', reload_s, 'push')])
         self.assertEqual(len(deploy.record_live(state, root, now=1795000200, api=api, repo='o/r')), 2)
-        self.assertEqual(len(asked), 2)  # the second read asked nothing
+        self.assertEqual(len(asked), 1)  # the second read asked nothing
 
         def refused(path):
             raise RuntimeError('gh api: offline')
@@ -751,6 +754,23 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(deploy.record_live({}, root, api=api, repo='o/r'))
         written = json.loads((Path(root) / deploy.RUNS_FOLDER / 'deploy-live.json').read_text())
         self.assertEqual((written['workflow'], written['at']), ('deploy-live', '2026-11-18T11:10:00Z'))
+
+    def test_a_run_recorded_from_merged_at_is_rebased_on_its_push_or_marked_when_the_push_left_the_page(self):
+        # the push clock: a run recorded before it (merged_at, no `from`) keeps its live instant (started + seconds) and starts at the push
+        root = tempfile.mkdtemp(prefix='deploy-live-')
+        self.addCleanup(shutil.rmtree, root)
+        old, gone, new = (hashlib.sha1(letter.encode()).hexdigest() for letter in 'xyz')
+        folder = Path(root) / deploy.RUNS_FOLDER
+        folder.mkdir(parents=True)
+        (folder / 'deploy-live.json').write_text(json.dumps({'workflow': 'deploy-live', 'runs': [
+            {'id': old, 'event': 'swap', 'conclusion': 'success', 'started': '2026-11-18T11:06:41Z', 'seconds': 0.5},
+            {'id': gone, 'event': 'swap', 'conclusion': 'success', 'started': '2026-11-17T11:06:41Z', 'seconds': 0.4}]}))
+        state = {'image_swap': [{'head': new, 'swapped': True, 'at': 1795000100.2, 'digest': 'd', 'versions': {}}]}
+        pushed = [{'after': old, 'timestamp': '2026-11-18T11:06:40Z'}, {'after': new, 'timestamp': '2026-11-18T11:08:20Z'}]
+        runs = {run['id']: run for run in deploy.record_live(state, root, now=1795000200, api=lambda path: pushed, repo='o/r')}
+        self.assertEqual((runs[old]['started'], runs[old]['seconds'], runs[old]['from']), ('2026-11-18T11:06:40Z', 1.5, 'push'))
+        self.assertEqual((runs[new]['seconds'], runs[new]['from']), (0.2, 'push'))
+        self.assertEqual((runs[gone]['seconds'], runs[gone]['from']), (0.4, 'merged_at'))
 
     def test_status_says_the_builds_seconds_and_the_reload_in_place(self):
         # FAST-PATH-RELOAD: what a code-only merge's deploy cost, and how long its swap took, from `scripts/deploy status`
