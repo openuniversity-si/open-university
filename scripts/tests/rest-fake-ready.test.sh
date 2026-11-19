@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # HD1: the loopback REST fake starts by readiness probe, never a fixed count of looks, so a loaded machine only delays it.
+# Verifies: UNIT:engine-test-support
 set -uo pipefail
 src="$(cd "$(dirname "$0")/../.." && pwd)"
 work="$(mktemp -d)"

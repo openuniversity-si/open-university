@@ -1,5 +1,6 @@
 """The structure check is run by the tools, not by hand (lane 4, D-236): the local checks (commit-check --local, the pre-push
 hook) carry it as an enabled entry, so no push skips it (lane-ship ran it too until F9). The test fails without its wiring."""
+# Verifies: UNIT:engine-commit-plan
 import json
 from pathlib import Path
 import unittest
