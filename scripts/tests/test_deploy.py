@@ -851,9 +851,9 @@ class BootstrapTests(unittest.TestCase):
 # tests, every other one by name. Without the variable (a local run, a class or a test by name) nothing is left out.
 # DEPLOY-PY-PARTS (REQ-gate-60s, 19/11/2026): this module took 42 s for 2.6 s of CPU, the smoke's real windows and
 # backoffs (SmokeTests 31 s, the rest 10 s), the longest test of a wide plan once the deploy-slow parts were ~33 s. Its
-# wrappers run it in two parts (DEPLOY_PY_PART): deploy.test.sh every class and every other SmokeTests test by name,
+# wrappers run it in two parts (DEPLOY_PY_SHARD): deploy.test.sh every class and every other SmokeTests test by name,
 # deploy-smoke.test.sh the others (~21 s each). Without the variable nothing is left out.
-PY_PART = 'DEPLOY_PY_PART'
+PY_PART = 'DEPLOY_PY_SHARD'
 PY_PARTS = ('main', 'smoke')
 
 

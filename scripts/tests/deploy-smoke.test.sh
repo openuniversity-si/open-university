@@ -3,4 +3,4 @@
 # against a fake port on 127.0.0.1; deploy.test.sh runs the rest of the module. Hermetic, no AWS call.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
-DEPLOY_PY_PART=smoke PYTHONDONTWRITEBYTECODE=1 exec python3 "$root/scripts/tests/test_deploy.py"
+DEPLOY_PY_SHARD=smoke PYTHONDONTWRITEBYTECODE=1 exec python3 "$root/scripts/tests/test_deploy.py"
