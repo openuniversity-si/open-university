@@ -1,6 +1,11 @@
-# PADRAO-DEV — o que vem antes dos requisitos: desenho v5 (salto 1 com S&T)
+# PADRAO-DEV — o que vem antes dos requisitos: desenho v5 (salto 1 com S&T), aceito
 
-Para Daniel decidir antes de qualquer implementação. A PR #340 fica em rascunho.
+**Aceito por Daniel (19/11), com duas correções incorporadas abaixo:**
+
+- o orçamento da Anthropic não é restrição nem custo, porque sempre é possível indicar o aumento;
+- a causa central inclui a confiança, que tem de ser construída e medida, não presumida.
+
+O salto 1 é implementado na PR #340.
 
 **Retornos de Daniel (19/11):**
 
@@ -110,14 +115,12 @@ Tudo aqui é proposta da sessão, a validar por Daniel nos pontos marcados.
 | NC-throughput-3 | csf | Degrau 3 | merges-per-day em 7 dias | 32,86 | ≥ 100.000 | INT-ladder-3 |
 | NC-quality | csf | Nenhum defeito escapa para a main | escape-rate nas últimas 1.000 merges | 0 | ≤ 0 | INT-intention-v1 |
 | NC-autonomy | csf | O fluxo nunca espera Daniel fora da lista fechada | incident-count owner-stop em 7 dias | 1 | ≤ 0 | INT-intention-v1, INT-limits |
-| NC-cost | csf | O sistema cabe no que Daniel paga | (as duas abaixo) | — | — | INT-limits |
-| NC-aws-spend | nc | AWS abaixo de US$ 200 por mês | aws-spend | 0,00 | ≤ 200 | NC-cost |
-| NC-anthropic-spend | nc | Anthropic dentro do orçamento | supplier-spend | 100 | ≤ supply.anthropic_monthly_usd | NC-cost |
+| NC-cost | csf | A AWS cabe no teto de US$ 200 por mês | aws-spend | 0,00 | ≤ 200 | INT-limits |
+| NC-trust | csf | O desempenho do sistema é medido e mantido, o que constrói a confiança de Daniel para dar mais autonomia | all-met das guardas: NC-quality, NC-autonomy, NC-gate-first-pass, NC-reflexion, NC-requirements-tested | 2 não cumpridas | 0 | INT-intention-v1, INT-limits |
 | NC-standard | csf | Todo código nasce no padrão e o sistema sabe a verdade sobre si | (as duas abaixo) | — | — | INT-padrao-dev |
 | NC-reflexion | nc | Toda dependência entre componentes é permitida | model-share reflexion | 1,0 | ≥ 1,0 | NC-standard |
 | NC-requirements-tested | nc | Todo requisito é testado | model-share requirements-tested | 1,0 | ≥ 1,0 | NC-standard |
-| NC-ready-supply | nc | Sempre há unidades prontas na fila para as frentes livres | linhas prontas da fila contra frentes livres (MEAS nova, fonte `flow-metrics --constraint`) | 2 linhas, 0 frentes ocupadas | ≥ frentes livres | NC-throughput |
-| NC-gate-first-pass | nc | O gate passa na primeira rodada | gate-failure-rate (SLO) | 22,5 % | ≤ 0 % | NC-throughput |
+| NC-gate-first-pass | nc | O gate passa na primeira rodada | o SLO gate-failure-rate (medida `slo`, nova) | 22,5 % | ≤ 0 % | NC-throughput |
 | NC-gate-time | nc | O gate dura no máximo 60 s | run-durations do gate | 119 s | ≤ 60 s | NC-throughput |
 | NC-deploy-1s | nc | Uma merge só de código fica no ar em até 1 s | run-durations deploy-live (relógio da D-345) | 1,48 a 2,26 s | ≤ 1 s | NC-throughput |
 
@@ -125,74 +128,91 @@ Tudo aqui é proposta da sessão, a validar por Daniel nos pontos marcados.
 
 | Id | Statement | Viola | Evidência |
 |---|---|---|---|
-| UDE-few-merges | A Torre mergeia cerca de 33 PRs por dia, 30 vezes menos que o degrau 1 | NC-throughput | VAL-ladder-1; SLO de merged PRs por hora: 2 contra o mínimo de 42 |
-| UDE-idle-flow | Na última hora, 0 merges com a fila parada: a restrição apontada é o "suprimento de unidades prontas" | NC-ready-supply | `flow-metrics --constraint --base origin/main`, 19/11 |
+| UDE-few-merges | A Torre mergeia cerca de 33 PRs por dia, 30 vezes menos que o degrau 1; na última hora foram 0 merges com a fila parada | NC-throughput | VAL-ladder-1; SLO merged PRs por hora 2 contra 42; `flow-metrics --constraint --base origin/main` (19/11) aponta o "suprimento de unidades prontas" |
 | UDE-gate-red | 22,5 % das rodadas do gate falham | NC-gate-first-pass | SLO gate-failure-rate, 40 amostras |
 | UDE-gate-slow | O gate leva 119 s | NC-gate-time | VAL-gate-60s |
 | UDE-deploy-slow | O código fica no ar em 1,5 a 2,3 s | NC-deploy-1s | config/validation/runs/deploy-live.json |
 | UDE-owner-stop | Uma parada para Daniel em 7 dias | NC-autonomy | VAL-autonomy, docs/operations/incidents/ |
-| UDE-blind-constraint | O medidor da restrição ainda lê a base da era Origin: sem `--base` falha, e a ocupação da caixa lê um adaptador Origin | NC-ready-supply | `scripts/flow-metrics --constraint` |
+| UDE-trust-unmeasured | As guardas que diriam a Daniel se pode dar mais autonomia não estão todas cumpridas, e nenhuma medida as junta | NC-trust | NC-trust: 2 guardas não cumpridas (19/11) |
+| UDE-blind-constraint | O medidor da restrição ainda lê a base da era Origin: sem `--base` falha, e a ocupação da caixa lê um adaptador Origin | NC-standard | `scripts/flow-metrics --constraint` |
 
-### CRT (a causa central a aceitar por Daniel)
+### CRT (causa central aceita, com a correção de Daniel)
 
-- **CAUSE-request-driven** (core): o fluxo é movido por pedidos, não por um suprimento permanente de trabalho
-  pronto. Uma sessão faz o que Daniel ou a Torre pediram e só planeja a próxima unidade quando termina. Leva a:
-  - **CAUSE-few-fronts** (intermediária): poucas frentes trabalham ao mesmo tempo. A regra de frentes foi escrita
-    para a caixa e o trem da era Origin (parados), e nada abre frentes a partir da fila do GitHub. Isso produz
-    UDE-few-merges e UDE-idle-flow.
-  - **CAUSE-no-standing-front** (intermediária): nenhum domínio tem uma frente permanente nas condições do throughput
-    (gate, deploy, medição). Elas só andam quando alguém pede. Isso produz UDE-gate-red, UDE-gate-slow,
-    UDE-deploy-slow e UDE-blind-constraint.
-  - **CAUSE-turn-waits** (intermediária): ao terminar o pedido, a sessão tende a encerrar o turno e esperar. Isso
-    produz UDE-owner-stop.
-- **Cobertura da central:** os 7 UDE de 7.
+- **CAUSE-trust-not-earned** (core): o desempenho do sistema de IA ainda não está demonstrado por medida no nível
+  que daria a Daniel a confiança para delegar a autonomia que ele quer. Engenharia, PADRAO-DEV e TOC existem para dar
+  essa estrutura. Enquanto a confiança não é construída e medida, ela é presumida ou negada caso a caso. Leva a:
+  - **CAUSE-request-driven** (intermediária): o fluxo é movido por pedidos, não por um suprimento permanente de
+    trabalho pronto. Cada sessão faz o que foi pedido e só planeja a próxima unidade quando termina. Leva a:
+    - **CAUSE-few-fronts** (intermediária): poucas frentes ao mesmo tempo, porque a regra de frentes foi escrita para
+      a caixa e o trem da era Origin, e nada abre frentes pela fila do GitHub. Produz UDE-few-merges.
+    - **CAUSE-no-standing-front** (intermediária): nenhuma frente permanente cuida das condições do throughput
+      (gate, deploy, medição). Produz UDE-gate-red, UDE-gate-slow, UDE-deploy-slow e UDE-blind-constraint.
+    - **CAUSE-turn-waits** (intermediária): a sessão tende a encerrar o turno e esperar. Produz UDE-owner-stop.
+  - A causa central também produz diretamente UDE-trust-unmeasured.
+- **Cobertura da central:** os 7 UDE de 7. A aceitação é de Daniel, 19/11.
 
 ### Nuvem (o conflito que a perpetua)
 
 - **A** (objetivo, NC-throughput): os PRs mergeados crescem pela escada, sem perder qualidade.
-- **B:** Daniel controla o que se constrói (a trava de intenção, SEMENTE §6). Para isso, **D**: as sessões só
-  começam trabalho que Daniel ou a Torre pediram.
+- **B:** o que a Torre faz merece a confiança de Daniel (a trava de intenção, SEMENTE §6, e a qualidade). Para
+  isso, **D**: as sessões só começam o trabalho que Daniel ou a Torre pediram.
 - **C:** o fluxo nunca para por falta de trabalho. Para isso, **D′**: as sessões geram e começam suas próprias
   unidades o tempo todo.
 - D e D′ não convivem.
-- Premissa sob B–D (P, to-validate, raio alto): "controlar o que se constrói exige aprovar cada trabalho antes de ele
-  começar".
+- **P-trust-by-approval** (premissa sob B–D, to-validate, raio alto): "só se mantém a confiança aprovando cada
+  trabalho antes de começar, porque o desempenho autônomo não está medido".
 
 ### Injeções e decisão (business case enxuto)
 
 | INJ | O que é | Inverte | Ramos negativos e poda | Custo estimado |
 |---|---|---|---|---|
 | INJ-do-nothing | Seguir por pedidos | — | o gap continua | 0 |
-| INJ-do-minimum | Subir o número de frentes na regra do AGENTS.md | UDE-few-merges (em parte) | frentes sem unidade pronta ficam ociosas; não toca o gate nem a parada | baixo |
-| **INJ-tree-governance** (proposta) | Daniel controla pela Goal Tree medida e pelos níveis 1–2 da S&T, que ele valida. Abaixo do nível 2, os coordenadores geram as unidades sob os nós validados de forma contínua, as lanes executam as folhas, e o medidor da restrição passa a ler a fila do GitHub | UDE-few-merges, UDE-idle-flow, UDE-owner-stop, UDE-blind-constraint; abre as frentes permanentes de UDE-gate-red, UDE-gate-slow e UDE-deploy-slow | unidades de pouco valor geradas para encher a fila (podado pelas guardas de split e tangled e porque toda unidade precisa de uma NC de folha); cota estourada com mais frentes (podado por NC-anthropic-spend e pelo teto de 7 frentes) | médio: tokens de coordenadores por ciclo |
+| INJ-do-minimum | Subir o número de frentes na regra do AGENTS.md | UDE-few-merges (em parte) | as frentes andam sem confiança medida, e a premissa continua de pé; não toca o gate nem a parada | baixo |
+| **INJ-tree-governance** (escolhida) | Ver as quatro partes abaixo | os 7 UDE | ver abaixo | médio: os tokens dos coordenadores por ciclo |
 
-A injeção proposta invalida a premissa sob B–D: o controle passa a ser pela árvore medida, não pela aprovação de
-cada trabalho.
+**As quatro partes de INJ-tree-governance:**
+
+1. **Confiança medida.** NC-trust junta as guardas numa medida só.
+2. **Autonomia que cresce com a medida.** Daniel controla pela Goal Tree e pelos níveis 1–2 da S&T, que ele valida.
+   Abaixo do nível 2, os coordenadores geram as unidades sob os nós validados, de forma contínua. A autonomia de cada
+   nível cresce com NC-trust cumprida, nunca presumida.
+3. **Lanes nas folhas.** As lanes executam as folhas da S&T.
+4. **Medidor na base certa.** O medidor da restrição passa a ler a base do GitHub.
+
+**Ramos negativos de INJ-tree-governance e a poda de cada um:**
+
+- **Unidades de pouco valor geradas para encher a fila.** Podado pelas guardas de split e tangled, e porque toda
+  unidade precisa de uma NC de folha.
+- **A cota da Anthropic vira o gargalo.** Podado porque a sessão indica a Daniel o aumento, com o porquê e o ganho
+  esperado. A cota não é teto (Daniel, 19/11).
+- **A autonomia cresce antes da confiança.** Podado porque NC-trust é guarda do nível 1, e o salto 2 revisa a lógica.
+
+A injeção invalida P-trust-by-approval: a confiança passa a ser construída e medida por NC-trust e pela árvore
+validada, não pela aprovação de cada trabalho.
 
 **Appraisal** (critérios fixados antes das notas):
 
 1. ΔNC-throughput;
-2. NC-autonomy;
-3. NC-quality;
-4. NC-cost.
+2. NC-trust;
+3. NC-autonomy;
+4. NC-quality;
+5. NC-cost.
 
-INJ-tree-governance ganha em 1 e 2, empata em 3 e perde pouco em 4 dentro do teto. A D registra isso e o caminho de
-volta.
+INJ-tree-governance ganha em 1, 2 e 3 e empata em 4 e 5. A D registra o resultado e o caminho de volta.
 
-### S&T da Torre (níveis 1 e 2 para Daniel validar; 3 e 4 como propostas)
+### S&T da Torre (níveis 1 e 2 validados por Daniel em 19/11; 3 e 4 validados pelo gerente)
 
-| Nó | Nível | Estratégia (NC) | Tática (INJ ou texto) | Premissas (necessária, paralela, suficiência) | Dono / valida |
+| Nó | Nível | Estratégia (NC) | Tática | Premissas: necessária / paralela / suficiência | Dono / valida |
 |---|---|---|---|---|---|
-| ST-torre | 1 | NC-throughput (com NC-quality, NC-autonomy, NC-cost como guardas) | INJ-tree-governance | N: 33/dia contra 1.000. P: a governança por árvore mantém o controle de Daniel sem aprovar cada unidade. S: os três domínios juntos cobrem throughput, custo e o próprio sistema | gerente / Daniel |
-| ST-capacity | 2 | NC-throughput, por NC-ready-supply, NC-gate-first-pass, NC-gate-time e NC-deploy-1s | Uma frente sempre na restrição que o medidor aponta, e outra na seguinte, assim que ela for conhecida por número | N: a restrição é o suprimento de unidades prontas. P: atacar a restrição rende mais do que o resto (TOC). S: fila pronta, gate rápido e certo, e deploy em 1 s levam ao degrau 1 | gerente / Daniel |
-| ST-efficiency | 2 | NC-cost | Cortar o custo por PR mergeado na capacidade atual | N: mais frentes gastam mais cota. P: medir o custo por PR antes de cortar. S: AWS e Anthropic são os dois custos | gerente / Daniel |
-| ST-administration | 2 | NC-standard | Manter contratos, medidas e painéis no estado da arte, feitos por ferramenta | N: sem medida confiável, a restrição fica cega (UDE-blind-constraint). P: ferramenta, não mão. S: o modelo a 100 % mais o medidor da restrição na base certa | gerente / Daniel |
-| ST-capacity-1000 | 3 | NC-ready-supply | Programa reach-1000-prs-per-day | — | coordenador de capacidade / gerente |
-| ST-gate | 3 | NC-gate-first-pass, NC-gate-time | Programas gate-speed e gate-excellence | — | coordenador de capacidade / gerente |
+| ST-torre | 1 | NC-throughput, com NC-trust como guarda | INJ-tree-governance | N: cerca de 33 por dia contra 1.000, e a confiança ainda não medida. P: a governança por árvore medida mantém a confiança sem aprovar cada unidade. S: os três domínios juntos cobrem throughput, custo e o próprio sistema | gerente / Daniel |
+| ST-capacity | 2 | NC-throughput | Uma frente sempre na restrição que o medidor aponta, e outra na seguinte assim que ela for conhecida por número | N: a restrição é o suprimento de unidades prontas. P: atacar a restrição rende mais que o resto (TOC). S: gate certo e rápido mais deploy em 1 s, com a fila alimentada, levam ao degrau 1 | gerente / Daniel |
+| ST-efficiency | 2 | NC-cost | Cortar o custo de AWS por PR mergeado na capacidade atual; quando a cota da Anthropic for o gargalo, indicar o aumento a Daniel com o porquê e o ganho | N: mais frentes gastam mais. P: medir o custo por PR antes de cortar. S: a AWS é o único teto | gerente / Daniel |
+| ST-administration | 2 | NC-standard | Manter contratos, medidas e painéis no estado da arte, feitos por ferramenta, incluindo a medida da confiança | N: sem medida confiável, a restrição fica cega e a confiança não se constrói. P: ferramenta, não mão. S: o modelo a 100 % e o medidor na base certa | gerente / Daniel |
+| ST-flow | 3 | NC-throughput | Programas reach-1000-prs-per-day, vazao, fluxo-amplo e live-planning | — | coordenador de capacidade / gerente |
+| ST-gate | 3 | NC-gate-first-pass, NC-gate-time | Programas gate-speed, gate-excellence e test-excellence | — | coordenador de capacidade / gerente |
 | ST-deploy | 3 | NC-deploy-1s | A troca de código abaixo de 1 s | — | coordenador de capacidade / gerente |
-| ST-constraint-meter | 3 | NC-ready-supply | `flow-metrics --constraint` lê a fila e as rodadas do GitHub | — | coordenador de administração / gerente |
-| ST-padrao | 3 | NC-standard | Programa padrao-dev | — | coordenador de administração / gerente |
-| (nível 4) | 4 | a NC do pai ou uma filha | cada unidade da fila | — | lane / coordenador |
+| ST-padrao | 3 | NC-standard | Programas padrao-dev e censo-no-manifesto | — | coordenador de administração / gerente |
+| (nível 4) | 4 | a NC do pai ou uma filha | cada unidade da fila, herdando o nó do programa | — | lane / coordenador |
 
 ## 4. Regras do sistema de gestão (salto 1)
 
@@ -232,7 +252,8 @@ volta.
 1. Uma D que substitui a D-347.
 2. O sistema de gestão `problem`, com os tipos NC, UDE, CAUSE, CONFLICT, INJ e ST, os campos novos de D (`appraisal`)
    e de P (`role`), os contratos, os tipos gerados, as regras 1 a 15 e os testes.
-3. A MEAS nova de NC-ready-supply e o medidor da restrição na base do GitHub (corrige UDE-blind-constraint).
+3. A medida `slo` (a NC lê um SLO do snapshot do GitHub) e o medidor da restrição na base do GitHub (corrige
+   UDE-blind-constraint).
 4. O conteúdo da §3: a Goal Tree, os UDE, a CRT, a nuvem, as INJ, a D e a S&T. Os níveis 1 e 2 entram já validados
    pelo sim de Daniel a esta proposta, e os níveis 3 e 4 com a validação do gerente e do coordenador.
 5. A migração:
