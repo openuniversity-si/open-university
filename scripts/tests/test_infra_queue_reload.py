@@ -36,6 +36,11 @@ GIT_ENV = {**os.environ, 'GIT_AUTHOR_NAME': 't', 'GIT_AUTHOR_EMAIL': 't@t', 'GIT
            'GIT_COMMITTER_EMAIL': 't@t', 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_CONFIG_NOSYSTEM': '1'}
 
 
+
+def short(text):
+    """The digest or sha prefix the look's reasons print."""
+    return text[:12]
+
 class Log:
     """The log.event statements of queue_deploy and http_port.queue_state, by statement."""
 
@@ -89,6 +94,10 @@ class Log:
             self.add(params['id'], 'platform.deploy.image_swap', {**json.loads(params['payload']), 'swapped': True,
                                                                    'by': 'queue', 'roles': ['service']})
             return [(self.pointer[1], 1000.5)]
+        if sql == queue_deploy.HEIR_OF:  # RELOAD-WHY: the heir's beat age (self.beat_age) and the newest queue want
+            wants = [each['payload']['state'] for each in self.events if each['type'] == live_image.SUCCESSOR
+                     and each['payload'].get('branch') == 'queue' and each['payload']['digest'] == params['digest']]
+            return [(getattr(self, 'beat_age', {}).get(params['digest']), wants[-1] if wants else None)]
         if sql == queue_deploy.SWAP_OF:
             return [(1,)] if any(each['type'] == 'platform.deploy.image_swap' and each['payload'].get('head') == params['head']
                                  and each['payload'].get('digest') == params['digest'] for each in self.events) else []
@@ -223,7 +232,7 @@ class Prepared(unittest.TestCase):
         early = queue_deploy.QueueReload(self.ssm.get, self.stored.__setitem__, work=Path(self.directory.name, 'other'),
                                          remote=str(self.remote.bare)).landed(self.log, sha, self.order)
         self.assertEqual(early['state'], 'skipped')
-        self.assertIn(f'not {sha[:12]}', early['why'])  # a claim before main moved orders nothing
+        self.assertIn(f'not {short(sha)}', early['why'])  # a claim before main moved orders nothing
         self.log.events = [each for each in self.log.events if each['type'] != queue_deploy.OUTCOME]
         self.remote.land(sha)
         self.word('landed', sha)
@@ -276,6 +285,28 @@ class Prepared(unittest.TestCase):
         self.assertEqual(self.orders, [(sha, found['sha256'], found['key'])])
         self.assertEqual(self.log.pointer, ('', 0))
         self.assertEqual(self.log.of(live_image.SUCCESSOR)[-1]['state'], 'withdrawn')
+        self.assertEqual(said['why'], f"no swap: no heir of {short(found['sha256'])} beat; want wanted")  # RELOAD-WHY
+
+    def test_an_ordered_fallback_says_how_old_the_heirs_last_beat_was_and_its_want(self):
+        """RELOAD-WHY: a heir that beat, but not within deploy.standby_fresh_s, is named with its age; a bundle the
+        queue never wanted says so; an order that is not made keeps its own reason before the fallback's."""
+        sha = self.remote.queued({'infra/service/tower_infra/autodeploy.py': 'LOOK = 2\n'})
+        found = self.queue.prepare(self.log, sha)
+        fresh = float(queue_deploy.config_data.SPEC['deploy.standby_fresh_s'][1])
+        late, other = fresh * 2, found['sha256'][::-1]  # a beat too old to count; a digest no heir has
+        self.log.beat_age = {found['sha256']: late}
+        self.remote.land(sha)
+        said = self.queue.landed(self.log, sha, self.order)
+        self.assertEqual(said['state'], 'ordered')
+        self.assertEqual(said['why'], f"no swap: the heir of {short(found['sha256'])} last beat {round(late, 3)} s ago "
+                                      f"(fresh: {fresh:g} s); want wanted")
+        self.assertEqual(self.queue.fell(self.log, other), f"no swap: no heir of {short(other)} beat; want none")
+        self.assertEqual(self.queue.fell(None, other), 'no swap: the heir was not read (AttributeError)')
+        self.log.events = [each for each in self.log.events if each['type'] != queue_deploy.OUTCOME]
+        refused = self.queue.landed(self.log, sha, lambda *_: (False, 'c' * 40, False))
+        self.assertEqual(refused['state'], 'skipped')
+        self.assertEqual(refused['why'], f"the order of {short('c' * 40)} is not settled; no swap: the heir of "
+                                         f"{short(found['sha256'])} last beat {round(late, 3)} s ago (fresh: {fresh:g} s); want withdrawn")
 
     def test_a_burst_that_lands_together_swaps_once_onto_the_last_green_commit(self):
         """BURST-SWAP: the queue merged two entries at once, so main went from the deployed base to the second, whose

@@ -124,6 +124,13 @@ SWAP = ("with w as (insert into work.config_value as v (tenant_id, key, value, a
         "'wrote_at', round(extract(epoch from w.updated_at)::numeric, 3)) from w returning 1) "
         "select version, round(extract(epoch from updated_at)::numeric, 3)::float8 from w")
 # a swap of the merge queue for this head and bundle, in the hour: the swap is in charge (the build orders nothing)
+# RELOAD-WHY (REQ-deploy-1s): why a landing fell to the ordered reload: the seconds since the service heir of the bundle
+# last beat (null: no heir ever beat) and the state of the merge queue's newest want of it (null: never wanted)
+HEIR_OF = ("select (select extract(epoch from clock_timestamp() - max(beat_at))::float8 from work.standby_beat "
+           "where role = 'service' and digest = %(digest)s), "
+           f"(select payload->>'state' from log.event where type = '{live_image.SUCCESSOR}' and tenant_id is null "
+           "and occurred_at > now() - interval '1 day' and payload->>'branch' = 'queue' and payload->>'digest' = %(digest)s "
+           "order by occurred_at desc limit 1)")
 SWAP_OF = ("select 1 from log.event where type = 'platform.deploy.image_swap' and tenant_id is null "
            "and occurred_at > now() - interval '1 hour' and payload->>'swapped' = 'true' and payload->>'by' = 'queue' "
            "and payload->>'head' = %(head)s and payload->>'digest' = %(digest)s limit 1")
@@ -375,6 +382,19 @@ class QueueReload:
         found = db.rows(ADOPTED, {})
         return found[0][0] if found and found[0][0] else None
 
+    def fell(self, db, digest):
+        """RELOAD-WHY (REQ-deploy-1s): why no heir took the landing, for the outcome's `why`: the age of the service heir's
+        last beat against deploy.standby_fresh_s, or no heir, and the merge queue's want of the bundle. Never raises."""
+        try:
+            said = db.rows(HEIR_OF, {'digest': digest}) or [(None, None)]
+            age, want = said[0][0], said[0][1]
+            fresh = float(self.setting('deploy.standby_fresh_s'))
+            heir = (f'no heir of {digest[:12]} beat' if age is None else
+                    f'the heir of {digest[:12]} last beat {round(float(age), 3)} s ago (fresh: {fresh:g} s)')
+            return f'no swap: {heir}; want {want or "none"}'
+        except Exception as error:  # noqa: BLE001 - the reason is a record, never a stop of the reload
+            return f'no swap: the heir was not read ({type(error).__name__})'
+
     def swap(self, db, sha, found):
         """QUEUE-SWAP: the service's pointer to the heir of the merge's bundle when it beats; answers (version, wrote_at)
         or None (no heir ready: the order of the reload in place, as before)."""
@@ -420,11 +440,12 @@ class QueueReload:
             if swapped:
                 outcome.update(digest=found['sha256'], state='swapped', version=swapped[0], wrote_at=swapped[1])
             else:
+                fell = self.fell(db, found['sha256'])  # RELOAD-WHY: read before the withdraw below moves the want
                 made, busy, bad = order(sha, found['sha256'], found['key'])
-                outcome.update(digest=found['sha256'], state='ordered' if made or busy == sha else 'skipped')
+                outcome.update(digest=found['sha256'], state='ordered' if made or busy == sha else 'skipped', why=fell)
                 if not (made or busy == sha):
-                    outcome['why'] = f'a reload onto {found["sha256"][:12]} failed before' if bad else \
-                        f'the order of {str(busy)[:12]} is not settled'
+                    outcome['why'] = (f'a reload onto {found["sha256"][:12]} failed before' if bad else
+                                      f'the order of {str(busy)[:12]} is not settled') + f'; {fell}'
             self.withdraw(db, sha, keep=found['sha256'] if swapped else None)
         except Refused as error:
             outcome['why'] = str(error)
