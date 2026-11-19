@@ -4,8 +4,10 @@ non-fatal while the endpoint is empty or the credential is missing.
 
 Verifies: REQ-agent-env-single-source
 """
+import contextlib
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import io
 import json
 import os
 from pathlib import Path
@@ -152,6 +154,24 @@ class ClientTests(unittest.TestCase):
             self.assertIn('not provisioned', self.run_fetch())
         self.assertEqual(Stub.seen, [])
         self.assertFalse(self.env_file.exists())
+
+    def test_preflight_warns_while_not_provisioned_and_gaps_a_missing_credential_after(self):
+        with mock.patch.object(client, 'endpoint', return_value=''):
+            self.assertEqual(client.preflight_lines({}), (['agent-env: not provisioned'], []))
+        self.assertEqual(client.preflight_lines({}), ([], ['agent-env: no starting credential is set']))
+        self.assertEqual(client.preflight_lines({CREDENTIAL: TOKEN}), ([], []))
+
+    def test_preflight_today_is_a_warning_never_a_gap(self):
+        import preflight
+        with mock.patch.object(client, 'endpoint', side_effect=lambda *_: client.config.get('agent-env.endpoint')):
+            warnings, gaps = preflight.agent_env_lines()
+        self.assertEqual((warnings, gaps), (['agent-env: not provisioned'], []))
+        stderr, stdout = io.StringIO(), io.StringIO()
+        with mock.patch.object(preflight, 'problems', return_value=[]), contextlib.redirect_stderr(stderr), \
+                contextlib.redirect_stdout(stdout), \
+                mock.patch.object(preflight, 'agent_env_lines', return_value=(warnings, gaps)):
+            self.assertEqual(preflight.main([]), 0)
+        self.assertEqual((stderr.getvalue(), stdout.getvalue()), ('WARN agent-env: not provisioned\n', 'preflight: ok\n'))
 
     def test_the_wrapper_is_inert_with_the_registry_default(self):
         self.assertEqual(client.config.get('agent-env.endpoint', ROOT), '')

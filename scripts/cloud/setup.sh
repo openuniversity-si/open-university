@@ -209,3 +209,8 @@ import toolchain_manifest
 seen = toolchain_manifest.observed_versions(tools=['node', 'python', 'postgres', 'gitleaks', 'ruff'])
 print('the-tower cloud setup: ' + ', '.join(f'{tool} {seen[tool]}' for tool in ('node', 'python', 'postgres', 'gitleaks', 'ruff')))
 PY
+
+# AGENT-ENV (D-341): what this agent environment declares, fetched with its starting credential and appended to
+# CLAUDE_ENV_FILE. Best effort: the client prints one line (names and counts only) and exits 0 on every failure, and it
+# is inert while agent-env.endpoint is empty; a crash of the interpreter itself still never fails the setup.
+"$ROOT/scripts/cloud/agent-env" fetch || echo "agent-env: fetch did not complete; nothing written" >&2

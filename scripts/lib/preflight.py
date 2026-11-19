@@ -86,6 +86,16 @@ def forge_problems():
         return [f'forge readiness unknown: {type(error).__name__}: {error}'.splitlines()[0]]
 
 
+def agent_env_lines():
+    """AGENT-ENV (D-341): (warnings, gaps). While agent-env.endpoint is empty, `agent-env: not provisioned` is a warning,
+    never a gap; once it is set, a missing starting credential is a gap. No network."""
+    import agent_env_client
+    try:
+        return agent_env_client.preflight_lines()
+    except Exception as error:  # an unreadable declaration is a warning: the client is best effort at session start
+        return [f'agent-env: unknown ({type(error).__name__})'], []
+
+
 def problems():
     lines = []
     selected = mode()
@@ -98,6 +108,7 @@ def problems():
     lines.extend(host_problems())
     lines.extend(writable_problems())
     lines.extend(root_problems())
+    lines.extend(agent_env_lines()[1])
     # One pass. A database failure and a missing drop tool can name the same gap.
     unique = []
     for item in lines:
@@ -159,6 +170,8 @@ def main(argv=()):
     command, *rest = list(argv) or ['']
     if command == 'gate':
         return gate_main(rest)
+    for line in agent_env_lines()[0]:  # a warning is named whether or not a gap follows, and never exits 2
+        print(f'WARN {line}', file=sys.stderr)
     require()
     print('preflight: ok')
     return 0

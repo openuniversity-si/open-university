@@ -164,6 +164,17 @@ def fetch(environ=None, root=ROOT, out=print):
     return 0
 
 
+def preflight_lines(environ=None, root=ROOT):
+    """(warnings, gaps) for scripts/cloud/preflight: an empty endpoint is a warning only; with an endpoint, a missing
+    starting credential is a gap. No network."""
+    environ = os.environ if environ is None else environ
+    if not endpoint(root):
+        return [f'{LABEL}: not provisioned'], []
+    if select(load_declarations(root), environ) is None:
+        return [], [f'{LABEL}: no starting credential is set']
+    return [], []
+
+
 def main(argv):
     if list(argv) != ['fetch']:
         print('usage: scripts/cloud/agent-env fetch', file=sys.stderr)
