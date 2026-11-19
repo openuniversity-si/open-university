@@ -957,9 +957,11 @@ class Supply(unittest.TestCase):
         self.assertEqual(model.rate(supply['share'], meta['scale']), 'F', 'the share alone would rate it F')
         self.assertEqual((supply['weaknesses'], supply['level']), (1, 'L'))
         write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2099-01-01'})
+        self.assertEqual(self.measure()['level'], 'L', 'D-336: an exemption no decision accepts leaves the advisory affecting')
+        write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2099-01-01', 'authorized_by': 'D-9'})
         supply = self.measure()
         self.assertEqual((supply['weaknesses'], supply['level']), (0, 'F'))
-        write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2000-01-01'})
+        write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa.json', {'reason': 'r', 'deadline': '2000-01-01', 'authorized_by': 'D-9'})
         self.assertEqual(self.measure()['level'], 'L', 'an exemption past its deadline is not in force')
 
 

@@ -31,9 +31,29 @@ class Vulnerabilities(unittest.TestCase):
         high = {'severity': 'high', 'found': '2026-11-01'}
         self.assertEqual(model.vuln_state(high, '2026-12-01', BAR), 'open')
         self.assertEqual(model.vuln_state(high, '2026-12-02', BAR), 'overdue')
-        self.assertEqual(model.vuln_state({**high, 'accepted_until': '2026-12-31'}, '2026-12-02', BAR), 'accepted')
+        accepted = {**high, 'accepted_until': '2026-12-31', 'reason': 'waits on upstream', 'accepted_by': 'D-9'}
+        self.assertEqual(model.vuln_state(accepted, '2026-12-02', BAR), 'accepted')
+        # D-336: an acceptance needs its decision, its reason and an expiry not yet passed
+        for missing in ('accepted_by', 'reason'):
+            self.assertEqual(model.vuln_state({key: value for key, value in accepted.items() if key != missing}, '2026-12-02', BAR), 'overdue')
+        self.assertEqual(model.vuln_state(accepted, '2027-01-01', BAR), 'overdue')
         self.assertEqual(model.vuln_state({**high, 'fixed': '2026-11-05'}, '2026-12-02', BAR), 'fixed')
         self.assertEqual(model.vuln_state({**high, 'fixed': '2026-11-05', 'verified_by': 'TEST:t'}, '2026-12-02', BAR), 'verified')
+
+
+    def test_only_a_fixed_or_accepted_vulnerability_is_conformant_open_inside_its_deadline_is_not(self):
+        """D-336 (2): the bug bar's deadline is the alarm that a fix is late, not a licence to stay open."""
+        meta = model.metamodel(ROOT)
+        kind = meta['types']['VULN']
+        self.assertEqual(sorted(kind['unconformant_states']), ['open', 'overdue'])
+        def item(state, links=()):
+            return {'id': 'VULN-x', 'type': 'VULN', 'state': state, 'fingerprint': 'f',
+                    'links': [{'type': 'threatens', 'target': 'ARC-gate'}, *links]}
+        for state, conformant in (('open', False), ('overdue', False), ('fixed', True), ('verified', True)):
+            self.assertEqual(model.covered(meta, item(state), {}, {}), conformant, state)
+        accepted = item('accepted', [{'type': 'authorized-by', 'target': 'D-336'}])
+        self.assertTrue(model.covered(meta, accepted, {}, {}))
+        self.assertIn('authorized-by', [name for name, link in meta['links'].items() if 'VULN' in link['from']])
 
 
 class Readers(unittest.TestCase):

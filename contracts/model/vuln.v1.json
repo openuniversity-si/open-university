@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contracts/model/vuln.v1.json",
   "title": "Vulnerability v1",
-  "description": "config/security/vulns/<id>.json (PADRAO-DEV F7d, D-321): a vulnerability of the repository's own code (SDL, SSDF RV): where, its severity by the bug bar (security.vuln_deadline_days), when it was found, fixed and verified. The state is derived (open, overdue, fixed, verified, accepted). Never an exploit.",
+  "description": "config/security/vulns/<id>.json (PADRAO-DEV F7d, D-321): a vulnerability of the repository's own code (SDL, SSDF RV): where, its severity by the bug bar (security.vuln_deadline_days), when it was found, fixed and verified. The state is derived (open, overdue, fixed, verified, accepted); accepted needs accepted_until, a reason and the decision that accepts it (accepted_by, D-336). Never an exploit.",
   "x-owner": "model",
   "x-schema-version": 1,
   "type": "object",
@@ -57,6 +57,10 @@
     },
     "reason": {
       "type": "string"
+    },
+    "accepted_by": {
+      "type": "string",
+      "pattern": "^D-[0-9]+$"
     }
   }
 }

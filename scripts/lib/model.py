@@ -1514,7 +1514,9 @@ def read_advisories(root):
     for advisory in snapshot['advisories']:
         links = [{'type': 'affects', 'target': supply.dep_id('npm', advisory['package'], version)}
                  for version in advisory['versions']]
-        item = _obj(advisory['id'], 'ADV', supply.advisory_state(advisory, granted.get(advisory['id']), today),
+        exempt = granted.get(advisory['id']) or {}
+        links += [{'type': 'authorized-by', 'target': exempt['authorized_by']}] if exempt.get('authorized_by') else []
+        item = _obj(advisory['id'], 'ADV', supply.advisory_state(advisory, exempt, today),
                     supply.SNAPSHOT, json.dumps(advisory, sort_keys=True), links)
         item['body'] = advisory
         found.append(item)
@@ -1607,11 +1609,13 @@ def derive_controls(found):
 
 
 def vuln_state(body, today, deadlines):
-    """verified, fixed, accepted while its acceptance holds, overdue past the bug bar's deadline, else open."""
+    """verified, fixed, accepted while a decision accepts it with a reason until a date not yet passed (D-336), overdue
+    past the bug bar's deadline, else open. Only fixed, verified and accepted are conformant: the deadline is the alarm
+    that a fix is late, not a licence to stay open."""
     from datetime import date, timedelta
     if body.get('fixed'):
         return 'verified' if body.get('verified_by') else 'fixed'
-    if body.get('accepted_until') and body['accepted_until'] >= today:
+    if body.get('accepted_until', '') >= today and body.get('reason') and body.get('accepted_by'):
         return 'accepted'
     due = date.fromisoformat(body['found']) + timedelta(days=deadlines[body['severity']])
     return 'overdue' if date.fromisoformat(today) > due else 'open'
@@ -1621,7 +1625,8 @@ def read_vulns(root):
     """Vulnerabilities of the repository's own code (VULN), one file each (config/security/vulns/)."""
     import config
     found = _declared(Path(root), 'config/security/vulns/VULN-*.json', 'vuln.v1.json', 'VULN',
-                      lambda body: [{'type': 'threatens', 'target': target} for target in body['in']])
+                      lambda body: [{'type': 'threatens', 'target': target} for target in body['in']]
+                      + ([{'type': 'authorized-by', 'target': body['accepted_by']}] if body.get('accepted_by') else []))
     today = utc_today()
     deadlines = {'critical': config.get('security.vuln_critical_days', ROOT), 'high': config.get('security.vuln_high_days', ROOT),
                  'moderate': config.get('security.vuln_moderate_days', ROOT), 'low': config.get('security.vuln_low_days', ROOT)}

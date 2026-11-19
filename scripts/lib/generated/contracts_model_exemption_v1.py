@@ -6,4 +6,5 @@ ExemptionV1 = TypedDict('ExemptionV1', {
     'reason': Required[str],
     'deadline': Required[str],
     'owner': Required[str],
+    'authorized_by': NotRequired[str],
 }, total=False)
