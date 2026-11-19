@@ -9,9 +9,9 @@
   "properties": {
     "regime.exception_active": {
       "type": "boolean",
-      "default": true,
+      "default": false,
       "x-unit": "flag",
-      "description": "True while the exception regime holds: every lock lifts except regime.exception_kept. The default is true for the grant of 01/11 10:52 BRT (D-260, commit 9c41dc836, granted by Daniel); the shared store holds the same grant. Only the person who holds the order writes it (scripts/config set).",
+      "description": "True while the exception regime holds: every lock lifts except regime.exception_kept. False since D-340 (19/11): the regime of D-260 ended on its own exit condition (GitHub writes no longer limit the flow, D-314).",
       "x-readers": [
         "scripts/lib/regime.py"
       ],
