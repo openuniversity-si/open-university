@@ -5,6 +5,7 @@ import { catalogBatchV2Schema, type CatalogBatchV2 } from "../../src/catalog/dom
 import { ccByLicense } from "../../src/catalog/domain/schema/fields.ts";
 import type { Tx } from "../../src/catalog/server/mutation.ts";
 
+// Verifies: D-035
 const sha = (seed: string) => seed.repeat(64).slice(0, 64);
 
 function batch(): CatalogBatchV2 {

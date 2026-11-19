@@ -5,6 +5,7 @@ import { coverOwnerKindSql } from "../../platform/db/schema.ts";
 import { coverKindAllowed } from "./cover-choice.ts";
 import { mediaKey, ownerSchema } from "./types.ts";
 
+// Verifies: D-035
 // D-035: one list, in the kernel, because the database check reads it there. The figure refuses.
 
 describe("cover kinds (D-035)", () => {

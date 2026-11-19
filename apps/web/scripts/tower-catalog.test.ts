@@ -18,6 +18,7 @@ import { idempotencyKey } from "./lib/catalog-cli/client.ts";
 import { EXIT } from "./lib/catalog-cli/errors.ts";
 import { reviewLines } from "./lib/catalog-cli/render.ts";
 
+// Verifies: D-035
 const repo = fileURLToPath(new URL("../", import.meta.url));
 const wrapper = join(repo, "tooling/tower-catalog");
 const tmp = () => mkdtempSync(join(tmpdir(), "tower-catalog-"));

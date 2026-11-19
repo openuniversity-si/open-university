@@ -4,6 +4,7 @@ import { universities } from "./universities.ts";
 import { COURSE_BODY_MARKER, FULL_RELEASE_COURSES, fullSizeRelease } from "../testing/full-release.ts";
 import { authorsClient, cardView, homeClient, universityDetailRails, universityIndexView } from "./view-model.ts";
 
+// Verifies: D-037
 const countries: readonly Country[] = [
   { id: "us", name: "United States", rank: 1, placeEndings: ["MA"] },
   { id: "uk", name: "United Kingdom", rank: 2, placeEndings: ["United Kingdom"] },

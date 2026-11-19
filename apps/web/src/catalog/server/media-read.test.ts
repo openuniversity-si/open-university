@@ -29,6 +29,7 @@ import { courseCoverAssets, lessonCoverAssets, ownerRefsForCourses } from "../do
 import { coverOwner } from "../domain/cover-resolve.ts";
 import { readLessonAssets, readPublicOwnerAssets } from "../../media/server/index.ts";
 
+// Verifies: D-037
 async function courseMedia(courseIds: readonly string[]) {
   const rows = await readPublicOwnerAssets(ownerRefsForCourses(fixtures.courses, courseIds));
   return courseCoverAssets(fixtures.courses, courseIds, rows);

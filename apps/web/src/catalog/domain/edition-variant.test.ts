@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { columnsToVariant, editionLanguageProblems, indistinctEditionMessage, indistinctEditions, offeringKey } from "./edition-variant.ts";
 
+// Verifies: D-035
 const edition = (id: string, year: number | null, variant?: { kind: string; label: string } | null) => ({ id, year, variant });
 
 describe("edition variant (D-034)", () => {
