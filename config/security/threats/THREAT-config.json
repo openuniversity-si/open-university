@@ -76,6 +76,16 @@
         "TEST:scripts/tests/queue-checks.test.sh",
         "TEST:scripts/tests/gate-pin.test.sh"
       ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A change turns the exception regime on (regime.exception_active) or widens what it lifts, so the gate's locks warn instead of refusing.",
+      "mitigated_by": [
+        "STD-commit-check-gate-errors",
+        "TEST:scripts/tests/gate-pin.test.sh",
+        "TEST:scripts/tests/regime.test.sh",
+        "config/registry/regime/regime.exception_active.json"
+      ]
     }
   ],
   "review": {
@@ -91,8 +101,8 @@
       {
         "about": "tampering",
         "finding": "The residual was wrong: threshold_check (run by the structure check) also refuses a numeric default matching config.monotonic_patterns (timeouts, limits, maxima, budgets, ceilings, tolerances) that loosens against the base without a `Loosens:` line citing a decision. But it runs inside the structure check, which the exception regime lifts today: config/registry/regime/regime.exception_active.json is true and regime.exception_kept is [money, people], so regime.lifted('structure') and lifted('commit-plan') are true on every tower/gate run (nothing pins the regime outside the script tests' hermetic hook): structure.py under_regime turns every structure-check refusal into a warning, and gate_discipline.lift does the same to the plan, fix-up, one-commit-per-push, plan-completeness and lane refusals.",
-        "disposition": "open",
-        "reason": "residual text corrected by this reviewer to name the threshold check; the refusal itself needs the regime ended or the structure lock kept."
+        "disposition": "fixed",
+        "reason": "The exception regime ended (D-340, #309): regime.exception_active is false, so the structure check and the threshold check it runs refuse in tower/gate again; the residual text names the threshold check."
       },
       {
         "about": "tampering",
@@ -121,8 +131,8 @@
       {
         "about": "elevation-of-privilege",
         "finding": "GATE_FILE now matches config/registry/gate/*.json and config/registry/gate.json (verified), but other registry owners govern the gate and stay outside it: gate-pin/, gate-tests/, gate-tier/, gate-carry/, gate-proof/, gate-infra/ and the rest of config/registry/gate-*/, config.monotonic_patterns (the threshold check's own list) and regime/ (which lifts locks). A change to them asks no decision and is not pinned. The pinned gate the statement relies on is staged, not installed.",
-        "disposition": "open",
-        "reason": "needs GATE_FILE widened to every registry owner the gate reads, and the pinned job installed; not in place."
+        "disposition": "fixed",
+        "reason": "GATE_FILE reaches every config/registry/gate*/ owner and the regime keys (D-340, #309); the job gate pinned to the base is installed and required (#308, #312, #318) and restores, from the base, the registry keys its stages read (#323), so a head that loosens one is judged by the base's value; config.monotonic_patterns only grows: threshold_check refuses a dropped pattern as a loosening without a Loosens: line citing a decision."
       },
       {
         "about": "elevation-of-privilege",
@@ -133,8 +143,8 @@
       {
         "about": "assets",
         "finding": "The exception regime's recorded state is a listed asset but no threat covers a change that turns the regime on or widens it; today it is on and lifts the structure and commit-plan locks.",
-        "disposition": "open",
-        "reason": "needs a threat with a real mitigation (regime keys as gate files, or the regime ended)."
+        "disposition": "fixed",
+        "reason": "threat added (tampering, the regime's state): its keys are gate files, the regime is off (D-340)."
       }
     ]
   }
