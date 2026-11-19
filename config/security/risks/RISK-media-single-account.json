@@ -1,0 +1,21 @@
+{
+  "id": "RISK-media-single-account",
+  "statement": "The site's media has one copy, in one AWS account and region: S3 versioning covers a deletion or an overwrite, not a compromised account, an account closure or a regional loss.",
+  "state": "assessed",
+  "owner": "Daniel",
+  "assets": [
+    "DATA-r2-media",
+    "SUP-aws"
+  ],
+  "likelihood": "low",
+  "impact": "high",
+  "treatment": {
+    "option": "mitigate",
+    "plan": "A second copy outside the failure domain: S3 replication of the media bucket to a bucket in a second region (about 3.4 GB, well under a dollar a month), ideally under a separate account or with Object Lock. It is spending, so it waits for the owner's ok (D-325 closed list); until then versioning (90 days) is the only recovery.",
+    "by": [
+      "DATA-r2-media"
+    ]
+  },
+  "review_by": "2026-12-02",
+  "source": "docs/programs/padrao-dev/fornecimento-cloudflare.md (the R2 deletion, 18/11)"
+}

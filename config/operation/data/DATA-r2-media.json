@@ -2,14 +2,14 @@
   "id": "DATA-r2-media",
   "name": "the site's media bucket",
   "kind": "bucket",
-  "location": "AWS S3, tower-media-994763873392-us-east-1 (infra/aws/stacks/60-media.json), served by CloudFront as media.openuniversity.si; Cloudflare R2 open-university-media is the second copy for 30 days",
+  "location": "AWS S3, tower-media-994763873392-us-east-1 (infra/aws/stacks/60-media.json), served by CloudFront as media.openuniversity.si; the Cloudflare R2 copies were deleted on 2026-11-18",
   "supplier": "SUP-aws",
   "owner": "Daniel",
   "personal": false,
   "backup": {
-    "method": "replicated",
-    "restore_proof": "the copy to S3 compared object by object: rclone size on both sides and the MD5 of every object against its R2 ETag (the Torre, D-323 step 2)",
+    "method": "automated",
+    "restore_proof": "S3 versioning of the media stack: a deleted or overwritten object is restored from its noncurrent version (90 days); the copy from R2 was compared object by object before the R2 buckets were deleted (the Torre, D-323 step 2)",
     "last_restore_verified": "2026-11-18",
-    "note": "The cut was made on 2026-11-18 (the Torre, 20:43-20:49Z): the site writes to S3 (MEDIA_STORE=s3, the Lambda role), media.openuniversity.si resolves to the media distribution, and R2 lost its public access (custom domain removed, r2.dev off). R2 open-university-media stays the second copy, byte-identical (31,026 objects, 3,388,187,740 bytes, compared object by object after the cut, no object written after the first copy); it is deleted after 30 days without reads. S3 versioning keeps noncurrent versions 90 days."
+    "note": "R2 open-university-media (31,026 objects) and the-tower-media (1,329) were emptied and deleted on 2026-11-18 20:57 BRT at Daniel's request, without the 30-day wait (the Torre, prefixDelete jobs aefe40fb-a9b2-4cb2-8231-5266a59295c6 and 58559a42-248d-4362-b868-86d2409554af), after the S3 listing matched (SHA-256 f9eaf5c875eb6d51a6a8012591cd0f7a410b25ef75727da8e1105fe54b7e581f) and the one missing the-tower-media key was copied. There is no second copy outside the account: see RISK-media-single-account."
   }
 }
