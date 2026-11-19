@@ -671,6 +671,25 @@ class Changes(unittest.TestCase):
         into = model.incoming(found)
         self.assertFalse(model.implemented(found['REQ-x'], into, found), 'a diff-derived unit link implements no REQ')
 
+    def test_an_erratum_corrects_a_wrong_implements_trailer_and_one_that_matches_nothing_is_an_error(self):
+        import subprocess
+        sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root, capture_output=True, text=True).stdout.strip()
+        def read(*errata):
+            write(self.root, model.ERRATA, {'errata': [{'change': 'CHG-5', 'sha': sha, 'why': 'a typo', **entry}
+                                                       for entry in errata]})
+            return {item['id']: item for item in model.read_changes(self.root)}['CHG-5']
+        dropped = read({'was': 'REQ-a', 'is': None})
+        self.assertEqual((dropped['links'], dropped.get('problems')), ([{'type': 'implements', 'target': 'UNIT:x'}], None))
+        renamed = read({'was': 'REQ-a', 'is': 'REQ-b'})
+        self.assertEqual(renamed['links'][0], {'type': 'implements', 'target': 'REQ-b'})
+        for wrong in ({'was': 'REQ-none', 'is': None}, {'was': 'REQ-a', 'is': None, 'why': ' '},
+                      {'was': 'REQ-a', 'is': None, 'change': 'CHG-9'}):
+            stale = read(wrong)
+            self.assertEqual(len(stale['problems']), 1, wrong)
+            self.assertIn({'type': 'implements', 'target': 'REQ-a'}, stale['links'], 'a wrong erratum corrects nothing')
+        meta, found = model.metamodel(), {'CHG-5': stale}
+        self.assertTrue(any(line.startswith('CHG-5: erratum') for line in model.check(meta, found)[0]))
+
     def test_a_retired_unit_is_read_from_the_commit_that_deleted_it_and_its_earlier_changes_still_implement_it(self):
         import units
         shutil.copytree(ROOT / 'config/registry', self.root / 'config/registry')

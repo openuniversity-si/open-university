@@ -1000,12 +1000,14 @@ def read_escapes(root):
 def read_changes(root):
     """Changes (CHG): every merge on the first-parent line of HEAD, one per pull request (CHG-<number>, else
     CHG-<sha>), merged; the `Implements:` trailers of its commits become implements links (requirements, decisions
-    or units, comma-separated: intent), and each unit its diff touched becomes an implements link marked
+    or units, comma-separated: intent; a trailer an erratum corrects reads as corrected, read_errata), and each unit
+    its diff touched becomes an implements link marked
     `source: diff` (a fact: the link type's "changes a unit"). Only a trailer or the requirement's own
     `implemented_by` (link_implemented_by, D-332) names a requirement, so a diff-derived link never implements one
     (`implemented`). The initial public tree is CHG-initial."""
     found = []
     touched = _changed_units(Path(root))
+    errata = read_errata(root)
     for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
         sha, _, subject = line.partition('\x1f')
         ident = _change_id(sha, subject)
@@ -1016,11 +1018,14 @@ def read_changes(root):
         targets = []
         for listed in TRAILER_IMPLEMENTS.findall(bodies):
             targets += [target.strip() for target in listed.split(',') if target.strip()]
+        targets, problems = _corrected(ident, targets, errata.pop(sha, []))
         links = [{'type': 'implements', 'target': target} for target in dict.fromkeys(targets)]
         links += [{'type': 'implements', 'target': unit, 'source': 'diff'} for unit in touched.get(sha, [])
                   if unit not in targets]
         item = _obj(ident, 'CHG', 'merged', f'git:{sha}', sha, links)
         item['body'] = {'sha': sha, 'subject': subject, 'names': sorted(set(PHASE_ITEM_NAME.findall(named)))}
+        if problems:
+            item['problems'] = problems
         found.append(item)
     # D-332: the initial public tree (the one root commit of HEAD, never a merge) is one merged change, CHG-initial;
     # a shallow clone's boundary is no root, so it reads none
@@ -1033,6 +1038,34 @@ def read_changes(root):
 
 
 INITIAL_CHANGE = 'CHG-initial'
+ERRATA = 'config/model/errata.json'
+
+
+def read_errata(root):
+    """{merge sha: [erratum]}: the corrections of an `Implements:` trailer a merged commit got wrong (config/model/errata.json,
+    `{"errata": [{change, sha, was, is, why}]}`). History is never rewritten: the erratum, like git's .mailmap, says what
+    the trailer should have named (`is`, or null when it should have named nothing) and why; every erratum's
+    change id, sha and the target it corrects are checked against the merge (_corrected)."""
+    path = Path(root) / ERRATA
+    if not path.is_file():
+        return {}
+    found = {}
+    for entry in _read_json(path).get('errata', []):
+        found.setdefault(entry['sha'], []).append(entry)
+    return found
+
+
+def _corrected(ident, targets, errata):
+    """(targets, problems): the trailer targets of one merge with its errata applied; an erratum that names another
+    change, a target the merge's trailers do not name, or no reason is a problem of the change (an error of the model)."""
+    problems = []
+    for entry in errata:
+        if entry.get('change') != ident or entry.get('was') not in targets or not str(entry.get('why', '')).strip():
+            problems.append(f'erratum {entry.get("was")} -> {entry.get("is")} matches no trailer of its merge or gives no why')
+            continue
+        targets = [entry['is'] if target == entry['was'] else target for target in targets]
+        targets = [target for target in targets if target]
+    return targets, problems
 
 
 def link_implemented_by(found):
