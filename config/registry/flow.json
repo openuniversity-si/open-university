@@ -7,6 +7,16 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "flow.base_ref": {
+      "type": "string",
+      "default": "origin/main",
+      "x-unit": "git ref",
+      "description": "The ref scripts/flow-metrics reads the flow from when it is given no --base: the live base, main on GitHub (D-314). Its default was the Origin era's mod/roadmap-integration, so the constraint meter failed on the live base (UDE-blind-constraint, D-348).",
+      "x-readers": [
+        "scripts/lib/flow_metrics.py"
+      ],
+      "x-source": "D-348 (UDE-blind-constraint)"
+    },
     "flow.bash_trim_bytes": {
       "type": "integer",
       "default": 7000,
