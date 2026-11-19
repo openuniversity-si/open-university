@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { applyElementAliases, applyFoundationAliases, classPlaces, elementOf, foundationAliases, isThemeBinding, resolveTheme, SHEET_SLOTS, TEXT_ELEMENTS, themeReaders, type ThemeVariable } from "./identity.ts";
 
+// Verifies: D-052
 const snapshot = JSON.parse(await readFile(new URL("../../design/figma-tokens.snapshot.json", import.meta.url), "utf8")) as {
   readonly variables: Readonly<Record<string, ThemeVariable>>;
 };

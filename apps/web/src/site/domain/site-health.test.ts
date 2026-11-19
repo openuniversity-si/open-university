@@ -5,6 +5,7 @@ import { fixtureMeasurements } from "../../catalog/testing/route-payload.ts";
 import { CACHE_ENTRY_BUDGET_BYTES } from "../../kernel/cache-budget.ts";
 import { measurementFailures, reportRefusal, siteHealthCeiling, siteHealthFailures, siteHealthReport, SITE_HEALTH, type Audience, type SiteHealthRoute } from "./site-health.ts";
 
+// Verifies: D-038
 const sha = "ab".repeat(32);
 
 describe("site health (D-038)", () => {

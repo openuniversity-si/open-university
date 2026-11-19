@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { migrationsFolder, runMigrations } from "../../scripts/lib/migrations.ts";
 import { testDatabaseUrl } from "../fixtures/admin-catalog.ts";
 
+// Verifies: D-031
 const KINDS = ["poster_9x16", "hero_desktop_16x9", "hero_present", "hero_mobile_9x16"] as const;
 
 describe("0028 (D-031): backfill declares coverFrom and holds a course whose owner has no cover", () => {

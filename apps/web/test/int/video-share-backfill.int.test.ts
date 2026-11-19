@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { migrationsFolder, runMigrations } from "../../scripts/lib/migrations.ts";
 import { testDatabaseUrl } from "../fixtures/admin-catalog.ts";
 
+// Verifies: D-032
 describe("0029 (D-032): backfill declares a mutual share where videos already overlap", () => {
   let db: pg.Client;
   const reset = () => db.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public; DROP SCHEMA IF EXISTS drizzle CASCADE");

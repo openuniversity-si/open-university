@@ -34,6 +34,7 @@ import type { CompiledCourseProjection } from "../domain/incremental-compile.ts"
 import { fullSizeRelease } from "../testing/full-release.ts";
 import { readPageCatalog } from "./page-reads.ts";
 
+// Verifies: D-037
 const detailRead = (sql: string) => sql.includes("detail_json") && sql.includes("unnest") && !sql.includes("#>>");
 
 describe("readPageCatalog batches projections (D-037)", () => {

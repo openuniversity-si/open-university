@@ -6,6 +6,7 @@ import { validateCourseBundle } from "../../../../src/catalog/domain/bundle.ts";
 import { prepareMedia } from "../../../../src/media/server/prepare.ts";
 import { fakeApi, runCli } from "../cli.test-helpers.ts";
 
+// Verifies: D-038
 function video(index: number): string {
   const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
   return `abcdefghi${alphabet[Math.floor(index / 36)] ?? "a"}${alphabet[index % 36] ?? "a"}`;

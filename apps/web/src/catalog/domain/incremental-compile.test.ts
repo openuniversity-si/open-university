@@ -9,6 +9,7 @@ import {
   type CompiledCourseProjection,
 } from "./incremental-compile.ts";
 
+// Verifies: D-033
 const checkedAt = "2020-01-01T00:00:00.000Z";
 
 function publishable(): CatalogTables {

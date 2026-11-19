@@ -8,6 +8,7 @@ import type { CatalogTables } from "./tables.ts";
 import { assertReleaseCovers, releaseCoverErrors } from "./cover-rule.ts";
 import { storedCoverErrors } from "./rules/home.ts";
 
+// Verifies: D-001
 const checkedAt = "2020-01-01T00:00:00.000Z";
 const cover = {
   url: `https://media.openuniversity.si/covers/mit/university_cover_9x16/${"a".repeat(40)}.webp`,

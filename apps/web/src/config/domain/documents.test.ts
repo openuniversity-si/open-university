@@ -8,6 +8,7 @@ import {
   codeCopy, codeDocument, codeEditorial, codeLimits, codeTheme, exportNameToToken, matchConfigRequest, nextStoredRevision, parseCopy, parseDocument, parseEditorial, parseLimits, parseTheme, servedShell, themeOverrideBlock,
 } from "./documents.ts";
 
+// Verifies: D-051
 describe("configuration documents", () => {
   it("D-051: the day-one documents are the keys already in code", () => {
     const css = readFileSync(new URL("../../ui/tokens/tokens.css", import.meta.url), "utf8");

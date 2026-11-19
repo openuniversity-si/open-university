@@ -8,6 +8,7 @@ import { referenceFailures, refKeys, type CatalogRefs } from "./refs.ts";
 import { declareRule, declaredRules } from "./registry.ts";
 import { publishedAreaFailures, publishedKeepsCovers, publishedKeepsRights, REQUIRED_COVERS, RULES } from "./status.ts";
 
+// Verifies: D-032
 // One case per rule id of the core (INV-R2), over in-memory refs: no database, no network.
 
 function bundle(id: string, course: Record<string, unknown> = {}, extra: Record<string, unknown> = {}): CourseBundleV1 {

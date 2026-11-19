@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+// Verifies: D-050
 const root = new URL("../../..", import.meta.url);
 const snapshot = JSON.parse(readFileSync(new URL("design/figma-tokens.snapshot.json", root), "utf8")) as {
   readonly variables: Readonly<Record<string, { readonly value: string }>>;

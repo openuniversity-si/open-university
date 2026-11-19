@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { architectureHalves, checkArchitecture, defaultRules, muxTombstones } from "../../tooling/check-architecture.mjs";
 
+// Verifies: D-001
 const roots: string[] = [];
 function fixture(files: Record<string, string>) {
   const root = mkdtempSync(join(tmpdir(), "tower-architecture-")); roots.push(root);

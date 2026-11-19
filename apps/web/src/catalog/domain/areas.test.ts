@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { taxonomyDrift } from "./areas.ts";
 
+// Verifies: D-030
 // ADR-25: the areas and their order are data in `subject_areas`, changed through the admin API. No list of them in code.
 const app = join(import.meta.dirname, "..", "..", "..");
 const doc = readFileSync(join(app, "docs", "catalog", "areas.md"), "utf8");

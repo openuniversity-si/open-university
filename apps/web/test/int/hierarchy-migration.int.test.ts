@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { migrationsFolder, runMigrations } from "../../scripts/lib/migrations.ts";
 import { testDatabaseUrl } from "../fixtures/admin-catalog.ts";
 
+// Verifies: D-024
 /** The pr-256 production clone in miniature: University rows grouping courses of person lecturers, three lecturers shared across rows. */
 const ROWS = Array.from({ length: 20 }, (_, index) => ({ id: `university-${String(index + 1)}`, title: `University ${String(index + 1)}`, fullName: `Fixture University Number ${String(index + 1)}` }));
 const SHARED = ["shared-a", "shared-b", "shared-c"];

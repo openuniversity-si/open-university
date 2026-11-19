@@ -3,6 +3,7 @@ import { z } from "zod";
 import { batchCollectionKeys, batchV2Hash, chunkBatchV2, mergeBatchParts } from "./batch-v2.ts";
 import { catalogBatchV2Schema, type CatalogBatchV2 } from "./schema/batch-v2.ts";
 
+// Verifies: D-035
 interface ZodStep { readonly def: { readonly type?: string; readonly innerType?: ZodStep; readonly schema?: ZodStep; readonly in?: ZodStep } }
 function arrayKeys(schema: z.ZodObject): string[] {
   const isArray = (value: z.ZodType) => {

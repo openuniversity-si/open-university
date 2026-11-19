@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { bundleHash, diffCourseBundle, exportCourseBundle, validateCourseBundle } from "./bundle.ts";
 
+// Verifies: D-034
 const author = { id: "author-a", slug: "ann", name: "Ann", monogram: "A", kind: "person" };
 const course = { id: "course-live", slug: "contracts", title: "Contracts", authorId: "author-a", coverFrom: "own", sharedWith: [] };
 const edition = { id: "edition-1", slug: "original", label: "Original", position: 1, year: 2020 };

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { catalogBatchV2Schema } from "../../../../src/catalog/domain/schema/batch-v2.ts";
 import { declaredCovers, strictestKind } from "./ship-apply.ts";
 
+// Verifies: D-035
 const sha = (seed: string) => seed.repeat(64).slice(0, 64);
 
 describe("ship cover upload (D-035)", () => {

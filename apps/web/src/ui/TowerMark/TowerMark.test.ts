@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+// Verifies: D-028
 const read = (path: string) => readFileSync(new URL(`../../../${path}`, import.meta.url), "utf8");
 const LEGACY_PATH = ["M9.", "37636"].join("");
 

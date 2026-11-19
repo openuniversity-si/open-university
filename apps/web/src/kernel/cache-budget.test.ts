@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CACHE_ENTRY_BUDGET_BYTES, CacheEntryOverBudget, assertCacheEntry, jsonBytes, loadWithinBudget } from "./cache-budget.ts";
 
+// Verifies: D-037
 describe("cache entry budget (D-037)", () => {
   it("accepts a value under 1.5 MB and refuses one over it", () => {
     assertCacheEntry({ ok: true });
