@@ -8,7 +8,8 @@
     "TEST",
     "CHK",
     "DATA",
-    "REQ"
+    "REQ",
+    "THREAT"
   ],
-  "description": "A control is implemented by a rule, a test, a required check, a data record or a requirement (the Statement of Applicability)."
+  "description": "A control is implemented by a rule, a test, a required check, a data record, a requirement or a threat model (the Statement of Applicability)."
 }

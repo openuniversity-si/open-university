@@ -1,0 +1,74 @@
+{
+  "id": "THREAT-web",
+  "models": "ARC-web",
+  "assets": [
+    "the learners' accounts, sessions and progress on tower-data (personal data, DATA-tower-data)",
+    "the catalog and its admin routes",
+    "the course media (DATA-r2-media)",
+    "the site's secrets, passed to the Lambda as environment variables"
+  ],
+  "boundaries": [
+    "the browser and the site's Lambda",
+    "the site and Google, its only identity provider",
+    "the site and tower-data",
+    "CloudFront and the private media bucket"
+  ],
+  "threats": [
+    {
+      "stride": "spoofing",
+      "statement": "A visitor signs in as someone else, or reaches an admin route without its secret.",
+      "mitigated_by": [
+        "CTRL-ssdf-pw.8",
+        "CHK-web"
+      ]
+    },
+    {
+      "stride": "tampering",
+      "statement": "A cross-site request, an open redirect after sign-in or an injected script acts with a learner's session. Residual: the content security policy only reports for now, so injected script is held by the framework's escaping, not by an enforced policy.",
+      "mitigated_by": [
+        "CTRL-ssdf-pw.8",
+        "CHK-web"
+      ]
+    },
+    {
+      "stride": "repudiation",
+      "statement": "A catalog change made through the admin routes cannot be traced to the call that made it.",
+      "mitigated_by": [
+        "CHK-web"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "A learner's personal data is read by another learner, kept past its retention or processed without a legal basis.",
+      "mitigated_by": [
+        "REQ-web-lgpd-processing",
+        "DATA-tower-data",
+        "CTRL-ssdf-pw.8"
+      ]
+    },
+    {
+      "stride": "information-disclosure",
+      "statement": "The media bucket is read directly, bypassing the site and the CDN.",
+      "mitigated_by": [
+        "DATA-r2-media",
+        "infra/aws/stacks/60-media.json"
+      ]
+    },
+    {
+      "stride": "denial-of-service",
+      "statement": "A flood of sign-in or admin calls exhausts the Lambda, the database or the spend budget.",
+      "mitigated_by": [
+        "CHK-web",
+        "REQ-aws-200"
+      ]
+    },
+    {
+      "stride": "elevation-of-privilege",
+      "statement": "A vulnerable third-party package of the site gives an attacker code execution or another user's rights.",
+      "mitigated_by": [
+        "CTRL-ssdf-pw.4",
+        "TEST:scripts/tests/supply.test.sh"
+      ]
+    }
+  ]
+}

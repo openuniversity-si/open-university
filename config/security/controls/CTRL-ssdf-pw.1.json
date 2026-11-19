@@ -4,5 +4,11 @@
   "control": "PW.1",
   "title": "Design software to meet security requirements and mitigate security risks",
   "applicable": true,
-  "reason": "No architecture element has a threat model yet."
+  "reason": "The three elements that hold the security-relevant assets and face outside input, the gate, the deploy and the site, each have a threat model (STRIDE per element) whose every threat names the control, rule or test that mitigates it, or its residual. The other elements run only inside the gate and the cloud sessions and get one when they gain an asset or an entry point of their own.",
+  "implemented_by": [
+    "THREAT-gate",
+    "THREAT-deploy",
+    "THREAT-web"
+  ],
+  "coverage": "full"
 }
