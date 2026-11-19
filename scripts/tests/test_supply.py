@@ -161,6 +161,16 @@ class Check(unittest.TestCase):
         write(self.root, '.github/workflows/a.yml', '      - uses: actions/checkout@v4\n')
         self.assertEqual(supply.check(self.root), ['ecosystem action: no supplier in config/supply/suppliers names it'])
 
+    def test_an_untracked_lockfile_is_not_the_tree_s(self):
+        import subprocess
+        (self.root / 'apps/site').mkdir(parents=True, exist_ok=True)
+        (self.root / 'apps/site/pnpm-lock.yaml').write_text('lockfileVersion: 9.0\n')
+        subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
+        subprocess.run(['git', '-C', str(self.root), 'add', 'apps/site/pnpm-lock.yaml'], check=True)
+        (self.root / '.claude/worktrees/agent/apps/site').mkdir(parents=True)
+        (self.root / '.claude/worktrees/agent/apps/site/pnpm-lock.yaml').write_text('lockfileVersion: 9.0\n')
+        self.assertEqual(supply.lockfiles(self.root), ['apps/site/pnpm-lock.yaml'])
+
     def test_the_audit_merges_one_advisory_found_in_two_lockfiles(self):
         write(self.root, 'apps/other/pnpm-lock.yaml', LOCK)
         made = self.snapshot(advisory('left-pad', 'high', ['1.3.0']))
