@@ -100,9 +100,10 @@ def workflow_parts(text, source):
 
 
 def pip_parts(text, source):
-    """The `name==version` requirements of a pip file, pinned when the file carries `--hash=` for them."""
+    """The `name==version` requirements of a pip file, pinned when the file carries `--hash=` for them, on the
+    requirement's line or on the lines a trailing backslash joins to it (the form a hash-locked file is written in)."""
     found = []
-    for line in text.splitlines():
+    for line in re.sub(r'\\\n', ' ', text).splitlines():
         match = PIP.match(line.strip())
         if match:
             found.append(_dep('pypi', match.group(1).lower(), match.group(2), source, '--hash=' in line))

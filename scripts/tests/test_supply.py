@@ -86,6 +86,14 @@ class Readers(unittest.TestCase):
         found = supply.pip_parts('boto3==1.0.0\nrich[x]==2.0 --hash=sha256:ab\n# c==1\nloose>=1\n', 'r.txt')
         self.assertEqual([(entry['name'], entry['pinned']) for entry in found], [('boto3', False), ('rich', True)])
 
+    def test_a_hash_locked_file_pins_each_requirement_by_its_continued_hash_lines(self):
+        # D-335: the form uv and pip-compile write (--generate-hashes): the hashes on the lines a backslash continues
+        text = ('# header\nanyio==4.16.0 \\\n    --hash=sha256:aa \\\n    --hash=sha256:bb\n'
+                "tzdata==2026.6 ; sys_platform == 'win32' \\\n    --hash=sha256:cc\nloose==1.0\n")
+        found = supply.pip_parts(text, 'r.txt')
+        self.assertEqual([(entry['name'], entry['version'], entry['pinned']) for entry in found],
+                         [('anyio', '4.16.0', True), ('tzdata', '2026.6', True), ('loose', '1.0', False)])
+
     def test_a_component_named_by_two_files_is_one_entry_pinned_only_if_both_pin_it(self):
         root = Path(tempfile.mkdtemp(prefix='supply-'))
         self.addCleanup(shutil.rmtree, root)
