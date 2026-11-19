@@ -141,6 +141,12 @@ A ordem põe primeiro o que configura os outros (o modelo e o padrão), depois a
 | F8 Tudo nasce no modelo | a cadeia verificada em 100 % do inventário ativo; conformidade F em todos os sistemas | os geradores (`scripts/scaffold`) criam o objeto, as ligações e o teste juntos; o AGENTS.md vira um mapa curto gerado do modelo; as regras em aviso promovidas pela medida; o modelo aplicado a todo sistema novo que construirmos | critério de parada do programa | 4–6 PRs |
 
 ## Critério de parada
+**Desde a [D-331](../../domain/decisions/D-331.md) (Daniel, 18/11 22:53 BRT):** o programa conclui quando a parte que o código
+resolve fecha: a cadeia dos 18 requisitos com todos os elos, os 17 sistemas em F (segurança incluída), as divergências
+decididas, o polling trocado por evento e as fontes do gate, do deploy e do gasto da AWS ligadas. A escada de 1.000
+PRs/dia e a janela de escape de 1.000 merges seguem medidas como validações em estado medindo e não bloqueiam a
+conclusão. O texto abaixo é o critério de 15/11, substituído.
+
 O programa para quando a cadeia verificada de ponta a ponta cobre 100 % do inventário de requisitos ativos (Daniel,
 15/11 21:12 BRT, ao aprovar a revisão 2: era 95 %), todos os sistemas da lista (17 desde a D-321) estão em conformidade F, a taxa de escape está abaixo de 1 % numa janela de pelo menos 1.000 PRs
 mergeadas, e nenhuma guarda piorou em relação à linha de base; ou quando um limite físico medido impede (por exemplo,
