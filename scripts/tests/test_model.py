@@ -155,8 +155,51 @@ class TinyModel(unittest.TestCase):
         result = model.measure(self.root, meta, found)
         known = result['systems']['know']
         self.assertEqual((known['objects'], known['conformant'], known['not_judged'], known['level']), (many, 0, many, 'N'))
-        self.assertIn(f'know: N (0 of {many} conformant; {many} not judged: no rule of K)', model.summary(result))
+        self.assertIn(f'know: N (0 of {many} conformant; {many} not judged: no rule of K; open: K-0, K-1, K-2)',
+                      model.summary(result))
         self.assertEqual(result['systems']['reqs']['not_judged'], 1)
+
+    def test_d335_a_system_closes_only_at_full_conformance_and_lists_what_keeps_it_open(self):
+        many = model.CLOSED_SHOWN + 2
+        found = self.objects({'id': 'ARC-1', 'type': 'ARC'}, {'id': 'UNIT:a', 'type': 'UNIT',
+                                                               'links': [{'type': 'realizes', 'target': 'ARC-1'}]},
+                             *[{'id': f'UNIT:b{n:02}', 'type': 'UNIT'} for n in range(many)])
+        result = model.measure(self.root, self.meta(), found)
+        build = result['systems']['build']
+        self.assertFalse(build['closed'])
+        self.assertEqual(build['nonconformant'], [f'UNIT:b{n:02}' for n in range(many)])
+        line = next(line for line in model.summary(result).splitlines() if line.lstrip().startswith('build:'))
+        self.assertIn(f'open: UNIT:b00, ', line)
+        self.assertIn(f'UNIT:b{model.CLOSED_SHOWN - 1:02} and 2 more)', line)
+        self.assertNotIn(f'UNIT:b{model.CLOSED_SHOWN:02}', line)
+        self.assertIn('stop (D-335): 0 of 2 system(s) closed', model.summary(result))
+        one = self.objects({'id': 'ARC-1', 'type': 'ARC'}, {'id': 'UNIT:a', 'type': 'UNIT',
+                                                             'links': [{'type': 'realizes', 'target': 'ARC-1'}]},
+                           {'id': 'CHG-1', 'type': 'CHG', 'state': 'merged', 'links': []},
+                           {'id': 'VERD-1', 'type': 'VERD', 'state': 'read', 'fingerprint': None})
+        rated = model.rate_system(self.meta(), one, model.incoming(one), set(), 'build')
+        self.assertEqual((rated['level'], rated['nonconformant'], rated['closed']), ('L', ['CHG-1'], False))
+        rated = model.rate_system(self.meta(), one, model.incoming(one), set(), 'build', {'CHG-1'})
+        self.assertEqual((rated['nonconformant'], rated['exempted'], rated['closed']), ([], ['CHG-1'], True),
+                         'an object an exemption in force covers does not keep the system open')
+        self.assertFalse(model.rate_system(self.meta(), {}, {}, set(), 'build')['closed'], 'no object, nothing closed')
+        del one['VERD-1']
+        self.assertFalse(model.rate_system(self.meta(), one, model.incoming(one), set(), 'build', {'CHG-1'})['closed'],
+                         'while no verdict source is read, a test is not known to pass and its system stays open')
+
+    def test_d335_only_an_exemption_in_force_that_a_decision_granted_exempts(self):
+        tail = lambda **body: {'id': 'TAIL-x', 'type': 'TAIL', 'state': body.pop('state', 'active'), 'links': [],
+                               'source': 'config/standard/tailoring/TAIL-x.json',
+                               'body': {'exempts': 'STD-r', 'scope': 'CHG-1*', 'authorized_by': 'D-9',
+                                        'valid_until': '2026-12-31', **body}}
+        decision = {'id': 'D-9', 'type': 'D', 'state': 'accepted', 'links': []}
+        found = self.objects(tail(), decision, {'id': 'CHG-10', 'type': 'CHG'}, {'id': 'CHG-2', 'type': 'CHG'})
+        self.assertEqual(model.exempted_ids(found, '2026-11-19'), {'CHG-10'})
+        self.assertEqual(model.exempted_ids(found, '2027-01-01'), set(), 'past its validity it is not in force')
+        found = self.objects(tail(state='retired'), decision, {'id': 'CHG-10', 'type': 'CHG'})
+        self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'an exemption that is not active')
+        found = self.objects(tail(authorized_by='D-8'), decision, {'id': 'CHG-10', 'type': 'CHG'})
+        self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'no decision of the model granted it')
 
     def test_an_object_that_meets_an_unconformant_condition_of_its_type_is_judged_and_not_conformant(self):
         write(self.root, 'config/model/types/VAL.json', {'id': 'VAL', 'name': 'val', 'system': 'reqs', 'states': ['defined'],

@@ -2203,15 +2203,33 @@ def utc_today():
     return datetime.now(timezone.utc).date().isoformat()
 
 
-def rate_system(meta, found, into, flagged, name):
+def exempted_ids(found, today):
+    """D-335: the objects an exemption in force covers (config/standard/tailoring, TAIL): an active exemption not past
+    its validity, granted by a decision of the model (`authorized_by`), covers every object whose id or source its
+    `scope` matches (a glob)."""
+    from fnmatch import fnmatchcase
+    granted = [item['body'] for item in found.values() if item['type'] == 'TAIL' and item['state'] == 'active'
+               and item.get('body', {}).get('valid_until', '') >= today
+               and found.get(item['body'].get('authorized_by'), {}).get('type') == 'D']
+    return {id for id, item in found.items() for body in granted
+            if fnmatchcase(id, body['scope']) or fnmatchcase(item.get('source', ''), body['scope'])}
+
+
+CLOSED_SHOWN = 10  # D-335: the non-conformant ids a system lists before it gives only the count
+
+
+def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
     """One system's conformance: its active objects, those a rule judges and pass every rule, the share, the level
-    (below F while a significant weakness stands), the types no rule judges and the verdict types not read."""
+    (below F while a significant weakness stands), the types no rule judges and the verdict types not read; D-335:
+    the objects that are not conformant (an object no rule judges included), those an exemption in force covers, and
+    whether the system is closed (every other object conformant and no significant weakness)."""
     kinds = {type_id for type_id, kind in meta['types'].items() if kind['system'] == name}
     mine = [item for item in found.values() if item['type'] in kinds and is_active(meta, item)
             and item.get('fingerprint') is not None]
     unjudged = sorted({item['type'] for item in mine if not judged(meta, item['type'])})
-    good = sum(1 for item in mine if judged(meta, item['type']) and item['id'] not in flagged
-               and covered(meta, item, into, found))
+    passing = {item['id'] for item in mine if judged(meta, item['type']) and item['id'] not in flagged
+               and covered(meta, item, into, found)}
+    good = len(passing)
     share = good / len(mine) if mine else 0
     level = rate(share, meta['scale'])
     weak = sum(1 for item in mine if item['state'] in WEAKNESS_STATES.get(item['type'], ()))
@@ -2221,10 +2239,14 @@ def rate_system(meta, found, into, flagged, name):
     unread = {type_id: {'verdict': VERDICTS[type_id][0], 'means': VERDICTS[type_id][1]}
               for type_id in sorted(kinds & set(VERDICTS))
               if not any(item['type'] == VERDICTS[type_id][0] for item in found.values())}
+    failing = sorted(item['id'] for item in mine if item['id'] not in passing)
+    open_ids = [id for id in failing if id not in exempt]
     return {'group': meta['systems'][name].get('group', ''), 'objects': len(mine), 'conformant': good,
             'share': share, 'level': level,
             'not_judged': sum(1 for item in mine if item['type'] in unjudged), 'unjudged_types': unjudged,
-            'weaknesses': weak, 'verdicts_unread': unread}
+            'weaknesses': weak, 'verdicts_unread': unread,
+            'nonconformant': open_ids, 'exempted': sorted(set(failing) & set(exempt)),
+            'closed': bool(mine) and not open_ids and not weak and not unread}
 
 
 def assessment(name, rated, sha):
@@ -2237,20 +2259,21 @@ def assessment(name, rated, sha):
     return item
 
 
-def assess_systems(meta, found, into, flagged, root):
+def assess_systems(meta, found, into, flagged, root, today=None):
     """{system: rating} and the found objects with one assessment per system on HEAD. The systems that manage the
     assessment type (conformance) are rated after the others are assessed, and their own assessment last, so the
     conformance system's level is the share of systems assessed on evidence."""
     sha = _git(root, 'rev-parse', 'HEAD').strip()
     assessors = {meta['types']['ASSESS']['system']} if 'ASSESS' in meta['types'] else set()
-    systems = {name: rate_system(meta, found, into, flagged, name) for name in sorted(meta['systems'])}
+    exempt = exempted_ids(found, today or utc_today())
+    systems = {name: rate_system(meta, found, into, flagged, name, exempt) for name in sorted(meta['systems'])}
     found = {**found, **{f'ASSESS-{name}': assessment(name, systems[name], sha) for name in systems
                          if name not in assessors}}
     for name in sorted(assessors):
-        systems[name] = rate_system(meta, found, into, flagged, name)
+        systems[name] = rate_system(meta, found, into, flagged, name, exempt)
         found[f'ASSESS-{name}'] = assessment(name, systems[name], sha)
     for name in sorted(assessors):
-        systems[name] = rate_system(meta, found, into, flagged, name)
+        systems[name] = rate_system(meta, found, into, flagged, name, exempt)
     return systems, found
 
 
@@ -2262,7 +2285,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
     into = incoming(found)
     requirements = [item for item in found.values() if item['type'] == 'REQ' and is_active(meta, item)]
     verified = sum(1 for item in requirements if chain_verified(item, into, found))
-    systems, found = assess_systems(meta, found, into, flagged, root)
+    systems, found = assess_systems(meta, found, into, flagged, root, today)
     sources = inventory(meta, found, root)
     cheaper_path = cheaper_path_measure(root)
     return {
@@ -2275,6 +2298,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
                                                         if (count := sum(1 for name in names
                                                                          if systems[name]['level'] == step['level']))}}
                    for group, names in system_groups(systems).items()},
+        'stop': {'systems': len(systems), 'closed': sorted(name for name, item in systems.items() if item['closed'])},
         'standard': standard_measure(found, today or utc_today()),
         'standard_management': management_measure(found, today or utc_today()),
         'knowledge': knowledge_measure(found),
@@ -2325,6 +2349,13 @@ def system_line(item):
         parts.append(f'{item["not_judged"]} not judged: no rule of {", ".join(item["unjudged_types"])}')
     if item.get('weaknesses'):
         parts.append(f'{item["weaknesses"]} significant weakness(es), below F whatever the share')
+    if item.get('exempted'):
+        parts.append(f'{len(item["exempted"])} exempted by a decision')
+    if 'closed' in item:  # D-335
+        failing = item['nonconformant']
+        shown = ', '.join(failing[:CLOSED_SHOWN]) + (f' and {len(failing) - CLOSED_SHOWN} more'
+                                                       if len(failing) > CLOSED_SHOWN else '')
+        parts.append('closed' if item['closed'] else 'open' + (f': {shown}' if failing else ''))
     return '; '.join(parts)
 
 
@@ -2342,6 +2373,8 @@ def summary(found):
         lines.append(f'  {group or "no group"} ({len(item["systems"])} system(s): {counted}):')
         lines += [f'    {name}: {found["systems"][name]["level"]} ({system_line(found["systems"][name])})'
                   for name in item['systems']]
+    if 'stop' in found:  # D-331, D-335: the program's stop counts the systems closed, not the systems at F
+        lines.append(f'stop (D-335): {len(found["stop"]["closed"])} of {found["stop"]["systems"]} system(s) closed')
     rules = found['standard']
     lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
                  f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
