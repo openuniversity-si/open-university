@@ -4,9 +4,9 @@
   "control": "PW.7",
   "title": "Review and/or analyze human-readable code to identify vulnerabilities",
   "applicable": true,
-  "reason": "Only secrets are scanned; no static analysis for vulnerabilities runs.",
+  "reason": "The lint ratchet analyzes every tracked Python file of the engine with ruff's bandit (S) rules of forty vulnerability classes at zero findings, so a change that introduces one fails the gate (PW.7.2); the bandit rules left out are triaged in rules.lint_select with their reasons, and the secret scan reads the tree for credentials. The site's TypeScript is analyzed by its own lint (PW.5).",
   "implemented_by": [
+    "STD-lint-ratchet",
     "STD-gate-secret-scan-tree"
-  ],
-  "coverage": "partial"
+  ]
 }
