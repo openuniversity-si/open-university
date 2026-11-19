@@ -20,6 +20,11 @@
       "Type": "String",
       "Default": "",
       "Description": "Optional address for deploy results; empty subscribes nobody"
+    },
+    "ReplicaRegion": {
+      "Type": "String",
+      "Default": "",
+      "Description": "The media replica's region; empty: none"
     }
   },
   "Conditions": {
@@ -82,9 +87,14 @@
               "Resource": "*",
               "Condition": {
                 "StringEquals": {
-                  "aws:RequestedRegion": {
-                    "Ref": "AWS::Region"
-                  }
+                  "aws:RequestedRegion": [
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    {
+                      "Ref": "ReplicaRegion"
+                    }
+                  ]
                 }
               }
             },
@@ -211,8 +221,7 @@
                 "iam:CreatePolicy*",
                 "iam:SetDefaultPolicyVersion",
                 "iam:DeletePolicy",
-                "iam:PutRolePermissionsBoundary",
-                "iam:DeleteRolePermissionsBoundary",
+                "iam:*RolePermissionsBoundary",
                 "organizations:*",
                 "account:*",
                 "budgets:*",
@@ -286,15 +295,12 @@
               "Sid": "TheDeployerIsOutOfReach",
               "Effect": "Deny",
               "Action": [
-                "codebuild:UpdateProject",
-                "codebuild:DeleteProject",
+                "codebuild:*Project",
                 "lambda:UpdateFunctionCode",
                 "lambda:UpdateFunctionConfiguration",
-                "lambda:DeleteFunction",
-                "lambda:AddPermission",
-                "lambda:RemovePermission",
-                "lambda:UpdateFunctionUrlConfig",
-                "lambda:DeleteFunctionUrlConfig"
+                "lambda:DeleteFunction*",
+                "lambda:*Permission",
+                "lambda:UpdateFunctionUrlConfig"
               ],
               "Resource": [
                 {
@@ -428,10 +434,10 @@
                   ],
                   "Resource": [
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/tower-app-*/*"
+                      "Fn::Sub": "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/tower-app-*/*"
                     },
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:changeSet/*/*"
+                      "Fn::Sub": "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:changeSet/*/*"
                     }
                   ]
                 },

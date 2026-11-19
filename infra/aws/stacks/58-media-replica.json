@@ -1,0 +1,102 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The second copy of the site's media (RISK-media-single-account, Daniel 18/11 21:29 BRT): one S3 bucket in a second region (infra/aws/regions.json), versioned (noncurrent versions kept 90 days), SSE-S3, private, owner-enforced, retained. The media stack's replication rule writes every new object version into it as Glacier Instant Retrieval and never replicates a delete marker, so a deletion in the media bucket leaves the copy whole; the objects older than the rule come by a one-off S3 Batch Replication job (the runbook). About US$ 0.03 a month: 3.4 GB of ~32k objects billed at no less than 128 KB each (at most 7.3 GB) at US$ 0.004 per GB-month; once, about US$ 1 (32k replication PUTs at US$ 0.02 per 1k, 3.4 GB across regions at US$ 0.02, the job's US$ 0.25).",
+  "Resources": {
+    "Replica": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketName": {
+          "Fn::Sub": "tower-media-replica-${AWS::AccountId}-${AWS::Region}"
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "noncurrent-expire",
+              "Status": "Enabled",
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 90
+              },
+              "ExpiredObjectDeleteMarker": true,
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 7
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "ReplicaPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "Replica"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "OnlyOverTls",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::Sub": "${Replica.Arn}"
+                },
+                {
+                  "Fn::Sub": "${Replica.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "BucketName": {
+      "Description": "the media's copy; no export: the media stack, in another region, names it by its pattern",
+      "Value": {
+        "Ref": "Replica"
+      }
+    }
+  }
+}
