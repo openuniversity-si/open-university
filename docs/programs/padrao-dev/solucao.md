@@ -141,6 +141,11 @@ A ordem põe primeiro o que configura os outros (o modelo e o padrão), depois a
 | F8 Tudo nasce no modelo | a cadeia verificada em 100 % do inventário ativo; conformidade F em todos os sistemas | os geradores (`scripts/scaffold`) criam o objeto, as ligações e o teste juntos; o AGENTS.md vira um mapa curto gerado do modelo; as regras em aviso promovidas pela medida; o modelo aplicado a todo sistema novo que construirmos | critério de parada do programa | 4–6 PRs |
 
 ## Critério de parada
+**A meta é sempre 100 % ([D-337](../../domain/decisions/D-337.md), Daniel, 19/11 02:51 BRT: "Nossa meta é sempre 100%."):**
+toda meta, limite e critério de conformidade do padrão mira o todo; só ficam fora as isenções decididas, registradas e
+vivas, cada uma com motivo e dono. As escalas externas (os níveis N, P, L e F da ISO/IEC 33020, os percentis) só
+relatam, nunca aceitam. É regra do padrão que o gate verifica (`STD-targets-full`, `scripts/model check`).
+
 **Desde a [D-331](../../domain/decisions/D-331.md) (Daniel, 18/11 22:53 BRT):** o programa conclui quando a parte que o código
 resolve fecha: a cadeia dos 18 requisitos com todos os elos, os 17 sistemas em F (segurança incluída), as divergências
 decididas, o polling trocado por evento e as fontes do gate, do deploy e do gasto da AWS ligadas. A escada de 1.000
