@@ -283,6 +283,7 @@
       "x-unit": "count",
       "description": "Case-insensitive regular expressions (Python's re, matched by scripts/lib/retired_vendors.py, never by a git built without PCRE) of the vendors nothing of ours relates to any more (D-318): no tracked path matches one, and no line of an acting file does; only the records of structure.record_globs keep the past. The lookbehind keeps a word that merely contains the letters (MachineOnly) out. Each pattern also covers the vendor's packages, hosts and variables (@vendor/, its storage and database hosts, VENDOR_ names).",
       "x-readers": [
+        "scripts/lib/agent_env.py",
         "scripts/lib/retired_vendors.py"
       ],
       "x-source": "D-318"

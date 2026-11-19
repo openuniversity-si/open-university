@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/agent-env/environment.v1.json",
+  "title": "Agent environment v1",
+  "description": "config/agent-env/<id>.json (AGENT-ENV, D-341): what one agent execution environment receives at session start: its provider, its non-secret variables, its secrets by name and reference only (never a value), its network hosts and its one starting credential. Validated by scripts/lib/agent_env.py, which also refuses a denied name (agent-env.denied_names, the retired vendors) and a secret reference outside the environment's prefix.",
+  "x-owner": "agent-env",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "provider",
+    "variables",
+    "secrets",
+    "network",
+    "starting_credential"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Equals the file name; names the environment's secret prefixes."
+    },
+    "provider": {
+      "enum": [
+        "claude-code",
+        "antigravity",
+        "openai"
+      ],
+      "description": "The provider whose sessions run in the environment; a new provider is a new value here and one declaration."
+    },
+    "variables": {
+      "type": "object",
+      "description": "Name to non-secret value, set in the session as given.",
+      "propertyNames": {
+        "pattern": "^[A-Z][A-Z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "secrets": {
+      "type": "array",
+      "description": "Secrets by name only: the variable a session receives and where AWS keeps its value.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "store",
+          "ref"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
+          "store": {
+            "enum": [
+              "ssm",
+              "secretsmanager"
+            ],
+            "description": "ssm: an SSM SecureString parameter, the default (free); secretsmanager: only where the secret already lives there."
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The parameter name (ssm, under /tower/agent-env/<id>/) or secret name (secretsmanager, under tower/agent-env/<id>/)."
+          }
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hosts"
+      ],
+      "properties": {
+        "hosts": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Exact lowercase host names; no scheme, port, path or wildcard.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+          }
+        }
+      }
+    },
+    "starting_credential": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "variable"
+      ],
+      "description": "The one credential the environment holds before delivery, given by hand once; AWS checks its sha256.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "bearer-env"
+          ],
+          "description": "bearer-env: a bearer token the session already has in the named environment variable."
+        },
+        "variable": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$"
+        }
+      }
+    }
+  }
+}

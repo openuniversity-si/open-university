@@ -1,0 +1,17 @@
+{
+  "id": "STD-agent-env-denied-names",
+  "statement": "An agent environment's declaration names no variable, secret or starting credential the engine never sends to a cloud agent (agent-env.denied_names or a retired vendor term), and keeps each secret under its own prefix.",
+  "state": "draft",
+  "owner": "efficiency",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/agent_env.py:refused"
+  },
+  "basis": [
+    "D-341"
+  ],
+  "note": "AGENT-ENV first PR: scripts/tests/test_agent_env.py runs the validator on the repository's declarations; no gate stage or pre-push check calls it yet, so the rule stays draft until one does."
+}
