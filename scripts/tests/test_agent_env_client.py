@@ -23,6 +23,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 import agent_env_client as client  # noqa: E402
+REAL_ENDPOINT = client.endpoint  # the setUp patches the module's; the template test calls the real one
 
 sys.path.insert(0, str(ROOT / 'scripts' / 'tests'))
 from rest_fake import HOST  # noqa: E402  (the loopback host of the engine's fixture servers)
@@ -170,9 +171,21 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(client.preflight_lines({}), ([], ['agent-env: no starting credential is set']))
         self.assertEqual(client.preflight_lines({CREDENTIAL: TOKEN}), ([], []))
 
+    def test_the_endpoint_is_a_template_of_the_environment_and_the_session(self):
+        """No host of the account in the repository: {id} is the environment, $NAME a variable of the session; a
+        variable the session lacks is not provisioned."""
+        with mock.patch.object(client.config, 'get', return_value='$TOWER_PORT_URL/agent-env/{id}/'):
+            self.assertEqual(REAL_ENDPOINT(environ={'TOWER_PORT_URL': self.base}, env_id='the-tower'),
+                             f'{self.base}/agent-env/the-tower')
+            self.assertEqual(REAL_ENDPOINT(environ={}, env_id='the-tower'), '')
+        with mock.patch.object(client.config, 'get', return_value=''):
+            self.assertEqual(REAL_ENDPOINT(environ={'TOWER_PORT_URL': self.base}), '')
+
     def test_preflight_today_is_a_warning_never_a_gap(self):
         import preflight
-        with mock.patch.object(client, 'endpoint', side_effect=lambda *_: client.config.get('agent-env.endpoint')):
+        unset = {key: value for key, value in os.environ.items() if key != 'TOWER_PORT_URL'}
+        with mock.patch.object(client, 'endpoint', side_effect=lambda root=ROOT, environ=None, env_id='':
+                               REAL_ENDPOINT(root, unset, env_id)), mock.patch.dict(os.environ, unset, clear=True):
             warnings, gaps = preflight.agent_env_lines()
         self.assertEqual((warnings, gaps), (['agent-env: not provisioned'], []))
         stderr, stdout = io.StringIO(), io.StringIO()
@@ -209,8 +222,9 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(Stub.seen, [])
 
     def test_the_wrapper_is_inert_with_the_registry_default(self):
-        self.assertEqual(client.config.get('agent-env.endpoint', ROOT), '')
-        env = {key: value for key, value in os.environ.items() if key != client.ENV_FILE}
+        # the registry default names the session's port URL: a session without it is not provisioned
+        self.assertIn('$TOWER_PORT_URL', client.config.get('agent-env.endpoint', ROOT))
+        env = {key: value for key, value in os.environ.items() if key not in (client.ENV_FILE, 'TOWER_PORT_URL')}
         done = subprocess.run([str(ROOT / 'scripts/cloud/agent-env'), 'fetch'], capture_output=True, text=True,
                               check=False, env=env)
         self.assertEqual((done.returncode, done.stderr), (0, ''))

@@ -32,9 +32,9 @@
     },
     "agent-env.endpoint": {
       "type": "string",
-      "default": "",
+      "default": "$TOWER_PORT_URL/agent-env/{id}",
       "x-unit": "url",
-      "description": "The base URL of the AGENT-ENV delivery endpoint (D-341); the client GETs <endpoint>/v1/agent-env with the environment's starting credential. Empty (the default) is not provisioned yet: the client prints one line and fetches nothing, and preflight names it as a warning, never a gap.",
+      "description": "The base URL of the AGENT-ENV delivery endpoint (D-341), a template: {id} is the environment's id and $NAME a variable of the session (the port's URL, TOWER_PORT_URL), so no host of the account is written in the repository. The client GETs <endpoint>/v1/agent-env and POSTs <endpoint>/v1/torre with the environment's starting credential. Empty, or naming a variable the session does not have, is not provisioned: the client prints one line and fetches nothing, and preflight names it as a warning, never a gap.",
       "x-readers": [
         "scripts/lib/agent_env_client.py"
       ],
