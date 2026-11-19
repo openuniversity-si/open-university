@@ -4,9 +4,9 @@ The metamodel is data in config/model/, one file per object type (types/), link 
 inventory source (inventory/), plus the conformance scale (conformance.json), each validated against its contract in
 contracts/model/. The objects are read from where each system keeps them; F1a reads the ones that exist today:
 
-  D     docs/domain/decisions/D-NNN.md (state accepted; its `proof:` file verifies it) and the older rows of
-        docs/domain/DECISIONS.md (the state its Status cell says, the test files and cases its Proof cell names verify
-        it when they all exist; row_proof)
+  D     docs/domain/decisions/D-NNN.md (state accepted; its `proof:` file verifies it; the decisions its `supersedes:`
+        names are superseded) and the older rows of docs/domain/DECISIONS.md (the state its Status cell says, the test
+        files and cases its Proof cell names verify it when they all exist; row_proof)
   UNIT  units/<id>/unit.json (active; `requires` are depends-on links)
   TEST  scripts/tests/*.test.sh (active), each with the test files it runs as its parts, and the test files under
         scripts/tests/ that no script test runs (active, a test of their own)
@@ -173,7 +173,8 @@ def read_decisions(root):
         refuted = set(REFUTES.findall(text))
         assumed = [{'type': 'refutes' if ident in refuted else 'assumes', 'target': ident}
                    for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
-        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed))
+        replaced = [{'type': 'supersedes', 'target': ident} for ident in re.findall(r'\bD-[0-9]+\b', fields.get('supersedes', ''))]
+        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed + replaced))
         proof = fields.get('proof', '').strip().strip('`')
         if proof:
             objects.append({'id': f'TEST:{proof}', 'type': 'TEST', 'state': 'active', 'source': proof, 'claimed': True,
@@ -196,6 +197,13 @@ def read_decisions(root):
                     objects.append({'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name,
                                     'claimed': True, 'fingerprint': None,
                                     'links': [{'type': 'verifies', 'target': number}]})
+    # A record is written once (D-217), so it changes only by a later one: a record whose `supersedes:` names a
+    # decision makes that decision superseded, a record or a row alike (the row's Status cell is the older path).
+    superseded = {link['target'] for item in objects if item['type'] == 'D' for link in item['links']
+                  if link['type'] == 'supersedes'}
+    for item in objects:
+        if item['type'] == 'D' and item['id'] in superseded and item['state'] == 'accepted':
+            item['state'] = 'superseded'
     return objects
 
 

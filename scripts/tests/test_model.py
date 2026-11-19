@@ -1373,6 +1373,18 @@ class DecisionTable(unittest.TestCase):
                           'D-5': 'accepted', 'D-6': 'accepted'})
         self.assertEqual(set(model.metamodel(ROOT)['types']['D']['inactive_states']), {'deprecated', 'superseded'})
 
+    def test_a_record_that_names_what_it_supersedes_makes_those_records_and_rows_superseded(self):
+        # D-335: a record is written once, so an accepted record changes state only by a later record's supersedes:
+        write(self.root, 'docs/domain/decisions/D-7.md', '---\nnumber: D-7\ntime: t\npremises: none\nproof: x\n---\nold\n')
+        write(self.root, 'docs/domain/decisions/D-8.md', '---\nnumber: D-8\ntime: t\npremises: none\nproof: x\n---\nkept\n')
+        write(self.root, 'docs/domain/decisions/D-9.md',
+              '---\nnumber: D-9\ntime: t\npremises: none\nsupersedes: D-7, D-1\nproof: x\n---\nnew\n')
+        decisions, _ = self.rows('| D-1 | d | x | - | prose | recorded |', '| D-2 | d | x | - | prose | retired (D-9) |')
+        self.assertEqual({id: item['state'] for id, item in decisions.items()},
+                         {'D-1': 'superseded', 'D-2': 'deprecated', 'D-7': 'superseded', 'D-8': 'accepted', 'D-9': 'accepted'})
+        self.assertEqual([link for link in decisions['D-9']['links'] if link['type'] == 'supersedes'],
+                         [{'type': 'supersedes', 'target': 'D-7'}, {'type': 'supersedes', 'target': 'D-1'}])
+
     def test_a_proof_whose_file_and_cases_exist_links_the_test(self):
         decisions, tests = self.rows(
             '| D-1 | d | x | - | `scripts/tests/test_alpha.py` › "test_holds" and `Alpha`; `beta.test.sh` (`test_runs`) | recorded |',
