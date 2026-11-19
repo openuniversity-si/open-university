@@ -1078,23 +1078,30 @@ def _python_sleeps(text):
     """[(line, function)] of a sleep call inside a loop, from the module's syntax tree; the function is the innermost
     one that holds the call, '<module>' outside any."""
     import ast
+    if 'sleep' not in text:  # MODEL-POLLING-ONE-PASS: no call named sleep can be in it, so no parse
+        return []
     try:
         tree = ast.parse(text)
     except SyntaxError:
         return []
-    functions = [node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    functions, lines = [], set()
+    # MODEL-POLLING-ONE-PASS (gate-60s): one walk of the tree, each node once, a flag for "under a while/for"; walking
+    # each loop's subtree again (nested loops) cost the model 5 s of its 10 s on this checkout's 476 files.
+    stack = [(tree, False)]
+    while stack:
+        node, looped = stack.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            functions.append(node)
+        elif looped and isinstance(node, ast.Call):
+            name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, 'id', '')
+            if name == 'sleep':
+                lines.add(node.lineno)
+        looped = looped or isinstance(node, (ast.While, ast.For))
+        stack.extend((child, looped) for child in ast.iter_child_nodes(node))
+
     def holder(line):
         inside = [node for node in functions if node.lineno <= line <= node.end_lineno]
         return min(inside, key=lambda node: node.end_lineno - node.lineno).name if inside else '<module>'
-    lines = set()
-    for loop in ast.walk(tree):
-        if not isinstance(loop, (ast.While, ast.For)):
-            continue
-        for node in ast.walk(loop):
-            if isinstance(node, ast.Call):
-                name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, 'id', '')
-                if name == 'sleep':
-                    lines.add(node.lineno)
     return [(line, holder(line)) for line in sorted(lines)]
 
 
