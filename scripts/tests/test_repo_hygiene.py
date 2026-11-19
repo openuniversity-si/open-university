@@ -146,6 +146,13 @@ class TowerStore(Repo):
         self.assertTrue(any(error.startswith(f'{store}/events.jsonl: a tracked file of the change store')
                             for error in self.errors()))
 
+    def test_a_tracked_link_of_the_store_name_is_refused(self):
+        """A symlink named like the store's top directory, to a tracked directory that holds a store, is listed by git
+        as the link's own path, not under it; the refusal names it too (the confirming review of 19/11)."""
+        top = Path(config.get('config.store_dir')).parts[0]
+        self.assertEqual(len(repo_hygiene.tower_store_errors([top, f'docs/{top}', 'elsewhere/config'], top)), 1)
+        self.assertEqual(len(repo_hygiene.tower_store_errors([f'{top}x', f'{top}.md'], top)), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
