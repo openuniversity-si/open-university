@@ -12,7 +12,8 @@
     "scripts/tests/test_train.py",
     "scripts/tests/train.test.sh",
     "scripts/tests/train/**",
-    "scripts/train"
+    "scripts/train",
+    "docs/units/TRAIN-TEMP-FIX/**"
   ],
   "realizes": [
     "ARC-delivery"

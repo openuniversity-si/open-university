@@ -55,7 +55,8 @@
     "scripts/tests/covers/infra-gate-looks.json",
     "scripts/tests/infra-fast-path-reload.test.sh",
     "scripts/tests/test_infra_fast_path_reload.py",
-    "scripts/tests/covers/infra-fast-path-reload.json"
+    "scripts/tests/covers/infra-fast-path-reload.json",
+    "infra/ingress/**"
   ],
   "battery": {
     "command": "scripts/unit-battery engine-infra-service"

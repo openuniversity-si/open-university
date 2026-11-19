@@ -47,7 +47,9 @@
     "scripts/lib/deploy_classify.py",
     "scripts/tests/deploy-classify.test.sh",
     "scripts/tests/test_deploy_classify.py",
-    "scripts/tests/covers/deploy-classify.json"
+    "scripts/tests/covers/deploy-classify.json",
+    ".github/workflows/tower-gate.yml",
+    ".github/workflows/deploy-doorbell.yml"
   ],
   "battery": {
     "command": "scripts/unit-battery engine-gate-infra"

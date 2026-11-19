@@ -12,7 +12,8 @@
     "scripts/tests/test_origin_remote.py",
     "scripts/tests/covers/origin-remote.json",
     "scripts/lib/origin_remote.py",
-    "scripts/lib/hooks_path.py"
+    "scripts/lib/hooks_path.py",
+    ".claude/settings.json"
   ],
   "realizes": [
     "ARC-environment"
