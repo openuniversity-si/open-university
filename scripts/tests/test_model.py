@@ -1500,9 +1500,9 @@ class RealRepository(unittest.TestCase):
         groups = {name: system.get('group') for name, system in meta['systems'].items()}
         self.assertEqual([name for name, group in groups.items() if group not in model.GROUPS], [])
         self.assertEqual(sorted(name for name, group in groups.items() if group == 'management'),
-                         ['decisions', 'intent', 'measurement', 'work'])
+                         ['decisions', 'intent', 'measurement', 'problem', 'work'])
         self.assertEqual(sorted(name for name, group in groups.items() if group == 'engineering'),
-                         sorted(set(groups) - {'decisions', 'intent', 'measurement', 'work'}))
+                         sorted(set(groups) - {'decisions', 'intent', 'measurement', 'problem', 'work'}))
         result = model.measure(ROOT, meta=meta)
         self.assertEqual(list(result['groups']), ['management', 'engineering'])
         self.assertEqual({group: sorted(item['systems']) for group, item in result['groups'].items()},

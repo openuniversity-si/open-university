@@ -1,0 +1,21 @@
+{
+  "id": "NC-gate-first-pass",
+  "statement": "The gate passes on its first run: no run of tower/gate fails.",
+  "level": "nc",
+  "necessary_for": [
+    "NC-throughput"
+  ],
+  "measure": {
+    "kind": "slo",
+    "name": "slo.gate_failure_rate_max_percent"
+  },
+  "comparator": "lte",
+  "threshold": 0,
+  "baseline": {
+    "value": 22.5,
+    "date": "2026-11-19",
+    "source": "scripts/model measure (SLO gate-failure-rate-max-percent, 40 samples)"
+  },
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

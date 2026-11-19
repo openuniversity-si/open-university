@@ -1,0 +1,12 @@
+{
+  "id": "problem",
+  "name": "Problem space",
+  "group": "management",
+  "processes": [
+    "15288/12207 business or mission analysis",
+    "TOC Thinking Processes (Goal Tree, current reality tree, evaporating cloud, future reality tree, strategy and tactics tree)"
+  ],
+  "owner": "Daniel",
+  "measure": "Share of the problem-space objects that conform: every condition measured against its baseline and target, every effect violating a condition and explained by a cause reached from the core, the core perpetuated by a conflict and addressed by candidate injections with do-nothing and do-minimum, the chosen injection decided with an appraisal and trimmed, and every node of the strategy and tactics tree measured, validated at its level and with no work left outside it (D-348).",
+  "description": "What comes before requirements (D-348, leap 1): the measured Goal Tree (NC), the current state (UDE), the derived gap, the problems (CAUSE, CONFLICT), the solutions with the decision (INJ and the decision's appraisal) and the strategy and tactics tree (ST) down to the work."
+}

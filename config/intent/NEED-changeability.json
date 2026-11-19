@@ -6,5 +6,8 @@
   "refines": [
     "INT-padrao-dev"
   ],
+  "serves": [
+    "NC-reflexion"
+  ],
   "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
 }

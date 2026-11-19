@@ -7,5 +7,8 @@
     "INT-intention-v1",
     "INT-limits"
   ],
+  "serves": [
+    "NC-autonomy"
+  ],
   "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
 }

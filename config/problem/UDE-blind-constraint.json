@@ -1,0 +1,14 @@
+{
+  "id": "UDE-blind-constraint",
+  "statement": "The constraint meter read the base of the Origin era: without --base it failed, so the constraint was not seen on the live base.",
+  "violates": [
+    "NC-standard"
+  ],
+  "evidence": [
+    "scripts/flow-metrics --constraint (19/11): fatal: ambiguous argument origin/mod/roadmap-integration",
+    "fixed by this leap: its default base is main"
+  ],
+  "state": "gone",
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

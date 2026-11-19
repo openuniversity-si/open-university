@@ -1,0 +1,38 @@
+{
+  "id": "INJ-do-minimum",
+  "statement": "Raise the number of fronts in the AGENTS.md rule, with no measured trust.",
+  "option": "do-minimum",
+  "kind": "policy",
+  "addresses": [
+    "CAUSE-trust-not-earned",
+    "CONFLICT-trust-or-flow"
+  ],
+  "effects": [
+    {
+      "statement": "More fronts merge more PRs a day.",
+      "inverts": "UDE-few-merges"
+    }
+  ],
+  "branches": [
+    {
+      "effect": "Fronts run with no measured trust, and the premise under B-D still stands.",
+      "severity": "high",
+      "accepted_by": "D-348"
+    },
+    {
+      "effect": "The gate, the deploy and the stops are untouched.",
+      "severity": "medium",
+      "accepted_by": "D-348"
+    }
+  ],
+  "cost": {
+    "level": "low",
+    "basis": "one rule of AGENTS.md"
+  },
+  "state": "rejected",
+  "decided_by": [
+    "D-348"
+  ],
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (injeções)"
+}

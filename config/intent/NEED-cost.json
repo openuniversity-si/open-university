@@ -1,10 +1,13 @@
 {
   "id": "NEED-cost",
-  "statement": "The system runs within one Claude Max quota and AWS under US$ 200 a month.",
+  "statement": "The system runs with AWS under US$ 200 a month; the Anthropic quota is no ceiling: when it is the bottleneck, the session tells Daniel the raise, with why and the expected gain (Daniel, 19/11).",
   "state": "proposed",
   "owner": "Daniel",
   "refines": [
     "INT-limits"
+  ],
+  "serves": [
+    "NC-cost"
   ],
   "source": "docs/programs/padrao-dev/phases/F2.md#Auditoria"
 }

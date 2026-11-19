@@ -1,0 +1,13 @@
+{
+  "id": "UDE-gate-slow",
+  "statement": "The gate takes 119 s.",
+  "violates": [
+    "NC-gate-time"
+  ],
+  "evidence": [
+    "scripts/model measure (VAL-gate-60s: 119 s, 19/11)"
+  ],
+  "state": "observed",
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

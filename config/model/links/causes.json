@@ -1,0 +1,11 @@
+{
+  "name": "causes",
+  "from": [
+    "CAUSE"
+  ],
+  "to": [
+    "CAUSE",
+    "UDE"
+  ],
+  "description": "A cause causes another cause or an undesirable effect (the current reality tree)."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "CAUSE-request-driven",
+  "statement": "The flow is moved by requests, not by a standing supply of ready work: a session does what was asked and plans the next unit only when it is done.",
+  "kind": "intermediate",
+  "causes": [
+    "CAUSE-few-fronts",
+    "CAUSE-no-standing-front",
+    "CAUSE-turn-waits"
+  ],
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (CRT)"
+}

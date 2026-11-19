@@ -1,0 +1,25 @@
+{
+  "id": "ST-deploy",
+  "level": 3,
+  "strategy": "NC-deploy-1s",
+  "tactic": "INJ-tree-governance",
+  "assumptions": {
+    "necessary": {
+      "statement": "Code goes live in 1.5 to 2.3 s."
+    },
+    "parallel": {
+      "statement": "Most of it is the code swap after the landing (D-345's steps), so cut there."
+    },
+    "sufficiency": {
+      "statement": "A swap under 1 s for every code-only merge meets the condition."
+    }
+  },
+  "child_of": "ST-capacity",
+  "owner_role": "domain-coordinator",
+  "validated": {
+    "by": "manager",
+    "date": "2026-11-19"
+  },
+  "owner": "domain-coordinator",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (S&T)"
+}

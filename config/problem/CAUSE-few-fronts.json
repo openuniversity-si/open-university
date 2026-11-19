@@ -1,0 +1,10 @@
+{
+  "id": "CAUSE-few-fronts",
+  "statement": "Few fronts work at once: the fronts rule was written for the box and the train of the Origin era, both stopped, and nothing opens fronts from GitHub's queue.",
+  "kind": "intermediate",
+  "causes": [
+    "UDE-few-merges"
+  ],
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (CRT)"
+}

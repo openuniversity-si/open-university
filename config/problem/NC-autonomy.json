@@ -1,0 +1,30 @@
+{
+  "id": "NC-autonomy",
+  "statement": "The flow never waits for Daniel outside the closed list (a login, a credential, money or other people) in a week.",
+  "level": "csf",
+  "necessary_for": [
+    "INT-intention-v1",
+    "INT-limits"
+  ],
+  "measure": {
+    "kind": "incident-count",
+    "incident": "owner-stop"
+  },
+  "comparator": "lte",
+  "threshold": 0,
+  "window": {
+    "kind": "days",
+    "size": 7
+  },
+  "baseline": {
+    "value": 1,
+    "date": "2026-11-19",
+    "source": "scripts/model measure (VAL-autonomy)"
+  },
+  "accepted": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "CONFLICT-trust-or-flow",
+  "a": "Merged PRs grow along the ladder without losing quality.",
+  "b": "What the Torre does deserves Daniel's trust (the intention lock, SEMENTE 6, and the quality).",
+  "c": "The flow never stops for lack of work.",
+  "d": "Sessions start only the work Daniel or the Torre asked for.",
+  "d_prime": "Sessions generate and start their own units all the time.",
+  "objective": "NC-throughput",
+  "perpetuates": [
+    "CAUSE-trust-not-earned"
+  ],
+  "assumptions": [
+    {
+      "arrow": "B-D",
+      "statement": "Trust can only be kept by approving each work before it starts, because the autonomous performance is not measured.",
+      "premise": "P-59"
+    },
+    {
+      "arrow": "C-D'",
+      "statement": "Only sessions that start their own units keep the flow fed between requests."
+    },
+    {
+      "arrow": "D-D'",
+      "statement": "Work that is not asked for is work Daniel did not approve."
+    }
+  ],
+  "accepted": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (nuvem)"
+}

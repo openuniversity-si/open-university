@@ -1,0 +1,14 @@
+{
+  "id": "UDE-owner-stop",
+  "statement": "One stop of the flow waited for Daniel in the last 7 days.",
+  "violates": [
+    "NC-autonomy"
+  ],
+  "evidence": [
+    "scripts/model measure (VAL-autonomy: 1, 19/11)",
+    "docs/operations/incidents/"
+  ],
+  "state": "observed",
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

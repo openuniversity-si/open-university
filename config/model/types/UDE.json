@@ -1,0 +1,27 @@
+{
+  "id": "UDE",
+  "name": "undesirable effect",
+  "system": "problem",
+  "states": [
+    "observed",
+    "gone",
+    "returned"
+  ],
+  "covered_by": [
+    {
+      "type": "CAUSE",
+      "link": "causes"
+    }
+  ],
+  "must_link": [
+    "violates"
+  ],
+  "unconformant_when": [
+    {
+      "stale": [
+        true
+      ]
+    }
+  ],
+  "description": "An undesirable effect that violates a condition, explained by a cause; not conformant while observed although every condition it violates is met (D-348)."
+}

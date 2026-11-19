@@ -1,0 +1,21 @@
+{
+  "id": "INJ",
+  "name": "injection",
+  "system": "problem",
+  "states": [
+    "candidate",
+    "chosen",
+    "rejected"
+  ],
+  "must_link": [
+    "addresses"
+  ],
+  "unconformant_when": [
+    {
+      "unsettled": [
+        true
+      ]
+    }
+  ],
+  "description": "A candidate solution to a core cause or a conflict; a chosen one is decided with an appraisal, has no open negative branch and is the tactic of a node of the strategy and tactics tree (D-348)."
+}

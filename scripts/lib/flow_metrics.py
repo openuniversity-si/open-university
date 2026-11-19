@@ -30,6 +30,8 @@ try:
 except ImportError:
     regime = None
 
+import config  # noqa: E402
+
 # The box's meter is delivery's (D-322): the batch reading and the gate runs of the merged PRs live beside the lock
 # log and the verdict events they read (box_meter); flow-metrics reports them under the same names.
 from box_meter import (  # noqa: E402,F401
@@ -557,7 +559,7 @@ def render(data):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--base', default='origin/mod/roadmap-integration')
+    parser.add_argument('--base', default=config.get('flow.base_ref'))  # the live base (D-348, UDE-blind-constraint)
     parser.add_argument('--since', default=SINCE)
     parser.add_argument('--tz', default=ZONE)
     parser.add_argument('--json', action='store_true')
@@ -599,7 +601,6 @@ def main(argv=None):
     if args.closed_hours:
         data['closed_hours'] = closed_hours(merged, time.time(), args.closed_hours, args.tz)
     if args.constraint:
-        import config
         data['constraint'] = constraint(merged, time.time(), args.constraint, config.get('delivery.gate_lock_log'),
                                         ROOT / 'docs' / 'programs' / 'vazao' / 'fila.md')
         data['batch_reading'] = measured_batch_reading(data['constraint'], base=args.base, since=args.since, zone=args.tz)
@@ -612,12 +613,10 @@ def main(argv=None):
     if args.guards:
         data['pr_rework'] = pr_rework(ROOT, args.base, args.since, args.pr_rework or GUARD_WINDOW, args.tz)
         data['incidents'] = incidents(ROOT)
-        import config
         data['batches'] = batch_log(lock_rows(config.get('delivery.gate_lock_log')))
         data['gate_runs'] = measured_gate_runs(ROOT, args.base, args.since, args.gate_runs or args.prs or GATE_RUNS_WINDOW,
                                                args.tz, sizes=data['batches']['sizes'])
     if args.guards or args.quota:
-        import config
         data['quota'] = quota(read_ledger(config.get('flow.lanes_ledger')), args.quota or QUOTA_WINDOW)
     if args.pr_rework:
         data['pr_rework'] = pr_rework(ROOT, args.base, args.since, args.pr_rework, args.tz)

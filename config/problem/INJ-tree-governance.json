@@ -1,0 +1,70 @@
+{
+  "id": "INJ-tree-governance",
+  "statement": "Trust is built and measured, and autonomy grows with it: NC-trust joins the guards in one measure; Daniel steers through the measured Goal Tree and levels 1 and 2 of the strategy and tactics tree, which he validates; below level 2 the domain coordinators generate the units under validated nodes continuously and the lanes run the leaves; the constraint meter reads the base of GitHub.",
+  "option": "proposal",
+  "kind": "policy",
+  "addresses": [
+    "CAUSE-trust-not-earned",
+    "CONFLICT-trust-or-flow"
+  ],
+  "effects": [
+    {
+      "statement": "Fronts never wait for a request: units are generated under validated nodes.",
+      "inverts": "UDE-few-merges"
+    },
+    {
+      "statement": "Standing fronts work on the gate's first pass.",
+      "inverts": "UDE-gate-red"
+    },
+    {
+      "statement": "Standing fronts work on the gate's time.",
+      "inverts": "UDE-gate-slow"
+    },
+    {
+      "statement": "A standing front works on the code swap.",
+      "inverts": "UDE-deploy-slow"
+    },
+    {
+      "statement": "A session always has the next unit of its node, so it does not end its turn to wait.",
+      "inverts": "UDE-owner-stop"
+    },
+    {
+      "statement": "The guards are joined and read every measure (NC-trust).",
+      "inverts": "UDE-trust-unmeasured"
+    },
+    {
+      "statement": "The constraint is measured on the live base.",
+      "inverts": "UDE-blind-constraint"
+    }
+  ],
+  "branches": [
+    {
+      "effect": "Units of little value are generated to fill the queue.",
+      "severity": "medium",
+      "trimmed_by": "the split and tangled guards of flow-metrics, and every unit sits under a node whose strategy is a measured condition"
+    },
+    {
+      "effect": "The Anthropic quota becomes the bottleneck.",
+      "severity": "medium",
+      "trimmed_by": "the session tells Daniel the raise, with why and the expected gain (Daniel, 19/11: the quota is no ceiling)"
+    },
+    {
+      "effect": "Autonomy grows ahead of trust.",
+      "severity": "high",
+      "trimmed_by": "NC-trust is the guard of level 1, and leap 2 reviews the logic"
+    }
+  ],
+  "invalidates": [
+    "P-59"
+  ],
+  "cost": {
+    "level": "medium",
+    "basis": "the coordinators' tokens per planning cycle"
+  },
+  "state": "chosen",
+  "decided_by": [
+    "D-348"
+  ],
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (injeções)"
+}

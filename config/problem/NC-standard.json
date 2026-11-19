@@ -1,0 +1,29 @@
+{
+  "id": "NC-standard",
+  "statement": "Every code is born in the standard and the system knows what is true about itself: no condition of the standard missed.",
+  "level": "csf",
+  "necessary_for": [
+    "INT-intention-v1",
+    "INT-padrao-dev"
+  ],
+  "measure": {
+    "kind": "all-met",
+    "of": [
+      "NC-reflexion",
+      "NC-requirements-tested"
+    ]
+  },
+  "comparator": "lte",
+  "threshold": 0,
+  "baseline": {
+    "value": 0,
+    "date": "2026-11-19",
+    "source": "scripts/model measure (19/11)"
+  },
+  "accepted": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "Daniel",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

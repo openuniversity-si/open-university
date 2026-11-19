@@ -1,0 +1,10 @@
+{
+  "id": "CAUSE-turn-waits",
+  "statement": "A session that finished what was asked tends to end its turn and wait.",
+  "kind": "intermediate",
+  "causes": [
+    "UDE-owner-stop"
+  ],
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (CRT)"
+}

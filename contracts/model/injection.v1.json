@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/injection.v1.json",
+  "title": "Injection v1",
+  "description": "config/problem/INJ-<name>.json (D-348): a candidate solution (TOC injection) to a core cause or a conflict, its option (do-nothing, do-minimum or a proposal: every core cause has the first two), its desired effects (each inverting an undesirable effect), its negative branches (each trimmed by another injection or accepted by the decision), its estimated cost, its state and the decision that chose or rejected it.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "statement",
+    "option",
+    "kind",
+    "addresses",
+    "effects",
+    "branches",
+    "cost",
+    "state",
+    "owner",
+    "source"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^INJ-[a-z0-9][a-z0-9-]*$"
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "option": {
+      "enum": [
+        "do-nothing",
+        "do-minimum",
+        "proposal"
+      ]
+    },
+    "kind": {
+      "enum": [
+        "policy",
+        "mechanism",
+        "measure",
+        "none"
+      ]
+    },
+    "addresses": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(CAUSE|CONFLICT)-[a-z0-9][a-z0-9-]*$"
+      },
+      "minItems": 1
+    },
+    "effects": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "statement",
+          "inverts"
+        ],
+        "properties": {
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inverts": {
+            "type": "string",
+            "pattern": "^UDE-[a-z0-9][a-z0-9-]*$"
+          }
+        }
+      }
+    },
+    "branches": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "effect",
+          "severity"
+        ],
+        "properties": {
+          "effect": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "trimmed_by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "accepted_by": {
+            "type": "string",
+            "pattern": "^D-[0-9]+$"
+          }
+        }
+      }
+    },
+    "invalidates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "basis"
+      ],
+      "properties": {
+        "level": {
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "candidate",
+        "chosen",
+        "rejected"
+      ]
+    },
+    "decided_by": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^D-[0-9]+$"
+      }
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where it is written or argued (a path and section)."
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "UDE-trust-unmeasured",
+  "statement": "The guards that would tell Daniel he can give more autonomy are not all held, and no measure joined them until NC-trust.",
+  "violates": [
+    "NC-trust"
+  ],
+  "evidence": [
+    "NC-trust: the gate first pass missed (19/11)"
+  ],
+  "state": "observed",
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

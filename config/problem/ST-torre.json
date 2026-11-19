@@ -1,0 +1,24 @@
+{
+  "id": "ST-torre",
+  "level": 1,
+  "strategy": "INT-intention-v1",
+  "tactic": "INJ-tree-governance",
+  "assumptions": {
+    "necessary": {
+      "statement": "About 33 merged PRs a day against 1,000, and the trust that would delegate the flow is not measured."
+    },
+    "parallel": {
+      "statement": "Governance by a measured tree keeps Daniel's trust without approving each unit (P-59 is the premise it invalidates)."
+    },
+    "sufficiency": {
+      "statement": "The three domains together cover throughput, cost and the system itself."
+    }
+  },
+  "owner_role": "manager",
+  "validated": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (S&T)"
+}

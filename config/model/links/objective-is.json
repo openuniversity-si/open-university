@@ -1,0 +1,10 @@
+{
+  "name": "objective-is",
+  "from": [
+    "CONFLICT"
+  ],
+  "to": [
+    "NC"
+  ],
+  "description": "A conflict's objective A is a condition."
+}

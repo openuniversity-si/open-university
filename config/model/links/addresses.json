@@ -1,0 +1,11 @@
+{
+  "name": "addresses",
+  "from": [
+    "INJ"
+  ],
+  "to": [
+    "CAUSE",
+    "CONFLICT"
+  ],
+  "description": "An injection addresses a core cause or a conflict."
+}

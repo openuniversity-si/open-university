@@ -1,0 +1,13 @@
+{
+  "id": "UDE-gate-red",
+  "statement": "22.5 % of the gate's runs fail.",
+  "violates": [
+    "NC-gate-first-pass"
+  ],
+  "evidence": [
+    "SLO gate-failure-rate-max-percent: 22.5 over 40 samples (19/11)"
+  ],
+  "state": "observed",
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

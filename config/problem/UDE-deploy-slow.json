@@ -1,0 +1,13 @@
+{
+  "id": "UDE-deploy-slow",
+  "statement": "Code goes live in 1.5 to 2.3 s after a code-only merge.",
+  "violates": [
+    "NC-deploy-1s"
+  ],
+  "evidence": [
+    "config/validation/runs/deploy-live.json"
+  ],
+  "state": "observed",
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

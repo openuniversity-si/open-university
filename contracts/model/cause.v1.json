@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/cause.v1.json",
+  "title": "Cause v1",
+  "description": "config/problem/CAUSE-<name>.json (D-348): an entity of the current reality tree: intermediate, root or core, and what it causes (other causes or undesirable effects; and_group marks a joint sufficiency). A core cause is accepted by Daniel.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "statement",
+    "kind",
+    "causes",
+    "owner",
+    "source"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^CAUSE-[a-z0-9][a-z0-9-]*$"
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "enum": [
+        "intermediate",
+        "root",
+        "core"
+      ]
+    },
+    "causes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(CAUSE|UDE)-[a-z0-9][a-z0-9-]*$"
+      },
+      "minItems": 1
+    },
+    "and_group": {
+      "type": "string",
+      "minLength": 1
+    },
+    "accepted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "by",
+        "date"
+      ],
+      "properties": {
+        "by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        }
+      },
+      "description": "For a csf: who accepted it and its target (Daniel)."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where it is written or argued (a path and section)."
+    }
+  }
+}

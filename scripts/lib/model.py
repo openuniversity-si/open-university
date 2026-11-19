@@ -55,6 +55,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import json_schema  # noqa: E402
+import problem_space  # noqa: E402
 
 MODEL_DIR = 'config/model'
 CONTRACTS_DIR = 'contracts/model'
@@ -832,7 +833,7 @@ def target_errors(found, root, today=None):
     top = contract['properties']['measure']['properties']['percentile']['maximum']
     for id, item in sorted(found.items()):
         body = item.get('body') or {}
-        if item['type'] != 'VAL' or 'measure' not in body:
+        if item['type'] not in ('VAL', 'NC') or 'measure' not in body:
             continue
         measure, comparator, threshold = body['measure'], body['comparator'], body['threshold']
         if measure['kind'] in SHARE_MEASURES and (threshold < 1 if comparator == 'gte' else threshold > 0):
@@ -869,17 +870,19 @@ IMPORTS = 'config/requirements/imports/*.json'
 
 
 def read_intent(root):
-    """Intentions (INT) and needs (NEED), one file each; a need refines intentions."""
+    """Intentions (INT) and needs (NEED), one file each; a need refines intentions and serves conditions of the Goal
+    Tree (D-348); a need about a solution derives from the chosen injection."""
     root = Path(root)
     schema = _read_json(root / CONTRACTS_DIR / 'intent.v1.json')
     found = []
-    for path in sorted(root.glob(INTENT)):
+    for path in sorted(path for path in root.glob(INTENT) if path.stem.split('-', 1)[0] in ('INT', 'NEED')):
         body = _read_json(path)
         kind = path.stem.split('-', 1)[0]
         problems = list(json_schema.validate(schema, body))
         if isinstance(body, dict) and body.get('id') != path.stem:
             problems.append(f'its id must equal the file name {path.stem}')
-        links = [{'type': 'refines', 'target': target} for target in body.get('refines', [])] if not problems else []
+        links = [{'type': 'refines', 'target': target} for target in body.get('refines', [])] + [
+            {'type': 'serves', 'target': target} for target in body.get('serves', [])] if not problems else []
         item = _obj(path.stem, kind, body.get('state', '') if isinstance(body, dict) else '',
                     path.relative_to(root).as_posix(), path.read_text(), links)
         item['body'] = body
@@ -1160,11 +1163,22 @@ def link_implemented_by(found):
 VALIDATIONS = 'config/validation/VAL-*.json'
 
 
+def read_problem(root):
+    """The problem space, leap 1 (D-348): NC, UDE, CAUSE, CONFLICT, INJ and ST of config/problem/ (problem_space)."""
+    return problem_space.read(root, _declared, _thresholds)
+
+
 def read_validations(root):
     """Validations (VAL), one file each; the state is derived later (derive_validations), never read from the file. A
     threshold_key (D-342) becomes the threshold: the key's registry value, so the number lives in one key."""
-    found = _declared(Path(root), VALIDATIONS, 'validation.v1.json', 'VAL',
-                      lambda body: [{'type': 'validates', 'target': target} for target in body['validates']])
+    return _thresholds(_declared(Path(root), VALIDATIONS, 'validation.v1.json', 'VAL',
+                                 lambda body: [{'type': 'validates', 'target': target} for target in body['validates']]),
+                       root)
+
+
+def _thresholds(found, root):
+    """The measured objects (VAL, NC) with each threshold_key resolved to its registry value (D-342); one with both
+    or neither of threshold and threshold_key, or a key that is no number, is a problem of the object."""
     for item in found:
         body = item.get('body')
         if body is None:
@@ -1273,6 +1287,10 @@ def measured(body, found, root, today):
         return (missed, True) if missed or all(state == 'met' for state in states) else (missed, False)
     if measure['kind'] == 'code-scan':
         return len(polling_left(root, measure['paths'], measure.get('exclude', []))), True
+    if measure['kind'] == 'slo':  # D-348: one SLO of the registry, from its GitHub snapshot (slo_values)
+        registry = _read_json(Path(root) / SLO_REGISTRY).get('properties', {}) if (Path(root) / SLO_REGISTRY).is_file() else {}
+        value = slo_values(root, registry, today).get(measure['name'])
+        return (value['value'], value['fresh']) if value else (None, False)
     return None, False
 
 
@@ -1402,7 +1420,7 @@ def derive_validations(found, root, today=None):
     """Sets each validation's state from its measure: met or not-met when the window holds data, measuring while it
     is short, defined while no source is wired."""
     today = today or utc_today()
-    vals = [item for item in found.values() if item['type'] == 'VAL' and 'body' in item]
+    vals = [item for item in found.values() if item['type'] in ('VAL', 'NC') and 'body' in item]  # NC: D-348
     # a composite reads the states of the others, so it is derived after them
     for item in sorted(vals, key=lambda item: item['body']['measure']['kind'] == 'all-met'):
         value, enough = measured(item['body'], found, root, today)
@@ -1667,8 +1685,18 @@ def knowledge_measure(found, radius='high'):
         'high_unsettled': sum(1 for item in premises_found if item['body'].get('radius') == radius
                               and item['state'] not in settled + ('refuted',)),
         'refuted_assumed': sum(1 for item in premises_found if item['state'] == 'refuted'
-                               and any(kind == 'assumes' for kind, _ in into.get(item['id'], []))),
+                               and any(kind == 'assumes' and not broken_by_injection(found, source, item['id'])
+                                       for kind, source in into.get(item['id'], []))),
     }
+
+
+def broken_by_injection(found, source, premise):
+    """D-348: a conflict cloud keeps the premise under its arrow as the explanation of why its core cause persisted;
+    once a chosen injection invalidates that premise and it is refuted, the cloud no longer assumes it, it records
+    it (TOC: the injection breaks the assumption). Any other object that assumes a refuted premise still does."""
+    return (found.get(source) or {}).get('type') == 'CONFLICT' and any(
+        item['type'] == 'INJ' and item['state'] == 'chosen' and premise in (item.get('body') or {}).get('invalidates', [])
+        for item in found.values())
 
 
 def read_suppliers(root):
@@ -1951,7 +1979,7 @@ def read_measures(root):
             **({'value': value['value'], 'state': value['state'], 'samples': value['samples']} if value else {}),
             'fresh': bool(value) and value['fresh']}))
     seen = set()
-    for path in sorted(root.glob(VALIDATIONS)):
+    for path in sorted(root.glob(VALIDATIONS)) + sorted(root.glob(problem_space.FOLDER + '/NC-*.json')):  # NC: D-348
         body = _read_json(path)
         if not isinstance(body, dict) or not isinstance(body.get('measure'), dict) or 'kind' not in body['measure']:
             continue  # read_validations says what is wrong with the file
@@ -2094,7 +2122,7 @@ def derive_work(found):
 
 
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
-           read_intent, read_requirements, read_premises, read_changes, read_escapes, read_architecture, read_adrs, read_validations,
+           read_intent, read_problem, read_requirements, read_premises, read_changes, read_escapes, read_architecture, read_adrs, read_validations,
            read_suppliers, read_dependencies, read_advisories, read_checks, read_data, read_requests,
            read_risks, read_controls, read_vulns, read_threats, read_measures, read_work)
 
@@ -2155,8 +2183,11 @@ def objects(root=ROOT, readers=READERS):
         derive_verdicts(found, root)
     if read_requirements in readers and read_changes in readers:
         link_implemented_by(found)
-    if read_validations in readers:
+    if read_validations in readers or read_problem in readers:
         derive_validations(found, root)
+    if read_problem in readers:
+        problem_space.attach(found, root, _declared)
+        problem_space.derive(found)
     if read_controls in readers:
         derive_controls(found)
     if read_measures in readers:
@@ -2199,6 +2230,7 @@ def check(meta, found, root=None, today=None):
         warnings += managed_warnings
         errors += target_errors(found, root, today)
     errors += layer_errors(found)
+    errors += problem_space.problem_errors(found)
     for id, item in sorted(found.items()):
         kind = meta['types'].get(item['type'])
         if kind is None:

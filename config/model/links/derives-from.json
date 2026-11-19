@@ -1,12 +1,14 @@
 {
   "name": "derives-from",
   "from": [
-    "REQ"
+    "REQ",
+    "NEED"
   ],
   "to": [
     "NEED",
-    "REQ"
+    "REQ",
+    "INJ"
   ],
   "oslc": "oslc_rm:elaboratedBy",
-  "description": "A requirement derives from a need or a parent requirement."
+  "description": "A requirement derives from a need or a parent requirement; a need about a solution derives from the chosen injection (D-348)."
 }

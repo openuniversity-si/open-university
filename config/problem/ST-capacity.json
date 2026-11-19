@@ -1,0 +1,25 @@
+{
+  "id": "ST-capacity",
+  "level": 2,
+  "strategy": "NC-throughput",
+  "tactic": "INJ-tree-governance",
+  "assumptions": {
+    "necessary": {
+      "statement": "The constraint is the supply of ready units (flow-metrics, 19/11)."
+    },
+    "parallel": {
+      "statement": "Attacking the constraint yields more than the rest (TOC, the five focusing steps)."
+    },
+    "sufficiency": {
+      "statement": "A fed queue, a gate right and fast and a deploy in 1 s lead to ladder step 1."
+    }
+  },
+  "child_of": "ST-torre",
+  "owner_role": "manager",
+  "validated": {
+    "by": "Daniel",
+    "date": "2026-11-19"
+  },
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (S&T)"
+}

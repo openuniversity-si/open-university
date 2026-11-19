@@ -1,0 +1,10 @@
+{
+  "name": "applies",
+  "from": [
+    "ST"
+  ],
+  "to": [
+    "INJ"
+  ],
+  "description": "A node's tactic is a chosen injection."
+}

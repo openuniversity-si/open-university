@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/st.v1.json",
+  "title": "Strategy and tactics node v1",
+  "description": "config/problem/ST-<name>.json (D-348): a node of Goldratt's strategy and tactics tree. Its strategy is an NC of the Goal Tree (its state is that NC's), its tactic a chosen injection (levels 1 to 3) or the text of the step (level 4); its necessary, parallel and sufficiency assumptions; its parent; the work it decomposes into; its owner role and who validated it (levels 1 and 2 Daniel, 3 the manager, 4 the coordinator).",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "level",
+    "strategy",
+    "tactic",
+    "assumptions",
+    "owner_role",
+    "owner",
+    "source"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ST-[a-z0-9][a-z0-9-]*$"
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "strategy": {
+      "type": "string",
+      "pattern": "^(INT|NC)-[a-z0-9][a-z0-9-]*$",
+      "description": "The state the node must reach: a condition of the Goal Tree, or the intention itself for the level-1 node."
+    },
+    "tactic": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assumptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "necessary",
+        "parallel",
+        "sufficiency"
+      ],
+      "properties": {
+        "necessary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "statement"
+          ],
+          "properties": {
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "premise": {
+              "type": "string",
+              "pattern": "^P-[0-9]+$",
+              "description": "The register's premise, when it carries a blast radius."
+            }
+          }
+        },
+        "parallel": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "statement"
+          ],
+          "properties": {
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "premise": {
+              "type": "string",
+              "pattern": "^P-[0-9]+$",
+              "description": "The register's premise, when it carries a blast radius."
+            }
+          }
+        },
+        "sufficiency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "statement"
+          ],
+          "properties": {
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "premise": {
+              "type": "string",
+              "pattern": "^P-[0-9]+$",
+              "description": "The register's premise, when it carries a blast radius."
+            }
+          }
+        }
+      }
+    },
+    "child_of": {
+      "type": "string",
+      "pattern": "^ST-[a-z0-9][a-z0-9-]*$"
+    },
+    "decomposes_into": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^WORK-[A-Za-z0-9][A-Za-z0-9-]*$"
+      }
+    },
+    "owner_role": {
+      "enum": [
+        "manager",
+        "domain-coordinator",
+        "lane"
+      ]
+    },
+    "validated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "by",
+        "date"
+      ],
+      "properties": {
+        "by": {
+          "enum": [
+            "Daniel",
+            "manager",
+            "coordinator"
+          ]
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        }
+      }
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where it is written or argued (a path and section)."
+    }
+  }
+}

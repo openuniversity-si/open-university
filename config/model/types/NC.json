@@ -1,0 +1,31 @@
+{
+  "id": "NC",
+  "name": "necessary condition",
+  "system": "problem",
+  "states": [
+    "defined",
+    "measuring",
+    "met",
+    "not-met"
+  ],
+  "derived_states": [
+    "defined",
+    "measuring",
+    "met",
+    "not-met"
+  ],
+  "unconformant_states": [
+    "defined"
+  ],
+  "unconformant_when": [
+    {
+      "untracked": [
+        true
+      ]
+    }
+  ],
+  "must_link": [
+    "necessary-for"
+  ],
+  "description": "A critical success factor or necessary condition of the Goal Tree, measured against its baseline and target; its derived state is the reading and, after delivery, the benefit. Not conformant while out of target with no undesirable effect that says so (D-348)."
+}

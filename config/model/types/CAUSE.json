@@ -1,0 +1,19 @@
+{
+  "id": "CAUSE",
+  "name": "cause",
+  "system": "problem",
+  "states": [
+    "stated"
+  ],
+  "must_link": [
+    "causes"
+  ],
+  "unconformant_when": [
+    {
+      "unsettled": [
+        true
+      ]
+    }
+  ],
+  "description": "An entity of the current reality tree; a core cause is accepted by Daniel and perpetuated by a conflict, and its coverage is the share of the effects it reaches (D-348)."
+}

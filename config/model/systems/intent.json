@@ -7,6 +7,6 @@
     "15288/12207 stakeholder needs and requirements definition"
   ],
   "owner": "Daniel",
-  "measure": "Share of needs with at least one requirement and one validation.",
-  "description": "The owner's intention, goals and locked constraints (docs/SEMENTE.md) and the needs they refine."
+  "measure": "Share of the intent objects that conform: every intention refined by a problem, every problem addressed by an objective, every objective measured and with a need deriving from it, every need with a requirement and a validation (D-347).",
+  "description": "The owner's intention, goals and locked constraints (docs/SEMENTE.md), the problems and opportunities that make them concrete, the objectives measured against a baseline and a target, and the needs that derive from them (D-347)."
 }

@@ -1,0 +1,10 @@
+{
+  "name": "perpetuates",
+  "from": [
+    "CONFLICT"
+  ],
+  "to": [
+    "CAUSE"
+  ],
+  "description": "A conflict perpetuates a core cause."
+}

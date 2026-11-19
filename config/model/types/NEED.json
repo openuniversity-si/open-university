@@ -21,5 +21,8 @@
       "link": "validates"
     }
   ],
-  "description": "A need that refines the intention and that requirements and validations answer."
+  "description": "A need that refines the intention and that requirements and validations answer.",
+  "must_link": [
+    "serves"
+  ]
 }

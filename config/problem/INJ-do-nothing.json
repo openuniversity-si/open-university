@@ -1,0 +1,28 @@
+{
+  "id": "INJ-do-nothing",
+  "statement": "Keep the flow moved by requests.",
+  "option": "do-nothing",
+  "kind": "none",
+  "addresses": [
+    "CAUSE-trust-not-earned",
+    "CONFLICT-trust-or-flow"
+  ],
+  "effects": [],
+  "branches": [
+    {
+      "effect": "The gap stays: about 33 PRs a day against 1,000.",
+      "severity": "high",
+      "accepted_by": "D-348"
+    }
+  ],
+  "cost": {
+    "level": "none",
+    "basis": "no change"
+  },
+  "state": "rejected",
+  "decided_by": [
+    "D-348"
+  ],
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3 (injeções)"
+}
