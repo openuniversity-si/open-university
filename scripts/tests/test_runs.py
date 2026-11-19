@@ -238,5 +238,44 @@ class Slo(unittest.TestCase):
         self.assertEqual(model.slo_values(Path(tempfile.mkdtemp(dir=self.root)), registry), {})
 
 
+class Verdicts(unittest.TestCase):
+    """The full-suite's verdicts on main (model.derive_verdicts reads a test's pass state from them): the newest
+    completed full-suite check run of each merge commit, read from GitHub's check runs (never the Actions API)."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='runs-verdicts-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        self.log = type('Done', (), {'returncode': 0, 'stdout': 'm1 p1 h1\nm2 p2 h2\nm3 p3 h3\n'})()
+
+    def test_each_merge_commit_gives_its_newest_completed_full_suite_run(self):
+        paths = []
+        checks = {'m1': [check(1, 'full-suite', at(1), at(4), 'failure'), check(2, 'full-suite', at(5), at(9)),
+                         check(3, 'tower/gate', at(1), at(2))],
+                  'm2': [check(4, 'full-suite', at(1), at(3), 'cancelled')],
+                  'm3': [check(5, 'full-suite', at(1), at(2), 'failure')]}
+
+        def api(path):
+            paths.append(path)
+            return {'check_runs': checks[path.split('/commits/')[1].split('/')[0]]}
+        found = runs.verdicts_fetch(self.root, repo='o/r', api=api, run=lambda *a, **k: self.log)
+        self.assertEqual(sorted(paths), [f'repos/o/r/commits/{sha}/check-runs?check_name=full-suite&per_page=100'
+                                         for sha in ('m1', 'm2', 'm3')], 'the merge commits only, where the suite runs')
+        self.assertEqual(found, [{'sha': 'm1', 'id': 2, 'conclusion': 'success', 'completed': at(9)},
+                                 {'sha': 'm3', 'id': 5, 'conclusion': 'failure', 'completed': at(2)}])
+
+    def test_an_api_that_refuses_or_an_offline_session_reads_nothing_and_a_fresh_snapshot_is_kept(self):
+        def refused(path):
+            raise RuntimeError('gh api: 403')
+        self.assertIsNone(runs.verdicts_fetch(self.root, repo='o/r', api=refused, run=lambda *a, **k: self.log))
+        with unittest.mock.patch.dict('os.environ', {'TOWER_OFFLINE': '1'}):
+            self.assertIsNone(runs.verdicts_fetch(self.root, repo='o/r', api=refused, run=lambda *a, **k: self.log))
+        asked, found = [], [{'sha': 'm1', 'id': 2, 'conclusion': 'success', 'completed': at(9)}]
+        made = runs.verdicts_refresh(self.root, now=runs.stamp(at(10)), reader=lambda root: asked.append(1) or found)
+        runs.verdicts_refresh(self.root, now=runs.stamp(at(20)), reader=lambda root: asked.append(2) or found)
+        kept = runs.verdicts_refresh(self.root, now=runs.stamp('2026-11-21T00:00:00Z'), reader=lambda root: asked.append(3))
+        self.assertEqual((asked, made['runs'], kept['at'], runs.read_verdicts(self.root)['check']),
+                         ([1, 3], found, at(10), 'full-suite'))
+
+
 if __name__ == '__main__':
     unittest.main()

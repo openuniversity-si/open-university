@@ -10,7 +10,9 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
   UNIT  units/<id>/unit.json (active; `requires` are depends-on links); a manifest a commit deleted is a retired unit
   TEST  scripts/tests/*.test.sh (active), each with the test files it runs as its parts, and the test files under
         scripts/tests/ that no script test runs (active, a test of their own)
-  INC   an escape (read_escapes): each pull request a later merge's commits name in `Fixes-PR:` is INC-escape-<n>,
+  VERD  a script test's pass state on HEAD (derive_verdicts): the newest full-suite run on a commit HEAD contains, when
+        green, for each test the gate's selection would not run again (config/validation/verdicts.json, scripts/runs)
+  INC  an escape (read_escapes): each pull request a later merge's commits name in `Fixes-PR:` is INC-escape-<n>,
         resolved, introduced by CHG-<n>, fixed by the merges that name it, violating REQ-escape-under-1
 
   scripts/model check [--strict]   errors (exit 1) for a metamodel or object that breaks the model; warnings (a link to an
@@ -1959,6 +1961,44 @@ READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, r
            read_risks, read_controls, read_vulns, read_threats, read_measures, read_work)
 
 
+def derive_verdicts(found, root, select=None):
+    """Verdicts (VERD): the pass state of each script test on HEAD, from the full-suite check runs of main's merges
+    (runs.VERDICTS_FILE, renewed where scripts/model measures; the gate reads the snapshot, never the network). The
+    newest run on a commit HEAD contains judged every script test there. When it is green, a test the gate's own
+    selection (gate_script_tests.select) would not run for that commit's diff to HEAD reads the same declared files
+    there and here, so its verdict on that commit is its verdict on HEAD: VERD:<script>, pass, evidencing
+    TEST:<script>, with the sha and the run. A test that selection would run again has no verdict. When the newest run
+    is red, no test has one: the run names no red test (they are in the job's log, which only the Actions API
+    serves), and an older green run is no evidence past it, since a red after it means some test's declared files
+    did not cover what broke it. `select(paths)` answers the tests to run again (the gate's selection by default)."""
+    import runs
+    recorded = runs.read_verdicts(root) or {}
+    green = next((item for item in recorded.get('runs', [])
+                  if subprocess.run(['git', 'merge-base', '--is-ancestor', item['sha'], 'HEAD'], cwd=root,
+                                    capture_output=True).returncode == 0), None)
+    if green is None or green.get('conclusion') != 'success':
+        return []
+    paths = _git(root, 'diff', '--name-only', green['sha'], 'HEAD').split()
+    if select is None:
+        import gate_script_tests
+        mapping = gate_script_tests.load(root)
+        select = lambda changed: gate_script_tests.select(changed, mapping)[0]  # noqa: E731
+    again = set(select(paths)) if paths else set()
+    made = []
+    for id, item in sorted(found.items()):
+        script = item['source'] if item['type'] == 'TEST' else ''
+        if not script.endswith('.test.sh') or script in again or item.get('fingerprint') is None:
+            continue
+        body = {'sha': green['sha'], 'check': recorded.get('check', runs.VERDICTS_CHECK), 'run': green['id'],
+                'completed': green['completed'], 'test': id}
+        verdict = _obj(f'VERD:{script}', 'VERD', 'pass', f'{runs.VERDICTS_FILE} run {green["id"]}',
+                       json.dumps(body, sort_keys=True), [{'type': 'evidences', 'target': id}])
+        verdict['body'] = body
+        made.append(verdict)
+    found.update({item['id']: item for item in made})
+    return made
+
+
 def objects(root=ROOT, readers=READERS):
     """Every object the readers find, by id. A decision's proof becomes a link on the test it names; a proof that names
     no test file stays as a test object of its own, claimed but without a source, so the link to it can be judged."""
@@ -1973,6 +2013,8 @@ def objects(root=ROOT, readers=READERS):
             else:
                 current['links'] += item['links']
     fold_parts(found)
+    if read_tests in readers:
+        derive_verdicts(found, root)
     if read_requirements in readers and read_changes in readers:
         link_implemented_by(found)
     if read_validations in readers:
@@ -2562,6 +2604,7 @@ def main(argv=None):
         if args.command == 'measure':
             import runs
             runs.slo_refresh(ROOT)  # a day-old SLO snapshot is rebuilt before objects() folds it; offline it is kept
+            runs.verdicts_refresh(ROOT)  # so is the full-suite's verdicts snapshot (derive_verdicts)
         found = objects()
         if args.command == 'check':
             errors, warnings = check(meta, found, ROOT)

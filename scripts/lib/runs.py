@@ -4,6 +4,7 @@ run-durations measure of scripts/model. The gate runs with no network, so it rea
     scripts/runs record <workflow> < runs.json    writes config/validation/runs/<workflow>.json from an API answer
     scripts/runs refresh <workflow>               rebuilds it from GitHub's checks of main's last merges
     scripts/runs refresh-slo                      rebuilds config/validation/slo.json, the four SLOs' samples
+    scripts/runs refresh-verdicts                 rebuilds config/validation/verdicts.json, the full-suite's verdicts
 
 `record` takes an Actions API answer (an object with `workflow_runs`, or the list itself); each run lasts from
 `run_started_at` to `updated_at`. Only completed runs count; a cancelled run was superseded, not judged.
@@ -20,6 +21,10 @@ snapshot stays, and the measure judges it by its age as before.
 Origin-era forge event log: merge times of the newest merged pull requests, the merge queue's wait in their timelines,
 and the tower/gate check runs of the commits they pushed. scripts/model folds them with slo.evaluate_series and renews
 the snapshot where it measures, when a day old.
+
+`refresh-verdicts` reads the full-suite check run (.github/workflows/full-suite.yml: every script test, on each merge
+into main) of main's last merges the same way: its conclusion on each merge commit. scripts/model reads a test's pass
+state on HEAD from it (model.derive_verdicts) and renews it where it measures, when a day old.
 """
 import argparse
 from datetime import datetime, timezone
@@ -247,6 +252,65 @@ def slo_write(root, found, now):
     return made
 
 
+VERDICTS_FILE = 'config/validation/verdicts.json'  # the full-suite's verdicts on main (not a VAL-*.json)
+VERDICTS_CHECK = 'full-suite'  # .github/workflows/full-suite.yml's job: every script test on each merge into main
+VERDICTS_MERGES = 40  # main's last merges whose full-suite run is read: how far back a green run is looked for
+
+
+def verdicts_fetch(root, repo=None, api=None, run=subprocess.run):
+    """[{sha, id, conclusion, completed}] the newest completed full-suite check run of each of main's last merges,
+    newest merge first (a cancelled or skipped run was superseded, not judged); None offline or when the API refuses.
+    The suite runs on the merge commit itself (on: push to main), so only the merge commits are read."""
+    if os.environ.get('TOWER_OFFLINE'):
+        return None
+    if api is None:
+        import verify_commit  # the gate's github adapter: tower/gate's own reads of GitHub's REST API
+        api = lambda path: verify_commit.gh_json(verify_commit.run, path)  # noqa: E731
+    from concurrent.futures import ThreadPoolExecutor
+    repo = repo or repository()
+    shas = [sha for sha, event in merges(root, VERDICTS_MERGES, run) if event == 'merge_group']
+    try:
+        with ThreadPoolExecutor(SLO_WORKERS) as pool:
+            answers = list(pool.map(lambda sha: api(f'repos/{repo}/commits/{sha}/check-runs?check_name={VERDICTS_CHECK}'
+                                                    '&per_page=100'), shas))
+    except (OSError, RuntimeError, ValueError):
+        return None
+    found = []
+    for sha, answer in zip(shas, answers):
+        done = sorted((check for check in answer.get('check_runs', []) if check.get('name') == VERDICTS_CHECK
+                       and check.get('status') == 'completed' and check.get('completed_at')
+                       and check.get('conclusion') not in ('cancelled', 'skipped')), key=lambda check: check['completed_at'])
+        if done:
+            found.append({'sha': sha, 'id': done[-1]['id'], 'conclusion': done[-1].get('conclusion', ''),
+                          'completed': done[-1]['completed_at']})
+    return found
+
+
+def read_verdicts(root):
+    path = Path(root) / VERDICTS_FILE
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def verdicts_write(root, found, now):
+    made = {'source': f"GitHub check runs {VERDICTS_CHECK} of main's last merges", 'check': VERDICTS_CHECK,
+            'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'runs': found}
+    target = Path(root) / VERDICTS_FILE
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(made, indent=1) + '\n')
+    return made
+
+
+def verdicts_refresh(root, now=None, reader=None):
+    """Rebuilds the verdicts snapshot from GitHub when it is missing or older than REFRESH_DAYS and the API answers;
+    the snapshot (new or kept) or None. `reader(root)` answers the runs (verdicts_fetch by default)."""
+    now = now or datetime.now(timezone.utc)
+    recorded = read_verdicts(root)
+    if recorded and age_days(recorded, now) < REFRESH_DAYS:
+        return recorded
+    found = (reader or verdicts_fetch)(root)
+    return verdicts_write(root, found, now) if found else recorded
+
+
 def slo_series(recorded):
     """The snapshot as the series slo.evaluate_series folds (the shape slo.fold makes from the event log)."""
     def series(items, label=lambda item: f'PR #{item["pr"]}', **fields):
@@ -268,7 +332,16 @@ def main(argv=None, root=ROOT):
     again = commands.add_parser('refresh', help="rebuild the snapshot from GitHub's checks of main's last merges")
     again.add_argument('workflow', choices=sorted(CHECKS))
     commands.add_parser('refresh-slo', help="rebuild the SLOs' samples from GitHub's pull requests and check runs")
+    commands.add_parser('refresh-verdicts', help="rebuild the full-suite's verdicts from GitHub's check runs of main")
     args = parser.parse_args(argv)
+    if args.command == 'refresh-verdicts':
+        found = verdicts_fetch(root)
+        if not found:
+            print('runs: no full-suite verdicts read (offline, gh missing or the API refused); snapshot kept', file=sys.stderr)
+            return 2
+        made = verdicts_write(root, found, datetime.now(timezone.utc))
+        print(f"runs: {len(made['runs'])} full-suite verdict(s) at {made['at']} -> {VERDICTS_FILE}")
+        return 0
     if args.command == 'refresh-slo':
         found = slo_fetch()
         if not found:

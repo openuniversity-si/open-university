@@ -671,6 +671,46 @@ class Changes(unittest.TestCase):
         into = model.incoming(found)
         self.assertFalse(model.implemented(found['REQ-x'], into, found), 'a diff-derived unit link implements no REQ')
 
+    def test_a_script_tests_pass_state_on_head_is_read_from_the_newest_full_suite_run_on_a_commit_head_contains(self):
+        import runs
+        import subprocess
+        def head():
+            return subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root, capture_output=True, text=True).stdout.strip()
+        judged = head()
+        self.merge(6, 'six')
+        tests = {f'TEST:scripts/tests/{name}.test.sh': {'id': f'TEST:scripts/tests/{name}.test.sh', 'type': 'TEST',
+                                                        'state': 'active', 'source': f'scripts/tests/{name}.test.sh',
+                                                        'fingerprint': 'f', 'links': []} for name in ('a', 'b')}
+        asked = []
+        def select(paths):
+            asked.append(paths)
+            return ['scripts/tests/b.test.sh']
+        def verdicts(*conclusions, select=select):
+            shas = [head(), judged, 'f' * len(judged)]
+            write(self.root, runs.VERDICTS_FILE, {'check': 'full-suite', 'at': '2026-01-01T00:00:00Z', 'runs': [
+                {'sha': sha, 'id': index, 'conclusion': conclusion, 'completed': '2026-01-01T00:00:00Z'}
+                for index, (sha, conclusion) in enumerate(zip(shas, conclusions)) if conclusion]})
+            found = copy.deepcopy(tests)
+            model.derive_verdicts(found, self.root, select=select)
+            return {id: (item['state'], item['body']['sha'], item['links']) for id, item in found.items() if item['type'] == 'VERD'}
+        self.assertEqual(verdicts('success'), {
+            f'VERD:scripts/tests/{name}.test.sh': ('pass', head(), [{'type': 'evidences', 'target': f'TEST:scripts/tests/{name}.test.sh'}])
+            for name in ('a', 'b')}, 'a green run on HEAD itself: every script test passes, nothing is selected again')
+        self.assertEqual(asked, [])
+        self.assertEqual(list(verdicts(None, 'success')), ['VERD:scripts/tests/a.test.sh'],
+                         'a green run on an older commit: the tests the diff to HEAD selects again have no verdict')
+        self.assertEqual(asked, [['f6.txt']])
+        self.assertEqual(verdicts(None, 'failure'), {}, 'the newest run is red: it names no red test')
+        self.assertEqual(verdicts('failure', 'success'), {}, 'an older green run is no evidence past a newer red one')
+        self.assertEqual(verdicts(None, None, 'success'), {}, 'a run on a commit HEAD does not contain is not read')
+        found = {**copy.deepcopy(tests), 'VERD:x': {'id': 'VERD:x', 'type': 'VERD', 'state': 'pass', 'fingerprint': 'v',
+                                                    'links': [{'type': 'evidences', 'target': 'TEST:scripts/tests/a.test.sh'}]}}
+        meta, into = model.metamodel(), model.incoming(found)
+        self.assertTrue(model.covered(meta, found['VERD:x'], into, found))
+        found['VERD:x']['state'] = 'fail'
+        self.assertFalse(model.covered(meta, found['VERD:x'], into, found), 'a red verdict is not conformant')
+        self.assertIn('VERD', {kind for kind in meta['types'] if model.judged(meta, kind)})
+
     def test_an_erratum_corrects_a_wrong_implements_trailer_and_one_that_matches_nothing_is_an_error(self):
         import subprocess
         sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root, capture_output=True, text=True).stdout.strip()

@@ -7,5 +7,12 @@
     "fail",
     "error"
   ],
+  "unconformant_states": [
+    "fail",
+    "error"
+  ],
+  "must_link": [
+    "evidences"
+  ],
   "description": "The result of a test on an exact sha."
 }
