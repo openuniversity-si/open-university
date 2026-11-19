@@ -584,6 +584,27 @@ class DeployShTests(unittest.TestCase):
         self.assertTrue(data, done.stdout[-2000:])
         self.assertIn('--parameter-overrides InstanceClass=db.t4g.medium', data[0])
 
+    def test_a_stack_named_in_the_regions_file_is_deployed_and_read_in_its_region_alone(self):
+        # MEDIA-REPLICA (RISK-media-single-account): infra/aws/regions.json puts a stack in another region; every
+        # CloudFormation call for it says --region, and the others keep the build's own region (no flag). The ECS stacks'
+        # own readers (prev_params, code_live_stacks) stay in the build's region: service and runner are not moved
+        self.five_stacks()
+        repo = self.tmp / 'repo'
+        (repo / 'infra/aws/regions.json').write_text('{"data": "us-west-2", "port": "not a region"}\n')
+        done = self.run_deploy(STUB_LAST='old')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        calls = [c for c in (self.state / 'calls').read_text().splitlines() if c.startswith('aws cloudformation ')
+                 and '--stack-name tower-app-' in c]
+        moved = [c for c in calls if '--stack-name tower-app-data ' in c]
+        self.assertTrue([c for c in moved if 'cloudformation deploy ' in c], done.stdout)
+        self.assertTrue([c for c in moved if 'cloudformation describe-stacks ' in c], done.stdout)
+        for call in moved:
+            self.assertIn('--region us-west-2 ', call)
+        others = [c for c in calls if c not in moved]
+        self.assertTrue([c for c in others if '--stack-name tower-app-port ' in c])  # a value that is no region is ignored
+        for call in others:
+            self.assertNotIn('--region', call)
+
     def test_a_stacks_values_in_the_file_go_beside_its_own_overrides(self):
         # SERVICE-MEMORY: the service's memory from infra/aws/parameters.json, beside LiveCode and LiveSeen
         self.five_stacks()

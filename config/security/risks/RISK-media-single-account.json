@@ -11,11 +11,11 @@
   "impact": "high",
   "treatment": {
     "option": "mitigate",
-    "plan": "A second copy outside the failure domain: S3 replication of the media bucket to a bucket in a second region (about 3.4 GB, well under a dollar a month), ideally under a separate account or with Object Lock. It is spending, so it waits for the owner's ok (D-325 closed list); until then versioning (90 days) is the only recovery.",
+    "plan": "Approved by the owner on 2026-11-18 21:29 BRT (a copy in a second AWS region, under US$ 1 a month). S3 Cross-Region Replication of the media bucket to tower-media-replica-<account>-us-west-2 (infra/aws/stacks/58-media-replica.json, region in infra/aws/regions.json): versioned, SSE-S3, private, retained, noncurrent versions 90 days; the media stack's rule (ReplicaRegion in parameters.json) copies every new object version as Glacier Instant Retrieval and never replicates a delete marker, so a deletion or an overwrite in us-east-1 leaves the copy whole. The objects older than the rule are copied once by an S3 Batch Replication job (the runbook's 'A cópia da mídia em outra região'). About US$ 0.03 a month, about US$ 1 once. It covers a regional loss and a deletion in the primary, not a compromised account or its closure (same account, no Object Lock). The state stays assessed until the Torre's verification (object count and bytes equal on both sides) is recorded; until then versioning (90 days) is the only recovery.",
     "by": [
       "DATA-r2-media"
     ]
   },
   "review_by": "2026-12-02",
-  "source": "docs/programs/padrao-dev/fornecimento-cloudflare.md (the R2 deletion, 18/11)"
+  "source": "docs/programs/padrao-dev/fornecimento-cloudflare.md (the R2 deletion, 18/11; 'A cópia da mídia em outra região', 19/11)"
 }

@@ -108,6 +108,10 @@ def resolved(value):
         return value['Fn::Sub'].replace('${AWS::AccountId}', 'ACCOUNT').replace('${AWS::Region}', 'REGION').replace('${AWS::Partition}', 'aws-partition')
     if isinstance(value, dict) and value.get('Ref') == 'AWS::Region':
         return 'REGION'
+    if isinstance(value, dict) and value.get('Ref') == 'ReplicaRegion':  # MEDIA-REPLICA: the bootstrap's parameter
+        return 'REPLICA-REGION'
+    if isinstance(value, list):
+        return [resolved(item) for item in value]
     return value
 
 
@@ -115,7 +119,7 @@ def conditions_hold(condition, context):
     for operator, pairs in (condition or {}).items():
         for key, wanted in pairs.items():
             given, wanted = context.get(key), resolved(wanted)
-            if operator in ('StringEquals', 'ArnEquals') and given != wanted:
+            if operator in ('StringEquals', 'ArnEquals') and given not in as_list(wanted):  # a list: any of its values
                 return False
             if operator == 'StringNotLike' and given is not None and fnmatchcase(given, wanted):
                 return False
@@ -197,7 +201,43 @@ class BootstrapTests(unittest.TestCase):
     # iam:CreatePolicy* (CreatePolicy, CreatePolicyVersion) and iam:*LoginProfile (Create, Update, and now Get and Delete).
     # 51,104 bytes. The Torre re-applies tower-bootstrap with this template after the merge (UsePreviousValue for its
     # parameters); until then the mail stack stays at Mail off (parameters.json), a wait-condition handle alone.
-    APPLIED = 'f3b82e301748035c1ed95d1509e36db9bff25ca5c6b3a644ede70d115af2e5d5'
+    # MEDIA-REPLICA (RISK-media-single-account, Daniel 18/11 21:29 BRT: a copy of the media in a second region, under
+    # US$ 1 a month): a new parameter ReplicaRegion (default empty: one region, as before) and the workload statement's
+    # region condition becomes [the stack region, ReplicaRegion], so the deployer and the execution role may run the
+    # media-replica stack there (cloudformation:*, s3:*) and the replication role may write the copy; the deployer's
+    # app-stack ARNs say cloudformation:* for the region (the boundary still holds them to the two). No template fixes a
+    # region (D-304): the Torre passes ReplicaRegion=us-west-2 at the re-apply. To make room (96 bytes were left) three
+    # denies of TheDeployerIsOutOfReach and one of NoUsersKeysOrBoundaryChanges became patterns that deny as much or
+    # more: codebuild:*Project, lambda:DeleteFunction*, lambda:*Permission, iam:*RolePermissionsBoundary. 51,155 bytes.
+    # The Torre re-applies tower-bootstrap with this template BEFORE the merge that deploys the media-replica stack
+    # (UsePreviousValue for the other parameters): without it that stack's apply is refused, in us-west-2.
+    APPLIED = 'ea269641596c909fcd5d8584a2539b75315a6dff2818305b653345a7e15fcda3'
+
+    # MEDIA-REPLICA: the workload services in the stack region and in the media replica's, nowhere else
+    REGIONS = {'StringEquals': {'aws:RequestedRegion': [{'Ref': 'AWS::Region'}, {'Ref': 'ReplicaRegion'}]}}
+
+    def test_the_workload_reaches_the_replica_region_and_no_third_one(self):
+        statements = self.resources['Boundary']['Properties']['PolicyDocument']['Statement']
+        self.assertEqual(self.template['Parameters']['ReplicaRegion'].get('Default'), '')  # none until the Torre names it
+        bucket = 'arn:aws-partition:s3:::tower-media-replica-ACCOUNT-REPLICA-REGION/x'
+        for region in ('REGION', 'REPLICA-REGION'):
+            for action in ('cloudformation:CreateChangeSet', 's3:CreateBucket', 's3:ReplicateObject', 's3:PutReplicationConfiguration'):
+                self.assertEqual(decide(statements, action, bucket, {'aws:RequestedRegion': region}), 'allow', (action, region))
+        for action in ('cloudformation:CreateChangeSet', 's3:CreateBucket', 's3:ReplicateObject', 'ec2:CreateVpc'):
+            self.assertEqual(decide(statements, action, '*', {'aws:RequestedRegion': 'ELSEWHERE'}), 'implicit', action)
+        # the deployer's own app-stack statement names any region; the boundary above is what holds it to the two
+        [stacks] = [item for item in self.policy('DeployerRole') if item['Sid'] == 'DeployOnlyAppStacks']
+        for arn in stacks['Resource']:
+            self.assertIn(':cloudformation:*:${AWS::AccountId}:', arn['Fn::Sub'])
+        # the denies compacted to make room still deny what they named, on the deployer's project and the doorbell
+        project = 'arn:aws-partition:codebuild:REGION:ACCOUNT:project/tower-infra-deploy'
+        doorbell = 'arn:aws-partition:lambda:REGION:ACCOUNT:function:tower-deploy-doorbell'
+        for action, resource in (('codebuild:UpdateProject', project), ('codebuild:DeleteProject', project),
+                                 ('lambda:DeleteFunction', doorbell), ('lambda:DeleteFunctionUrlConfig', doorbell),
+                                 ('lambda:AddPermission', doorbell), ('lambda:RemovePermission', doorbell),
+                                 ('lambda:UpdateFunctionCode', doorbell), ('lambda:UpdateFunctionUrlConfig', doorbell)):
+            self.assertEqual(decide(statements, action, resource), 'deny', action)
+        self.assertLessEqual(len((INFRA / 'bootstrap.json').read_bytes()), 51200)
 
     def test_the_file_is_the_template_the_account_has_applied(self):
         canonical = json.dumps(self.template, sort_keys=True, separators=(',', ':'))
@@ -311,11 +351,13 @@ class BootstrapTests(unittest.TestCase):
     def test_the_boundary_denies_users_keys_budgets_and_the_costly(self):
         statements = self.resources['Boundary']['Properties']['PolicyDocument']['Statement']
         denied = {action for item in statements if item['Effect'] == 'Deny' for action in as_list(item.get('Action'))}
-        for action in ('iam:CreateUser', 'iam:CreateAccessKey', 'iam:PutRolePermissionsBoundary',
-                       'iam:DeleteRolePermissionsBoundary', 'budgets:*', 'ec2:RunInstances', 'ec2:CreateNatGateway'):
+        for action in ('iam:CreateUser', 'iam:CreateAccessKey', 'budgets:*', 'ec2:RunInstances', 'ec2:CreateNatGateway'):
             self.assertIn(action, denied)
+        # MEDIA-REPLICA: the two boundary denies are one pattern now (iam:*RolePermissionsBoundary)
+        for action in ('iam:PutRolePermissionsBoundary', 'iam:DeleteRolePermissionsBoundary'):
+            self.assertEqual(decide(statements, action, 'arn:aws-partition:iam::ACCOUNT:role/tower-app-x'), 'deny', action)
         workload = next(item for item in statements if item['Sid'] == 'WorkloadServicesInTheStackRegion')
-        self.assertEqual(workload['Condition'], {'StringEquals': {'aws:RequestedRegion': {'Ref': 'AWS::Region'}}})
+        self.assertEqual(workload['Condition'], self.REGIONS)
 
     def test_the_boundary_lets_an_app_role_reach_the_database_by_iam_only_in_the_stack_region(self):
         # The service connects to tower-data as an IAM database user (P2 F2, P3 F1): rds-db:connect is its own service
@@ -323,7 +365,7 @@ class BootstrapTests(unittest.TestCase):
         statements = self.resources['Boundary']['Properties']['PolicyDocument']['Statement']
         workload = next(item for item in statements if item['Sid'] == 'WorkloadServicesInTheStackRegion')
         self.assertIn('rds-db:connect', workload['Action'])
-        self.assertEqual(workload['Condition'], {'StringEquals': {'aws:RequestedRegion': {'Ref': 'AWS::Region'}}})
+        self.assertEqual(workload['Condition'], self.REGIONS)
 
     def test_the_boundary_keeps_the_description_it_was_created_with(self):
         # A named ManagedPolicy is replaced when its description changes, and its fixed name makes the replacement fail
@@ -1202,14 +1244,15 @@ class MediaStackTests(unittest.TestCase):
                 self.assertEqual(dangling, set(), f'{section} {name} points at what this deploy does not create')
         return resolved
 
-    def test_it_is_in_the_order_and_needs_no_other_stack(self):
-        self.assertEqual(load(INFRA / 'order.json')['media'], [])
+    def test_it_is_in_the_order_after_its_replica_and_imports_nothing(self):
+        # MEDIA-REPLICA: the replica is another region's stack, named by its pattern (no ImportValue crosses regions)
+        self.assertEqual(load(INFRA / 'order.json')['media'], ['media-replica'])
         self.assertNotIn('Fn::ImportValue', json.dumps(self.template))
 
     def test_the_first_deploy_is_the_buckets_alone_and_waits_on_nothing(self):
         # the template's Defaults are what CloudFormation creates with, for any parameter deploy.sh does not pass
         self.assertEqual({name: spec['Default'] for name, spec in self.template['Parameters'].items()},
-                         {'Cdn': 'off', 'CertificateArn': '', 'Alias': ''})
+                         {'Cdn': 'off', 'CertificateArn': '', 'Alias': '', 'ReplicaRegion': ''})
         first = self.created()
         self.assertEqual(sorted(first['Resources']), ['Media', 'MediaLogs', 'MediaLogsPolicy', 'MediaPolicy'])
         self.assertEqual(sorted(first['Outputs']), ['BucketName', 'LogsBucketName'])
@@ -1281,6 +1324,53 @@ class MediaStackTests(unittest.TestCase):
         self.assertEqual(media['LoggingConfiguration']['DestinationBucketName'], {'Ref': 'MediaLogs'})
         self.assertIn('MediaLogsPolicy', as_list(resources['Media']['DependsOn']))  # logging needs the grant first
 
+    def test_with_a_replica_region_every_new_version_goes_to_the_replica_and_no_delete_does(self):
+        # MEDIA-REPLICA (RISK-media-single-account): off, nothing of replication exists; on, one rule for the whole bucket
+        self.assertNotIn('ReplicationConfiguration', self.created()['Resources']['Media']['Properties'])
+        self.assertNotIn('ReplicationRole', self.created()['Resources'])
+        on = self.created(ReplicaRegion='replica-region-1')
+        config = on['Resources']['Media']['Properties']['ReplicationConfiguration']
+        self.assertEqual(config['Role'], {'Fn::GetAtt': ['ReplicationRole', 'Arn']})
+        [rule] = config['Rules']
+        self.assertEqual((rule['Status'], rule['Filter'], rule['DeleteMarkerReplication']),
+                         ('Enabled', {'Prefix': ''}, {'Status': 'Disabled'}))  # a deletion here leaves the copy whole
+        target = 'arn:${AWS::Partition}:s3:::tower-media-replica-${AWS::AccountId}-${ReplicaRegion}'
+        self.assertEqual(rule['Destination'], {'Bucket': {'Fn::Sub': target}, 'StorageClass': 'GLACIER_IR'})
+        # the name is the replica stack's own pattern, in its region (regions.json), and the order puts that stack first
+        replica = load(INFRA / 'stacks/58-media-replica.json')['Resources']['Replica']['Properties']['BucketName']
+        self.assertEqual(replica, {'Fn::Sub': 'tower-media-replica-${AWS::AccountId}-${AWS::Region}'})
+        self.assertEqual(on['Outputs']['ReplicaBucketName']['Value'],
+                         {'Fn::Sub': 'tower-media-replica-${AWS::AccountId}-${ReplicaRegion}'})
+        pattern = re.compile(self.template['Parameters']['ReplicaRegion']['AllowedPattern'])
+        self.assertTrue(pattern.fullmatch('') and pattern.fullmatch(load(INFRA / 'regions.json')['media-replica']))
+        self.assertIsNone(pattern.fullmatch('us-west-2; drop'))
+
+    def test_the_replication_role_reads_the_media_and_writes_only_the_replica(self):
+        role = self.created(ReplicaRegion='replica-region-1')['Resources']['ReplicationRole']['Properties']
+        self.assertEqual(role['RoleName'], 'tower-app-media-replication')  # AppRolesCarryThisBoundary: tower-app-*
+        self.assertEqual(role['PermissionsBoundary'],
+                         {'Fn::Sub': 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/tower-boundary'})
+        [trust] = role['AssumeRolePolicyDocument']['Statement']
+        self.assertEqual(sorted(trust['Principal']['Service']), ['batchoperations.s3.amazonaws.com', 's3.amazonaws.com'])
+        self.assertEqual(trust['Condition'], {'StringEquals': {'aws:SourceAccount': {'Ref': 'AWS::AccountId'}}})
+        [policy] = role['Policies']
+        granted = {}
+        for item in policy['PolicyDocument']['Statement']:
+            self.assertEqual(item['Effect'], 'Allow')
+            for action in as_list(item['Action']):
+                granted.setdefault(action, set()).add(item['Resource']['Fn::Sub'])
+        media = 'arn:${AWS::Partition}:s3:::tower-media-${AWS::AccountId}-${AWS::Region}'
+        replica = 'arn:${AWS::Partition}:s3:::tower-media-replica-${AWS::AccountId}-${ReplicaRegion}/*'
+        writes = {action for action, where in granted.items() if replica in where}
+        self.assertEqual(writes, {'s3:ReplicateObject', 's3:ReplicateTags'})  # no ReplicateDelete: deletes stay here
+        for action, where in granted.items():
+            self.assertEqual(len(where), 1, action)
+            if action not in writes:
+                self.assertIn(next(iter(where)), (media, media + '/*'), action)
+        self.assertIn('s3:InitiateReplication', granted)  # the one-off Batch Replication job of the older objects
+        self.assertFalse([action for action in granted if action.endswith('*') or 'Delete' in action
+                          or (action.startswith('s3:Put') and action != 's3:PutInventoryConfiguration')])
+
     def test_only_the_distribution_reads_the_bucket_and_only_over_tls(self):
         on = self.created(Cdn='on')['Resources']
         statements = on['MediaPolicy']['Properties']['PolicyDocument']['Statement']
@@ -1348,6 +1438,66 @@ class MediaStackTests(unittest.TestCase):
     @staticmethod
     def arn():
         return 'arn:aws:acm:us-east-1:123456789012:certificate/0123abcd-0123-4567-89ab-0123456789ab'
+
+
+class MediaReplicaStackTests(unittest.TestCase):
+    """MEDIA-REPLICA (RISK-media-single-account, Daniel 18/11 21:29 BRT): the second copy of the media, a stack of its own in a
+    second region (infra/aws/regions.json), deployed before the media stack whose replication rule writes into it."""
+    PATH = INFRA / 'stacks/58-media-replica.json'
+
+    def setUp(self):
+        self.template = load(self.PATH)
+
+    def test_it_lives_in_another_region_and_comes_first(self):
+        regions = load(INFRA / 'regions.json')
+        self.assertEqual(set(regions), {'media-replica'})
+        self.assertRegex(regions['media-replica'], r'^[a-z]{2}-[a-z]+-[0-9]$')
+        self.assertNotEqual(regions['media-replica'], 'us-east-1')  # not the media's region: another failure domain
+        self.assertEqual(load(INFRA / 'order.json')['media-replica'], [])
+        self.assertEqual(load(INFRA / 'parameters.json')['media'].get('ReplicaRegion', regions['media-replica']),
+                         regions['media-replica'])  # the media stack names the replica's region, or none yet
+        self.assertNotIn('Parameters', self.template)
+        self.assertNotIn('Fn::ImportValue', json.dumps(self.template))
+        self.assertFalse([output for output in self.template['Outputs'].values() if 'Export' in output])  # nobody imports it
+
+    def test_the_bucket_is_private_versioned_encrypted_kept_and_drops_old_versions_at_90_days(self):
+        resources = self.template['Resources']
+        self.assertEqual(sorted(resources), ['Replica', 'ReplicaPolicy'])
+        bucket = resources['Replica']
+        self.assertEqual((bucket['DeletionPolicy'], bucket['UpdateReplacePolicy']), ('Retain', 'Retain'))
+        props = bucket['Properties']
+        self.assertEqual(props['VersioningConfiguration'], {'Status': 'Enabled'})  # replication needs it on both sides
+        self.assertEqual(set(props['PublicAccessBlockConfiguration'].values()), {True})
+        self.assertEqual(len(props['PublicAccessBlockConfiguration']), 4)
+        self.assertEqual(props['OwnershipControls'], {'Rules': [{'ObjectOwnership': 'BucketOwnerEnforced'}]})
+        self.assertEqual(props['BucketEncryption']['ServerSideEncryptionConfiguration'][0]
+                         ['ServerSideEncryptionByDefault']['SSEAlgorithm'], 'AES256')
+        [rule] = props['LifecycleConfiguration']['Rules']
+        self.assertEqual(rule['NoncurrentVersionExpiration'], {'NoncurrentDays': 90})
+        self.assertNotIn('ExpirationInDays', rule)  # a current copy never expires
+        self.assertNotIn('Transitions', rule)  # replicated straight into GLACIER_IR (the media stack's rule): no transition fee
+        [deny] = resources['ReplicaPolicy']['Properties']['PolicyDocument']['Statement']
+        self.assertEqual((deny['Effect'], deny['Principal'], deny['Condition']),
+                         ('Deny', '*', {'Bool': {'aws:SecureTransport': 'false'}}))
+
+    def test_the_cost_it_declares_is_the_cheapest_class_and_far_under_the_owners_dollar(self):
+        # 3.388 GB in ~32k objects (the media bucket, 18/11). Per GB-month: Standard US$ 0.023, Standard-IA US$ 0.0125 and
+        # Glacier Instant Retrieval US$ 0.004, the last two billing an object under 128 KB as 128 KB. Even with every
+        # object billed 128 KB on top of its size (at most 3.388 GB + 32k x 128 KiB) Glacier IR is the cheapest; its
+        # PUT is US$ 0.02 per 1k (once for the 32k), and a restore of all of it US$ 0.03 per GB.
+        gb, objects = 3.388, 32_000
+        worst = gb + objects * 128 / 1024 / 1024
+        monthly = {'STANDARD': gb * 0.023, 'STANDARD_IA': worst * 0.0125, 'GLACIER_IR': worst * 0.004}
+        self.assertEqual(min(monthly, key=monthly.get), 'GLACIER_IR')
+        declared = float(re.search(r'About US\$ ([\d.]+) a month', self.template['Description']).group(1))
+        self.assertGreaterEqual(declared, round(monthly['GLACIER_IR'], 2))
+        self.assertLess(declared, 1.0)  # the owner's ceiling (18/11 21:29 BRT)
+        once = objects / 1000 * 0.02 + gb * 0.02 + 0.25 + objects / 1e6 * 1.0
+        self.assertLess(once, 1.1)
+        self.assertIn('about US$ 1', self.template['Description'])
+        media = load(INFRA / 'stacks/60-media.json')['Resources']['Media']['Properties']
+        rule = media['ReplicationConfiguration']['Fn::If'][1]['Rules'][0]
+        self.assertEqual(rule['Destination']['StorageClass'], 'GLACIER_IR')
 
 
 class DnsStackTests(unittest.TestCase):

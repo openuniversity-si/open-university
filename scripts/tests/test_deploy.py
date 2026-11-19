@@ -336,6 +336,11 @@ class StackOrderTests(unittest.TestCase):
             for imported in self.imports(template):
                 self.assertIn(imported, exports, f'{name} imports {imported}, which no stack exports')
                 needs.add(exports[imported])
+            # MEDIA-REPLICA: no ImportValue crosses regions, so a stack of another region (infra/aws/regions.json) is
+            # needed by every template that names its resources by their pattern, tower-<that stack>-...
+            text = json.dumps(template)
+            needs |= {other for other in json.loads((ROOT / 'infra/aws/regions.json').read_text())
+                      if other != name and f'tower-{other}-' in text}
             derived[name] = needs
         declared = json.loads((ROOT / 'infra/aws/order.json').read_text())
         self.assertEqual(set(declared), set(stacks))

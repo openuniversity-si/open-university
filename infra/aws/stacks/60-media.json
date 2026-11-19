@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "The media of the site on AWS (D-323 step 2): one S3 bucket, versioned (noncurrent versions kept 90 days), SSE-S3, private, owner-enforced, with its access logs in a second private bucket kept 90 days; and, once Cdn is on (the boundary allows cloudfront only after the Torre applies the bootstrap), a CloudFront distribution that reads it through Origin Access Control alone, HTTPS only, cached as immutable, on its default domain until CertificateArn (in CloudFront's region, issued and validated by the Torre) and Alias are both set: the stack never waits on DNS. Both buckets are retained. About US$ 0.13 a month: 3.4 GB at US$ 0.023, about 100k origin reads a month at US$ 0.0004 per 1k, and 2.5 GB and 100k requests a month inside CloudFront's free 1 TB and 10M.",
+  "Description": "The media of the site on AWS (D-323 step 2): one S3 bucket, versioned (noncurrent versions kept 90 days), SSE-S3, private, owner-enforced, with its access logs in a second private bucket kept 90 days; and, once Cdn is on (the boundary allows cloudfront only after the Torre applies the bootstrap), a CloudFront distribution that reads it through Origin Access Control alone, HTTPS only, cached as immutable, on its default domain until CertificateArn (in CloudFront's region, issued and validated by the Torre) and Alias are both set: the stack never waits on DNS. Both buckets are retained. About US$ 0.13 a month: 3.4 GB at US$ 0.023, about 100k origin reads a month at US$ 0.0004 per 1k, and 2.5 GB and 100k requests a month inside CloudFront's free 1 TB and 10M. With ReplicaRegion set, a rule replicates every new object version into the media-replica stack's bucket there (its cost is that stack's).",
   "Parameters": {
     "Cdn": {
       "Type": "String",
@@ -22,6 +22,12 @@
       "Default": "",
       "AllowedPattern": "^$|^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
       "Description": "the public host the distribution answers with CertificateArn; ignored while it is empty"
+    },
+    "ReplicaRegion": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^[a-z]{2}(-gov)?-[a-z]+-[0-9]$",
+      "Description": "the region of the media-replica stack (infra/aws/regions.json), whose bucket tower-media-replica-<account>-<region> must exist first; empty: no replication"
     }
   },
   "Conditions": {
@@ -60,6 +66,18 @@
                 ""
               ]
             }
+          ]
+        }
+      ]
+    },
+    "ReplicaOn": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "ReplicaRegion"
+            },
+            ""
           ]
         }
       ]
@@ -173,6 +191,91 @@
         }
       }
     },
+    "ReplicationRole": {
+      "Type": "AWS::IAM::Role",
+      "Condition": "ReplicaOn",
+      "Properties": {
+        "RoleName": "tower-app-media-replication",
+        "Description": "S3 copies the media into its replica, and the one-off Batch Replication job starts that for the older objects",
+        "PermissionsBoundary": {
+          "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/tower-boundary"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "s3.amazonaws.com",
+                  "batchoperations.s3.amazonaws.com"
+                ]
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "replication",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "ReadTheMediaBucket",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetReplicationConfiguration",
+                    "s3:ListBucket",
+                    "s3:PutInventoryConfiguration"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::tower-media-${AWS::AccountId}-${AWS::Region}"
+                  }
+                },
+                {
+                  "Sid": "ReadItsVersions",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObjectVersionForReplication",
+                    "s3:GetObjectVersionAcl",
+                    "s3:GetObjectVersionTagging",
+                    "s3:InitiateReplication"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::tower-media-${AWS::AccountId}-${AWS::Region}/*"
+                  }
+                },
+                {
+                  "Sid": "WriteTheReplica",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:ReplicateObject",
+                    "s3:ReplicateTags"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::tower-media-replica-${AWS::AccountId}-${ReplicaRegion}/*"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
     "Media": {
       "Type": "AWS::S3::Bucket",
       "DeletionPolicy": "Retain",
@@ -233,7 +336,42 @@
             "Key": "project",
             "Value": "tower"
           }
-        ]
+        ],
+        "ReplicationConfiguration": {
+          "Fn::If": [
+            "ReplicaOn",
+            {
+              "Role": {
+                "Fn::GetAtt": [
+                  "ReplicationRole",
+                  "Arn"
+                ]
+              },
+              "Rules": [
+                {
+                  "Id": "media-replica",
+                  "Status": "Enabled",
+                  "Priority": 1,
+                  "Filter": {
+                    "Prefix": ""
+                  },
+                  "DeleteMarkerReplication": {
+                    "Status": "Disabled"
+                  },
+                  "Destination": {
+                    "Bucket": {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::tower-media-replica-${AWS::AccountId}-${ReplicaRegion}"
+                    },
+                    "StorageClass": "GLACIER_IR"
+                  }
+                }
+              ]
+            },
+            {
+              "Ref": "AWS::NoValue"
+            }
+          ]
+        }
       }
     },
     "MediaPolicy": {
@@ -463,6 +601,13 @@
       },
       "Export": {
         "Name": "tower-media-distribution-domain"
+      }
+    },
+    "ReplicaBucketName": {
+      "Condition": "ReplicaOn",
+      "Description": "the bucket the media replicates into",
+      "Value": {
+        "Fn::Sub": "tower-media-replica-${AWS::AccountId}-${ReplicaRegion}"
       }
     }
   }

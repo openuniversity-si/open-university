@@ -365,3 +365,89 @@ Daniel mandou não esperar as 48 h nem os 30 dias. Pela Torre:
 - **O risco que nasce:** sem o R2, a mídia tem uma cópia só, numa conta e numa região. O versionamento cobre apagar ou
   sobrescrever, mas não uma conta comprometida. `RISK-media-single-account` registra isso. O tratamento é replicar para
   outra região (menos de um dólar por mês) e espera o ok de Daniel, porque é gasto.
+
+## A cópia da mídia em outra região (19/11, RISK-media-single-account)
+Daniel aprovou em 18/11 às 21:29 BRT uma cópia do bucket de mídia numa segunda região da AWS, abaixo de US$ 1 por mês.
+**O caminho mais barato:** S3 Cross-Region Replication (CRR) para um bucket em `us-west-2`, gravado direto como Glacier
+Instant Retrieval. Uma cópia feita à mão pela Torre, sem stack, custaria menos código, mas deixaria um bucket e um papel fora
+do IaC e da fronteira; outra conta com Object Lock cobriria também uma conta comprometida, mas pede uma conta nova (do
+dono) e fica para depois.
+
+**O que esta PR traz.**
+- **`infra/aws/stacks/58-media-replica.json`** (`tower-app-media-replica`): o bucket `tower-media-replica-<conta>-us-west-2`,
+  versionado, SSE-S3, privado, dono imposto, retido, só por TLS, versões antigas apagadas em 90 dias. Vem antes de `60-media`
+  porque o `media` precisa dele (`order.json`: `"media": ["media-replica"]`; nenhum `ImportValue` cruza regiões, então o
+  `StackOrderTests` deriva a aresta do nome `tower-media-replica-` no modelo do `media`).
+- **`infra/aws/regions.json`** (`{"media-replica": "us-west-2"}`): o `deploy.sh` passa `--region` a toda chamada do
+  CloudFormation dessa stack (deploy, execute-change-set, describe-stacks, eventos, rollback) e a região entra no hash dela.
+  As outras stacks ficam na região do build, como antes.
+- **`60-media.json`**: o parâmetro `ReplicaRegion` (vazio: nada muda) cria o papel `tower-app-media-replication` (com a
+  fronteira) e a regra de replicação do bucket inteiro: toda versão nova vai para a réplica como `GLACIER_IR`, e um
+  delete marker **não** é replicado, então apagar no `us-east-1` não apaga a cópia. O papel lê só o bucket de mídia e só
+  escreve `ReplicateObject`/`ReplicateTags` na réplica; o mesmo papel serve ao job de Batch Replication
+  (`s3:InitiateReplication`, `s3:PutInventoryConfiguration`). O `parameters.json` liga com `ReplicaRegion=us-west-2`.
+- **`bootstrap.json`**: o novo parâmetro `ReplicaRegion` (padrão vazio) e a condição de região da declaração
+  `WorkloadServicesInTheStackRegion` vira `[região da stack, ReplicaRegion]`; as ARNs de stack do deployer dizem
+  `cloudformation:*` na região (a fronteira as segura nas duas). Para caber (sobravam 96 bytes), quatro negações viraram
+  padrões que negam o mesmo ou mais: `codebuild:*Project`, `lambda:DeleteFunction*`, `lambda:*Permission`,
+  `iam:*RolePermissionsBoundary`. 51.155 bytes.
+
+**Custo.** 3,4 GB em ~32 mil objetos. Por GB-mês: Standard US$ 0,023, Standard-IA US$ 0,0125, Glacier IR US$ 0,004
+(os dois últimos cobram no mínimo 128 KB por objeto). Mesmo com 128 KB a mais em cada objeto (até 7,3 GB), o Glacier IR
+dá cerca de **US$ 0,03 por mês**; o Standard daria US$ 0,08. Uma vez: cerca de **US$ 1** (32 mil PUTs de replicação a
+US$ 0,02 por mil, 3,4 GB entre regiões a US$ 0,02/GB, US$ 0,25 do job e US$ 1 por milhão de objetos). Restaurar tudo:
+US$ 0,03/GB de leitura, cerca de US$ 0,45 com as requisições e a transferência.
+
+**Passos da Torre, em ordem.**
+1. **Antes do merge desta PR: reaplicar o `tower-bootstrap`** com este modelo, `ReplicaRegion=us-west-2` e
+   `UsePreviousValue` nos outros parâmetros. Sem isso, o deploy do merge falha na `tower-app-media-replica` (a fronteira
+   recusa `us-west-2`), o `media` e o `dns` não começam e o `last-sha` não anda.
+   ```
+   aws cloudformation create-change-set --region us-east-1 --stack-name tower-bootstrap --change-set-name req-media-replica \
+     --template-body file://infra/aws/bootstrap.json --capabilities CAPABILITY_NAMED_IAM \
+     --parameters ParameterKey=OriginRepoUrl,UsePreviousValue=true ParameterKey=BaseBranch,UsePreviousValue=true \
+       ParameterKey=DoorbellTokenSha256,UsePreviousValue=true ParameterKey=AlertEmail,UsePreviousValue=true \
+       ParameterKey=ReplicaRegion,ParameterValue=us-west-2
+   aws cloudformation describe-change-set --region us-east-1 --stack-name tower-bootstrap --change-set-name req-media-replica \
+     --query 'Changes[].ResourceChange.[LogicalResourceId,Action,Replacement]' --output text
+   ```
+   Esperado: `Boundary Modify False` e `DeployerRole Modify False`, nada mais. Então `execute-change-set` e, no fim, o
+   `get-template` canônico dá o `APPLIED` de `test_infra_aws.py` (`ea269641…fcda3`).
+2. **O deploy do merge** cria `tower-app-media-replica` em `us-west-2` e depois atualiza `tower-app-media` com o papel e a
+   regra. Prova:
+   ```
+   ACCT=$(aws sts get-caller-identity --query Account --output text)
+   SRC=tower-media-$ACCT-us-east-1; DST=tower-media-replica-$ACCT-us-west-2
+   aws cloudformation describe-stacks --region us-west-2 --stack-name tower-app-media-replica --query 'Stacks[0].StackStatus'
+   aws s3api get-bucket-replication --bucket $SRC --query 'ReplicationConfiguration.Rules[0].[Status,Destination.Bucket,Destination.StorageClass]'
+   ```
+3. **Os objetos de antes da regra (uma vez).** A CRR só copia o que é escrito depois dela; o resto vai por um job de S3
+   Batch Replication com manifesto gerado, sem relatório (a verificação é o passo 4):
+   ```
+   aws s3control create-job --region us-east-1 --account-id $ACCT \
+     --operation '{"S3ReplicateObject":{}}' \
+     --manifest-generator '{"S3JobManifestGenerator":{"ExpectedBucketOwner":"'$ACCT'","SourceBucket":"arn:aws:s3:::'$SRC'","EnableManifestOutput":false,"Filter":{"EligibleForReplication":true,"ObjectReplicationStatuses":["NONE","FAILED"]}}}' \
+     --report '{"Enabled":false}' --priority 10 \
+     --role-arn arn:aws:iam::$ACCT:role/tower-app-media-replication \
+     --no-confirmation-required --client-request-token media-replica-backfill-1 \
+     --description 'media: the objects older than the replication rule'
+   aws s3control describe-job --region us-east-1 --account-id $ACCT --job-id <JobId> \
+     --query 'Job.[Status,ProgressSummary.TotalNumberOfTasks,ProgressSummary.NumberOfTasksSucceeded,ProgressSummary.NumberOfTasksFailed]'
+   ```
+   Esperado: `Complete`, falhas 0 (um `FAILED` volta no mesmo comando com outro `--client-request-token`).
+4. **A verificação: contagem e bytes dos dois lados.**
+   ```
+   aws s3 ls s3://$SRC --recursive --summarize | tail -n 2
+   aws s3 ls s3://$DST --recursive --summarize --region us-west-2 | tail -n 2
+   aws s3api head-object --bucket $SRC --key <uma chave m/...> --query ReplicationStatus   # COMPLETED
+   ```
+   `Total Objects` e `Total Size` iguais (as versões atuais; um upload do site entre os dois `ls` aparece primeiro no
+   primeiro, e chega à réplica em minutos). Com isso, uma PR registra a prova: `RISK-media-single-account` sai de `assessed`
+   e o `DATA-r2-media` ganha a data da verificação.
+
+**Reverter.** `ReplicaRegion` vazio no `parameters.json` tira a regra e o papel; o bucket da réplica é retido (apagar é à
+mão, pela Torre). Voltar o `bootstrap.json` pede outra reaplicação.
+
+**O que fica fora.** Uma conta comprometida ou fechada ainda leva as duas cópias (mesma conta, sem Object Lock); a regra
+`tower-app-stack-state` do EventBridge só vê stacks de `us-east-1`, então os eventos da `tower-app-media-replica` não chegam
+à porta (o `deploy.sh` espera a stack pelo `describe-stacks`).
