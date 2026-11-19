@@ -86,6 +86,14 @@ class Readers(unittest.TestCase):
         found = supply.pip_parts('boto3==1.0.0\nrich[x]==2.0 --hash=sha256:ab\n# c==1\nloose>=1\n', 'r.txt')
         self.assertEqual([(entry['name'], entry['pinned']) for entry in found], [('boto3', False), ('rich', True)])
 
+    def test_a_hash_locked_file_pins_each_requirement_by_its_continued_hash_lines(self):
+        # D-335: the form uv and pip-compile write (--generate-hashes): the hashes on the lines a backslash continues
+        text = ('# header\nanyio==4.16.0 \\\n    --hash=sha256:aa \\\n    --hash=sha256:bb\n'
+                "tzdata==2026.6 ; sys_platform == 'win32' \\\n    --hash=sha256:cc\nloose==1.0\n")
+        found = supply.pip_parts(text, 'r.txt')
+        self.assertEqual([(entry['name'], entry['version'], entry['pinned']) for entry in found],
+                         [('anyio', '4.16.0', True), ('tzdata', '2026.6', True), ('loose', '1.0', False)])
+
     def test_a_component_named_by_two_files_is_one_entry_pinned_only_if_both_pin_it(self):
         root = Path(tempfile.mkdtemp(prefix='supply-'))
         self.addCleanup(shutil.rmtree, root)
@@ -173,6 +181,24 @@ class Check(unittest.TestCase):
         advisories = model.read_advisories(self.root)
         self.assertEqual([(item['state'], item['links']) for item in advisories],
                          [('affecting', [{'type': 'affects', 'target': 'DEP:npm:left-pad@1.3.0'}])])
+
+    def test_a_supplier_is_judged_an_account_by_its_budget_and_a_registry_by_what_it_supplies(self):
+        """STD-supply-supplier-answers (D-335): the warnings that make a supplier non-conformant."""
+        def sup(id, kind, **body):
+            return {'id': id, 'type': 'SUP', 'state': body.pop('state', 'active'), 'fingerprint': 'f', 'links': [],
+                    'body': {'id': id, 'kind': kind, **body}}
+        found = {item['id']: item for item in (
+            sup('SUP-paid', 'account', budget='REQ-cap'), sup('SUP-free', 'account'),
+            sup('SUP-lost', 'account', budget='REQ-gone'), sup('SUP-used', 'registry'), sup('SUP-idle', 'platform'),
+            sup('SUP-old', 'registry', state='retired'), sup('SUP-only-removed', 'registry'),
+            {'id': 'REQ-cap', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': []},
+            {'id': 'DEP:npm:a@1', 'type': 'DEP', 'state': 'in-use', 'fingerprint': 'f',
+             'links': [{'type': 'supplied-by', 'target': 'SUP-used'}]},
+            {'id': 'DEP:npm:b@1', 'type': 'DEP', 'state': 'removed', 'fingerprint': 'f',
+             'links': [{'type': 'supplied-by', 'target': 'SUP-only-removed'}]})}
+        self.assertEqual(sorted(line.split(':', 1)[0] for line in model.supply_findings(found)),
+                         ['SUP-free', 'SUP-idle', 'SUP-lost', 'SUP-only-removed'])
+        self.assertTrue(model.judged(model.metamodel(ROOT), 'SUP'))
 
 
 class RealRepository(unittest.TestCase):

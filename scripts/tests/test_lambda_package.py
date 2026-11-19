@@ -252,10 +252,15 @@ class Deployer(unittest.TestCase):
 
     def test_the_layer_pins_the_one_library_the_lambdas_import(self):
         # PORT-COLD-LAYER: SQLAlchemy is the service's pool, in the image; no Lambda's module closure reaches it
-        pins = [line for line in (ROOT / lp.LAYER_REQUIREMENTS).read_text().splitlines() if line and not line.startswith('#')]
+        # D-335: the direct pins are the .in files; the .txt files lock their closure with hashes
+        pins = [line for line in (ROOT / lp.LAYER_REQUIREMENTS).with_suffix('.in').read_text().splitlines()
+                if line and not line.startswith('#')]
         self.assertEqual(len(pins), 1)
         self.assertTrue(pins[0].startswith('psycopg[binary]=='))
-        self.assertIn(pins[0], (ROOT / 'infra/service/requirements.txt').read_text())  # the image's own pin: one driver
+        self.assertIn(pins[0], (ROOT / 'infra/service/requirements.in').read_text())  # the image's own pin: one driver
+        locked = [line.split(' ')[0] for line in (ROOT / lp.LAYER_REQUIREMENTS).read_text().splitlines()
+                  if line[:1].isalnum()]
+        self.assertIn(pins[0].replace('[binary]', ''), locked)
         source = ROOT / lp.SOURCE
         for function in lp.FUNCTIONS:
             for module in lp.closure(ROOT, function):

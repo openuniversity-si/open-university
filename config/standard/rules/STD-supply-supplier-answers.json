@@ -1,0 +1,19 @@
+{
+  "id": "STD-supply-supplier-answers",
+  "statement": "An active supplier answers for what the engine takes from it: an account names the requirement its spend is measured against (its budget, an active requirement), and a registry or a platform supplies at least one active component or data store; a supplier nothing is taken from is retired.",
+  "state": "warning",
+  "owner": "administration",
+  "applies_to": [
+    "SUP"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/model.py:supply_findings"
+  },
+  "basis": [
+    "D-320",
+    "D-335"
+  ],
+  "deadline": "2026-11-24",
+  "note": "D-335: the supply system's suppliers had no rule (7 not judged on ff8fa43); the model reads this function's warnings as the SUP's non-conformance (JUDGED_BY_FINDINGS). Its proof is scripts/tests/test_supply.py. In warning, not blocking: the model's warnings stop no change; the deadline is PROP-supply-system's."
+}

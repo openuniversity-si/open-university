@@ -93,7 +93,7 @@ class TheService(unittest.TestCase):
         self.assertLess(SERVE.index('if not launch():'), SERVE.index("LOG.info('serve: up')"))
         # the safety argument reads dbos 3.4.0 (run_migrations=False verifies; executor_id keys the recovery): a bump re-reads it
         requirements = (ROOT / 'infra/service/requirements.txt').read_text(encoding='utf-8')
-        self.assertIn('dbos==3.4.0\n', requirements)
+        self.assertRegex(requirements, r'(?m)^dbos==3\.4\.0 \\$')  # the hash-locked pin (D-335)
 
     def test_once_live_without_a_gate_runs_at_the_start_so_the_swap_has_no_launch(self):
         clock, launched = Clock(), []
