@@ -4,9 +4,9 @@ The metamodel is data in config/model/, one file per object type (types/), link 
 inventory source (inventory/), plus the conformance scale (conformance.json), each validated against its contract in
 contracts/model/. The objects are read from where each system keeps them; F1a reads the ones that exist today:
 
-  D     docs/domain/decisions/D-NNN.md (state accepted; its `proof:` file verifies it) and the older rows of
-        docs/domain/DECISIONS.md (the state its Status cell says, the test files and cases its Proof cell names verify
-        it when they all exist; row_proof)
+  D     docs/domain/decisions/D-NNN.md (state accepted; its `proof:` file verifies it; the decisions its `supersedes:`
+        names are superseded) and the older rows of docs/domain/DECISIONS.md (the state its Status cell says, the test
+        files and cases its Proof cell names verify it when they all exist; row_proof)
   UNIT  units/<id>/unit.json (active; `requires` are depends-on links)
   TEST  scripts/tests/*.test.sh (active), each with the test files it runs as its parts, and the test files under
         scripts/tests/ that no script test runs (active, a test of their own)
@@ -173,7 +173,8 @@ def read_decisions(root):
         refuted = set(REFUTES.findall(text))
         assumed = [{'type': 'refutes' if ident in refuted else 'assumes', 'target': ident}
                    for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
-        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed))
+        replaced = [{'type': 'supersedes', 'target': ident} for ident in re.findall(r'\bD-[0-9]+\b', fields.get('supersedes', ''))]
+        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed + replaced))
         proof = fields.get('proof', '').strip().strip('`')
         if proof:
             objects.append({'id': f'TEST:{proof}', 'type': 'TEST', 'state': 'active', 'source': proof, 'claimed': True,
@@ -196,6 +197,13 @@ def read_decisions(root):
                     objects.append({'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name,
                                     'claimed': True, 'fingerprint': None,
                                     'links': [{'type': 'verifies', 'target': number}]})
+    # A record is written once (D-217), so it changes only by a later one: a record whose `supersedes:` names a
+    # decision makes that decision superseded, a record or a row alike (the row's Status cell is the older path).
+    superseded = {link['target'] for item in objects if item['type'] == 'D' for link in item['links']
+                  if link['type'] == 'supersedes'}
+    for item in objects:
+        if item['type'] == 'D' and item['id'] in superseded and item['state'] == 'accepted':
+            item['state'] = 'superseded'
     return objects
 
 
@@ -1302,6 +1310,7 @@ ARCHITECTURE_IMPORTS = 'config/architecture/imports/*.json'
 CAPABILITIES = 'docs/capabilities/CAP-*.md'
 CAPABILITY_STATE = {'requested': 'proposed', 'approved': 'active', 'done': 'active'}
 ADRS = 'docs/adr/ADR-*.md'
+ADR_PROOF = re.compile(r'^Proof:\s*(.+)$', re.MULTILINE)
 ADR_STATUS = re.compile(r'Status:\s*(proposed|accepted|rejected|deprecated|superseded)\b(?:\s+by\s+\[?((?:D|ADR)-[0-9]+))?', re.IGNORECASE)
 ADR_STATE = {'rejected': 'deprecated'}
 
@@ -1338,18 +1347,27 @@ def read_architecture(root):
 def read_adrs(root):
     """Architecture decision records as decisions (D): the state is the MADR status the record states (proposed,
     accepted, deprecated, superseded; rejected reads as deprecated); `superseded by X` becomes a supersedes link on X,
-    and `deprecated by D-NNN` the decision that retired it."""
+    and `deprecated by D-NNN` the decision that retired it. A `Proof:` line of the head is read as a row's Proof cell
+    (row_proof): an accepted record is verified by the tests it names when every one exists (D-335)."""
     root = Path(root)
-    found = []
+    found, index = [], {}
     for path in sorted(root.glob(ADRS)):
         text = path.read_text()
         ident = re.match(r'(ADR-[0-9]+)', path.stem).group(1)
-        status = ADR_STATUS.search('\n'.join(text.splitlines()[:len('0123456789')]))
+        head = '\n'.join(text.splitlines()[:len('0123456789')])
+        status = ADR_STATUS.search(head)
         state = ADR_STATE.get(status.group(1).lower(), status.group(1).lower()) if status else 'proposed'
         by = status.group(2) if status else None
         item = _obj(ident, 'D', state, path.relative_to(root).as_posix(), text)
         item['body'] = {'adr': True, **({'retired_by': by} if by and state == 'deprecated' else {})}
         found.append(item)
+        cell = ADR_PROOF.search(head)
+        if cell:
+            proof = row_proof(root, cell.group(1), index)
+            item['proof'] = {key: proof[key] for key in ('outcome', 'missing', 'outside')}
+            if state == 'accepted' and proof['outcome'] == 'proven':
+                found += [{'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name, 'claimed': True,
+                           'fingerprint': None, 'links': [{'type': 'verifies', 'target': ident}]} for name in proof['files']]
         if by and state == 'superseded':
             found.append({'id': by, 'type': 'D', 'state': 'accepted', 'source': '', 'fingerprint': None, 'claimed': True,
                           'links': [{'type': 'supersedes', 'target': ident}]})
@@ -1453,7 +1471,7 @@ def decisions_measure(found, root=ROOT):
         edited += len(commits) > 1
     rows = {}
     for item in accepted:
-        if 'proof' in item:
+        if 'proof' in item and not item.get('body', {}).get('adr'):
             rows[item['proof']['outcome']] = rows.get(item['proof']['outcome'], 0) + 1
     return {'by_state': dict(sorted(by_state.items())), 'accepted': len(accepted), 'proven': proven,
             'edited_records': edited, **({'table_proofs': dict(sorted(rows.items()))} if rows else {})}

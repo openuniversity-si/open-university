@@ -1,6 +1,7 @@
 # ADR-42 — The gate answers by content: what did not change is judged by key, what changed runs cheaply
 
 Status: accepted (PADRAO-DEV F3a: an engine decision in force).
+Proof: `scripts/tests/test_gate_test_cache.py` › "test_a_file_the_test_does_not_cover_does_not_change_the_key", "test_a_changed_covered_file_changes_the_key", "test_a_file_the_test_does_not_cover_leaves_it_cached" (an unchanged test is answered by its key); `scripts/tests/test_git_objects.py` › "test_a_commit_is_read_once_and_a_moved_ref_is_read_again" (git objects read once per sha)
 
 Date: 2026-10-30 · Status: accepted (Daniel, 30/10 10:43 BRT, GATE-SPEED; D-092) · Builds on ADR-41 and D-076 · Unit:
 [GATE-SPEED](../units/GATE-SPEED/plan.md)

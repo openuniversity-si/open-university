@@ -24,6 +24,20 @@ class Record(unittest.TestCase):
         self.assertTrue(text.startswith('---\n'))
         self.assertTrue(text.endswith(FIXTURE['text'] + '\n'))
 
+    def test_a_record_names_what_it_supersedes_only_when_asked(self):
+        # D-335: the only way an accepted record changes state is a later record's supersedes: line
+        plain = decision_record.record_text('D-9', 't', 'x', 'none', 'p.py')
+        self.assertNotIn('supersedes:', plain)
+        text = decision_record.record_text('D-9', 't', 'x', 'none', 'p.py', 'D-7, D-1')
+        self.assertIn('\nsupersedes: D-7, D-1\nproof: p.py\n---\n', text)
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                decision_record.main(['--text', 't', '--proof', 'p.py', '--supersedes', 'the old one'], root=Path(directory))
+            self.assertFalse((Path(directory) / 'docs/domain/decisions').exists())
+
     def test_a_record_is_written_once_and_never_rewritten(self):
         with tempfile.TemporaryDirectory() as tmp:
             args = (tmp, FIXTURE['number'], FIXTURE['time'], FIXTURE['text'], FIXTURE['premises'], FIXTURE['proof'])

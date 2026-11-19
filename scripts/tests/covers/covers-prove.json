@@ -4,6 +4,11 @@
     "scripts/tests/covers-prove.test.sh",
     "scripts/tests/test_covers_prove.py",
     "scripts/covers-prove",
-    "scripts/lib/covers_prove.py"
+    "scripts/lib/covers_prove.py",
+    "scripts/lib/gate_areas.py",
+    "scripts/lib/globs.py",
+    "scripts/tests/covers/gate-status.json",
+    "scripts/tests/covers/gate-test-cache-env.json",
+    "scripts/tests/covers/gate-shadow.json"
   ]
 }

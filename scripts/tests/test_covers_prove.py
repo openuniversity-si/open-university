@@ -101,5 +101,26 @@ class Main(Repo):
         self.assertIn('REFUSED reads-keep', said)
 
 
+class ProvedCovers(unittest.TestCase):
+    """The covers that covers-prove showed a test never loads stay out of its manifest (D-182, D-213): a pattern
+    that comes back makes the test run on files it does not read, the miss the proof removed."""
+
+    DROPPED = {
+        'gate-status': ['scripts/gate-local', 'units/engine-gate-report/unit.json'],  # D-182
+        'gate-test-cache-env': ['scripts/lib/gate-budget.sh', 'scripts/lib/gate_status.py', 'scripts/lib/gate_gc.py',
+                                'scripts/lib/adapters/__init__.py', 'scripts/lib/registry_readers.py'],  # D-182
+        'gate-shadow': ['scripts/gate-shadow'],  # D-213
+    }
+
+    def test_d182_d213_a_pattern_proved_unneeded_is_not_in_the_manifest(self):
+        import json
+        from gate_areas import glob_match
+        for name, dropped in self.DROPPED.items():
+            covers = json.loads((ROOT / 'scripts' / 'tests' / 'covers' / f'{name}.json').read_text())['covers']
+            for path in dropped:
+                with self.subTest(test=name, path=path):
+                    self.assertEqual([pattern for pattern in covers if glob_match(path, pattern)], [])
+
+
 if __name__ == '__main__':
     unittest.main()

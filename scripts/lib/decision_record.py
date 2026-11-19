@@ -29,20 +29,22 @@ def next_number(root):
     return max(found, default=0) + 1
 
 
-def record_text(number, when, text, premises, proof):
-    """The record of one decision as text."""
-    head = ['---', f'number: {number}', f'time: {when}', f'premises: {premises}', f'proof: {proof}', '---', '']
+def record_text(number, when, text, premises, proof, supersedes=''):
+    """The record of one decision as text; `supersedes` (D-NNN, comma separated) names the decisions it replaces, the only
+    way an accepted record changes state, since a record is never edited (D-335; scripts/lib/model.py reads it)."""
+    head = ['---', f'number: {number}', f'time: {when}', f'premises: {premises}',
+            *([f'supersedes: {supersedes}'] if supersedes else []), f'proof: {proof}', '---', '']
     return '\n'.join(head) + text.strip() + '\n'
 
 
-def write(root, number, when, text, premises, proof):
+def write(root, number, when, text, premises, proof, supersedes=''):
     """Write the record; refuses a number that already has one (a decision is never rewritten by a second command)."""
     folder = Path(root) / RECORDS
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f'{number}.md'
     if path.exists():
         raise FileExistsError(f'{path} exists; a decision is written once')
-    path.write_text(record_text(number, when, text, premises, proof))
+    path.write_text(record_text(number, when, text, premises, proof, supersedes))
     return path
 
 
@@ -51,10 +53,13 @@ def main(argv=None, root=ROOT):
     parser.add_argument('--text', required=True, help='the decision: the rule, the evidence, the consequence')
     parser.add_argument('--premises', default='none')
     parser.add_argument('--proof', required=True, help='a test file that proves the decision')
+    parser.add_argument('--supersedes', default='', help='the decisions this one supersedes, D-NNN comma separated (D-335)')
     args = parser.parse_args(argv)
     number = next_number(root)
     when = decision_next.brt()
-    path = write(root, f'D-{number}', when, args.text, args.premises, args.proof)
+    if args.supersedes and not re.fullmatch(r'D-[0-9]+(?:, ?D-[0-9]+)*', args.supersedes.strip()):
+        parser.error(f'--supersedes takes D-NNN, comma separated, not {args.supersedes!r}')
+    path = write(root, f'D-{number}', when, args.text, args.premises, args.proof, args.supersedes.strip())
     print(path)
     if not (Path(root) / decision_table.TABLE).is_file():
         print(f'{decision_table.TABLE} is missing; no row written (run scripts/decision-table --write)', file=sys.stderr)
