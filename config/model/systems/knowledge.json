@@ -1,6 +1,7 @@
 {
   "id": "knowledge",
   "name": "Knowledge",
+  "group": "engineering",
   "processes": [
     "15288/12207 knowledge management",
     "15288/12207 risk management",

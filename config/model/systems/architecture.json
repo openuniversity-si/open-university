@@ -1,6 +1,7 @@
 {
   "id": "architecture",
   "name": "Architecture",
+  "group": "engineering",
   "processes": [
     "15288/12207 architecture definition",
     "15288/12207 design definition",

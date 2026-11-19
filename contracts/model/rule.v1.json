@@ -31,9 +31,10 @@
         "draft",
         "warning",
         "blocking",
-        "replaced"
+        "replaced",
+        "dormant"
       ],
-      "description": "draft: written, not yet checked; warning: checked and reported, with a deadline; blocking: a violation stops the change; replaced: a newer rule took its place."
+      "description": "draft: written, not yet checked; warning: checked and reported, with a deadline; blocking: a violation stops the change; replaced: a newer rule took its place. dormant (D-326): its check runs only in tooling a decision stopped (dormant_by names it), so it counts in no enforcement measure and needs no basis while dormant."
     },
     "owner": {
       "type": "string",
@@ -90,6 +91,11 @@
     "replaced_by": {
       "type": "string",
       "pattern": "^STD-[a-z0-9][a-z0-9-]*$"
+    },
+    "dormant_by": {
+      "type": "string",
+      "pattern": "^D-[0-9]+$",
+      "description": "For a dormant rule (D-326): the decision that stopped the tooling its check runs in."
     },
     "note": {
       "type": "string"

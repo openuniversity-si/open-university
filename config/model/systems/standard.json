@@ -1,6 +1,7 @@
 {
   "id": "standard",
   "name": "Standard",
+  "group": "engineering",
   "processes": [
     "15288/12207 life cycle model management (the processes, models and rules)",
     "SWEBOK 10 Software Engineering Process",

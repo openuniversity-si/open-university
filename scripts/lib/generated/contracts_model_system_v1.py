@@ -4,6 +4,7 @@ from typing import Any, Literal, NotRequired, Required, TypedDict  # noqa: F401
 SystemV1 = TypedDict('SystemV1', {
     'id': Required[str],
     'name': Required[str],
+    'group': NotRequired[Literal['management', 'engineering']],
     'processes': Required[list[str]],
     'owner': Required[str],
     'measure': Required[str],

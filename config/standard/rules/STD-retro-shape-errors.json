@@ -1,7 +1,8 @@
 {
   "id": "STD-retro-shape-errors",
   "statement": "Why these bytes are not a log of this kind ([] when they are).",
-  "state": "blocking",
+  "state": "dormant",
+  "dormant_by": "D-314",
   "owner": "administration",
   "applies_to": [
     "CHG"

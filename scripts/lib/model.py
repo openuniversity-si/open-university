@@ -20,7 +20,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
   scripts/model seed-rules         writes config/standard/rules/<id>.json for every refusal, gate stage, D-069 principle
                                    and the method that has no rule yet (never rewrites a rule)
   scripts/model measure [--json F] the main metric (the share of active requirements whose chain is verified end to
-                                   end), the requirement inventory, and each system's objects and calculated conformance
+                                   end), the requirement inventory, and each system's objects and calculated conformance,
+                                   under a heading per group of systems (management, engineering: D-330)
 
 A requirement's chain is verified when an architecture element satisfies it, a unit realizes that element, a test
 verifies the requirement, and a validation validates it or the need it derives from. An object is conformant when a
@@ -56,6 +57,7 @@ UNIT_MANIFESTS = 'units/*/unit.json'
 RULES = 'config/standard/rules/*.json'
 COVERS = 'scripts/tests/covers/*.json'
 GATE_STAGES = 'scripts/lib/gate-stages.json'
+VERIFIER = 'scripts/lib/verify_commit.py'  # tower/gate: its SKIPPED names the stages the live gate does not run (D-326)
 TEST_GLOBS = ('scripts/tests/*.test.sh', 'scripts/tests/**/test_*.py')
 
 
@@ -497,9 +499,36 @@ def gate_stages(root):
     return sorted(_read_json(path).get('stages', {})) if path.is_file() else []
 
 
+def skipped_stages(root):
+    """The gate stages tower/gate skips: the literal SKIPPED of scripts/lib/verify_commit.py, read without importing it
+    (D-326). No verifier, no skipped stage."""
+    import ast
+    path = Path(root) / VERIFIER
+    if not path.is_file():
+        return []
+    for node in ast.parse(path.read_text()).body:
+        if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == 'SKIPPED'
+                                                for target in node.targets):
+            return sorted(ast.literal_eval(node.value))
+    return []
+
+
+def skipped_stage_errors(found, root, skipped=None):
+    """D-326: a rule marked blocking is one whose check tower/gate or the pre-push check runs, so a blocking gate-stage
+    rule whose stage verify_commit skips is an error (the catalog would declare a control that does not operate): the
+    rule is dormant, or the stage comes back."""
+    skipped = skipped_stages(root) if skipped is None else skipped
+    return [f'{item["id"]}: blocking, but tower/gate skips its stage {item["rule"]["check"]["ref"]} '
+            f'({VERIFIER} SKIPPED): mark it dormant with dormant_by, or run the stage (D-326)'
+            for item in sorted(found.values(), key=lambda item: item['id'])
+            if item['type'] == 'STD' and 'rule' in item and item['state'] == 'blocking'
+            and item['rule']['check']['kind'] == 'gate-stage' and item['rule']['check']['ref'] in skipped]
+
+
 def rule_findings(found, root, stops=None, stages=None):
     """Warnings of the standard: a refusal or a gate stage with no rule, a rule whose check does not exist, a rule with
-    no basis, a rule in warning with no deadline."""
+    no basis (a dormant rule needs none, D-326), a rule in warning with no deadline, a dormant rule that names no
+    decision that stopped its tooling (dormant_by) and a dormant_by on a rule that is not dormant."""
     root = Path(root)
     rules = [item for item in found.values() if item['type'] == 'STD' and 'rule' in item]
     refs = {(item['rule']['check']['kind'], item['rule']['check']['ref']) for item in rules}
@@ -519,8 +548,12 @@ def rule_findings(found, root, stops=None, stages=None):
         elif kind == 'function' and not re.search(rf'^\s*def {re.escape(ref.split(":", 1)[1])}\(',
                                                   (root / target).read_text(), re.MULTILINE):
             warnings.append(f'{item["id"]}: function {ref} does not exist')
-        if not rule.get('basis'):
+        if not rule.get('basis') and rule['state'] != 'dormant':
             warnings.append(f'{item["id"]}: no decision justifies it (basis)')
+        if rule['state'] == 'dormant' and not rule.get('dormant_by'):
+            warnings.append(f'{item["id"]}: dormant with no decision that stopped its tooling (dormant_by)')
+        if rule.get('dormant_by') and rule['state'] != 'dormant':
+            warnings.append(f'{item["id"]}: dormant_by {rule["dormant_by"]} on a rule in {rule["state"]}')
         if rule['state'] == 'warning' and not rule.get('deadline'):
             warnings.append(f'{item["id"]}: in warning with no deadline')
     return warnings
@@ -1559,6 +1592,7 @@ def check(meta, found, root=None, today=None):
     errors, warnings = [], []
     if root is not None:
         warnings += rule_findings(found, root)
+        errors += skipped_stage_errors(found, root)
         warnings += requirement_findings(found)
         managed_errors, managed_warnings = management_findings(found, today or utc_today())
         errors += managed_errors
@@ -1705,9 +1739,11 @@ def rate(share, scale):
 
 def standard_measure(found, today):
     """The standard's own measure: its rules, those with an executable check, with a test that verifies them, with a
-    decision that justifies them, and those in warning past their deadline (dates as YYYY-MM-DD)."""
+    decision that justifies them, and those in warning past their deadline (dates as YYYY-MM-DD). A dormant rule (D-326)
+    counts in none of them, only in `dormant`."""
     into = incoming(found)
-    rules = [item for item in found.values() if item['type'] == 'STD' and 'rule' in item and item['state'] != 'replaced']
+    rules = [item for item in found.values() if item['type'] == 'STD' and 'rule' in item
+             and item['state'] not in ('replaced', 'dormant')]
     def tested(item):
         return any(kind == 'verifies' and found.get(source, {}).get('fingerprint') is not None
                    for kind, source in into.get(item['id'], []))
@@ -1717,6 +1753,8 @@ def standard_measure(found, today):
         'tested': sum(1 for item in rules if tested(item)),
         'justified': sum(1 for item in rules if item['rule'].get('basis')),
         'overdue': sum(1 for item in rules if item['state'] == 'warning' and item['rule'].get('deadline', today) < today),
+        'dormant': sum(1 for item in found.values() if item['type'] == 'STD' and 'rule' in item
+                       and item['state'] == 'dormant'),
     }
 
 
@@ -1766,7 +1804,8 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         unread = {type_id: {'verdict': VERDICTS[type_id][0], 'means': VERDICTS[type_id][1]}
                   for type_id in sorted(kinds & set(VERDICTS))
                   if not any(item['type'] == VERDICTS[type_id][0] for item in found.values())}
-        systems[name] = {'objects': len(mine), 'conformant': good, 'share': share, 'level': level,
+        systems[name] = {'group': meta['systems'][name].get('group', ''), 'objects': len(mine), 'conformant': good,
+                         'share': share, 'level': level,
                          'not_judged': sum(1 for item in mine if item['type'] in unjudged), 'unjudged_types': unjudged,
                          'weaknesses': weak, 'verdicts_unread': unread}
     sources = inventory(meta, found, root)
@@ -1776,6 +1815,10 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'inventory': {'sources': sources, 'ids': sum(item['ids'] for item in sources.values()),
                       'imported': sum(item['imported'] for item in sources.values())},
         'systems': systems,
+        'groups': {group: {'systems': names, 'levels': {step['level']: count for step in reversed(meta['scale'])
+                                                        if (count := sum(1 for name in names
+                                                                         if systems[name]['level'] == step['level']))}}
+                   for group, names in system_groups(systems).items()},
         'standard': standard_measure(found, today or utc_today()),
         'standard_management': management_measure(found, today or utc_today()),
         'knowledge': knowledge_measure(found),
@@ -1801,6 +1844,18 @@ def show(id, root=ROOT):
     return '\n'.join(lines)
 
 
+GROUPS = ('management', 'engineering')  # D-330: contracts/model/system.v1.json's `group`, in the order measure reports them
+
+
+def system_groups(systems):
+    """{group: [system names]} in GROUPS order, then a system with no group under ''; D-330."""
+    order = {group: index for index, group in enumerate(GROUPS)}
+    grouped = {}
+    for name in sorted(systems, key=lambda name: (order.get(systems[name].get('group', ''), len(order)), name)):
+        grouped.setdefault(systems[name].get('group', ''), []).append(name)
+    return grouped
+
+
 def system_line(item):
     """What a system's count means: conformant, or, for a type whose verdicts are not read, what is counted; the
     objects no rule judges; the significant weaknesses that keep it below F."""
@@ -1824,11 +1879,15 @@ def summary(found):
     ]
     lines += [f'  {name}: {item["imported"]} of {item["ids"]}' for name, item in stock['sources'].items()]
     lines.append(f'systems ({found["objects"]} object(s)):')
-    lines += [f'  {name}: {item["level"]} ({system_line(item)})' for name, item in found['systems'].items()]
+    for group, item in found['groups'].items():  # D-330: each group's levels apart
+        counted = ', '.join(f'{count} {level}' for level, count in item['levels'].items())
+        lines.append(f'  {group or "no group"} ({len(item["systems"])} system(s): {counted}):')
+        lines += [f'    {name}: {found["systems"][name]["level"]} ({system_line(found["systems"][name])})'
+                  for name in item['systems']]
     rules = found['standard']
     lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
                  f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
-                 f'their deadline')
+                 f'their deadline; {rules["dormant"]} dormant (D-326)')
     managed = found['standard_management']
     lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '
                  f'with no deadline, {managed["overdue"]} past it), {managed["closed"]} closed; {managed["exemptions"]} '

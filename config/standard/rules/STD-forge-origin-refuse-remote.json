@@ -1,7 +1,8 @@
 {
   "id": "STD-forge-origin-refuse-remote",
   "statement": "Raise OriginAdapterError unless `url` is `repo` on a declared Origin git host.",
-  "state": "blocking",
+  "state": "dormant",
+  "dormant_by": "D-314",
   "owner": "administration",
   "applies_to": [
     "CHG"

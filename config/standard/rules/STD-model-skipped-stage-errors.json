@@ -1,0 +1,17 @@
+{
+  "id": "STD-model-skipped-stage-errors",
+  "statement": "A rule of the standard in blocking whose check is a gate stage names a stage tower/gate runs: a stage scripts/lib/verify_commit.py skips (SKIPPED) makes the rule an error of scripts/model check until it is dormant or the stage runs again.",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "CHG"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/model.py:skipped_stage_errors"
+  },
+  "basis": [
+    "D-326"
+  ],
+  "note": "Written with D-326 (\"scripts/model refuses a blocking gate-stage rule whose stage verify_commit skips\"); it refuses through STD-model-complete: the model test, which the gate selects when a file it reads changes, holds the model at no error."
+}

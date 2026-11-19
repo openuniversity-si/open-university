@@ -1,6 +1,7 @@
 {
   "id": "work",
   "name": "Work",
+  "group": "management",
   "processes": [
     "15288/12207 portfolio management",
     "15288/12207 project planning",

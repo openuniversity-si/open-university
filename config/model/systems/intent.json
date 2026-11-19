@@ -1,6 +1,7 @@
 {
   "id": "intent",
   "name": "Intent",
+  "group": "management",
   "processes": [
     "15288/12207 business or mission analysis",
     "15288/12207 stakeholder needs and requirements definition"

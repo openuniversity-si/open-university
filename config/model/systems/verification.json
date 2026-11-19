@@ -1,6 +1,7 @@
 {
   "id": "verification",
   "name": "Verification",
+  "group": "engineering",
   "processes": [
     "15288/12207 verification",
     "SWEBOK 5 Software Testing"

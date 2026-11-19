@@ -1,6 +1,7 @@
 {
   "id": "requirements",
   "name": "Requirements",
+  "group": "engineering",
   "processes": [
     "15288/12207 system/software requirements definition",
     "SWEBOK 1 Software Requirements"

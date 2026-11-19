@@ -4,12 +4,13 @@ from typing import Any, Literal, NotRequired, Required, TypedDict  # noqa: F401
 RuleV1 = TypedDict('RuleV1', {
     'id': Required[str],
     'statement': Required[str],
-    'state': Required[Literal['draft', 'warning', 'blocking', 'replaced']],
+    'state': Required[Literal['draft', 'warning', 'blocking', 'replaced', 'dormant']],
     'owner': Required[str],
     'applies_to': Required[list[str]],
     'check': Required[dict[str, Any]],
     'basis': NotRequired[list[str]],
     'deadline': NotRequired[str],
     'replaced_by': NotRequired[str],
+    'dormant_by': NotRequired[str],
     'note': NotRequired[str],
 }, total=False)

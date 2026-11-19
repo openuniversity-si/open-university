@@ -1,6 +1,7 @@
 {
   "id": "decisions",
   "name": "Decisions",
+  "group": "management",
   "processes": [
     "15288/12207 decision management"
   ],

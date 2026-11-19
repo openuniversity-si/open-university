@@ -12,7 +12,7 @@
   },
   "basis": [
     "D-325",
-    "D-326"
+    "D-329"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-325 (decide, then report: \"DECIDE, THEN REPORT (Daniel 2026-10-26 21:29)\", unit X1, confirmed by Daniel 18/11 20:19 BRT) and D-326 (dormant while tower/gate skips pr metadata; D-329 brings the stage back)."
+  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-325 (decide, then report: \"DECIDE, THEN REPORT (Daniel 2026-10-26 21:29)\", unit X1, confirmed by Daniel 18/11 20:19 BRT) and D-329 (live, not dormant: tower/gate's pr metadata stage runs it through commit_check.check on the GitHub pull request; D-326 had judged it dormant while the stage was skipped)."
 }

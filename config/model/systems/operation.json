@@ -1,6 +1,7 @@
 {
   "id": "operation",
   "name": "Operation",
+  "group": "engineering",
   "processes": [
     "15288/12207 operation",
     "15288/12207 maintenance",
