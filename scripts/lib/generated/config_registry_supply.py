@@ -2,9 +2,11 @@
 from typing import Any, Literal, NotRequired, Required, TypedDict  # noqa: F401
 
 Name = Literal[
+    'supply.anthropic_monthly_usd',
     'supply.blocking_severities',
 ]
 
 Values = TypedDict('Values', {
+    'supply.anthropic_monthly_usd': float,
     'supply.blocking_severities': list[Any],
 })

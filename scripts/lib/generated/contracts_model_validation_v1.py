@@ -8,6 +8,7 @@ ValidationV1 = TypedDict('ValidationV1', {
     'owner': Required[str],
     'measure': Required[dict[str, Any]],
     'comparator': Required[Literal['gte', 'lte']],
-    'threshold': Required[float],
+    'threshold': NotRequired[float],
+    'threshold_key': NotRequired[str],
     'window': NotRequired[dict[str, Any]],
 }, total=False)

@@ -48,6 +48,13 @@ def read(root):
     return json.loads(path.read_text()) if path.exists() else None
 
 
+def read_supplier(root, name):
+    """A supplier's spend reading ({usd, day, source}) of config/validation/spend/<name>.json, or None: for a supplier
+    with no API the engine reads, the reading is checked by hand against the invoice (D-342, SUP-anthropic)."""
+    path = Path(root) / Path(SNAPSHOT).parent / f'{name}.json'
+    return json.loads(path.read_text()) if path.exists() else None
+
+
 def main(argv=None, root=ROOT, stdin=None):
     parser = argparse.ArgumentParser(prog='scripts/spend', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest='command', required=True)

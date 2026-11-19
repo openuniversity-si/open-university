@@ -13,8 +13,7 @@
     "validates",
     "owner",
     "measure",
-    "comparator",
-    "threshold"
+    "comparator"
   ],
   "properties": {
     "id": {
@@ -56,9 +55,10 @@
             "all-met",
             "run-durations",
             "aws-spend",
+            "supplier-spend",
             "unwired"
           ],
-          "description": "merges-per-day: merges on main's first-parent line per complete UTC day, averaged over the window's days; trailer-rate: the share of merges whose commits carry `trailer`, over the window's merges; escape-rate: the share of the window's merged changes that an escape (INC-escape-<n>, from a later merge's `Fixes-PR:` trailer) was introduced by; model-share: a share scripts/model computes (`name`); incident-count: the incident records (scripts/incident) of kind `incident` opened over the window's days; code-scan: the sleep calls inside a loop in the code under `paths` less `exclude` (globs), the candidates for polling; all-met: how many of the validations `of` are not met, measuring while any is short of data or has no source; run-durations: the `percentile` of the durations in a recorded snapshot of `workflow` (config/validation/runs/: a GitHub workflow's runs by scripts/runs, or `deploy`, the AWS deploy's succeeded builds by scripts/deploy status), measuring while it holds fewer than `min_runs` runs or is older than `max_age_days`; aws-spend: the AWS account's unblended spend for the month to date in US$, from the snapshot of the deploy build's daily Cost Explorer reading (config/validation/spend/aws.json, scripts/spend), measuring while it is of another month or older than `max_age_days` (a reading of this month over the threshold is final); unwired: no source is wired yet (`source` says which)."
+          "description": "merges-per-day: merges on main's first-parent line per complete UTC day, averaged over the window's days; trailer-rate: the share of merges whose commits carry `trailer`, over the window's merges; escape-rate: the share of the window's merged changes that an escape (INC-escape-<n>, from a later merge's `Fixes-PR:` trailer) was introduced by; model-share: a share scripts/model computes (`name`); incident-count: the incident records (scripts/incident) of kind `incident` opened over the window's days; code-scan: the sleep calls inside a loop in the code under `paths` less `exclude` (globs), the candidates for polling; all-met: how many of the validations `of` are not met, measuring while any is short of data or has no source; run-durations: the `percentile` of the durations in a recorded snapshot of `workflow` (config/validation/runs/: a GitHub workflow's runs by scripts/runs, or `deploy`, the AWS deploy's succeeded builds by scripts/deploy status), measuring while it holds fewer than `min_runs` runs or is older than `max_age_days`; aws-spend: the AWS account's unblended spend for the month to date in US$, from the snapshot of the deploy build's daily Cost Explorer reading (config/validation/spend/aws.json, scripts/spend), measuring while it is of another month or older than `max_age_days` (a reading of this month over the threshold is final); supplier-spend: a supplier's spend in US$ from a reading checked by hand against its invoice (config/validation/spend/<supplier>.json, scripts/lib/spend.py read_supplier), measuring once older than `max_age_days` (D-342); unwired: no source is wired yet (`source` says which)."
         },
         "trailer": {
           "type": "string"
@@ -112,6 +112,10 @@
         "max_age_days": {
           "type": "integer",
           "minimum": 1
+        },
+        "supplier": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
         }
       }
     },
@@ -123,6 +127,11 @@
     },
     "threshold": {
       "type": "number"
+    },
+    "threshold_key": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9_.-]*$",
+      "description": "A registry key whose value is the threshold (D-342), so the number lives in one key. A validation carries threshold or threshold_key, exactly one (scripts/model read_validations refuses both or neither: a oneOf here would not be an additive change of v1)."
     },
     "window": {
       "type": "object",

@@ -1,0 +1,16 @@
+{
+  "id": "VAL-anthropic-budget",
+  "statement": "The Anthropic spend stays within the monthly ceiling of supply.anthropic_monthly_usd.",
+  "validates": [
+    "REQ-anthropic-budget",
+    "NEED-cost"
+  ],
+  "owner": "efficiency",
+  "measure": {
+    "kind": "supplier-spend",
+    "supplier": "anthropic",
+    "max_age_days": 35
+  },
+  "comparator": "lte",
+  "threshold_key": "supply.anthropic_monthly_usd"
+}

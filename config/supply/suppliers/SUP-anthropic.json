@@ -4,5 +4,6 @@
   "state": "active",
   "owner": "Daniel",
   "kind": "account",
+  "budget": "REQ-anthropic-budget",
   "note": "The models every session runs on."
 }

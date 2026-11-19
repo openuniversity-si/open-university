@@ -1157,9 +1157,40 @@ VALIDATIONS = 'config/validation/VAL-*.json'
 
 
 def read_validations(root):
-    """Validations (VAL), one file each; the state is derived later (derive_validations), never read from the file."""
-    return _declared(Path(root), VALIDATIONS, 'validation.v1.json', 'VAL',
-                     lambda body: [{'type': 'validates', 'target': target} for target in body['validates']])
+    """Validations (VAL), one file each; the state is derived later (derive_validations), never read from the file. A
+    threshold_key (D-342) becomes the threshold: the key's registry value, so the number lives in one key."""
+    found = _declared(Path(root), VALIDATIONS, 'validation.v1.json', 'VAL',
+                      lambda body: [{'type': 'validates', 'target': target} for target in body['validates']])
+    for item in found:
+        body = item.get('body')
+        if body is None:
+            continue
+        try:
+            if ('threshold' in body) == ('threshold_key' in body):
+                raise ValueError('carries threshold or threshold_key, exactly one')
+            if 'threshold_key' in body:
+                body['threshold'] = registry_threshold(body['threshold_key'], root)
+        except (KeyError, ValueError) as error:
+            item.setdefault('problems', []).append(error.args[0])
+            del item['body']
+    return found
+
+
+def registry_threshold(key, root):
+    """The registry value of a validation's threshold_key: the root's registry, else the engine's. The registry file's
+    value (its default), never the change store's: the gate reads no store, and a raise is a one-value change of the
+    key's file. A key that is not a number is an error."""
+    import config
+    try:
+        value = config.entry(key, root)['default']
+    except config.ConfigError:
+        try:
+            value = config.entry(key)['default']
+        except config.ConfigError:
+            raise KeyError(f'its threshold_key {key} is not a registered parameter') from None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f'its threshold_key {key} is not a number')
+    return value
 
 
 def _merges(root):
@@ -1224,6 +1255,14 @@ def measured(body, found, root, today):
         month = recorded['day'][:len('2026-01')] == today[:len('2026-01')]
         fresh = month and (date.fromisoformat(today) - date.fromisoformat(recorded['day'])).days <= measure['max_age_days']
         return recorded['usd'], fresh or (month and body['comparator'] == 'lte' and recorded['usd'] > body['threshold'])
+    if measure['kind'] == 'supplier-spend':
+        import spend
+        from datetime import date
+        recorded = spend.read_supplier(root, measure['supplier'])
+        if not recorded:
+            return None, False
+        # a reading checked by hand (an invoice, D-342): it stays measuring once older than max_age_days
+        return recorded['usd'], (date.fromisoformat(today) - date.fromisoformat(recorded['day'])).days <= measure['max_age_days']
     if measure['kind'] == 'all-met':
         states =[found.get(ident, {}).get('state', 'defined') for ident in measure['of']]
         missed = sum(1 for state in states if state == 'not-met')
