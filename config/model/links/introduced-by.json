@@ -1,0 +1,10 @@
+{
+  "name": "introduced-by",
+  "from": [
+    "INC"
+  ],
+  "to": [
+    "CHG"
+  ],
+  "description": "An incident's defect reached main in a change: the merged change that let it through (an escape)."
+}
