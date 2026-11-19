@@ -871,8 +871,20 @@ const real = Module.prototype.require;
 Module.prototype.require = function (name) {
   if (name === '@aws-sdk/client-codebuild') {
     return { CodeBuildClient: class { async send() {
-      if (process.env.RUNNING) { const e = new Error('limit'); e.name = 'AccountLimitExceededException'; throw e; }
+      if (process.env.RUNNING) { const e = new Error('limit'); e.name = process.env.RUNNING_AS || 'AccountLimitExceededException'; throw e; }
+      if (process.env.BUILT) { require('fs').writeFileSync(process.env.BUILT, 'a build'); }
       return { build: { id: 'tower-infra-deploy:abc' } }; } }, StartBuildCommand: class { constructor(x) { this.x = x; } } };
+  }
+  if (name === '@aws-sdk/client-ssm') {  // RING-QUEUE: /tower/deploy/ring-pending is the file PENDING
+    const fs = require('fs');
+    const command = (kind) => class { constructor(x) { this.kind = kind; this.x = x; } };
+    return { SSMClient: class { async send(c) {
+      if (c.x.Name !== '/tower/deploy/ring-pending') { throw new Error('another parameter: ' + c.x.Name); }
+      if (c.kind === 'put') { fs.writeFileSync(process.env.PENDING, c.x.Value); return {}; }
+      if (!fs.existsSync(process.env.PENDING)) { const e = new Error('none'); e.name = 'ParameterNotFound'; throw e; }
+      if (c.kind === 'delete') { fs.unlinkSync(process.env.PENDING); return {}; }
+      return { Parameter: { Value: fs.readFileSync(process.env.PENDING, 'utf8') } }; } },
+      GetParameterCommand: command('get'), PutParameterCommand: command('put'), DeleteParameterCommand: command('delete') };
   }
   if (name === '@aws-sdk/client-lambda') {  // QUEUE-RELOAD: the port's invocation, written to INVOKED
     return { LambdaClient: class { async send(command) {
@@ -887,7 +899,8 @@ Module.prototype.require = function (name) {
 const source = require('fs').readFileSync(process.argv[2], 'utf8');
 const mod = { exports: {} };
 new Function('require', 'exports', 'module', source)(require, mod.exports, mod);
-mod.exports.handler(JSON.parse(process.argv[3])).then(r => console.log(JSON.stringify(r)));
+mod.exports.handler(JSON.parse(process.argv[3])).then(r => console.log(JSON.stringify(r)),
+  e => console.log(JSON.stringify({ thrown: e.message })));
 '''
 
 
@@ -908,8 +921,15 @@ class DoorbellTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.directory.cleanup()
 
-    def call(self, event, running=False):
-        env = {**os.environ, 'PROJECT': 'tower-infra-deploy', 'TOKEN_SHA256': '0' * 63 + '1'}
+    def setUp(self):
+        self.pending = Path(self.directory.name, 'ring-pending')  # RING-QUEUE: the SSM parameter, as a file
+        self.built = Path(self.directory.name, 'built')
+        self.pending.unlink(missing_ok=True)
+        self.built.unlink(missing_ok=True)
+
+    def call(self, event, running=False, **more):
+        env = {**os.environ, 'PROJECT': 'tower-infra-deploy', 'TOKEN_SHA256': '0' * 63 + '1', 'PENDING': str(self.pending),
+               'BUILT': str(self.built), **more}
         if running:
             env['RUNNING'] = '1'
         done = subprocess.run([self.node, str(self.harness), str(self.code), json.dumps(event)], capture_output=True,
@@ -923,6 +943,47 @@ class DoorbellTests(unittest.TestCase):
     def test_a_direct_invocation_is_refused_with_409_while_a_build_runs(self):
         self.assertEqual(self.call({'source': 'autodeploy'}, running=True)['statusCode'], 409)
 
+    def ended(self, status='SUCCEEDED'):
+        return {'source': 'aws.codebuild', 'detail-type': 'CodeBuild Build State Change',
+                'detail': {'project-name': 'tower-infra-deploy', 'build-status': status}}
+
+    def test_a_409_while_a_build_runs_is_queued_and_that_builds_end_starts_it(self):
+        # RING-QUEUE (POLL-scripts-lib-deploy-py-ring-until-free): the refused ring stays pending in SSM, the push job
+        # stops ringing, and DeployStateRule's event of the running build's end starts the next build
+        for busy in ('AccountLimitExceededException', 'ResourceAlreadyExistsException'):
+            self.pending.unlink(missing_ok=True)
+            answer = self.call({'source': 'autodeploy'}, running=True, RUNNING_AS=busy)
+            self.assertEqual((answer['statusCode'], json.loads(answer['body'])), (409, {'error': busy, 'queued': True}))
+            self.assertTrue(self.pending.exists())
+        self.assertEqual(self.call(self.ended('IN_PROGRESS')), {'statusCode': 204})  # a start is no end
+        self.assertTrue(self.pending.exists())
+        self.assertFalse(self.built.exists())
+        answer = self.call(self.ended('FAILED'))
+        self.assertEqual((answer['statusCode'], json.loads(answer['body'])), (202, {'build': 'tower-infra-deploy:abc'}))
+        self.assertFalse(self.pending.exists())
+        self.assertTrue(self.built.exists())
+
+    def test_a_builds_end_with_nothing_pending_starts_nothing(self):
+        for status in ('SUCCEEDED', 'FAILED', 'FAULT', 'STOPPED', 'TIMED_OUT'):
+            self.assertEqual(self.call(self.ended(status)), {'statusCode': 204}, status)
+        self.assertFalse(self.built.exists())
+
+    def test_a_pending_start_refused_at_a_builds_end_stays_pending_and_throws_for_lambdas_retry(self):
+        self.pending.write_text('2026-11-19T00:00:00Z')
+        answer = self.call(self.ended(), running=True)
+        self.assertIn('queued', answer['thrown'])
+        self.assertTrue(self.pending.exists())
+
+    def test_another_refusal_is_a_409_that_queues_nothing(self):
+        answer = self.call({'source': 'autodeploy'}, running=True, RUNNING_AS='AccessDeniedException')
+        self.assertEqual((answer['statusCode'], json.loads(answer['body'])), (409, {'error': 'AccessDeniedException'}))
+        self.assertFalse(self.pending.exists())
+
+    def test_a_url_call_dressed_as_a_builds_end_still_needs_the_token(self):
+        self.pending.write_text('2026-11-19T00:00:00Z')
+        self.assertEqual(self.call({**self.ended(), 'requestContext': {}, 'headers': {}})['statusCode'], 401)
+        self.assertFalse(self.built.exists())
+
     def test_the_function_url_without_or_with_a_wrong_token_is_still_401(self):
         url = {'requestContext': {'http': {'method': 'POST'}}, 'headers': {}}
         self.assertEqual(self.call(url)['statusCode'], 401)
@@ -933,7 +994,8 @@ class DoorbellTests(unittest.TestCase):
     def test_the_function_url_with_the_right_token_starts_the_build_and_409s_when_running(self):
         import hashlib
         token = 'secret-of-the-test'
-        env = {**os.environ, 'PROJECT': 'p', 'TOKEN_SHA256': hashlib.sha256(token.encode()).hexdigest()}
+        env = {**os.environ, 'PROJECT': 'p', 'TOKEN_SHA256': hashlib.sha256(token.encode()).hexdigest(),
+               'PENDING': str(self.pending)}
         event = {'requestContext': {}, 'headers': {'authorization': f'Bearer {token}'}}
         for running, want in ((False, 202), (True, 409)):
             run = dict(env, **({'RUNNING': '1'} if running else {}))

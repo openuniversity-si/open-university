@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "The factory bootstrap (D-303): no long-lived AWS key. Deploys run inside AWS in CodeBuild under roles bounded by tower-boundary; the session only rings a doorbell with a token that is not an AWS credential, and the build deploys the base head from Origin. Applied by hand in the console, never by the pipeline; the budget torre-motor-teto-60 stays outside it.",
+  "Description": "The factory bootstrap (D-303): no long-lived AWS key. Deploys run inside AWS in CodeBuild under roles bounded by tower-boundary; the session only rings a doorbell with a token that is not an AWS credential, and the build deploys the base head from GitHub. Applied by hand, never by the pipeline; the budget torre-motor-teto-60 stays outside it.",
   "Parameters": {
     "OriginRepoUrl": {
       "Type": "String",
@@ -82,7 +82,8 @@
                 "kms:GenerateDataKey*",
                 "sts:GetCallerIdentity",
                 "iam:GetRole",
-                "iam:CreateServiceLinkedRole"
+                "iam:CreateServiceLinkedRole",
+                "ce:GetCostAndUsage"
               ],
               "Resource": "*",
               "Condition": {
@@ -224,8 +225,7 @@
                 "iam:*RolePermissionsBoundary",
                 "organizations:*",
                 "account:*",
-                "budgets:*",
-                "ce:*"
+                "budgets:*"
               ],
               "Resource": "*"
             },
@@ -446,7 +446,8 @@
                   "Effect": "Allow",
                   "Action": [
                     "cloudformation:ValidateTemplate",
-                    "cloudformation:ListStacks"
+                    "cloudformation:ListStacks",
+                    "ce:GetCostAndUsage"
                   ],
                   "Resource": "*"
                 },
@@ -964,6 +965,18 @@
                   }
                 },
                 {
+                  "Sid": "KeepTheRingPending",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ssm:GetParameter",
+                    "ssm:PutParameter",
+                    "ssm:DeleteParameter"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tower/deploy/ring-pending"
+                  }
+                },
+                {
                   "Sid": "WriteItsLogs",
                   "Effect": "Allow",
                   "Action": [
@@ -1019,7 +1032,7 @@
           }
         },
         "Code": {
-          "ZipFile": "const crypto = require('crypto');\nconst { CodeBuildClient, StartBuildCommand } = require('@aws-sdk/client-codebuild');\nconst codebuild = new CodeBuildClient({});\nconst { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');\nconst lambda = new LambdaClient({});\n// The doorbell (D-303): a valid token only starts the deploy build; the build itself reads the base head from Origin,\n// so a caller can never choose what is deployed. The token is compared by its SHA-256, in constant time.\n// AUTO1: a DIRECT invocation (lambda:Invoke, no Function URL: the event has neither requestContext nor headers) is\n// authenticated by IAM, which only lets a principal granted lambda:InvokeFunction on this function ARN get here, so it\n// needs no token; a Function URL call always carries requestContext and keeps the token path unchanged. Both paths\n// then share the one-build-at-a-time start below (CodeBuild's concurrent limit of 1 answers 409).\nexports.handler = async (event) => {\n  const viaUrl = !!(event && (event.requestContext || event.headers));\n  if (viaUrl) {\n    const header = (event.headers && event.headers.authorization) || '';\n    const token = header.startsWith('Bearer ') ? header.slice(7) : '';\n    const want = Buffer.from(process.env.TOKEN_SHA256 || '', 'hex');\n    const got = crypto.createHash('sha256').update(token).digest();\n    if (!token || want.length !== got.length || !crypto.timingSafeEqual(got, want)) {\n      return { statusCode: 401, body: 'unauthorized' };\n    }\n  }\n  // QUEUE-RELOAD (tower_infra.queue_deploy): the merge queue's words {event: prepare|landed, sha} go to the port as a direct\n  // invocation (platform.deploy.queue); they start no build. The sha is a claim the service checks against the repository.\n  let said = {};\n  try {\n    const raw = event && event.body ? (event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body) : '';\n    said = raw ? JSON.parse(raw) : (event && event.queue) || {};\n  } catch (error) {\n    return { statusCode: 400, body: 'the body is not JSON' };\n  }\n  if (said && said.event !== undefined) {\n    if (!['prepare', 'landed'].includes(said.event) || !/^[0-9a-f]{40}$/.test(String(said.sha || ''))) {\n      return { statusCode: 400, body: 'event must be prepare or landed, with a 40-hex sha' };\n    }\n    try {\n      const out = await lambda.send(new InvokeCommand({ FunctionName: process.env.PORT, Payload: Buffer.from(JSON.stringify(\n        { source: 'tower.doorbell', 'detail-type': 'Merge Queue', detail: { event: said.event, sha: said.sha } })) }));\n      if (out.FunctionError) {\n        return { statusCode: 502, body: JSON.stringify({ error: out.FunctionError }) };\n      }\n      return { statusCode: 202, body: JSON.stringify({ queue: said.event, sha: said.sha }) };\n    } catch (error) {\n      return { statusCode: 502, body: JSON.stringify({ error: error.name }) };\n    }\n  }\n  try {\n    const out = await codebuild.send(new StartBuildCommand({ projectName: process.env.PROJECT }));\n    return { statusCode: 202, body: JSON.stringify({ build: out.build.id }) };\n  } catch (error) {\n    return { statusCode: 409, body: JSON.stringify({ error: error.name }) };\n  }\n};\n"
+          "ZipFile": "const crypto = require('crypto');\nconst { CodeBuildClient, StartBuildCommand } = require('@aws-sdk/client-codebuild');\nconst codebuild = new CodeBuildClient({});\nconst { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');\nconst lambda = new LambdaClient({});\nconst { SSMClient, GetParameterCommand, PutParameterCommand, DeleteParameterCommand } = require('@aws-sdk/client-ssm');\nconst ssm = new SSMClient({});\nconst PENDING = '/tower/deploy/ring-pending';\n// The doorbell (D-303): a valid token (by SHA-256, constant time) only starts the deploy build, which reads the base\n// head itself. AUTO1: a direct invocation (no requestContext nor headers) is authenticated by IAM, with no token.\n// RING-QUEUE: a 409 while a build runs leaves the ring pending in SSM ({queued: true}); the build's end\n// (DeployStateRule, direct) starts it; a start that fails there keeps it pending and throws, so Lambda retries.\nconst say = (statusCode, body) => ({ statusCode, body: JSON.stringify(body) });\nconst start = async (always) => {\n  try {\n    const out = await codebuild.send(new StartBuildCommand({ projectName: process.env.PROJECT }));\n    return say(202, { build: out.build.id });\n  } catch (error) {\n    if (!always && !['AccountLimitExceededException', 'ResourceAlreadyExistsException'].includes(error.name)) {\n      return say(409, { error: error.name });\n    }\n    await ssm.send(new PutParameterCommand({ Name: PENDING, Value: new Date().toISOString(), Type: 'String', Overwrite: true }));\n    return say(409, { error: error.name, queued: true });\n  }\n};\nexports.handler = async (event) => {\n  const viaUrl = !!(event && (event.requestContext || event.headers));\n  if (!viaUrl && event && event.source === 'aws.codebuild') {\n    if (!['SUCCEEDED', 'FAILED', 'FAULT', 'STOPPED', 'TIMED_OUT'].includes((event.detail || {})['build-status'])) {\n      return { statusCode: 204 };\n    }\n    try {\n      await ssm.send(new GetParameterCommand({ Name: PENDING }));\n    } catch (error) {\n      if (error.name === 'ParameterNotFound') return { statusCode: 204 };\n      throw error;\n    }\n    await ssm.send(new DeleteParameterCommand({ Name: PENDING }));\n    const out = await start(true);\n    if (out.statusCode !== 202) throw new Error(out.body);\n    return out;\n  }\n  if (viaUrl) {\n    const header = (event.headers && event.headers.authorization) || '';\n    const token = header.startsWith('Bearer ') ? header.slice(7) : '';\n    const want = Buffer.from(process.env.TOKEN_SHA256 || '', 'hex');\n    const got = crypto.createHash('sha256').update(token).digest();\n    if (!token || want.length !== got.length || !crypto.timingSafeEqual(got, want)) {\n      return { statusCode: 401, body: 'unauthorized' };\n    }\n  }\n  // QUEUE-RELOAD: the merge queue's words {event: prepare|landed, sha} go to the port (platform.deploy.queue), no build\n  let said = {};\n  try {\n    const raw = event && event.body ? (event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body) : '';\n    said = raw ? JSON.parse(raw) : (event && event.queue) || {};\n  } catch (error) {\n    return { statusCode: 400, body: 'the body is not JSON' };\n  }\n  if (said && said.event !== undefined) {\n    if (!['prepare', 'landed'].includes(said.event) || !/^[0-9a-f]{40}$/.test(String(said.sha || ''))) {\n      return { statusCode: 400, body: 'event must be prepare or landed, with a 40-hex sha' };\n    }\n    try {\n      const out = await lambda.send(new InvokeCommand({ FunctionName: process.env.PORT, Payload: Buffer.from(JSON.stringify(\n        { source: 'tower.doorbell', 'detail-type': 'Merge Queue', detail: { event: said.event, sha: said.sha } })) }));\n      if (out.FunctionError) {\n        return say(502, { error: out.FunctionError });\n      }\n      return say(202, { queue: said.event, sha: said.sha });\n    } catch (error) {\n      return say(502, { error: error.name });\n    }\n  }\n  return start(false);\n};\n"
         },
         "ReservedConcurrentExecutions": 2
       }
@@ -1062,7 +1075,7 @@
       "Type": "AWS::Events::Rule",
       "Properties": {
         "Name": "tower-infra-deploy-state",
-        "Description": "DEP-EVENTS: every CodeBuild Build State Change of tower-infra-deploy is pushed to the port (tower-port-api:live), so the end of a deploy wakes the autodeploy by event instead of the SSM read",
+        "Description": "DEP-EVENTS: every CodeBuild Build State Change of tower-infra-deploy is pushed to the port (tower-port-api:live), so the end of a deploy wakes the autodeploy by event instead of the SSM read; and to the doorbell, which starts a ring a 409 left pending (RING-QUEUE)",
         "State": "ENABLED",
         "EventPattern": {
           "source": [
@@ -1095,6 +1108,27 @@
                 ]
               }
             }
+          },
+          {
+            "Id": "tower-deploy-doorbell",
+            "Arn": {
+              "Fn::GetAtt": [
+                "DoorbellFunction",
+                "Arn"
+              ]
+            },
+            "RetryPolicy": {
+              "MaximumRetryAttempts": 10,
+              "MaximumEventAgeInSeconds": 3600
+            },
+            "DeadLetterConfig": {
+              "Arn": {
+                "Fn::GetAtt": [
+                  "EventsDeadLetterQueue",
+                  "Arn"
+                ]
+              }
+            }
           }
         ]
       }
@@ -1104,6 +1138,28 @@
       "Properties": {
         "FunctionName": {
           "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-port-api:live"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "DeployStateRule",
+            "Arn"
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "DeployStateDoorbellPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DoorbellFunction",
+            "Arn"
+          ]
         },
         "Action": "lambda:InvokeFunction",
         "Principal": "events.amazonaws.com",

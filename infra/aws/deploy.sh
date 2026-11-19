@@ -103,6 +103,27 @@ bootstrap_drift() {
 ( bootstrap_drift >"$work/bootstrap.tmp" 2>/dev/null && mv "$work/bootstrap.tmp" "$work/bootstrap" ) >/dev/null 2>&1 &
 bootstrap_pid=$!
 
+# AWS-SPEND (D-331, VAL-aws-200): the account's unblended spend for the month to date, from Cost Explorer
+# (ce:GetCostAndUsage, US$ 0.01 a call, in us-east-1, its only endpoint), AT MOST ONCE PER UTC DAY: a build whose earlier
+# record already holds today's reading carries it and calls nothing. last-build.spend = {day, from, usd}; read beside the
+# build, in the background, like the bootstrap's drift: a refused or failed read keeps the earlier reading and never fails
+# nor slows a build. The engine has no AWS credential: it records the reading from the port's status
+# (`scripts/deploy status --json | scripts/spend record`) and scripts/model judges VAL-aws-200 by that snapshot.
+spend_day="$(date -u +%F)"
+spend_read() {
+  local from="${spend_day:0:8}01" until usd
+  until="$(date -u -d "$spend_day + 1 day" +%F 2>/dev/null)" || return 1
+  usd="$(timeout 30 aws ce get-cost-and-usage --region us-east-1 --time-period "Start=$from,End=$until" --granularity MONTHLY \
+    --metrics UnblendedCost --query 'ResultsByTime[0].Total.UnblendedCost.Amount' --output text 2>/dev/null)" || return 1
+  [[ "$usd" =~ ^[0-9]+(\.[0-9]+)?$ ]] || return 1
+  jq -nc --arg day "$spend_day" --arg from "$from" --arg usd "$usd" '{day: $day, from: $from, usd: ($usd | tonumber * 100 | round / 100)}'
+}
+spend_pid=""
+if [[ "$(jq -r '.spend.day? // empty' <<<"$prev_build" 2>/dev/null)" != "$spend_day" ]]; then
+  ( spend_read >"$work/spend.tmp" 2>/dev/null && mv "$work/spend.tmp" "$work/spend" ) >/dev/null 2>&1 &
+  spend_pid=$!
+fi
+
 # slow_commits <good> <bad>: the commits of (good, bad] that touch what the slow path deploys, oldest first.
 slow_commits() {
   git -C "$repo" rev-list --reverse "$1..$2" -- infra/aws infra/service infra/db infra/ingress services/runner 2>/dev/null
@@ -195,6 +216,14 @@ record() {
   # BOOTSTRAP-DRIFT: its verdict in the record; the build's end waits for it (a read of a second, begun at the build's start)
   [[ "$status" = in_progress ]] || wait "${bootstrap_pid:-}" 2>/dev/null || true
   local bootstrap_said=""; [[ -s "$work/bootstrap" ]] && bootstrap_said="$(<"$work/bootstrap")"
+  # AWS-SPEND: this build's reading of the month's spend, else the earlier record's (one Cost Explorer call a day at most)
+  [[ "$status" = in_progress || -z "${spend_pid:-}" ]] || wait "$spend_pid" 2>/dev/null || true
+  local spend_json=""; [[ -s "$work/spend" ]] && spend_json="$(<"$work/spend")"
+  if [[ -z "$spend_json" ]]; then
+    [[ -n "${prev_spend+x}" ]] || prev_spend="$(jq -c '.spend? | if type == "object" then . else empty end' <<<"$prev_build" 2>/dev/null)"
+    spend_json="$prev_spend"
+  fi
+  [[ -n "$spend_json" ]] || spend_json=null
   # RECORD-ONE-JQ: every part of the record from one jq over this build's files and the earlier record, one compact JSON per
   # line: the record was ~33 jq calls (each its own process), 3.2 of a tested deploy's 3.9 s and the CPU the deploy's tests
   # fight for on the runner's two vCPUs
@@ -276,9 +305,9 @@ record() {
       --argjson failed "$failed_json" --argjson done "$done_json" --argjson left "$left_json" --argjson stacks "$secs_json" \
       --argjson started "$started" --argjson ended "$ended_out" --arg tail "$tail" --argjson targets "$targets_json" \
       --argjson rolled "$rolled_json" --argjson bisect "$bisect_json" --argjson epoch "$BISECT_EPOCH" --arg bnote "$bnote_txt" --argjson hashes "$hashes_json" --argjson dirty "$dirty_json" \
-      --argjson fast_owned "$fast_owned_json" --argjson migrate "$migrate_json" --argjson rolling "$rolling_json" --argjson rollout "$rollout_json" --argjson parts "$parts_json" --arg port_tpl "$port_tpl" --argjson wait "$wait_json" --arg code_live "$code_live" --arg code_live_why "$code_live_why" --argjson reload "$reload_json" --argjson seconds "$seconds" --argjson usd "$usd" --argjson batch "$batch" \
+      --argjson fast_owned "$fast_owned_json" --argjson migrate "$migrate_json" --argjson rolling "$rolling_json" --argjson rollout "$rollout_json" --argjson parts "$parts_json" --arg port_tpl "$port_tpl" --argjson wait "$wait_json" --arg code_live "$code_live" --arg code_live_why "$code_live_why" --argjson reload "$reload_json" --argjson seconds "$seconds" --argjson usd "$usd" --argjson batch "$batch" --argjson spend "$spend_json" \
       --argjson steps "$steps" --arg step "$step_cur" --arg failed_step "$fail_step" --argjson updated "$ended" \
-      '{build_id: $build_id, base_head: $base_head, status: $status, failed: $failed, done: $done, left: $left, stacks: $stacks, started: $started, ended: $ended, updated: $updated, step: $step, failed_step: $failed_step, steps: $steps, seconds: $seconds, usd: $usd, targets: $targets, batch: $batch, rolled_back: $rolled, bisect: $bisect, bisect_epoch: $epoch, bisect_note: $bnote, hashes: $hashes, dirty: $dirty, tail: $tail} + (if $fast_owned then {fast_owned: $fast_owned} else {} end) + (if $migrate then {migrate: $migrate} else {} end) + (if $rolling then {rolling: $rolling} else {} end) + (if ($rollout | length) > 0 then {rollout: $rollout} else {} end) + {parts: $parts} + (if $port_tpl != "" then {port_tpl: $port_tpl} else {} end) + (if $wait != null then {rollout_wait_s: $wait} else {} end) + (if $code_live != "" then {code_live: $code_live} else {} end) + (if $code_live_why != "" then {code_live_why: $code_live_why} else {} end) + (if $reload then {reload: $reload} else {} end) + (if $bootstrap != "" then {bootstrap: $bootstrap} else {} end)' 2>/dev/null)" || json=""
+      '{build_id: $build_id, base_head: $base_head, status: $status, failed: $failed, done: $done, left: $left, stacks: $stacks, started: $started, ended: $ended, updated: $updated, step: $step, failed_step: $failed_step, steps: $steps, seconds: $seconds, usd: $usd, targets: $targets, batch: $batch, rolled_back: $rolled, bisect: $bisect, bisect_epoch: $epoch, bisect_note: $bnote, hashes: $hashes, dirty: $dirty, tail: $tail} + (if $fast_owned then {fast_owned: $fast_owned} else {} end) + (if $migrate then {migrate: $migrate} else {} end) + (if $rolling then {rolling: $rolling} else {} end) + (if ($rollout | length) > 0 then {rollout: $rollout} else {} end) + {parts: $parts} + (if $port_tpl != "" then {port_tpl: $port_tpl} else {} end) + (if $wait != null then {rollout_wait_s: $wait} else {} end) + (if $code_live != "" then {code_live: $code_live} else {} end) + (if $code_live_why != "" then {code_live_why: $code_live_why} else {} end) + (if $reload then {reload: $reload} else {} end) + (if $bootstrap != "" then {bootstrap: $bootstrap} else {} end) + (if $spend then {spend: $spend} else {} end)' 2>/dev/null)" || json=""
     [[ -n "$json" ]] || break
     size="$(bytes_of "$json")"
     (( size <= max_bytes )) && break

@@ -698,41 +698,26 @@ class Watch(unittest.TestCase):
         self.assertEqual(sent, [('POST', '/', 'prepare', True), ('POST', '/', 'prepare', True), ('POST', '/', 'landed', True)])
         self.assertEqual(made[0], ('door.example', 10.0))
 
-    def test_the_push_ring_in_a_github_job_rings_a_409_again_until_a_build_starts(self):
-        # RING-RETRY (#41: its push ring got 409 while #40's build ran, and nobody rang again for it)
+    def test_the_push_ring_takes_a_queued_409_as_final_and_rings_once(self):
+        # RING-RETRY (#41: its push ring got 409 while #40's build ran, and nobody rang again for it), then RING-QUEUE: the
+        # doorbell keeps the refused ring and the running build's end starts the next build, so nobody rings twice
+        import inspect
         import urllib.error
-        answers, clock, slept = [409, 409, 202], [0.0], []
+        rung = []
 
-        def opener(request, timeout=None):
-            status = answers.pop(0)
-            if status != 202:
-                raise urllib.error.HTTPError('u', status, 'conflict', {}, io.BytesIO(b'{}'))
-
-            class Answer:
-                def read(self):
-                    return b'{"build": "tower-infra-deploy:b"}'
-
-                def __enter__(self):
-                    return self
-
-                def __exit__(self, *_):
-                    return False
-            answer = Answer()
-            answer.status = 202
-            return answer
-
-        def sleep(seconds):
-            slept.append(seconds)
-            clock[0] += seconds
+        def answering(status, body):
+            def opener(request, timeout=None):
+                rung.append(request.full_url)
+                raise urllib.error.HTTPError('u', status, 'conflict', {}, io.BytesIO(body))
+            return opener
         env = {'TOWER_DEPLOY_DOORBELL_URL': 'https://door', 'TOWER_DEPLOY_DOORBELL_TOKEN': 'x', 'GITHUB_ACTIONS': 'true'}
-        self.assertEqual(deploy.ring_until_free(env, opener, clock=lambda: clock[0], sleep=sleep), (0, 'tower-infra-deploy:b'))
-        self.assertEqual(slept, [deploy.RING_EVERY_S] * 2)
-        answers[:] = [409]
-        self.assertEqual(deploy.ring_until_free({**env, 'GITHUB_ACTIONS': ''}, opener, sleep=sleep)[0], 2)  # a session: once
-        answers[:] = [409] * 30
-        clock[0], slept[:] = 0.0, []
-        self.assertEqual(deploy.ring_until_free(env, opener, clock=lambda: clock[0], sleep=sleep)[0], 2)
-        self.assertLessEqual(sum(slept), deploy.RING_WAIT_S)  # bounded by the push job's time
+        queued = b'{"error": "AccountLimitExceededException", "queued": true}'
+        self.assertEqual(deploy.ring(env, answering(409, queued)), (0, None))
+        self.assertEqual(deploy.ring(env, answering(409, b'{"error": "AccessDeniedException"}')), (2, None))  # not queued
+        self.assertEqual(deploy.ring(env, answering(409, b'not json')), (2, None))
+        self.assertEqual(rung, ['https://door'] * 3)
+        self.assertFalse(hasattr(deploy, 'ring_until_free'))
+        self.assertNotIn('sleep', inspect.getsource(deploy.ring))
 
     def test_the_watch_reads_the_repository_through_the_forges_adapter(self):
         import source_remote

@@ -7,8 +7,8 @@
   ],
   "owner": "efficiency",
   "measure": {
-    "kind": "unwired",
-    "source": "the AWS budget (D-315); no reader is wired into scripts/model yet"
+    "kind": "aws-spend",
+    "max_age_days": 2
   },
   "comparator": "lte",
   "threshold": 200
