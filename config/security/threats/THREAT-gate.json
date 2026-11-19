@@ -24,7 +24,7 @@
     },
     {
       "stride": "tampering",
-      "statement": "A pull request edits the gate itself (its scripts, its rules, its registry keys, the verifier or a workflow) so that its own change passes. The gate's files (GATE_FILE: the stages, the structure and commit checks, config/registry/gate/, scripts/verify-commit) ask a decision, and the pinned job of tower/gate judges a change to them with the base's gate: the base's gate_pin.py puts the base's gate files back in the checkout and the plan's stages run there (D-070 on GitHub). Residual: the pinned job is staged in services/runner/github/tower-gate.yml and holds once the owner installs it (VULN-gate-judged-by-own-head stays open until then); the workflow itself is the owner's to change (D-087), and the head's tests run the head's code, as code under test.",
+      "statement": "A pull request edits the gate itself (its scripts, its rules, its registry keys, the verifier or a workflow) so that its own change passes. The gate's files (GATE_FILE: the stages, the structure and commit checks, config/registry/gate/, scripts/verify-commit) ask a decision, and the pinned job of tower/gate judges a change to them with the base's gate: the base's gate_pin.py puts the base's gate files back in the checkout and the plan's stages run there (D-070 on GitHub). The overlay covers the gate files of GATE_FILE; their import closure in scripts/lib (static ast and heredoc imports, a module name built from a literal start); the top-level scripts and files the base's stage commands run or read by path (scripts/gate-check's \"$root/scripts/generate\" and scripts/schema-compat, \"$(dirname \"$0\")/lib/x.py\", ROOT / 'scripts' / 'x', .gitleaks.toml) with their own closure; the toolchain (TOOLCHAIN_FILE); and every registry owner whose key the closure's code reads (config.get literals, ou_config_value) when the change alters that key (VULN-gate-judged-by-own-head, fixed). Residual: the workflow itself is the owner's to change (D-087), and the head's tests run the head's code, as code under test.",
       "mitigated_by": [
         "config/registry/gate/gate.allowed_workflows.json",
         "STD-gate-workflows-refused",
@@ -33,7 +33,7 @@
         "STD-commit-check-gate-errors",
         "TEST:scripts/tests/gate-pin.test.sh",
         "TEST:scripts/tests/verify-commit.test.sh",
-        "services/runner/github/tower-gate.yml"
+        ".github/workflows/tower-gate.yml"
       ]
     },
     {
@@ -108,14 +108,14 @@
       {
         "about": "tampering",
         "finding": "The pinned job (services/runner/github/tower-gate.yml) and the overlay (gate_pin.overlay, verify-commit --stages-only) exist and tower/gate needs the job green, but they are staged, not installed (VULN-gate-judged-by-own-head open). The earlier 'fixed' was premature.",
-        "disposition": "open",
-        "reason": "needs the owner to install the staged workflow once the overlay is on main."
+        "disposition": "fixed",
+        "reason": "installed: .github/workflows/tower-gate.yml carries the job `pinned` (c262659, D-087) and tower/gate needs it green; VULN-gate-judged-by-own-head is fixed."
       },
       {
         "about": "tampering",
         "finding": "Even installed, the overlay as written leaves the head in control: (a) GATE_FILE pins only the entry scripts, not the modules they import (config.py, forge_pr.py, plan_tick.py, decision_wait.py, regime.py, unit_check.py, threshold_check.py and the other structure.py imports), so a change to one of them is not a gate change: the pinned job ends after the overlay and gate_errors asks no decision; (b) in the pinned job the head's scripts/cloud/setup.sh and env.sh run after the overlay in the same checkout, and scripts/verify-commit runs the .toolchain/bin/python3 that setup.sh installs, so head code can undo the overlay; (c) the pinned job runs stages only, while the parts run the head's verify_commit, which chooses and runs the tests and records the verdict the merge queue reuses, so a change to the verifier decides its own tests.",
-        "disposition": "open",
-        "reason": "needs a change to gate_pin.GATE_FILE (or pinning scripts/lib as a whole) and to the pinned job (toolchain from the base, tests planned by the base); not in place."
+        "disposition": "fixed",
+        "reason": "(a) the overlay restores the gate's closure, not only GATE_FILE: the gate files of GATE_FILE; their import closure in scripts/lib (static ast and heredoc imports, a module name built from a literal start); the top-level scripts and files the base's stage commands run or read by path (scripts/gate-check's \"$root/scripts/generate\" and scripts/schema-compat, \"$(dirname \"$0\")/lib/x.py\", ROOT / 'scripts' / 'x', .gitleaks.toml) with their own closure; the toolchain (TOOLCHAIN_FILE); and every registry owner whose key the closure's code reads (config.get literals, ou_config_value) when the change alters that key; GATE_FILE stays the files whose change asks a decision. (b) the toolchain is the base's (TOOLCHAIN_FILE: scripts/cloud, its registry, the hermetic harness, .toolchain), so the pinned job's setup.sh, env.sh and python3 are the base's. (c) the parts' verifier is scripts/verify-commit and scripts/lib/verify_commit.py, GATE_FILE: a change to it asks an approved decision, which the pinned job's pr metadata stage judges with the base's gate. scripts/tests/gate-pin.test.sh proves (a) and (b)."
       },
       {
         "about": "tampering",
