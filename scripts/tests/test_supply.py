@@ -42,6 +42,32 @@ snapshots:
   left-pad@1.3.0: {}
 """
 
+PINNED_LOCK = """lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    dependencies:
+      left-pad:
+        specifier: 1.3.0
+        version: 1.3.0
+
+packages:
+
+  '@scope/kit@2.0.1':
+    resolution: {integrity: sha512-abc}
+
+  left-pad@1.3.0:
+    resolution: {integrity: sha512-def}
+
+snapshots:
+
+  left-pad@1.3.0: {}
+"""
+
+SHA64 = 'a' * len('0123456789abcdef' * len('abcd'))
+COMMIT40 = '0123456789abcdef0123456789abcdef01234567'
+
 WORKFLOW = """jobs:
   web:
     services:
@@ -94,6 +120,31 @@ class Readers(unittest.TestCase):
         self.assertEqual([(entry['name'], entry['version'], entry['pinned']) for entry in found],
                          [('anyio', '4.16.0', True), ('tzdata', '2026.6', True), ('loose', '1.0', False)])
 
+    def test_a_dockerfile_pins_base_images_by_full_sha256_digest_and_ignores_scratch_and_stage_aliases(self):
+        text = (
+            f'FROM public.ecr.aws/docker/library/node:22-slim@sha256:{SHA64} AS clis\n'
+            'FROM public.ecr.aws/docker/library/python:3.12-slim\n'
+            'FROM clis AS reuse\n'
+            'FROM scratch\n'
+        )
+        found = {(entry['name'], entry['version']): entry['pinned'] for entry in supply.dockerfile_parts(text, 'Dockerfile')}
+        self.assertEqual(found, {
+            ('public.ecr.aws/docker/library/node', f'22-slim@sha256:{SHA64}'): True,
+            ('public.ecr.aws/docker/library/python', '3.12-slim'): False,
+        })
+
+    def test_dockerfile_findings_refuses_curl_or_wget_piped_to_shell_and_no_audit(self):
+        text = (
+            '# curl -fsSL $URL | sh in a comment is ignored\n'
+            'RUN npm install -g --no-audit --no-fund pkg@1.0.0 \\\n'
+            '    && curl -fsSL "$INSTALLER" | DIR=out sh\n'
+            'RUN wget -qO- "$OTHER" | bash\n'
+        )
+        findings = supply.dockerfile_findings(text, 'infra/service/Dockerfile')
+        self.assertEqual(len(findings), len(('no-audit', 'curl', 'wget')))
+        self.assertTrue(any('--no-audit' in line for line in findings))
+        self.assertEqual(sum('pipes curl/wget' in line for line in findings), len(('curl', 'wget')))
+
     def test_a_component_named_by_two_files_is_one_entry_pinned_only_if_both_pin_it(self):
         root = Path(tempfile.mkdtemp(prefix='supply-'))
         self.addCleanup(shutil.rmtree, root)
@@ -109,7 +160,7 @@ class Check(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp(prefix='supply-check-'))
         self.addCleanup(shutil.rmtree, self.root)
-        write(self.root, 'apps/site/pnpm-lock.yaml', LOCK)
+        write(self.root, 'apps/site/pnpm-lock.yaml', PINNED_LOCK)
         write(self.root, 'config/supply/suppliers/SUP-npm.json', {'id': 'SUP-npm', 'ecosystems': ['npm']})
 
     def snapshot(self, *advisories):
@@ -158,8 +209,30 @@ class Check(unittest.TestCase):
 
     def test_a_component_of_an_ecosystem_no_supplier_names_is_refused(self):
         self.snapshot()
-        write(self.root, '.github/workflows/a.yml', '      - uses: actions/checkout@v4\n')
+        write(self.root, '.github/workflows/a.yml', f'      - uses: actions/checkout@{COMMIT40}\n')
         self.assertEqual(supply.check(self.root), ['ecosystem action: no supplier in config/supply/suppliers names it'])
+
+    def test_unpinned_components_and_unsafe_dockerfiles_are_refused_even_without_lockfiles(self):
+        bare = Path(tempfile.mkdtemp(prefix='supply-docker-'))
+        self.addCleanup(shutil.rmtree, bare)
+        write(bare, 'config/supply/suppliers/SUP-docker-hub.json', {'id': 'SUP-docker-hub', 'ecosystems': ['image']})
+        write(bare, 'infra/service/Dockerfile',
+              'FROM public.ecr.aws/docker/library/python:3.12-slim\n'
+              'RUN npm install -g --no-audit pkg@1.0.0 && curl -fsSL "$URL" | sh\n')
+        errors = supply.check(bare)
+        self.assertTrue(any('unpinned image component' in line for line in errors), errors)
+        self.assertTrue(any('--no-audit' in line for line in errors), errors)
+        self.assertTrue(any('pipes curl/wget' in line for line in errors), errors)
+        write(bare, 'infra/service/Dockerfile',
+              f'FROM public.ecr.aws/docker/library/python:3.12-slim@sha256:{SHA64}\n'
+              'RUN npm install -g pkg@1.0.0\n')
+        self.assertEqual(supply.check(bare), [])
+
+    def test_an_unpinned_lockfile_package_is_refused_by_check(self):
+        write(self.root, 'apps/site/pnpm-lock.yaml', LOCK)
+        self.snapshot()
+        errors = supply.check(self.root)
+        self.assertTrue(any('unpinned npm component loose@0.1.0' in line for line in errors), errors)
 
     def test_an_untracked_lockfile_is_not_the_tree_s(self):
         import subprocess
@@ -183,6 +256,7 @@ class Check(unittest.TestCase):
             supply.audit(self.root, run=run)
 
     def test_the_model_reads_a_vulnerable_component_supplied_by_its_supplier_and_its_advisory(self):
+        write(self.root, 'apps/site/pnpm-lock.yaml', LOCK)
         self.snapshot(advisory('left-pad', 'high', ['1.3.0']))
         deps = {item['id']: item for item in model.read_dependencies(self.root)}
         self.assertEqual(deps['DEP:npm:left-pad@1.3.0']['state'], 'vulnerable')

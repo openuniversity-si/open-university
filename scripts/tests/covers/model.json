@@ -54,6 +54,8 @@
     "config/supply/**",
     "scripts/lib/supply.py",
     "**/pnpm-lock.yaml",
+    "**/Dockerfile",
+    "infra/service/requirements*.txt",
     "scripts/lib/queue_checks.py",
     ".github/rulesets/*.json",
     ".github/workflows/*.yml",
