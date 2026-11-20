@@ -9,8 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
-import model  # noqa: E402
-import problem_space  # noqa: E402
+import model
+import problem_space
 
 DAY = '2026-11-19'
 LATER = '2026-11-20'
@@ -22,8 +22,8 @@ def write(root, rel, body):
     path.write_text(json.dumps(body))
 
 
-def assume(text):
-    return {'statement': text}
+def assume(text, premise=None):
+    return {'statement': text, **({'premise': premise} if premise else {})}
 
 
 class ProblemSpace(unittest.TestCase):
@@ -58,24 +58,32 @@ class ProblemSpace(unittest.TestCase):
                 'invalidates': ['P-1'] if option == 'proposal' else [],
                 'cost': {'level': 'low', 'basis': 'x'}, 'state': state, 'decided_by': ['D-1'], 'owner': 'manager',
                 'source': 'x'}
-        node = {'tactic': 'INJ-proposal', 'owner': 'manager', 'source': 'x',
-                'assumptions': {role: assume(role) for role in ('necessary', 'parallel', 'sufficiency')}}
+        assumptions = {'necessary': assume('necessary', 'P-2'), 'parallel': assume('parallel'),
+                       'sufficiency': assume('sufficiency')}
+        node = {'owner': 'manager', 'source': 'x', 'assumptions': assumptions}
         top, domain, program = range(1, len(problem_space.VALIDATORS))
-        self.files['ST-top'] = {'id': 'ST-top', 'level': top, 'strategy': 'INT-x', 'owner_role': 'manager',
-                                'validated': {'by': 'Daniel', 'date': DAY}, **node}
-        self.files['ST-domain'] = {'id': 'ST-domain', 'level': domain, 'strategy': 'NC-goal', 'child_of': 'ST-top',
+        self.files['ST-top'] = {'id': 'ST-top', 'level': top, 'strategy': 'INT-x', 'tactic': 'INJ-proposal',
+                                'owner_role': 'manager', 'validated': {'by': 'Daniel', 'date': DAY}, **node}
+        self.files['ST-domain'] = {'id': 'ST-domain', 'level': domain, 'strategy': 'NC-goal',
+                                   'tactic': 'focus one front on the measured constraint', 'child_of': 'ST-top',
                                    'owner_role': 'manager', 'validated': {'by': 'Daniel', 'date': DAY}, **node}
-        self.files['ST-program'] = {'id': 'ST-program', 'level': program, 'strategy': 'NC-part', 'child_of': 'ST-domain',
+        self.files['ST-program'] = {'id': 'ST-program', 'level': program, 'strategy': 'NC-part',
+                                    'tactic': 'deliver the program units under the constraint', 'child_of': 'ST-domain',
                                     'owner_role': 'domain-coordinator', 'decomposes_into': ['WORK-program-p'],
                                     'validated': {'by': 'manager', 'date': DAY}, **node}
-        self.appraisal = {'id': 'D-1', 'decision': 'D-1', 'criteria': [{'nc': 'NC-goal', 'weight': 1}],
+        low, mid, high = 0, 1, 1 + 1
+        self.weight, self.low, self.mid, self.high = 1 + 1, low, mid, high
+        self.appraisal = {'id': 'D-1', 'decision': 'D-1', 'criteria': [{'nc': 'NC-goal', 'weight': self.weight}],
                           'criteria_fixed': DAY, 'options': ['INJ-do-nothing', 'INJ-do-minimum', 'INJ-proposal'],
-                          'scores': [{'option': option, 'nc': 'NC-goal', 'value': 1, 'evidence': 'x'}
-                                     for option in ('INJ-do-nothing', 'INJ-do-minimum', 'INJ-proposal')],
+                          'scores': [
+                              {'option': 'INJ-do-nothing', 'nc': 'NC-goal', 'value': low, 'evidence': 'x'},
+                              {'option': 'INJ-do-minimum', 'nc': 'NC-goal', 'value': mid, 'evidence': 'x'},
+                              {'option': 'INJ-proposal', 'nc': 'NC-goal', 'value': high, 'evidence': 'x'},
+                          ],
                           'scored': DAY, 'chosen': 'INJ-proposal', 'why': 'x', 'revert': 'x', 'owner': 'Daniel',
                           'source': 'x'}
 
-    def found(self, states=None, edit=None, appraisal=None):
+    def found(self, states=None, edit=None, appraisal=None, extra=None):
         """The problem space read from the fixture (after `edit` of its files), with each NC's state set (as
         derive_validations would from a wired measure), attached to D-1 and a program of work, and derived."""
         files = copy.deepcopy(self.files)
@@ -90,8 +98,12 @@ class ProblemSpace(unittest.TestCase):
         found['INT-x'] = {'id': 'INT-x', 'type': 'INT', 'state': 'active', 'fingerprint': 'f', 'links': [], 'source': 'x'}
         found['P-1'] = {'id': 'P-1', 'type': 'P', 'state': 'refuted', 'fingerprint': 'f', 'links': [], 'source': 'x',
                         'body': {}}
+        found['P-2'] = {'id': 'P-2', 'type': 'P', 'state': 'confirmed', 'fingerprint': 'f', 'links': [], 'source': 'x',
+                        'body': {}}
         found['WORK-program-p'] = {'id': 'WORK-program-p', 'type': 'WORK', 'state': 'in-progress', 'fingerprint': 'f',
-                                   'links': [], 'source': 'x', 'body': {'program': 'p'}}
+                                   'links': [], 'source': 'x', 'body': {'program': 'p', 'kind': 'program'}}
+        if extra:
+            found.update(extra)
         for ident, state in (states or {'NC-goal': 'not-met', 'NC-part': 'met'}).items():
             found[ident]['state'] = state
         problem_space.attach(found, self.root, model._declared)
@@ -132,14 +144,45 @@ class ProblemSpace(unittest.TestCase):
             files['ST-program']['decomposes_into'] = []
         def no_tactic(files):
             for ident in ('ST-top', 'ST-domain', 'ST-program'):
-                files[ident]['tactic'] = 'the step'
+                files[ident]['tactic'] = f'step {ident}'
+        def repeats_parent(files):
+            files['ST-domain']['tactic'] = files['ST-top']['tactic']
+        def dup_sibling(files):
+            files['ST-program-b'] = copy.deepcopy(files['ST-program'])
+            files['ST-program-b']['id'] = 'ST-program-b'
+            files['ST-program-b']['decomposes_into'] = []
+        def no_premise(files):
+            files['ST-domain']['assumptions']['necessary'].pop('premise', None)
+        def unknown_premise(files):
+            files['ST-domain']['assumptions']['necessary']['premise'] = 'P-999'
+        def missing_work(files):
+            files['ST-program']['decomposes_into'] = ['WORK-program-p', 'WORK-program-ghost']
         cases = ((cycle, 'has a cycle'), (no_cloud, 'no conflict perpetuates'), (no_minimum, 'no do-minimum'),
                  (stray_strategy, 'does not descend'), (unchosen_tactic, 'is no chosen injection'),
                  (wrong_writer, 'is written by the domain-coordinator'), (orphan, 'outside the strategy and tactics'),
-                 (no_tactic, "no node's tactic"))
+                 (no_tactic, "no node's tactic"), (repeats_parent, 'repeats its parent'),
+                 (dup_sibling, 'duplicates sibling'), (no_premise, 'link no premise'),
+                 (unknown_premise, 'not in the premise register'), (missing_work, 'is not a work item'))
         for edit, said in cases:
             errors = problem_space.problem_errors(self.found(edit=edit))
             self.assertTrue(any(said in line for line in errors), (said, errors))
+        delivered = {'WORK-program-p': {'id': 'WORK-program-p', 'type': 'WORK', 'state': 'delivered', 'fingerprint': 'f',
+                                        'links': [], 'source': 'x', 'body': {'program': 'p', 'kind': 'program'}}}
+        self.assertTrue(any('no longer active' in line for line in problem_space.problem_errors(self.found(extra=delivered))))
+        unit_work = {'WORK-p-u1': {'id': 'WORK-p-u1', 'type': 'WORK', 'state': 'queued', 'fingerprint': 'f',
+                                   'links': [], 'source': 'x', 'body': {'program': 'p', 'kind': 'unit'}}}
+        def unit_on_l3(files):
+            files['ST-program']['decomposes_into'] = ['WORK-program-p', 'WORK-p-u1']
+        self.assertTrue(any('is not a program' in line for line in problem_space.problem_errors(
+            self.found(edit=unit_on_l3, extra=unit_work))))
+        def program_on_leaf(files):
+            files['ST-leaf'] = {
+                'id': 'ST-leaf', 'level': len(problem_space.VALIDATORS), 'strategy': 'NC-part', 'tactic': 'execute unit u1',
+                'child_of': 'ST-program', 'decomposes_into': ['WORK-program-p'], 'owner_role': 'lane',
+                'validated': {'by': 'coordinator', 'date': DAY}, 'owner': 'lane', 'source': 'x',
+                'assumptions': {'necessary': assume('n', 'P-2'), 'parallel': assume('p'), 'sufficiency': assume('s')}}
+        self.assertTrue(any('a program on a leaf node' in line for line in problem_space.problem_errors(
+            self.found(edit=program_on_leaf))))
 
     def test_an_appraisal_takes_criteria_from_conditions_fixed_before_the_scores_and_every_option(self):
         late = {**self.appraisal, 'criteria_fixed': LATER}
@@ -155,6 +198,28 @@ class ProblemSpace(unittest.TestCase):
         unscored = {**self.appraisal, 'scores': self.appraisal['scores'][:1]}
         self.assertTrue(any('scores missing' in line for line in problem_space.problem_errors(
             self.found(appraisal=unscored))))
+        losing = {**self.appraisal, 'scores': [
+            {'option': 'INJ-do-nothing', 'nc': 'NC-goal', 'value': self.high + 1, 'evidence': 'x'},
+            {'option': 'INJ-do-minimum', 'nc': 'NC-goal', 'value': self.mid, 'evidence': 'x'},
+            {'option': 'INJ-proposal', 'nc': 'NC-goal', 'value': self.high, 'evidence': 'x'},
+        ]}
+        self.assertTrue(any('does not beat' in line for line in problem_space.problem_errors(
+            self.found(appraisal=losing))))
+        tied = {**self.appraisal, 'scores': [
+            {'option': 'INJ-do-nothing', 'nc': 'NC-goal', 'value': self.high, 'evidence': 'x'},
+            {'option': 'INJ-do-minimum', 'nc': 'NC-goal', 'value': self.mid, 'evidence': 'x'},
+            {'option': 'INJ-proposal', 'nc': 'NC-goal', 'value': self.high, 'evidence': 'x'},
+        ]}
+        self.assertTrue(any('does not beat' in line for line in problem_space.problem_errors(
+            self.found(appraisal=tied))))
+        duplicated = {**self.appraisal, 'scores': self.appraisal['scores'] + [
+            {'option': 'INJ-proposal', 'nc': 'NC-goal', 'value': self.mid, 'evidence': 'y'}]}
+        self.assertTrue(any('duplicate scores' in line for line in problem_space.problem_errors(
+            self.found(appraisal=duplicated))))
+        self.assertEqual(problem_space.appraisal_totals(self.appraisal),
+                         {'INJ-do-nothing': float(self.weight * self.low),
+                          'INJ-do-minimum': float(self.weight * self.mid),
+                          'INJ-proposal': float(self.weight * self.high)})
         def undecided(files):
             files['INJ-proposal']['decided_by'] = []
         self.assertTrue(any('no decision that holds an appraisal' in line
@@ -169,6 +234,10 @@ class ProblemSpace(unittest.TestCase):
         found = self.found(states={'NC-goal': 'met', 'NC-part': 'met'})
         self.assertFalse(self.conforms(found, 'UDE-slow'), 'still observed while its condition is met')
         self.assertEqual(problem_space.problem_errors(found), [])
+        def returned(files):
+            files['UDE-slow']['state'] = 'returned'
+        found = self.found(states={'NC-goal': 'met', 'NC-part': 'met'}, edit=returned)
+        self.assertFalse(self.conforms(found, 'UDE-slow'), 'still returned while its condition is met')
         def open_branch(files):
             files['INJ-proposal']['branches'] = [{'effect': 'a risk', 'severity': 'high'}]
         self.assertFalse(self.conforms(self.found(edit=open_branch), 'INJ-proposal'), 'an open negative branch')
@@ -180,6 +249,27 @@ class ProblemSpace(unittest.TestCase):
         found = self.found(edit=unvalidated)
         self.assertEqual(found['ST-domain']['state'], 'proposed', 'level 2 is validated by Daniel')
         self.assertFalse(self.conforms(found, 'ST-domain'))
+        def refuted_premise(files):
+            files['ST-domain']['assumptions']['necessary']['premise'] = 'P-1'
+        found = self.found(edit=refuted_premise)
+        self.assertEqual(found['ST-domain']['state'], 'proposed', 'rule 11: a refuted premise reopens the ST node')
+        self.assertTrue(found['ST-domain']['body']['reopened_by_premise'])
+        self.assertFalse(self.conforms(found, 'ST-domain'))
+        self.assertEqual(problem_space.problem_errors(found), [])
+
+    def test_diagnostics_reports_duplicate_measures_and_unvalidated_needs(self):
+        found = self.found(extra={
+            'VAL-goal': {'id': 'VAL-goal', 'type': 'VAL', 'state': 'defined', 'fingerprint': 'f', 'links': [],
+                         'body': {'measure': {'kind': 'unwired', 'source': 'x'}, 'comparator': 'gte', 'threshold': 1}},
+            'NEED-a': {'id': 'NEED-a', 'type': 'NEED', 'state': 'proposed', 'fingerprint': 'f', 'links': []},
+            'NEED-b': {'id': 'NEED-b', 'type': 'NEED', 'state': 'active', 'fingerprint': 'f', 'links': []},
+        })
+        diag = problem_space.diagnostics(found)
+        self.assertEqual(diag['duplicate_measures'], [('NC-goal', 'VAL-goal'), ('NC-part', 'VAL-goal')])
+        self.assertEqual(diag['unvalidated_needs'], ['NEED-a'])
+        levels = range(1, len(problem_space.VALIDATORS) + 1)
+        self.assertEqual(diag['st_levels'], {level: int(level < len(problem_space.VALIDATORS)) for level in levels})
+        self.assertEqual(diag['appraisals']['D-1']['INJ-proposal'], float(self.weight * self.high))
 
     def test_a_condition_reads_an_slo_and_a_composite_of_conditions(self):
         write(self.root, 'config/registry/slo.json', json.loads((ROOT / 'config/registry/slo.json').read_text()))
@@ -193,9 +283,26 @@ class ProblemSpace(unittest.TestCase):
         self.assertEqual(problem_space.problem_errors(found), [])
         meta, into = model.metamodel(ROOT), model.incoming(found)
         kinds = {kind for kind, _ in problem_space.KINDS}
-        open_ = [ident for ident, item in found.items() if item['type'] in kinds
-                 and not model.covered(meta, item, into, found)]
-        self.assertEqual(open_, [])
+        open_ = sorted(ident for ident, item in found.items() if item['type'] in kinds
+                       and not model.covered(meta, item, into, found))
+        # Level-2 ST nodes were updated with distinct domain tactics and P-NN premise links; they stay proposed
+        # until Daniel validates them (D-354).
+        self.assertEqual(open_, ['ST-administration', 'ST-capacity', 'ST-efficiency'])
+        diag = problem_space.diagnostics(found)
+        self.assertEqual(diag['duplicate_measures'], [
+            ('NC-autonomy', 'VAL-autonomy'), ('NC-cost', 'VAL-aws-200'), ('NC-deploy-1s', 'VAL-deploy-1s'),
+            ('NC-gate-time', 'VAL-gate-60s'), ('NC-quality', 'VAL-escape-under-1'),
+            ('NC-reflexion', 'VAL-changeability'), ('NC-requirements-tested', 'VAL-knowledge'),
+            ('NC-throughput', 'VAL-ladder-1')])
+        self.assertEqual(diag['unvalidated_needs'], [
+            'NEED-autonomy', 'NEED-changeability', 'NEED-cost', 'NEED-knowledge', 'NEED-quality', 'NEED-throughput'])
+        d348 = json.loads((ROOT / 'config/problem/appraisal/D-348.json').read_text())
+        weights = {item['nc']: item['weight'] for item in d348['criteria']}
+        expected = {option: float(sum(weights[s['nc']] * s['value'] for s in d348['scores'] if s['option'] == option))
+                    for option in d348['options']}
+        self.assertEqual(diag['appraisals']['D-348'], expected)
+        self.assertGreater(expected['INJ-tree-governance'], expected['INJ-do-minimum'])
+        self.assertGreater(expected['INJ-do-minimum'], expected['INJ-do-nothing'])
 
 
 if __name__ == '__main__':

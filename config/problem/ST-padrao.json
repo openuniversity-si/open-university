@@ -2,13 +2,15 @@
   "id": "ST-padrao",
   "level": 3,
   "strategy": "NC-standard",
-  "tactic": "INJ-tree-governance",
+  "tactic": "Enforce contracts, model invariants and automated standard checks through the padrao-dev program.",
   "assumptions": {
     "necessary": {
-      "statement": "The standard and the model are how the system knows itself."
+      "statement": "The standard and the model are how the system knows itself.",
+      "premise": "P-41"
     },
     "parallel": {
-      "statement": "Run the standard as programs, measured by the model."
+      "statement": "Run the standard as programs, measured by the model.",
+      "premise": "P-29"
     },
     "sufficiency": {
       "statement": "The standard's programs and the census of manifests cover it."

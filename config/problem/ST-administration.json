@@ -2,24 +2,22 @@
   "id": "ST-administration",
   "level": 2,
   "strategy": "NC-standard",
-  "tactic": "INJ-tree-governance",
+  "tactic": "Keep contracts, measures, trust indicators and dashboards state of the art by tools, never by hand.",
   "assumptions": {
     "necessary": {
-      "statement": "With no reliable measure the constraint is blind and trust is not built."
+      "statement": "With no reliable measure the constraint stays blind and trust is not built.",
+      "premise": "P-30"
     },
     "parallel": {
-      "statement": "Tools, never hands, keep the contracts, measures and dashboards."
+      "statement": "Tools and registered parameters, never hands, keep the contracts, measures and dashboards truthful.",
+      "premise": "P-41"
     },
     "sufficiency": {
-      "statement": "The model at 100 % and the constraint meter on the live base."
+      "statement": "Executable model checks and the live GitHub constraint meter cover system self-knowledge."
     }
   },
   "child_of": "ST-torre",
   "owner_role": "manager",
-  "validated": {
-    "by": "Daniel",
-    "date": "2026-11-19"
-  },
   "owner": "manager",
   "source": "docs/programs/padrao-dev/problema-desenho.md#3 (S&T)"
 }

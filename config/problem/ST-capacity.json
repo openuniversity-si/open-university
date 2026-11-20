@@ -2,24 +2,23 @@
   "id": "ST-capacity",
   "level": 2,
   "strategy": "NC-throughput",
-  "tactic": "INJ-tree-governance",
+  "tactic": "Keep one standing front on the live GitHub constraint named by scripts/flow-metrics --constraint and a second front on the next measured bottleneck.",
   "assumptions": {
     "necessary": {
-      "statement": "The constraint is the supply of ready units (flow-metrics, 19/11)."
+      "statement": "The live GitHub constraint is measured on tower/gate reliability, tower/gate latency, deploy latency and merge pace (flow-metrics --constraint).",
+      "premise": "P-02"
     },
     "parallel": {
-      "statement": "Attacking the constraint yields more than the rest (TOC, the five focusing steps)."
+      "statement": "Attacking the measured constraint yields more than local optimization elsewhere (TOC five focusing steps).",
+      "premise": "P-36"
     },
     "sufficiency": {
-      "statement": "A fed queue, a gate right and fast and a deploy in 1 s lead to ladder step 1."
+      "statement": "A reliable and fast tower/gate, a 1 s deploy and a fed queue lead to ladder step 1.",
+      "premise": "P-27"
     }
   },
   "child_of": "ST-torre",
   "owner_role": "manager",
-  "validated": {
-    "by": "Daniel",
-    "date": "2026-11-19"
-  },
   "owner": "manager",
   "source": "docs/programs/padrao-dev/problema-desenho.md#3 (S&T)"
 }

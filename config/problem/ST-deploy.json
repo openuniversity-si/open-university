@@ -2,10 +2,11 @@
   "id": "ST-deploy",
   "level": 3,
   "strategy": "NC-deploy-1s",
-  "tactic": "INJ-tree-governance",
+  "tactic": "Cut code-only merge-to-live swap and reload latency to within 1 s on the doorbell's clock (D-345).",
   "assumptions": {
     "necessary": {
-      "statement": "Code goes live in 1.5 to 2.3 s."
+      "statement": "Code goes live in 1.5 to 2.3 s.",
+      "premise": "P-32"
     },
     "parallel": {
       "statement": "Most of it is the code swap after the landing (D-345's steps), so cut there."
