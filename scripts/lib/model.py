@@ -1711,14 +1711,14 @@ def read_dependencies(root):
     ecosystems, tools = supply.suppliers_of(root)
     snapshot = supply.read_snapshot(root) or {'advisories': []}
     granted, today = supply.exemptions(root), utc_today()
-    hit = {(advisory['package'], version) for advisory in snapshot['advisories']
+    hit = {(advisory.get('ecosystem', 'npm'), advisory['package'], version) for advisory in snapshot['advisories']
            if supply.advisory_state(advisory, granted.get(advisory['id']), today) == 'affecting'
            for version in advisory['versions']}
     found = []
     for entry in supply.dependencies(root):
         ident = supply.dep_id(entry['ecosystem'], entry['name'], entry['version'])
         owner = supply.supplier(entry, ecosystems, tools)
-        state = 'vulnerable' if (entry['ecosystem'] == 'npm' and (entry['name'], entry['version']) in hit) else (
+        state = 'vulnerable' if (entry['ecosystem'], entry['name'], entry['version']) in hit else (
             'in-use' if entry['pinned'] else 'unpinned')
         item = _obj(ident, 'DEP', state, entry['sources'][0], json.dumps(entry, sort_keys=True),
                     [{'type': 'supplied-by', 'target': owner}] if owner else [])
@@ -1737,7 +1737,8 @@ def read_advisories(root):
     granted, today = supply.exemptions(root), utc_today()
     found = []
     for advisory in snapshot['advisories']:
-        links = [{'type': 'affects', 'target': supply.dep_id('npm', advisory['package'], version)}
+        ecosystem = advisory.get('ecosystem', 'npm')
+        links = [{'type': 'affects', 'target': supply.dep_id(ecosystem, advisory['package'], version)}
                  for version in advisory['versions']]
         exempt = granted.get(advisory['id']) or {}
         links += [{'type': 'authorized-by', 'target': exempt['authorized_by']}] if exempt.get('authorized_by') else []

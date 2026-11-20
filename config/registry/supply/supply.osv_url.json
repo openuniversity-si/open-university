@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "https://api.osv.dev/v1",
+  "minLength": 1,
+  "x-unit": "url",
+  "description": "Base URL of the OSV API queried by scripts/supply audit for pinned PyPI requirements.",
+  "x-readers": [
+    "scripts/lib/supply.py"
+  ],
+  "x-source": "D-320"
+}

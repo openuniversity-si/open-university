@@ -22,6 +22,8 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import urllib.parse
+import urllib.request
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -272,20 +274,42 @@ def supplier(entry, ecosystems, tools):
     return ecosystems.get(entry['ecosystem'])
 
 
+def _snapshot_date(at):
+    """The UTC calendar date of an audit snapshot timestamp (`YYYY-MM-DD...`), else None."""
+    if not isinstance(at, str):
+        return None
+    try:
+        return date.fromisoformat(at[:len('YYYY-MM-DD')])
+    except ValueError:
+        return None
+
+
 def check(root, today=None):
-    """The supply check's refusals: a snapshot taken on other lockfiles, an advisory of a blocking severity affecting,
-    an exemption without a reason or a deadline, an unsafe Dockerfile RUN, an unpinned component, or a component without
-    a supplier."""
+    """The supply check's refusals: a snapshot taken on other lockfiles or pip files, a stale or undated snapshot, an
+    advisory of a blocking severity affecting, an exemption without a reason or a deadline, an unsafe Dockerfile RUN,
+    an unpinned component, or a component without a supplier."""
     root, today = Path(root), today or utc_today()
     errors = []
     snapshot = read_snapshot(root)
     present = {name: sha256(root / name) for name in lockfiles(root)}
+    present_pips = {name: sha256(root / name) for name in pipfiles(root)}
     if snapshot is None:
-        if present:
+        if present or present_pips:
             errors.append(f'{SNAPSHOT}: no audit snapshot; run scripts/supply audit')
     else:
         if snapshot.get('lockfiles', {}) != present:
             errors.append(f'{SNAPSHOT}: taken on other lockfiles than the tree has; run scripts/supply audit')
+        if present_pips and snapshot.get('pipfiles', {}) != present_pips:
+            errors.append(f'{SNAPSHOT}: taken on other pip files than the tree has; run scripts/supply audit')
+        max_days = setting('supply.snapshot_max_days')
+        taken = _snapshot_date(snapshot.get('at'))
+        if taken is None:
+            errors.append(f'{SNAPSHOT}: missing or invalid audit timestamp `at`; run scripts/supply audit')
+        else:
+            age = (date.fromisoformat(today) - taken).days
+            if age > max_days:
+                errors.append(f'{SNAPSHOT}: audit snapshot is {age} day(s) old (at {snapshot["at"]}, max {max_days}); '
+                              f'run scripts/supply audit')
         granted = exemptions(root)
         import json_schema
         schema = json.loads((ROOT / 'contracts/model/exemption.v1.json').read_text())
@@ -324,15 +348,110 @@ def from_audit(report, lockfile):
     for advisory in report.get('advisories', {}).values():
         ghsa = advisory.get('github_advisory_id') or f'npm-{advisory["id"]}'
         versions = sorted({finding['version'] for finding in advisory.get('findings', [])})
-        found.append({'id': advisory_id(ghsa), 'ghsa': ghsa, 'package': advisory['module_name'], 'versions': versions,
-                      'vulnerable': advisory['vulnerable_versions'], 'patched': advisory['patched_versions'],
-                      'severity': advisory['severity'], 'title': advisory['title'], 'url': advisory.get('url', ''),
-                      'lockfiles': [lockfile]})
+        found.append({'id': advisory_id(ghsa), 'ghsa': ghsa, 'ecosystem': 'npm', 'package': advisory['module_name'],
+                      'versions': versions, 'vulnerable': advisory['vulnerable_versions'],
+                      'patched': advisory['patched_versions'], 'severity': advisory['severity'],
+                      'title': advisory['title'], 'url': advisory.get('url', ''), 'lockfiles': [lockfile]})
     return found
 
 
-def audit(root, run=subprocess.run, now=None):
-    """The snapshot of every lockfile's advisories (pnpm audit --json, run in the lockfile's directory)."""
+OSV_SEVERITIES = {'critical': 'critical', 'high': 'high', 'moderate': 'moderate', 'medium': 'moderate', 'low': 'low'}
+
+
+def _osv_fetch(url, payload=None):
+    """One HTTPS JSON request to the configured OSV endpoint."""
+    if urllib.parse.urlparse(url).scheme != 'https':
+        raise ValueError(f'OSV URL must use https: {url}')
+    data = json.dumps(payload).encode() if payload is not None else None
+    headers = {'Content-Type': 'application/json'} if data is not None else {}
+    request = urllib.request.Request(url, data=data, headers=headers)
+    with urllib.request.urlopen(request, timeout=setting('supply.osv_timeout_s')) as response:
+        return json.loads(response.read().decode())
+
+
+def _osv_severity(record):
+    """Map an OSV vulnerability record's severity to supply's scale; unknown defaults to high (fail closed)."""
+    raw = (record.get('database_specific') or {}).get('severity')
+    if not raw:
+        for affected in record.get('affected') or ():
+            raw = (affected.get('ecosystem_specific') or {}).get('severity') or (affected.get('database_specific') or {}).get('severity')
+            if raw:
+                break
+    return OSV_SEVERITIES.get(str(raw).lower(), 'high') if raw else 'high'
+
+
+def _osv_patched(record, package):
+    """The fixed version constraints of an OSV record for `package`, else `none`."""
+    fixed = set()
+    for affected in record.get('affected') or ():
+        pkg = (affected.get('package') or {}).get('name', '').lower()
+        if pkg and pkg != package.lower():
+            continue
+        for span in affected.get('ranges') or ():
+            for event in span.get('events') or ():
+                if event.get('fixed'):
+                    fixed.add(event['fixed'])
+    return ', '.join(f'>={version}' for version in sorted(fixed)) if fixed else 'none'
+
+
+def from_osv(records, hits):
+    """Convert OSV vulnerability records and `(package, version, sources, vuln_id)` hits into snapshot advisories."""
+    merged = {}
+    for package, version, sources, vuln_id in hits:
+        record = records.get(vuln_id) or {'id': vuln_id}
+        aliases = record.get('aliases') or ()
+        ghsa = next((alias for alias in aliases if alias.startswith('GHSA-')), vuln_id)
+        ident = advisory_id(ghsa)
+        refs = [ref.get('url', '') for ref in record.get('references') or () if ref.get('url')]
+        entry = {'id': ident, 'ghsa': ghsa, 'ecosystem': 'pypi', 'package': package, 'versions': [version],
+                 'vulnerable': f'=={version}', 'patched': _osv_patched(record, package),
+                 'severity': _osv_severity(record), 'title': record.get('summary') or vuln_id,
+                 'url': refs[0] if refs else '', 'lockfiles': sorted(sources)}
+        current = merged.setdefault(ident, entry)
+        if current is not entry:
+            current['versions'] = sorted(set(current['versions']) | set(entry['versions']))
+            current['lockfiles'] = sorted(set(current['lockfiles']) | set(entry['lockfiles']))
+    return list(merged.values())
+
+
+def audit_pypi(root, fetch=None):
+    """Audit pinned PyPI requirements in `pipfiles(root)` against OSV (`supply.osv_url`)."""
+    root = Path(root)
+    packages = {}
+    for name in pipfiles(root):
+        for entry in pip_parts((root / name).read_text(), name):
+            packages.setdefault((entry['name'], entry['version']), set()).add(name)
+    if not packages:
+        return []
+    fetch = fetch or _osv_fetch
+    base = setting('supply.osv_url').rstrip('/')
+    ordered = sorted(packages)
+    response = fetch(f'{base}/querybatch', {'queries': [{'package': {'name': name, 'ecosystem': 'PyPI'}, 'version': version}
+                                                        for name, version in ordered]})
+    results = response.get('results')
+    if not isinstance(results, list) or len(results) != len(ordered):
+        raise RuntimeError('OSV querybatch gave an incomplete response')
+    hits, needed = [], set()
+    for (name, version), item in zip(ordered, results):
+        for vuln in item.get('vulns') or ():
+            vuln_id = vuln.get('id')
+            if vuln_id:
+                hits.append((name, version, packages[(name, version)], vuln_id))
+                needed.add(vuln_id)
+    records = {vuln_id: fetch(f'{base}/vulns/{vuln_id}', None) for vuln_id in sorted(needed)}
+    return from_osv(records, hits)
+
+
+def _merge_advisories(merged, advisories):
+    for advisory in advisories:
+        current = merged.setdefault(advisory['id'], advisory)
+        if current is not advisory:
+            current['versions'] = sorted(set(current['versions']) | set(advisory['versions']))
+            current['lockfiles'] = sorted(set(current['lockfiles']) | set(advisory['lockfiles']))
+
+
+def audit(root, run=subprocess.run, now=None, fetch=None):
+    """The snapshot of every lockfile's (pnpm audit) and pip file's (OSV) advisories."""
     root = Path(root)
     merged = {}
     for name in lockfiles(root):
@@ -340,14 +459,12 @@ def audit(root, run=subprocess.run, now=None):
         report = json.loads(result.stdout or '{}')
         if 'advisories' not in report:
             raise RuntimeError(f'{name}: pnpm audit gave no report ({result.stderr.strip()[:200]})')
-        for advisory in from_audit(report, name):
-            current = merged.setdefault(advisory['id'], advisory)
-            if current is not advisory:
-                current['versions'] = sorted(set(current['versions']) | set(advisory['versions']))
-                current['lockfiles'] = sorted(set(current['lockfiles']) | set(advisory['lockfiles']))
+        _merge_advisories(merged, from_audit(report, name))
+    _merge_advisories(merged, audit_pypi(root, fetch=fetch))
     return {'generated_by': 'scripts/supply audit',
             'at': now or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
             'lockfiles': {name: sha256(root / name) for name in lockfiles(root)},
+            'pipfiles': {name: sha256(root / name) for name in pipfiles(root)},
             'advisories': sorted(merged.values(), key=lambda item: item['id'])}
 
 

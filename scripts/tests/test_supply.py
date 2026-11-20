@@ -3,6 +3,7 @@ audit's runner is injected, every repository but the last class is a temporary o
 
 Verifies: REQ-chain-verified
 """
+from datetime import date, timedelta
 import json
 from pathlib import Path
 import shutil
@@ -163,22 +164,35 @@ class Check(unittest.TestCase):
         write(self.root, 'apps/site/pnpm-lock.yaml', PINNED_LOCK)
         write(self.root, 'config/supply/suppliers/SUP-npm.json', {'id': 'SUP-npm', 'ecosystems': ['npm']})
 
-    def snapshot(self, *advisories):
+    def snapshot(self, *advisories, now='2026-11-17T00:00:00Z', fetch=None):
         report = audit_report(*advisories)
         run = lambda command, cwd, capture_output, text: subprocess.CompletedProcess(command, 1, json.dumps(report), '')
-        made = supply.audit(self.root, run=run, now='2026-11-17T00:00:00Z')
+        made = supply.audit(self.root, run=run, now=now, fetch=fetch)
         write(self.root, supply.SNAPSHOT, made)
         return made
 
     def test_no_snapshot_with_a_lockfile_is_refused_and_a_fresh_one_passes(self):
-        self.assertIn('no audit snapshot', supply.check(self.root)[0])
+        self.assertIn('no audit snapshot', supply.check(self.root, today='2026-11-17')[0])
         self.snapshot()
-        self.assertEqual(supply.check(self.root), [])
+        self.assertEqual(supply.check(self.root, today='2026-11-17'), [])
 
     def test_a_lockfile_changed_after_the_snapshot_is_refused(self):
         self.snapshot()
         write(self.root, 'apps/site/pnpm-lock.yaml', LOCK + '\n')
-        self.assertIn('taken on other lockfiles', supply.check(self.root)[0])
+        self.assertIn('taken on other lockfiles', supply.check(self.root, today='2026-11-17')[0])
+
+    def test_a_stale_or_undated_audit_snapshot_is_refused(self):
+        self.snapshot(now='2026-11-17T00:00:00Z')
+        max_days = supply.setting('supply.snapshot_max_days')
+        edge = (date.fromisoformat('2026-11-17') + timedelta(days=max_days)).isoformat()
+        stale = (date.fromisoformat('2026-11-17') + timedelta(days=max_days + 1)).isoformat()
+        self.assertEqual(supply.check(self.root, today=edge), [])
+        errors = supply.check(self.root, today=stale)
+        self.assertTrue(any('audit snapshot is' in line for line in errors), errors)
+        undated = {k: v for k, v in supply.read_snapshot(self.root).items() if k != 'at'}
+        write(self.root, supply.SNAPSHOT, undated)
+        self.assertTrue(any('missing or invalid audit timestamp' in line
+                            for line in supply.check(self.root, today='2026-11-17')))
 
     def test_a_high_advisory_affecting_is_refused_and_a_low_one_is_only_measured(self):
         self.snapshot(advisory('left-pad', 'high', ['1.3.0']), advisory('loose', 'low', ['0.1.0'], ghsa='GHSA-low'))
@@ -188,7 +202,7 @@ class Check(unittest.TestCase):
         self.assertEqual(supply.measure(self.root, today='2026-11-17')['advisories'], {'affecting:high': 1, 'affecting:low': 1})
 
     def test_an_exemption_holds_until_its_deadline_and_must_name_an_advisory_the_snapshot_has(self):
-        self.snapshot(advisory('left-pad', 'critical', ['1.3.0']))
+        self.snapshot(advisory('left-pad', 'critical', ['1.3.0']), now='2026-11-30T00:00:00Z')
         exemption = {'id': 'ADV-ghsa-aaaa-bbbb-cccc', 'reason': 'r', 'deadline': '2026-11-30', 'owner': 'o'}
         write(self.root, 'config/supply/exemptions/ADV-ghsa-aaaa-bbbb-cccc.json', exemption)
         self.assertEqual(supply.check(self.root, today='2026-11-30'), [])
@@ -210,7 +224,32 @@ class Check(unittest.TestCase):
     def test_a_component_of_an_ecosystem_no_supplier_names_is_refused(self):
         self.snapshot()
         write(self.root, '.github/workflows/a.yml', f'      - uses: actions/checkout@{COMMIT40}\n')
-        self.assertEqual(supply.check(self.root), ['ecosystem action: no supplier in config/supply/suppliers names it'])
+        self.assertEqual(supply.check(self.root, today='2026-11-17'),
+                         ['ecosystem action: no supplier in config/supply/suppliers names it'])
+
+    def test_pypi_requirements_are_audited_via_osv_checked_for_drift_and_reflected_in_model(self):
+        write(self.root, 'config/supply/suppliers/SUP-pypi.json', {'id': 'SUP-pypi', 'ecosystems': ['pypi']})
+        write(self.root, 'infra/service/requirements.txt', f'urllib3==2.0.0 --hash=sha256:{SHA64}\n')
+
+        def fake_fetch(url, payload):
+            if url.endswith('/querybatch'):
+                return {'results': [{'vulns': [{'id': 'PYSEC-2026-1'}]}]}
+            return {'id': 'PYSEC-2026-1', 'aliases': ['GHSA-pypi-1111-2222'], 'summary': 'bad redirect',
+                    'database_specific': {'severity': 'HIGH'},
+                    'affected': [{'package': {'name': 'urllib3'}, 'ranges': [{'events': [{'fixed': '2.0.7'}]}]}]}
+
+        made = self.snapshot(fetch=fake_fetch)
+        self.assertIn('infra/service/requirements.txt', made['pipfiles'])
+        errors = supply.check(self.root, today='2026-11-17')
+        self.assertTrue(any('ADV-ghsa-pypi-1111-2222' in line and 'urllib3' in line for line in errors), errors)
+        deps = {item['id']: item for item in model.read_dependencies(self.root)}
+        self.assertEqual(deps['DEP:pypi:urllib3@2.0.0']['state'], 'vulnerable')
+        advisories = model.read_advisories(self.root)
+        self.assertEqual([(item['id'], item['links']) for item in advisories],
+                         [('ADV-ghsa-pypi-1111-2222', [{'type': 'affects', 'target': 'DEP:pypi:urllib3@2.0.0'}])])
+        write(self.root, 'infra/service/requirements.txt', f'urllib3==2.0.7 --hash=sha256:{SHA64}\n')
+        drift = supply.check(self.root, today='2026-11-17')
+        self.assertTrue(any('taken on other pip files' in line for line in drift), drift)
 
     def test_unpinned_components_and_unsafe_dockerfiles_are_refused_even_without_lockfiles(self):
         bare = Path(tempfile.mkdtemp(prefix='supply-docker-'))
@@ -231,7 +270,7 @@ class Check(unittest.TestCase):
     def test_an_unpinned_lockfile_package_is_refused_by_check(self):
         write(self.root, 'apps/site/pnpm-lock.yaml', LOCK)
         self.snapshot()
-        errors = supply.check(self.root)
+        errors = supply.check(self.root, today='2026-11-17')
         self.assertTrue(any('unpinned npm component loose@0.1.0' in line for line in errors), errors)
 
     def test_an_untracked_lockfile_is_not_the_tree_s(self):
