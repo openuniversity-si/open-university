@@ -177,7 +177,8 @@ def read_decisions(root):
         assumed = [{'type': 'refutes' if ident in refuted else 'assumes', 'target': ident}
                    for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
         replaced = [{'type': 'supersedes', 'target': ident} for ident in re.findall(r'\bD-[0-9]+\b', fields.get('supersedes', ''))]
-        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed + replaced))
+        state = fields.get('status', 'accepted').strip() or 'accepted'
+        objects.append(_obj(number, 'D', state, path.relative_to(root).as_posix(), text, assumed + replaced))
         proof = fields.get('proof', '').strip().strip('`')
         if proof:
             objects.append({'id': f'TEST:{proof}', 'type': 'TEST', 'state': 'active', 'source': proof, 'claimed': True,
@@ -200,10 +201,10 @@ def read_decisions(root):
                     objects.append({'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name,
                                     'claimed': True, 'fingerprint': None,
                                     'links': [{'type': 'verifies', 'target': number}]})
-    # A record is written once (D-217), so it changes only by a later one: a record whose `supersedes:` names a
-    # decision makes that decision superseded, a record or a row alike (the row's Status cell is the older path).
-    superseded = {link['target'] for item in objects if item['type'] == 'D' for link in item['links']
-                  if link['type'] == 'supersedes'}
+    # A record is written once (D-217), so it changes only by a later one: an accepted record whose `supersedes:` names
+    # a decision makes that decision superseded, a record or a row alike (the row's Status cell is the older path).
+    superseded = {link['target'] for item in objects if item['type'] == 'D' and item['state'] == 'accepted'
+                  for link in item['links'] if link['type'] == 'supersedes'}
     for item in objects:
         if item['type'] == 'D' and item['id'] in superseded and item['state'] == 'accepted':
             item['state'] = 'superseded'
@@ -246,6 +247,8 @@ def row_state(status):
     with retired or deprecated is deprecated (the D type's inactive states); any other status (proven, recorded, test
     pending, rite, implemented) is accepted."""
     word = re.match(r'\W*([a-z]+)', status.lower())
+    if word and word.group(1) == 'proposed':
+        return 'proposed'
     return INACTIVE_ROW.get(word.group(1), 'accepted') if word else 'accepted'
 
 

@@ -287,6 +287,19 @@ class ProblemSpace(unittest.TestCase):
         found['NEED-x']['state'] = 'active'
         self.assertTrue(self.conforms(found, 'NEED-x'))
 
+    def test_a_proposed_decision_record_stays_proposed_and_does_not_supersede(self):
+        folder = self.root / 'docs/domain/decisions'
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / 'D-998.md').write_text(
+            '---\nnumber: D-998\ntime: 19/11 10:00 BRT\npremises: none\nproof: scripts/tests/test_problem.py\n---\nold.\n')
+        (folder / 'D-999.md').write_text(
+            '---\nnumber: D-999\ntime: 19/11 11:00 BRT\nstatus: proposed\npremises: none\nsupersedes: D-998\n'
+            'proof: scripts/tests/test_problem.py\n---\nproposal.\n')
+        decisions = {item['id']: item for item in model.read_decisions(self.root) if item['type'] == 'D'}
+        self.assertEqual(decisions['D-999']['state'], 'proposed')
+        self.assertEqual(decisions['D-998']['state'], 'accepted')
+        self.assertEqual(model.row_state('proposed'), 'proposed')
+
     def test_a_condition_reads_an_slo_and_a_composite_of_conditions(self):
         write(self.root, 'config/registry/slo.json', json.loads((ROOT / 'config/registry/slo.json').read_text()))
         self.assertEqual(model.measured({'measure': {'kind': 'slo', 'name': 'slo.none'}}, {}, self.root, DAY), (None, False))
