@@ -1703,6 +1703,48 @@ class CheaperPath(unittest.TestCase):
             self.assertEqual(len(json.loads(path.read_text())['prs']), 10, path)
         self.assertIn('measurement: cheaper path (D-327)', model.summary(model.measure(ROOT)))
 
+    def test_independent_reviewer_is_required_and_self_or_unreviewed_samples_are_flagged(self):
+        # M5: reviewer == author_session is a model error; missing reviewer marks unreviewed/weakness
+        meta = model.metamodel(ROOT)
+        self.sample('retro-sample-1', [False], reviewer='session-a', author_session='session-a')
+        found = model.cheaper_path_measure(self.root)
+        self.assertEqual(found['samples'], 0)
+        self.assertTrue(any('reviewer must be independent of author_session' in line for line in found['problems']))
+        self.sample('retro-sample-1', [False])
+        found = model.cheaper_path_measure(self.root)
+        self.assertEqual((found['unreviewed'], found['reviewed'], found['met']), (1, False, True))
+        self.assertIn('1 unreviewed/self-assessed', model.cheaper_path_line(found))
+        meas = {item['id']: item for item in model.read_measures(self.root)}['MEAS-cheaper-path']
+        self.assertTrue(model.is_weakness(meta, meas), 'unreviewed sample is an operational weakness')
+        self.sample('retro-sample-1', [False], reviewer='auditor-b', author_session='session-a')
+        found = model.cheaper_path_measure(self.root)
+        self.assertEqual((found['unreviewed'], found['reviewed'], found['met'], found['problems']), (0, True, True, []))
+        self.assertNotIn('unreviewed', model.cheaper_path_line(found))
+        meas = {item['id']: item for item in model.read_measures(self.root)}['MEAS-cheaper-path']
+        self.assertFalse(model.is_weakness(meta, meas), 'independently reviewed met sample clears weakness')
+
+    def test_construction_measure_separates_explicit_implements_from_diff_only_changes(self):
+        found = {
+            'CHG-1': {'id': 'CHG-1', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f',
+                      'links': [{'type': 'implements', 'target': 'UNIT:a'},
+                                {'type': 'implements', 'target': 'UNIT:b', 'source': 'diff'}]},
+            'CHG-2': {'id': 'CHG-2', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f',
+                      'links': [{'type': 'implements', 'target': 'UNIT:a', 'source': 'diff'}]},
+            'CHG-3': {'id': 'CHG-3', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f',
+                      'links': [{'type': 'implements', 'target': 'REQ-a', 'source': 'requirement'}]},
+            'CHG-4': {'id': 'CHG-4', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f', 'links': []},
+            'CHG-5': {'id': 'CHG-5', 'type': 'CHG', 'state': 'reverted', 'fingerprint': 'f', 'links': []},
+        }
+        counted = model.construction_measure(found)
+        self.assertEqual((counted['changes'], counted['explicit'], counted['diff_only'], counted['unlinked']),
+                         (len(['1', '2', '3', '4']), len(['1', '3']), 1, 1))
+        self.assertAlmostEqual(counted['explicit_share'], len(['1', '3']) / len(['1', '2', '3', '4']))
+        real = model.measure(ROOT)
+        self.assertGreater(real['construction']['diff_only'], 0)
+        self.assertGreater(real['construction']['explicit'], 0)
+        self.assertEqual(real['measurement']['cheaper_path']['reviewed'], False)
+        self.assertIn('construction: ', model.summary(real))
+
 
 class SupportSystems(unittest.TestCase):
     """F7e: the measures (MEAS), the work items (WORK) and the assessments (ASSESS) read from data that exists."""
@@ -1790,7 +1832,102 @@ class SupportSystems(unittest.TestCase):
         self.assertEqual(found['measurement']['unread'], 0)  # the SLOs read their GitHub snapshot (runs.SLO_FILE)
         self.assertEqual(len(found['measurement']['slos']), len(model.SLO_MEASURES))
         self.assertGreater(found['measurement']['fresh'], 0)
+        self.assertIn('slo', found['measurement']['snapshot_lag'])
         self.assertIn('work: ', model.summary(found))
+
+    def test_operational_weaknesses_keep_systems_below_f_and_open_apart_from_catalog_integrity(self):
+        # C1: catalog conformance stays intact while not-met VAL/NC, breached SLOs, unmet cheaper-path,
+        # and unclosed assessments block F and closed: true
+        meta = model.metamodel(ROOT)
+        found = {
+            'VAL-ok': {'id': 'VAL-ok', 'type': 'VAL', 'state': 'met', 'fingerprint': 'f', 'links': []},
+            'VAL-miss': {'id': 'VAL-miss', 'type': 'VAL', 'state': 'not-met', 'fingerprint': 'f', 'links': []},
+            'NC-miss': {'id': 'NC-miss', 'type': 'NC', 'state': 'not-met', 'fingerprint': 'f',
+                        'body': {'untracked': False}, 'links': [{'type': 'necessary-for', 'target': 'INT-1'}]},
+            'INT-1': {'id': 'INT-1', 'type': 'INT', 'state': 'active', 'fingerprint': 'f', 'links': []},
+            'MEAS-slo': {'id': 'MEAS-slo', 'type': 'MEAS', 'state': 'active', 'fingerprint': 'f',
+                         'body': {'need': 'n', 'consumer': 'c', 'criterion': 'max 0', 'fresh': True, 'breached': True},
+                         'links': []},
+            'MEAS-cheap': {'id': 'MEAS-cheap', 'type': 'MEAS', 'state': 'active', 'fingerprint': 'f',
+                           'body': {'need': 'n', 'consumer': 'c', 'criterion': 'lt 0.1', 'fresh': True, 'met': False},
+                           'links': []},
+        }
+        into = model.incoming(found)
+        for name, expected in (('validation', ['VAL-miss']), ('problem', ['NC-miss']),
+                               ('measurement', ['MEAS-cheap', 'MEAS-slo'])):
+            rated = model.rate_system(meta, found, into, set(), name)
+            self.assertEqual((rated['catalog_level'], rated['level'], rated['operational_ready'], rated['closed']),
+                             ('F', 'L', False, False), name)
+            self.assertEqual(rated['weakness_ids'], expected, name)
+            self.assertIn('catalog, below F', model.system_line(rated))
+        # Fixing operational states restores F, operational_ready, and closed
+        found['VAL-miss']['state'] = 'met'
+        found['MEAS-slo']['body']['breached'] = False
+        found['MEAS-cheap']['body']['met'] = True
+        for name in ('validation', 'measurement'):
+            rated = model.rate_system(meta, found, into, set(), name)
+            self.assertEqual((rated['level'], rated['operational_ready'], rated['closed'], rated['weakness_ids']),
+                             ('F', True, True, []), name)
+        # ASSESS reflects readiness of assessed systems
+        open_assess = model.assessment('validation', {'level': 'L', 'catalog_level': 'F', 'share': 1, 'objects': 1,
+                                                      'not_judged': 0, 'weaknesses': 1, 'closed': False}, 'abc')
+        self.assertTrue(model.is_weakness(meta, open_assess))
+        self.assertTrue(model.covered(meta, open_assess, {}, {'ASSESS-validation': open_assess}))
+        closed_assess = model.assessment('validation', {'level': 'F', 'catalog_level': 'F', 'share': 1, 'objects': 1,
+                                                        'not_judged': 0, 'weaknesses': 0, 'closed': True}, 'abc')
+        self.assertFalse(model.is_weakness(meta, closed_assess))
+
+    def test_cross_check_validates_weakness_states_and_weakness_when(self):
+        shutil.copytree(ROOT / 'config/model', self.root / 'config/model')
+        write(self.root, 'config/model/types/VAL.json', {
+            'id': 'VAL', 'name': 'val', 'system': 'validation', 'states': ['defined', 'met'],
+            'weakness_states': ['ghost'], 'weakness_when': [{'state': ['gone']}, {}], 'description': 'd'})
+        errors = model.metamodel(self.root)['errors']
+        self.assertIn('type VAL: weakness_states ghost are not states of the type', errors)
+        self.assertIn('type VAL: a weakness_when condition names no field', errors)
+        self.assertIn('type VAL: weakness_when state gone are not states of the type', errors)
+
+    def test_this_checkouts_scoreboard_separates_catalog_from_operational_readiness(self):
+        found = model.measure(ROOT)
+        board = found['scoreboard']
+        self.assertIn('scoreboard: catalog ', model.summary(found))
+        for name in ('validation', 'measurement', 'problem', 'conformance'):
+            system = found['systems'][name]
+            self.assertEqual(system['catalog_level'], 'F', name)
+            self.assertEqual(system['level'], 'L', name)
+            self.assertFalse(system['operational_ready'], name)
+            self.assertFalse(system['closed'], name)
+            self.assertGreater(system['weaknesses'], 0, name)
+            self.assertIn(name, board['weaknesses'])
+            self.assertNotIn(name, board['operational_ready'])
+            self.assertNotIn(name, board['closed'])
+
+    def test_run_durations_report_diagnostic_quantiles_and_outliers_while_accepting_p100(self):
+        # M4 / D-337: external percentiles report alongside p100 acceptance without loosening the target
+        found = model.measure(ROOT)
+        dists = found['validation']['distributions']
+        self.assertIn('VAL-deploy-1s', dists)
+        self.assertIn('VAL-gate-60s', dists)
+        quantiles = [f'p{point}' for point in model.report_quantiles(ROOT)]
+        for ident in ('VAL-deploy-1s', 'VAL-gate-60s'):
+            dist = dists[ident]
+            self.assertEqual(list(dist['quantiles']), quantiles)
+            self.assertEqual(dist['accepted_percentile'], max(model.report_quantiles(ROOT)))
+            self.assertEqual(dist['accepted_value'], dist['quantiles'][quantiles[-1]])
+            self.assertGreater(dist['outliers'], 0)
+            self.assertLessEqual(dist['outliers'], dist['runs'])
+        text = model.summary(found)
+        self.assertIn('validation: run-durations (report only; accepted at p100, D-337):', text)
+        self.assertIn('VAL-deploy-1s', text)
+        self.assertIn('VAL-gate-60s', text)
+
+    def test_operational_scoreboard_proposal_stays_open_for_daniels_decision(self):
+        # C1 / M3: never self-approve; PROP-operational-scoreboard stays open awaiting Daniel's D-351 decision
+        found = model.objects(ROOT)
+        prop = found['PROP-operational-scoreboard']
+        self.assertEqual((prop['state'], prop['body']['owner']), ('open', 'Daniel'))
+        self.assertNotIn('decided_by', prop['body'])
+        self.assertTrue(prop['body'].get('deadline'))
 
 
 if __name__ == '__main__':

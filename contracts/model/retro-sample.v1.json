@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contracts/model/retro-sample.v1.json",
   "title": "Retrospective sample v1",
-  "description": "docs/programs/<program>/retro-sample-<n>.json (D-327): a retrospective's sample of merged PRs, 10 per retrospective, each with the answer to \"was there a clearly cheaper path that solved it?\" (yes or no and one line). The share of yes is the measure scripts/model reads, target under 10 %; never a field a PR fills.",
+  "description": "docs/programs/<program>/retro-sample-<n>.json (D-327): a retrospective's sample of merged PRs, 10 per retrospective, each with the answer to \"was there a clearly cheaper path that solved it?\" (yes or no and one line). The share of yes is the measure scripts/model reads, target under 10 %; never a field a PR fills. Independent audits record `reviewer` distinct from `author_session` (M5).",
   "x-owner": "model",
   "x-schema-version": 1,
   "type": "object",
@@ -30,6 +30,16 @@
     "base": {
       "type": "string",
       "pattern": "^[0-9a-f]{7,40}$"
+    },
+    "reviewer": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Independent reviewer (person or distinct reviewer session) who audited this retrospective sample; must differ from author_session."
+    },
+    "author_session": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Session or author that produced the sampled PRs; when present alongside reviewer, reviewer must not equal author_session."
     },
     "prs": {
       "type": "array",

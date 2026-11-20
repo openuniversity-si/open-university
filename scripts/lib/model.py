@@ -122,16 +122,18 @@ def cross_check(meta):
         if item.get('system') not in systems:
             errors.append(f'type {name}: system {item.get("system")} does not exist')
         states = set(item.get('states', []))
-        for field in ('derived_states', 'inactive_states', 'unconformant_states'):
+        for field in ('derived_states', 'inactive_states', 'unconformant_states', 'weakness_states'):
             extra = sorted(set(item.get(field, [])) - states)
             if extra:
                 errors.append(f'type {name}: {field} {", ".join(extra)} are not states of the type')
-        for condition in item.get('unconformant_when', []):
-            if not condition:
-                errors.append(f'type {name}: an unconformant_when condition names no field')
-            extra = sorted(set(condition.get('state', [])) - states)
-            if extra:
-                errors.append(f'type {name}: unconformant_when state {", ".join(extra)} are not states of the type')
+        for field in ('unconformant_when', 'weakness_when'):
+            for condition in item.get(field, []):
+                if not condition:
+                    errors.append(f'type {name}: a {field} condition names no field'
+                                  if field == 'weakness_when' else f'type {name}: an unconformant_when condition names no field')
+                extra = sorted(set(condition.get('state', [])) - states)
+                if extra:
+                    errors.append(f'type {name}: {field} state {", ".join(extra)} are not states of the type')
         for link_name in item.get('must_link', []):
             if link_name not in links:
                 errors.append(f'type {name}: must_link {link_name} does not exist')
@@ -1416,6 +1418,43 @@ def polling_left(root, paths, exclude):
             if decided.get(f'{path}::{function}', {}).get('class') not in NOT_POLLING]
 
 
+def report_quantiles(root=ROOT):
+    """Diagnostic report-only percentiles for run-durations validations (M4, D-337: report only, never accept)."""
+    import config
+    try:
+        return config.get('slo.report_quantiles', root)
+    except config.ConfigError:
+        return config.get('slo.report_quantiles', ROOT)
+
+
+def run_distribution(root, body, quantiles=None):
+    """Diagnostic distribution (p50/p95/p100 and outlier count outside threshold) for a run-durations validation.
+    Acceptance stays at body['measure']['percentile'] (p100, D-337)."""
+    import runs
+    measure = body.get('measure') or {}
+    if measure.get('kind') != 'run-durations':
+        return None
+    recorded = runs.read(root, measure['workflow'])
+    if not recorded or not recorded.get('runs'):
+        return None
+    values = [run['seconds'] for run in recorded['runs']]
+    points = report_quantiles(root) if quantiles is None else quantiles
+    threshold, comparator = body.get('threshold'), body.get('comparator', 'lte')
+    outliers = 0
+    if threshold is not None:
+        outliers = sum(1 for value in values if (value < threshold if comparator == 'gte' else value > threshold))
+    return {
+        'workflow': measure['workflow'],
+        'runs': len(values),
+        'quantiles': {f'p{point}': runs.percentile(values, point) for point in points},
+        'accepted_percentile': measure['percentile'],
+        'accepted_value': runs.percentile(values, measure['percentile']),
+        'comparator': comparator,
+        'threshold': threshold,
+        'outliers': outliers,
+    }
+
+
 def derive_validations(found, root, today=None):
     """Sets each validation's state from its measure: met or not-met when the window holds data, measuring while it
     is short, defined while no source is wired."""
@@ -1432,10 +1471,15 @@ def derive_validations(found, root, today=None):
             passes = value >= item['body']['threshold'] if item['body']['comparator'] == 'gte' else value <= item['body']['threshold']
             item['state'] = 'met' if passes else 'not-met'
         item['measured'] = value
+        if item['type'] == 'VAL' and item['body']['measure']['kind'] == 'run-durations':
+            dist = run_distribution(root, item['body'])
+            if dist is not None:
+                item['distribution'] = dist
 
 
 def validation_measure(found):
-    """The validation system's own measure: validations by state, and the needs that have a validation met."""
+    """The validation system's own measure: validations by state, needs with a validation met, and diagnostic
+    run-duration distributions (report only; acceptance stays p100, D-337)."""
     into = incoming(found)
     by_state = {}
     for item in found.values():
@@ -1444,7 +1488,11 @@ def validation_measure(found):
     needs = [item for item in found.values() if item['type'] == 'NEED']
     met = sum(1 for item in needs if any(kind == 'validates' and found.get(source, {}).get('state') == 'met'
                                          for kind, source in into.get(item['id'], [])))
-    return {'by_state': dict(sorted(by_state.items())), 'needs': len(needs), 'needs_met': met}
+    distributions = {item['id']: item['distribution']
+                     for item in sorted(found.values(), key=lambda item: item['id'])
+                     if item['type'] == 'VAL' and item.get('distribution')}
+    return {'by_state': dict(sorted(by_state.items())), 'needs': len(needs), 'needs_met': met,
+            **({'distributions': distributions} if distributions else {})}
 
 
 def implemented(item, into, found):
@@ -1976,7 +2024,8 @@ def read_measures(root):
             'need': entry.get('description', ''), 'consumer': SLO_CONSUMER if SLO_CONSUMER in entry.get('x-readers', []) else '',
             'scale': 'derived', 'function': 'scripts/lib/slo.py evaluate_series', 'unit': entry.get('x-unit', ''),
             'criterion': f'{bound} {entry.get("default")}', 'source': SLO_SOURCE, 'unread': value is None,
-            **({'value': value['value'], 'state': value['state'], 'samples': value['samples']} if value else {}),
+            **({'value': value['value'], 'state': value['state'], 'breached': value['state'] == 'breached',
+                'samples': value['samples']} if value else {}),
             'fresh': bool(value) and value['fresh']}))
     seen = set()
     for path in sorted(root.glob(VALIDATIONS)) + sorted(root.glob(problem_space.FOLDER + '/NC-*.json')):  # NC: D-348
@@ -1999,7 +2048,8 @@ def read_measures(root):
     found.append(_measure('MEAS-cheaper-path', 'active', RETRO_SAMPLES, {
         'need': 'D-327: was there a clearly cheaper path that solved it?', 'consumer': 'the retrospective (administration)',
         'scale': 'derived', 'function': 'scripts/lib/model.py cheaper_path_measure', 'unit': 'share of sampled PRs',
-        'criterion': f'lt {cheaper["target"]}', 'fresh': cheaper['prs'] > 0}))
+        'criterion': f'lt {cheaper["target"]}', 'fresh': cheaper['prs'] > 0, 'met': cheaper['met'],
+        'reviewed': cheaper['reviewed']}))
     return found
 
 
@@ -2308,10 +2358,22 @@ def judged(meta, type_id):
 
 
 def meets(condition, item):
-    """Whether an object meets one `unconformant_when` condition: every field it names (`state`, else a field of the
-    object's body) holds one of the condition's values."""
+    """Whether an object meets one `unconformant_when` or `weakness_when` condition: every field it names (`state`,
+    else a field of the object's body) holds one of the condition's values."""
     body = item.get('body') or {}
     return all((item['state'] if field == 'state' else body.get(field)) in values for field, values in condition.items())
+
+
+def is_weakness(meta, item):
+    """Whether an active object carries a significant operational weakness (ISO/IEC 33020 F: 'no significant
+    weaknesses'): its state is in `weakness_states` (or WEAKNESS_STATES) or its body/state meets `weakness_when`.
+    Separate from catalog conformance (covered): a wired, fresh object whose target is missed or breached keeps its
+    system below F and open."""
+    kind = meta['types'].get(item['type'], {})
+    states = kind.get('weakness_states', WEAKNESS_STATES.get(item['type'], ()))
+    if item['state'] in states:
+        return True
+    return any(meets(condition, item) for condition in kind.get('weakness_when', ()))
 
 
 def covered(meta, item, into, found, tested=None):
@@ -2450,16 +2512,46 @@ def management_measure(found, today):
     }
 
 
-def measures_measure(found):
+def snapshot_lag(root):
+    """{snapshot name: first-parent merges on main strictly newer than snapshot['at']} for the GitHub validation
+    snapshots present under `root` (M3: exposes snapshot lag even offline)."""
+    import runs
+    snaps = {'slo': runs.read_slo(root), 'verdicts': runs.read_verdicts(root),
+             **{name: runs.read(root, name) for name in sorted(runs.CHECKS)}}
+    return {name: runs.merges_since(root, snap['at']) for name, snap in sorted(snaps.items())
+            if isinstance(snap, dict) and snap.get('at')}
+
+
+def measures_measure(found, root=None):
     """The measurement system's own counts: its measures, those with a value on HEAD, those proposed (no function
-    wired) and those whose source HEAD does not hold (an SLO with no GitHub snapshot)."""
+    wired), those whose source HEAD does not hold (an SLO with no GitHub snapshot), and snapshot lag vs. main."""
     measures = [item for item in found.values() if item['type'] == 'MEAS']
+    lag = snapshot_lag(root) if root is not None else {}
     return {'measures': len(measures), 'fresh': sum(1 for item in measures if item['body']['fresh']),
             'proposed': sum(1 for item in measures if item['state'] == 'proposed'),
             'unread': sum(1 for item in measures if item['body'].get('unread')),
             'slos': {item['id']: {key: item['body'][key] for key in ('value', 'criterion', 'state', 'samples')}
                      for item in sorted(measures, key=lambda item: item['id'])
-                     if item['body'].get('source') == SLO_SOURCE and 'value' in item['body']}}
+                     if item['body'].get('source') == SLO_SOURCE and 'value' in item['body']},
+            **({'snapshot_lag': lag} if lag else {})}
+
+
+def construction_measure(found):
+    """The construction system's change traceability breakdown (M5): active changes with explicit intent links
+    (Implements: trailer or requirement implemented_by) vs. diff-only links (`source: diff`) vs. unlinked."""
+    changes = [item for item in found.values() if item['type'] == 'CHG' and item['state'] != 'reverted']
+    explicit, diff_only, unlinked = 0, 0, 0
+    for item in changes:
+        impl = [link for link in item['links'] if link['type'] == 'implements']
+        if not impl:
+            unlinked += 1
+        elif any(link.get('source') != 'diff' for link in impl):
+            explicit += 1
+        else:
+            diff_only += 1
+    total = len(changes)
+    return {'changes': total, 'explicit': explicit, 'diff_only': diff_only, 'unlinked': unlinked,
+            'explicit_share': explicit / total if total else 0}
 
 
 def work_measure(found):
@@ -2483,7 +2575,8 @@ def cheaper_path_measure(root=ROOT):
     """The measurement system's D-327 measure (management group, D-330): over the PRs the retrospectives sample
     (docs/programs/<program>/retro-sample-<n>.json, contracts/model/retro-sample.v1.json), the share whose answer to
     "was there a clearly cheaper path that solved it?" is yes; share None when there is no sample yet. A sample that
-    breaks its contract is a problem, counted as a model error, and left out of the share."""
+    breaks its contract or names a reviewer equal to author_session is a problem, counted as a model error and left
+    out of the share; samples without an independent `reviewer` are counted in `unreviewed` (M5)."""
     root = Path(root)
     schema = _read_json(root / CONTRACTS_DIR / 'retro-sample.v1.json')
     samples, problems = [], []
@@ -2492,15 +2585,22 @@ def cheaper_path_measure(root=ROOT):
         broken = list(json_schema.validate(schema, body))
         if isinstance(body, dict) and body.get('id') != path.stem:
             broken.append(f'its id must equal the file name {path.stem}')
+        if isinstance(body, dict):
+            reviewer = (body.get('reviewer') or '').strip()
+            author = (body.get('author_session') or '').strip()
+            if reviewer and author and reviewer.casefold() == author.casefold():
+                broken.append('reviewer must be independent of author_session')
         if broken:
             problems += [f'{path.relative_to(root).as_posix()}: {problem}' for problem in broken]
             continue
         samples.append(body)
     prs = [pr for body in samples for pr in body['prs']]
     cheaper = sum(1 for pr in prs if pr['cheaper'])
+    unreviewed = sum(1 for body in samples if not (body.get('reviewer') or '').strip())
     share = cheaper / len(prs) if prs else None
     return {'samples': len(samples), 'prs': len(prs), 'cheaper': cheaper, 'share': share, 'target': CHEAPER_TARGET,
-            'met': None if share is None else share < CHEAPER_TARGET, 'problems': problems}
+            'met': None if share is None else share < CHEAPER_TARGET,
+            'unreviewed': unreviewed, 'reviewed': None if not samples else unreviewed == 0, 'problems': problems}
 
 
 def cheaper_path_line(item):
@@ -2508,9 +2608,10 @@ def cheaper_path_line(item):
     head = 'measurement: cheaper path (D-327): '
     if item['share'] is None:
         return head + f'no sample (target under {item["target"]:.0%})'
+    note = f' ({item["unreviewed"]} unreviewed/self-assessed)' if item.get('unreviewed') else ''
     return head + (f'{item["cheaper"]} of {item["prs"]} sampled PR(s) in {item["samples"]} retrospective(s) had a '
                    f'clearly cheaper path ({item["share"]:.0%}), target under {item["target"]:.0%}: '
-                   f'{"met" if item["met"] else "not met"}')
+                   f'{"met" if item["met"] else "not met"}{note}')
 
 
 def utc_today():
@@ -2547,11 +2648,13 @@ def deferred(meta, item, into, found):
 
 
 def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
-    """One system's conformance: its active objects, those a rule judges and pass every rule, the share, the level
-    (below F while a significant weakness stands), the types no rule judges and the verdict types not read; D-335:
-    the objects that are not conformant (an object no rule judges included), those an exemption in force covers, the
-    requirements D-331 measures after the stop (deferred), and whether the system is closed (every other object
-    conformant, no significant weakness and no verdict left unread)."""
+    """One system's conformance, separating catalog integrity from operational readiness: its active objects, those a
+    rule judges and pass every catalog rule, the catalog share and level (`catalog_level`), the significant operational
+    weaknesses (`weaknesses`, `weakness_ids`, from `weakness_states`/`weakness_when`, keeping the system's `level`
+    below F and `operational_ready` false), the types no rule judges and the verdict types not read; D-335: the objects
+    that are not conformant, those an exemption in force covers, the requirements D-331 measures after the stop
+    (deferred), and whether the system is closed (every other object conformant, no significant operational weakness
+    and no verdict left unread)."""
     kinds = {type_id for type_id, kind in meta['types'].items() if kind['system'] == name}
     mine = [item for item in found.values() if item['type'] in kinds and is_active(meta, item)
             and item.get('fingerprint') is not None]
@@ -2560,8 +2663,10 @@ def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
                and covered(meta, item, into, found)}
     good = len(passing)
     share = good / len(mine) if mine else 0
-    level = rate(share, meta['scale'])
-    weak = sum(1 for item in mine if item['state'] in WEAKNESS_STATES.get(item['type'], ()))
+    catalog_level = rate(share, meta['scale'])
+    level = catalog_level
+    weak_ids = sorted(item['id'] for item in mine if is_weakness(meta, item))
+    weak = len(weak_ids)
     levels = [step['level'] for step in meta['scale']]
     if weak and level == levels[-1] and len(levels) > 1:
         level = levels[levels.index(level) - 1]
@@ -2572,19 +2677,25 @@ def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
     later = sorted(item['id'] for item in mine if item['id'] in failing and item['id'] not in flagged
                    and item['id'] not in exempt and deferred(meta, item, into, found))
     open_ids = [id for id in failing if id not in exempt and id not in later]
+    operational_ready = bool(mine) and not weak and not unread
     return {'group': meta['systems'][name].get('group', ''), 'objects': len(mine), 'conformant': good,
-            'share': share, 'level': level,
+            'share': share, 'catalog_level': catalog_level, 'level': level,
             'not_judged': sum(1 for item in mine if item['type'] in unjudged), 'unjudged_types': unjudged,
-            'weaknesses': weak, 'verdicts_unread': unread,
+            'weaknesses': weak, 'weakness_ids': weak_ids, 'operational_ready': operational_ready,
+            'verdicts_unread': unread,
             'nonconformant': open_ids, 'exempted': sorted(set(failing) & set(exempt)), 'measured_after': later,
             'closed': bool(mine) and not open_ids and not weak and not unread}
 
 
 def assessment(name, rated, sha):
     """The conformance assessment (ASSESS) of one system on a sha, calculated from its rating: it rests on evidence
-    when at least one of the system's objects is judged by a rule (ISO/IEC 33020 N: little or no evidence otherwise)."""
-    body = {'system': name, 'sha': sha, 'level': rated['level'], 'share': rated['share'], 'objects': rated['objects'],
-            'evidence': rated['objects'] - rated['not_judged'] > 0}
+    when at least one of the system's objects is judged by a rule (ISO/IEC 33020 N: little or no evidence otherwise),
+    and `ready` says whether the assessed system is operationally closed (both catalog-complete and free of significant
+    operational weaknesses)."""
+    body = {'system': name, 'sha': sha, 'level': rated['level'],
+            'catalog_level': rated.get('catalog_level', rated['level']), 'share': rated['share'],
+            'objects': rated['objects'], 'weaknesses': rated.get('weaknesses', 0),
+            'evidence': rated['objects'] - rated['not_judged'] > 0, 'ready': bool(rated.get('closed', False))}
     item = _obj(f'ASSESS-{name}', 'ASSESS', 'calculated', 'scripts/model measure', json.dumps(body, sort_keys=True))
     item['body'] = body
     return item
@@ -2629,15 +2740,24 @@ def measure(root=ROOT, meta=None, found=None, today=None):
                                                         if (count := sum(1 for name in names
                                                                          if systems[name]['level'] == step['level']))}}
                    for group, names in system_groups(systems).items()},
+        'scoreboard': {
+            'systems': len(systems),
+            'catalog_full': sorted(name for name, item in systems.items()
+                                   if item['objects'] and not item['nonconformant'] and not item['verdicts_unread']),
+            'operational_ready': sorted(name for name, item in systems.items() if item['operational_ready']),
+            'closed': sorted(name for name, item in systems.items() if item['closed']),
+            'weaknesses': {name: item['weakness_ids'] for name, item in sorted(systems.items()) if item['weakness_ids']},
+        },
         'stop': {'systems': len(systems), 'closed': sorted(name for name, item in systems.items() if item['closed'])},
         'standard': standard_measure(found, today or utc_today()),
         'standard_management': management_measure(found, today or utc_today()),
         'knowledge': knowledge_measure(found),
         'requirements': requirements_measure(found),
         'architecture': architecture_measure(found),
+        'construction': construction_measure(found),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
-        'measurement': {'cheaper_path': cheaper_path, **measures_measure(found)},
+        'measurement': {'cheaper_path': cheaper_path, **measures_measure(found, root)},
         'work': work_measure(found),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors) + len(cheaper_path['problems']),
@@ -2679,7 +2799,12 @@ def system_line(item):
     if item.get('not_judged'):
         parts.append(f'{item["not_judged"]} not judged: no rule of {", ".join(item["unjudged_types"])}')
     if item.get('weaknesses'):
-        parts.append(f'{item["weaknesses"]} significant weakness(es), below F whatever the share')
+        weak_ids = item.get('weakness_ids', [])
+        most = closed_shown()
+        shown = ', '.join(weak_ids[:most]) + (f' and {len(weak_ids) - most} more' if len(weak_ids) > most else '')
+        catalog = item.get('catalog_level', item['level'])
+        detail = f': {shown}' if weak_ids else ''
+        parts.append(f'{item["weaknesses"]} significant weakness(es) ({catalog} catalog, below F){detail}')
     if item.get('exempted'):
         parts.append(f'{len(item["exempted"])} exempted by a decision')
     if item.get('measured_after'):
@@ -2705,6 +2830,13 @@ def summary(found):
         lines.append(f'  {group or "no group"} ({len(item["systems"])} system(s): {counted}):')
         lines += [f'    {name}: {found["systems"][name]["level"]} ({system_line(found["systems"][name])})'
                   for name in item['systems']]
+    if 'scoreboard' in found:
+        board = found['scoreboard']
+        lines.append(
+            f'scoreboard: catalog {len(board["catalog_full"])} of {board["systems"]} full; '
+            f'operational {len(board["operational_ready"])} of {board["systems"]} ready; '
+            f'closed {len(board["closed"])} of {board["systems"]}'
+        )
     if 'stop' in found:  # D-331, D-335: the program's stop counts the systems closed, not the systems at F
         lines.append(f'stop (D-335): {len(found["stop"]["closed"])} of {found["stop"]["systems"]} system(s) closed')
     rules = found['standard']
@@ -2726,6 +2858,12 @@ def summary(found):
     mirror = built['reflexion']
     lines.append(f'reflexion: {mirror["share"]:.0%} conformant ({mirror["convergences"]} convergent, {mirror["divergences"]} '
                  f'divergent, {mirror["absences"]} absent dependencies between components)')
+    if 'construction' in found:
+        built_chg = found['construction']
+        diff_share = built_chg['diff_only'] / built_chg['changes'] if built_chg['changes'] else 0
+        lines.append(f'construction: {built_chg["changes"]} change(s): {built_chg["explicit"]} explicit Implements: '
+                     f'({built_chg["explicit_share"]:.0%}), {built_chg["diff_only"]} diff-only ({diff_share:.0%}), '
+                     f'{built_chg["unlinked"]} unlinked')
     decided = found['decisions']
     lines.append(f'decisions: {", ".join(f"{count} {state}" for state, count in decided["by_state"].items())}; '
                  f'{decided["proven"]} of {decided["accepted"]} accepted proven by a test; {decided["edited_records"]} '
@@ -2735,6 +2873,14 @@ def summary(found):
     proved = found['validation']
     lines.append(f'validation: {", ".join(f"{count} {state}" for state, count in proved["by_state"].items()) or "none"}; '
                  f'{proved["needs_met"]} of {proved["needs"]} needs with a validation met')
+    if proved.get('distributions'):
+        parts = []
+        for ident, dist in proved['distributions'].items():
+            sign = '>=' if dist['comparator'] == 'gte' else '<='
+            points = ' '.join(f'{label}={value:g}s' for label, value in dist['quantiles'].items() if value is not None)
+            threshold = f'{dist["threshold"]:g}s' if dist['threshold'] is not None else '?'
+            parts.append(f'{ident} {points} ({dist["outliers"]}/{dist["runs"]} outside {sign}{threshold})')
+        lines.append('validation: run-durations (report only; accepted at p100, D-337): ' + ', '.join(parts))
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')
@@ -2745,6 +2891,9 @@ def summary(found):
         lines.append('measurement: SLOs from GitHub: ' + ', '.join(
             f'{id.removeprefix("MEAS-")} {item["value"]} ({item["criterion"]}, {item["state"]}, {item["samples"]} sample(s))'
             for id, item in counted['slos'].items()))
+    if counted.get('snapshot_lag') and any(counted['snapshot_lag'].values()):
+        lines.append('measurement: snapshot lag vs. main: ' + ', '.join(
+            f'{name} {lag} merge(s)' for name, lag in counted['snapshot_lag'].items()))
     lines.append(cheaper_path_line(found['measurement']['cheaper_path']))
     planned = found['work']
     lines.append(f'work: {planned["programs"]} program(s), {planned["items"]} item(s): '

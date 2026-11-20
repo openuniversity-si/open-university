@@ -106,6 +106,26 @@
         "scripts/lib/slo.py"
       ]
     },
+    "slo.report_quantiles": {
+      "type": "array",
+      "default": [
+        50,
+        95,
+        100
+      ],
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-unit": "percentiles",
+      "description": "Diagnostic report-only percentiles (nearest rank) printed alongside the accepted p100 for run-durations validations (M4, D-337: external scales only report, never accept).",
+      "x-readers": [
+        "scripts/lib/model.py"
+      ]
+    },
     "slo.sample_window_events": {
       "type": "integer",
       "default": 100,
@@ -114,6 +134,16 @@
       "description": "Most recent samples (tier-1 verdicts, merged PRs) each SLO value is computed over.",
       "x-readers": [
         "scripts/lib/slo.py"
+      ]
+    },
+    "slo.snapshot_max_merges": {
+      "type": "integer",
+      "default": 10,
+      "minimum": 1,
+      "x-unit": "count",
+      "description": "Most first-parent merges on main a validation snapshot (runs, slo, verdicts) may trail before scripts/runs rebuilds it, even when less than a day has passed (M3).",
+      "x-readers": [
+        "scripts/lib/runs.py"
       ]
     },
     "slo.step": {
