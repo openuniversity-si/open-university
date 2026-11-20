@@ -1539,8 +1539,9 @@ def derive_validations(found, root, today=None):
     is short, defined while no source is wired."""
     today = today or utc_today()
     vals = [item for item in found.values() if item['type'] in ('VAL', 'NC') and 'body' in item]  # NC: D-348
-    # a composite reads the states of the others, so it is derived after them
-    for item in sorted(vals, key=lambda item: item['body']['measure']['kind'] == 'all-met'):
+    # direct measures first, then model-share (which reads VAL states), then all-met composites last
+    for item in sorted(vals, key=lambda item: (item['body']['measure']['kind'] == 'all-met',
+                                               item['body']['measure']['kind'] == 'model-share')):
         value, enough = measured(item['body'], found, root, today)
         if value is None:
             item['state'] = 'defined'
@@ -1599,7 +1600,8 @@ def requirement_states(found):
 
 def requirements_measure(found):
     """The requirements system's own measure: active requirements by type, implemented, verified, with an
-    architecture element, with a test, and the suspect links pointing at them."""
+    architecture element, with a test, and with passing verification on HEAD (a passing VERD for a test-verified
+    requirement, or a met VAL for a validation-verified requirement)."""
     into = incoming(found)
     states = requirement_states(found)
     active = [found[id] for id in states]
@@ -1609,14 +1611,23 @@ def requirements_measure(found):
         by_type[kind] = by_type.get(kind, 0) + 1
     def has(item, link, kind):
         return any(name == link and found.get(source, {}).get('type') == kind for name, source in into.get(item['id'], []))
+    def has_pass_verdict(test_id):
+        return any(name == 'evidences' and found.get(source, {}).get('type') == 'VERD'
+                   and found[source].get('state') == 'pass' for name, source in into.get(test_id, []))
+    def verified_in_head(item):
+        if item.get('body', {}).get('verification') == 'validation':
+            return any(name == 'validates' and found.get(source, {}).get('type') == 'VAL'
+                       and found[source].get('state') == 'met' for name, source in into.get(item['id'], []))
+        return any(name == 'verifies' and found.get(source, {}).get('type') == 'TEST'
+                   and found[source].get('fingerprint') is not None and has_pass_verdict(source)
+                   for name, source in into.get(item['id'], []))
     return {
         'active': len(active), 'by_type': dict(sorted(by_type.items())),
         'implemented': sum(1 for state in states.values() if state in ('implemented', 'verified')),
         'verified': sum(1 for state in states.values() if state == 'verified'),
         'with_element': sum(1 for item in active if has(item, 'satisfies', 'ARC')),
         'with_test': sum(1 for item in active if has(item, 'verifies', 'TEST')),
-        'with_verification': sum(1 for item in active if has(item, 'verifies', 'TEST') or (
-            item.get('body', {}).get('verification') == 'validation' and has(item, 'validates', 'VAL'))),
+        'with_verification': sum(1 for item in active if verified_in_head(item)),
     }
 
 

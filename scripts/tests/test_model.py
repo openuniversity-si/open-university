@@ -950,6 +950,37 @@ class Changes(unittest.TestCase):
         self.assertEqual((counted['active'], counted['implemented'], counted['verified'], counted['with_test']), (len(['REQ-a', 'REQ-b']), 1, 1, 1))
         self.assertEqual(counted['by_type'], {'constraint': 1, 'quality': 1})
 
+    def test_with_verification_requires_a_passing_verdict_or_met_validation(self):
+        found = {
+            'REQ-test': {'id': 'REQ-test', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],
+                         'body': {'type': 'quality'}},
+            'REQ-val': {'id': 'REQ-val', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],
+                        'body': {'type': 'quality', 'verification': 'validation'}},
+            'TEST:t': {'id': 'TEST:t', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
+                       'links': [{'type': 'verifies', 'target': 'REQ-test'}]},
+            'TEST:v': {'id': 'TEST:v', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
+                       'links': [{'type': 'verifies', 'target': 'REQ-val'}]},
+            'VERD:v': {'id': 'VERD:v', 'type': 'VERD', 'state': 'pass', 'fingerprint': 'f',
+                       'links': [{'type': 'evidences', 'target': 'TEST:v'}]},
+            'VAL-v': {'id': 'VAL-v', 'type': 'VAL', 'state': 'not-met', 'fingerprint': 'f',
+                      'links': [{'type': 'validates', 'target': 'REQ-val'}],
+                      'body': {'measure': {'kind': 'code-scan', 'paths': ['none/**']}, 'comparator': 'lte', 'threshold': 0}},
+        }
+        # TEST without VERD and validation-verified REQ with not-met VAL (even with a unit test VERD) count 0
+        self.assertEqual(model.requirements_measure(found)['with_verification'], 0)
+        found['VERD:t'] = {'id': 'VERD:t', 'type': 'VERD', 'state': 'fail', 'fingerprint': 'f',
+                           'links': [{'type': 'evidences', 'target': 'TEST:t'}]}
+        self.assertEqual(model.requirements_measure(found)['with_verification'], 0, 'red VERD does not count')
+        found['VERD:t']['state'] = 'pass'
+        self.assertEqual(model.requirements_measure(found)['with_verification'], 1, 'passing VERD counts REQ-test')
+        # NC-requirements-tested (alphabetically before VAL-v) derives after VAL-v so it sees VAL-v met
+        found['NC-requirements-tested'] = {
+            'id': 'NC-requirements-tested', 'type': 'NC', 'state': 'defined', 'fingerprint': 'f', 'links': [],
+            'body': {'measure': {'kind': 'model-share', 'name': 'requirements-tested'}, 'comparator': 'gte', 'threshold': 1}}
+        model.derive_validations(found, self.root, self.git_today())
+        self.assertEqual((found['VAL-v']['state'], found['NC-requirements-tested']['state'],
+                          found['NC-requirements-tested']['measured']), ('met', 'met', 1.0))
+
     def test_the_decisions_measure_counts_states_proofs_and_records_edited_after_they_were_written(self):
         write(self.root, 'docs/domain/decisions/D-1.md', 'one')
         self.git('add', '.')
