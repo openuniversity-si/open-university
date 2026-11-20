@@ -1,6 +1,6 @@
 {
   "id": "NC-deploy-1s",
-  "statement": "A code-only merge is live within 1 s of its landing (the doorbell's clock, D-345).",
+  "statement": "Every code-only merge (swap or reload) is live within 1 s of its landing on the doorbell's clock (D-345); current p100 is 204.535 s across 20 runs (0 of 20 on the heard clock).",
   "level": "nc",
   "necessary_for": [
     "NC-throughput"
@@ -15,9 +15,9 @@
   "comparator": "lte",
   "threshold": 1,
   "baseline": {
-    "value": 2.264,
+    "value": 204.535,
     "date": "2026-11-19",
-    "source": "config/validation/runs/deploy-live.json"
+    "source": "config/validation/runs/deploy-live.json (p100 across 20 runs: 4 reloads 18.262-204.535 s, 16 swaps 1.219-3.524 s; all from: push)"
   },
   "owner": "Daniel",
   "source": "docs/programs/padrao-dev/problema-desenho.md#3"

@@ -303,6 +303,10 @@ class ProblemSpace(unittest.TestCase):
         self.assertEqual(diag['appraisals']['D-348'], expected)
         self.assertGreater(expected['INJ-tree-governance'], expected['INJ-do-minimum'])
         self.assertGreater(expected['INJ-do-minimum'], expected['INJ-do-nothing'])
+        deploy_runs = json.loads((ROOT / 'config/validation/runs/deploy-live.json').read_text())['runs']
+        deploy_p100 = max(run['seconds'] for run in deploy_runs)
+        self.assertEqual(diag['gaps']['NC-deploy-1s']['baseline'], deploy_p100)
+        self.assertEqual(diag['gaps']['NC-deploy-1s']['reading'], deploy_p100)
 
 
 if __name__ == '__main__':

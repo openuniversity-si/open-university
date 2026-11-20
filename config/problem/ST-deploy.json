@@ -2,17 +2,17 @@
   "id": "ST-deploy",
   "level": 3,
   "strategy": "NC-deploy-1s",
-  "tactic": "Cut code-only merge-to-live swap and reload latency to within 1 s on the doorbell's clock (D-345).",
+  "tactic": "Cut code-only merge-to-live swap and reload latency from 204.535 s p100 to within 1 s on the doorbell's clock (D-345).",
   "assumptions": {
     "necessary": {
-      "statement": "Code goes live in 1.5 to 2.3 s.",
+      "statement": "Code-only merges take up to 204.535 s p100 to go live (4 reloads 18.3-204.5 s, 16 swaps 1.2-3.5 s; 0 of 20 runs on the D-345 heard clock).",
       "premise": "P-32"
     },
     "parallel": {
-      "statement": "Most of it is the code swap after the landing (D-345's steps), so cut there."
+      "statement": "Eliminating multi-minute reloads and cutting swap propagation after landing attacks the real p100 tail."
     },
     "sufficiency": {
-      "statement": "A swap under 1 s for every code-only merge meets the condition."
+      "statement": "Every code-only merge (swap and reload alike) live within 1 s meets NC-deploy-1s."
     }
   },
   "child_of": "ST-capacity",
