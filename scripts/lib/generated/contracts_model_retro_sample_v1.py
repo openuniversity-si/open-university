@@ -6,5 +6,7 @@ RetroSampleV1 = TypedDict('RetroSampleV1', {
     'program': Required[str],
     'date': Required[str],
     'base': Required[str],
+    'reviewer': NotRequired[str],
+    'author_session': NotRequired[str],
     'prs': Required[list[dict[str, Any]]],
 }, total=False)

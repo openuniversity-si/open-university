@@ -2048,7 +2048,8 @@ def read_measures(root):
     found.append(_measure('MEAS-cheaper-path', 'active', RETRO_SAMPLES, {
         'need': 'D-327: was there a clearly cheaper path that solved it?', 'consumer': 'the retrospective (administration)',
         'scale': 'derived', 'function': 'scripts/lib/model.py cheaper_path_measure', 'unit': 'share of sampled PRs',
-        'criterion': f'lt {cheaper["target"]}', 'fresh': cheaper['prs'] > 0, 'met': cheaper['met']}))
+        'criterion': f'lt {cheaper["target"]}', 'fresh': cheaper['prs'] > 0, 'met': cheaper['met'],
+        'reviewed': cheaper['reviewed']}))
     return found
 
 
@@ -2523,6 +2524,24 @@ def measures_measure(found):
                      if item['body'].get('source') == SLO_SOURCE and 'value' in item['body']}}
 
 
+def construction_measure(found):
+    """The construction system's change traceability breakdown (M5): active changes with explicit intent links
+    (Implements: trailer or requirement implemented_by) vs. diff-only links (`source: diff`) vs. unlinked."""
+    changes = [item for item in found.values() if item['type'] == 'CHG' and item['state'] != 'reverted']
+    explicit, diff_only, unlinked = 0, 0, 0
+    for item in changes:
+        impl = [link for link in item['links'] if link['type'] == 'implements']
+        if not impl:
+            unlinked += 1
+        elif any(link.get('source') != 'diff' for link in impl):
+            explicit += 1
+        else:
+            diff_only += 1
+    total = len(changes)
+    return {'changes': total, 'explicit': explicit, 'diff_only': diff_only, 'unlinked': unlinked,
+            'explicit_share': explicit / total if total else 0}
+
+
 def work_measure(found):
     """The work system's own counts: programs, their items by state, and the items a merge on HEAD tracks."""
     work = [item for item in found.values() if item['type'] == 'WORK']
@@ -2544,7 +2563,8 @@ def cheaper_path_measure(root=ROOT):
     """The measurement system's D-327 measure (management group, D-330): over the PRs the retrospectives sample
     (docs/programs/<program>/retro-sample-<n>.json, contracts/model/retro-sample.v1.json), the share whose answer to
     "was there a clearly cheaper path that solved it?" is yes; share None when there is no sample yet. A sample that
-    breaks its contract is a problem, counted as a model error, and left out of the share."""
+    breaks its contract or names a reviewer equal to author_session is a problem, counted as a model error and left
+    out of the share; samples without an independent `reviewer` are counted in `unreviewed` (M5)."""
     root = Path(root)
     schema = _read_json(root / CONTRACTS_DIR / 'retro-sample.v1.json')
     samples, problems = [], []
@@ -2553,15 +2573,22 @@ def cheaper_path_measure(root=ROOT):
         broken = list(json_schema.validate(schema, body))
         if isinstance(body, dict) and body.get('id') != path.stem:
             broken.append(f'its id must equal the file name {path.stem}')
+        if isinstance(body, dict):
+            reviewer = (body.get('reviewer') or '').strip()
+            author = (body.get('author_session') or '').strip()
+            if reviewer and author and reviewer.casefold() == author.casefold():
+                broken.append('reviewer must be independent of author_session')
         if broken:
             problems += [f'{path.relative_to(root).as_posix()}: {problem}' for problem in broken]
             continue
         samples.append(body)
     prs = [pr for body in samples for pr in body['prs']]
     cheaper = sum(1 for pr in prs if pr['cheaper'])
+    unreviewed = sum(1 for body in samples if not (body.get('reviewer') or '').strip())
     share = cheaper / len(prs) if prs else None
     return {'samples': len(samples), 'prs': len(prs), 'cheaper': cheaper, 'share': share, 'target': CHEAPER_TARGET,
-            'met': None if share is None else share < CHEAPER_TARGET, 'problems': problems}
+            'met': None if share is None else share < CHEAPER_TARGET,
+            'unreviewed': unreviewed, 'reviewed': None if not samples else unreviewed == 0, 'problems': problems}
 
 
 def cheaper_path_line(item):
@@ -2569,9 +2596,10 @@ def cheaper_path_line(item):
     head = 'measurement: cheaper path (D-327): '
     if item['share'] is None:
         return head + f'no sample (target under {item["target"]:.0%})'
+    note = f' ({item["unreviewed"]} unreviewed/self-assessed)' if item.get('unreviewed') else ''
     return head + (f'{item["cheaper"]} of {item["prs"]} sampled PR(s) in {item["samples"]} retrospective(s) had a '
                    f'clearly cheaper path ({item["share"]:.0%}), target under {item["target"]:.0%}: '
-                   f'{"met" if item["met"] else "not met"}')
+                   f'{"met" if item["met"] else "not met"}{note}')
 
 
 def utc_today():
@@ -2714,6 +2742,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'knowledge': knowledge_measure(found),
         'requirements': requirements_measure(found),
         'architecture': architecture_measure(found),
+        'construction': construction_measure(found),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
         'measurement': {'cheaper_path': cheaper_path, **measures_measure(found)},
@@ -2817,6 +2846,12 @@ def summary(found):
     mirror = built['reflexion']
     lines.append(f'reflexion: {mirror["share"]:.0%} conformant ({mirror["convergences"]} convergent, {mirror["divergences"]} '
                  f'divergent, {mirror["absences"]} absent dependencies between components)')
+    if 'construction' in found:
+        built_chg = found['construction']
+        diff_share = built_chg['diff_only'] / built_chg['changes'] if built_chg['changes'] else 0
+        lines.append(f'construction: {built_chg["changes"]} change(s): {built_chg["explicit"]} explicit Implements: '
+                     f'({built_chg["explicit_share"]:.0%}), {built_chg["diff_only"]} diff-only ({diff_share:.0%}), '
+                     f'{built_chg["unlinked"]} unlinked')
     decided = found['decisions']
     lines.append(f'decisions: {", ".join(f"{count} {state}" for state, count in decided["by_state"].items())}; '
                  f'{decided["proven"]} of {decided["accepted"]} accepted proven by a test; {decided["edited_records"]} '

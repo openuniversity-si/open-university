@@ -10,7 +10,7 @@
   "inactive_states": [
     "retired"
   ],
-  "description": "A measure with its ISO/IEC/IEEE 15939 metadata: information need, consumer, base or derived, function, decision criterion. Read from what defines it (the SLOs of config/registry/slo.json, the measure of each validation, the cheaper-path measure of D-327). Catalog conformance checks wiring, metadata and freshness; a breached SLO or an unmet cheaper-path target is a significant operational weakness that keeps measurement below F and open.",
+  "description": "A measure with its ISO/IEC/IEEE 15939 metadata: information need, consumer, base or derived, function, decision criterion. Read from what defines it (the SLOs of config/registry/slo.json, the measure of each validation, the cheaper-path measure of D-327). Catalog conformance checks wiring, metadata and freshness; a breached SLO or an unmet or unreviewed cheaper-path sample is a significant operational weakness that keeps measurement below F and open.",
   "unconformant_states": [
     "proposed"
   ],
@@ -44,6 +44,11 @@
     },
     {
       "met": [
+        false
+      ]
+    },
+    {
+      "reviewed": [
         false
       ]
     }

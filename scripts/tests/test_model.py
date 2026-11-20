@@ -1703,6 +1703,48 @@ class CheaperPath(unittest.TestCase):
             self.assertEqual(len(json.loads(path.read_text())['prs']), 10, path)
         self.assertIn('measurement: cheaper path (D-327)', model.summary(model.measure(ROOT)))
 
+    def test_independent_reviewer_is_required_and_self_or_unreviewed_samples_are_flagged(self):
+        # M5: reviewer == author_session is a model error; missing reviewer marks unreviewed/weakness
+        meta = model.metamodel(ROOT)
+        self.sample('retro-sample-1', [False], reviewer='session-a', author_session='session-a')
+        found = model.cheaper_path_measure(self.root)
+        self.assertEqual(found['samples'], 0)
+        self.assertTrue(any('reviewer must be independent of author_session' in line for line in found['problems']))
+        self.sample('retro-sample-1', [False])
+        found = model.cheaper_path_measure(self.root)
+        self.assertEqual((found['unreviewed'], found['reviewed'], found['met']), (1, False, True))
+        self.assertIn('1 unreviewed/self-assessed', model.cheaper_path_line(found))
+        meas = {item['id']: item for item in model.read_measures(self.root)}['MEAS-cheaper-path']
+        self.assertTrue(model.is_weakness(meta, meas), 'unreviewed sample is an operational weakness')
+        self.sample('retro-sample-1', [False], reviewer='auditor-b', author_session='session-a')
+        found = model.cheaper_path_measure(self.root)
+        self.assertEqual((found['unreviewed'], found['reviewed'], found['met'], found['problems']), (0, True, True, []))
+        self.assertNotIn('unreviewed', model.cheaper_path_line(found))
+        meas = {item['id']: item for item in model.read_measures(self.root)}['MEAS-cheaper-path']
+        self.assertFalse(model.is_weakness(meta, meas), 'independently reviewed met sample clears weakness')
+
+    def test_construction_measure_separates_explicit_implements_from_diff_only_changes(self):
+        found = {
+            'CHG-1': {'id': 'CHG-1', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f',
+                      'links': [{'type': 'implements', 'target': 'UNIT:a'},
+                                {'type': 'implements', 'target': 'UNIT:b', 'source': 'diff'}]},
+            'CHG-2': {'id': 'CHG-2', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f',
+                      'links': [{'type': 'implements', 'target': 'UNIT:a', 'source': 'diff'}]},
+            'CHG-3': {'id': 'CHG-3', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f',
+                      'links': [{'type': 'implements', 'target': 'REQ-a', 'source': 'requirement'}]},
+            'CHG-4': {'id': 'CHG-4', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'f', 'links': []},
+            'CHG-5': {'id': 'CHG-5', 'type': 'CHG', 'state': 'reverted', 'fingerprint': 'f', 'links': []},
+        }
+        counted = model.construction_measure(found)
+        self.assertEqual((counted['changes'], counted['explicit'], counted['diff_only'], counted['unlinked']),
+                         (len(['1', '2', '3', '4']), len(['1', '3']), 1, 1))
+        self.assertAlmostEqual(counted['explicit_share'], len(['1', '3']) / len(['1', '2', '3', '4']))
+        real = model.measure(ROOT)
+        self.assertGreater(real['construction']['diff_only'], 0)
+        self.assertGreater(real['construction']['explicit'], 0)
+        self.assertEqual(real['measurement']['cheaper_path']['reviewed'], False)
+        self.assertIn('construction: ', model.summary(real))
+
 
 class SupportSystems(unittest.TestCase):
     """F7e: the measures (MEAS), the work items (WORK) and the assessments (ASSESS) read from data that exists."""
