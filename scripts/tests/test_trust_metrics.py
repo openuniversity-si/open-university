@@ -396,6 +396,16 @@ class LiveRepoSmoke(unittest.TestCase):
                              capture_output=True, text=True, check=False)
         self.assertEqual(cli.returncode, 0, cli.stdout + cli.stderr)
 
+    def test_decision_d353_stays_proposed_and_unapproved(self):
+        ladder, errors = trust_metrics.load_ladder(ROOT)
+        self.assertEqual(errors, [])
+        authorities = trust_metrics.read_decision_authorities(ROOT, ladder)
+        self.assertIn('D-353', authorities)
+        self.assertEqual(authorities['D-353']['status'], 'proposed')
+        self.assertEqual(authorities['D-353']['authority'], 'proposed')
+        self.assertEqual(ladder['state'], 'proposed')
+        self.assertEqual(ladder['decision'], 'D-353')
+
 
 if __name__ == '__main__':
     unittest.main()

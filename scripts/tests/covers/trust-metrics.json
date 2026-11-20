@@ -8,6 +8,7 @@
     "scripts/lib/trust_metrics.py",
     "scripts/lib/json_schema.py",
     "contracts/model/autonomy.v1.json",
-    "config/governance/autonomy-ladder.json"
+    "config/governance/autonomy-ladder.json",
+    "docs/domain/decisions/D-353.md"
   ]
 }
