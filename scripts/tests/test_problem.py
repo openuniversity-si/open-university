@@ -336,6 +336,8 @@ class ProblemSpace(unittest.TestCase):
         deploy_p100 = max(run['seconds'] for run in deploy_runs)
         self.assertEqual(diag['gaps']['NC-deploy-1s']['baseline'], deploy_p100)
         self.assertEqual(diag['gaps']['NC-deploy-1s']['reading'], deploy_p100)
+        self.assertEqual(found['D-354']['state'], 'proposed')
+        self.assertEqual(found['D-348']['state'], 'accepted')
 
 
 if __name__ == '__main__':
