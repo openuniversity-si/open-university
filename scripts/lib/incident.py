@@ -1,10 +1,11 @@
 """Incidents (D-231): every refusal and every stop is one record, docs/operations/incidents/I-<id>.md, with its case, class and
 design fix. The id is a hash of the kind and the text plus the clock, so two lanes never write the same name.
 
-`scripts/incident open KIND TEXT` writes a record; `list` prints the open ones (id, state, root cause); `show ID` prints one record; `close ID FIX` marks one closed with its fix.
+`scripts/incident open KIND TEXT` writes a record; `list` prints the open ones (id, state, root cause); `show ID` prints one record; `close ID FIX` marks one closed with its fix; `snapshot` exports metadata-only entries (no prose) to config/validation/incidents.json.
 """
 import argparse
 import hashlib
+import json
 from pathlib import Path
 import re
 import sys
@@ -14,7 +15,9 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 FOLDER = 'docs/operations/incidents'
+SNAPSHOT = 'config/validation/incidents.json'
 STATUS = re.compile(r'^status: (\w+)$', re.M)
+FRONT_FIELD = re.compile(r'^(id|kind|time|status): (\S+)$', re.M)
 
 
 def new_id(kind, text, when):
@@ -76,6 +79,41 @@ def close(root, identifier, fix):
     return path
 
 
+def metadata(root):
+    """Metadata-only [{id, kind, time, status}] of every local incident record; never reads body prose."""
+    out = []
+    for path in sorted((Path(root) / FOLDER).glob('I-*.md')):
+        fields = dict(FRONT_FIELD.findall(path.read_text().split('\n---', 1)[0]))
+        if fields.get('kind') and fields.get('time'):
+            out.append({'id': fields.get('id', path.stem), 'kind': fields['kind'], 'time': fields['time'],
+                        'status': fields.get('status', 'open')})
+    return out
+
+
+def write_snapshot(root, now=None):
+    """Merge local incident metadata into config/validation/incidents.json (no prose; docs/operations/ stays ignored)."""
+    target = Path(root) / SNAPSHOT
+    existing = {}
+    if target.is_file():
+        try:
+            loaded = json.loads(target.read_text())
+            for entry in loaded.get('incidents', []) if isinstance(loaded, dict) else ():
+                if isinstance(entry, dict) and entry.get('id'):
+                    existing[entry['id']] = entry
+        except (OSError, ValueError):
+            pass
+    for entry in metadata(root):
+        existing[entry['id']] = entry
+    made = {
+        'source': 'scripts/incident snapshot (metadata only: id, kind, time, status; docs/operations/ stays gitignored)',
+        'at': now or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'incidents': sorted(existing.values(), key=lambda item: (item.get('time', ''), item['id'])),
+    }
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(made, indent=1) + '\n')
+    return target
+
+
 def main(argv=None, root=ROOT):
     parser = argparse.ArgumentParser(prog='scripts/incident', description=__doc__.split('\n\n')[0])
     sub = parser.add_subparsers(dest='action', required=True)
@@ -83,6 +121,7 @@ def main(argv=None, root=ROOT):
     sub.add_parser('list')
     w = sub.add_parser('show'); w.add_argument('id')
     c = sub.add_parser('close'); c.add_argument('id'); c.add_argument('fix')
+    sub.add_parser('snapshot')
     args = parser.parse_args(argv)
     if args.action == 'open':
         print(open_incident(root, args.kind, args.text))
@@ -95,6 +134,8 @@ def main(argv=None, root=ROOT):
         except FileNotFoundError:
             print(f'no incident {args.id}', file=sys.stderr)
             return 1
+    elif args.action == 'snapshot':
+        print(write_snapshot(root))
     else:
         print(close(root, args.id, args.fix))
     return 0

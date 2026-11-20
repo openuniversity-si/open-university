@@ -995,6 +995,28 @@ class Changes(unittest.TestCase):
         body['window']['size'] = len('long')
         self.assertEqual(model.measured(body, {}, self.root, today)[1], False)
 
+    def test_an_incident_count_never_claims_met_from_a_missing_or_gitignored_folder(self):
+        today, day = self.git_today(), self.git_day()
+        body = {'measure': {'kind': 'incident-count', 'incident': 'owner-stop'}, 'window': {'kind': 'days', 'size': 1},
+                'comparator': 'lte', 'threshold': 0}
+        # missing folder with full window: stays measuring, never false-green (0 <= 0)
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
+        # gitignored empty folder: still stays measuring
+        write(self.root, '.gitignore', '/docs/operations/\n')
+        (self.root / 'docs/operations/incidents').mkdir(parents=True, exist_ok=True)
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
+        # fresh tracked snapshot with 0 incidents makes the window observable and met
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': f'{today}T00:00:00Z', 'incidents': []})
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, True))
+        # stale snapshot cannot confirm 0 incidents
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': '2020-01-01T00:00:00Z', 'incidents': []})
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
+        # incident in snapshot + same id in local folder is deduplicated and immediately fails threshold
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': f'{today}T00:00:00Z', 'incidents': [
+            {'id': 'I-dup', 'kind': 'owner-stop', 'time': f'{day}T00:00:00Z', 'status': 'open'}]})
+        write(self.root, 'docs/operations/incidents/I-dup.md', f'---\nid: I-dup\nkind: owner-stop\ntime: {day}T00:00:00Z\n---\n')
+        self.assertEqual(model.measured(body, {}, self.root, today), (1, True))
+
     def test_a_code_scan_finds_a_sleep_inside_a_loop_and_not_one_outside(self):
         write(self.root, 'lib/poll.py', 'import time\nwhile True:\n    time.sleep(1)\ntime.sleep(1)\n')
         write(self.root, 'lib/poll.sh', '#!/usr/bin/env bash\nsleep 1\nuntil ready; do\n  sleep 2\ndone\n')

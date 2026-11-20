@@ -1320,7 +1320,10 @@ def measured(body, found, root, today):
         from datetime import date, timedelta
         start = (date.fromisoformat(today) - timedelta(days=window['size'])).isoformat()
         dates = [day for _, day in _merges(root)]
-        return (len(incidents(root, measure['incident'], start, today)), bool(dates) and min(dates) <= start)
+        count = len(incidents(root, measure['incident'], start, today))
+        over = body.get('comparator') == 'lte' and 'threshold' in body and count > body['threshold']
+        observable = _incident_source_observable(root, window['size'], today)
+        return (count, over or (observable and bool(dates) and min(dates) <= start))
     if measure['kind'] == 'run-durations':
         import runs
         from datetime import date
@@ -1383,15 +1386,57 @@ def refresh_runs(found, root):
     return done
 
 
+INCIDENTS_SNAPSHOT = 'config/validation/incidents.json'
 INCIDENT_FIELD = re.compile(r'^(kind|time): (\S+)$', re.MULTILINE)
 
 
+def _incidents_snapshot(root):
+    path = Path(root) / INCIDENTS_SNAPSHOT
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) and isinstance(data.get('incidents'), list) else None
+
+
+def _incident_source_observable(root, window_days, today):
+    """Whether `incident-count` has an observable source on this checkout: a fresh tracked snapshot
+    (config/validation/incidents.json) or a local docs/operations/incidents folder that exists and is not gitignored.
+    Reading zero files from a missing or gitignored folder never proves zero incidents."""
+    from datetime import date
+    day_len = len('2026-01-01')
+    snap = _incidents_snapshot(root)
+    if snap and isinstance(snap.get('at'), str) and len(snap['at']) >= day_len:
+        if (date.fromisoformat(today) - date.fromisoformat(snap['at'][:day_len])).days <= window_days:
+            return True
+    folder = Path(root) / 'docs/operations/incidents'
+    if not folder.is_dir():
+        return False
+    return subprocess.run(['git', 'check-ignore', '-q', 'docs/operations/incidents'], cwd=root,
+                          capture_output=True).returncode != 0
+
+
 def incidents(root, kind, start, end):
-    """The incident records (docs/operations/incidents, scripts/incident) of one kind opened on [start, end)."""
-    found = []
+    """The incident records (config/validation/incidents.json and local docs/operations/incidents) of one kind opened
+    on [start, end), deduplicated by id."""
+    day_len = len('2026-01-01')
+    found, seen = [], set()
+    snap = _incidents_snapshot(root)
+    if snap:
+        for entry in snap['incidents']:
+            if not isinstance(entry, dict):
+                continue
+            ident = entry.get('id')
+            if ident and entry.get('kind') == kind and start <= str(entry.get('time', ''))[:day_len] < end:
+                if ident not in seen:
+                    seen.add(ident)
+                    found.append(ident)
     for path in sorted((Path(root) / 'docs/operations/incidents').glob('I-*.md')):
         fields = dict(INCIDENT_FIELD.findall(path.read_text().split('\n---', 1)[0]))
-        if fields.get('kind') == kind and start <= fields.get('time', '')[:len('2026-01-01')] < end:
+        if fields.get('kind') == kind and start <= fields.get('time', '')[:day_len] < end and path.stem not in seen:
+            seen.add(path.stem)
             found.append(path.stem)
     return found
 
