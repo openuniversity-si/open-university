@@ -1792,6 +1792,73 @@ class SupportSystems(unittest.TestCase):
         self.assertGreater(found['measurement']['fresh'], 0)
         self.assertIn('work: ', model.summary(found))
 
+    def test_operational_weaknesses_keep_systems_below_f_and_open_apart_from_catalog_integrity(self):
+        # C1: catalog conformance stays intact while not-met VAL/NC, breached SLOs, unmet cheaper-path,
+        # and unclosed assessments block F and closed: true
+        meta = model.metamodel(ROOT)
+        found = {
+            'VAL-ok': {'id': 'VAL-ok', 'type': 'VAL', 'state': 'met', 'fingerprint': 'f', 'links': []},
+            'VAL-miss': {'id': 'VAL-miss', 'type': 'VAL', 'state': 'not-met', 'fingerprint': 'f', 'links': []},
+            'NC-miss': {'id': 'NC-miss', 'type': 'NC', 'state': 'not-met', 'fingerprint': 'f',
+                        'body': {'untracked': False}, 'links': [{'type': 'necessary-for', 'target': 'INT-1'}]},
+            'INT-1': {'id': 'INT-1', 'type': 'INT', 'state': 'active', 'fingerprint': 'f', 'links': []},
+            'MEAS-slo': {'id': 'MEAS-slo', 'type': 'MEAS', 'state': 'active', 'fingerprint': 'f',
+                         'body': {'need': 'n', 'consumer': 'c', 'criterion': 'max 0', 'fresh': True, 'breached': True},
+                         'links': []},
+            'MEAS-cheap': {'id': 'MEAS-cheap', 'type': 'MEAS', 'state': 'active', 'fingerprint': 'f',
+                           'body': {'need': 'n', 'consumer': 'c', 'criterion': 'lt 0.1', 'fresh': True, 'met': False},
+                           'links': []},
+        }
+        into = model.incoming(found)
+        for name, expected in (('validation', ['VAL-miss']), ('problem', ['NC-miss']),
+                               ('measurement', ['MEAS-cheap', 'MEAS-slo'])):
+            rated = model.rate_system(meta, found, into, set(), name)
+            self.assertEqual((rated['catalog_level'], rated['level'], rated['operational_ready'], rated['closed']),
+                             ('F', 'L', False, False), name)
+            self.assertEqual(rated['weakness_ids'], expected, name)
+            self.assertIn('catalog, below F', model.system_line(rated))
+        # Fixing operational states restores F, operational_ready, and closed
+        found['VAL-miss']['state'] = 'met'
+        found['MEAS-slo']['body']['breached'] = False
+        found['MEAS-cheap']['body']['met'] = True
+        for name in ('validation', 'measurement'):
+            rated = model.rate_system(meta, found, into, set(), name)
+            self.assertEqual((rated['level'], rated['operational_ready'], rated['closed'], rated['weakness_ids']),
+                             ('F', True, True, []), name)
+        # ASSESS reflects readiness of assessed systems
+        open_assess = model.assessment('validation', {'level': 'L', 'catalog_level': 'F', 'share': 1, 'objects': 1,
+                                                      'not_judged': 0, 'weaknesses': 1, 'closed': False}, 'abc')
+        self.assertTrue(model.is_weakness(meta, open_assess))
+        self.assertTrue(model.covered(meta, open_assess, {}, {'ASSESS-validation': open_assess}))
+        closed_assess = model.assessment('validation', {'level': 'F', 'catalog_level': 'F', 'share': 1, 'objects': 1,
+                                                        'not_judged': 0, 'weaknesses': 0, 'closed': True}, 'abc')
+        self.assertFalse(model.is_weakness(meta, closed_assess))
+
+    def test_cross_check_validates_weakness_states_and_weakness_when(self):
+        shutil.copytree(ROOT / 'config/model', self.root / 'config/model')
+        write(self.root, 'config/model/types/VAL.json', {
+            'id': 'VAL', 'name': 'val', 'system': 'validation', 'states': ['defined', 'met'],
+            'weakness_states': ['ghost'], 'weakness_when': [{'state': ['gone']}, {}], 'description': 'd'})
+        errors = model.metamodel(self.root)['errors']
+        self.assertIn('type VAL: weakness_states ghost are not states of the type', errors)
+        self.assertIn('type VAL: a weakness_when condition names no field', errors)
+        self.assertIn('type VAL: weakness_when state gone are not states of the type', errors)
+
+    def test_this_checkouts_scoreboard_separates_catalog_from_operational_readiness(self):
+        found = model.measure(ROOT)
+        board = found['scoreboard']
+        self.assertIn('scoreboard: catalog ', model.summary(found))
+        for name in ('validation', 'measurement', 'problem', 'conformance'):
+            system = found['systems'][name]
+            self.assertEqual(system['catalog_level'], 'F', name)
+            self.assertEqual(system['level'], 'L', name)
+            self.assertFalse(system['operational_ready'], name)
+            self.assertFalse(system['closed'], name)
+            self.assertGreater(system['weaknesses'], 0, name)
+            self.assertIn(name, board['weaknesses'])
+            self.assertNotIn(name, board['operational_ready'])
+            self.assertNotIn(name, board['closed'])
+
 
 if __name__ == '__main__':
     unittest.main()

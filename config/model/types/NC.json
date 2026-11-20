@@ -24,8 +24,11 @@
       ]
     }
   ],
+  "weakness_states": [
+    "not-met"
+  ],
   "must_link": [
     "necessary-for"
   ],
-  "description": "A critical success factor or necessary condition of the Goal Tree, measured against its baseline and target; its derived state is the reading and, after delivery, the benefit. Not conformant while out of target with no undesirable effect that says so (D-348)."
+  "description": "A critical success factor or necessary condition of the Goal Tree, measured against its baseline and target; its derived state is the reading and, after delivery, the benefit. Out of target with no undesirable effect fails catalog conformance (D-348); `not-met` is a significant operational weakness that keeps the problem system below F and open."
 }
