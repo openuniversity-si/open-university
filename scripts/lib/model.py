@@ -2512,16 +2512,28 @@ def management_measure(found, today):
     }
 
 
-def measures_measure(found):
+def snapshot_lag(root):
+    """{snapshot name: first-parent merges on main strictly newer than snapshot['at']} for the GitHub validation
+    snapshots present under `root` (M3: exposes snapshot lag even offline)."""
+    import runs
+    snaps = {'slo': runs.read_slo(root), 'verdicts': runs.read_verdicts(root),
+             **{name: runs.read(root, name) for name in sorted(runs.CHECKS)}}
+    return {name: runs.merges_since(root, snap['at']) for name, snap in sorted(snaps.items())
+            if isinstance(snap, dict) and snap.get('at')}
+
+
+def measures_measure(found, root=None):
     """The measurement system's own counts: its measures, those with a value on HEAD, those proposed (no function
-    wired) and those whose source HEAD does not hold (an SLO with no GitHub snapshot)."""
+    wired), those whose source HEAD does not hold (an SLO with no GitHub snapshot), and snapshot lag vs. main."""
     measures = [item for item in found.values() if item['type'] == 'MEAS']
+    lag = snapshot_lag(root) if root is not None else {}
     return {'measures': len(measures), 'fresh': sum(1 for item in measures if item['body']['fresh']),
             'proposed': sum(1 for item in measures if item['state'] == 'proposed'),
             'unread': sum(1 for item in measures if item['body'].get('unread')),
             'slos': {item['id']: {key: item['body'][key] for key in ('value', 'criterion', 'state', 'samples')}
                      for item in sorted(measures, key=lambda item: item['id'])
-                     if item['body'].get('source') == SLO_SOURCE and 'value' in item['body']}}
+                     if item['body'].get('source') == SLO_SOURCE and 'value' in item['body']},
+            **({'snapshot_lag': lag} if lag else {})}
 
 
 def construction_measure(found):
@@ -2745,7 +2757,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'construction': construction_measure(found),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
-        'measurement': {'cheaper_path': cheaper_path, **measures_measure(found)},
+        'measurement': {'cheaper_path': cheaper_path, **measures_measure(found, root)},
         'work': work_measure(found),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors) + len(cheaper_path['problems']),
@@ -2879,6 +2891,9 @@ def summary(found):
         lines.append('measurement: SLOs from GitHub: ' + ', '.join(
             f'{id.removeprefix("MEAS-")} {item["value"]} ({item["criterion"]}, {item["state"]}, {item["samples"]} sample(s))'
             for id, item in counted['slos'].items()))
+    if counted.get('snapshot_lag') and any(counted['snapshot_lag'].values()):
+        lines.append('measurement: snapshot lag vs. main: ' + ', '.join(
+            f'{name} {lag} merge(s)' for name, lag in counted['snapshot_lag'].items()))
     lines.append(cheaper_path_line(found['measurement']['cheaper_path']))
     planned = found['work']
     lines.append(f'work: {planned["programs"]} program(s), {planned["items"]} item(s): '

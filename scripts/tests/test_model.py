@@ -1832,6 +1832,7 @@ class SupportSystems(unittest.TestCase):
         self.assertEqual(found['measurement']['unread'], 0)  # the SLOs read their GitHub snapshot (runs.SLO_FILE)
         self.assertEqual(len(found['measurement']['slos']), len(model.SLO_MEASURES))
         self.assertGreater(found['measurement']['fresh'], 0)
+        self.assertIn('slo', found['measurement']['snapshot_lag'])
         self.assertIn('work: ', model.summary(found))
 
     def test_operational_weaknesses_keep_systems_below_f_and_open_apart_from_catalog_integrity(self):

@@ -13,6 +13,7 @@ Name = Literal[
     'slo.producer',
     'slo.report_quantiles',
     'slo.sample_window_events',
+    'slo.snapshot_max_merges',
     'slo.step',
     'slo.train_queue_time_p95_s',
 ]
@@ -29,6 +30,7 @@ Values = TypedDict('Values', {
     'slo.producer': str,
     'slo.report_quantiles': list[int],
     'slo.sample_window_events': int,
+    'slo.snapshot_max_merges': int,
     'slo.step': str,
     'slo.train_queue_time_p95_s': float,
 })

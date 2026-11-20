@@ -1,0 +1,10 @@
+{
+  "type": "integer",
+  "default": 10,
+  "minimum": 1,
+  "x-unit": "count",
+  "description": "Most first-parent merges on main a validation snapshot (runs, slo, verdicts) may trail before scripts/runs rebuilds it, even when less than a day has passed (M3).",
+  "x-readers": [
+    "scripts/lib/runs.py"
+  ]
+}
