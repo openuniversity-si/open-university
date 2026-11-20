@@ -75,6 +75,21 @@ class Measure(unittest.TestCase):
         self.body['measure']['workflow'] = 'other'
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-18'), (None, False))
 
+    def test_run_distribution_reports_quantiles_and_outlier_count_without_changing_acceptance(self):
+        body = json.loads((ROOT / 'config/validation/VAL-deploy-1s.json').read_text())
+        times = [1, 1, 1, 1, body['threshold'] + 1]
+        builds = [{'id': f'm{i}', 'event': 'swap', 'conclusion': 'success', 'started': '2026-11-19T01:00:00Z',
+                   'seconds': sec} for i, sec in enumerate(times)]
+        (self.root / runs.FOLDER / 'deploy-live.json').write_text(json.dumps({
+            'workflow': 'deploy-live', 'at': '2026-11-19T02:00:00Z', 'runs': builds}))
+        dist = model.run_distribution(self.root, body)
+        self.assertEqual(dist['runs'], len(times))
+        self.assertEqual(dist['outliers'], 1)
+        self.assertEqual(dist['accepted_value'], max(times))
+        self.assertEqual(dist['quantiles'][f'p{min(model.report_quantiles(ROOT))}'], min(times))
+        self.assertEqual(dist['quantiles'][f'p{max(model.report_quantiles(ROOT))}'], max(times))
+        self.assertEqual(model.measured(body, {}, self.root, '2026-11-19')[0], max(times))
+
 
 def check(id, name, started, completed, conclusion='success'):
     return {'id': id, 'name': name, 'status': 'completed', 'conclusion': conclusion, 'started_at': started,

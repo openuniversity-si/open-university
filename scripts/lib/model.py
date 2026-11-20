@@ -1418,6 +1418,43 @@ def polling_left(root, paths, exclude):
             if decided.get(f'{path}::{function}', {}).get('class') not in NOT_POLLING]
 
 
+def report_quantiles(root=ROOT):
+    """Diagnostic report-only percentiles for run-durations validations (M4, D-337: report only, never accept)."""
+    import config
+    try:
+        return config.get('slo.report_quantiles', root)
+    except config.ConfigError:
+        return config.get('slo.report_quantiles', ROOT)
+
+
+def run_distribution(root, body, quantiles=None):
+    """Diagnostic distribution (p50/p95/p100 and outlier count outside threshold) for a run-durations validation.
+    Acceptance stays at body['measure']['percentile'] (p100, D-337)."""
+    import runs
+    measure = body.get('measure') or {}
+    if measure.get('kind') != 'run-durations':
+        return None
+    recorded = runs.read(root, measure['workflow'])
+    if not recorded or not recorded.get('runs'):
+        return None
+    values = [run['seconds'] for run in recorded['runs']]
+    points = report_quantiles(root) if quantiles is None else quantiles
+    threshold, comparator = body.get('threshold'), body.get('comparator', 'lte')
+    outliers = 0
+    if threshold is not None:
+        outliers = sum(1 for value in values if (value < threshold if comparator == 'gte' else value > threshold))
+    return {
+        'workflow': measure['workflow'],
+        'runs': len(values),
+        'quantiles': {f'p{point}': runs.percentile(values, point) for point in points},
+        'accepted_percentile': measure['percentile'],
+        'accepted_value': runs.percentile(values, measure['percentile']),
+        'comparator': comparator,
+        'threshold': threshold,
+        'outliers': outliers,
+    }
+
+
 def derive_validations(found, root, today=None):
     """Sets each validation's state from its measure: met or not-met when the window holds data, measuring while it
     is short, defined while no source is wired."""
@@ -1434,10 +1471,15 @@ def derive_validations(found, root, today=None):
             passes = value >= item['body']['threshold'] if item['body']['comparator'] == 'gte' else value <= item['body']['threshold']
             item['state'] = 'met' if passes else 'not-met'
         item['measured'] = value
+        if item['type'] == 'VAL' and item['body']['measure']['kind'] == 'run-durations':
+            dist = run_distribution(root, item['body'])
+            if dist is not None:
+                item['distribution'] = dist
 
 
 def validation_measure(found):
-    """The validation system's own measure: validations by state, and the needs that have a validation met."""
+    """The validation system's own measure: validations by state, needs with a validation met, and diagnostic
+    run-duration distributions (report only; acceptance stays p100, D-337)."""
     into = incoming(found)
     by_state = {}
     for item in found.values():
@@ -1446,7 +1488,11 @@ def validation_measure(found):
     needs = [item for item in found.values() if item['type'] == 'NEED']
     met = sum(1 for item in needs if any(kind == 'validates' and found.get(source, {}).get('state') == 'met'
                                          for kind, source in into.get(item['id'], [])))
-    return {'by_state': dict(sorted(by_state.items())), 'needs': len(needs), 'needs_met': met}
+    distributions = {item['id']: item['distribution']
+                     for item in sorted(found.values(), key=lambda item: item['id'])
+                     if item['type'] == 'VAL' and item.get('distribution')}
+    return {'by_state': dict(sorted(by_state.items())), 'needs': len(needs), 'needs_met': met,
+            **({'distributions': distributions} if distributions else {})}
 
 
 def implemented(item, into, found):
@@ -2780,6 +2826,14 @@ def summary(found):
     proved = found['validation']
     lines.append(f'validation: {", ".join(f"{count} {state}" for state, count in proved["by_state"].items()) or "none"}; '
                  f'{proved["needs_met"]} of {proved["needs"]} needs with a validation met')
+    if proved.get('distributions'):
+        parts = []
+        for ident, dist in proved['distributions'].items():
+            sign = '>=' if dist['comparator'] == 'gte' else '<='
+            points = ' '.join(f'{label}={value:g}s' for label, value in dist['quantiles'].items() if value is not None)
+            threshold = f'{dist["threshold"]:g}s' if dist['threshold'] is not None else '?'
+            parts.append(f'{ident} {points} ({dist["outliers"]}/{dist["runs"]} outside {sign}{threshold})')
+        lines.append('validation: run-durations (report only; accepted at p100, D-337): ' + ', '.join(parts))
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')

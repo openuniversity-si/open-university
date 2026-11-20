@@ -1859,6 +1859,25 @@ class SupportSystems(unittest.TestCase):
             self.assertNotIn(name, board['operational_ready'])
             self.assertNotIn(name, board['closed'])
 
+    def test_run_durations_report_diagnostic_quantiles_and_outliers_while_accepting_p100(self):
+        # M4 / D-337: external percentiles report alongside p100 acceptance without loosening the target
+        found = model.measure(ROOT)
+        dists = found['validation']['distributions']
+        self.assertIn('VAL-deploy-1s', dists)
+        self.assertIn('VAL-gate-60s', dists)
+        quantiles = [f'p{point}' for point in model.report_quantiles(ROOT)]
+        for ident in ('VAL-deploy-1s', 'VAL-gate-60s'):
+            dist = dists[ident]
+            self.assertEqual(list(dist['quantiles']), quantiles)
+            self.assertEqual(dist['accepted_percentile'], max(model.report_quantiles(ROOT)))
+            self.assertEqual(dist['accepted_value'], dist['quantiles'][quantiles[-1]])
+            self.assertGreater(dist['outliers'], 0)
+            self.assertLessEqual(dist['outliers'], dist['runs'])
+        text = model.summary(found)
+        self.assertIn('validation: run-durations (report only; accepted at p100, D-337):', text)
+        self.assertIn('VAL-deploy-1s', text)
+        self.assertIn('VAL-gate-60s', text)
+
 
 if __name__ == '__main__':
     unittest.main()
