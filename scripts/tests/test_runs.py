@@ -52,6 +52,17 @@ class Measure(unittest.TestCase):
         self.body['measure']['min_runs'] = len('abcd')
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-18')[1], False)
 
+    def test_a_fresh_at_stamp_over_old_runs_is_still_stale(self):
+        old = [run(i, '2026-11-01T10:00:00Z', f'2026-11-01T10:00:{30 + i:02d}Z') for i in range(len('abc'))]
+        (self.root / runs.FOLDER / 'tower-gate.json').write_text(
+            json.dumps(runs.snapshot('tower-gate', old, now='2026-11-19T12:00:00Z')))
+        self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-19')[1], False,
+                         'freshness judges the newest run date too, not only the query timestamp')
+        mixed = old[:-1] + [run(len('abc'), '2026-11-18T10:00:00Z', '2026-11-18T10:00:35Z')]
+        (self.root / runs.FOLDER / 'tower-gate.json').write_text(
+            json.dumps(runs.snapshot('tower-gate', mixed, now='2026-11-19T12:00:00Z')))
+        self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-19')[1], True)
+
     def test_val_deploy_1s_reads_the_slowest_landing_to_live_of_the_snapshot(self):
         # REQ-deploy-1s counts a code-only merge's landing to live (QUEUE-RELOAD), the snapshot scripts/deploy status
         # records (deploy.record_live), not the builds' seconds (deploy.json): the same reader as the gate's, on the whole

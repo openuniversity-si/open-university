@@ -1259,7 +1259,12 @@ def measured(body, found, root, today):
         recorded = runs.read(root, measure['workflow'])
         if not recorded or not recorded['runs']:
             return None, False
-        fresh = (date.fromisoformat(today) - date.fromisoformat(recorded['at'][:len('2026-01-01')])).days <= measure['max_age_days']
+        day_len = len('2026-01-01')
+        at_day = recorded['at'][:day_len]
+        newest = max((run.get('started', '')[:day_len] for run in recorded['runs']
+                      if isinstance(run.get('started'), str) and len(run['started']) >= day_len), default='')
+        ref_day = min(at_day, newest) if newest else at_day
+        fresh = (date.fromisoformat(today) - date.fromisoformat(ref_day)).days <= measure['max_age_days']
         values = [run['seconds'] for run in recorded['runs']]
         return runs.percentile(values, measure['percentile']), fresh and len(values) >= measure['min_runs']
     if measure['kind'] == 'aws-spend':
