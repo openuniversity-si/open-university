@@ -6,6 +6,7 @@
     "scripts/lib/model.py",
     "scripts/lib/config.py",
     "scripts/lib/json_schema.py",
+    "scripts/lib/operation_relations.json",
     "contracts/model/*.json",
     "config/model/**",
     "config/security/**",

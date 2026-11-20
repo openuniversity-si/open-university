@@ -28,6 +28,7 @@
     "scripts/tests/**/test_*.py",
     "scripts/tests/covers/*.json",
     "scripts/lib/gate-stages.json",
+    "scripts/lib/operation_relations.json",
     "scripts/lib/rule_registry.py",
     "scripts/lib/gate_areas.py",
     "scripts/lib/globs.py",

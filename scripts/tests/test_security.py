@@ -19,12 +19,60 @@ BAR = {'critical': 7, 'high': 30, 'moderate': 90, 'low': 180}
 
 
 class Controls(unittest.TestCase):
-    def test_a_control_is_a_gap_until_something_that_exists_implements_it(self):
-        body = {'applicable': True, 'implemented_by': ['STD-gone']}
+    def test_a_control_is_a_gap_until_something_that_exists_implements_it_with_explicit_coverage(self):
+        body = {'applicable': True, 'implemented_by': ['STD-gone'], 'coverage': 'full'}
         self.assertEqual(model.control_state(body, {'STD-here'}), 'gap')
+        self.assertEqual(model.control_state({'applicable': True, 'implemented_by': ['STD-here']}, {'STD-here'}), 'gap')
         self.assertEqual(model.control_state({**body, 'implemented_by': ['STD-here']}, {'STD-here'}), 'implemented')
         self.assertEqual(model.control_state({**body, 'implemented_by': ['STD-here'], 'coverage': 'partial'}, {'STD-here'}), 'partial')
         self.assertEqual(model.control_state({'applicable': False}, set()), 'not-applicable')
+
+    def test_a_control_refuses_dormant_draft_judgment_or_unexercised_rules(self):
+        def std(ident, state='blocking', kind='function'):
+            return {'id': ident, 'type': 'STD', 'state': state, 'fingerprint': 'f', 'links': [],
+                    'rule': {'id': ident, 'state': state, 'check': {'kind': kind, 'ref': 'scripts/lib/x.py:f'}}}
+
+        found = {
+            'STD-live': std('STD-live'),
+            'STD-dormant': std('STD-dormant', state='dormant'),
+            'STD-draft': std('STD-draft', state='draft'),
+            'STD-judge': std('STD-judge', kind='judgment'),
+            'STD-idle': std('STD-idle'),
+        }
+        unexercised = {'STD-idle'}
+        for bad in ('STD-dormant', 'STD-draft', 'STD-judge', 'STD-idle'):
+            only_bad = {'applicable': True, 'implemented_by': [bad], 'coverage': 'full'}
+            self.assertEqual(model.control_state(only_bad, found, unexercised), 'gap', bad)
+            mixed = {'applicable': True, 'implemented_by': ['STD-live', bad], 'coverage': 'full'}
+            self.assertEqual(model.control_state(mixed, found, unexercised), 'partial', bad)
+        ok = {'applicable': True, 'implemented_by': ['STD-live'], 'coverage': 'full'}
+        self.assertEqual(model.control_state(ok, found, unexercised), 'implemented')
+        found['CTRL-bad'] = {'id': 'CTRL-bad', 'type': 'CTRL', 'state': 'gap', 'fingerprint': 'f', 'links': [],
+                             'body': {'applicable': True, 'implemented_by': ['STD-dormant']}}
+        warnings = model.security_findings(found, today='2026-11-19')
+        self.assertTrue(any('omits explicit coverage' in line for line in warnings), warnings)
+        self.assertTrue(any('STD-dormant is inert (rule is dormant)' in line for line in warnings), warnings)
+
+    def test_a_risk_checks_review_by_and_residual_acceptance(self):
+        def risk(ident, state, **extra):
+            return {'id': ident, 'type': 'RISK', 'state': state, 'fingerprint': 'f', 'links': [],
+                    'body': {'id': ident, 'state': state, 'owner': 'Daniel', **extra}}
+
+        found = {
+            'RISK-ok': risk('RISK-ok', 'treated', review_by='2026-12-19', residual_accepted_by='Daniel'),
+            'RISK-closed': risk('RISK-closed', 'closed', review_by='2025-01-01'),
+            'RISK-no-date': risk('RISK-no-date', 'assessed'),
+            'RISK-late': risk('RISK-late', 'treated', review_by='2026-11-01', residual_accepted_by='Daniel'),
+            'RISK-unaccepted': risk('RISK-unaccepted', 'treated', review_by='2026-12-19'),
+            'RISK-accepted-blank': risk('RISK-accepted-blank', 'accepted', review_by='2026-12-19', residual_accepted_by=''),
+        }
+        warnings = model.security_findings(found, today='2026-11-19')
+        flagged = {line.split(':', 1)[0] for line in warnings}
+        self.assertEqual(flagged, {'RISK-no-date', 'RISK-late', 'RISK-unaccepted', 'RISK-accepted-blank'})
+        self.assertTrue(any('RISK-no-date: active risk has no review_by' in line for line in warnings))
+        self.assertTrue(any('RISK-late: review_by 2026-11-01 has passed' in line for line in warnings))
+        self.assertTrue(any('RISK-unaccepted: treated risk has no residual_accepted_by' in line for line in warnings))
+        self.assertTrue(any('RISK-accepted-blank: accepted risk has no residual_accepted_by' in line for line in warnings))
 
 
 class Vulnerabilities(unittest.TestCase):
@@ -91,6 +139,18 @@ class RealRepository(unittest.TestCase):
         self.assertEqual(len({item['body']['control'] for item in controls}), len(['PO.1', 'PO.2', 'PO.3', 'PO.4', 'PO.5',
                          'PS.1', 'PS.2', 'PS.3', 'PW.1', 'PW.2', 'PW.4', 'PW.5', 'PW.6', 'PW.7', 'PW.8', 'PW.9', 'RV.1', 'RV.2', 'RV.3']))
         self.assertTrue(all(item['body']['reason'] for item in controls))
+        for item in controls:
+            if item['body']['applicable']:
+                self.assertIn(item['body'].get('coverage'), ('full', 'partial'), item['id'])
+
+    def test_inert_control_targets_and_unaccepted_treated_risks_are_flagged_honestly(self):
+        found = model.objects(ROOT)
+        self.assertEqual(found['CTRL-ssdf-po.2']['state'], 'partial')
+        warnings = model.security_findings(found, ROOT, today='2026-11-19')
+        self.assertTrue(any('CTRL-ssdf-po.2: implemented_by STD-train-ownership-refusals is inert' in line
+                            for line in warnings), warnings)
+        self.assertTrue(any('RISK-media-single-account: treated risk has no residual_accepted_by' in line
+                            for line in warnings), warnings)
 
     def test_every_required_check_is_bound_to_the_app_that_reports_it(self):
         """VULN-gate-check-source: a required check named by its context alone is satisfied by a status of that name from
