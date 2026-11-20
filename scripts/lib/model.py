@@ -1040,34 +1040,102 @@ def _change_id(sha, subject):
 
 
 TRAILER_FIXES = re.compile(r'^Fixes-PR:\s*(.+)$', re.MULTILINE)
+REVERT_COMMIT = re.compile(r'^This reverts commit ([0-9a-f]{7,40})\b', re.MULTILINE)
+REVERT_PR = re.compile(r'^Revert\s+"(?:Merge pull request #([0-9]+)\b|[^"]*\(#([0-9]+)\))', re.MULTILINE)
 ESCAPE_REQUIREMENT = 'REQ-escape-under-1'
 
 
 def read_escapes(root):
-    """Escapes (INC, F4d): a defect a merged change brought to main that a later merge repaired. Each pull request the
-    commits of a first-parent merge name in `Fixes-PR:` (comma-separated numbers, `#` optional) is one incident,
-    INC-escape-<n>, resolved: introduced by CHG-<n> (the change that let it through), fixed by every merge that names
-    it, violating REQ-escape-under-1. A number no merge of HEAD carries leaves a link to a change that does not exist
-    (a warning of check), never a guessed target."""
-    found = {}
+    """Escapes (INC, F4d): a defect a merged change brought to main that a later merge repaired or full-suite caught.
+    Derived from four sources, deduplicated per escaped change (INC-escape-<id>, violating REQ-escape-under-1):
+    (1) `Fixes-PR:` trailers in a later merge's commits;
+    (2) git `Revert` commits reverting an earlier merged commit or pull request;
+    (3) `full-suite` red episodes on main in config/validation/verdicts.json (open while main is still red, resolved
+        by the merge whose full-suite run turned green again);
+    (4) post-merge entries in config/model/errata.json (an erratum not already present at the escaped change's merge).
+    A Fixes-PR number no merge of HEAD carries still leaves a link to a change that does not exist (a warning of check),
+    never a guessed target."""
+    import runs
+    found, merge_by_sha, known_changes, commit_to_merge, merge_records = {}, {}, set(), {}, []
     for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
         sha, _, subject = line.partition('\x1f')
         fixer = _change_id(sha, subject)
-        for listed in TRAILER_FIXES.findall(_git(root, 'log', '--format=%B', f'{sha}^1..{sha}')):
+        merge_by_sha[sha] = fixer
+        known_changes.add(fixer)
+        commit_to_merge[sha] = (sha, fixer)
+        raw = _git(root, 'log', '--format=%x1e%H%x1f%B', f'{sha}^1..{sha}')
+        bodies = []
+        for chunk in raw.split('\x1e')[1:]:
+            csha, _, body = chunk.partition('\x1f')
+            csha = csha.strip()
+            if csha:
+                commit_to_merge[csha] = (sha, fixer)
+            bodies.append(body)
+        merge_records.append((sha, fixer, '\n'.join(bodies)))
+
+    def resolve_commit(token):
+        if token in commit_to_merge:
+            return commit_to_merge[token][1]
+        matches = {owner[1] for csha, owner in commit_to_merge.items() if csha.startswith(token)}
+        return next(iter(matches)) if len(matches) == 1 else None
+
+    def record(escaped, source, fixer=None, state='resolved'):
+        if not escaped or escaped == fixer:
+            return
+        key = escaped.removeprefix('CHG-')
+        item = found.get(key)
+        if item is None:
+            links = [{'type': 'introduced-by', 'target': escaped},
+                     {'type': 'violates', 'target': ESCAPE_REQUIREMENT}]
+            item = found[key] = _obj(f'INC-escape-{key}', 'INC', state, source, escaped, links)
+            item['body'] = {'escaped': escaped, 'fixed_by': []}
+        elif state == 'resolved' and item['state'] == 'open':
+            item['state'] = 'resolved'
+        if fixer and fixer not in item['body']['fixed_by']:
+            item['body']['fixed_by'].append(fixer)
+            item['links'].append({'type': 'fixed-by', 'target': fixer})
+
+    for sha, fixer, text in merge_records:
+        for listed in TRAILER_FIXES.findall(text):
             for number in re.findall(r'#?([0-9]+)', listed):
-                escaped = f'CHG-{number}'
-                if escaped == fixer:
-                    continue
-                item = found.get(number)
-                if item is None:
-                    links = [{'type': 'introduced-by', 'target': escaped},
-                             {'type': 'violates', 'target': ESCAPE_REQUIREMENT}]
-                    item = found[number] = _obj(f'INC-escape-{number}', 'INC', 'resolved', f'git:{sha}', escaped,
-                                                links)
-                    item['body'] = {'escaped': escaped, 'fixed_by': []}
-                if fixer not in item['body']['fixed_by']:
-                    item['body']['fixed_by'].append(fixer)
-                    item['links'].append({'type': 'fixed-by', 'target': fixer})
+                record(f'CHG-{number}', f'git:{sha}', fixer)
+        for target_sha in REVERT_COMMIT.findall(text):
+            record(resolve_commit(target_sha), f'git:{sha}', fixer)
+        for match in REVERT_PR.finditer(text):
+            number = match.group(1) or match.group(2)
+            if f'CHG-{number}' in known_changes:
+                record(f'CHG-{number}', f'git:{sha}', fixer)
+
+    verdicts = runs.read_verdicts(root) or {}
+    episode = None
+    for run in reversed(verdicts.get('runs', [])):
+        sha = run.get('sha')
+        if sha not in merge_by_sha:
+            continue
+        change = merge_by_sha[sha]
+        if run.get('conclusion') == 'success':
+            if episode is not None:
+                record(episode[0], episode[1], change, state='resolved')
+                episode = None
+        elif episode is None:
+            episode = (change, f'{runs.VERDICTS_FILE} run {run.get("id", sha[:len("0123456789ab")])}')
+    if episode is not None:
+        record(episode[0], episode[1], fixer=None, state='open')
+
+    errata_path = Path(root) / ERRATA
+    if errata_path.is_file():
+        for entry in _read_json(errata_path).get('errata', []):
+            ref = entry.get('commit') or entry.get('sha')
+            owner = commit_to_merge.get(ref) if ref else None
+            if owner is None:
+                continue
+            owner_sha, escaped = owner
+            if ref in _git(root, 'show', f'{owner_sha}:{ERRATA}'):
+                continue
+            added = _git(root, 'log', '-S', ref, '--reverse', '--format=%H', '--', ERRATA).splitlines()
+            fixer = next((commit_to_merge[c][1] for c in added if c in commit_to_merge and commit_to_merge[c][1] != escaped),
+                         None)
+            record(escaped, ERRATA, fixer, state='resolved')
     return list(found.values())
 
 

@@ -726,6 +726,60 @@ class Changes(unittest.TestCase):
             {'type': 'fixed-by', 'target': 'CHG-7'}, {'type': 'fixed-by', 'target': 'CHG-6'}])
         self.assertEqual(found['INC-escape-99']['body'], {'escaped': 'CHG-99', 'fixed_by': ['CHG-7']})
 
+    def test_escapes_are_also_derived_from_full_suite_failures_reverts_and_post_merge_errata(self):
+        import runs
+        import subprocess
+        def rev(ref):
+            return subprocess.run(['git', 'rev-parse', ref], cwd=self.root, capture_output=True, text=True, check=True).stdout.strip()
+        sha5 = rev('HEAD')
+        commit5 = rev('HEAD^2')
+        self.merge(6, 'feat: six')
+        sha6 = rev('HEAD')
+        self.merge(7, f'Revert "five"\n\nThis reverts commit {commit5}.')
+        sha7 = rev('HEAD')
+        self.merge(8, 'fix: eight')
+        sha8 = rev('HEAD')
+        # full-suite failure episode on CHG-6 resolved by CHG-8 (CHG-7 stays inside the same red episode)
+        write(self.root, runs.VERDICTS_FILE, {'check': 'full-suite', 'at': '2026-01-01T00:00:00Z', 'runs': [
+            {'sha': sha8, 'id': len('abcd'), 'conclusion': 'success', 'completed': '2026-01-01T00:04:00Z'},
+            {'sha': sha7, 'id': len('abc'), 'conclusion': 'failure', 'completed': '2026-01-01T00:03:00Z'},
+            {'sha': sha6, 'id': len('ab'), 'conclusion': 'failure', 'completed': '2026-01-01T00:02:00Z'},
+            {'sha': sha5, 'id': 1, 'conclusion': 'success', 'completed': '2026-01-01T00:01:00Z'}]})
+        # post-merge erratum correcting CHG-5 after merge (plus a same-PR erratum that must not count as an escape)
+        self.git('checkout', '-q', '-b', 'b9')
+        write(self.root, 'f9.txt', 'nine')
+        self.git('add', 'f9.txt')
+        self.git('commit', '-q', '-m', 'feat: nine\n\nImplements: REQ-wrong')
+        commit9 = rev('HEAD')
+        write(self.root, model.ERRATA, {'errata': [
+            {'change': 'CHG-5', 'sha': sha5, 'was': 'REQ-a', 'is': None, 'why': 'post-merge fix'},
+            {'commit': commit9, 'was': 'REQ-wrong', 'is': None, 'why': 'same-pr fix'}]})
+        self.git('add', model.ERRATA)
+        self.git('commit', '-q', '-m', 'errata: fix five and nine')
+        self.git('checkout', '-q', 'main')
+        self.git('merge', '-q', '--no-ff', 'b9', '-m', 'Merge pull request #9 from org/b9')
+        found = {item['id']: item for item in model.read_escapes(self.root)}
+        self.assertEqual(sorted(found), ['INC-escape-5', 'INC-escape-6'], 'same-PR erratum on CHG-9 is no escape')
+        self.assertEqual(found['INC-escape-5']['state'], 'resolved')
+        self.assertEqual(found['INC-escape-5']['body']['fixed_by'], ['CHG-7', 'CHG-9'])
+        self.assertEqual((found['INC-escape-6']['state'], found['INC-escape-6']['body']['fixed_by']),
+                         ('resolved', ['CHG-8']))
+        # an unfixed full-suite failure on HEAD produces an open incident (nonconformant under INC.json)
+        sha9 = rev('HEAD')
+        write(self.root, runs.VERDICTS_FILE, {'check': 'full-suite', 'at': '2026-01-01T00:00:00Z', 'runs': [
+            {'sha': sha9, 'id': len('abcde'), 'conclusion': 'failure', 'completed': '2026-01-01T00:05:00Z'},
+            {'sha': sha8, 'id': len('abcd'), 'conclusion': 'success', 'completed': '2026-01-01T00:04:00Z'}]})
+        open_found = {item['id']: item for item in model.read_escapes(self.root)}
+        self.assertEqual((open_found['INC-escape-9']['state'], open_found['INC-escape-9']['body']['fixed_by']),
+                         ('open', []))
+        meta = model.metamodel()
+        self.assertTrue(model.judged(meta, 'INC'))
+        req = {'id': model.ESCAPE_REQUIREMENT, 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': []}
+        graph = {**open_found, req['id']: req}
+        into = model.incoming(graph)
+        self.assertTrue(model.covered(meta, graph['INC-escape-5'], into, graph), 'resolved linked escape is conformant')
+        self.assertFalse(model.covered(meta, graph['INC-escape-9'], into, graph), 'open escape stays nonconformant')
+
     def test_the_escape_rate_is_the_share_of_the_windows_changes_an_escape_was_introduced_by(self):
         self.merge(6, 'fix: a\n\nFixes-PR: 5')
         self.merge(7, 'fix: a again\n\nFixes-PR: 5')

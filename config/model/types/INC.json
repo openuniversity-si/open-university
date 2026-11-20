@@ -11,5 +11,11 @@
   "inactive_states": [
     "reviewed"
   ],
-  "description": "An incident of the flow or of a service."
+  "unconformant_states": [
+    "open"
+  ],
+  "must_link": [
+    "violates"
+  ],
+  "description": "An incident of the flow or of a service: open incidents are not conformant, and every active incident links to the requirement, validation or condition it violated."
 }
