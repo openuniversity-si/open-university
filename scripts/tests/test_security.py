@@ -152,6 +152,16 @@ class RealRepository(unittest.TestCase):
         self.assertTrue(any('RISK-media-single-account: treated risk has no residual_accepted_by' in line
                             for line in warnings), warnings)
 
+    def test_site_iac_risk_is_open_and_security_hardening_proposal_awaits_owner_decision(self):
+        found = model.objects(ROOT)
+        risk = found['RISK-site-iac-outside-tree']
+        self.assertEqual(risk['state'], 'assessed')
+        self.assertEqual([link['target'] for link in risk['links']], ['ARC-web', 'SUP-aws'])
+        prop = found['PROP-security-supply-hardening']
+        self.assertEqual(prop['state'], 'open')
+        self.assertEqual(prop['body']['owner'], 'Daniel')
+        self.assertNotIn('decided_by', prop['body'])
+
     def test_every_required_check_is_bound_to_the_app_that_reports_it(self):
         """VULN-gate-check-source: a required check named by its context alone is satisfied by a status of that name from
         any credential that may write statuses (a session's own, through verify-commit without --no-post); bound to the

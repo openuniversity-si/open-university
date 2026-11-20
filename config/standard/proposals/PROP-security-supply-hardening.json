@@ -1,0 +1,11 @@
+{
+  "id": "PROP-security-supply-hardening",
+  "statement": "Owner decision requested (reserved as D-352 once Daniel decides): (1) revoke or explicitly re-authorize TAIL-gate-fork-workflow and TAIL-ssdf-pw2-gate (D-344, session-authorized) and approve migrating required check tower/gate in .github/rulesets/main.json to an external GitHub App outside workflows (PR W, D-087) to close THREAT-gate (C7); (2) accept residual risk (residual_accepted_by) or fund second-account/Object Lock treatment for RISK-media-single-account, and confirm closure or residual acceptance for RISK-personal-data-unregistered (A7); (3) decide AWS/IaC import scope for open-university-web/CloudFront and post-deploy synthetic canary (RISK-site-iac-outside-tree, M6); (4) confirm disposition of inert STD-train-ownership-refusals in CTRL-ssdf-po.2 (A7).",
+  "state": "open",
+  "owner": "Daniel",
+  "changes": [
+    "STD-targets-full"
+  ],
+  "deadline": "2026-12-19",
+  "note": "Opened by PR D (audit findings C7, A7, M6). Never self-approved by the session; awaits Daniel's decision for D-352."
+}
