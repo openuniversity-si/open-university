@@ -49,6 +49,7 @@
     "scripts/tests/covers/problem.json",
     "config/problem/**",
     "config/governance/**",
+    "scripts/lib/trust_metrics.py",
     "scripts/tests/trust-metrics.test.sh",
     "scripts/tests/test_trust_metrics.py",
     "scripts/tests/covers/trust-metrics.json",
