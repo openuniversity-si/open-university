@@ -6,7 +6,8 @@
     "UDE-gate-red",
     "UDE-gate-slow",
     "UDE-deploy-slow",
-    "UDE-blind-constraint"
+    "UDE-blind-constraint",
+    "UDE-requirements-unverified"
   ],
   "owner": "manager",
   "source": "docs/programs/padrao-dev/problema-desenho.md#3 (CRT)"

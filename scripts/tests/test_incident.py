@@ -40,6 +40,31 @@ class Register(unittest.TestCase):
             self.assertEqual(incident.rows(tmp), [f'{identifier}\topen\troot cause here'])
             self.assertIn('root cause here', incident.show(tmp, identifier))
 
+    def test_snapshot_exports_metadata_only_and_merges_existing_entries(self):
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as tmp:
+            prior = {'id': 'I-00000001', 'kind': 'owner-stop', 'time': '2026-11-15T10:00:00Z', 'status': 'closed'}
+            snap_path = Path(tmp) / incident.SNAPSHOT
+            snap_path.parent.mkdir(parents=True, exist_ok=True)
+            snap_path.write_text(json.dumps({'source': 'seed', 'at': '2026-11-15T12:00:00Z', 'incidents': [prior]}))
+            identifier = incident.open_incident(tmp, FIXTURE['kind'], FIXTURE['text'], FIXTURE['time'])
+            incident.write_snapshot(tmp, now='2026-11-19T12:00:00Z')
+            raw = snap_path.read_text()
+            self.assertNotIn(FIXTURE['text'], raw, 'snapshot carries metadata only, never incident prose')
+            loaded = json.loads(raw)
+            self.assertEqual(loaded['at'], '2026-11-19T12:00:00Z')
+            by_id = {entry['id']: entry for entry in loaded['incidents']}
+            self.assertEqual(set(by_id), {'I-00000001', identifier})
+            self.assertEqual(by_id[identifier], {'id': identifier, 'kind': FIXTURE['kind'],
+                                                 'time': FIXTURE['time'], 'status': 'open'})
+            incident.close(tmp, identifier, FIXTURE['fix'])
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(incident.main(['snapshot'], root=tmp), 0)
+            after = json.loads(snap_path.read_text())
+            self.assertEqual({entry['id']: entry['status'] for entry in after['incidents']},
+                             {'I-00000001': 'closed', identifier: 'closed'})
+
 
 
 class NeverPublished(unittest.TestCase):

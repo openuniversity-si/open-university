@@ -31,7 +31,8 @@ class Reading(unittest.TestCase):
 
     def test_no_or_a_malformed_reading_is_none(self):
         for answer in ({'last_build': {'status': 'succeeded'}}, {'last_build': None}, [], {'spend': {'day': '2026-11-19'}},
-                       {'spend': {**READING, 'usd': -1}}, {'spend': {**READING, 'from': '2026-10-01'}}):
+                       {'spend': {**READING, 'usd': -1}}, {'spend': {**READING, 'usd': -float('0.01')}},
+                       {'spend': {**READING, 'usd': True}}, {'spend': {**READING, 'from': '2026-10-01'}}):
             self.assertIsNone(spend.reading(answer), answer)
 
     def test_record_writes_the_snapshot_and_refuses_an_input_with_no_reading(self):
@@ -39,11 +40,13 @@ class Reading(unittest.TestCase):
         self.addCleanup(shutil.rmtree, root)
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(spend.main(['record'], root, io.StringIO(json.dumps({'last_build': {}}))), 1)
+            self.assertEqual(spend.main(['record'], root, io.StringIO(json.dumps({'spend': {**READING, 'usd': -1}}))), 1)
             self.assertIsNone(spend.read(root))
             self.assertEqual(spend.main(['record'], root, io.StringIO(json.dumps({'last_build': {'spend': READING}}))), 0)
         written = spend.read(root)
         self.assertEqual((written['day'], written['from'], written['usd']), ('2026-11-19', '2026-11-01', CENTS))
         self.assertIn('Cost Explorer', written['source'])
+        self.assertIn('excluding Credit and Refund', written['source'])
 
 
 class Measure(unittest.TestCase):

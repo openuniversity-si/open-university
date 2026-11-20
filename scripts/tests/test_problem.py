@@ -196,6 +196,10 @@ class ProblemSpace(unittest.TestCase):
         open_ = [ident for ident, item in found.items() if item['type'] in kinds
                  and not model.covered(meta, item, into, found)]
         self.assertEqual(open_, [])
+        self.assertEqual(found['NC-requirements-tested']['measured'], found['VAL-knowledge']['measured'])
+        self.assertEqual(found['NC-requirements-tested']['state'], 'not-met')
+        self.assertEqual(found['NC-standard']['state'], 'not-met')
+        self.assertGreater(found['NC-trust']['measured'], 1)
 
 
 if __name__ == '__main__':
