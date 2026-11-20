@@ -271,6 +271,22 @@ class ProblemSpace(unittest.TestCase):
         self.assertEqual(diag['st_levels'], {level: int(level < len(problem_space.VALIDATORS)) for level in levels})
         self.assertEqual(diag['appraisals']['D-1']['INJ-proposal'], float(self.weight * self.high))
 
+    def test_proposed_needs_are_unconformant_until_validated(self):
+        extra = {
+            'NEED-x': {'id': 'NEED-x', 'type': 'NEED', 'state': 'proposed', 'fingerprint': 'f',
+                       'links': [{'type': 'serves', 'target': 'NC-goal'}]},
+            'REQ-x': {'id': 'REQ-x', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f',
+                      'links': [{'type': 'derives-from', 'target': 'NEED-x'}]},
+            'VAL-x': {'id': 'VAL-x', 'type': 'VAL', 'state': 'met', 'fingerprint': 'f',
+                      'links': [{'type': 'validates', 'target': 'NEED-x'}]},
+        }
+        found = self.found(extra=extra)
+        self.assertFalse(self.conforms(found, 'NEED-x'), 'a proposed NEED does not conform before owner validation')
+        found['NEED-x']['state'] = 'validated'
+        self.assertTrue(self.conforms(found, 'NEED-x'))
+        found['NEED-x']['state'] = 'active'
+        self.assertTrue(self.conforms(found, 'NEED-x'))
+
     def test_a_condition_reads_an_slo_and_a_composite_of_conditions(self):
         write(self.root, 'config/registry/slo.json', json.loads((ROOT / 'config/registry/slo.json').read_text()))
         self.assertEqual(model.measured({'measure': {'kind': 'slo', 'name': 'slo.none'}}, {}, self.root, DAY), (None, False))
