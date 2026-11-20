@@ -761,9 +761,11 @@ class CliTests(unittest.TestCase):
         self.assertEqual((written['workflow'], written['at']), ('deploy-live', '2026-11-18T11:08:20Z'),
                          'a repeat status read with no new landing keeps the earlier at stamp')
         d = hashlib.sha1(b'd').hexdigest()
-        state['image_swap'].append({'head': d, 'swapped': True, 'at': 1795000250.5, 'digest': 'd3', 'versions': {}})
+        d_live = deploy.iso_epoch('2026-11-18T11:10:50Z') + float('0.5')
+        state['image_swap'].append({'head': d, 'swapped': True, 'at': d_live, 'digest': 'd3', 'versions': {}})
         pushed.append({'after': d, 'timestamp': '2026-11-18T11:10:50Z'})
-        self.assertEqual(len(deploy.record_live(state, root, now=1795000300, api=api, repo='o/r')), len('abd'))
+        self.assertEqual(len(deploy.record_live(state, root, now=deploy.iso_epoch('2026-11-18T11:11:40Z'),
+                                                api=api, repo='o/r')), len('abd'))
         updated = json.loads((Path(root) / deploy.RUNS_FOLDER / 'deploy-live.json').read_text())
         self.assertEqual(updated['at'], '2026-11-18T11:11:40Z', 'a new landing advances at')
 

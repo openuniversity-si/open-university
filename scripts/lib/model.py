@@ -1041,7 +1041,7 @@ def _change_id(sha, subject):
 
 TRAILER_FIXES = re.compile(r'^Fixes-PR:\s*(.+)$', re.MULTILINE)
 REVERT_COMMIT = re.compile(r'^This reverts commit ([0-9a-f]{7,40})\b', re.MULTILINE)
-REVERT_PR = re.compile(r'^Revert\s+"(?:Merge pull request #([0-9]+)\b|[^"]*\(#([0-9]+)\))', re.MULTILINE)
+REVERT_PR = re.compile(r'^Revert\s+"(?:Merge pull request #(?P<merge>[0-9]+)\b|[^"]*\(#(?P<pr>[0-9]+)\))', re.MULTILINE)
 ESCAPE_REQUIREMENT = 'REQ-escape-under-1'
 
 
@@ -1102,7 +1102,7 @@ def read_escapes(root):
         for target_sha in REVERT_COMMIT.findall(text):
             record(resolve_commit(target_sha), f'git:{sha}', fixer)
         for match in REVERT_PR.finditer(text):
-            number = match.group(1) or match.group(2)
+            number = match.group('merge') or match.group('pr')
             if f'CHG-{number}' in known_changes:
                 record(f'CHG-{number}', f'git:{sha}', fixer)
 

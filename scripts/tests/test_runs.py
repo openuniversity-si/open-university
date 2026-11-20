@@ -53,7 +53,7 @@ class Measure(unittest.TestCase):
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-18')[1], False)
 
     def test_a_fresh_at_stamp_over_old_runs_is_still_stale(self):
-        old = [run(i, '2026-11-01T10:00:00Z', f'2026-11-01T10:00:{30 + i:02d}Z') for i in range(len('abc'))]
+        old = [run(i, '2026-11-01T10:00:00Z', '2026-11-01T10:00:35Z') for i in range(len('abc'))]
         (self.root / runs.FOLDER / 'tower-gate.json').write_text(
             json.dumps(runs.snapshot('tower-gate', old, now='2026-11-19T12:00:00Z')))
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-19')[1], False,
