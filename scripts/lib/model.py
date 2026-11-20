@@ -2128,39 +2128,55 @@ READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, r
 
 
 def derive_verdicts(found, root, select=None):
-    """Verdicts (VERD): the pass state of each script test on HEAD, from the full-suite check runs of main's merges
-    (runs.VERDICTS_FILE, renewed where scripts/model measures; the gate reads the snapshot, never the network). The
-    newest run on a commit HEAD contains judged every script test there. When it is green, a test the gate's own
-    selection (gate_script_tests.select) would not run for that commit's diff to HEAD reads the same declared files
-    there and here, so its verdict on that commit is its verdict on HEAD: VERD:<script>, pass, evidencing
-    TEST:<script>, with the sha and the run. A test that selection would run again has no verdict. When the newest run
-    is red, no test has one: the run names no red test (they are in the job's log, which only the Actions API
-    serves), and an older green run is no evidence past it, since a red after it means some test's declared files
-    did not cover what broke it. `select(paths)` answers the tests to run again (the gate's selection by default)."""
+    """Verdicts (VERD): the pass state of each script test and site unit/integration test on HEAD, from the recorded
+    check runs of main's merges (runs.VERDICTS_FILE, renewed where scripts/model measures; the gate reads the snapshot,
+    never the network). For engine script tests (`*.test.sh`), the newest full-suite run on a commit HEAD contains
+    judged every script test there; when green, a test the gate's selection would not run again keeps its pass verdict.
+    For site tests (`apps/web/**/*.test.ts`, excluding Playwright `e2e/*.spec.ts` which web.yml does not run), the
+    newest `web` check run on a merge touching apps/web that HEAD contains, when green and with no diff under apps/web
+    to HEAD, evidences each site `.test.ts` test. A red newest run gives no verdict."""
     import runs
     recorded = runs.read_verdicts(root) or {}
-    green = next((item for item in recorded.get('runs', [])
-                  if subprocess.run(['git', 'merge-base', '--is-ancestor', item['sha'], 'HEAD'], cwd=root,
-                                    capture_output=True).returncode == 0), None)
-    if green is None or green.get('conclusion') != 'success':
-        return []
-    paths = _git(root, 'diff', '--name-only', green['sha'], 'HEAD').split()
-    if select is None:
-        import gate_script_tests
-        mapping = gate_script_tests.load(root)
-        select = lambda changed: gate_script_tests.select(changed, mapping)[0]  # noqa: E731
-    again = set(select(paths)) if paths else set()
     made = []
-    for id, item in sorted(found.items()):
-        script = item['source'] if item['type'] == 'TEST' else ''
-        if not script.endswith('.test.sh') or script in again or item.get('fingerprint') is None:
-            continue
-        body = {'sha': green['sha'], 'check': recorded.get('check', runs.VERDICTS_CHECK), 'run': green['id'],
-                'completed': green['completed'], 'test': id}
-        verdict = _obj(f'VERD:{script}', 'VERD', 'pass', f'{runs.VERDICTS_FILE} run {green["id"]}',
-                       json.dumps(body, sort_keys=True), [{'type': 'evidences', 'target': id}])
-        verdict['body'] = body
-        made.append(verdict)
+
+    def newest_ancestor(items):
+        return next((item for item in items
+                     if subprocess.run(['git', 'merge-base', '--is-ancestor', item['sha'], 'HEAD'], cwd=root,
+                                       capture_output=True).returncode == 0), None)
+
+    green = newest_ancestor(recorded.get('runs', []))
+    if green is not None and green.get('conclusion') == 'success':
+        paths = _git(root, 'diff', '--name-only', green['sha'], 'HEAD').split()
+        if select is None:
+            import gate_script_tests
+            mapping = gate_script_tests.load(root)
+            select = lambda changed: gate_script_tests.select(changed, mapping)[0]  # noqa: E731
+        again = set(select(paths)) if paths else set()
+        for id, item in sorted(found.items()):
+            script = item['source'] if item['type'] == 'TEST' else ''
+            if not script.endswith('.test.sh') or script in again or item.get('fingerprint') is None:
+                continue
+            body = {'sha': green['sha'], 'check': recorded.get('check', runs.VERDICTS_CHECK), 'run': green['id'],
+                    'completed': green['completed'], 'test': id}
+            verdict = _obj(f'VERD:{script}', 'VERD', 'pass', f'{runs.VERDICTS_FILE} run {green["id"]}',
+                           json.dumps(body, sort_keys=True), [{'type': 'evidences', 'target': id}])
+            verdict['body'] = body
+            made.append(verdict)
+    web_green = newest_ancestor(recorded.get('web_runs', []))
+    if web_green is not None and web_green.get('conclusion') == 'success':
+        web_changed = _git(root, 'diff', '--name-only', web_green['sha'], 'HEAD', '--', runs.WEB_PATH).split()
+        if not web_changed:
+            web_prefix = f'{runs.WEB_PATH}/'
+            for id, item in sorted(found.items()):
+                source = item['source'] if item['type'] == 'TEST' else ''
+                if not source.startswith(web_prefix) or not source.endswith('.test.ts') or item.get('fingerprint') is None:
+                    continue
+                body = {'sha': web_green['sha'], 'check': recorded.get('web_check', runs.WEB_CHECK), 'run': web_green['id'],
+                        'completed': web_green['completed'], 'test': id}
+                verdict = _obj(f'VERD:{source}', 'VERD', 'pass', f'{runs.VERDICTS_FILE} run {web_green["id"]}',
+                               json.dumps(body, sort_keys=True), [{'type': 'evidences', 'target': id}])
+                verdict['body'] = body
+                made.append(verdict)
     found.update({item['id']: item for item in made})
     return made
 
@@ -2329,6 +2345,12 @@ def covered(meta, item, into, found, tested=None):
     for rule in meta['types'][item['type']].get('covered_by', []):
         if item['type'] == 'REQ' and (rule['type'], rule['link']) == ('TEST', 'verifies'):
             if not (requirement_tested(item, into, found) if tested is None else tested):
+                return False
+            continue
+        if (rule['type'], rule['link']) == ('VERD', 'evidences'):
+            if not any(kind == 'evidences' and found.get(source, {}).get('type') == 'VERD'
+                       and found[source].get('state') == 'pass' and found[source].get('fingerprint') is not None
+                       for kind, source in into.get(item['id'], [])):
                 return False
             continue
         if not any(kind == rule['link'] and found.get(source, {}).get('type') == rule['type'] and
@@ -2565,9 +2587,20 @@ def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
     levels = [step['level'] for step in meta['scale']]
     if weak and level == levels[-1] and len(levels) > 1:
         level = levels[levels.index(level) - 1]
-    unread = {type_id: {'verdict': VERDICTS[type_id][0], 'means': VERDICTS[type_id][1]}
-              for type_id in sorted(kinds & set(VERDICTS))
-              if not any(item['type'] == VERDICTS[type_id][0] for item in found.values())}
+    unread = {}
+    for type_id in sorted(kinds & set(VERDICTS)):
+        verdict_type, means = VERDICTS[type_id]
+        if not any(item['type'] == verdict_type for item in found.values()):
+            unread[type_id] = {'verdict': verdict_type, 'means': means}
+            continue
+        typed = [item for item in mine if item['type'] == type_id]
+        if typed:
+            evidenced = sum(1 for item in typed if any(
+                kind == 'evidences' and found.get(source, {}).get('type') == verdict_type
+                and found[source].get('state') == 'pass' and found[source].get('fingerprint') is not None
+                for kind, source in into.get(item['id'], [])))
+            if evidenced < len(typed):
+                unread[type_id] = {'verdict': verdict_type, 'means': means, 'covered': evidenced, 'total': len(typed)}
     failing = sorted(item['id'] for item in mine if item['id'] not in passing)
     later = sorted(item['id'] for item in mine if item['id'] in failing and item['id'] not in flagged
                    and item['id'] not in exempt and deferred(meta, item, into, found))
@@ -2608,6 +2641,24 @@ def assess_systems(meta, found, into, flagged, root, today=None):
     return systems, found
 
 
+def verification_measure(found):
+    """The verification system's own counts: active tests (engine vs. site) and how many carry a pass VERD on HEAD."""
+    into = incoming(found)
+    tests = [item for item in found.values() if item['type'] == 'TEST' and item['state'] != 'retired'
+             and item.get('fingerprint') is not None]
+    def passed(item):
+        return any(kind == 'evidences' and found.get(source, {}).get('type') == 'VERD'
+                   and found[source].get('state') == 'pass' and found[source].get('fingerprint') is not None
+                   for kind, source in into.get(item['id'], []))
+    engine = [item for item in tests if item['source'].endswith('.test.sh')]
+    site = [item for item in tests if item['source'].startswith('apps/web/')]
+    with_verd = sum(1 for item in tests if passed(item))
+    return {'tests': len(tests), 'engine': len(engine), 'site': len(site), 'with_verd': with_verd,
+            'engine_with_verd': sum(1 for item in engine if passed(item)),
+            'site_with_verd': sum(1 for item in site if passed(item)),
+            'share': with_verd / len(tests) if tests else 0}
+
+
 def measure(root=ROOT, meta=None, found=None, today=None):
     meta = meta or metamodel(root)
     found = found if found is not None else objects(root)
@@ -2637,6 +2688,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'architecture': architecture_measure(found),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
+        'verification': verification_measure(found),
         'measurement': {'cheaper_path': cheaper_path, **measures_measure(found)},
         'work': work_measure(found),
         'objects': len(found),
@@ -2673,9 +2725,13 @@ def system_line(item):
     """What a system's count means: conformant, or, for a type whose verdicts are not read, what is counted; the
     objects no rule judges; the significant weaknesses that keep it below F."""
     counted = 'conformant'
-    for unread in item.get('verdicts_unread', {}).values():
-        counted = f'{unread["means"]}; pass state not read: no {unread["verdict"]} source'
-    parts = [f'{item["conformant"]} of {item["objects"]} {counted}']
+    partial = []
+    for type_id, unread in item.get('verdicts_unread', {}).items():
+        if 'covered' in unread:
+            partial.append(f'{unread["covered"]} of {unread["total"]} {type_id} with pass {unread["verdict"]} on HEAD')
+        else:
+            counted = f'{unread["means"]}; pass state not read: no {unread["verdict"]} source'
+    parts = [f'{item["conformant"]} of {item["objects"]} {counted}', *partial]
     if item.get('not_judged'):
         parts.append(f'{item["not_judged"]} not judged: no rule of {", ".join(item["unjudged_types"])}')
     if item.get('weaknesses'):
@@ -2735,6 +2791,12 @@ def summary(found):
     proved = found['validation']
     lines.append(f'validation: {", ".join(f"{count} {state}" for state, count in proved["by_state"].items()) or "none"}; '
                  f'{proved["needs_met"]} of {proved["needs"]} needs with a validation met')
+    if 'verification' in found:
+        verified = found['verification']
+        lines.append(f'verification: {verified["tests"]} active test(s) ({verified["engine"]} engine, {verified["site"]} site); '
+                     f'{verified["with_verd"]} of {verified["tests"]} with pass VERD on HEAD ({verified["share"]:.0%}: '
+                     f'{verified["engine_with_verd"]}/{verified["engine"]} engine, '
+                     f'{verified["site_with_verd"]}/{verified["site"]} site)')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')

@@ -255,6 +255,64 @@ def slo_write(root, found, now):
 VERDICTS_FILE = 'config/validation/verdicts.json'  # the full-suite's verdicts on main (not a VAL-*.json)
 VERDICTS_CHECK = 'full-suite'  # .github/workflows/full-suite.yml's job: every script test on each merge into main
 VERDICTS_MERGES = 40  # main's last merges whose full-suite run is read: how far back a green run is looked for
+WEB_CHECK = 'web'  # .github/workflows/web.yml's job: apps/web unit & integration tests on PRs and merge queue
+WEB_PATH = 'apps/web'  # path that web.yml judges when changed
+
+
+def _completed_check(checks, name):
+    """The newest completed, not cancelled/skipped check run of `name`, else None."""
+    done = sorted((check for check in checks if check.get('name') == name
+                   and check.get('status') == 'completed' and check.get('completed_at')
+                   and check.get('conclusion') not in ('cancelled', 'skipped')), key=lambda check: check['completed_at'])
+    return done[-1] if done else None
+
+
+def web_merges(root, count, run=subprocess.run):
+    """[(merge_sha, pr_head_or_none)] of main's last `count` first-parent merges that touched apps/web."""
+    for ref in ('origin/main', 'HEAD'):
+        done = run(['git', 'log', '--first-parent', '--merges', f'-n{count}', '--format=%H %P', ref, '--', WEB_PATH],
+                   cwd=root, capture_output=True, text=True)
+        if done.returncode == 0:
+            found = []
+            for line in done.stdout.splitlines():
+                sha, *parents = line.split()
+                found.append((sha, parents[1] if len(parents) > 1 else None))
+            return found
+    return []
+
+
+def web_verdicts_fetch(root, repo=None, api=None, run=subprocess.run):
+    """[{sha, id, conclusion, completed}] of the newest completed `web` check run on each of main's last merges
+    that touched apps/web (checking the merge commit first, else the PR head). Only merges touching apps/web count,
+    because web.yml skips pnpm test when apps/web is unchanged; None offline or when the API refuses."""
+    if os.environ.get('TOWER_OFFLINE'):
+        return None
+    if api is None:
+        import verify_commit  # the gate's github adapter: tower/gate's own reads of GitHub's REST API
+        api = lambda path: verify_commit.gh_json(verify_commit.run, path)  # noqa: E731
+    repo = repo or repository()
+    pairs = web_merges(root, VERDICTS_MERGES, run)
+    if not pairs:
+        return []
+    found = []
+    try:
+        for merge_sha, pr_head in pairs:
+            picked, queried = None, merge_sha
+            for candidate in (merge_sha, *([pr_head] if pr_head else [])):
+                answer = api(f'repos/{repo}/commits/{candidate}/check-runs?check_name={WEB_CHECK}&per_page=100')
+                picked = _completed_check(answer.get('check_runs', []), WEB_CHECK)
+                if picked is not None:
+                    queried = candidate
+                    break
+            if picked is not None:
+                entry = {'sha': merge_sha, 'id': picked['id'], 'conclusion': picked.get('conclusion', ''),
+                         'completed': picked['completed_at']}
+                if queried != merge_sha:
+                    entry['check_sha'] = queried
+                found.append(entry)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return found
 
 
 def verdicts_fetch(root, repo=None, api=None, run=subprocess.run):
@@ -277,12 +335,10 @@ def verdicts_fetch(root, repo=None, api=None, run=subprocess.run):
         return None
     found = []
     for sha, answer in zip(shas, answers):
-        done = sorted((check for check in answer.get('check_runs', []) if check.get('name') == VERDICTS_CHECK
-                       and check.get('status') == 'completed' and check.get('completed_at')
-                       and check.get('conclusion') not in ('cancelled', 'skipped')), key=lambda check: check['completed_at'])
-        if done:
-            found.append({'sha': sha, 'id': done[-1]['id'], 'conclusion': done[-1].get('conclusion', ''),
-                          'completed': done[-1]['completed_at']})
+        last = _completed_check(answer.get('check_runs', []), VERDICTS_CHECK)
+        if last is not None:
+            found.append({'sha': sha, 'id': last['id'], 'conclusion': last.get('conclusion', ''),
+                          'completed': last['completed_at']})
     return found
 
 
@@ -291,24 +347,28 @@ def read_verdicts(root):
     return json.loads(path.read_text()) if path.exists() else None
 
 
-def verdicts_write(root, found, now):
+def verdicts_write(root, found, now, web=None):
     made = {'source': f"GitHub check runs {VERDICTS_CHECK} of main's last merges", 'check': VERDICTS_CHECK,
-            'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'runs': found}
+            'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'runs': found,
+            **({'web_check': WEB_CHECK, 'web_runs': web} if web is not None else {})}
     target = Path(root) / VERDICTS_FILE
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(made, indent=1) + '\n')
     return made
 
 
-def verdicts_refresh(root, now=None, reader=None):
+def verdicts_refresh(root, now=None, reader=None, web_reader=None):
     """Rebuilds the verdicts snapshot from GitHub when it is missing or older than REFRESH_DAYS and the API answers;
-    the snapshot (new or kept) or None. `reader(root)` answers the runs (verdicts_fetch by default)."""
+    the snapshot (new or kept) or None. `reader(root)` answers the full-suite runs; `web_reader(root)` answers `web`."""
     now = now or datetime.now(timezone.utc)
     recorded = read_verdicts(root)
     if recorded and age_days(recorded, now) < REFRESH_DAYS:
         return recorded
     found = (reader or verdicts_fetch)(root)
-    return verdicts_write(root, found, now) if found else recorded
+    if not found:
+        return recorded
+    web = (web_reader or web_verdicts_fetch)(root) if (reader is None or web_reader is not None) else None
+    return verdicts_write(root, found, now, web=web)
 
 
 def slo_series(recorded):
@@ -339,8 +399,10 @@ def main(argv=None, root=ROOT):
         if not found:
             print('runs: no full-suite verdicts read (offline, gh missing or the API refused); snapshot kept', file=sys.stderr)
             return 2
-        made = verdicts_write(root, found, datetime.now(timezone.utc))
-        print(f"runs: {len(made['runs'])} full-suite verdict(s) at {made['at']} -> {VERDICTS_FILE}")
+        web = web_verdicts_fetch(root)
+        made = verdicts_write(root, found, datetime.now(timezone.utc), web=web)
+        web_note = f", {len(made['web_runs'])} web verdict(s)" if 'web_runs' in made else ''
+        print(f"runs: {len(made['runs'])} full-suite verdict(s){web_note} at {made['at']} -> {VERDICTS_FILE}")
         return 0
     if args.command == 'refresh-slo':
         found = slo_fetch()

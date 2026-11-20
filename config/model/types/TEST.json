@@ -14,5 +14,11 @@
   "must_link": [
     "verifies"
   ],
+  "covered_by": [
+    {
+      "type": "VERD",
+      "link": "evidences"
+    }
+  ],
   "description": "A script test or test file, with its level and the objects it verifies."
 }

@@ -278,6 +278,28 @@ class Verdicts(unittest.TestCase):
         self.assertEqual((asked, made['runs'], kept['at'], runs.read_verdicts(self.root)['check']),
                          ([1, 3], found, at(10), 'full-suite'))
 
+    def test_web_verdicts_read_only_merges_touching_web_and_fall_back_to_pr_head(self):
+        paths = []
+        id_a, id_b, id_c = 1, 1 + 1, len('abc')
+        t_start, t_end, t_later, t_write = at(1), at(len('abcd')), at(len('abcde')), at(len('abcdefghij'))
+        checks = {'m1': [check(id_a, 'web', t_start, t_end)],
+                  'm2': [],
+                  'h2': [check(id_b, 'web', t_end, t_later, 'failure')],
+                  'm3': [check(id_c, 'web', t_start, t_end, 'cancelled')],
+                  'h3': []}
+
+        def api(path):
+            paths.append(path)
+            return {'check_runs': checks[path.split('/commits/')[1].split('/')[0]]}
+        found = runs.web_verdicts_fetch(self.root, repo='o/r', api=api, run=lambda *a, **k: self.log)
+        self.assertEqual(found, [{'sha': 'm1', 'id': id_a, 'conclusion': 'success', 'completed': t_end},
+                                 {'sha': 'm2', 'id': id_b, 'conclusion': 'failure', 'completed': t_later, 'check_sha': 'h2'}])
+        self.assertTrue(all(f'check_name={runs.WEB_CHECK}' in path for path in paths))
+        written = runs.verdicts_write(self.root, [], runs.stamp(t_write), web=found)
+        self.assertEqual((written['web_check'], written['web_runs']), (runs.WEB_CHECK, found))
+        with unittest.mock.patch.dict('os.environ', {'TOWER_OFFLINE': '1'}):
+            self.assertIsNone(runs.web_verdicts_fetch(self.root, repo='o/r', api=api, run=lambda *a, **k: self.log))
+
 
 if __name__ == '__main__':
     unittest.main()

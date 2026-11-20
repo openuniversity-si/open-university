@@ -266,6 +266,38 @@ class TinyModel(unittest.TestCase):
         self.assertIn('1 of 1 linked to what they verify; pass state not read: no VERD source', line)
         self.assertNotIn('conformant', line)
 
+    def test_partial_verd_coverage_keeps_verification_open_until_all_active_tests_pass(self):
+        # C6 / D-337: any(VERD) must never close verification while active tests lack a pass VERD on HEAD
+        meta = self.meta()
+        meta['types']['TEST']['covered_by'] = [{'type': 'VERD', 'link': 'evidences'}]
+        meta['types']['VERD'] = {'id': 'VERD', 'name': 'verdict', 'system': 'build', 'states': ['pass', 'fail'],
+                                 'unconformant_states': ['fail'], 'must_link': ['evidences']}
+        meta['links']['evidences'] = {'name': 'evidences', 'from': ['VERD'], 'to': ['TEST']}
+        found = self.objects(
+            {'id': 'REQ-1', 'type': 'REQ', 'state': 'approved'},
+            {'id': 'TEST:a', 'type': 'TEST', 'source': 'scripts/tests/a.test.sh', 'links': [{'type': 'verifies', 'target': 'REQ-1'}]},
+            {'id': 'TEST:b', 'type': 'TEST', 'source': 'apps/web/src/b.test.ts', 'links': [{'type': 'verifies', 'target': 'REQ-1'}]},
+            {'id': 'VERD:a', 'type': 'VERD', 'state': 'pass', 'links': [{'type': 'evidences', 'target': 'TEST:a'}]})
+        rated = model.rate_system(meta, found, model.incoming(found), set(), 'build')
+        self.assertFalse(rated['closed'])
+        self.assertEqual(rated['nonconformant'], ['TEST:b'])
+        self.assertEqual(rated['verdicts_unread']['TEST']['covered'], 1)
+        self.assertEqual(rated['verdicts_unread']['TEST']['total'], len(['a', 'b']))
+        self.assertIn('1 of 2 TEST with pass VERD on HEAD', model.system_line(rated))
+        # A failing VERD must not satisfy covered_by or close verification
+        found['VERD:b'] = {'id': 'VERD:b', 'type': 'VERD', 'state': 'fail', 'source': 'x', 'fingerprint': 'f',
+                           'links': [{'type': 'evidences', 'target': 'TEST:b'}]}
+        self.assertFalse(model.covered(meta, found['TEST:b'], model.incoming(found), found))
+        self.assertFalse(model.rate_system(meta, found, model.incoming(found), set(), 'build')['closed'])
+        # 100% pass VERD closes the system
+        found['VERD:b']['state'] = 'pass'
+        closed = model.rate_system(meta, found, model.incoming(found), set(), 'build')
+        self.assertTrue(closed['closed'])
+        self.assertEqual(closed['verdicts_unread'], {})
+        counted = model.verification_measure(found)
+        self.assertEqual((counted['tests'], counted['engine'], counted['site'], counted['with_verd'], counted['share']),
+                         (len(['a', 'b']), 1, 1, len(['a', 'b']), 1.0))
+
     def test_the_inventory_counts_distinct_ids_by_file_name_content_file_and_registry_key(self):
         write(self.root, 'docs/D-1.md', '| D-2 | x |\n| D-2 | again |')
         write(self.root, 'docs/D-3.md', '')
@@ -812,6 +844,39 @@ class Changes(unittest.TestCase):
         found['VERD:x']['state'] = 'fail'
         self.assertFalse(model.covered(meta, found['VERD:x'], into, found), 'a red verdict is not conformant')
         self.assertIn('VERD', {kind for kind in meta['types'] if model.judged(meta, kind)})
+
+    def test_web_check_runs_evidence_unchanged_site_unit_tests_never_e2e_or_dirty_web(self):
+        import runs
+        import subprocess
+        def head():
+            return subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root, capture_output=True, text=True).stdout.strip()
+        web_tests = {
+            'TEST:apps/web/src/a.test.ts': {'id': 'TEST:apps/web/src/a.test.ts', 'type': 'TEST', 'state': 'active',
+                                            'source': 'apps/web/src/a.test.ts', 'fingerprint': 'f', 'links': []},
+            'TEST:apps/web/e2e/a11y.spec.ts': {'id': 'TEST:apps/web/e2e/a11y.spec.ts', 'type': 'TEST', 'state': 'active',
+                                               'source': 'apps/web/e2e/a11y.spec.ts', 'fingerprint': 'f', 'links': []}}
+        before = head()
+        write(self.root, runs.VERDICTS_FILE, {'check': 'full-suite', 'web_check': 'web', 'at': '2026-01-01T00:00:00Z',
+                                              'runs': [], 'web_runs': [
+                                                  {'sha': before, 'id': 1, 'conclusion': 'success', 'completed': '2026-01-01T00:00:00Z'}]})
+        found = copy.deepcopy(web_tests)
+        model.derive_verdicts(found, self.root, select=lambda paths: [])
+        self.assertEqual([id for id, item in found.items() if item['type'] == 'VERD'], ['VERD:apps/web/src/a.test.ts'],
+                         'web.yml runs pnpm test/test:int (.test.ts), never Playwright e2e (.spec.ts)')
+        # Touching apps/web invalidates the older green web run
+        write(self.root, 'apps/web/src/page.ts', 'export const x = 1;\n')
+        self.git('add', 'apps/web/src/page.ts')
+        self.git('commit', '-q', '-m', 'web: edit')
+        dirty = copy.deepcopy(web_tests)
+        model.derive_verdicts(dirty, self.root, select=lambda paths: [])
+        self.assertEqual([id for id, item in dirty.items() if item['type'] == 'VERD'], [])
+        # A red web run gives no verdict
+        write(self.root, runs.VERDICTS_FILE, {'check': 'full-suite', 'web_check': 'web', 'at': '2026-01-01T00:00:00Z',
+                                              'runs': [], 'web_runs': [
+                                                  {'sha': head(), 'id': 0, 'conclusion': 'failure', 'completed': '2026-01-01T00:00:00Z'}]})
+        red = copy.deepcopy(web_tests)
+        model.derive_verdicts(red, self.root, select=lambda paths: [])
+        self.assertEqual([id for id, item in red.items() if item['type'] == 'VERD'], [])
 
     def test_a_shallow_clone_is_refused_with_the_fix_named_not_judged(self):
         import subprocess
