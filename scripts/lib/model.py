@@ -2641,8 +2641,9 @@ def assess_systems(meta, found, into, flagged, root, today=None):
     return systems, found
 
 
-def verification_measure(found):
-    """The verification system's own counts: active tests (engine vs. site) and how many carry a pass VERD on HEAD."""
+def verification_measure(found, root=None):
+    """The verification system's own counts: active tests (engine vs. site), how many carry a pass VERD on HEAD,
+    and the freshness of scripts/tests/traced-covers.json when present."""
     into = incoming(found)
     tests = [item for item in found.values() if item['type'] == 'TEST' and item['state'] != 'retired'
              and item.get('fingerprint') is not None]
@@ -2653,10 +2654,18 @@ def verification_measure(found):
     engine = [item for item in tests if item['source'].endswith('.test.sh')]
     site = [item for item in tests if item['source'].startswith('apps/web/')]
     with_verd = sum(1 for item in tests if passed(item))
+    traced = None
+    if root is not None:
+        import script_covers
+        try:
+            traced = script_covers.traced_health(root)
+        except (OSError, ValueError, script_covers.ScriptTestMapError):
+            traced = None
     return {'tests': len(tests), 'engine': len(engine), 'site': len(site), 'with_verd': with_verd,
             'engine_with_verd': sum(1 for item in engine if passed(item)),
             'site_with_verd': sum(1 for item in site if passed(item)),
-            'share': with_verd / len(tests) if tests else 0}
+            'share': with_verd / len(tests) if tests else 0,
+            **({'traced': traced} if traced is not None else {})}
 
 
 def measure(root=ROOT, meta=None, found=None, today=None):
@@ -2688,7 +2697,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'architecture': architecture_measure(found),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
-        'verification': verification_measure(found),
+        'verification': verification_measure(found, root),
         'measurement': {'cheaper_path': cheaper_path, **measures_measure(found)},
         'work': work_measure(found),
         'objects': len(found),
@@ -2793,10 +2802,21 @@ def summary(found):
                  f'{proved["needs_met"]} of {proved["needs"]} needs with a validation met')
     if 'verification' in found:
         verified = found['verification']
+        traced_note = ''
+        traced = verified.get('traced')
+        if traced and traced.get('base'):
+            parts = []
+            if traced.get('merges_behind') is not None:
+                parts.append(f'{traced["merges_behind"]} merge(s) behind HEAD')
+            if traced.get('untraced_tests'):
+                parts.append(f'{len(traced["untraced_tests"])} untraced new test(s)')
+            if traced.get('gone_files') or traced.get('gone_tests'):
+                parts.append(f'{len(traced["gone_files"]) + len(traced["gone_tests"])} missing path(s)')
+            traced_note = f'; traced-covers base {traced["base"]}' + (f' ({", ".join(parts)})' if parts else '')
         lines.append(f'verification: {verified["tests"]} active test(s) ({verified["engine"]} engine, {verified["site"]} site); '
                      f'{verified["with_verd"]} of {verified["tests"]} with pass VERD on HEAD ({verified["share"]:.0%}: '
                      f'{verified["engine_with_verd"]}/{verified["engine"]} engine, '
-                     f'{verified["site_with_verd"]}/{verified["site"]} site)')
+                     f'{verified["site_with_verd"]}/{verified["site"]} site){traced_note}')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')

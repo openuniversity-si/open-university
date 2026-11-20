@@ -167,6 +167,42 @@ class CoversManifests(unittest.TestCase):
         (self.root / 'scripts' / 'tests' / 'traced-covers.json').write_text(json.dumps({'tests': {'a': 'x'}}))
         self.assertIn('tests must map a script to a list of paths', tests.check(self.root)[0])
 
+    def test_traced_findings_flags_deleted_entries_and_warns_on_untraced_new_tests(self):
+        import script_covers
+        import subprocess
+        self.assertEqual(script_covers.traced_findings(self.root), ([], []))
+        traced_file = self.root / 'scripts' / 'tests' / 'traced-covers.json'
+        traced_file.write_text(json.dumps({'base': '', 'tests': {
+            'scripts/tests/a.test.sh': ['scripts/lib/x.py', 'scripts/lib/gone.py'],
+            'scripts/tests/gone.test.sh': ['scripts/lib/x.py']}}))
+        errors, warnings = script_covers.traced_findings(self.root)
+        self.assertTrue(any('gone.test.sh' in line for line in errors), errors)
+        self.assertTrue(any('scripts/lib/gone.py' in line for line in errors), errors)
+        self.assertEqual(warnings, [])
+        # With git history, a newly added script test after base produces a freshness warning
+        subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
+        subprocess.run(['git', '-C', str(self.root), 'config', 'user.email', 't@e'], check=True)
+        subprocess.run(['git', '-C', str(self.root), 'config', 'user.name', 't'], check=True)
+        traced_file.write_text(json.dumps({'base': '', 'tests': {'scripts/tests/a.test.sh': ['scripts/lib/x.py']}}))
+        subprocess.run(['git', '-C', str(self.root), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(self.root), 'commit', '-q', '-m', 'base'], check=True)
+        base_sha = subprocess.run(['git', '-C', str(self.root), 'rev-parse', 'HEAD'], capture_output=True, text=True, check=True).stdout.strip()
+        (self.root / 'scripts' / 'tests' / 'c.test.sh').write_text('#!/usr/bin/env bash\necho c\n')
+        traced_file.write_text(json.dumps({'base': base_sha, 'tests': {'scripts/tests/a.test.sh': ['scripts/lib/x.py']}}))
+        subprocess.run(['git', '-C', str(self.root), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(self.root), 'commit', '-q', '-m', 'add c'], check=True)
+        errors, warnings = script_covers.traced_findings(self.root)
+        self.assertEqual(errors, [])
+        self.assertTrue(any('scripts/tests/c.test.sh' in line for line in warnings), warnings)
+
+    def test_the_real_traced_map_has_no_deleted_paths_and_gate_local_covers_its_helpers(self):
+        import script_covers
+        errors, _ = script_covers.traced_findings(ROOT)
+        self.assertEqual(errors, [])
+        gate_local = json.loads((COVERS / 'gate-local.json').read_text())['covers']
+        for required in ('scripts/gate-local', 'scripts/lib/gate-hooks/**', 'scripts/lib/preflight.py', '.gitleaks.toml'):
+            self.assertIn(required, gate_local)
+
     def test_a_script_test_without_a_manifest_is_refused(self):
         self.assertEqual(tests.check(self.root), [])
         (self.root / 'scripts' / 'tests' / 'new.test.sh').write_text('#!/usr/bin/env bash\n')
