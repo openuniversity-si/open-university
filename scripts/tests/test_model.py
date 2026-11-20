@@ -1921,6 +1921,14 @@ class SupportSystems(unittest.TestCase):
         self.assertIn('VAL-deploy-1s', text)
         self.assertIn('VAL-gate-60s', text)
 
+    def test_operational_scoreboard_proposal_stays_open_for_daniels_decision(self):
+        # C1 / M3: never self-approve; PROP-operational-scoreboard stays open awaiting Daniel's D-351 decision
+        found = model.objects(ROOT)
+        prop = found['PROP-operational-scoreboard']
+        self.assertEqual((prop['state'], prop['body']['owner']), ('open', 'Daniel'))
+        self.assertNotIn('decided_by', prop['body'])
+        self.assertTrue(prop['body'].get('deadline'))
+
 
 if __name__ == '__main__':
     unittest.main()

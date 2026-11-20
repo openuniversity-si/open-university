@@ -1,0 +1,11 @@
+{
+  "id": "PROP-operational-scoreboard",
+  "statement": "Amend D-331 and D-335 (reserved for D-351 upon Daniel's decision) so operational weaknesses (not-met VAL/NC, breached SLO, unmet or unreviewed cheaper-path sample, and unclosed system assessments) prevent level F and closed: true in scripts/model measure while keeping catalog conformance reported separately and keeping the 100 % acceptance target of D-337. Also decide whether the Origin-era slo.gate_tier1_p95_s (default 10 s) is retired or aligned to REQ-gate-60s (60 s) under budgets.tighten_only.",
+  "state": "open",
+  "owner": "Daniel",
+  "changes": [
+    "VER-v9"
+  ],
+  "deadline": "2026-12-01",
+  "note": "Proposed by PR C (audit findings C1 and M3). Never self-approved: stays open with no decided_by until Daniel records D-351."
+}
