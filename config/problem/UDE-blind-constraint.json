@@ -1,14 +1,15 @@
 {
   "id": "UDE-blind-constraint",
-  "statement": "The constraint meter read the base of the Origin era: without --base it failed, so the constraint was not seen on the live base.",
+  "statement": "The constraint meter was prematurely closed after only changing --base while box_meter still read Origin's dead lock log (busy 0%) and vazao/fila.md; flow-metrics --constraint now reads GitHub snapshots and config/problem/, while live merge-queue depth and continuous snapshot refresh remain open.",
   "violates": [
-    "NC-standard"
+    "NC-standard",
+    "NC-throughput"
   ],
   "evidence": [
-    "scripts/flow-metrics --constraint (19/11): fatal: ambiguous argument origin/mod/roadmap-integration",
-    "fixed by this leap: its default base is main"
+    "scripts/flow-metrics --constraint (19/11, before PR F): box busy 0%, queue_rows 2 (vazao/fila.md), OriginAdapterError on github.com",
+    "scripts/lib/flow_metrics.py:github_constraint measures tower/gate, merge queue, deploy-live and merge pace from GitHub snapshots"
   ],
-  "state": "gone",
+  "state": "returned",
   "owner": "manager",
   "source": "docs/programs/padrao-dev/problema-desenho.md#3"
 }
