@@ -1,0 +1,20 @@
+{
+  "expected_indicator_count": 8,
+  "expected_indicator_numbers": [1, 2, 3, 4, 5, 6, 7, 8],
+  "expected_levels": [
+    {"level": "A", "promotion_days": 7, "required_count": 4},
+    {"level": "B", "promotion_days": 14, "required_count": 8},
+    {"level": "C", "promotion_days": 30, "required_count": 8}
+  ],
+  "expected_circuit_breakers": [
+    "main_integrity",
+    "change_failure_rework",
+    "security_posture"
+  ],
+  "expected_owner_locks": 5,
+  "portfolio_targets": {
+    "min_value_share": 0.7,
+    "max_meta_governance_share": 0.15
+  },
+  "aws_ceiling_usd": 200.0
+}

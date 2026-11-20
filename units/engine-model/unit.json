@@ -47,7 +47,12 @@
     "scripts/tests/test_problem.py",
     "scripts/tests/problem.test.sh",
     "scripts/tests/covers/problem.json",
-    "config/problem/**"
+    "config/problem/**",
+    "config/governance/**",
+    "scripts/tests/trust-metrics.test.sh",
+    "scripts/tests/test_trust_metrics.py",
+    "scripts/tests/covers/trust-metrics.json",
+    "scripts/tests/fixtures/trust-metrics.json"
   ],
   "requires": {
     "engine-config": "^1",
