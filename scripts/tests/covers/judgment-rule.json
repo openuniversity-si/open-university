@@ -5,6 +5,9 @@
     "scripts/tests/test_judgment_rule.py",
     "AGENTS.md",
     "docs/SEMENTE.md",
-    "docs/RETOMAR.md"
+    "docs/RETOMAR.md",
+    "docs/padrao/METODO.md",
+    "docs/process/EVENTS.md",
+    "docs/process/RELEASES.md"
   ]
 }
