@@ -282,10 +282,31 @@ class TinyModel(unittest.TestCase):
                              {'id': 'a.one', 'type': 'ARC'})
         counted = model.inventory(self.meta(), found, self.root)['all']
         self.assertEqual((counted['ids'], counted['imported']), (len(['D-1', 'D-2', 'D-3', 'A', 'a.one', 'a.two']), 2))
+        self.assertEqual(counted['by_type'], {'REQ': 2})
         write(self.root, 'config/model/inventory/all.json', {
             'id': 'all', 'name': 'all', 'becomes': ['REQ'], 'description': 'd',
             'parts': [{'kind': 'registry', 'glob': 'reg.json', 'pattern': 'two$'}]})
         self.assertEqual(model.inventory(self.meta(), found, self.root)['all']['ids'], 1)
+
+    def test_the_inventory_banner_separates_cataloged_object_types_from_requirements(self):
+        write(self.root, 'docs/D-1.md', '')
+        write(self.root, 'docs/R-1.md', '')
+        write(self.root, 'config/model/inventory/decisions.json', {
+            'id': 'decisions', 'name': 'd', 'becomes': ['D', 'REQ'], 'description': 'd',
+            'parts': [{'kind': 'filename', 'glob': 'docs/D-*.md', 'pattern': '^(D-[0-9]+)\\.md$'}]})
+        write(self.root, 'config/model/inventory/reqs.json', {
+            'id': 'reqs', 'name': 'r', 'becomes': ['REQ'], 'description': 'r',
+            'parts': [{'kind': 'filename', 'glob': 'docs/R-*.md', 'pattern': '^(R-[0-9]+)\\.md$'}]})
+        found = self.objects({'id': 'D-1', 'type': 'D', 'state': 'accepted'},
+                             {'id': 'REQ-1', 'type': 'REQ', 'state': 'draft', 'source_id': 'R-1'})
+        result = model.measure(self.root, meta=self.meta(), found=found)
+        self.assertEqual(result['inventory']['by_type'], {'D': 1, 'REQ': 1})
+        self.assertEqual(result['inventory']['requirements'], 1)
+        rendered = model.summary(result)
+        self.assertIn('inventory: 2 of 2 cataloged id(s) are objects of the model (1 D, 1 REQ)', rendered)
+        self.assertNotIn('requirement id(s)', rendered)
+        self.assertIn('  decisions: 1 of 1 (1 D)', rendered)
+        self.assertIn('  reqs: 1 of 1 (1 REQ)', rendered)
 
 
 class Rules(unittest.TestCase):

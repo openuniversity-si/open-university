@@ -2383,13 +2383,17 @@ def chain_verified(item, into, found):
 
 
 def inventory(meta, found, root=ROOT):
-    """{source: {name, ids, imported}}: the distinct ids each source holds, and how many of them are objects of the
-    model of a type the source may become (the object's id, or the source id it was imported from)."""
+    """{source: {name, ids, imported, by_type}}: the distinct ids each source holds, how many of them are objects of
+    the model of a type the source may become, and the breakdown per object type (the object's id, or the source id it
+    was imported from)."""
     root = Path(root)
     result = {}
     for name, source in sorted(meta['inventory'].items()):
-        imported_ids = {key for item in found.values() if item['type'] in source['becomes']
-                        for key in (item['id'], item.get('source_id')) if key}
+        by_kind = {}
+        for kind in sorted(set(source['becomes'])):
+            by_kind[kind] = {key for item in found.values() if item['type'] == kind
+                             for key in (item['id'], item.get('source_id')) if key}
+        imported_ids = {key for keys in by_kind.values() for key in keys}
         ids = set()
         for part in source['parts']:
             paths = sorted(root.glob(part['glob']))
@@ -2402,7 +2406,8 @@ def inventory(meta, found, root=ROOT):
             elif part['kind'] == 'registry':
                 ids |= {key for path in paths for key in _read_json(path).get('properties', {})
                         if not part.get('pattern') or re.search(part['pattern'], key)}
-        result[name] = {'name': source['name'], 'ids': len(ids), 'imported': len(ids & imported_ids)}
+        typed = {kind: len(ids & keys) for kind, keys in by_kind.items() if ids & keys}
+        result[name] = {'name': source['name'], 'ids': len(ids), 'imported': len(ids & imported_ids), 'by_type': typed}
     return result
 
 
@@ -2618,12 +2623,18 @@ def measure(root=ROOT, meta=None, found=None, today=None):
     verified = sum(1 for item in requirements if chain_verified(item, into, found))
     systems, found = assess_systems(meta, found, into, flagged, root, today)
     sources = inventory(meta, found, root)
+    stock_types = {}
+    for item in sources.values():
+        for kind, count in item['by_type'].items():
+            stock_types[kind] = stock_types.get(kind, 0) + count
+    stock_types = dict(sorted(stock_types.items()))
     cheaper_path = cheaper_path_measure(root)
     return {
         'chain': {'active_requirements': len(requirements), 'verified': verified,
                   'share': verified / len(requirements) if requirements else 0},
         'inventory': {'sources': sources, 'ids': sum(item['ids'] for item in sources.values()),
-                      'imported': sum(item['imported'] for item in sources.values())},
+                      'imported': sum(item['imported'] for item in sources.values()),
+                      'by_type': stock_types, 'requirements': stock_types.get('REQ', 0)},
         'systems': systems,
         'groups': {group: {'systems': names, 'levels': {step['level']: count for step in reversed(meta['scale'])
                                                         if (count := sum(1 for name in names
@@ -2693,12 +2704,17 @@ def system_line(item):
 
 def summary(found):
     chain, stock = found['chain'], found['inventory']
+    typed = ', '.join(f'{count} {kind}' for kind, count in stock.get('by_type', {}).items())
     lines = [
         f'chain: {chain["verified"]} of {chain["active_requirements"]} active requirement(s) verified end to end '
         f'({chain["share"]:.0%})',
-        f'inventory: {stock["imported"]} of {stock["ids"]} requirement id(s) of the inventory are objects of the model',
+        f'inventory: {stock["imported"]} of {stock["ids"]} cataloged id(s) are objects of the model'
+        + (f' ({typed})' if typed else ''),
     ]
-    lines += [f'  {name}: {item["imported"]} of {item["ids"]}' for name, item in stock['sources'].items()]
+    lines += [f'  {name}: {item["imported"]} of {item["ids"]}'
+              + (f' ({", ".join(f"{count} {kind}" for kind, count in item.get("by_type", {}).items())})'
+                 if item.get('by_type') else '')
+              for name, item in stock['sources'].items()]
     lines.append(f'systems ({found["objects"]} object(s)):')
     for group, item in found['groups'].items():  # D-330: each group's levels apart
         counted = ', '.join(f'{count} {level}' for level, count in item['levels'].items())
