@@ -1554,6 +1554,9 @@ class RealRepository(unittest.TestCase):
         counted = model.standard_measure(found, today='2026-11-22')
         self.assertEqual(counted['unreviewed'], 0)
         self.assertEqual(counted['dormant'], len(dormant))
+        managed = model.management_measure(found, today='2026-11-22')
+        self.assertEqual(managed['effective'], ['VER-v9'])
+        self.assertEqual(found['VER-v8']['state'], 'superseded')
 
     def test_every_refusal_and_gate_stage_of_this_checkout_has_a_rule(self):
         warnings = model.rule_findings(model.objects(ROOT), ROOT)
