@@ -1881,9 +1881,11 @@ class CheaperPath(unittest.TestCase):
                          (len(['1', '2', '3', '4']), len(['1', '3']), 1, 1))
         self.assertAlmostEqual(counted['explicit_share'], len(['1', '3']) / len(['1', '2', '3', '4']))
         real = model.measure(ROOT)
+        self.assertEqual(real['construction']['explicit'] + real['construction']['diff_only']
+                         + real['construction']['unlinked'], real['construction']['changes'])
         self.assertGreater(real['construction']['diff_only'], 0)
         self.assertGreater(real['construction']['explicit'], 0)
-        self.assertEqual(real['measurement']['cheaper_path']['reviewed'], False)
+        self.assertIn('reviewed', real['measurement']['cheaper_path'])
         self.assertIn('construction: ', model.summary(real))
 
 
@@ -2029,22 +2031,72 @@ class SupportSystems(unittest.TestCase):
         self.assertIn('type VAL: weakness_when state gone are not states of the type', errors)
 
     def test_this_checkouts_scoreboard_separates_catalog_from_operational_readiness(self):
+        # Hermetic scoreboard check: inject operational weaknesses vs. clean operational states (independent of clock/live runs).
+        full_meta = model.metamodel(ROOT)
+        scoped = ('intent', 'validation', 'measurement', 'problem', 'conformance')
+        meta = {**full_meta, 'systems': {name: full_meta['systems'][name] for name in scoped}}
+        base = {
+            'INT-1': {'id': 'INT-1', 'type': 'INT', 'state': 'active', 'fingerprint': 'f', 'links': []},
+            'VAL-ok': {'id': 'VAL-ok', 'type': 'VAL', 'state': 'met', 'fingerprint': 'f', 'links': []},
+            'NC-ok': {'id': 'NC-ok', 'type': 'NC', 'state': 'met', 'fingerprint': 'f',
+                      'body': {'untracked': False}, 'links': [{'type': 'necessary-for', 'target': 'INT-1'}]},
+            'MEAS-slo': {'id': 'MEAS-slo', 'type': 'MEAS', 'state': 'active', 'fingerprint': 'f',
+                         'body': {'need': 'n', 'consumer': 'c', 'criterion': 'max 0', 'fresh': True, 'breached': False},
+                         'links': []},
+            'MEAS-cheap': {'id': 'MEAS-cheap', 'type': 'MEAS', 'state': 'active', 'fingerprint': 'f',
+                           'body': {'need': 'n', 'consumer': 'c', 'criterion': 'lt 0.1', 'fresh': True,
+                                    'met': True, 'reviewed': True},
+                           'links': []},
+        }
+        healthy, _ = model.assess_systems(meta, base, model.incoming(base), set(), self.root, today='2026-11-22')
+        for name in ('validation', 'measurement', 'problem', 'conformance'):
+            self.assertEqual((healthy[name]['catalog_level'], healthy[name]['level'],
+                              healthy[name]['operational_ready'], healthy[name]['closed']), ('F', 'F', True, True), name)
+        weak_found = copy.deepcopy(base)
+        weak_found['VAL-ok']['state'] = 'not-met'
+        weak_found['NC-ok']['state'] = 'not-met'
+        weak_found['MEAS-slo']['body']['breached'] = True
+        weak_found['MEAS-cheap']['body']['reviewed'] = False
+        degraded, assessed = model.assess_systems(meta, weak_found, model.incoming(weak_found), set(), self.root,
+                                                  today='2026-11-22')
+        for name in ('validation', 'measurement', 'problem', 'conformance'):
+            self.assertEqual((degraded[name]['catalog_level'], degraded[name]['level'],
+                              degraded[name]['operational_ready'], degraded[name]['closed']),
+                             ('F', 'L', False, False), name)
+            self.assertGreater(degraded[name]['weaknesses'], 0, name)
+        self.assertFalse(assessed['ASSESS-validation']['body']['ready'])
+
+        # Structural scoreboard invariants on this checkout, valid regardless of clock or live snapshot freshness.
         found = model.measure(ROOT)
         board = found['scoreboard']
         self.assertIn('scoreboard: catalog ', model.summary(found))
-        for name in ('validation', 'measurement', 'problem', 'conformance'):
-            system = found['systems'][name]
-            self.assertEqual(system['catalog_level'], 'F', name)
-            self.assertEqual(system['level'], 'L', name)
-            self.assertFalse(system['operational_ready'], name)
-            self.assertFalse(system['closed'], name)
-            self.assertGreater(system['weaknesses'], 0, name)
-            self.assertIn(name, board['weaknesses'])
-            self.assertNotIn(name, board['operational_ready'])
-            self.assertNotIn(name, board['closed'])
+        self.assertEqual(board['systems'], len(found['systems']))
+        self.assertEqual(board['closed'], sorted(set(board['catalog_full']) & set(board['operational_ready'])))
+        for name, system in found['systems'].items():
+            if system['weaknesses'] > 0:
+                self.assertNotEqual(system['level'], 'F', name)
+                self.assertFalse(system['operational_ready'], name)
+                self.assertFalse(system['closed'], name)
+                self.assertIn(name, board['weaknesses'])
+                self.assertNotIn(name, board['operational_ready'])
+                self.assertNotIn(name, board['closed'])
+            if system['closed']:
+                self.assertEqual(system['weaknesses'], 0, name)
+                self.assertTrue(system['operational_ready'], name)
+                self.assertIn(name, board['catalog_full'])
+                self.assertIn(name, board['operational_ready'])
 
     def test_run_durations_report_diagnostic_quantiles_and_outliers_while_accepting_p100(self):
-        # M4 / D-337: external percentiles report alongside p100 acceptance without loosening the target
+        # M4 / D-337: external percentiles report alongside p100 acceptance without loosening the target.
+        write(self.root, 'config/validation/runs/sample-gate.json', {
+            'workflow': 'sample-gate', 'source': 'fixture', 'at': '2026-11-22T00:00:00Z',
+            'runs': [{'seconds': value} for value in (10, 20, 30, 40, 50, 60, 70, 80, 90, 120)]})
+        sample_body = {'measure': {'kind': 'run-durations', 'workflow': 'sample-gate', 'percentile': 100},
+                       'comparator': 'lte', 'threshold': 60}
+        sample_dist = model.run_distribution(self.root, sample_body, quantiles=[50, 95, 100])
+        self.assertEqual(sample_dist['quantiles'], {'p50': 50, 'p95': 120, 'p100': 120})
+        self.assertEqual((sample_dist['accepted_percentile'], sample_dist['accepted_value'], sample_dist['outliers']),
+                         (100, 120, 4))
         found = model.measure(ROOT)
         dists = found['validation']['distributions']
         self.assertIn('VAL-deploy-1s', dists)
@@ -2055,7 +2107,7 @@ class SupportSystems(unittest.TestCase):
             self.assertEqual(list(dist['quantiles']), quantiles)
             self.assertEqual(dist['accepted_percentile'], max(model.report_quantiles(ROOT)))
             self.assertEqual(dist['accepted_value'], dist['quantiles'][quantiles[-1]])
-            self.assertGreater(dist['outliers'], 0)
+            self.assertGreaterEqual(dist['outliers'], 0)
             self.assertLessEqual(dist['outliers'], dist['runs'])
         text = model.summary(found)
         self.assertIn('validation: run-durations (report only; accepted at p100, D-337):', text)
