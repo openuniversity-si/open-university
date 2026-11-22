@@ -13,5 +13,5 @@
   "basis": [
     "D-330"
   ],
-  "note": "Basis: D-330 (management is its own group of systems; docs/padrao/METODO.md is its current standard). Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed."
+  "note": "Prose judgment rule carried in the catalog as draft; not an executable check. Basis: D-330 (management is its own group of systems; docs/padrao/METODO.md is its current standard)."
 }

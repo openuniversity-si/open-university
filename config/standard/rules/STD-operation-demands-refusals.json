@@ -13,5 +13,5 @@
   "basis": [
     "D-285"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-285: Daniel approved the ARQ-OPERATIONS plan, whose C3 is R2 \"compatibility by demand and refusal before use\" (docs/units/ARQ-OPERATIONS/plan.md); the module head cites D-285, C3. D-286 extends the same declaration."
+  "note": "Basis: D-285: Daniel approved the ARQ-OPERATIONS plan, whose C3 is R2 \"compatibility by demand and refusal before use\" (docs/units/ARQ-OPERATIONS/plan.md); the module head cites D-285, C3. D-286 extends the same declaration."
 }

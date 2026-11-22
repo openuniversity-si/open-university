@@ -603,6 +603,10 @@ def rule_findings(found, root, stops=None, stages=None):
             warnings.append(f'{item["id"]}: dormant_by {rule["dormant_by"]} on a rule in {rule["state"]}')
         if rule['state'] == 'warning' and not rule.get('deadline'):
             warnings.append(f'{item["id"]}: in warning with no deadline')
+        if rule['state'] in ('blocking', 'warning') and kind == 'judgment':
+            warnings.append(f'{item["id"]}: {rule["state"]} rule has no executable check (judgment)')
+        if rule['state'] in ('blocking', 'warning') and SEED_MARKER in (rule.get('note') or ''):
+            warnings.append(f'{item["id"]}: {rule["state"]} rule still carries an unreviewed seed note')
     return warnings
 
 
@@ -610,7 +614,8 @@ PRINCIPLES = 'docs/process/principles/D-069.md'
 PRINCIPLE = re.compile(r'^### ([0-9]+)\. (.+)$', re.MULTILINE)
 METHOD = 'docs/padrao/METODO.md'
 VERSION_BASIS = {'v8': 'D-115'}  # the decision that made each version of the Padrão (docs/padrao/README.md)
-SEED_NOTE = 'Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
+SEED_MARKER = 'Seeded by scripts/model seed-rules'
+SEED_NOTE = f'{SEED_MARKER} (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
 
 
 def _slug(text):
@@ -2425,7 +2430,12 @@ def standard_measure(found, today):
                    for kind, source in into.get(item['id'], []))
     return {
         'rules': len(rules),
+        'blocking': sum(1 for item in rules if item['state'] == 'blocking'),
+        'warning': sum(1 for item in rules if item['state'] == 'warning'),
+        'draft': sum(1 for item in rules if item['state'] == 'draft'),
         'executable': sum(1 for item in rules if item['rule']['check']['kind'] != 'judgment'),
+        'judgment': sum(1 for item in rules if item['rule']['check']['kind'] == 'judgment'),
+        'unreviewed': sum(1 for item in rules if SEED_MARKER in (item['rule'].get('note') or '')),
         'tested': sum(1 for item in rules if tested(item)),
         'justified': sum(1 for item in rules if item['rule'].get('basis')),
         'overdue': sum(1 for item in rules if item['state'] == 'warning' and item['rule'].get('deadline', today) < today),
@@ -2708,8 +2718,10 @@ def summary(found):
     if 'stop' in found:  # D-331, D-335: the program's stop counts the systems closed, not the systems at F
         lines.append(f'stop (D-335): {len(found["stop"]["closed"])} of {found["stop"]["systems"]} system(s) closed')
     rules = found['standard']
-    lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
-                 f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
+    lines.append(f'standard: {rules["rules"]} rule(s) ({rules["blocking"]} blocking, {rules["warning"]} warning, '
+                 f'{rules["draft"]} draft; {rules["executable"]} executable, {rules["judgment"]} judgment, '
+                 f'{rules["unreviewed"]} unreviewed), {rules["tested"]} verified by a test, '
+                 f'{rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
                  f'their deadline; {rules["dormant"]} dormant (D-326)')
     managed = found['standard_management']
     lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '

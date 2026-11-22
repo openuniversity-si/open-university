@@ -369,8 +369,24 @@ class Rules(unittest.TestCase):
         found = self.found()
         found['TEST:scripts/tests/guard.test.sh']['fingerprint'] = 'f'
         counted = model.standard_measure(found, today='2026-11-16')
-        self.assertEqual(counted, {'rules': len(['plan', 'judge', 'late']), 'executable': len(['plan', 'late']),
+        self.assertEqual(counted, {'rules': len(['plan', 'judge', 'late']), 'blocking': 1, 'warning': 1, 'draft': 1,
+                                   'executable': len(['plan', 'late']), 'judgment': 1, 'unreviewed': 0,
                                    'tested': 1, 'justified': len(['plan', 'judge']), 'overdue': 1, 'dormant': 0})
+
+    def test_blocking_or_warning_rules_cannot_be_prose_judgment_or_carry_unreviewed_seed_notes(self):
+        write(self.root, 'docs/x.md', '# prose\n')
+        self.rule('STD-prose-blocking', state='blocking', basis=['D-1'], check={'kind': 'judgment', 'ref': 'docs/x.md'})
+        self.rule('STD-seeded-blocking', state='blocking', basis=['D-1'], note=model.SEED_NOTE,
+                  check={'kind': 'function', 'ref': 'scripts/lib/guard.py:plan_errors'})
+        self.rule('STD-prose-draft', state='draft', basis=['D-1'], check={'kind': 'judgment', 'ref': 'docs/x.md'})
+        found = self.found()
+        warnings = model.rule_findings(found, self.root, stops=[], stages=[])
+        self.assertIn('STD-prose-blocking: blocking rule has no executable check (judgment)', warnings)
+        self.assertIn('STD-seeded-blocking: blocking rule still carries an unreviewed seed note', warnings)
+        self.assertFalse(any(line.startswith('STD-prose-draft:') for line in warnings), warnings)
+        counted = model.standard_measure(found, today='2026-11-16')
+        self.assertEqual(counted['unreviewed'], 1)
+        self.assertEqual(counted['judgment'], len(['prose-blocking', 'prose-draft']))
 
     def test_a_dormant_rule_counts_in_no_enforcement_measure_and_needs_no_basis_while_dormant(self):
         # D-326: dormant, named by the decision that stopped its tooling; it keeps its file, check and test
@@ -1518,15 +1534,26 @@ class RealRepository(unittest.TestCase):
 
     def test_the_rules_whose_tooling_d314_stopped_are_dormant_and_the_ones_tower_gate_runs_are_not(self):
         # D-326, checked against the live flow: D-329 brought `pr metadata` back to tower/gate, so the lane and the
-        # decision-wait refusals it runs stay blocking; the Origin adapter, the box's retro store and the CO1
-        # program check run only in Origin-era tooling
+        # decision-wait refusals it runs stay blocking; the Origin adapter, the box's retro store, the CO1 program
+        # check, the stopped runner service and the stopped merge train run only in Origin-era tooling
         found = model.objects(ROOT)
         dormant = sorted(id for id, item in found.items() if item['type'] == 'STD' and item['state'] == 'dormant')
-        self.assertEqual(dormant, ['STD-forge-origin-refuse-remote', 'STD-program-plan-block', 'STD-retro-shape-errors'])
+        self.assertEqual(dormant, [
+            'STD-forge-origin-refuse-remote',
+            'STD-program-plan-block',
+            'STD-retro-shape-errors',
+            'STD-service-credentials-refused-sentence',
+            'STD-service-runner-refused',
+            'STD-train-ownership-refusals',
+            'STD-train-refused',
+        ])
         self.assertTrue(all(found[id]['rule']['dormant_by'] == 'D-314' for id in dormant))
         for id in ('STD-structure-lane-errors', 'STD-decision-wait-errors'):
             self.assertEqual(found[id]['state'], 'blocking', id)
         self.assertEqual(model.skipped_stage_errors(found, ROOT), [])
+        counted = model.standard_measure(found, today='2026-11-22')
+        self.assertEqual(counted['unreviewed'], 0)
+        self.assertEqual(counted['dormant'], len(dormant))
 
     def test_every_refusal_and_gate_stage_of_this_checkout_has_a_rule(self):
         warnings = model.rule_findings(model.objects(ROOT), ROOT)
