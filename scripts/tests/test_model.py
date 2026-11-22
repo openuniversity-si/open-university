@@ -485,7 +485,7 @@ class TargetsFull(unittest.TestCase):
         self.key('slo.gate_failure_rate_max_percent', 1, maximum=self.top)
         self.key('budgets.regression_tolerance_percent', 1)
         write(self.root, 'config/registry/gate-flake/gate-flake.enabled.json', {'type': 'boolean', 'default': True})
-        self.key('slo.gate_tier1_p95_s', self.top)  # seconds: not a share
+        self.key('slo.train_queue_time_p95_s', self.top)  # seconds: not a share
         self.key('medir.quantiles', [self.half])  # a report-only scale
         errors = self.errors({})
         self.assertEqual(sorted(line.split(':', 1)[0] for line in errors),
@@ -1903,8 +1903,10 @@ class SupportSystems(unittest.TestCase):
 
     def test_measures_come_from_the_slo_registry_the_validations_and_the_cheaper_path(self):
         write(self.root, model.SLO_REGISTRY, {'properties': {
-            'slo.gate_tier1_p95_s': {'default': 10, 'description': 'need', 'x-unit': 's',
-                                     'x-readers': ['scripts/lib/slo.py', model.SLO_CONSUMER]},
+            'slo.gate_tier1_p95_s': {'default': 10, 'description': 'retired', 'x-unit': 's', 'deprecated': True,
+                                     'x-readers': ['docs/domain/decisions/D-351.md', 'scripts/lib/model.py']},
+            'slo.train_queue_time_p95_s': {'default': 900, 'description': 'need', 'x-unit': 's',
+                                           'x-readers': ['scripts/lib/slo.py', model.SLO_CONSUMER]},
             'slo.merged_prs_per_hour_min': {'default': 42, 'description': 'need', 'x-readers': ['scripts/lib/slo.py']}}})
         write(self.root, 'config/validation/VAL-a.json', {'id': 'VAL-a', 'statement': 's', 'owner': 'capacity',
                                                           'measure': {'kind': 'run-durations', 'workflow': 'deploy'},
@@ -1914,20 +1916,24 @@ class SupportSystems(unittest.TestCase):
                                                           'comparator': 'lte', 'threshold': 200})
         found = {item['id']: item for item in model.read_measures(self.root)}
         self.assertEqual(sorted(found), ['MEAS-cheaper-path', 'MEAS-gate-tier1-p95-s', 'MEAS-merged-prs-per-hour-min',
-                                         'MEAS-run-durations-deploy', 'MEAS-unwired-b'])
+                                         'MEAS-run-durations-deploy', 'MEAS-train-queue-time-p95-s', 'MEAS-unwired-b'])
+        self.assertEqual(found['MEAS-gate-tier1-p95-s']['state'], 'retired')
+        self.assertFalse(model.is_active(self.meta, found['MEAS-gate-tier1-p95-s']))
         self.assertEqual(found['MEAS-unwired-b']['state'], 'proposed')
         self.assertEqual(found['MEAS-merged-prs-per-hour-min']['body']['consumer'], '')
-        self.assertEqual(found['MEAS-gate-tier1-p95-s']['body']['criterion'], 'max 10')
+        self.assertEqual(found['MEAS-train-queue-time-p95-s']['body']['criterion'], 'max 900')
         self.assertEqual(found['MEAS-run-durations-deploy']['body']['scale'], 'derived')
         found['VAL-a'] = {'id': 'VAL-a', 'type': 'VAL', 'state': 'met', 'links': [], 'fingerprint': 'f'}
         found['VAL-b'] = {'id': 'VAL-b', 'type': 'VAL', 'state': 'defined', 'links': [], 'fingerprint': 'f'}
         model.derive_measures(found)
         self.assertEqual(found['VAL-a']['links'], [{'type': 'measured-by', 'target': 'MEAS-run-durations-deploy'}])
-        judged = {id: self.conformant(item, found) for id, item in found.items() if item['type'] == 'MEAS'}
+        judged = {id: self.conformant(item, found) for id, item in found.items()
+                  if item['type'] == 'MEAS' and model.is_active(self.meta, item)}
         # wired, with a need, a consumer, a criterion and a value on HEAD; an SLO with no GitHub snapshot has no value
-        self.assertEqual(judged, {'MEAS-cheaper-path': False, 'MEAS-gate-tier1-p95-s': False,
-                                  'MEAS-merged-prs-per-hour-min': False, 'MEAS-run-durations-deploy': True,
+        self.assertEqual(judged, {'MEAS-cheaper-path': False, 'MEAS-merged-prs-per-hour-min': False,
+                                  'MEAS-run-durations-deploy': True, 'MEAS-train-queue-time-p95-s': False,
                                   'MEAS-unwired-b': False})
+        self.assertEqual(model.measures_measure(found)['measures'], len(judged))
         CheaperPath.sample(self, 'retro-sample-1', [False])
         fresh = {item['id']: item for item in model.read_measures(self.root)}['MEAS-cheaper-path']
         self.assertTrue(self.conformant(fresh, {fresh['id']: fresh}))
@@ -1972,8 +1978,13 @@ class SupportSystems(unittest.TestCase):
             self.assertGreater(systems[name]['objects'], 0, name)
             self.assertEqual(systems[name]['not_judged'], 0, name)
         self.assertEqual(systems['conformance']['objects'], len(systems))
-        self.assertEqual(found['measurement']['unread'], 0)  # the SLOs read their GitHub snapshot (runs.SLO_FILE)
-        self.assertEqual(len(found['measurement']['slos']), len(model.SLO_MEASURES))
+        self.assertEqual(found['measurement']['unread'], 0)  # the active SLOs read their GitHub snapshot (runs.SLO_FILE)
+        slo_props = json.loads((ROOT / model.SLO_REGISTRY).read_text())['properties']
+        active_slos = [name for name, _ in model.SLO_MEASURES if not slo_props.get(name, {}).get('deprecated')]
+        self.assertEqual(len(found['measurement']['slos']), len(active_slos))
+        self.assertNotIn('MEAS-gate-tier1-p95-s', found['measurement']['slos'])
+        self.assertNotIn('MEAS-gate-tier1-p95-s', found['systems']['measurement']['weakness_ids'])
+        self.assertEqual(model.objects(ROOT)['MEAS-gate-tier1-p95-s']['state'], 'retired')
         self.assertGreater(found['measurement']['fresh'], 0)
         self.assertIn('slo', found['measurement']['snapshot_lag'])
         self.assertIn('work: ', model.summary(found))

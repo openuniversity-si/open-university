@@ -20,7 +20,7 @@ import slo  # noqa: E402
 REPO = 'openuniversity-si/open-university'
 START = datetime(2026, 10, 26, 12, 0, tzinfo=timezone.utc)
 REGISTRY = json.loads((ROOT / 'config' / 'registry' / 'slo.json').read_text())['properties']
-SLOS = ('slo.gate_tier1_p95_s', 'slo.train_queue_time_p95_s', 'slo.merged_prs_per_hour_min',
+SLOS = ('slo.train_queue_time_p95_s', 'slo.merged_prs_per_hour_min',
         'slo.gate_failure_rate_max_percent')
 
 
@@ -30,10 +30,14 @@ class Registry(unittest.TestCase):
             entry = REGISTRY[name]
             self.assertIn('x-unit', entry, name)
             self.assertTrue(entry['x-readers'], name)
+            self.assertFalse(entry.get('deprecated'), name)
             self.assertEqual(config.get(name), entry['default'], name)
 
-    def test_tier1_slo_is_never_looser_than_the_gate_target(self):
-        self.assertLessEqual(config.get('slo.gate_tier1_p95_s'), config.get('gate.tier1_target_s'))
+    def test_retired_tier1_slo_is_deprecated_and_budgets_tighten_only_unchanged(self):
+        # D-351: slo.gate_tier1_p95_s (Origin-era local tier-1) is retired via registry deprecation, not loosened.
+        self.assertTrue(REGISTRY['slo.gate_tier1_p95_s'].get('deprecated'))
+        self.assertNotIn('slo.gate_tier1_p95_s', slo.NAMES)
+        self.assertTrue(config.get('budgets.tighten_only'))
 
     def test_throughput_entry_is_the_plan_criterion(self):
         # plan v3 §9.2: the last 42 pr.merged within 60 minutes, held for at least 3 hours
@@ -125,25 +129,32 @@ class Fold(unittest.TestCase):
         """D-336, D-337: slo.percentile is 100, the maximum; one slow verdict among many decides the window."""
         self.assertEqual(config.get('slo.percentile'), 100)
         self.assertEqual(slo.percentile(list(range(1, 1001)), 100), 1000)
-        limit = config.get('slo.gate_tier1_p95_s')
-        log = make_log([gate(i, i + 1, limit / 2) for i in range(39)] + [gate(50, 60, limit * 3)])
-        item = by_name(slo.evaluate(log, conf(**{'slo.percentile': config.get('slo.percentile')})))['slo.gate_tier1_p95_s']
+        limit = config.get('slo.train_queue_time_p95_s')
+        spec = []
+        for pr in range(1, 40):
+            spec += [ready(pr * 10, pr), merged(pr * 10 + limit / 2, pr)]
+        spec += [ready(500, 60), merged(500 + limit * 3, 60)]
+        item = by_name(slo.evaluate(make_log(spec), conf(**{'slo.percentile': config.get('slo.percentile')})))[
+            'slo.train_queue_time_p95_s']
         self.assertEqual((item['state'], item['value']), ('breached', limit * 3))
 
-    def test_tier1_p95_breaches_when_the_slow_tail_exceeds_the_entry(self):
-        limit = config.get('slo.gate_tier1_p95_s')
-        log = make_log([gate(i, i + 1, limit / 2) for i in range(18)] + [gate(20 + i, 30 + i, limit * 3) for i in range(2)])
-        item = by_name(slo.evaluate(log, conf()))['slo.gate_tier1_p95_s']
-        self.assertEqual((item['state'], item['value'], item['samples']), ('breached', limit * 3, 20))
+    def test_retired_tier1_slo_is_not_evaluated_and_never_breaches(self):
+        # D-351: tier-1 duration verdicts do not generate a false breach for retired slo.gate_tier1_p95_s.
+        log = make_log([gate(i, i + 1, 999) for i in range(20)])
+        results = by_name(slo.evaluate(log, conf()))
+        self.assertNotIn('slo.gate_tier1_p95_s', results)
+        self.assertEqual(results['slo.gate_failure_rate_max_percent']['state'], 'ok')
 
-    def test_tier1_within_the_entry_is_ok(self):
-        log = make_log([gate(i, i + 1, 1) for i in range(5)])
-        self.assertEqual(by_name(slo.evaluate(log, conf()))['slo.gate_tier1_p95_s']['state'], 'ok')
+    def test_queue_time_within_the_entry_is_ok(self):
+        spec = []
+        for pr in range(1, 6):
+            spec += [ready(pr * 10, pr), merged(pr * 10 + 5, pr)]
+        self.assertEqual(by_name(slo.evaluate(make_log(spec), conf()))['slo.train_queue_time_p95_s']['state'], 'ok')
 
     def test_fewer_samples_than_the_floor_report_no_data(self):
         log = make_log([gate(i, i + 1, 99, passed=False) for i in range(2)])
         results = by_name(slo.evaluate(log, conf()))
-        self.assertEqual(results['slo.gate_tier1_p95_s']['state'], 'no_data')
+        self.assertNotIn('slo.gate_tier1_p95_s', results)
         self.assertEqual(results['slo.gate_failure_rate_max_percent']['state'], 'no_data')
 
     def test_failure_rate_counts_failed_tier1_verdicts(self):
@@ -213,7 +224,8 @@ class Emission(unittest.TestCase):
         slo.run(adapter, Clock(), REPO, range(1, 5), dict(BASE, **overrides))
         repository = forge_events.ForgeEvents(adapter, Clock(), 'reader', 'x').read(REPO)
         breached = {e['payload']['slo']: e['payload'] for e in repository if e['type'] == 'slo.breached'}
-        self.assertEqual(set(breached), {'slo.gate_tier1_p95_s', 'slo.gate_failure_rate_max_percent'})
+        self.assertEqual(set(breached), {'slo.gate_failure_rate_max_percent'})
+        self.assertNotIn('slo.gate_tier1_p95_s', breached)
         self.assertEqual(breached['slo.gate_failure_rate_max_percent']['value'], 100.0)
         appends = adapter.appends
         slo.run(adapter, Clock(), REPO, range(1, 5), dict(BASE, **overrides))
@@ -260,6 +272,7 @@ class Dashboard(unittest.TestCase):
         text = slo.render(slo.evaluate(events, values), slo.step_stats(events, 95), slo.fold(events)['span'], values)
         for name in SLOS:
             self.assertIn(f'`{name}`', text)
+        self.assertNotIn('`slo.gate_tier1_p95_s`', text)
         self.assertIn('| `slo.gate_failure_rate_max_percent` | 100 | <= ', text)
         self.assertIn('breached', text)
         self.assertIn('no_data', text)

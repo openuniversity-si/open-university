@@ -2107,6 +2107,14 @@ def read_measures(root):
         entry = registry.get(name)
         if entry is None:
             continue
+        if entry.get('deprecated'):
+            found.append(_measure(f'MEAS-{_slug(name.removeprefix("slo."))}', 'retired', SLO_REGISTRY, {
+                'need': entry.get('description', ''),
+                'consumer': SLO_CONSUMER if SLO_CONSUMER in entry.get('x-readers', []) else '',
+                'scale': 'derived', 'function': 'scripts/lib/slo.py evaluate_series', 'unit': entry.get('x-unit', ''),
+                'criterion': f'{bound} {entry.get("default")}', 'source': SLO_SOURCE, 'unread': False, 'fresh': True,
+                'deprecated': True}))
+            continue
         value = values.get(name)
         found.append(_measure(f'MEAS-{_slug(name.removeprefix("slo."))}', 'active', SLO_REGISTRY, {
             'need': entry.get('description', ''), 'consumer': SLO_CONSUMER if SLO_CONSUMER in entry.get('x-readers', []) else '',
@@ -2622,9 +2630,10 @@ def snapshot_lag(root):
 
 
 def measures_measure(found, root=None):
-    """The measurement system's own counts: its measures, those with a value on HEAD, those proposed (no function
-    wired), those whose source HEAD does not hold (an SLO with no GitHub snapshot), and snapshot lag vs. main."""
-    measures = [item for item in found.values() if item['type'] == 'MEAS']
+    """The measurement system's own counts: its active measures, those with a value on HEAD, those proposed (no
+    function wired), those whose source HEAD does not hold (an SLO with no GitHub snapshot), and snapshot lag vs.
+    main."""
+    measures = [item for item in found.values() if item['type'] == 'MEAS' and item['state'] != 'retired']
     lag = snapshot_lag(root) if root is not None else {}
     return {'measures': len(measures), 'fresh': sum(1 for item in measures if item['body']['fresh']),
             'proposed': sum(1 for item in measures if item['state'] == 'proposed'),
