@@ -1402,13 +1402,13 @@ def _incidents_snapshot(root):
 
 
 def _incident_source_observable(root, window_days, today):
-    """Whether `incident-count` has an observable source on this checkout: a fresh tracked snapshot
+    """Whether `incident-count` has an observable source on this checkout: a fresh observed tracked snapshot
     (config/validation/incidents.json) or a local docs/operations/incidents folder that exists and is not gitignored.
-    Reading zero files from a missing or gitignored folder never proves zero incidents."""
+    Reading zero files from an unobserved snapshot or a missing/gitignored folder never proves zero incidents (D-350)."""
     from datetime import date
     day_len = len('2026-01-01')
     snap = _incidents_snapshot(root)
-    if snap and isinstance(snap.get('at'), str) and len(snap['at']) >= day_len:
+    if snap and snap.get('observed', True) is True and isinstance(snap.get('at'), str) and len(snap['at']) >= day_len:
         if (date.fromisoformat(today) - date.fromisoformat(snap['at'][:day_len])).days <= window_days:
             return True
     folder = Path(root) / 'docs/operations/incidents'

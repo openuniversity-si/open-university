@@ -91,22 +91,34 @@ def metadata(root):
 
 
 def write_snapshot(root, now=None):
-    """Merge local incident metadata into config/validation/incidents.json (no prose; docs/operations/ stays ignored)."""
+    """Merge local incident metadata into config/validation/incidents.json (no prose; docs/operations/ stays ignored).
+
+    Stamps `observed: true` and a fresh `at` timestamp only when the local docs/operations/incidents folder exists;
+    without a local source, preserves any prior observation metadata or writes an unobserved empty snapshot
+    (`observed: false`, `at: null`) so `incident-count` never claims `met` without data (D-350).
+    """
     target = Path(root) / SNAPSHOT
-    existing = {}
+    existing, prior_at, prior_observed = {}, None, False
     if target.is_file():
         try:
             loaded = json.loads(target.read_text())
-            for entry in loaded.get('incidents', []) if isinstance(loaded, dict) else ():
-                if isinstance(entry, dict) and entry.get('id'):
-                    existing[entry['id']] = entry
+            if isinstance(loaded, dict):
+                prior_at = loaded.get('at') if isinstance(loaded.get('at'), str) else None
+                prior_observed = bool(loaded.get('observed', prior_at is not None))
+                for entry in loaded.get('incidents', []):
+                    if isinstance(entry, dict) and entry.get('id'):
+                        existing[entry['id']] = entry
         except (OSError, ValueError):
             pass
+    has_local = (Path(root) / FOLDER).is_dir()
     for entry in metadata(root):
         existing[entry['id']] = entry
+    observed = True if has_local else prior_observed
+    stamped = (now or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')) if has_local else prior_at
     made = {
         'source': 'scripts/incident snapshot (metadata only: id, kind, time, status; docs/operations/ stays gitignored)',
-        'at': now or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'at': stamped,
+        'observed': observed,
         'incidents': sorted(existing.values(), key=lambda item: (item.get('time', ''), item['id'])),
     }
     target.parent.mkdir(parents=True, exist_ok=True)

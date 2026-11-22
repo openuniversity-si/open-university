@@ -54,6 +54,7 @@ class Register(unittest.TestCase):
             self.assertNotIn(FIXTURE['text'], raw, 'snapshot carries metadata only, never incident prose')
             loaded = json.loads(raw)
             self.assertEqual(loaded['at'], '2026-11-19T12:00:00Z')
+            self.assertTrue(loaded['observed'])
             by_id = {entry['id']: entry for entry in loaded['incidents']}
             self.assertEqual(set(by_id), {'I-00000001', identifier})
             self.assertEqual(by_id[identifier], {'id': identifier, 'kind': FIXTURE['kind'],
@@ -62,8 +63,22 @@ class Register(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(incident.main(['snapshot'], root=tmp), 0)
             after = json.loads(snap_path.read_text())
+            self.assertTrue(after['observed'])
             self.assertEqual({entry['id']: entry['status'] for entry in after['incidents']},
                              {'I-00000001': 'closed', identifier: 'closed'})
+
+    def test_snapshot_without_local_folder_stays_unobserved_and_preserves_prior_stamp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            snap_path = incident.write_snapshot(tmp, now='2026-11-22T18:00:00Z')
+            empty = json.loads(snap_path.read_text())
+            self.assertEqual((empty['at'], empty['observed'], empty['incidents']), (None, False, []))
+            seeded = {'source': 'seed', 'at': '2026-11-20T12:00:00Z', 'observed': True, 'incidents': [
+                {'id': 'I-00000001', 'kind': 'owner-stop', 'time': '2026-11-20T10:00:00Z', 'status': 'closed'}]}
+            snap_path.write_text(json.dumps(seeded))
+            incident.write_snapshot(tmp, now='2026-11-22T18:00:00Z')
+            kept = json.loads(snap_path.read_text())
+            self.assertEqual((kept['at'], kept['observed'], kept['incidents']),
+                             ('2026-11-20T12:00:00Z', True, seeded['incidents']))
 
 
 
@@ -73,6 +88,15 @@ class NeverPublished(unittest.TestCase):
         import subprocess
         done = subprocess.run(['git', 'check-ignore', '-q', f'{incident.FOLDER}/I-00000000.md'], cwd=ROOT, check=False)
         self.assertEqual(done.returncode, 0)
+
+    def test_tracked_snapshot_carries_metadata_only(self):
+        """D-350: config/validation/incidents.json is public metadata-only (id, kind, time, status), never prose."""
+        data = json.loads((ROOT / incident.SNAPSHOT).read_text())
+        self.assertIsInstance(data.get('incidents'), list)
+        self.assertIsInstance(data.get('observed'), bool)
+        allowed = {'id', 'kind', 'time', 'status'}
+        for entry in data['incidents']:
+            self.assertEqual(set(entry), allowed)
 
 if __name__ == '__main__':
     unittest.main()

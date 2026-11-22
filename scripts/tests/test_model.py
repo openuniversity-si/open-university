@@ -1037,14 +1037,19 @@ class Changes(unittest.TestCase):
         write(self.root, '.gitignore', '/docs/operations/\n')
         (self.root / 'docs/operations/incidents').mkdir(parents=True, exist_ok=True)
         self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
-        # fresh tracked snapshot with 0 incidents makes the window observable and met
-        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': f'{today}T00:00:00Z', 'incidents': []})
+        # unobserved empty snapshot (D-350) never claims met, with or without a timestamp
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': None, 'observed': False, 'incidents': []})
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': f'{today}T00:00:00Z', 'observed': False, 'incidents': []})
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
+        # fresh observed tracked snapshot with 0 incidents makes the window observable and met
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': f'{today}T00:00:00Z', 'observed': True, 'incidents': []})
         self.assertEqual(model.measured(body, {}, self.root, today), (0, True))
         # stale snapshot cannot confirm 0 incidents
-        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': '2020-01-01T00:00:00Z', 'incidents': []})
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': '2020-01-01T00:00:00Z', 'observed': True, 'incidents': []})
         self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
         # incident in snapshot + same id in local folder is deduplicated and immediately fails threshold
-        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': f'{today}T00:00:00Z', 'incidents': [
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': f'{today}T00:00:00Z', 'observed': True, 'incidents': [
             {'id': 'I-dup', 'kind': 'owner-stop', 'time': f'{day}T00:00:00Z', 'status': 'open'}]})
         write(self.root, 'docs/operations/incidents/I-dup.md', f'---\nid: I-dup\nkind: owner-stop\ntime: {day}T00:00:00Z\n---\n')
         self.assertEqual(model.measured(body, {}, self.root, today), (1, True))
