@@ -11,6 +11,8 @@
     "scripts/lib/service_runner.py",
     "scripts/lib/service_status.py",
     "scripts/lib/gate_workflows.py",
+    "scripts/site-canary",
+    "scripts/lib/site_canary.py",
     "config/registry/service.json",
     "contracts/service/**",
     "services/runner/**",
@@ -21,6 +23,8 @@
     "scripts/tests/test_service_runner.py",
     "scripts/tests/test_service_status.py",
     "scripts/tests/test_service_workflows.py",
+    "scripts/tests/workflow-proposals.test.sh",
+    "scripts/tests/test_workflow_proposals.py",
     "docs/operations/services.md"
   ],
   "requires": {

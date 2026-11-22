@@ -1,0 +1,9 @@
+{
+  "script": "scripts/tests/workflow-proposals.test.sh",
+  "covers": [
+    "scripts/tests/workflow-proposals.test.sh",
+    "scripts/tests/test_workflow_proposals.py",
+    "scripts/site-canary",
+    "scripts/lib/site_canary.py"
+  ]
+}
