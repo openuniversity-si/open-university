@@ -311,6 +311,14 @@ class ProposalAuditTests(unittest.TestCase):
         self.assertEqual(queue_checks.check(ROOT), [])
         self.assertEqual(gate_workflows.refused(ROOT), [])
 
+    def test_d359_record_is_proposed_never_self_approved_and_points_to_this_suite(self):
+        record = (ROOT / 'docs' / 'domain' / 'decisions' / 'D-359.md').read_text(encoding='utf-8')
+        self.assertIn('number: D-359\n', record)
+        self.assertIn('status: proposed\n', record)
+        self.assertIn('proof: scripts/tests/workflow-proposals.test.sh\n', record)
+        self.assertNotIn('decided by the session', record.lower())
+        self.assertIn('never self-approved', record)
+
 
 if __name__ == '__main__':
     unittest.main()
