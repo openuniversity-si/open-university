@@ -13,6 +13,8 @@ from pathlib import Path
 import re
 import sys
 
+import config
+
 ROOT = Path(__file__).resolve().parent.parent.parent
 MARKER = ROOT / '.gate' / 'cycle.on'
 REASONS = ('login', 'credential', 'money', 'people', 'quota')
@@ -22,16 +24,20 @@ STOP = re.compile(r'^\s*STOP:\s*(' + '|'.join(REASONS) + r')\b')
 CONTINUE = ('Is the standing determination ({determination}) done? If not and you know the next concrete step, take that '
             'step now without ending the turn. If you do not know it, end the turn with a short status of where you '
             'stopped relative to the determination (no slogan), so the Torre can carry it on. (I-0d1c3a25)')
-DETERMINATION = 'concluir o motor AWS ponta a ponta'
+
+
+def default_determination():
+    """The default standing determination from the configuration registry (flow.cycle_determination)."""
+    return config.get('flow.cycle_determination')
 
 
 def determination(marker=MARKER):
-    """The standing determination the marker names (its text other than the bare 'on'), else the default."""
+    """The standing determination the marker names (its text other than the bare 'on'), else the registered default."""
     try:
         text = marker.read_text().strip()
     except OSError:
         text = ''
-    return text if text and text != 'on' else DETERMINATION
+    return text if text and text != 'on' else default_determination()
 
 
 def last_assistant_text(transcript):

@@ -27,6 +27,17 @@
       ],
       "x-source": "F80; 03/11 lane census: median 4 calls over 2k tokens (154k weighted), one whole-file cat 82k"
     },
+    "flow.cycle_determination": {
+      "type": "string",
+      "default": "deliver the active program unit with a green gate",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "Default standing determination named by scripts/hooks/cycle-stop when .gate/cycle.on carries only 'on' (I-0d1c3a25); replaces the obsolete hardcoded AWS-engine determination.",
+      "x-readers": [
+        "scripts/lib/cycle_stop.py"
+      ],
+      "x-source": "I-0d1c3a25"
+    },
     "flow.frictions_log": {
       "type": "string",
       "default": "~/.cache/the-tower/frictions.jsonl",

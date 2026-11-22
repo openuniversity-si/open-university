@@ -4,6 +4,7 @@ from typing import Any, Literal, NotRequired, Required, TypedDict  # noqa: F401
 Name = Literal[
     'flow.base_ref',
     'flow.bash_trim_bytes',
+    'flow.cycle_determination',
     'flow.frictions_log',
     'flow.lanes_ledger',
     'flow.red_after_s',
@@ -17,6 +18,7 @@ Name = Literal[
 Values = TypedDict('Values', {
     'flow.base_ref': str,
     'flow.bash_trim_bytes': int,
+    'flow.cycle_determination': str,
     'flow.frictions_log': str,
     'flow.lanes_ledger': str,
     'flow.red_after_s': int,
