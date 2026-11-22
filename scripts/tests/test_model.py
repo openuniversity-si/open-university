@@ -2114,13 +2114,15 @@ class SupportSystems(unittest.TestCase):
         self.assertIn('VAL-deploy-1s', text)
         self.assertIn('VAL-gate-60s', text)
 
-    def test_operational_scoreboard_proposal_stays_open_for_daniels_decision(self):
-        # C1 / M3: never self-approve; PROP-operational-scoreboard stays open awaiting Daniel's D-351 decision
+    def test_d351_decides_operational_scoreboard_and_prop_is_decided(self):
+        # C1 / M3 / D-351: D-351 is recorded with owner authority and decides PROP-operational-scoreboard.
         found = model.objects(ROOT)
+        decision = found['D-351']
+        self.assertEqual((decision['state'], decision['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(decision))
         prop = found['PROP-operational-scoreboard']
-        self.assertEqual((prop['state'], prop['body']['owner']), ('open', 'Daniel'))
-        self.assertNotIn('decided_by', prop['body'])
-        self.assertTrue(prop['body'].get('deadline'))
+        self.assertEqual((prop['state'], prop['body'].get('decided_by')), ('decided', 'D-351'))
+        self.assertIn({'type': 'decided-by', 'target': 'D-351'}, prop['links'])
 
 
 if __name__ == '__main__':
