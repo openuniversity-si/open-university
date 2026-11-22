@@ -1,6 +1,6 @@
 {
   "id": "NEED-throughput",
-  "statement": "Merged PRs per second grow along the ladder, continuously, without splitting work to raise the count.",
+  "statement": "Verified useful deliveries per second grow along the ladder on main, continuously, counting real product and capacity advances with 100% external guard conformance and zero artificial PR splits or meta-governance inflation.",
   "state": "proposed",
   "owner": "Daniel",
   "refines": [

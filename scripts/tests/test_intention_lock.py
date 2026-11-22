@@ -209,5 +209,19 @@ class IntentObjectsAndModelCheck(unittest.TestCase):
         self.assertFalse(any('intention-lock:' in line for line in errors_ok))
 
 
+class RepositorySection3Alignment(unittest.TestCase):
+    def test_semente_section_3_proposes_verified_useful_deliveries_and_aligns_intent_files(self):
+        sections = intention_lock.extract_sections((ROOT / 'docs/SEMENTE.md').read_text(encoding='utf-8'))
+        sec3 = sections['3']
+        self.assertIn('entregas úteis verificadas por segundo', sec3)
+        self.assertNotIn('Isso é bom senso, não regra mecânica.', sec3)
+        for label in ('1.000', '10.000', '100.000', '100 %'):
+            self.assertIn(label, sec3)
+        for ident in ('INT-intention-v1', 'INT-ladder-1', 'INT-ladder-2', 'INT-ladder-3', 'NEED-throughput'):
+            body = json.loads((ROOT / f'config/intent/{ident}.json').read_text(encoding='utf-8'))
+            self.assertIn('verified useful deliveries', body['statement'].lower(), ident)
+            self.assertIn('100%', body['statement'], ident)
+
+
 if __name__ == '__main__':
     unittest.main()
