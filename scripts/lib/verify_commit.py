@@ -194,7 +194,7 @@ def reuser(repo, base, run=run, environ=None, parts=None):
 
 
 def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=False, reuse=None, isolated=isolated_tests,
-          cpus=os.cpu_count, part=None, hints=costs, paces=None, metadata=None, stages_only=False):
+          cpus=os.cpu_count, part=None, hints=costs, paces=None, metadata=None, stages_only=False, strict_alone=False):
     """(green, red names, the plan, seconds): every stage of the plan but SKIPPED, then its tests in one batch.
     VERIFY-TAIL: tails, when given, receives (name, the end of its output) for each red stage and each test still red.
     VERIFY-ALONE (the engine's FULL-RUN-ALONE): a test red in the batch runs again alone, and that verdict is its own; a
@@ -251,9 +251,12 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
         stages()
     if stages_only:
         planned['judged'] = len([stage for stage in planned.get('stages') or [] if stage not in SKIPPED])
+        planned['flakes'] = []
+        planned['flake_rate'] = 0.0
         red[:0], tails[:0] = staged_red, staged_tails
         return not red, red, planned, clock() - began
     tests = planned.get('tests') or []
+    judged_tests = 0
     if every:
         tests = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / 'scripts' / 'tests').glob('*.test.sh'))
         planned['tests'] = tests
@@ -267,6 +270,7 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
         if part:  # GATE-PARTS: this job's share; the timing-bound tests have a runner of their own, so no worker is kept
             apart = [test for test in shares[part] if test in named]
             batch = [test for test in shares[part] if test not in named]
+        judged_tests = len(apart) + len(batch)
         verdicts = {}
 
         def by_themselves():
@@ -304,11 +308,16 @@ def judge(base, run=run, clock=time.monotonic, tails=None, alone=None, every=Fal
                 again, said_alone = run(['scripts/gate-check', 'test', test])
                 if again == 0:
                     alone.append(test)
+                    if strict_alone:
+                        red.append(f'{test} (flake)')
+                        tails.append((f'{test} (flake)', 'failed in batch and passed alone (--strict-alone, D-355)\n'))
                 else:
                     red.append(test)
                     tails.append((f'{test} (alone)', said_alone[-TAIL:]))
     if staging:
         staging.join()
+    planned['flakes'] = list(alone)
+    planned['flake_rate'] = (len(alone) / judged_tests) if judged_tests else 0.0
     red[:0], tails[:0] = staged_red, staged_tails  # the stages' first, as when they ran before the tests
     if part:
         planned['judged'] = ((len([stage for stage in planned.get('stages') or [] if stage not in SKIPPED])
@@ -431,6 +440,21 @@ def repo_of(run=run):
     return url.split('github.com/', 1)[1]
 
 
+def flake_entry(sha, base, planned, part=None, strict_alone=False):
+    """D-355: structured VERIFY-ALONE flake telemetry record for one verify-commit run."""
+    flakes = list(planned.get('flakes') or [])
+    return {
+        'sha': sha,
+        'base': base,
+        'part': part,
+        'flakes': flakes,
+        'flake_count': len(flakes),
+        'flake_rate': float(planned.get('flake_rate') or 0.0),
+        'strict_alone': bool(strict_alone),
+        'at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+    }
+
+
 def record(directory, base, planned, sha, run=run, environ=None):
     """VERDICT-REUSE: the green verdict's key and what it covers in DIR/verdict.json, its name in $GITHUB_OUTPUT.
     GATE-PARTS: a part's verdict is kept as `<name>-<part>`; a reuse asks for every part's."""
@@ -439,7 +463,9 @@ def record(directory, base, planned, sha, run=run, environ=None):
     if planned.get('part'):
         key, body = f"{key}-{planned['part']}", {**body, 'part': planned['part']}
     directory.mkdir(parents=True, exist_ok=True)
-    (directory / 'verdict.json').write_text(json.dumps({'key': key, 'sha': sha, **body}, indent=2, sort_keys=True) + '\n')
+    payload = {'key': key, 'sha': sha, **body, 'flakes': list(planned.get('flakes') or []),
+               'flake_rate': float(planned.get('flake_rate') or 0.0)}
+    (directory / 'verdict.json').write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n')
     if environ.get('GITHUB_OUTPUT'):
         with open(environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
             output.write(f'verdict={VERDICT}{key}\n')
@@ -471,9 +497,13 @@ def main(argv=None, run=run, environ=None):
                         help='VERDICT-REUSE: on green, write the verdict\'s key under DIR and name it in $GITHUB_OUTPUT')
     parser.add_argument('--stages-only', action='store_true',
                         help='PINNED-ON-GITHUB: the plan\'s stages only, no test (the pinned job of a gate change)')
+    parser.add_argument('--flake-log', type=Path, metavar='FILE',
+                        help='D-355: append a structured JSONL VERIFY-ALONE flake telemetry record to FILE')
+    parser.add_argument('--strict-alone', action='store_true',
+                        help='D-355: fail the run when any test fails in batch and passes alone (VERIFY-ALONE)')
     args = parser.parse_args(argv)
-    if args.stages_only and (args.part or args.all or args.reuse or args.record):
-        parser.error('--stages-only judges the stages alone: no --part, --all, --reuse or --record')
+    if args.stages_only and (args.part or args.all or args.reuse or args.record or args.strict_alone):
+        parser.error('--stages-only judges the stages alone: no --part, --all, --reuse, --record or --strict-alone')
     code, head = run(['git', 'rev-parse', 'HEAD'])
     if code != 0 or head.strip() != args.sha:
         print(f'verify-commit: HEAD is {head.strip()[:12]}, not {args.sha[:12]}: check out the commit it judges',
@@ -492,7 +522,8 @@ def main(argv=None, run=run, environ=None):
         number, head, must = pull_request(environ, args.pr)  # PR-METADATA-GITHUB (D-329)
         metadata = lambda: pr_metadata(repo, number, head, must, run)  # noqa: E731 - run in the stages' thread
         green, red, planned, seconds = judge(args.base, run, tails=tails, alone=alone, every=args.all, reuse=reuse,
-                                             part=args.part, paces=paces, metadata=metadata, stages_only=args.stages_only)
+                                             part=args.part, paces=paces, metadata=metadata,
+                                             stages_only=args.stages_only, strict_alone=args.strict_alone)
     except Exception as error:  # noqa: BLE001 - a verifier that could not judge says so on the commit
         if not args.no_post:
             post(repo, args.sha, 'error', f'not judged: {error}', run)
@@ -524,6 +555,14 @@ def main(argv=None, run=run, environ=None):
                                                   sorted(paces, key=lambda pair: -pair[1])))
     if alone:  # VERIFY-ALONE: said, so a test that needs the machine to itself is seen, not hidden
         print(f'verify-commit: red in the batch and green alone: {", ".join(alone)}')
+    if alone or args.flake_log:  # D-355: structured VERIFY-ALONE flake telemetry
+        entry = flake_entry(args.sha, args.base, planned, part=args.part, strict_alone=args.strict_alone)
+        encoded = json.dumps(entry, sort_keys=True)
+        print(f'verify-commit: flake-metric {encoded}')
+        if args.flake_log:
+            args.flake_log.parent.mkdir(parents=True, exist_ok=True)
+            with open(args.flake_log, 'a', encoding='utf-8') as handle:
+                handle.write(encoded + '\n')
     for name, tail in tails:  # VERIFY-TAIL: what failed, where the verifier runs (a hosted job keeps no other log)
         print(f'--- verify-commit: the end of the output of {name} ---\n{tail.rstrip()}', file=sys.stderr)
     return 0 if green else 1
