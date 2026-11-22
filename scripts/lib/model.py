@@ -166,22 +166,56 @@ REFUTES = re.compile(r'\brefutes (P-[0-9]+)\b')  # a decision that names the pre
 SESSION_DECISION = re.compile(r'\bdecided by the session\b', re.I)  # session self-decision under D-325
 RECORD_STATES = {'proposed': 'proposed', 'accepted': 'accepted', 'recorded': 'accepted',
                  'deprecated': 'deprecated', 'superseded': 'superseded'}
+SELF_AUTHORITIES = ('session', 'self')
+INDEPENDENT_AUTHORITIES = ('owner', 'independent')
+OWNER_ONLY_SCOPES = ('money', 'people')  # D-260, D-360: the only scopes that wait on Daniel himself
+
+
+def requires_daniel(scope):
+    """D-360 (with D-260): Daniel intervenes only on money and other people (OWNER_ONLY_SCOPES); every other
+    decision — including governance, tailoring and technical approvals — is decided by an independent approver
+    (such as the Torre) without waiting on Daniel."""
+    return (scope or '').strip().lower() in OWNER_ONLY_SCOPES
 
 
 def decision_authority(text, fields=None):
-    """Who decided a decision record or row: `session` when front matter says `authority: session` or the text marks a
-    session self-decision (`decided by the session`), else `owner`."""
-    explicit = (fields or {}).get('authority', '').strip().lower()
-    if explicit in ('session', 'owner'):
+    """Who decided a decision record or row (D-360): `self` when front matter names the same actor as `author` and
+    `approver` (an author never self-approves), else explicit `authority` (`session`, `self`, `owner`, `independent`),
+    else `independent` when distinct `author` and `approver` are named, else `session` when the text marks a session
+    self-decision (`decided by the session`), else `owner`."""
+    mapping = fields or {}
+    author = mapping.get('author', '').strip().casefold()
+    approver = mapping.get('approver', '').strip().casefold()
+    if author and approver and author == approver:
+        return 'self'
+    explicit = mapping.get('authority', '').strip().lower()
+    if explicit in (*SELF_AUTHORITIES, *INDEPENDENT_AUTHORITIES):
         return explicit
+    if author and approver:
+        return 'independent'
     return 'session' if SESSION_DECISION.search(text or '') else 'owner'
 
 
-def owner_approved(decision):
-    """Whether a decision object is an accepted decision approved by the owner (never proposed, inactive, or
-    session-decided under D-325)."""
-    return (bool(decision) and decision.get('type') == 'D' and decision.get('state') == 'accepted'
-            and decision.get('authority') != 'session')
+def independently_approved(decision, scope=None):
+    """D-360 (supersedes D-349): whether a decision is accepted and approved independently of its author — never
+    proposed, inactive, session-decided under D-325, or self-approved (`author == approver`). When `scope` is one of
+    OWNER_ONLY_SCOPES (`money`, `people`), requires `owner` authority; otherwise any independent approver (`owner` or
+    `independent`) is accepted without waiting on Daniel."""
+    if not (bool(decision) and decision.get('type') == 'D' and decision.get('state') == 'accepted'):
+        return False
+    authority = decision.get('authority')
+    if authority in SELF_AUTHORITIES:
+        return False
+    author = (decision.get('author') or '').strip().casefold()
+    approver = (decision.get('approver') or '').strip().casefold()
+    if author and approver and author == approver:
+        return False
+    if scope is not None and requires_daniel(scope):
+        return authority == 'owner'
+    return True
+
+
+owner_approved = independently_approved
 
 
 def read_decisions(root):
@@ -198,6 +232,12 @@ def read_decisions(root):
                    for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
         replaced = [{'type': 'supersedes', 'target': ident} for ident in re.findall(r'\bD-[0-9]+\b', fields.get('supersedes', ''))]
         item = _obj(number, 'D', state, path.relative_to(root).as_posix(), text, assumed + replaced)
+        author = fields.get('author', '').strip()
+        approver = fields.get('approver', '').strip()
+        if author:
+            item['author'] = author
+        if approver:
+            item['approver'] = approver
         item['authority'] = decision_authority(text, fields)
         objects.append(item)
         proof = fields.get('proof', '').strip().strip('`')
@@ -224,11 +264,12 @@ def read_decisions(root):
                                     'claimed': True, 'fingerprint': None,
                                     'links': [{'type': 'verifies', 'target': number}]})
     # A record is written once (D-217), so it changes only by a later accepted one: a record whose `supersedes:` names
-    # a decision makes that decision superseded, a record or a row alike (a proposed decision does not supersede yet).
+    # a decision makes that decision superseded, a record or a row alike (a proposed decision does not supersede yet,
+    # and an accepted decision superseding a proposed one transitions it to superseded).
     superseded = {link['target'] for item in objects if item['type'] == 'D' and item['state'] == 'accepted'
                   for link in item['links'] if link['type'] == 'supersedes'}
     for item in objects:
-        if item['type'] == 'D' and item['id'] in superseded and item['state'] == 'accepted':
+        if item['type'] == 'D' and item['id'] in superseded and item['state'] in ('accepted', 'proposed'):
             item['state'] = 'superseded'
     return objects
 
@@ -799,20 +840,20 @@ def read_tailoring(root):
 
 
 def active_tailoring(found, today):
-    """Active, in-date TAIL exemptions split into (approved, unapproved) by owner_approved(authorized_by)."""
+    """Active, in-date TAIL exemptions split into (approved, unapproved) by independently_approved(authorized_by) (D-360)."""
     approved, unapproved = [], []
     for item in sorted(found.values(), key=lambda entry: entry['id']):
         body = item.get('body', {})
         if item['type'] != 'TAIL' or item['state'] != 'active' or body.get('valid_until', '') < today:
             continue
-        (approved if owner_approved(found.get(body.get('authorized_by'))) else unapproved).append(item)
+        (approved if independently_approved(found.get(body.get('authorized_by'))) else unapproved).append(item)
     return approved, unapproved
 
 
 def management_findings(found, today):
     """Warnings of the standard's management: an open proposal with no deadline or past it, a decided or applied
-    proposal with no decision, an active exemption past its validity or not approved by the owner; an error for more
-    than one effective version."""
+    proposal with no decision, an active exemption past its validity or without independent approval (D-360); an error
+    for more than one effective version."""
     warnings, errors = [], []
     for item in found.values():
         body = item.get('body', {})
@@ -829,11 +870,12 @@ def management_findings(found, today):
             else:
                 auth = body.get('authorized_by')
                 decision = found.get(auth)
-                if not owner_approved(decision):
+                if not independently_approved(decision):
                     why = ('no such decision' if decision is None else
                            f'state {decision["state"]}' if decision.get('state') != 'accepted' else
-                           'session-decided, not owner-approved')
-                    warnings.append(f'{item["id"]}: active exemption not approved by the owner ({auth}: {why})')
+                           'session-decided, not independently approved' if decision.get('authority') == 'session' else
+                           'self-approved by author, not independently approved')
+                    warnings.append(f'{item["id"]}: active exemption without independent approval ({auth}: {why})')
     effective = sorted(id for id, item in found.items() if item['type'] == 'VER' and item['state'] == 'effective')
     if len(effective) > 1:
         errors.append(f'{", ".join(effective)}: more than one effective version of the standard')
@@ -854,7 +896,7 @@ REGISTRY_KEYS = 'config/registry/*/*.json'
 
 def target_exempt(found, today):
     """The scopes of the exemptions from STD-targets-full in force: active, inside their validity, with an owner,
-    and authorized by an owner-approved decision."""
+    and authorized by an independently approved accepted decision (D-360)."""
     approved, _ = active_tailoring(found, today)
     return [item['body']['scope'] for item in approved
             if item['body'].get('exempts') == TARGETS_RULE and item['body'].get('owner')]
@@ -2482,7 +2524,8 @@ def standard_measure(found, today):
 
 def management_measure(found, today):
     """The standard management's own measure: its proposals by state, those open with no deadline or past it, the
-    owner-approved and unapproved active exemptions (with scope, decision and expiry), and the version in effect."""
+    independently approved and unapproved active exemptions (with scope, decision and expiry), and the version in
+    effect."""
     proposals = [item for item in found.values() if item['type'] == 'PROP']
     open_ones = [item for item in proposals if item['state'] in ('open', 'warning')]
     approved, unapproved = active_tailoring(found, today)
@@ -2575,9 +2618,9 @@ def utc_today():
 
 
 def exempted_ids(found, today):
-    """D-335: the objects an exemption in force covers (config/standard/tailoring, TAIL): an active exemption not past
-    its validity, granted by an owner-approved accepted decision (`authorized_by`), covers every object whose id or
-    source its `scope` matches (a glob)."""
+    """D-335, D-360: the objects an exemption in force covers (config/standard/tailoring, TAIL): an active exemption not
+    past its validity, granted by an independently approved accepted decision (`authorized_by`), covers every object
+    whose id or source its `scope` matches (a glob)."""
     from fnmatch import fnmatchcase
     approved, _ = active_tailoring(found, today)
     return {id for id, item in found.items() for tail in approved
@@ -2764,7 +2807,7 @@ def summary(found):
     managed = found['standard_management']
     active_tails = managed.get('active_exemptions', [])
     if active_tails:
-        lines.append(f'exemptions (TAIL): {managed["exemptions"]} owner-approved, '
+        lines.append(f'exemptions (TAIL): {managed["exemptions"]} independently approved, '
                      f'{managed.get("unapproved_exemptions", 0)} unapproved (not in force):')
         for tail in active_tails:
             tag = 'approved' if tail['approved'] else 'UNAPPROVED'
@@ -2776,7 +2819,7 @@ def summary(found):
                  f'their deadline; {rules["dormant"]} dormant (D-326)')
     lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '
                  f'with no deadline, {managed["overdue"]} past it), {managed["closed"]} closed; {managed["exemptions"]} '
-                 f'owner-approved exemption(s) in force ({managed.get("unapproved_exemptions", 0)} unapproved); '
+                 f'independently approved exemption(s) in force ({managed.get("unapproved_exemptions", 0)} unapproved); '
                  f'effective version {", ".join(managed["effective"]) or "none"}')
     wanted = found['requirements']
     lines.append(f'requirements: {wanted["active"]} active ({", ".join(f"{count} {kind}" for kind, count in wanted["by_type"].items())}); '
