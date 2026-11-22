@@ -33,13 +33,14 @@ def reading(answer):
         return None
     day, start, usd = found.get('day'), found.get('from'), found.get('usd')
     if not (isinstance(day, str) and DAY.match(day) and isinstance(start, str) and DAY.match(start)
-            and start <= day and start[:len('2026-01')] == day[:len('2026-01')] and isinstance(usd, (int, float)) and usd >= 0):
+            and start <= day and start[:len('2026-01')] == day[:len('2026-01')]
+            and isinstance(usd, (int, float)) and not isinstance(usd, bool) and usd >= 0):
         return None
     return {'day': day, 'from': start, 'usd': float(f'{usd:.2f}')}
 
 
 def snapshot(found, now=None):
-    return {'source': 'AWS Cost Explorer GetCostAndUsage (UnblendedCost, month to date), read by the deploy build',
+    return {'source': 'AWS Cost Explorer GetCostAndUsage (UnblendedCost, excluding Credit and Refund, month to date), read by the deploy build',
             'at': now or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), **found}
 
 

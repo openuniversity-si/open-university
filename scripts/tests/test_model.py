@@ -788,6 +788,61 @@ class Changes(unittest.TestCase):
             {'type': 'fixed-by', 'target': 'CHG-7'}, {'type': 'fixed-by', 'target': 'CHG-6'}])
         self.assertEqual(found['INC-escape-99']['body'], {'escaped': 'CHG-99', 'fixed_by': ['CHG-7']})
 
+    def test_escapes_are_also_derived_from_full_suite_failures_reverts_and_post_merge_errata(self):
+        import runs
+        import subprocess
+        def rev(ref):
+            return subprocess.run(['git', 'rev-parse', ref], cwd=self.root, capture_output=True, text=True, check=True).stdout.strip()
+        sha5 = rev('HEAD')
+        commit5 = rev('HEAD^2')
+        six, seven, eight = (int(digit) for digit in '678')
+        self.merge(six, 'feat: six')
+        sha6 = rev('HEAD')
+        self.merge(seven, f'Revert "five"\n\nThis reverts commit {commit5}.')
+        sha7 = rev('HEAD')
+        self.merge(eight, 'fix: eight')
+        sha8 = rev('HEAD')
+        # full-suite failure episode on CHG-6 resolved by CHG-8 (CHG-7 stays inside the same red episode)
+        write(self.root, runs.VERDICTS_FILE, {'check': 'full-suite', 'at': '2026-01-01T00:00:00Z', 'runs': [
+            {'sha': sha8, 'id': len('abcd'), 'conclusion': 'success', 'completed': '2026-01-01T00:04:00Z'},
+            {'sha': sha7, 'id': len('abc'), 'conclusion': 'failure', 'completed': '2026-01-01T00:03:00Z'},
+            {'sha': sha6, 'id': len('ab'), 'conclusion': 'failure', 'completed': '2026-01-01T00:02:00Z'},
+            {'sha': sha5, 'id': 1, 'conclusion': 'success', 'completed': '2026-01-01T00:01:00Z'}]})
+        # post-merge erratum correcting CHG-5 after merge (plus a same-PR erratum that must not count as an escape)
+        self.git('checkout', '-q', '-b', 'b9')
+        write(self.root, 'f9.txt', 'nine')
+        self.git('add', 'f9.txt')
+        self.git('commit', '-q', '-m', 'feat: nine\n\nImplements: REQ-wrong')
+        commit9 = rev('HEAD')
+        write(self.root, model.ERRATA, {'errata': [
+            {'change': 'CHG-5', 'sha': sha5, 'was': 'REQ-a', 'is': None, 'why': 'post-merge fix'},
+            {'commit': commit9, 'was': 'REQ-wrong', 'is': None, 'why': 'same-pr fix'}]})
+        self.git('add', model.ERRATA)
+        self.git('commit', '-q', '-m', 'errata: fix five and nine')
+        self.git('checkout', '-q', 'main')
+        self.git('merge', '-q', '--no-ff', 'b9', '-m', 'Merge pull request #9 from org/b9')
+        found = {item['id']: item for item in model.read_escapes(self.root)}
+        self.assertEqual(sorted(found), ['INC-escape-5', 'INC-escape-6'], 'same-PR erratum on CHG-9 is no escape')
+        self.assertEqual(found['INC-escape-5']['state'], 'resolved')
+        self.assertEqual(found['INC-escape-5']['body']['fixed_by'], ['CHG-7', 'CHG-9'])
+        self.assertEqual((found['INC-escape-6']['state'], found['INC-escape-6']['body']['fixed_by']),
+                         ('resolved', ['CHG-8']))
+        # an unfixed full-suite failure on HEAD produces an open incident (nonconformant under INC.json)
+        sha9 = rev('HEAD')
+        write(self.root, runs.VERDICTS_FILE, {'check': 'full-suite', 'at': '2026-01-01T00:00:00Z', 'runs': [
+            {'sha': sha9, 'id': len('abcde'), 'conclusion': 'failure', 'completed': '2026-01-01T00:05:00Z'},
+            {'sha': sha8, 'id': len('abcd'), 'conclusion': 'success', 'completed': '2026-01-01T00:04:00Z'}]})
+        open_found = {item['id']: item for item in model.read_escapes(self.root)}
+        self.assertEqual((open_found['INC-escape-9']['state'], open_found['INC-escape-9']['body']['fixed_by']),
+                         ('open', []))
+        meta = model.metamodel()
+        self.assertTrue(model.judged(meta, 'INC'))
+        req = {'id': model.ESCAPE_REQUIREMENT, 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': []}
+        graph = {**open_found, req['id']: req}
+        into = model.incoming(graph)
+        self.assertTrue(model.covered(meta, graph['INC-escape-5'], into, graph), 'resolved linked escape is conformant')
+        self.assertFalse(model.covered(meta, graph['INC-escape-9'], into, graph), 'open escape stays nonconformant')
+
     def test_the_escape_rate_is_the_share_of_the_windows_changes_an_escape_was_introduced_by(self):
         self.merge(6, 'fix: a\n\nFixes-PR: 5')
         self.merge(7, 'fix: a again\n\nFixes-PR: 5')
@@ -958,6 +1013,37 @@ class Changes(unittest.TestCase):
         self.assertEqual((counted['active'], counted['implemented'], counted['verified'], counted['with_test']), (len(['REQ-a', 'REQ-b']), 1, 1, 1))
         self.assertEqual(counted['by_type'], {'constraint': 1, 'quality': 1})
 
+    def test_with_verification_requires_a_passing_verdict_or_met_validation(self):
+        found = {
+            'REQ-test': {'id': 'REQ-test', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],
+                         'body': {'type': 'quality'}},
+            'REQ-val': {'id': 'REQ-val', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': [],
+                        'body': {'type': 'quality', 'verification': 'validation'}},
+            'TEST:t': {'id': 'TEST:t', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
+                       'links': [{'type': 'verifies', 'target': 'REQ-test'}]},
+            'TEST:v': {'id': 'TEST:v', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
+                       'links': [{'type': 'verifies', 'target': 'REQ-val'}]},
+            'VERD:v': {'id': 'VERD:v', 'type': 'VERD', 'state': 'pass', 'fingerprint': 'f',
+                       'links': [{'type': 'evidences', 'target': 'TEST:v'}]},
+            'VAL-v': {'id': 'VAL-v', 'type': 'VAL', 'state': 'not-met', 'fingerprint': 'f',
+                      'links': [{'type': 'validates', 'target': 'REQ-val'}],
+                      'body': {'measure': {'kind': 'code-scan', 'paths': ['none/**']}, 'comparator': 'lte', 'threshold': 0}},
+        }
+        # TEST without VERD and validation-verified REQ with not-met VAL (even with a unit test VERD) count 0
+        self.assertEqual(model.requirements_measure(found)['with_verification'], 0)
+        found['VERD:t'] = {'id': 'VERD:t', 'type': 'VERD', 'state': 'fail', 'fingerprint': 'f',
+                           'links': [{'type': 'evidences', 'target': 'TEST:t'}]}
+        self.assertEqual(model.requirements_measure(found)['with_verification'], 0, 'red VERD does not count')
+        found['VERD:t']['state'] = 'pass'
+        self.assertEqual(model.requirements_measure(found)['with_verification'], 1, 'passing VERD counts REQ-test')
+        # NC-requirements-tested (alphabetically before VAL-v) derives after VAL-v so it sees VAL-v met
+        found['NC-requirements-tested'] = {
+            'id': 'NC-requirements-tested', 'type': 'NC', 'state': 'defined', 'fingerprint': 'f', 'links': [],
+            'body': {'measure': {'kind': 'model-share', 'name': 'requirements-tested'}, 'comparator': 'gte', 'threshold': 1}}
+        model.derive_validations(found, self.root, self.git_today())
+        self.assertEqual((found['VAL-v']['state'], found['NC-requirements-tested']['state'],
+                          found['NC-requirements-tested']['measured']), ('met', 'met', 1.0))
+
     def test_the_decisions_measure_counts_states_proofs_and_records_edited_after_they_were_written(self):
         write(self.root, 'docs/domain/decisions/D-1.md', 'one')
         self.git('add', '.')
@@ -1002,6 +1088,33 @@ class Changes(unittest.TestCase):
         self.assertEqual(model.measured(body, {}, self.root, today), (1, True))
         body['window']['size'] = len('long')
         self.assertEqual(model.measured(body, {}, self.root, today)[1], False)
+
+    def test_an_incident_count_never_claims_met_from_a_missing_or_gitignored_folder(self):
+        today, day = self.git_today(), self.git_day()
+        body = {'measure': {'kind': 'incident-count', 'incident': 'owner-stop'}, 'window': {'kind': 'days', 'size': 1},
+                'comparator': 'lte', 'threshold': 0}
+        # missing folder with full window: stays measuring, never false-green (0 <= 0)
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
+        # gitignored empty folder: still stays measuring
+        write(self.root, '.gitignore', '/docs/operations/\n')
+        (self.root / 'docs/operations/incidents').mkdir(parents=True, exist_ok=True)
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
+        # unobserved empty snapshot (D-350) never claims met, with or without a timestamp
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': None, 'observed': False, 'incidents': []})
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': f'{today}T00:00:00Z', 'observed': False, 'incidents': []})
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
+        # fresh observed tracked snapshot with 0 incidents makes the window observable and met
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': f'{today}T00:00:00Z', 'observed': True, 'incidents': []})
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, True))
+        # stale snapshot cannot confirm 0 incidents
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': '2020-01-01T00:00:00Z', 'observed': True, 'incidents': []})
+        self.assertEqual(model.measured(body, {}, self.root, today), (0, False))
+        # incident in snapshot + same id in local folder is deduplicated and immediately fails threshold
+        write(self.root, model.INCIDENTS_SNAPSHOT, {'at': f'{today}T00:00:00Z', 'observed': True, 'incidents': [
+            {'id': 'I-dup', 'kind': 'owner-stop', 'time': f'{day}T00:00:00Z', 'status': 'open'}]})
+        write(self.root, 'docs/operations/incidents/I-dup.md', f'---\nid: I-dup\nkind: owner-stop\ntime: {day}T00:00:00Z\n---\n')
+        self.assertEqual(model.measured(body, {}, self.root, today), (1, True))
 
     def test_a_code_scan_finds_a_sleep_inside_a_loop_and_not_one_outside(self):
         write(self.root, 'lib/poll.py', 'import time\nwhile True:\n    time.sleep(1)\ntime.sleep(1)\n')
