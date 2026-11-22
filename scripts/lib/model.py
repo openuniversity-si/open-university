@@ -163,6 +163,59 @@ def _obj(id, type, state, source, text, links=()):
 
 
 REFUTES = re.compile(r'\brefutes (P-[0-9]+)\b')  # a decision that names the premise it refutes (D-320 refutes P-58)
+SESSION_DECISION = re.compile(r'\bdecided by the session\b', re.I)  # session self-decision under D-325
+RECORD_STATES = {'proposed': 'proposed', 'accepted': 'accepted', 'recorded': 'accepted',
+                 'deprecated': 'deprecated', 'superseded': 'superseded'}
+SELF_AUTHORITIES = ('session', 'self')
+INDEPENDENT_AUTHORITIES = ('owner', 'independent')
+OWNER_ONLY_SCOPES = ('money', 'people')  # D-260, D-360: the only scopes that wait on Daniel himself
+
+
+def requires_daniel(scope):
+    """D-360 (with D-260): Daniel intervenes only on money and other people (OWNER_ONLY_SCOPES); every other
+    decision — including governance, tailoring and technical approvals — is decided by an independent approver
+    (such as the Torre) without waiting on Daniel."""
+    return (scope or '').strip().lower() in OWNER_ONLY_SCOPES
+
+
+def decision_authority(text, fields=None):
+    """Who decided a decision record or row (D-360): `self` when front matter names the same actor as `author` and
+    `approver` (an author never self-approves), else explicit `authority` (`session`, `self`, `owner`, `independent`),
+    else `independent` when distinct `author` and `approver` are named, else `session` when the text marks a session
+    self-decision (`decided by the session`), else `owner`."""
+    mapping = fields or {}
+    author = mapping.get('author', '').strip().casefold()
+    approver = mapping.get('approver', '').strip().casefold()
+    if author and approver and author == approver:
+        return 'self'
+    explicit = mapping.get('authority', '').strip().lower()
+    if explicit in (*SELF_AUTHORITIES, *INDEPENDENT_AUTHORITIES):
+        return explicit
+    if author and approver:
+        return 'independent'
+    return 'session' if SESSION_DECISION.search(text or '') else 'owner'
+
+
+def independently_approved(decision, scope=None):
+    """D-360 (supersedes D-349): whether a decision is accepted and approved independently of its author — never
+    proposed, inactive, session-decided under D-325, or self-approved (`author == approver`). When `scope` is one of
+    OWNER_ONLY_SCOPES (`money`, `people`), requires `owner` authority; otherwise any independent approver (`owner` or
+    `independent`) is accepted without waiting on Daniel."""
+    if not (bool(decision) and decision.get('type') == 'D' and decision.get('state') == 'accepted'):
+        return False
+    authority = decision.get('authority')
+    if authority in SELF_AUTHORITIES:
+        return False
+    author = (decision.get('author') or '').strip().casefold()
+    approver = (decision.get('approver') or '').strip().casefold()
+    if author and approver and author == approver:
+        return False
+    if scope is not None and requires_daniel(scope):
+        return authority == 'owner'
+    return True
+
+
+owner_approved = independently_approved
 
 
 def read_decisions(root):
@@ -173,11 +226,20 @@ def read_decisions(root):
         fields = dict(line.split(':', 1) for line in head.group(1).splitlines() if ':' in line) if head else {}
         number = fields.get('number', path.stem).strip()
         seen.add(number)
+        state = RECORD_STATES.get(fields.get('status', '').strip().lower(), 'accepted')
         refuted = set(REFUTES.findall(text))
         assumed = [{'type': 'refutes' if ident in refuted else 'assumes', 'target': ident}
                    for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
         replaced = [{'type': 'supersedes', 'target': ident} for ident in re.findall(r'\bD-[0-9]+\b', fields.get('supersedes', ''))]
-        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed + replaced))
+        item = _obj(number, 'D', state, path.relative_to(root).as_posix(), text, assumed + replaced)
+        author = fields.get('author', '').strip()
+        approver = fields.get('approver', '').strip()
+        if author:
+            item['author'] = author
+        if approver:
+            item['approver'] = approver
+        item['authority'] = decision_authority(text, fields)
+        objects.append(item)
         proof = fields.get('proof', '').strip().strip('`')
         if proof:
             objects.append({'id': f'TEST:{proof}', 'type': 'TEST', 'state': 'active', 'source': proof, 'claimed': True,
@@ -193,6 +255,7 @@ def read_decisions(root):
             state = row_state(row.get('Status', ''))
             proof = row_proof(root, row.get('Proof', ''), index)
             item = _obj(number, 'D', state, DECISION_TABLE, row['line'])
+            item['authority'] = decision_authority(row['line'])
             item['proof'] = {key: proof[key] for key in ('outcome', 'missing', 'outside')}
             objects.append(item)
             if state == 'accepted' and proof['outcome'] == 'proven':
@@ -200,12 +263,13 @@ def read_decisions(root):
                     objects.append({'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name,
                                     'claimed': True, 'fingerprint': None,
                                     'links': [{'type': 'verifies', 'target': number}]})
-    # A record is written once (D-217), so it changes only by a later one: a record whose `supersedes:` names a
-    # decision makes that decision superseded, a record or a row alike (the row's Status cell is the older path).
-    superseded = {link['target'] for item in objects if item['type'] == 'D' for link in item['links']
-                  if link['type'] == 'supersedes'}
+    # A record is written once (D-217), so it changes only by a later accepted one: a record whose `supersedes:` names
+    # a decision makes that decision superseded, a record or a row alike (a proposed decision does not supersede yet,
+    # and an accepted decision superseding a proposed one transitions it to superseded).
+    superseded = {link['target'] for item in objects if item['type'] == 'D' and item['state'] == 'accepted'
+                  for link in item['links'] if link['type'] == 'supersedes'}
     for item in objects:
-        if item['type'] == 'D' and item['id'] in superseded and item['state'] == 'accepted':
+        if item['type'] == 'D' and item['id'] in superseded and item['state'] in ('accepted', 'proposed'):
             item['state'] = 'superseded'
     return objects
 
@@ -239,14 +303,15 @@ def table_rows(text):
 
 INACTIVE_ROW = {'superseded': 'superseded', 'replaced': 'superseded', 'retired': 'deprecated',
                 'deprecated': 'deprecated'}
+ROW_STATES = {**INACTIVE_ROW, 'proposed': 'proposed'}
 
 
 def row_state(status):
     """A row's state from its Status cell: one that starts with superseded or replaced is superseded, one that starts
-    with retired or deprecated is deprecated (the D type's inactive states); any other status (proven, recorded, test
-    pending, rite, implemented) is accepted."""
+    with retired or deprecated is deprecated (the D type's inactive states), one that starts with proposed is proposed;
+    any other status (proven, recorded, test pending, rite, implemented) is accepted."""
     word = re.match(r'\W*([a-z]+)', status.lower())
-    return INACTIVE_ROW.get(word.group(1), 'accepted') if word else 'accepted'
+    return ROW_STATES.get(word.group(1), 'accepted') if word else 'accepted'
 
 
 PROOF_FILE = re.compile(r'(?<![\w./-])((?:[\w.-]+/)*(?:test_\w+\.py|[\w-]+(?:\.[\w-]+)*\.(?:test|spec)\.(?:sh|ts|tsx|js|mjs)))'
@@ -779,9 +844,21 @@ def read_tailoring(root):
         {'type': 'exempts', 'target': body['exempts']}, {'type': 'authorized-by', 'target': body['authorized_by']}])
 
 
+def active_tailoring(found, today):
+    """Active, in-date TAIL exemptions split into (approved, unapproved) by independently_approved(authorized_by) (D-360)."""
+    approved, unapproved = [], []
+    for item in sorted(found.values(), key=lambda entry: entry['id']):
+        body = item.get('body', {})
+        if item['type'] != 'TAIL' or item['state'] != 'active' or body.get('valid_until', '') < today:
+            continue
+        (approved if independently_approved(found.get(body.get('authorized_by'))) else unapproved).append(item)
+    return approved, unapproved
+
+
 def management_findings(found, today):
     """Warnings of the standard's management: an open proposal with no deadline or past it, a decided or applied
-    proposal with no decision, an active exemption past its validity; an error for more than one effective version."""
+    proposal with no decision, an active exemption past its validity or without independent approval (D-360); an error
+    for more than one effective version."""
     warnings, errors = [], []
     for item in found.values():
         body = item.get('body', {})
@@ -792,8 +869,18 @@ def management_findings(found, today):
                 warnings.append(f'{item["id"]}: past its deadline {body["deadline"]}')
         if item['type'] == 'PROP' and item['state'] in ('decided', 'applied') and not body.get('decided_by'):
             warnings.append(f'{item["id"]}: {item["state"]} with no decision')
-        if item['type'] == 'TAIL' and item['state'] == 'active' and body.get('valid_until', today) < today:
-            warnings.append(f'{item["id"]}: active past its validity {body["valid_until"]}')
+        if item['type'] == 'TAIL' and item['state'] == 'active':
+            if body.get('valid_until', today) < today:
+                warnings.append(f'{item["id"]}: active past its validity {body["valid_until"]}')
+            else:
+                auth = body.get('authorized_by')
+                decision = found.get(auth)
+                if not independently_approved(decision):
+                    why = ('no such decision' if decision is None else
+                           f'state {decision["state"]}' if decision.get('state') != 'accepted' else
+                           'session-decided, not independently approved' if decision.get('authority') == 'session' else
+                           'self-approved by author, not independently approved')
+                    warnings.append(f'{item["id"]}: active exemption without independent approval ({auth}: {why})')
     effective = sorted(id for id, item in found.items() if item['type'] == 'VER' and item['state'] == 'effective')
     if len(effective) > 1:
         errors.append(f'{", ".join(effective)}: more than one effective version of the standard')
@@ -813,10 +900,11 @@ REGISTRY_KEYS = 'config/registry/*/*.json'
 
 
 def target_exempt(found, today):
-    """The scopes of the exemptions from STD-targets-full in force: active, inside their validity, with an owner."""
-    return [item['body']['scope'] for item in found.values()
-            if item['type'] == 'TAIL' and item.get('body', {}).get('exempts') == TARGETS_RULE
-            and item['state'] == 'active' and item['body']['valid_until'] >= today and item['body'].get('owner')]
+    """The scopes of the exemptions from STD-targets-full in force: active, inside their validity, with an owner,
+    and authorized by an independently approved accepted decision (D-360)."""
+    approved, _ = active_tailoring(found, today)
+    return [item['body']['scope'] for item in approved
+            if item['body'].get('exempts') == TARGETS_RULE and item['body'].get('owner')]
 
 
 def target_errors(found, root, today=None):
@@ -1045,34 +1133,102 @@ def _change_id(sha, subject):
 
 
 TRAILER_FIXES = re.compile(r'^Fixes-PR:\s*(.+)$', re.MULTILINE)
+REVERT_COMMIT = re.compile(r'^This reverts commit ([0-9a-f]{7,40})\b', re.MULTILINE)
+REVERT_PR = re.compile(r'^Revert\s+"(?:Merge pull request #(?P<merge>[0-9]+)\b|[^"]*\(#(?P<pr>[0-9]+)\))', re.MULTILINE)
 ESCAPE_REQUIREMENT = 'REQ-escape-under-1'
 
 
 def read_escapes(root):
-    """Escapes (INC, F4d): a defect a merged change brought to main that a later merge repaired. Each pull request the
-    commits of a first-parent merge name in `Fixes-PR:` (comma-separated numbers, `#` optional) is one incident,
-    INC-escape-<n>, resolved: introduced by CHG-<n> (the change that let it through), fixed by every merge that names
-    it, violating REQ-escape-under-1. A number no merge of HEAD carries leaves a link to a change that does not exist
-    (a warning of check), never a guessed target."""
-    found = {}
+    """Escapes (INC, F4d): a defect a merged change brought to main that a later merge repaired or full-suite caught.
+    Derived from four sources, deduplicated per escaped change (INC-escape-<id>, violating REQ-escape-under-1):
+    (1) `Fixes-PR:` trailers in a later merge's commits;
+    (2) git `Revert` commits reverting an earlier merged commit or pull request;
+    (3) `full-suite` red episodes on main in config/validation/verdicts.json (open while main is still red, resolved
+        by the merge whose full-suite run turned green again);
+    (4) post-merge entries in config/model/errata.json (an erratum not already present at the escaped change's merge).
+    A Fixes-PR number no merge of HEAD carries still leaves a link to a change that does not exist (a warning of check),
+    never a guessed target."""
+    import runs
+    found, merge_by_sha, known_changes, commit_to_merge, merge_records = {}, {}, set(), {}, []
     for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
         sha, _, subject = line.partition('\x1f')
         fixer = _change_id(sha, subject)
-        for listed in TRAILER_FIXES.findall(_git(root, 'log', '--format=%B', f'{sha}^1..{sha}')):
+        merge_by_sha[sha] = fixer
+        known_changes.add(fixer)
+        commit_to_merge[sha] = (sha, fixer)
+        raw = _git(root, 'log', '--format=%x1e%H%x1f%B', f'{sha}^1..{sha}')
+        bodies = []
+        for chunk in raw.split('\x1e')[1:]:
+            csha, _, body = chunk.partition('\x1f')
+            csha = csha.strip()
+            if csha:
+                commit_to_merge[csha] = (sha, fixer)
+            bodies.append(body)
+        merge_records.append((sha, fixer, '\n'.join(bodies)))
+
+    def resolve_commit(token):
+        if token in commit_to_merge:
+            return commit_to_merge[token][1]
+        matches = {owner[1] for csha, owner in commit_to_merge.items() if csha.startswith(token)}
+        return next(iter(matches)) if len(matches) == 1 else None
+
+    def record(escaped, source, fixer=None, state='resolved'):
+        if not escaped or escaped == fixer:
+            return
+        key = escaped.removeprefix('CHG-')
+        item = found.get(key)
+        if item is None:
+            links = [{'type': 'introduced-by', 'target': escaped},
+                     {'type': 'violates', 'target': ESCAPE_REQUIREMENT}]
+            item = found[key] = _obj(f'INC-escape-{key}', 'INC', state, source, escaped, links)
+            item['body'] = {'escaped': escaped, 'fixed_by': []}
+        elif state == 'resolved' and item['state'] == 'open':
+            item['state'] = 'resolved'
+        if fixer and fixer not in item['body']['fixed_by']:
+            item['body']['fixed_by'].append(fixer)
+            item['links'].append({'type': 'fixed-by', 'target': fixer})
+
+    for sha, fixer, text in merge_records:
+        for listed in TRAILER_FIXES.findall(text):
             for number in re.findall(r'#?([0-9]+)', listed):
-                escaped = f'CHG-{number}'
-                if escaped == fixer:
-                    continue
-                item = found.get(number)
-                if item is None:
-                    links = [{'type': 'introduced-by', 'target': escaped},
-                             {'type': 'violates', 'target': ESCAPE_REQUIREMENT}]
-                    item = found[number] = _obj(f'INC-escape-{number}', 'INC', 'resolved', f'git:{sha}', escaped,
-                                                links)
-                    item['body'] = {'escaped': escaped, 'fixed_by': []}
-                if fixer not in item['body']['fixed_by']:
-                    item['body']['fixed_by'].append(fixer)
-                    item['links'].append({'type': 'fixed-by', 'target': fixer})
+                record(f'CHG-{number}', f'git:{sha}', fixer)
+        for target_sha in REVERT_COMMIT.findall(text):
+            record(resolve_commit(target_sha), f'git:{sha}', fixer)
+        for match in REVERT_PR.finditer(text):
+            number = match.group('merge') or match.group('pr')
+            if f'CHG-{number}' in known_changes:
+                record(f'CHG-{number}', f'git:{sha}', fixer)
+
+    verdicts = runs.read_verdicts(root) or {}
+    episode = None
+    for run in reversed(verdicts.get('runs', [])):
+        sha = run.get('sha')
+        if sha not in merge_by_sha:
+            continue
+        change = merge_by_sha[sha]
+        if run.get('conclusion') == 'success':
+            if episode is not None:
+                record(episode[0], episode[1], change, state='resolved')
+                episode = None
+        elif episode is None:
+            episode = (change, f'{runs.VERDICTS_FILE} run {run.get("id", sha[:len("0123456789ab")])}')
+    if episode is not None:
+        record(episode[0], episode[1], fixer=None, state='open')
+
+    errata_path = Path(root) / ERRATA
+    if errata_path.is_file():
+        for entry in _read_json(errata_path).get('errata', []):
+            ref = entry.get('commit') or entry.get('sha')
+            owner = commit_to_merge.get(ref) if ref else None
+            if owner is None:
+                continue
+            owner_sha, escaped = owner
+            if ref in _git(root, 'show', f'{owner_sha}:{ERRATA}'):
+                continue
+            added = _git(root, 'log', '-S', ref, '--reverse', '--format=%H', '--', ERRATA).splitlines()
+            fixer = next((commit_to_merge[c][1] for c in added if c in commit_to_merge and commit_to_merge[c][1] != escaped),
+                         None)
+            record(escaped, ERRATA, fixer, state='resolved')
     return list(found.values())
 
 
@@ -1257,14 +1413,22 @@ def measured(body, found, root, today):
         from datetime import date, timedelta
         start = (date.fromisoformat(today) - timedelta(days=window['size'])).isoformat()
         dates = [day for _, day in _merges(root)]
-        return (len(incidents(root, measure['incident'], start, today)), bool(dates) and min(dates) <= start)
+        count = len(incidents(root, measure['incident'], start, today))
+        over = body.get('comparator') == 'lte' and 'threshold' in body and count > body['threshold']
+        observable = _incident_source_observable(root, window['size'], today)
+        return (count, over or (observable and bool(dates) and min(dates) <= start))
     if measure['kind'] == 'run-durations':
         import runs
         from datetime import date
         recorded = runs.read(root, measure['workflow'])
         if not recorded or not recorded['runs']:
             return None, False
-        fresh = (date.fromisoformat(today) - date.fromisoformat(recorded['at'][:len('2026-01-01')])).days <= measure['max_age_days']
+        day_len = len('2026-01-01')
+        at_day = recorded['at'][:day_len]
+        newest = max((run.get('started', '')[:day_len] for run in recorded['runs']
+                      if isinstance(run.get('started'), str) and len(run['started']) >= day_len), default='')
+        ref_day = min(at_day, newest) if newest else at_day
+        fresh = (date.fromisoformat(today) - date.fromisoformat(ref_day)).days <= measure['max_age_days']
         values = [run['seconds'] for run in recorded['runs']]
         return runs.percentile(values, measure['percentile']), fresh and len(values) >= measure['min_runs']
     if measure['kind'] == 'aws-spend':
@@ -1315,15 +1479,57 @@ def refresh_runs(found, root):
     return done
 
 
+INCIDENTS_SNAPSHOT = 'config/validation/incidents.json'
 INCIDENT_FIELD = re.compile(r'^(kind|time): (\S+)$', re.MULTILINE)
 
 
+def _incidents_snapshot(root):
+    path = Path(root) / INCIDENTS_SNAPSHOT
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) and isinstance(data.get('incidents'), list) else None
+
+
+def _incident_source_observable(root, window_days, today):
+    """Whether `incident-count` has an observable source on this checkout: a fresh observed tracked snapshot
+    (config/validation/incidents.json) or a local docs/operations/incidents folder that exists and is not gitignored.
+    Reading zero files from an unobserved snapshot or a missing/gitignored folder never proves zero incidents (D-350)."""
+    from datetime import date
+    day_len = len('2026-01-01')
+    snap = _incidents_snapshot(root)
+    if snap and snap.get('observed', True) is True and isinstance(snap.get('at'), str) and len(snap['at']) >= day_len:
+        if (date.fromisoformat(today) - date.fromisoformat(snap['at'][:day_len])).days <= window_days:
+            return True
+    folder = Path(root) / 'docs/operations/incidents'
+    if not folder.is_dir():
+        return False
+    return subprocess.run(['git', 'check-ignore', '-q', 'docs/operations/incidents'], cwd=root,
+                          capture_output=True).returncode != 0
+
+
 def incidents(root, kind, start, end):
-    """The incident records (docs/operations/incidents, scripts/incident) of one kind opened on [start, end)."""
-    found = []
+    """The incident records (config/validation/incidents.json and local docs/operations/incidents) of one kind opened
+    on [start, end), deduplicated by id."""
+    day_len = len('2026-01-01')
+    found, seen = [], set()
+    snap = _incidents_snapshot(root)
+    if snap:
+        for entry in snap['incidents']:
+            if not isinstance(entry, dict):
+                continue
+            ident = entry.get('id')
+            if ident and entry.get('kind') == kind and start <= str(entry.get('time', ''))[:day_len] < end:
+                if ident not in seen:
+                    seen.add(ident)
+                    found.append(ident)
     for path in sorted((Path(root) / 'docs/operations/incidents').glob('I-*.md')):
         fields = dict(INCIDENT_FIELD.findall(path.read_text().split('\n---', 1)[0]))
-        if fields.get('kind') == kind and start <= fields.get('time', '')[:len('2026-01-01')] < end:
+        if fields.get('kind') == kind and start <= fields.get('time', '')[:day_len] < end and path.stem not in seen:
+            seen.add(path.stem)
             found.append(path.stem)
     return found
 
@@ -1426,8 +1632,9 @@ def derive_validations(found, root, today=None):
     is short, defined while no source is wired."""
     today = today or utc_today()
     vals = [item for item in found.values() if item['type'] in ('VAL', 'NC') and 'body' in item]  # NC: D-348
-    # a composite reads the states of the others, so it is derived after them
-    for item in sorted(vals, key=lambda item: item['body']['measure']['kind'] == 'all-met'):
+    # direct measures first, then model-share (which reads VAL states), then all-met composites last
+    for item in sorted(vals, key=lambda item: (item['body']['measure']['kind'] == 'all-met',
+                                               item['body']['measure']['kind'] == 'model-share')):
         value, enough = measured(item['body'], found, root, today)
         if value is None:
             item['state'] = 'defined'
@@ -1486,7 +1693,8 @@ def requirement_states(found):
 
 def requirements_measure(found):
     """The requirements system's own measure: active requirements by type, implemented, verified, with an
-    architecture element, with a test, and the suspect links pointing at them."""
+    architecture element, with a test, and with passing verification on HEAD (a passing VERD for a test-verified
+    requirement, or a met VAL for a validation-verified requirement)."""
     into = incoming(found)
     states = requirement_states(found)
     active = [found[id] for id in states]
@@ -1496,14 +1704,23 @@ def requirements_measure(found):
         by_type[kind] = by_type.get(kind, 0) + 1
     def has(item, link, kind):
         return any(name == link and found.get(source, {}).get('type') == kind for name, source in into.get(item['id'], []))
+    def has_pass_verdict(test_id):
+        return any(name == 'evidences' and found.get(source, {}).get('type') == 'VERD'
+                   and found[source].get('state') == 'pass' for name, source in into.get(test_id, []))
+    def verified_in_head(item):
+        if item.get('body', {}).get('verification') == 'validation':
+            return any(name == 'validates' and found.get(source, {}).get('type') == 'VAL'
+                       and found[source].get('state') == 'met' for name, source in into.get(item['id'], []))
+        return any(name == 'verifies' and found.get(source, {}).get('type') == 'TEST'
+                   and found[source].get('fingerprint') is not None and has_pass_verdict(source)
+                   for name, source in into.get(item['id'], []))
     return {
         'active': len(active), 'by_type': dict(sorted(by_type.items())),
         'implemented': sum(1 for state in states.values() if state in ('implemented', 'verified')),
         'verified': sum(1 for state in states.values() if state == 'verified'),
         'with_element': sum(1 for item in active if has(item, 'satisfies', 'ARC')),
         'with_test': sum(1 for item in active if has(item, 'verifies', 'TEST')),
-        'with_verification': sum(1 for item in active if has(item, 'verifies', 'TEST') or (
-            item.get('body', {}).get('verification') == 'validation' and has(item, 'validates', 'VAL'))),
+        'with_verification': sum(1 for item in active if verified_in_head(item)),
     }
 
 
@@ -2474,16 +2691,27 @@ def standard_measure(found, today):
 
 def management_measure(found, today):
     """The standard management's own measure: its proposals by state, those open with no deadline or past it, the
-    exemptions in force, and the version in effect."""
+    independently approved and unapproved active exemptions (with scope, decision and expiry), and the version in
+    effect."""
     proposals = [item for item in found.values() if item['type'] == 'PROP']
     open_ones = [item for item in proposals if item['state'] in ('open', 'warning')]
+    approved, unapproved = active_tailoring(found, today)
+
+    def detail(item, is_approved):
+        body = item['body']
+        return {'id': item['id'], 'exempts': body.get('exempts'), 'scope': body.get('scope'),
+                'authorized_by': body.get('authorized_by'), 'valid_until': body.get('valid_until'),
+                'owner': body.get('owner'), 'approved': is_approved}
+
     return {
         'proposals': len(proposals),
         'open': len(open_ones),
         'closed': sum(1 for item in proposals if item['state'] in ('decided', 'applied', 'rejected')),
         'undated': sum(1 for item in open_ones if not item.get('body', {}).get('deadline')),
         'overdue': sum(1 for item in open_ones if item.get('body', {}).get('deadline', today) < today),
-        'exemptions': sum(1 for item in found.values() if item['type'] == 'TAIL' and item['state'] == 'active'),
+        'exemptions': len(approved),
+        'unapproved_exemptions': len(unapproved),
+        'active_exemptions': [detail(item, True) for item in approved] + [detail(item, False) for item in unapproved],
         'effective': sorted(id for id, item in found.items() if item['type'] == 'VER' and item['state'] == 'effective'),
     }
 
@@ -2564,15 +2792,13 @@ def utc_today():
 
 
 def exempted_ids(found, today):
-    """D-335: the objects an exemption in force covers (config/standard/tailoring, TAIL): an active exemption not past
-    its validity, granted by a decision of the model (`authorized_by`), covers every object whose id or source its
-    `scope` matches (a glob)."""
+    """D-335, D-360: the objects an exemption in force covers (config/standard/tailoring, TAIL): an active exemption not
+    past its validity, granted by an independently approved accepted decision (`authorized_by`), covers every object
+    whose id or source its `scope` matches (a glob)."""
     from fnmatch import fnmatchcase
-    granted = [item['body'] for item in found.values() if item['type'] == 'TAIL' and item['state'] == 'active'
-               and item.get('body', {}).get('valid_until', '') >= today
-               and found.get(item['body'].get('authorized_by'), {}).get('type') == 'D']
-    return {id for id, item in found.items() for body in granted
-            if fnmatchcase(id, body['scope']) or fnmatchcase(item.get('source', ''), body['scope'])}
+    approved, _ = active_tailoring(found, today)
+    return {id for id, item in found.items() for tail in approved
+            if fnmatchcase(id, tail['body']['scope']) or fnmatchcase(item.get('source', ''), tail['body']['scope'])}
 
 
 def closed_shown():
@@ -2752,16 +2978,25 @@ def summary(found):
                   for name in item['systems']]
     if 'stop' in found:  # D-331, D-335: the program's stop counts the systems closed, not the systems at F
         lines.append(f'stop (D-335): {len(found["stop"]["closed"])} of {found["stop"]["systems"]} system(s) closed')
+    managed = found['standard_management']
+    active_tails = managed.get('active_exemptions', [])
+    if active_tails:
+        lines.append(f'exemptions (TAIL): {managed["exemptions"]} independently approved, '
+                     f'{managed.get("unapproved_exemptions", 0)} unapproved (not in force):')
+        for tail in active_tails:
+            tag = 'approved' if tail['approved'] else 'UNAPPROVED'
+            lines.append(f'  {tail["id"]}: [{tag}] {tail["exempts"]} on {tail["scope"]} '
+                         f'by {tail["authorized_by"]} until {tail["valid_until"]}')
     rules = found['standard']
     lines.append(f'standard: {rules["rules"]} rule(s) ({rules["blocking"]} blocking, {rules["warning"]} warning, '
                  f'{rules["draft"]} draft; {rules["executable"]} executable, {rules["judgment"]} judgment, '
                  f'{rules["unreviewed"]} unreviewed), {rules["tested"]} verified by a test, '
                  f'{rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
                  f'their deadline; {rules["dormant"]} dormant (D-326)')
-    managed = found['standard_management']
     lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '
                  f'with no deadline, {managed["overdue"]} past it), {managed["closed"]} closed; {managed["exemptions"]} '
-                 f'exemption(s) in force; effective version {", ".join(managed["effective"]) or "none"}')
+                 f'independently approved exemption(s) in force ({managed.get("unapproved_exemptions", 0)} unapproved); '
+                 f'effective version {", ".join(managed["effective"]) or "none"}')
     wanted = found['requirements']
     lines.append(f'requirements: {wanted["active"]} active ({", ".join(f"{count} {kind}" for kind, count in wanted["by_type"].items())}); '
                  f'{wanted["implemented"]} implemented, {wanted["verified"]} verified, {wanted["with_element"]} with an '
