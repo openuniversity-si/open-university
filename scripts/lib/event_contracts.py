@@ -18,7 +18,7 @@ import config
 import json_schema
 
 ROOT = Path(__file__).resolve().parents[2]
-PAYLOAD_FILE = re.compile(r'^(?P<type>[a-z][a-z-]*(?:\.[a-z][a-z-]*)+)\.v(?P<version>[1-9][0-9]*)\.json$')
+PAYLOAD_FILE = json_schema.EVENT_PAYLOAD_FILE
 
 
 class ContractError(ValueError):

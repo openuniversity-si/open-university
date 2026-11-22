@@ -5,6 +5,7 @@
   "owner": "engine-lane",
   "paths": [
     "scripts/lib/config_check.py",
+    "scripts/lib/git_objects.py",
     "scripts/lib/python_source.py",
     "scripts/lib/registry_readers.py",
     "scripts/lib/source_facts.py",
@@ -12,12 +13,12 @@
     "scripts/tests/config-readers.test.sh",
     "scripts/tests/test_config_check.py",
     "scripts/tests/test_config_registry_readers.py",
+    "scripts/tests/test_git_objects.py",
     "scripts/tests/test_text_check.py",
     "scripts/tests/text-check.test.sh"
   ],
   "requires": {
-    "engine-config": "^1",
-    "engine-git-ref": "^1"
+    "engine-config": "^1"
   },
   "realizes": [
     "ARC-config"

@@ -8,9 +8,7 @@
   "satisfies": [
     "REQ-slo-budgets-budgets-tighten-only"
   ],
-  "depends_on": [
-    "ARC-events"
-  ],
+  "depends_on": [],
   "basis": [
     "D-317",
     "D-322"

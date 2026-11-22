@@ -4,29 +4,20 @@
   "cell": "engine",
   "owner": "engine-lane",
   "paths": [
-    "scripts/config",
-    "scripts/config-latency",
     "scripts/lib/config.py",
-    "scripts/lib/config_cli.py",
-    "scripts/lib/config_latency.py",
     "scripts/lib/entrypoint_mentions.py",
     "scripts/lib/generated/**",
     "scripts/lib/globs.py",
     "scripts/lib/json_schema.py",
     "scripts/lib/script_covers.py",
     "scripts/lib/units.py",
-    "scripts/tests/config-port.test.sh",
     "scripts/tests/config.test.sh",
     "scripts/tests/test_config.py",
-    "scripts/tests/test_config_port.py",
     "scripts/tests/test_json_schema.py"
   ],
   "shared": [
     "scripts/lib/generated/**"
   ],
-  "requires": {
-    "engine-events": "^1"
-  },
   "realizes": [
     "ARC-config"
   ]

@@ -17,7 +17,6 @@ import sys
 if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config  # noqa: E402
-import forge_events  # noqa: E402
 
 AgentRequest = namedtuple('AgentRequest', 'prompt model effort cwd')
 AgentResult = namedtuple('AgentResult', 'provider model ok text tokens_in tokens_out session')
@@ -50,7 +49,7 @@ def adapter(name=None):
 
 def run_measured(provider, request, port, step, subject_fields):
     """Run one agent turn as a measured engine step: engine.step.measured carries the provider, model and tokens."""
-    with forge_events.measured(port, step, subject_fields) as measurement:
+    with port.measured(step, subject_fields) as measurement:
         measurement.provider, measurement.model = provider.name, request.model
         result = provider.run(request)
         measurement.model = result.model or request.model

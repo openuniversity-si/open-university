@@ -1491,6 +1491,24 @@ class Layers(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn('ARC-up: depends on ARC-mid of a higher layer', errors[0])
 
+    def test_same_layer_and_multi_node_dependency_cycles_are_refused(self):
+        def arc(id, layer, *targets):
+            return {'id': id, 'type': 'ARC', 'state': 'active', 'fingerprint': 'f', 'body': {'layer': layer},
+                    'links': [{'type': 'depends-on', 'target': target} for target in targets]}
+        same_layer = {item['id']: item for item in (arc('ARC-a', 0, 'ARC-b'), arc('ARC-b', 0, 'ARC-a'))}
+        errors = model.layer_errors(same_layer)
+        self.assertEqual(errors, ['ARC-a: dependency cycle ARC-a -> ARC-b -> ARC-a; '
+                                  'break the cycle instead of declaring it (D-322)'])
+        three_node = {item['id']: item for item in (arc('ARC-x', 1, 'ARC-y'), arc('ARC-y', 1, 'ARC-z'),
+                                                    arc('ARC-z', 1, 'ARC-x'))}
+        self.assertEqual(model.layer_errors(three_node),
+                         ['ARC-x: dependency cycle ARC-x -> ARC-y -> ARC-z -> ARC-x; '
+                          'break the cycle instead of declaring it (D-322)'])
+        self_loop = {'ARC-self': arc('ARC-self', 0, 'ARC-self')}
+        self.assertEqual(model.layer_errors(self_loop),
+                         ['ARC-self: dependency cycle ARC-self -> ARC-self; '
+                          'break the cycle instead of declaring it (D-322)'])
+
 
 class PhantomTypes(unittest.TestCase):
     """CFG, CON, and LESSON have real readers and conformance rules (audit finding A6)."""

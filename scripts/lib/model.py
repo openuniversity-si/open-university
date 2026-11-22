@@ -1574,14 +1574,32 @@ def read_adrs(root):
 
 
 def layer_errors(found):
-    """An architecture element may declare a dependency on its own layer or a lower one (D-322); one that goes up is
-    a defect to break, never accepted by declaring it."""
+    """An architecture element may declare a dependency on its own layer or a lower one (D-322), and the declared
+    dependency graph between elements must be acyclic; an upward edge or a cycle (even within the same layer) is a
+    defect to break, never accepted by declaring it."""
     layers = {id: item['body'].get('layer') for id, item in found.items() if item['type'] == 'ARC' and 'body' in item}
-    return [f'{id}: depends on {link["target"]} of a higher layer ({layers[link["target"]]} > {layers[id]}); break the '
-            f'dependency instead of declaring it (D-322)'
-            for id in sorted(layers) for link in found[id]['links']
-            if link['type'] == 'depends-on' and layers[id] is not None and layers.get(link['target']) is not None
-            and layers[link['target']] > layers[id]]
+    errors = [f'{id}: depends on {link["target"]} of a higher layer ({layers[link["target"]]} > {layers[id]}); break the '
+              f'dependency instead of declaring it (D-322)'
+              for id in sorted(layers) for link in found[id]['links']
+              if link['type'] == 'depends-on' and layers[id] is not None and layers.get(link['target']) is not None
+              and layers[link['target']] > layers[id]]
+    graph = {id: sorted({link['target'] for link in found[id]['links']
+                         if link['type'] == 'depends-on' and link['target'] in layers})
+             for id in sorted(layers)}
+    cycles = set()
+    for start in sorted(graph):
+        stack = [(start, [start])]
+        while stack:
+            node, path = stack.pop()
+            for nxt in graph[node]:
+                if nxt == start:
+                    cycles.add(tuple(path))
+                elif nxt > start and nxt not in path:
+                    stack.append((nxt, [*path, nxt]))
+    for cycle in sorted(cycles):
+        errors.append(f'{cycle[0]}: dependency cycle {" -> ".join([*cycle, cycle[0]])}; '
+                      f'break the cycle instead of declaring it (D-322)')
+    return errors
 
 
 def reflexion(found):
