@@ -13,6 +13,8 @@
     "scripts/lib/gate_workflows.py",
     "scripts/site-canary",
     "scripts/lib/site_canary.py",
+    "scripts/workflow-attest",
+    "scripts/lib/workflow_attest.py",
     "config/registry/service.json",
     "contracts/service/**",
     "services/runner/**",
