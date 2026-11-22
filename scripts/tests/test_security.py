@@ -53,6 +53,50 @@ class Controls(unittest.TestCase):
         self.assertTrue(any('omits explicit coverage' in line for line in warnings), warnings)
         self.assertTrue(any('STD-dormant is inert (rule is dormant)' in line for line in warnings), warnings)
 
+    def test_a_function_checked_control_requires_the_function_present_and_exercised(self):
+        """D-352 (4): CTRL-ssdf-po.2 derives implemented only when independently_approved is present and exercised in
+        live code; when absent or uncalled it stays partial and warns."""
+        with tempfile.TemporaryDirectory(prefix='ctrl-fn-') as tmp:
+            root = Path(tmp)
+            model_py = root / 'scripts' / 'lib' / 'model.py'
+            model_py.parent.mkdir(parents=True, exist_ok=True)
+            std_indep = {
+                'id': 'STD-model-independent-approval', 'type': 'STD', 'state': 'blocking', 'fingerprint': 'f',
+                'links': [], 'rule': {'id': 'STD-model-independent-approval', 'state': 'blocking',
+                                      'check': {'kind': 'function', 'ref': 'scripts/lib/model.py:independently_approved'}},
+            }
+            std_guard = {
+                'id': 'STD-gate-production-guard', 'type': 'STD', 'state': 'blocking', 'fingerprint': 'f',
+                'links': [], 'rule': {'id': 'STD-gate-production-guard', 'state': 'blocking',
+                                      'check': {'kind': 'gate-stage', 'ref': 'production guard'}},
+            }
+            ctrl_body = {
+                'applicable': True, 'coverage': 'full',
+                'implemented_by': ['STD-model-independent-approval', 'STD-gate-production-guard'],
+            }
+            found = {
+                'STD-model-independent-approval': std_indep,
+                'STD-gate-production-guard': std_guard,
+                'CTRL-ssdf-po.2': {'id': 'CTRL-ssdf-po.2', 'type': 'CTRL', 'state': 'gap', 'fingerprint': 'f',
+                                   'links': [], 'body': ctrl_body},
+            }
+            model_py.write_text('def other():\n    return True\n')
+            self.assertEqual(model.control_state(ctrl_body, found, root=root), 'partial')
+            warnings = model.security_findings(found, root=root, today='2026-11-22')
+            self.assertTrue(any('is not present' in line for line in warnings), warnings)
+
+            model_py.write_text('def independently_approved(decision):\n    return bool(decision)\n')
+            self.assertEqual(model.control_state(ctrl_body, found, root=root), 'partial')
+            warnings = model.security_findings(found, root=root, today='2026-11-22')
+            self.assertTrue(any('is not exercised in live code' in line for line in warnings), warnings)
+
+            model_py.write_text(
+                'def independently_approved(decision):\n    return bool(decision)\n'
+                'def active_tailoring(found):\n    return [d for d in found if independently_approved(d)]\n'
+            )
+            self.assertEqual(model.control_state(ctrl_body, found, root=root), 'implemented')
+            self.assertEqual(model.security_findings(found, root=root, today='2026-11-22'), [])
+
     def test_a_risk_checks_review_by_and_residual_acceptance(self):
         def risk(ident, state, **extra):
             return {'id': ident, 'type': 'RISK', 'state': state, 'fingerprint': 'f', 'links': [],
@@ -143,12 +187,19 @@ class RealRepository(unittest.TestCase):
             if item['body']['applicable']:
                 self.assertIn(item['body'].get('coverage'), ('full', 'partial'), item['id'])
 
-    def test_inert_control_targets_and_unaccepted_treated_risks_are_flagged_honestly(self):
+    def test_ctrl_ssdf_po2_is_implemented_via_d360_independent_approval_and_inert_rules_stay_flagged(self):
         found = model.objects(ROOT)
-        self.assertEqual(found['CTRL-ssdf-po.2']['state'], 'partial')
-        warnings = model.security_findings(found, ROOT, today='2026-11-19')
-        self.assertTrue(any('CTRL-ssdf-po.2: implemented_by STD-train-ownership-refusals is inert' in line
-                            for line in warnings), warnings)
+        ctrl = found['CTRL-ssdf-po.2']
+        self.assertIn('STD-model-independent-approval', ctrl['body']['implemented_by'])
+        self.assertNotIn('STD-train-ownership-refusals', ctrl['body']['implemented_by'])
+        self.assertEqual(ctrl['state'], 'implemented')
+        std = found['STD-model-independent-approval']
+        self.assertEqual(std['state'], 'blocking')
+        self.assertEqual(std['rule']['check'],
+                         {'kind': 'function', 'ref': 'scripts/lib/model.py:independently_approved'})
+        self.assertIn('STD-train-ownership-refusals', model.unexercised_rules(found, ROOT))
+        warnings = model.security_findings(found, ROOT, today='2026-11-22')
+        self.assertFalse(any(line.startswith('CTRL-ssdf-po.2:') for line in warnings), warnings)
         self.assertTrue(any('RISK-media-single-account: treated risk has no residual_accepted_by' in line
                             for line in warnings), warnings)
 

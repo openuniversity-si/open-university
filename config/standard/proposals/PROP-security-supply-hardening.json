@@ -4,7 +4,8 @@
   "state": "decided",
   "owner": "administration",
   "changes": [
-    "STD-targets-full"
+    "STD-targets-full",
+    "STD-model-independent-approval"
   ],
   "deadline": "2026-12-19",
   "decided_by": "D-352",

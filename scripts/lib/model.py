@@ -2091,8 +2091,68 @@ def unexercised_rules(found, root):
     return found_ids
 
 
-def control_target_issue(target, found, unexercised=frozenset()):
-    """Reason a CTRL implemented_by target is inert (missing, inactive, non-executable or unexercised), else None."""
+def _called_in_ast(tree, name, excluded=()):
+    """Whether an AST calls `name` (as Name or Attribute) outside any excluded function definition."""
+    import ast
+    excluded_set = set(excluded)
+
+    def walk(node):
+        if node in excluded_set:
+            return False
+        if isinstance(node, ast.Call):
+            callee = node.func
+            if (isinstance(callee, ast.Name) and callee.id == name) or (
+                    isinstance(callee, ast.Attribute) and callee.attr == name):
+                return True
+        return any(walk(child) for child in ast.iter_child_nodes(node))
+
+    return walk(tree)
+
+
+def function_check_issue(rule, root):
+    """D-352: reason a function-checked STD rule is absent or unexercised in `root`, else None.
+    Verifies both that `<file>:<fn>` is defined (`def <fn>`) and that live non-test code calls `<fn>`
+    outside its own definition."""
+    if root is None:
+        return None
+    check_ = (rule or {}).get('check') or {}
+    if check_.get('kind') != 'function':
+        return None
+    ref = check_.get('ref', '')
+    if ':' not in ref:
+        return f'function check ref {ref!r} is malformed'
+    rel_path, fn_name = ref.split(':', 1)
+    root_path = Path(root)
+    target = root_path / rel_path
+    if not target.is_file():
+        return f'function {ref} is not present (file missing)'
+    import ast
+    try:
+        tree = ast.parse(target.read_text())
+    except (OSError, SyntaxError):
+        return f'function {ref} is unreadable'
+    defs = [node for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == fn_name]
+    if not defs:
+        return f'function {ref} is not present'
+    if _called_in_ast(tree, fn_name, defs):
+        return None
+    lib_dir = root_path / 'scripts' / 'lib'
+    if lib_dir.is_dir():
+        for other in sorted(lib_dir.glob('*.py')):
+            if other.resolve() == target.resolve():
+                continue
+            try:
+                other_tree = ast.parse(other.read_text())
+            except (OSError, SyntaxError):
+                continue
+            if _called_in_ast(other_tree, fn_name):
+                return None
+    return f'function {ref} is not exercised in live code'
+
+
+def control_target_issue(target, found, unexercised=frozenset(), root=None):
+    """Reason a CTRL implemented_by target is inert (missing, inactive, non-executable, absent or unexercised), else None."""
     if not isinstance(found, dict):
         return None if target in found else 'does not exist'
     item = found.get(target)
@@ -2106,6 +2166,9 @@ def control_target_issue(target, found, unexercised=frozenset()):
             return 'rule check is judgment (not executable)'
         if target in unexercised:
             return 'rule is not exercised in the live flow'
+        issue = function_check_issue(item.get('rule'), root)
+        if issue is not None:
+            return issue
     elif kind == 'TEST' and state != 'active':
         return f'test is {state}'
     elif kind == 'REQ' and state in INERT_REQ_STATES:
@@ -2117,17 +2180,17 @@ def control_target_issue(target, found, unexercised=frozenset()):
     return None
 
 
-def control_state(body, found, unexercised=frozenset()):
+def control_state(body, found, unexercised=frozenset(), root=None):
     """not-applicable with its reason; gap when coverage is omitted or nothing active implements it; partial when
     coverage is partial or any implemented_by target is inert; implemented only with explicit full coverage and
-    every implemented_by target active and exercised."""
+    every implemented_by target active, present and exercised."""
     if not body['applicable']:
         return 'not-applicable'
     coverage = body.get('coverage')
     if coverage not in ('full', 'partial'):
         return 'gap'
     targets = body.get('implemented_by', [])
-    issues = [control_target_issue(target, found, unexercised) for target in targets]
+    issues = [control_target_issue(target, found, unexercised, root) for target in targets]
     if not any(issue is None for issue in issues):
         return 'gap'
     if coverage == 'full' and any(issue is not None for issue in issues):
@@ -2146,12 +2209,12 @@ def derive_controls(found, root=None):
     unexercised = unexercised_rules(found, root)
     for item in found.values():
         if item['type'] == 'CTRL' and 'body' in item:
-            item['state'] = control_state(item['body'], found, unexercised)
+            item['state'] = control_state(item['body'], found, unexercised, root)
 
 
 def security_findings(found, root=None, today=None):
     """Warnings of the Segurança system: applicable controls without explicit coverage or citing inert
-    (dormant, draft, replaced, judgment or unexercised) controls, and active risks missing or past review_by
+    (dormant, draft, replaced, judgment, missing or unexercised) controls, and active risks missing or past review_by
     or treated/accepted without residual_accepted_by."""
     today = today or utc_today()
     unexercised = unexercised_rules(found, root)
@@ -2162,7 +2225,7 @@ def security_findings(found, root=None, today=None):
             if body.get('coverage') not in ('full', 'partial'):
                 warnings.append(f'{item["id"]}: applicable control omits explicit coverage (full or partial)')
             for target in body.get('implemented_by', []):
-                issue = control_target_issue(target, found, unexercised)
+                issue = control_target_issue(target, found, unexercised, root)
                 if issue is not None:
                     warnings.append(f'{item["id"]}: implemented_by {target} is inert ({issue})')
         elif item['type'] == 'RISK' and item.get('state') != 'closed' and body:
