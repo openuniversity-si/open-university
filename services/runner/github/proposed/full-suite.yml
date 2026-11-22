@@ -169,8 +169,7 @@ jobs:
           git commit -m "validation: refresh verdicts, SLO, gate runs and traced-covers snapshots (${GITHUB_SHA::12})" \
             -m "Automated post-merge refresh after green full-suite on main (C6, D-359)." \
             -m "Cheapest path: refresh committed snapshots on a normal PR judged by tower/gate and the merge queue (never direct push to main, D-054)." \
-            -m "Plan: 1
-Implements: UNIT:engine-model"
+            -m "$(printf 'Plan: 1\nImplements: UNIT:engine-model')"
           git push -u origin "$branch"
           body_file="$RUNNER_TEMP/snapshot-pr-body.md"
           printf '%s\n' \

@@ -288,13 +288,28 @@ class ProposalAuditTests(unittest.TestCase):
 
     def test_staged_full_suite_and_site_canary_pass_validator_and_preserve_cache_parity(self):
         proposed_dir = ROOT / workflow_attest.PROPOSED_DIR
-        self.assertTrue((proposed_dir / 'full-suite.yml').is_file())
-        self.assertTrue((proposed_dir / 'site-canary.yml').is_file())
+        for name in ('full-suite.yml', 'site-canary.yml', 'tower-gate.yml', 'tower-gate-attest.yml',
+                     'ruleset-main.json', 'README.md'):
+            self.assertTrue((proposed_dir / name).is_file(), name)
         report = workflow_attest.validate_proposed(ROOT)
         self.assertTrue(report['ok'], report)
+        self.assertEqual(
+            report['workflows'],
+            ['full-suite.yml', 'site-canary.yml', 'tower-gate-attest.yml', 'tower-gate.yml'],
+        )
+        self.assertEqual(report['ruleset'], f'{workflow_attest.PROPOSED_DIR}/ruleset-main.json')
         gate_text = (ROOT / workflow_attest.STAGED_GATE).read_text(encoding='utf-8')
         suite_text = (proposed_dir / 'full-suite.yml').read_text(encoding='utf-8')
         self.assertEqual(workflow_attest.extract_cache_step(suite_text), workflow_attest.extract_cache_step(gate_text))
+        proposed_gate = (proposed_dir / 'tower-gate.yml').read_text(encoding='utf-8')
+        self.assertEqual(workflow_attest.extract_cache_step(proposed_gate), workflow_attest.extract_cache_step(gate_text))
+        self.assertNotIn('actions/cache', proposed_gate.split('  pinned:', 1)[1].split('\n  main_health:', 1)[0])
+
+    def test_live_installed_workflows_and_rulesets_remain_untouched_under_d087(self):
+        import gate_workflows
+        import queue_checks
+        self.assertEqual(queue_checks.check(ROOT), [])
+        self.assertEqual(gate_workflows.refused(ROOT), [])
 
 
 if __name__ == '__main__':

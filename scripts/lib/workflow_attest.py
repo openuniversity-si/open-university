@@ -231,8 +231,19 @@ def extract_cache_step(text):
 
 
 def audit_workflow_text(name, text, tower_gate_text=None):
-    """Static security and hygiene audit of one proposed workflow file."""
+    """Static security, YAML syntax, and hygiene audit of one proposed workflow file."""
     findings = []
+    try:
+        import yaml
+    except ImportError:
+        yaml = None
+    if yaml is not None:
+        try:
+            parsed = yaml.safe_load(text)
+            if not isinstance(parsed, dict) or 'jobs' not in parsed:
+                findings.append(f'{name}: YAML root must be a mapping containing jobs')
+        except yaml.YAMLError as error:
+            findings.append(f'{name}: invalid YAML ({error})')
     if PR_TARGET_TRIGGER.search(text):
         findings.append(f'{name}: pull_request_target is forbidden (pwn-request risk)')
     if not PERMISSIONS_TOP.search(text):
