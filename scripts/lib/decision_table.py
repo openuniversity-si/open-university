@@ -18,6 +18,9 @@ ID = re.compile(r'^D-(\d+)$')
 GRANDFATHERED = 'docs/domain/decisions/handwritten.txt'  # the rows written by hand before the records were the only path (one id per line)
 
 
+STATUSES = ('proposed', 'accepted', 'recorded', 'deprecated', 'superseded')
+
+
 def parse(text):
     """{number, time, premises, proof, body} of one record; raises ValueError when the front matter is incomplete."""
     found = FRONT.match(text)
@@ -32,6 +35,8 @@ def parse(text):
             raise ValueError(f'the record has no {key}')
     if not ID.match(fields['number']):
         raise ValueError(f"the number {fields['number']} is not D-NNN")
+    if fields.get('status') and fields['status'].lower() not in STATUSES:
+        raise ValueError(f"the status {fields['status']} is not one of {', '.join(STATUSES)}")
     return dict(fields, body=text[found.end():].strip())
 
 
@@ -70,8 +75,9 @@ def proof_cell(proof):
 def row(record):
     """The table row of one record: every cell is one line with no pipe, and the proof names its test as the structure
     check reads it."""
+    status = cell(record['status'].lower()) if record.get('status') else 'recorded'
     return (f"| {record['number']} | {cell(record['time'])} | {cell(from_table(record['body']))} | Premises: {cell(record['premises'])} "
-            f"| {proof_cell(record['proof'])} | recorded |")
+            f"| {proof_cell(record['proof'])} | {status} |")
 
 
 def render(records):

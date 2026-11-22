@@ -969,15 +969,25 @@ class Changes(unittest.TestCase):
         write(self.root, 'docs/domain/decisions/D-2.md', 'two')
         self.git('add', '.')
         self.git('commit', '-q', '-m', 'edit D-1, write D-2')
-        found = {'D-1': {'id': 'D-1', 'type': 'D', 'state': 'accepted', 'fingerprint': 'f', 'links': []},
+        found = {'D-1': {'id': 'D-1', 'type': 'D', 'state': 'accepted', 'fingerprint': 'f', 'links': [],
+                         'proof': {'outcome': 'proven', 'missing': [], 'outside': []},
+                         'proof_cases': ['scripts/tests/t.test.sh › test_a']},
                  'D-2': {'id': 'D-2', 'type': 'D', 'state': 'superseded', 'fingerprint': 'f', 'links': []},
+                 'D-3': {'id': 'D-3', 'type': 'D', 'state': 'proposed', 'fingerprint': 'f', 'links': []},
                  'TEST:t': {'id': 'TEST:t', 'type': 'TEST', 'state': 'active', 'fingerprint': 'f',
                             'links': [{'type': 'verifies', 'target': 'D-1'}]}}
+        # Without a passing VERD on HEAD, D-1 has a test and a case but is not counted as proven.
         counted = model.decisions_measure(found, self.root)
-        self.assertEqual(counted, {'by_state': {'accepted': 1, 'superseded': 1}, 'accepted': 1, 'proven': 1,
-                                   'edited_records': 1})
+        self.assertEqual(counted, {'by_state': {'accepted': 1, 'proposed': 1, 'superseded': 1}, 'accepted': 1,
+                                   'proven': 0, 'with_test': 1, 'with_case': 1, 'edited_records': 1,
+                                   'table_proofs': {'proven': 1}})
+        found['VERD:t'] = {'id': 'VERD:t', 'type': 'VERD', 'state': 'pass', 'fingerprint': 'f',
+                           'links': [{'type': 'evidences', 'target': 'TEST:t'}]}
+        counted = model.decisions_measure(found, self.root)
+        self.assertEqual((counted['proven'], counted['with_test'], counted['with_case']), (1, 1, 1))
         found['D-1']['proof'] = {'outcome': 'dangling', 'missing': ['t'], 'outside': []}
         self.assertEqual(model.decisions_measure(found, self.root)['table_proofs'], {'dangling': 1})
+        self.assertEqual(model.decisions_measure(found, self.root)['with_case'], 0)
 
     def test_a_validation_state_is_derived_from_its_measure_never_written(self):
         def val(id, measure, comparator, threshold, window=None):
@@ -1537,9 +1547,12 @@ class RealRepository(unittest.TestCase):
 
     def test_a_decision_proof_becomes_a_verifies_link_on_the_test_and_a_gone_proof_a_warning(self):
         found = model.objects(ROOT)
-        record = next(Path(ROOT).glob(model.DECISION_RECORDS))
+        record = next(path for path in sorted(Path(ROOT).glob(model.DECISION_RECORDS))
+                      if found.get(path.stem, {}).get('state') == 'accepted')
         number = record.stem
-        proof = model.FRONT.match(record.read_text()).group(1).split('proof:', 1)[1].split('\n', 1)[0].strip().strip('`')
+        raw_proof = model.FRONT.match(record.read_text()).group(1).split('proof:', 1)[1].split('\n', 1)[0].strip()
+        refs = model.proof_refs(raw_proof)
+        proof = refs[0][0] if refs else raw_proof.strip('`')
         # A proof that names a test file a script test runs is a link on that script test (its part).
         holders = {f'TEST:{proof}'} | {item['id'] for item in found.values() if proof in item.get('parts', ())}
         self.assertTrue(holders & {source for kind, source in model.incoming(found).get(number, []) if kind == 'verifies'})
@@ -1719,6 +1732,44 @@ class DecisionTable(unittest.TestCase):
         self.assertEqual(sorted(decisions), ['D-1', 'D-2'])
         self.assertEqual(decisions['D-2']['state'], 'superseded')
         self.assertEqual(decisions['D-2']['proof']['outcome'], 'proven')
+
+    def test_a_record_supports_proposed_status_and_file_case_proofs(self):
+        write(self.root, 'docs/domain/decisions/D-10.md',
+              '---\nnumber: D-10\ntime: t\npremises: none\nproof: scripts/tests/test_alpha.py › "test_holds"\n---\naccepted\n')
+        write(self.root, 'docs/domain/decisions/D-11.md',
+              '---\nnumber: D-11\ntime: t\npremises: none\nstatus: proposed\nsupersedes: D-10\n'
+              'proof: scripts/tests/test_alpha.py › test_holds\n---\nproposed\n')
+        write(self.root, 'docs/domain/decisions/D-12.md',
+              '---\nnumber: D-12\ntime: t\npremises: none\nproof: scripts/tests/test_alpha.py › "test_missing"\n---\nmissing case\n')
+        write(self.root, 'docs/domain/decisions/D-13.md',
+              '---\nnumber: D-13\ntime: t\npremises: none\nproof: scripts/tests/test_gone.py\n---\nsuperseded old\n')
+        write(self.root, 'docs/domain/decisions/D-14.md',
+              '---\nnumber: D-14\ntime: t\npremises: none\nsupersedes: D-13\nproof: scripts/tests/test_alpha.py\n---\nnewer\n')
+        items = model.read_decisions(self.root)
+        decisions = {item['id']: item for item in items if item['type'] == 'D'}
+        tests = {}
+        for item in items:
+            if item['type'] == 'TEST':
+                tests.setdefault(item['id'], {**item, 'links': []})['links'] += item['links']
+        # Proposed D-11 stays proposed and does NOT supersede accepted D-10; accepted D-14 supersedes D-13.
+        self.assertEqual(decisions['D-10']['state'], 'accepted')
+        self.assertEqual(decisions['D-11']['state'], 'proposed')
+        self.assertEqual(decisions['D-13']['state'], 'superseded')
+        self.assertEqual(decisions['D-10']['proof']['outcome'], 'proven')
+        self.assertEqual(decisions['D-10']['proof_cases'], ['scripts/tests/test_alpha.py › test_holds'])
+        self.assertEqual(decisions['D-11']['proof_cases'], ['scripts/tests/test_alpha.py › test_holds'])
+        self.assertEqual(decisions['D-12']['proof'], {'outcome': 'dangling', 'outside': [],
+                                                      'missing': ['scripts/tests/test_alpha.py › test_missing']})
+        targets = {link['target'] for link in tests['TEST:scripts/tests/test_alpha.py']['links']}
+        self.assertEqual(targets, {'D-10', 'D-11', 'D-14'})
+        # Active D-12 warns on missing case; historical superseded D-13 does not warn on gone file.
+        _, warnings = model.check(model.metamodel(ROOT), {**decisions, **tests})
+        self.assertIn('D-12: its proof names scripts/tests/test_alpha.py › test_missing, which does not exist '
+                      '(docs/domain/decisions/D-12.md)', warnings)
+        self.assertFalse([line for line in warnings if line.startswith('D-13:')])
+        # Proposed row in DECISIONS.md also maps to proposed state.
+        table_decisions, _ = self.rows('| D-20 | d | x | - | `scripts/tests/test_alpha.py` | proposed |')
+        self.assertEqual(table_decisions['D-20']['state'], 'proposed')
 
 
 class CheaperPath(unittest.TestCase):

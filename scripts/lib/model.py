@@ -166,25 +166,37 @@ REFUTES = re.compile(r'\brefutes (P-[0-9]+)\b')  # a decision that names the pre
 
 
 def read_decisions(root):
-    objects, seen = [], set()
+    objects, seen, index = [], set(), {}
     for path in sorted(Path(root).glob(DECISION_RECORDS)):
         text = path.read_text()
         head = FRONT.match(text)
         fields = dict(line.split(':', 1) for line in head.group(1).splitlines() if ':' in line) if head else {}
         number = fields.get('number', path.stem).strip()
         seen.add(number)
+        state = fields.get('status', 'accepted').strip().lower() or 'accepted'
         refuted = set(REFUTES.findall(text))
         assumed = [{'type': 'refutes' if ident in refuted else 'assumes', 'target': ident}
                    for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
         replaced = [{'type': 'supersedes', 'target': ident} for ident in re.findall(r'\bD-[0-9]+\b', fields.get('supersedes', ''))]
-        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed + replaced))
-        proof = fields.get('proof', '').strip().strip('`')
-        if proof:
-            objects.append({'id': f'TEST:{proof}', 'type': 'TEST', 'state': 'active', 'source': proof, 'claimed': True,
-                            'fingerprint': None, 'links': [{'type': 'verifies', 'target': number}]})
+        item = _obj(number, 'D', state, path.relative_to(root).as_posix(), text, assumed + replaced)
+        raw_proof = fields.get('proof', '').strip()
+        if raw_proof:
+            proof = row_proof(root, raw_proof, index)
+            if proof['outcome'] in ('proven', 'dangling', 'outside'):
+                item['proof'] = {key: proof[key] for key in ('outcome', 'missing', 'outside')}
+                item['proof_cases'] = proof['cases']
+                if state in ('accepted', 'proposed') and proof['outcome'] == 'proven':
+                    for name in proof['files']:
+                        objects.append({'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name,
+                                        'claimed': True, 'fingerprint': None,
+                                        'links': [{'type': 'verifies', 'target': number}]})
+            else:
+                bare = raw_proof.strip('`')
+                objects.append({'id': f'TEST:{bare}', 'type': 'TEST', 'state': 'active', 'source': bare, 'claimed': True,
+                                'fingerprint': None, 'links': [{'type': 'verifies', 'target': number}]})
+        objects.append(item)
     table = Path(root) / DECISION_TABLE
     if table.is_file():
-        index = {}
         for row in table_rows(table.read_text()):
             number = row['Id']
             if number in seen:
@@ -194,16 +206,18 @@ def read_decisions(root):
             proof = row_proof(root, row.get('Proof', ''), index)
             item = _obj(number, 'D', state, DECISION_TABLE, row['line'])
             item['proof'] = {key: proof[key] for key in ('outcome', 'missing', 'outside')}
+            item['proof_cases'] = proof['cases']
             objects.append(item)
-            if state == 'accepted' and proof['outcome'] == 'proven':
+            if state in ('accepted', 'proposed') and proof['outcome'] == 'proven':
                 for name in proof['files']:
                     objects.append({'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name,
                                     'claimed': True, 'fingerprint': None,
                                     'links': [{'type': 'verifies', 'target': number}]})
     # A record is written once (D-217), so it changes only by a later one: a record whose `supersedes:` names a
     # decision makes that decision superseded, a record or a row alike (the row's Status cell is the older path).
-    superseded = {link['target'] for item in objects if item['type'] == 'D' for link in item['links']
-                  if link['type'] == 'supersedes'}
+    # A proposed decision has not been accepted yet, so it never supersedes an accepted one.
+    superseded = {link['target'] for item in objects if item['type'] == 'D' and item['state'] != 'proposed'
+                  for link in item['links'] if link['type'] == 'supersedes'}
     for item in objects:
         if item['type'] == 'D' and item['id'] in superseded and item['state'] == 'accepted':
             item['state'] = 'superseded'
@@ -239,19 +253,21 @@ def table_rows(text):
 
 INACTIVE_ROW = {'superseded': 'superseded', 'replaced': 'superseded', 'retired': 'deprecated',
                 'deprecated': 'deprecated'}
+ROW_STATES = {**INACTIVE_ROW, 'proposed': 'proposed'}
 
 
 def row_state(status):
     """A row's state from its Status cell: one that starts with superseded or replaced is superseded, one that starts
-    with retired or deprecated is deprecated (the D type's inactive states); any other status (proven, recorded, test
-    pending, rite, implemented) is accepted."""
+    with retired or deprecated is deprecated (the D type's inactive states), one that starts with proposed is proposed;
+    any other status (proven, recorded, test pending, rite, implemented) is accepted."""
     word = re.match(r'\W*([a-z]+)', status.lower())
-    return INACTIVE_ROW.get(word.group(1), 'accepted') if word else 'accepted'
+    return ROW_STATES.get(word.group(1), 'accepted') if word else 'accepted'
 
 
 PROOF_FILE = re.compile(r'(?<![\w./-])((?:[\w.-]+/)*(?:test_\w+\.py|[\w-]+(?:\.[\w-]+)*\.(?:test|spec)\.(?:sh|ts|tsx|js|mjs)))'
                         r'(?![\w/-])')
 PROOF_QUOTED = re.compile(r'["“]([^"”]+)["”]')
+PROOF_BARE = re.compile(r'\b(test_\w+)\b')
 PROOF_NAMED = re.compile(r'`((?:test|Test)\w*|[A-Z][A-Za-z0-9]*[a-z][A-Za-z0-9]*)`')
 PLACEHOLDERS = ('', '-', '—', 'none', 'n/a')
 SKIPPED = {'node_modules', '.git', '.toolchain', '.gate', '.next', '__pycache__'}
@@ -259,14 +275,19 @@ SKIPPED = {'node_modules', '.git', '.toolchain', '.gate', '.next', '__pycache__'
 
 def proof_refs(cell):
     """[(file, [cases])] the Proof cell names: every test file (test_*.py, *.test.*, *.spec.*), each with the cases named
-    after it up to the next file or semicolon: the quoted names after a `›`, and the backticked test names (test_…,
-    or a CamelCase class) after it or in its parentheses. Prose between them names nothing."""
+    after it up to the next file or semicolon: the quoted names or bare `test_...` identifiers after a `›`, and the
+    backticked test names (test_…, or a CamelCase class) after it or in its parentheses. Prose between them names nothing."""
     found = list(PROOF_FILE.finditer(cell))
     refs = []
     for at, match in enumerate(found):
         end = found[at + 1].start() if at + 1 < len(found) else len(cell)
         segment = cell[match.end():end].lstrip('`').split(';', 1)[0]
-        cases = PROOF_QUOTED.findall(segment) if segment.lstrip().startswith('›') else []
+        if segment.lstrip().startswith('›'):
+            cases = PROOF_QUOTED.findall(segment)
+            unquoted = PROOF_QUOTED.sub('', segment)
+            cases += [name for name in PROOF_BARE.findall(unquoted) if name not in cases]
+        else:
+            cases = []
         cases += [name for name in PROOF_NAMED.findall(segment) if name not in cases]
         refs.append((match.group(1), cases))
     return refs
@@ -332,7 +353,7 @@ def in_model(root, path):
 
 
 def row_proof(root, cell, index=None):
-    """What a row's Proof cell proves: {outcome, files, missing, outside}. `proven` when it names at least one test file
+    """What a row's Proof cell proves: {outcome, files, missing, outside, cases}. `proven` when it names at least one test file
     and every file and case it names exists and is a test of the model; `dangling` when a file or case it names does not
     exist (missing lists them as `file` or `file › case`); `outside` when they exist but a file is not a test of the
     model (a site test that declares nothing, D-319); `prose` when it names no test file; `none` when it is empty.
@@ -341,8 +362,8 @@ def row_proof(root, cell, index=None):
     refs = proof_refs(cell)
     if not refs:
         return {'outcome': 'none' if cell.strip().strip('.').lower() in PLACEHOLDERS else 'prose', 'files': [],
-                'missing': [], 'outside': []}
-    files, missing, outside = [], [], []
+                'missing': [], 'outside': [], 'cases': []}
+    files, missing, outside, verified = [], [], [], []
     for name, cases in refs:
         path = _resolve(root, name, index)
         if path is None:
@@ -350,11 +371,15 @@ def row_proof(root, cell, index=None):
             continue
         sources = [(part, (Path(root) / part).read_text(errors='replace'))
                    for part in [path, *(_runs(root, index).get(path, []) if cases else [])] if (Path(root) / part).is_file()]
-        missing += [f'{name} › {case}' for case in cases if not _has_case(sources, case)]
+        for case in cases:
+            if _has_case(sources, case):
+                verified.append(f'{path} › {case}')
+            else:
+                missing.append(f'{name} › {case}')
         (files if in_model(root, path) else outside).append(path)
     outcome = 'dangling' if missing else 'outside' if outside else 'proven'
     return {'outcome': outcome, 'files': list(dict.fromkeys(files)), 'missing': missing,
-            'outside': list(dict.fromkeys(outside))}
+            'outside': list(dict.fromkeys(outside)), 'cases': list(dict.fromkeys(verified))}
 
 
 def read_units(root):
@@ -1562,6 +1587,7 @@ def read_adrs(root):
         if cell:
             proof = row_proof(root, cell.group(1), index)
             item['proof'] = {key: proof[key] for key in ('outcome', 'missing', 'outside')}
+            item['proof_cases'] = proof['cases']
             if state == 'accepted' and proof['outcome'] == 'proven':
                 found += [{'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name, 'claimed': True,
                            'fingerprint': None, 'links': [{'type': 'verifies', 'target': ident}]} for name in proof['files']]
@@ -1651,27 +1677,42 @@ def reflexion_share(found):
 
 
 def decisions_measure(found, root=ROOT):
-    """The decisions system's own measure: decisions by state, the accepted ones a test proves, the decision
-    records edited after the commit that wrote them (an accepted decision changes by a new one that supersedes it), and
-    the accepted rows of DECISIONS.md by what their Proof cell proves (row_proof), when there are any."""
+    """The decisions system's own measure: decisions by state, the accepted ones proven by a test with a passing VERD
+    on HEAD (`proven`), those linked to an existing test (`with_test`), those naming an existing case (`with_case`), the
+    decision records edited after the commit that wrote them (an accepted decision changes by a new one that supersedes
+    it), and the accepted rows of DECISIONS.md by what their Proof cell proves (row_proof), when there are any."""
     into = incoming(found)
     decisions = [item for item in found.values() if item['type'] == 'D' and item.get('fingerprint') is not None]
     by_state = {}
     for item in decisions:
         by_state[item['state']] = by_state.get(item['state'], 0) + 1
     accepted = [item for item in decisions if item['state'] == 'accepted']
-    proven = sum(1 for item in accepted if any(kind == 'verifies' and found.get(source, {}).get('fingerprint') is not None
-                                               for kind, source in into.get(item['id'], [])))
+
+    def has_pass_verd(test_id):
+        return any(kind == 'evidences' and found.get(source, {}).get('type') == 'VERD'
+                   and found[source].get('state') == 'pass' and found[source].get('fingerprint') is not None
+                   for kind, source in into.get(test_id, []))
+
+    def verifying_tests(item):
+        return [source for kind, source in into.get(item['id'], [])
+                if kind == 'verifies' and found.get(source, {}).get('fingerprint') is not None]
+
+    with_test = sum(1 for item in accepted if verifying_tests(item))
+    proven = sum(1 for item in accepted if any(has_pass_verd(test_id) for test_id in verifying_tests(item)))
+    with_case = sum(1 for item in accepted
+                    if item.get('proof_cases') and (item.get('proof') or {}).get('outcome') == 'proven')
     edited = 0
     for path in sorted(Path(root).glob(DECISION_RECORDS)):
         commits = _git(root, 'log', '--format=%H', '--', path.relative_to(root).as_posix()).split()
         edited += len(commits) > 1
     rows = {}
     for item in accepted:
-        if 'proof' in item and not item.get('body', {}).get('adr'):
+        if ('proof' in item and not item.get('body', {}).get('adr')
+                and not item.get('source', '').startswith('docs/domain/decisions/')):
             rows[item['proof']['outcome']] = rows.get(item['proof']['outcome'], 0) + 1
     return {'by_state': dict(sorted(by_state.items())), 'accepted': len(accepted), 'proven': proven,
-            'edited_records': edited, **({'table_proofs': dict(sorted(rows.items()))} if rows else {})}
+            'with_test': with_test, 'with_case': with_case, 'edited_records': edited,
+            **({'table_proofs': dict(sorted(rows.items()))} if rows else {})}
 
 
 def knowledge_measure(found, radius='high'):
@@ -2255,8 +2296,9 @@ def check(meta, found, root=None, today=None):
         errors += [f'{id}: {problem}' for problem in item.get('problems', [])]
         if item['state'] not in kind['states']:
             errors.append(f'{id}: state {item["state"]} is not a state of {item["type"]}')
-        for missing in (item.get('proof') or {}).get('missing', []):
-            warnings.append(f'{id}: its proof names {missing}, which does not exist ({item["source"]})')
+        if not historical(item):
+            for missing in (item.get('proof') or {}).get('missing', []):
+                warnings.append(f'{id}: its proof names {missing}, which does not exist ({item["source"]})')
         if item.get('claimed') and item.get('fingerprint') is None and \
                 not all(historical(found.get(link['target'])) for link in item['links']):
             warnings.append(f'{id}: named by a link but no such file exists ({", ".join(link["target"] for link in item["links"])})')
@@ -2793,7 +2835,8 @@ def summary(found):
                  f'divergent, {mirror["absences"]} absent dependencies between components)')
     decided = found['decisions']
     lines.append(f'decisions: {", ".join(f"{count} {state}" for state, count in decided["by_state"].items())}; '
-                 f'{decided["proven"]} of {decided["accepted"]} accepted proven by a test; {decided["edited_records"]} '
+                 f'{decided["proven"]} of {decided["accepted"]} accepted proven by pass VERD '
+                 f'({decided["with_test"]} with a test, {decided["with_case"]} naming a case); {decided["edited_records"]} '
                  f'record(s) edited after they were written'
                  + (f'; table rows by proof: {", ".join(f"{count} {kind}" for kind, count in decided["table_proofs"].items())}'
                     if decided.get('table_proofs') else ''))

@@ -90,6 +90,23 @@ class TableRowTests(unittest.TestCase):
             self.assertTrue((root / 'docs/domain/decisions/D-1.md').is_file())
             self.assertIn('no row written', err.getvalue())
 
+    def test_main_with_proposed_status_writes_status_and_proposed_row(self):
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'docs/domain').mkdir(parents=True)
+            (root / 'docs/domain/DECISIONS.md').write_text('# Decisions\n\n| Id | Date | Decision | Invariant | Proof | Status |\n'
+                                                           '|---|---|---|---|---|---|\n| D-290 | x | y | z | t | ok |\n')
+            with contextlib.redirect_stdout(io.StringIO()):
+                code = decision_record.main(['--text', 'the proposal', '--proof', 'scripts/tests/test_x.py › "test_a"',
+                                             '--status', 'proposed'], root=root)
+            self.assertEqual(code, 0)
+            record = (root / 'docs/domain/decisions/D-291.md').read_text()
+            self.assertIn('\nstatus: proposed\nproof: scripts/tests/test_x.py › "test_a"\n', record)
+            table = (root / 'docs/domain/DECISIONS.md').read_text()
+            self.assertIn('| `scripts/tests/test_x.py` › "test_a" | proposed |', table)
+
 
 if __name__ == '__main__':
     unittest.main()
