@@ -1,6 +1,6 @@
 {
   "id": "NC-cost",
-  "statement": "AWS costs less than US$ 200 a month (the Anthropic quota is no ceiling: when it is the bottleneck, the session tells Daniel the raise, with why and the expected gain).",
+  "statement": "Gross AWS spend costs less than US$ 200 a month; Anthropic inference quota is not a strategic growth cap (when it is the bottleneck, the session proposes a raise to Daniel with why and expected gain), while authorized monthly Anthropic spend stays tracked by REQ-anthropic-budget against supply.anthropic_monthly_usd.",
   "level": "csf",
   "necessary_for": [
     "INT-intention-v1",

@@ -1,6 +1,6 @@
 {
   "id": "NEED-cost",
-  "statement": "The system runs with AWS under US$ 200 a month; the Anthropic quota is no ceiling: when it is the bottleneck, the session tells Daniel the raise, with why and the expected gain (Daniel, 19/11).",
+  "statement": "The system runs with gross AWS spend under US$ 200 a month; Anthropic inference quota is not a strategic growth cap (when it is the bottleneck, the session proposes a raise to Daniel with why and expected gain), while actual monthly Anthropic spend stays tracked within the owner-authorized ceiling of supply.anthropic_monthly_usd (reconciling D-342 and D-348).",
   "state": "proposed",
   "owner": "Daniel",
   "refines": [

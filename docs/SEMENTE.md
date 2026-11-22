@@ -105,29 +105,30 @@ físico, menos se perde.
 
 ## 6. Restrições — travada
 
-- **Trava.** A intenção, as metas (seção 3) e estas restrições só mudam numa PR com título começando por `intencao:`,
-  que traz a proposta, a evidência e a linha `Intention-Change: approved by Daniel <AAAA-MM-DD HH:MM BRT> (<onde ele
-  aprovou>)`, e que é mergeada por Daniel ou com a aprovação dele registrada nessa linha. Nenhuma sessão mexe nessas
-  partes por conta própria. Todo o resto o sistema muda pelo fluxo normal, inclusive o gate e os medidores.
-- **Paradas.** Toda parada do fluxo é um incidente, registrado com a causa raiz (`scripts/incident open`). A pior é a
-  que exige Daniel. O sistema só recorre a ele para obter login, credencial ou algo do mesmo tipo, para dinheiro ou para
-  agir com outras pessoas. Nunca para pedir uma decisão: decide, segue e reporta.
-- **Cota.** O orçamento é a cota de **uma** conta Claude Max, a conta Max em uso, nos limites semanal e mensal. O
-  sistema planeja e dosa o trabalho contra eles e lê o limite real da conta (Settings > Usage, ou os avisos de limite do
-  Claude Code), nunca um número fixo. O mensal é a soma dos ciclos semanais do mês, menos qualquer teto que a conta
-  informe. Daniel pode dar cota a mais em casos específicos, por decisão registrada. Esperar o reset não é incidente.
-  Comprar cota é dinheiro.
-  Referência pública em 03/11/2026: o Max tem um limite a cada 5 horas e um semanal, os dois de 5x o Pro, e um semanal
-  separado para o Fable, de até metade do semanal; web, desktop e Claude Code gastam do mesmo limite; a Anthropic pode
-  impor tetos semanais e mensais adicionais. Em 30/10/2026 o antigo Max 5x passou a se chamar Max, e o antigo Max 20x,
-  Ultra. Fontes: [preços](https://claude.com/pricing),
-  [plano Max](https://support.claude.com/en/articles/11049741-what-is-the-max-plan),
-  [limites de uso](https://support.claude.com/en/articles/11647753-how-do-usage-and-length-limits-work),
-  [Claude Code com Max](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan),
-  [troca de nomes](https://thenextweb.com/news/claude-ultra-max-plan-rename-five-hour-limit).
+- **Trava.** A intenção, as metas (seção 3), estas restrições (seção 6) e os objetos travados `config/intent/INT-*.json`
+  só mudam numa PR com título começando por `intencao:`, que traz a proposta, a evidência e a linha
+  `Intention-Change: approved by Daniel <AAAA-MM-DD HH:MM BRT> (<onde ele aprovou>)`, mergeada por Daniel ou com a
+  aprovação dele registrada nessa linha (verificada mecanicamente por `scripts/intention-lock` e
+  `scripts/model check --base`). Nenhuma sessão mexe nessas partes por conta própria. Todo o resto o sistema muda pelo
+  fluxo normal, inclusive o gate e os medidores.
+- **Paradas e fronteira travada ao dono.** Toda parada do fluxo é um incidente, registrado com a causa raiz
+  (`scripts/incident open`). A pior é a parada evitável que exige Daniel. Dentro do escopo de autonomia em vigor, a
+  sessão decide, segue e reporta. Permanecem exclusivamente travados ao Daniel — e nunca podem ser autoautorizados pela
+  sessão — login, credencial, dinheiro, outras pessoas, alteração da intenção/metas, critérios de parada e definição das
+  guardas de confiança, isenções de segurança ou de metas (`TAIL-*`), e permissões/workflows/rulesets do GitHub; nesses
+  itens a sessão apenas propõe explicitamente em estado `proposed`, sem autoaprovar.
+- **Cota e orçamento (reconciliação D-342 e D-348).** A cota de inferência (Anthropic) não é mais teto estratégico fixo
+  de uma única conta Claude Max: quando a cota for o gargalo medido do fluxo, a sessão propõe o aumento ao Daniel com a
+  evidência, o motivo e o ganho esperado. Comprar ou aumentar cota continua sendo dinheiro (exclusivo de Daniel). O gasto
+  mensal autorizado permanece medido e verificado contra `supply.anthropic_monthly_usd` (`REQ-anthropic-budget`,
+  `VAL-anthropic-budget`, `SUP-anthropic`, D-342), atualizado sempre que Daniel aprovar um novo teto; o gasto bruto de
+  infraestrutura AWS (excluindo créditos e reembolsos, D-303) permanece sob o teto mensal medido (`REQ-aws-200`,
+  `NC-cost`). Dentro do plano autorizado, o sistema planeja e dosa o trabalho contra os limites reais da conta e esperar
+  o reset não é incidente.
 - Trabalho que gasta crédito roda em sessões na nuvem.
-- **Verificação externa.** A autoavaliação da sessão não conta. Conta o que não depende da opinião dela: o gate no head
-  exato, o merge commit, a prova de encerramento de cada nível (METODO.md, seção 1) e a medida da seção 4.
+- **Verificação externa.** A autoavaliação, a autoaprovação e a autoisenção da sessão não contam. Conta o que não
+  depende da opinião dela: o gate no head exato, o merge commit, a prova de encerramento de cada nível (METODO.md,
+  seção 1) e as medidas externas da seção 4.
 - Sem compatibilidade retroativa e sem caminho duplo. Sem force-push. Nunca imprimir segredos.
 
 ## 7. Onde o sistema lê e registra (hoje)

@@ -1,6 +1,6 @@
 {
   "id": "INT-limits",
-  "statement": "The locked constraints: only Daniel changes the intention; a stop needs him only for a login, a credential, money or other people; the budget is one Claude Max quota; external verification counts, not the session's own; no backward compatibility, no force push, no secret printed.",
+  "statement": "The locked constraints: only Daniel changes the intention (SEMENTE §3/§6 and INT-* via intencao: PR with Intention-Change:); login, credentials, money, other people, security/target TAIL exemptions, trust guards, stop criteria, and GitHub workflows/rulesets are owner-locked and never self-authorized; Anthropic inference quota is not a fixed one-Claude-Max strategic cap (when it is the bottleneck, the session proposes a raise to Daniel with why and expected gain, while current authorized spend stays tracked against supply.anthropic_monthly_usd and buying/raising quota remains money); gross AWS spend stays within its measured ceiling; external verification counts, never session self-assessment; no backward compatibility, no force push, no secret printed.",
   "state": "active",
   "owner": "Daniel",
   "source": "docs/SEMENTE.md#6"

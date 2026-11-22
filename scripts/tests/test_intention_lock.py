@@ -223,5 +223,24 @@ class RepositorySection3Alignment(unittest.TestCase):
             self.assertIn('100%', body['statement'], ident)
 
 
+class RepositorySection6QuotaAlignment(unittest.TestCase):
+    def test_semente_section_6_reconciles_anthropic_quota_and_governance_lock(self):
+        sections = intention_lock.extract_sections((ROOT / 'docs/SEMENTE.md').read_text(encoding='utf-8'))
+        sec6 = sections['6']
+        self.assertIn('Intention-Change: approved by Daniel', sec6)
+        self.assertIn('supply.anthropic_monthly_usd', sec6)
+        self.assertIn('REQ-anthropic-budget', sec6)
+        self.assertIn('TAIL-*', sec6)
+        self.assertNotIn('O orçamento é a cota de **uma** conta Claude Max', sec6)
+        for rel in ('config/intent/INT-limits.json', 'config/intent/NEED-cost.json', 'config/problem/NC-cost.json'):
+            body = json.loads((ROOT / rel).read_text(encoding='utf-8'))
+            self.assertIn('supply.anthropic_monthly_usd', body['statement'], rel)
+            self.assertNotIn('one Claude Max quota', body['statement'], rel)
+        sup = json.loads((ROOT / 'config/supply/suppliers/SUP-anthropic.json').read_text(encoding='utf-8'))
+        val = json.loads((ROOT / 'config/validation/VAL-anthropic-budget.json').read_text(encoding='utf-8'))
+        self.assertEqual(sup['budget'], 'REQ-anthropic-budget')
+        self.assertEqual(val['threshold_key'], 'supply.anthropic_monthly_usd')
+
+
 if __name__ == '__main__':
     unittest.main()
