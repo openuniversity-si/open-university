@@ -271,7 +271,9 @@ class DeployShTests(unittest.TestCase):
         self.assertEqual(self.build()['spend'], {'day': today, 'from': today[:len('2026-01-')] + '01', 'usd': round(float(said), 2)})
         [call] = [line for line in (self.state / 'calls').read_text().splitlines() if line.startswith('aws ce ')]
         self.assertIn('get-cost-and-usage --region us-east-1 --time-period Start=' + today[:len('2026-01-')] + '01,End=', call)
-        self.assertIn('--granularity MONTHLY --metrics UnblendedCost', call)
+        self.assertIn('--granularity MONTHLY', call)
+        self.assertIn('--filter {"Not":{"Dimensions":{"Key":"RECORD_TYPE","Values":["Credit","Refund"]}}}', call)
+        self.assertIn('--metrics UnblendedCost', call)
         # a later build of the same day carries the reading and calls nothing
         (self.state / 'calls').write_text('')
         done = self.run_deploy(STUB_LAST='old', STUB_SPEND='99', STUB_LAST_BUILD=self.recorded('/tower/deploy/last-build'))
@@ -306,10 +308,13 @@ class DeployShTests(unittest.TestCase):
         done = self.run_deploy(STUB_LAST='old', STUB_SPEND='12.5')
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertNotIn('spend_error', self.build())
-        # SPEND-SHAPE: a credit (negative) or an exponent is a reading; an answer that is no number keeps its shape
-        for said, usd in (('-3.254', round(-float('3.254'), 2)), ('1.2E-7', 0)):
-            done = self.run_deploy(STUB_LAST='old', STUB_SPEND=said)
-            self.assertEqual((done.returncode, self.build()['spend']['usd']), (0, usd), done.stderr)
+        # SPEND-SHAPE: a non-negative exponent is a reading; a negative amount or non-number is refused with its shape
+        done = self.run_deploy(STUB_LAST='old', STUB_SPEND='1.2E-7')
+        self.assertEqual((done.returncode, self.build()['spend']['usd']), (0, 0), done.stderr)
+        done = self.run_deploy(STUB_LAST='old', STUB_SPEND='-3.254')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn('spend', self.build())
+        self.assertEqual(self.build()['spend_error'], {'day': today, 'why': 'negative', 'seen': '-3.254', 'parse': PARSE})
         done = self.run_deploy(STUB_LAST='old', STUB_SPEND='None')
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(self.build()['spend_error'], {'day': today, 'why': 'no-amount', 'seen': 'None', 'parse': PARSE})
