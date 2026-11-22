@@ -196,6 +196,9 @@ def record_errors(record, path, radii, known):
                             'answer.where); a paraphrase stays inferred')
         if status in setting('measured_statuses') and not answer['evidence']:
             problems.append(f'status {status} needs the measurement in answer.evidence')
+        if ((record.get('validate') or {}).get('kind') == 'measurement' and status in setting('refused_statuses')
+                and not (answer.get('evidence') or '').strip()):
+            problems.append(f'status {status} on a measurement premise needs the measurement in answer.evidence')
     dependents = record['dependents']
     if dependents['digest'] != digest(dependents['plans'], dependents['prs']):
         problems.append('dependents do not match their seal: they are computed by scripts/premises blast --write, '
