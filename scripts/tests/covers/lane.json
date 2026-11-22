@@ -5,6 +5,10 @@
     "scripts/tests/test_lane.py",
     "scripts/lane",
     "scripts/lib/lane.py",
+    "scripts/lib/config.py",
+    "config/registry/flow/flow.base_ref.json",
+    "config/registry/flow/flow.worktree_root.json",
+    "config/registry/flow/flow.home_checkout.json",
     "docs/process/lane.md"
   ]
 }

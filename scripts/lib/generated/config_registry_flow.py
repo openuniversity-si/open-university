@@ -6,6 +6,7 @@ Name = Literal[
     'flow.bash_trim_bytes',
     'flow.cycle_determination',
     'flow.frictions_log',
+    'flow.home_checkout',
     'flow.lanes_ledger',
     'flow.red_after_s',
     'flow.token_weight_cache_read',
@@ -13,6 +14,7 @@ Name = Literal[
     'flow.token_weight_input',
     'flow.token_weight_output',
     'flow.transcripts_glob',
+    'flow.worktree_root',
 ]
 
 Values = TypedDict('Values', {
@@ -20,6 +22,7 @@ Values = TypedDict('Values', {
     'flow.bash_trim_bytes': int,
     'flow.cycle_determination': str,
     'flow.frictions_log': str,
+    'flow.home_checkout': str,
     'flow.lanes_ledger': str,
     'flow.red_after_s': int,
     'flow.token_weight_cache_read': float,
@@ -27,4 +30,5 @@ Values = TypedDict('Values', {
     'flow.token_weight_input': float,
     'flow.token_weight_output': float,
     'flow.transcripts_glob': str,
+    'flow.worktree_root': str,
 })

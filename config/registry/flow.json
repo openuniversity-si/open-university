@@ -13,7 +13,8 @@
       "x-unit": "ref",
       "description": "The ref scripts/flow-metrics reads the flow from when it is given no --base: the live base, main on GitHub (D-314). Its default was the Origin era's mod/roadmap-integration, so the constraint meter failed on the live base (UDE-blind-constraint, D-348).",
       "x-readers": [
-        "scripts/lib/flow_metrics.py"
+        "scripts/lib/flow_metrics.py",
+        "scripts/lib/lane.py"
       ],
       "x-source": "D-348 (UDE-blind-constraint)"
     },
@@ -47,6 +48,16 @@
         "scripts/lib/fronts.py"
       ],
       "x-source": "VAZÃO F69; lane rule 9 (03/11)"
+    },
+    "flow.home_checkout": {
+      "type": "string",
+      "default": "",
+      "x-unit": "path",
+      "description": "Default home checkout whose .toolchain scripts/lane worktree symlinks; when empty, lane.py derives it from TOWER_HOME_CHECKOUT or the current checkout root.",
+      "x-readers": [
+        "scripts/lib/lane.py"
+      ],
+      "x-source": "D-314"
     },
     "flow.lanes_ledger": {
       "type": "string",
@@ -129,6 +140,16 @@
         "scripts/lib/usage.py"
       ],
       "x-source": "VAZÃO F69 (docs/programs/vazao/fila.md)"
+    },
+    "flow.worktree_root": {
+      "type": "string",
+      "default": "",
+      "x-unit": "path",
+      "description": "Default parent directory where scripts/lane worktree places per-unit worktrees; when empty, lane.py derives it from TOWER_WORKTREE_ROOT or the repository checkout's parent directory.",
+      "x-readers": [
+        "scripts/lib/lane.py"
+      ],
+      "x-source": "D-314"
     }
   }
 }

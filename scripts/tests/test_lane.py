@@ -1,12 +1,14 @@
 """`scripts/lane brief`: the queue row, the delivery contract and the worktree in one brief (VAZÃO F68). Hermetic: no network."""
 import contextlib
 import io
+import os
 import re
 from pathlib import Path
 import sys
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
@@ -157,7 +159,7 @@ class LaneBriefTests(unittest.TestCase):
         self.assertIn('- F55: merged b1 VAZÃO F55: the lock (#140); docs/programs/vazao/fila.md: F55 entrou em #140', out)
         self.assertIn('- F20: not merged (no commit on the base delivers it); docs/RETOMAR.md: F20 ficou no caminho.', out)
         self.assertEqual(calls[0][3:6], ['log', '--first-parent', '-E'])
-        self.assertEqual(calls[0][-1], 'origin/mod/roadmap-integration')
+        self.assertEqual(calls[0][-1], 'origin/main')
         # A row that cites nothing gets neither section.
         out = lane.brief('F58', root=self.root, run=run)
         self.assertNotIn('## Decisions', out)
@@ -187,7 +189,7 @@ class LaneBriefTests(unittest.TestCase):
         self.assertIn('- and 2 more', '\n'.join(lane.red_section(self.root, 'b', run=head, reds=lambda got:
                                                                    lane.base_reds(got, signal=broken, cached=many))))
         # The brief carries the section (the fixture root is no checkout, so its base head is unknown).
-        self.assertIn('Red on the base: unknown (origin/mod/roadmap-integration', lane.brief('F58', root=self.root))
+        self.assertIn('Red on the base: unknown (origin/main', lane.brief('F58', root=self.root))
 
     def test_delivery_subjects(self):
         self.assertTrue(lane.delivers('F62', 'deliver: docs-only (F62, D-301) (#163)'))
@@ -223,10 +225,30 @@ class LaneWorktreeTests(unittest.TestCase):
         path, created = lane.worktree('f68', home=self.home, worktree_root=str(self.base / 'wt'), run=self.fake_run())
         self.assertEqual(path, self.base / 'wt' / 'f68')
         self.assertEqual((path / '.toolchain').resolve(), (self.home / '.toolchain').resolve())
-        self.assertEqual(self.calls[0][3:], ['fetch', '-q', 'origin', 'mod/roadmap-integration'])
+        self.assertEqual(self.calls[0][3:], ['fetch', '-q', 'origin', 'main'])
         self.assertEqual(self.calls[1][3:], ['worktree', 'add', '-q', '-b', 'units/f68', str(path),
-                                             'origin/mod/roadmap-integration'])
+                                             'origin/main'])
         self.assertTrue(created)
+
+    def test_defaults_read_flow_registry_and_environment_never_origin_box_paths(self):
+        self.assertEqual(lane.BASE, 'main')
+        with mock.patch.object(lane.config, 'get', side_effect=lambda k: {
+            'flow.base_ref': 'origin/release', 'flow.worktree_root': '/reg/wt', 'flow.home_checkout': '/reg/home',
+        }[k]):
+            with mock.patch.dict(os.environ, {}, clear=True):
+                self.assertEqual(lane.default_base(), 'release')
+                self.assertEqual(lane.default_worktree_root(), '/reg/wt')
+                self.assertEqual(lane.default_home_checkout(), Path('/reg/home'))
+            with mock.patch.dict(os.environ, {'TOWER_WORKTREE_ROOT': '/env/wt', 'TOWER_HOME_CHECKOUT': '/env/home'}, clear=True):
+                self.assertEqual(lane.default_worktree_root(), '/env/wt')
+                self.assertEqual(lane.default_home_checkout(), Path('/env/home'))
+        with mock.patch.object(lane.config, 'get', side_effect=lambda k: {
+            'flow.base_ref': 'main', 'flow.worktree_root': '', 'flow.home_checkout': '',
+        }[k]):
+            with mock.patch.dict(os.environ, {}, clear=True):
+                self.assertEqual(lane.default_base(), 'main')
+                self.assertEqual(lane.default_worktree_root(), str(lane.ROOT.parent))
+                self.assertEqual(lane.default_home_checkout(), lane.ROOT)
 
     def test_accepts_a_name_that_is_not_a_queue_unit(self):
         path, _ = lane.worktree('Census-2', home=self.home, worktree_root=str(self.base / 'wt'), run=self.fake_run())
@@ -242,7 +264,7 @@ class LaneWorktreeTests(unittest.TestCase):
         got, created = lane.worktree('F68', home=self.home, worktree_root=str(self.base / 'wt'), run=self.fake_run())
         self.assertEqual((got, created), (path, False))
         self.assertEqual(self.calls[1], ['git', '-C', str(path), 'merge', '-q', '--no-edit',
-                                         'origin/mod/roadmap-integration'])
+                                         'origin/main'])
         self.assertTrue((path / '.toolchain').is_symlink())
         self.calls.clear()
 
