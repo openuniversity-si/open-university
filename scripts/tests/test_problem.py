@@ -101,6 +101,9 @@ class ProblemSpace(unittest.TestCase):
     def conforms(self, found, ident):
         return model.covered(model.metamodel(self.root), found[ident], model.incoming(found), found)
 
+    def rate(self, found):
+        return model.rate_system(model.metamodel(self.root), found, model.incoming(found), set(), 'problem')
+
     def test_a_complete_problem_space_has_no_error_and_every_object_conforms(self):
         found = self.found()
         self.assertEqual(problem_space.problem_errors(found), [])
@@ -108,8 +111,13 @@ class ProblemSpace(unittest.TestCase):
         self.assertEqual(found['D-1']['appraisal']['chosen'], 'INJ-proposal')
         self.assertEqual(found['ST-domain']['state'], 'not-met', "a node's state is its strategy's condition")
         self.assertEqual(found['ST-top']['state'], 'not-met', 'a level-1 node reads the conditions of its intention')
-        for ident in ('NC-goal', 'NC-part', 'UDE-slow', 'CAUSE-core', 'CAUSE-mid', 'CONFLICT-cloud', 'INJ-proposal'):
+        kinds = {kind for kind, _ in problem_space.KINDS}
+        problem_ids = sorted(ident for ident, item in found.items() if item['type'] in kinds)
+        for ident in problem_ids:
             self.assertTrue(self.conforms(found, ident), ident)
+        rated = self.rate(found)
+        self.assertEqual((rated['conformant'], rated['nonconformant'], rated['closed']), (len(problem_ids), [], True))
+        self.assertIn('closed', model.system_line(rated))
         self.assertEqual(problem_space.gaps(found)['NC-goal']['baseline'], 0)
         self.assertEqual(model.knowledge_measure(found)['refuted_assumed'], 0,
                          'a cloud records the premise its chosen injection broke; it no longer assumes it')
@@ -188,14 +196,50 @@ class ProblemSpace(unittest.TestCase):
         self.assertEqual(model.measured({'measure': {'kind': 'all-met', 'of': ['NC-a', 'NC-b']}}, found, self.root, DAY),
                          (1, True))
 
-    def test_the_torre_s_own_problem_space_is_complete(self):
+    def test_open_observed_effects_leave_problem_open_in_measure_without_failing_check(self):
+        # An observed UDE whose violated condition is now met (stale) stays open in model measure, never an error.
+        stale = self.found(states={'NC-goal': 'met', 'NC-part': 'met'})
+        self.assertEqual(problem_space.problem_errors(stale), [])
+        self.assertTrue(stale['UDE-slow']['body']['stale'])
+        self.assertFalse(self.conforms(stale, 'UDE-slow'))
+        rated = self.rate(stale)
+        self.assertEqual((rated['nonconformant'], rated['closed']), (['UDE-slow'], False))
+        self.assertIn('open: UDE-slow', model.system_line(rated))
+
+        # Once the stale effect is marked gone, the problem space closes again.
+        def resolved(files):
+            files['UDE-slow']['state'] = 'gone'
+        closed = self.found(states={'NC-goal': 'met', 'NC-part': 'met'}, edit=resolved)
+        self.assertEqual(problem_space.problem_errors(closed), [])
+        self.assertFalse(closed['UDE-slow']['body']['stale'])
+        rated = self.rate(closed)
+        self.assertEqual((rated['nonconformant'], rated['closed']), ([], True))
+
+        # An observed UDE with no covering cause stays open (along with the core cause whose coverage drops) in measure.
+        def uncovered(files):
+            files['UDE-open'] = {**files['UDE-slow'], 'id': 'UDE-open', 'statement': 'unexplained'}
+        unexplained = self.found(edit=uncovered)
+        self.assertEqual(problem_space.problem_errors(unexplained), [])
+        self.assertFalse(self.conforms(unexplained, 'UDE-open'))
+        self.assertEqual(unexplained['CAUSE-core']['body']['coverage'], 1 / len(('UDE-slow', 'UDE-open')))
+        rated = self.rate(unexplained)
+        self.assertEqual((rated['nonconformant'], rated['closed']), (['CAUSE-core', 'UDE-open'], False))
+        self.assertIn('open: CAUSE-core, UDE-open', model.system_line(rated))
+
+    def test_the_torre_s_own_problem_space_holds_its_structural_rules(self):
+        # Structural shape only (STD-problem-space): live conformance (e.g. an observed UDE whose NC moved) belongs to
+        # `scripts/model measure`, never to this unit test, so a rolling window or open effect never breaks unrelated PRs.
+        meta = model.metamodel(ROOT)
+        self.assertEqual(meta['errors'], [])
         found = model.objects(ROOT)
         self.assertEqual(problem_space.problem_errors(found), [])
-        meta, into = model.metamodel(ROOT), model.incoming(found)
         kinds = {kind for kind, _ in problem_space.KINDS}
-        open_ = [ident for ident, item in found.items() if item['type'] in kinds
-                 and not model.covered(meta, item, into, found)]
-        self.assertEqual(open_, [])
+        self.assertEqual({item['type'] for item in found.values() if item['type'] in kinds}, kinds)
+        self.assertTrue(all(model.judged(meta, kind) for kind in kinds))
+        problems = [f'{ident}: {problem}' for ident, item in sorted(found.items())
+                    if item['type'] in kinds or str(item.get('source', '')).startswith(problem_space.FOLDER)
+                    for problem in item.get('problems', [])]
+        self.assertEqual(problems, [])
 
 
 if __name__ == '__main__':
