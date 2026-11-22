@@ -1813,6 +1813,28 @@ class SupportSystems(unittest.TestCase):
         judged = {id: self.conformant(item, found) for id, item in found.items() if item['type'] == 'WORK'}
         self.assertEqual([id for id, ok in sorted(judged.items()) if not ok], ['WORK-p-U2', 'WORK-program-r'])
 
+    def test_archived_programs_leave_active_work_counts_and_invalid_archive_is_a_problem(self):
+        write(self.root, 'docs/programs/old/plan.md', '```json program.v1\n' + json.dumps({
+            'units': [{'id': 'A1', 'done': ['x'], 'pr': 1}, {'id': 'A2', 'done': ['y']}]}) + '\n```\n')
+        write(self.root, 'docs/programs/old/archived.json', {
+            'archived_by': 'D-314', 'archived_at': '2026-11-22', 'reason': 'Origin-era program retired.'})
+        write(self.root, 'docs/programs/live/phases/F1.md', '## Plano\n1. **F1a:** live item.\n')
+        write(self.root, 'docs/programs/bad/phases/F1.md', '## Plano\n1. **B1a:** bad archive.\n')
+        write(self.root, 'docs/programs/bad/archived.json', {'archived_by': 'not-a-decision'})
+        found = {item['id']: item for item in model.read_work(self.root)}
+        model.derive_work(found)
+        self.assertEqual(found['WORK-program-old']['state'], 'archived')
+        self.assertEqual(found['WORK-old-A1']['state'], 'delivered')
+        self.assertEqual(found['WORK-old-A2']['state'], 'archived')
+        self.assertEqual(found['WORK-program-live']['state'], 'queued')
+        self.assertTrue(found['WORK-program-bad'].get('problems'))
+        meta = model.metamodel(ROOT)
+        self.assertFalse(model.is_active(meta, found['WORK-program-old']))
+        self.assertFalse(model.is_active(meta, found['WORK-old-A2']))
+        counted = model.work_measure(found)
+        self.assertEqual((counted['programs'], counted['archived_programs']), (len(['live', 'bad']), len(['old'])))
+        self.assertEqual((counted['items'], counted['archived_items']), (len(['F1a', 'B1a']), len(['A1', 'A2'])))
+
     def test_an_assessment_rests_on_evidence_only_when_a_rule_judges_an_object_of_its_system(self):
         rated = {'level': 'N', 'share': 0, 'objects': 3, 'not_judged': 3}
         empty = model.assessment('s', rated, 'abc')
@@ -1832,6 +1854,8 @@ class SupportSystems(unittest.TestCase):
         self.assertEqual(len(found['measurement']['slos']), len(model.SLO_MEASURES))
         self.assertGreater(found['measurement']['fresh'], 0)
         self.assertIn('work: ', model.summary(found))
+        self.assertEqual(found['work']['programs'], 1)
+        self.assertEqual(found['work']['archived_programs'], len(list((ROOT / 'docs/programs').glob('*/archived.json'))))
 
 
 if __name__ == '__main__':

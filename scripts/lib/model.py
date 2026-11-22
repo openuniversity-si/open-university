@@ -2058,6 +2058,8 @@ def read_work(root):
     root = Path(root)
     folder = root / config.get('coordinator.programs_dir')
     template, plan_file, fence = (config.get(f'coordinator.{key}') for key in ('template_dir', 'plan_file', 'plan_fence'))
+    archive_schema_path = root / CONTRACTS_DIR / 'program-archive.v1.json'
+    archive_schema = _read_json(archive_schema_path) if archive_schema_path.is_file() else None
     found = []
     for program in sorted(path for path in folder.iterdir() if path.is_dir() and path.name != template) if folder.is_dir() else ():
         items, problems = [], []
@@ -2094,8 +2096,30 @@ def read_work(root):
                 items.append(_work(f'WORK-{program.name}-{unit}', 'queued', QUEUE_FILE,
                                    {'program': program.name, 'kind': 'queue-row',
                                     'delivers': bool(row.get('Escopo (arquivos)') or row.get('Valor'))}))
-        program_item = _work(f'WORK-program-{program.name}', 'queued', program.relative_to(root).as_posix(),
-                             {'program': program.name, 'kind': 'program', 'delivers': bool(items)})
+        archived = None
+        archive_path = program / 'archived.json'
+        if archive_path.is_file():
+            try:
+                archive_body = _read_json(archive_path)
+            except ValueError as error:
+                problems.append(f'{archive_path.name}: does not parse ({error})')
+                archive_body = None
+            if archive_body is not None:
+                broken = list(json_schema.validate(archive_schema, archive_body)) if archive_schema else []
+                if broken:
+                    problems += [f'{archive_path.name}: {problem}' for problem in broken]
+                else:
+                    archived = archive_body
+                    for child in items:
+                        child['body']['archived'] = True
+                        if child['state'] != 'delivered':
+                            child['state'] = 'archived'
+        program_body = {'program': program.name, 'kind': 'program', 'delivers': bool(items)}
+        if archived is not None:
+            program_body['archived'] = True
+            program_body['archived_by'] = archived['archived_by']
+        program_item = _work(f'WORK-program-{program.name}', 'archived' if archived is not None else 'queued',
+                             program.relative_to(root).as_posix(), program_body)
         if problems:
             program_item['problems'] = problems
         found += [program_item, *items]
@@ -2104,7 +2128,8 @@ def read_work(root):
 
 def derive_work(found):
     """A merge that names a phase item (its PR title or a commit subject, `F7d`) tracks it, and the item is delivered;
-    a name two programs share links nothing. A program is delivered when every item is, in progress when some are."""
+    a name two programs share links nothing. A program is delivered when every item is, in progress when some are; an
+    archived program stays archived."""
     phase_items = {}
     for id, item in found.items():
         if item['type'] == 'WORK' and (item.get('body') or {}).get('kind') == 'phase-item':
@@ -2122,6 +2147,9 @@ def derive_work(found):
             programs.setdefault(item['body']['program'], []).append(item['state'] == 'delivered')
     for item in found.values():
         if item['type'] == 'WORK' and item['body']['kind'] == 'program':
+            if item['body'].get('archived'):
+                item['state'] = 'archived'
+                continue
             done = programs.get(item['body']['program'], [])
             item['state'] = 'delivered' if done and all(done) else 'in-progress' if any(done) else 'queued'
 
@@ -2268,7 +2296,7 @@ def check(meta, found, root=None, today=None):
     return errors, warnings
 
 
-HISTORY = ('superseded', 'deprecated', 'rejected', 'obsolete', 'retired', 'replaced')
+HISTORY = ('superseded', 'deprecated', 'rejected', 'obsolete', 'retired', 'replaced', 'archived')
 
 
 def historical(item):
@@ -2473,16 +2501,23 @@ def measures_measure(found):
 
 
 def work_measure(found):
-    """The work system's own counts: programs, their items by state, and the items a merge on HEAD tracks."""
+    """The work system's own counts: active vs archived programs and items, active items by state, and items a merge on
+    HEAD tracks."""
     work = [item for item in found.values() if item['type'] == 'WORK']
+    programs = [item for item in work if item['body']['kind'] == 'program']
     items = [item for item in work if item['body']['kind'] != 'program']
+    active_programs = [item for item in programs if item['state'] != 'archived']
+    archived_programs = [item for item in programs if item['state'] == 'archived']
+    active_items = [item for item in items if not item['body'].get('archived')]
+    archived_items = [item for item in items if item['body'].get('archived')]
     by_state = {}
-    for item in items:
+    for item in active_items:
         by_state[item['state']] = by_state.get(item['state'], 0) + 1
     tracked = {link['target'] for item in found.values() if item['type'] == 'CHG' for link in item['links']
                if link['type'] == 'tracks'}
-    return {'programs': len(work) - len(items), 'items': len(items), 'by_state': dict(sorted(by_state.items())),
-            'tracked': len(tracked)}
+    return {'programs': len(active_programs), 'archived_programs': len(archived_programs),
+            'items': len(active_items), 'archived_items': len(archived_items),
+            'by_state': dict(sorted(by_state.items())), 'tracked': len(tracked)}
 
 
 RETRO_SAMPLES = 'docs/programs/*/retro-sample-*.json'
@@ -2759,7 +2794,9 @@ def summary(found):
             for id, item in counted['slos'].items()))
     lines.append(cheaper_path_line(found['measurement']['cheaper_path']))
     planned = found['work']
-    lines.append(f'work: {planned["programs"]} program(s), {planned["items"]} item(s): '
+    archived_p = f' ({planned["archived_programs"]} archived)' if planned.get('archived_programs') else ''
+    archived_i = f' ({planned["archived_items"]} archived)' if planned.get('archived_items') else ''
+    lines.append(f'work: {planned["programs"]} active program(s){archived_p}, {planned["items"]} item(s){archived_i}: '
                  f'{", ".join(f"{count} {state}" for state, count in planned["by_state"].items()) or "none"}; '
                  f'{planned["tracked"]} tracked by a merge on HEAD')
     lines += [f'  ERROR {problem}' for problem in found['measurement']['cheaper_path']['problems']]
