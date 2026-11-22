@@ -687,6 +687,14 @@ class Requirements(unittest.TestCase):
         self.assertEqual(found['REQ-contract-g-b2']['body']['implemented_by'], ['CHG-161'])
         self.assertNotIn('problems', found['REQ-contract-inv-a1'])
 
+    def test_a_decision_record_with_status_proposed_stays_proposed(self):
+        write(self.root, 'docs/domain/decisions/D-999.md',
+              '---\nnumber: D-999\nstatus: proposed\ntime: 22/11 13:47 BRT\npremises: none\n'
+              'proof: scripts/tests/test_model.py\n---\nPending owner decision.\n')
+        found = {item['id']: item for item in model.read_decisions(self.root)}
+        self.assertEqual(found['D-999']['state'], 'proposed')
+        self.assertEqual(model.row_state('proposed'), 'proposed')
+
     def test_a_requirement_file_links_its_need_and_decision_and_gaps_are_warnings(self):
         write(self.root, 'config/requirements/REQ-gate-60s.json', {
             'id': 'REQ-gate-60s', 'type': 'constraint', 'statement': 'The gate answers in 60 s.', 'state': 'approved',
@@ -1518,6 +1526,11 @@ class RealRepository(unittest.TestCase):
         meta = model.metamodel(ROOT)
         self.assertEqual(set(result['inventory']['sources']), set(meta['inventory']))
         self.assertTrue(all(item['ids'] for item in result['inventory']['sources'].values()))
+        self.assertEqual(result['requirements']['by_type'].get('product'),
+                         len(model.source_entries(ROOT, meta['inventory']['contract'])))
+        self.assertNotIn('REQ-slo-budgets-budgets-pr-commits-max', model.objects(ROOT))
+        self.assertNotIn('REQ-slo-budgets-budgets-pr-commits-min', model.objects(ROOT))
+        self.assertEqual(model.objects(ROOT)['D-356']['state'], 'proposed')
         levels = {level['level'] for level in meta['scale']}
         self.assertTrue(all(item['level'] in levels for item in result['systems'].values()))
         self.assertEqual(set(result['systems']), set(meta['systems']))

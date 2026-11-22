@@ -177,7 +177,8 @@ def read_decisions(root):
         assumed = [{'type': 'refutes' if ident in refuted else 'assumes', 'target': ident}
                    for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
         replaced = [{'type': 'supersedes', 'target': ident} for ident in re.findall(r'\bD-[0-9]+\b', fields.get('supersedes', ''))]
-        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed + replaced))
+        status = fields.get('status', 'accepted').strip().lower() or 'accepted'
+        objects.append(_obj(number, 'D', status, path.relative_to(root).as_posix(), text, assumed + replaced))
         proof = fields.get('proof', '').strip().strip('`')
         if proof:
             objects.append({'id': f'TEST:{proof}', 'type': 'TEST', 'state': 'active', 'source': proof, 'claimed': True,
@@ -238,7 +239,7 @@ def table_rows(text):
 
 
 INACTIVE_ROW = {'superseded': 'superseded', 'replaced': 'superseded', 'retired': 'deprecated',
-                'deprecated': 'deprecated'}
+                'deprecated': 'deprecated', 'proposed': 'proposed'}
 
 
 def row_state(status):

@@ -8,9 +8,7 @@
   "satisfies": [
     "REQ-escape-under-1",
     "REQ-slo-budgets-slo-merged-prs-per-hour-min",
-    "REQ-slo-budgets-budgets-pr-changed-lines",
-    "REQ-slo-budgets-budgets-pr-commits-min",
-    "REQ-slo-budgets-budgets-pr-commits-max"
+    "REQ-slo-budgets-budgets-pr-changed-lines"
   ],
   "depends_on": [
     "ARC-config",
