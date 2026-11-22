@@ -678,6 +678,15 @@ class Requirements(unittest.TestCase):
         self.assertEqual(found['REQ-slo-slo-gate-p95-s']['body']['implemented_by'], ['CHG-initial'])
         self.assertNotIn('problems', found['REQ-slo-slo-gate-p95-s'])
 
+    def test_a_batch_import_implemented_by_applies_to_its_requirements(self):
+        write(self.root, 'config/requirements/imports/contract.json', {
+            'id': 'contract', 'type': 'product', 'state': 'approved', 'owner': 'Daniel',
+            'derives_from': {'*': 'NEED-throughput'}, 'implemented_by': ['CHG-161']})
+        found = self.found()
+        self.assertEqual(found['REQ-contract-inv-a1']['body']['implemented_by'], ['CHG-161'])
+        self.assertEqual(found['REQ-contract-g-b2']['body']['implemented_by'], ['CHG-161'])
+        self.assertNotIn('problems', found['REQ-contract-inv-a1'])
+
     def test_a_requirement_file_links_its_need_and_decision_and_gaps_are_warnings(self):
         write(self.root, 'config/requirements/REQ-gate-60s.json', {
             'id': 'REQ-gate-60s', 'type': 'constraint', 'statement': 'The gate answers in 60 s.', 'state': 'approved',

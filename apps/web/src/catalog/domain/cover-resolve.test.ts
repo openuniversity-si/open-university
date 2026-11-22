@@ -5,7 +5,7 @@ import { compileRelease } from "./compile.ts";
 import type { MediaAsset } from "../../media/domain/types.ts";
 import { redundantLessons, resolveCover, type CoverNodeKind, type CoverSources } from "./cover-resolve.ts";
 
-// Verifies: D-014
+// Verifies: D-014, REQ-contract-inv-m2, REQ-contract-inv-m3
 const asset = (kind: string, id = kind) => ({ kind, id });
 const nodes: CoverNodeKind[] = ["institution", "area", "subarea", "course", "lesson"];
 

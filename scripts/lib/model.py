@@ -943,10 +943,11 @@ def read_requirements(root):
             need = needs.get(source_id, needs.get('*'))
             own = body.get('overrides', {}).get(source_id, {})
             retired = own.get('retired_by', body.get('retired_by'))
+            impl = own.get('implemented_by', body.get('implemented_by'))
             fields = {'type': body['type'], 'statement': statement, 'state': own.get('state', body['state']),
                       'owner': body['owner'], 'source': where, **({'retired_by': retired} if retired else {}),
                       **({'derives_from': [need]} if need else {}),
-                      **({'implemented_by': own['implemented_by']} if 'implemented_by' in own else {})}
+                      **({'implemented_by': impl} if impl else {})}
             item = _obj(f'REQ-{path.stem}-{_slug(source_id)}', 'REQ', fields['state'], where, statement,
                         _requirement_links(fields))
             item.update(body=fields, source_id=source_id)

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { call, createHarness, seedCatalog, seedDraftCourse, type Harness, type Seed } from "../fixtures/admin-catalog.ts";
 
-// Verifies: D-002
+// Verifies: D-002, REQ-contract-inv-h1, REQ-contract-inv-h5, REQ-contract-inv-m4
 async function institution(h: Harness, slug: string): Promise<string> {
   return (await h.pool.query<{ id: string }>("INSERT INTO authors (slug, name, monogram, kind) VALUES ($1, $1, 'U', 'institution') RETURNING id", [slug])).rows[0]?.id ?? "";
 }

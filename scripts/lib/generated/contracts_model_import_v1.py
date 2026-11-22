@@ -8,6 +8,7 @@ ImportV1 = TypedDict('ImportV1', {
     'owner': Required[str],
     'retired_by': NotRequired[str],
     'derives_from': NotRequired[dict[str, str]],
+    'implemented_by': NotRequired[list[str]],
     'note': NotRequired[str],
     'overrides': NotRequired[dict[str, dict[str, Any]]],
 }, total=False)

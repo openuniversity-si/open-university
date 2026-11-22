@@ -1,8 +1,13 @@
 {
   "id": "contract",
   "type": "product",
-  "state": "obsolete",
+  "state": "approved",
   "owner": "Daniel",
-  "retired_by": "D-111",
-  "note": "The invariants and guarantees of docs/domain/CONTRACT.md are the departed product's (courses, covers, catalog, the site's schema); D-111 moved the product out of this repository."
+  "derives_from": {
+    "*": "NEED-quality"
+  },
+  "implemented_by": [
+    "CHG-161"
+  ],
+  "note": "D-319 brought Open University's site back under apps/web (PR #161, CHG-161), where the domain invariants (INV-H1..H5, INV-M1..M5, INV-R1..R5) and batch guarantees (G-1..G-6) of docs/domain/CONTRACT.md are active and tested."
 }
