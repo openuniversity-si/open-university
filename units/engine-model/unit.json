@@ -47,7 +47,12 @@
     "scripts/tests/test_problem.py",
     "scripts/tests/problem.test.sh",
     "scripts/tests/covers/problem.json",
-    "config/problem/**"
+    "config/problem/**",
+    "scripts/intention-lock",
+    "scripts/lib/intention_lock.py",
+    "scripts/tests/intention-lock.test.sh",
+    "scripts/tests/test_intention_lock.py",
+    "scripts/tests/covers/intention-lock.json"
   ],
   "requires": {
     "engine-config": "^1",

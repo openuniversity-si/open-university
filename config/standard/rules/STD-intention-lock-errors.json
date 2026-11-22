@@ -1,0 +1,18 @@
+{
+  "id": "STD-intention-lock-errors",
+  "statement": "Changes to locked sections of docs/SEMENTE.md (§3, §6) or config/intent/INT-*.json are refused without an intencao: PR title and Daniel's Intention-Change authorization line (SEMENTE.md §6).",
+  "state": "blocking",
+  "owner": "Daniel",
+  "applies_to": [
+    "CHG",
+    "INT"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/intention_lock.py:intention_lock_errors"
+  },
+  "basis": [
+    "D-317"
+  ],
+  "note": "Enforces the SEMENTE.md §6 intention lock over docs/SEMENTE.md (§3, §6) and config/intent/INT-*.json via scripts/lib/intention_lock.py, scripts/intention-lock, and scripts/model check --base (formalization proposed in D-358)."
+}
