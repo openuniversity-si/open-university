@@ -241,6 +241,20 @@ class RepositorySection6QuotaAlignment(unittest.TestCase):
         self.assertEqual(sup['budget'], 'REQ-anthropic-budget')
         self.assertEqual(val['threshold_key'], 'supply.anthropic_monthly_usd')
 
+    def test_decision_d358_remains_proposed_and_never_self_approved(self):
+        text = (ROOT / 'docs/domain/decisions/D-358.md').read_text(encoding='utf-8')
+        head = model.FRONT.match(text)
+        self.assertIsNotNone(head)
+        fields = {line.split(':', 1)[0].strip(): line.split(':', 1)[1].strip()
+                  for line in head.group(1).splitlines() if ':' in line}
+        self.assertEqual(fields.get('number'), 'D-358')
+        self.assertEqual(fields.get('status'), 'proposed')
+        self.assertNotIn('supersedes', fields)
+        self.assertEqual(fields.get('proof'), 'scripts/tests/intention-lock.test.sh')
+        self.assertIn('not approved by the owner', text)
+        table_text = (ROOT / 'docs/domain/DECISIONS.md').read_text(encoding='utf-8')
+        self.assertIn('| D-358 |', table_text)
+
 
 if __name__ == '__main__':
     unittest.main()
