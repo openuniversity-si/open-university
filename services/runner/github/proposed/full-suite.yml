@@ -1,0 +1,188 @@
+# full-suite (PROPOSED — D-087, D-359 proposed, C6): workflow change for Daniel / the Torre to install.
+# Replaces services/runner/github/full-suite.yml and .github/workflows/full-suite.yml in the same owner PR
+# (queue-checks requires installed == staged).
+#
+# Changes over the current full-suite.yml:
+#   1. Andon stop-the-line (C6): a red run opens or updates a single deduplicated issue labeled `main-red-andon`
+#      (paired with `main-health` in proposed/tower-gate.yml, which blocks non-`fix-main` PRs while main is red);
+#      the next green run automatically closes every open `main-red-andon` issue.
+#   2. Automated snapshot refresh (C6): after a green run, refreshes config/validation/{verdicts,slo,runs/tower-gate}.json
+#      (and scripts/tests/traced-covers.json when stale or requested) and opens a PR on `automation/refresh-snapshots`
+#      using TOWER_SNAPSHOT_TOKEN (never pushes to main, D-054; skips self-refresh commits to prevent loops).
+#   3. CACHE-PGDATA: keeps the exact actions/cache step of tower-gate.yml, byte for byte.
+name: full-suite
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      refresh_traced:
+        description: "Force strace regeneration of scripts/tests/traced-covers.json"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: full-suite
+  cancel-in-progress: false
+jobs:
+  suite:
+    name: full-suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            .toolchain
+            !.toolchain/pgdata
+            !.toolchain/postgres.log
+            !.toolchain/pgsocket
+            !.toolchain/pghome
+          key: toolchain-bin-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
+      - name: toolchain
+        run: bash scripts/cloud/setup.sh
+      - name: suite
+        id: suite
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          base="$BEFORE"
+          git cat-file -e "${base}^{commit}" 2>/dev/null || base="$(git rev-parse HEAD~1)"
+          source scripts/cloud/env.sh
+          scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post --all
+      - name: activate Andon stop-the-line when red
+        if: failure() && steps.suite.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECKS_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}/checks
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          gh label create main-red-andon --repo "$GITHUB_REPOSITORY" --color B60205 \
+            --description "Andon stop-the-line: full-suite is red on main (C6)" 2>/dev/null || true
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --label main-red-andon --state open --json number --jq '.[0].number // empty')"
+          body="full-suite is red on main at ${GITHUB_SHA} (run ${RUN_ID}): ${CHECKS_URL}. Non-fix PRs are paused by main-health until full-suite passes; apply label \`fix-main\` to the repair PR."
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --label main-red-andon \
+              --title "Andon: full-suite red on main (${GITHUB_SHA::12})" --body "$body"
+          fi
+      - name: lift Andon stop-the-line when green
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECKS_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}/checks
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          for num in $(gh issue list --repo "$GITHUB_REPOSITORY" --label main-red-andon --state open --json number --jq '.[].number'); do
+            gh issue close "$num" --repo "$GITHUB_REPOSITORY" \
+              --comment "full-suite green on main at ${GITHUB_SHA} (run ${RUN_ID}): ${CHECKS_URL}. Lifting Andon stop-the-line."
+          done
+  refresh-snapshots:
+    name: refresh-snapshots
+    needs: [suite]
+    if: success()
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.TOWER_SNAPSHOT_TOKEN || github.token }}
+      - name: check snapshot token and loop guard
+        id: guard
+        env:
+          HAS_TOKEN: ${{ secrets.TOWER_SNAPSHOT_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "TOWER_SNAPSHOT_TOKEN not configured; skipping automated snapshot PR (provisioned by Daniel, D-087)"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
+          non_snapshot="$(printf '%s\n' "$changed" | grep -Ev '^(config/validation/|scripts/tests/traced-covers\.json$|$)' || true)"
+          if [ -z "$non_snapshot" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "commit ${GITHUB_SHA::12} touched only validation snapshots; skipping to prevent refresh loop"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: steps.guard.outputs.run == 'true'
+        with:
+          path: |
+            .toolchain
+            !.toolchain/pgdata
+            !.toolchain/postgres.log
+            !.toolchain/pgsocket
+            !.toolchain/pghome
+          key: toolchain-bin-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
+      - name: toolchain
+        if: steps.guard.outputs.run == 'true'
+        run: bash scripts/cloud/setup.sh
+      - name: refresh verdicts, tower-gate runs, slo and traced-covers
+        if: steps.guard.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TOWER_SNAPSHOT_TOKEN }}
+          FORCE_TRACED: ${{ github.event.inputs.refresh_traced || 'false' }}
+        run: |
+          source scripts/cloud/env.sh
+          scripts/runs refresh-verdicts
+          scripts/runs refresh tower-gate
+          scripts/runs refresh-slo
+          traced_base="$(python3 -c "import json, pathlib; p = pathlib.Path('scripts/tests/traced-covers.json'); print(json.loads(p.read_text()).get('base', '') if p.is_file() else '')")"
+          lag=999
+          if [ -n "$traced_base" ] && git cat-file -e "${traced_base}^{commit}" 2>/dev/null; then
+            lag="$(git rev-list --first-parent --merges --count "${traced_base}..HEAD")"
+          fi
+          if [ "$FORCE_TRACED" = "true" ] || [ "$lag" -ge 20 ]; then
+            if command -v strace >/dev/null 2>&1; then
+              scripts/padrao-metrics trace scripts/tests/*.test.sh --out "$RUNNER_TEMP/traces"
+              scripts/padrao-metrics traced --traces "$RUNNER_TEMP/traces" --base "$GITHUB_SHA"
+            else
+              echo "strace unavailable on runner; keeping existing scripts/tests/traced-covers.json"
+            fi
+          fi
+      - name: open or update snapshot PR through the merge queue
+        if: steps.guard.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TOWER_SNAPSHOT_TOKEN }}
+        run: |
+          if git diff --quiet -- config/validation scripts/tests/traced-covers.json; then
+            echo "snapshots already up to date"
+            exit 0
+          fi
+          branch="automation/refresh-snapshots-${GITHUB_SHA::12}"
+          git config user.name "tower-snapshots[bot]"
+          git config user.email "tower-snapshots@users.noreply.github.com"
+          git switch -c "$branch"
+          git add config/validation/verdicts.json config/validation/slo.json config/validation/runs/tower-gate.json scripts/tests/traced-covers.json
+          git commit -m "validation: refresh verdicts, SLO, gate runs and traced-covers snapshots (${GITHUB_SHA::12})" \
+            -m "Automated post-merge refresh after green full-suite on main (C6, D-359)." \
+            -m "Cheapest path: refresh committed snapshots on a normal PR judged by tower/gate and the merge queue (never direct push to main, D-054)." \
+            -m "Plan: 1
+Implements: UNIT:engine-model"
+          git push -u origin "$branch"
+          body_file="$RUNNER_TEMP/snapshot-pr-body.md"
+          printf '%s\n' \
+            'Refreshes `config/validation/{verdicts,slo,runs/tower-gate}.json` (and `scripts/tests/traced-covers.json` when stale) after a green `full-suite` run on `main` (C6).' \
+            '' \
+            'Cheapest path: automated PR through `tower/gate` and the merge queue (never direct push to `main`, D-054).' \
+            '' \
+            '## Commit plan' \
+            '- [ ] 1. Refresh validation snapshots and traced-covers after green full-suite' \
+            '' \
+            'Premises: none' \
+            'Fit-Review: not reviewed (Daniel 2026-10-25: no review step)' > "$body_file"
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" \
+            --title "validation: refresh snapshots after green full-suite (${GITHUB_SHA::12})" \
+            --body-file "$body_file"

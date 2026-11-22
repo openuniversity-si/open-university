@@ -286,6 +286,16 @@ class ProposalAuditTests(unittest.TestCase):
         bad_ruleset['rules'][-1]['parameters']['required_status_checks'][0]['integration_id'] = actions_id
         self.assertTrue(workflow_attest.audit_ruleset_data(bad_ruleset, actions_app_id=actions_id))
 
+    def test_staged_full_suite_and_site_canary_pass_validator_and_preserve_cache_parity(self):
+        proposed_dir = ROOT / workflow_attest.PROPOSED_DIR
+        self.assertTrue((proposed_dir / 'full-suite.yml').is_file())
+        self.assertTrue((proposed_dir / 'site-canary.yml').is_file())
+        report = workflow_attest.validate_proposed(ROOT)
+        self.assertTrue(report['ok'], report)
+        gate_text = (ROOT / workflow_attest.STAGED_GATE).read_text(encoding='utf-8')
+        suite_text = (proposed_dir / 'full-suite.yml').read_text(encoding='utf-8')
+        self.assertEqual(workflow_attest.extract_cache_step(suite_text), workflow_attest.extract_cache_step(gate_text))
+
 
 if __name__ == '__main__':
     unittest.main()
