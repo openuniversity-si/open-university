@@ -1561,9 +1561,15 @@ class RealRepository(unittest.TestCase):
         self.assertEqual(found['D-337']['authority'], 'owner')
         self.assertEqual(found['D-343']['authority'], 'session')
         self.assertEqual(found['D-344']['authority'], 'session')
+        revoked_tails = ('TAIL-site-csp-inline', 'TAIL-gate-fork-workflow', 'TAIL-ssdf-pw2-gate')
+        approved_tails = ('TAIL-targets-budget-tolerance', 'TAIL-targets-flake-excuse', 'TAIL-targets-web-coverage')
+        for tail_id in revoked_tails:
+            self.assertEqual(found[tail_id]['state'], 'revoked', tail_id)
+        for tail_id in approved_tails:
+            self.assertEqual(found[tail_id]['state'], 'active', tail_id)
         exempt = model.exempted_ids(found, model.utc_today())
-        unapproved_targets = ('CTRL-ssdf-pw.2', 'CTRL-ssdf-pw.9', 'THREAT-gate')
-        for ident in unapproved_targets:
+        open_targets = ('CTRL-ssdf-pw.2', 'CTRL-ssdf-pw.9', 'THREAT-gate')
+        for ident in open_targets:
             self.assertNotIn(ident, exempt)
         self.assertEqual(found['D-349']['state'], 'superseded')
         self.assertFalse(model.independently_approved(found['D-349']))
@@ -1573,10 +1579,13 @@ class RealRepository(unittest.TestCase):
         result = model.measure(ROOT, found=found)
         self.assertFalse(result['systems']['security']['closed'])
         self.assertFalse(result['systems']['knowledge']['closed'])
-        self.assertIn('THREAT-gate', result['systems']['security']['nonconformant'])
-        self.assertGreaterEqual(result['standard_management']['unapproved_exemptions'], len(unapproved_targets))
+        for ident in open_targets:
+            self.assertIn(ident, result['systems']['security']['nonconformant'])
+        self.assertEqual(result['standard_management']['exemptions'], len(approved_tails))
+        self.assertEqual(result['standard_management']['unapproved_exemptions'], 0)
         text = model.summary(result)
-        self.assertIn('TAIL-gate-fork-workflow: [UNAPPROVED]', text)
+        for tail_id in revoked_tails:
+            self.assertNotIn(tail_id, text)
         self.assertIn('TAIL-targets-budget-tolerance: [approved]', text)
 
     def test_the_systems_split_into_a_management_and_an_engineering_group_reported_apart(self):
