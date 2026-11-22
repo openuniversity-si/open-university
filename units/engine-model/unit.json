@@ -55,6 +55,8 @@
     "engine-gate-infra": "^1",
     "engine-gate-plan": "^1",
     "engine-gate-tests": "^1",
+    "engine-generate": "^1",
+    "engine-lessons": "^1",
     "engine-premises": "^1",
     "engine-rules": "^1",
     "engine-slo": "^1"

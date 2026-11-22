@@ -282,7 +282,7 @@ class TinyModel(unittest.TestCase):
                              {'id': 'a.one', 'type': 'ARC'})
         counted = model.inventory(self.meta(), found, self.root)['all']
         self.assertEqual((counted['ids'], counted['imported']), (len(['D-1', 'D-2', 'D-3', 'A', 'a.one', 'a.two']), 2))
-        self.assertEqual(counted['by_type'], {'REQ': 2})
+        self.assertEqual(counted['by_type'], {'REQ': counted['imported']})
         write(self.root, 'config/model/inventory/all.json', {
             'id': 'all', 'name': 'all', 'becomes': ['REQ'], 'description': 'd',
             'parts': [{'kind': 'registry', 'glob': 'reg.json', 'pattern': 'two$'}]})
@@ -1492,6 +1492,99 @@ class Layers(unittest.TestCase):
         self.assertIn('ARC-up: depends on ARC-mid of a higher layer', errors[0])
 
 
+class PhantomTypes(unittest.TestCase):
+    """CFG, CON, and LESSON have real readers and conformance rules (audit finding A6)."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-phantom-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        for folder in ('contracts/model', 'config/model', 'contracts/lessons'):
+            shutil.copytree(ROOT / folder, self.root / folder)
+
+    def test_cfg_reads_toolchain_pins_and_registry_aggregates_and_flags_drift_and_bad_checksums(self):
+        import generate_registry
+        import json_schema
+        good_sha = 'a' * len('0123456789abcdef' * len('abcd'))
+        write(self.root, 'scripts/cloud/toolchain.json', {
+            'python': {'sha256': {'3.12.15': {'x86_64': good_sha}}},
+            'ruff': {'sha256': {'0.16.9': {'x86_64': 'not-a-sha'}}},
+        })
+        write(self.root, 'config/registry/demo/_owner.json', {
+            '$schema': json_schema.DIALECT,
+            '$id': 'config/registry/demo.json', 'x-owner': 'demo', 'type': 'object',
+        })
+        write(self.root, 'config/registry/demo/demo.flag.json', {
+            'type': 'boolean', 'default': True, 'description': 'A demo flag.', 'x-unit': 'flag', 'x-readers': [],
+        })
+        expected = generate_registry.assemble(self.root, 'demo')
+        write(self.root, 'config/registry/demo.json', expected)
+        items = {item['id']: item for item in model.read_configs(self.root)}
+        self.assertTrue(items['CFG-toolchain-python']['body']['valid'])
+        self.assertFalse(items['CFG-toolchain-ruff']['body']['valid'])
+        self.assertIn('problems', items['CFG-toolchain-ruff'])
+        self.assertTrue(items['CFG-registry-demo']['body']['valid'])
+        self.assertFalse(items['CFG-registry-demo']['body']['drifted'])
+        # Introduce drift in the aggregate against its split key file
+        write(self.root, 'config/registry/demo.json', expected.replace('true', 'false'))
+        drifted = {item['id']: item for item in model.read_configs(self.root)}
+        self.assertTrue(drifted['CFG-registry-demo']['body']['drifted'])
+        self.assertFalse(drifted['CFG-registry-demo']['body']['valid'])
+        meta = model.metamodel(self.root)
+        self.assertTrue(model.judged(meta, 'CFG'))
+        errors, _ = model.check(meta, drifted)
+        self.assertTrue(any(err.startswith('CFG-registry-demo:') for err in errors), errors)
+        self.assertTrue(any(err.startswith('CFG-toolchain-ruff:') for err in errors), errors)
+
+    def test_con_reads_versioned_contracts_and_flags_invalid_schema_or_id(self):
+        import json_schema
+        write(self.root, 'contracts/events/schemas.lock.json', {'schemas': {}})
+        write(self.root, 'contracts/demo/ok.v1.json', {
+            '$schema': json_schema.DIALECT,
+            '$id': 'contracts/demo/ok.v1.json', 'type': 'object', 'properties': {'a': {'type': 'string'}},
+        })
+        write(self.root, 'contracts/demo/bad.v1.json', {
+            '$schema': json_schema.DIALECT,
+            '$id': 'contracts/demo/wrong.v1.json', 'type': 'object',
+        })
+        items = {item['id']: item for item in model.read_contracts(self.root)}
+        self.assertIn('CON-demo-ok-v1', items)
+        self.assertTrue(items['CON-demo-ok-v1']['body']['valid'])
+        self.assertFalse(items['CON-demo-bad-v1']['body']['valid'])
+        self.assertIn('problems', items['CON-demo-bad-v1'])
+        self.assertFalse(any('schemas-lock' in ident for ident in items))
+        meta = model.metamodel(self.root)
+        self.assertTrue(model.judged(meta, 'CON'))
+        errors, _ = model.check(meta, items)
+        self.assertTrue(any(err.startswith('CON-demo-bad-v1:') for err in errors), errors)
+
+    def test_lesson_reads_records_and_flags_corrupt_audit_trail(self):
+        sample = next((ROOT / 'docs/process/lessons').glob('*.yml'))
+        audit = sample.with_name(sample.stem + '.audit.jsonl')
+        (self.root / 'docs/process/lessons').mkdir(parents=True, exist_ok=True)
+        shutil.copy(sample, self.root / 'docs/process/lessons' / sample.name)
+        shutil.copy(audit, self.root / 'docs/process/lessons' / audit.name)
+        items = {item['id']: item for item in model.read_lessons(self.root)}
+        self.assertEqual(len(items), 1)
+        item = next(iter(items.values()))
+        self.assertEqual(item['state'], 'open')
+        self.assertTrue(item['body']['valid'])
+        self.assertTrue(item['body']['owned'])
+        self.assertTrue(item['body']['actionable'])
+        # Corrupt the audit chain digest
+        broken_audit = self.root / 'docs/process/lessons' / audit.name
+        entry = json.loads(broken_audit.read_text().splitlines()[0])
+        entry['digest'] = '0' * len(entry['digest'])
+        broken_audit.write_text(json.dumps(entry, sort_keys=True) + '\n')
+        corrupt = {obj['id']: obj for obj in model.read_lessons(self.root)}
+        bad = next(iter(corrupt.values()))
+        self.assertFalse(bad['body']['valid'])
+        self.assertIn('problems', bad)
+        meta = model.metamodel(self.root)
+        self.assertTrue(model.judged(meta, 'LESSON'))
+        errors, _ = model.check(meta, corrupt)
+        self.assertTrue(any(err.startswith(f'{bad["id"]}:') for err in errors), errors)
+
+
 class RealRepository(unittest.TestCase):
     def test_a_site_test_counts_only_when_it_declares_what_it_verifies_and_a_typescript_comment_declares_it(self):
         tests = {item['id']: item for item in model.read_tests(ROOT)}
@@ -1505,8 +1598,13 @@ class RealRepository(unittest.TestCase):
         self.assertEqual({kind['system'] for kind in meta['types'].values()}, set(meta['systems']))
 
     def test_every_object_of_this_checkout_fits_the_metamodel(self):
-        errors, _ = model.check(model.metamodel(ROOT), model.objects(ROOT))
+        meta = model.metamodel(ROOT)
+        found = model.objects(ROOT)
+        errors, _ = model.check(meta, found)
         self.assertEqual(errors, [])
+        for kind in ('CFG', 'CON', 'LESSON'):
+            self.assertTrue(model.judged(meta, kind), kind)
+            self.assertTrue(any(item['type'] == kind for item in found.values()), kind)
 
     def test_a_decision_proof_becomes_a_verifies_link_on_the_test_and_a_gone_proof_a_warning(self):
         found = model.objects(ROOT)

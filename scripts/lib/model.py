@@ -1623,9 +1623,10 @@ def view(found):
 
 def architecture_measure(found):
     """The architecture system's own measure: active elements by kind, those that satisfy a requirement, those a
-    unit realizes, the units that realize an element, and the ADRs by state."""
+    unit realizes, the units that realize an element, active contracts, and the ADRs by state."""
     into = incoming(found)
     elements = [item for item in found.values() if item['type'] == 'ARC' and item['state'] in ('proposed', 'active')]
+    contracts = [item for item in found.values() if item['type'] == 'CON' and item['state'] in ('proposed', 'active')]
     by_kind = {}
     for item in elements:
         kind = item.get('body', {}).get('kind', '?')
@@ -1640,7 +1641,7 @@ def architecture_measure(found):
         'satisfying': sum(1 for item in elements if any(link['type'] == 'satisfies' for link in item['links'])),
         'realized': sum(1 for item in elements if any(kind == 'realizes' for kind, _ in into.get(item['id'], []))),
         'units_realizing': sum(1 for item in units if any(link['type'] == 'realizes' for link in item['links'])),
-        'units': len(units), 'adrs': dict(sorted(adrs.items())),
+        'units': len(units), 'contracts': len(contracts), 'adrs': dict(sorted(adrs.items())),
         'reflexion': reflexion_share(found),
     }
 
@@ -1678,10 +1679,11 @@ def decisions_measure(found, root=ROOT):
 
 def knowledge_measure(found, radius='high'):
     """The knowledge system's own measure: the premises, the high-blast ones not confirmed or validated, the refuted
-    ones still assumed by an active object."""
+    ones still assumed by an active object, and the lessons by state."""
     into = incoming(found)
     settled = ('confirmed', 'validated')
     premises_found = [item for item in found.values() if item['type'] == 'P']
+    lessons_found = [item for item in found.values() if item['type'] == 'LESSON']
     return {
         'premises': len(premises_found),
         'high_unsettled': sum(1 for item in premises_found if item['body'].get('radius') == radius
@@ -1689,6 +1691,10 @@ def knowledge_measure(found, radius='high'):
         'refuted_assumed': sum(1 for item in premises_found if item['state'] == 'refuted'
                                and any(kind == 'assumes' and not broken_by_injection(found, source, item['id'])
                                        for kind, source in into.get(item['id'], []))),
+        'lessons': len(lessons_found),
+        'lessons_open': sum(1 for item in lessons_found if item['state'] == 'open'),
+        'lessons_applied': sum(1 for item in lessons_found if item['state'] == 'applied'),
+        'lessons_retired': sum(1 for item in lessons_found if item['state'] == 'retired'),
     }
 
 
@@ -2123,9 +2129,213 @@ def derive_work(found):
             item['state'] = 'delivered' if done and all(done) else 'in-progress' if any(done) else 'queued'
 
 
+TOOLCHAIN_MANIFEST = 'scripts/cloud/toolchain.json'
+REGISTRY_AGGREGATES = 'config/registry/*.json'
+SHA256_HEX = re.compile(r'^[0-9a-f]{64}$')
+CONTRACTS_GLOB = 'contracts/**/*.json'
+LESSON_STATE = {'proposed': 'open', 'applied': 'applied', 'retired': 'retired'}
+
+
+def read_configs(root):
+    """Configuration items (CFG, the Configuration system): toolchain pins in scripts/cloud/toolchain.json (checked for
+    valid SHA-256 digests) and registry owner aggregates in config/registry/*.json (checked for shape, ownership and
+    regeneration drift against split key files via generate_registry.assemble)."""
+    import generate_registry
+    root = Path(root)
+    found = []
+    manifest_path = root / TOOLCHAIN_MANIFEST
+    if manifest_path.is_file():
+        text = manifest_path.read_text(encoding='utf-8')
+        try:
+            manifest = json.loads(text)
+            if not isinstance(manifest, dict):
+                raise ValueError('manifest must be a JSON object')
+        except (ValueError, OSError) as error:
+            item = _obj('CFG-toolchain', 'CFG', 'active', TOOLCHAIN_MANIFEST, text)
+            item['body'] = {'kind': 'toolchain-pin', 'owner': 'engine-env', 'owned': True, 'drifted': False, 'valid': False}
+            item['problems'] = [f'unreadable toolchain manifest ({error})']
+            found.append(item)
+            manifest = {}
+        for tool, spec in sorted(manifest.items()):
+            problems = []
+            sha_map = spec.get('sha256') if isinstance(spec, dict) else None
+            if not isinstance(sha_map, dict) or not sha_map:
+                problems.append('missing sha256 checksum table')
+                versions = []
+            else:
+                versions = sorted(sha_map)
+                for version, arches in sorted(sha_map.items()):
+                    if not isinstance(arches, dict) or not arches:
+                        problems.append(f'version {version} has no architecture checksums')
+                        continue
+                    for arch, digest in sorted(arches.items()):
+                        if not isinstance(digest, str) or not SHA256_HEX.match(digest):
+                            problems.append(f'version {version} ({arch}) has invalid sha256 digest')
+            item = _obj(f'CFG-toolchain-{_slug(tool)}', 'CFG', 'active', TOOLCHAIN_MANIFEST,
+                        json.dumps({tool: spec}, sort_keys=True))
+            item['body'] = {'kind': 'toolchain-pin', 'owner': 'engine-env', 'owned': True,
+                            'drifted': False, 'valid': not problems, 'versions': versions}
+            if problems:
+                item['problems'] = problems
+            found.append(item)
+    for path in sorted(root.glob(REGISTRY_AGGREGATES)):
+        if not path.is_file():
+            continue
+        owner = path.stem
+        rel = path.relative_to(root).as_posix()
+        text = path.read_text(encoding='utf-8')
+        problems, drifted = [], False
+        try:
+            doc = json.loads(text)
+            if not isinstance(doc, dict):
+                raise ValueError('aggregate must be a JSON object')
+        except ValueError as error:
+            doc = {}
+            problems.append(f'not valid JSON ({error})')
+        declared_owner = doc.get('x-owner') if isinstance(doc.get('x-owner'), str) else ''
+        if doc and doc.get('$id') != rel:
+            problems.append(f'$id is {doc.get("$id")!r}, not {rel!r}')
+        if doc and declared_owner != owner:
+            problems.append(f'x-owner is {declared_owner!r}, not {owner!r}')
+        props = doc.get('properties') if isinstance(doc.get('properties'), dict) else {}
+        if doc and not isinstance(doc.get('properties'), dict):
+            problems.append('properties must be an object')
+        for key, spec in sorted(props.items()):
+            if not isinstance(spec, dict) or not str(spec.get('description', '')).strip():
+                problems.append(f'{key} has no description')
+        split_header = root / 'config' / 'registry' / owner / generate_registry.HEADER
+        if split_header.is_file():
+            try:
+                expected = generate_registry.assemble(root, owner)
+                if text != expected:
+                    drifted = True
+                    problems.append(f'differs from its key files; run scripts/generate registry')
+            except (generate_registry.RegistrySplitError, ValueError, OSError) as error:
+                drifted = True
+                problems.append(f'cannot assemble from key files ({error})')
+        state = ('deprecated' if props and all(isinstance(spec, dict) and spec.get('deprecated') is True
+                                               for spec in props.values()) else 'active')
+        item = _obj(f'CFG-registry-{owner}', 'CFG', state, rel, text)
+        item['body'] = {'kind': 'registry-owner', 'owner': declared_owner, 'owned': bool(declared_owner),
+                        'keys': len(props), 'drifted': drifted, 'valid': not problems}
+        if problems:
+            item['problems'] = problems
+        found.append(item)
+    return found
+
+
+def read_contracts(root):
+    """Contracts (CON, the Architecture system): every versioned JSON Schema under contracts/, validated with
+    schema_compat.check_shape for dialect, $id path identity, naming and schema validity."""
+    import schema_compat
+    root = Path(root)
+    folder = root / 'contracts'
+    if not folder.is_dir():
+        return []
+    cfg_root = root if (root / 'config/registry/contracts.json').is_file() else ROOT
+    found = []
+    for path in sorted(root.glob(CONTRACTS_GLOB)):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        text = path.read_text(encoding='utf-8')
+        versioned = bool(schema_compat.VERSION.match(rel))
+        problems = []
+        try:
+            doc = json.loads(text)
+        except json.JSONDecodeError as error:
+            if not versioned:
+                continue
+            doc = None
+            problems.append(f'not JSON ({error.msg})')
+        if doc is not None:
+            if not isinstance(doc, dict) or (not versioned and '$schema' not in doc):
+                continue  # non-schema manifest/lock file (e.g. contracts/events/schemas.lock.json)
+            problems += [err.removeprefix(f'{rel}: ') for err in schema_compat.check_shape(cfg_root, rel, doc)]
+        state = 'deprecated' if isinstance(doc, dict) and doc.get('deprecated') is True else 'active'
+        slug = _slug(rel.removeprefix('contracts/').removesuffix('.json'))
+        item = _obj(f'CON-{slug}', 'CON', state, rel, text)
+        item['body'] = {'kind': 'schema', 'owner': doc.get('x-owner', '') if isinstance(doc, dict) else '',
+                        'version': doc.get('x-schema-version') if isinstance(doc, dict) else None,
+                        'valid': not problems}
+        if problems:
+            item['problems'] = problems
+        found.append(item)
+    return found
+
+
+def link_contracts(found, root):
+    """Link each live unit to the contracts (CON) whose file path its manifest claims (`provides`)."""
+    import units
+    from config import ConfigError
+    root = Path(root)
+    if not (root / 'units').is_dir():
+        return
+    try:
+        units.manifests(root)
+    except (units.UnitError, ConfigError):
+        return
+    for item in found.values():
+        if item['type'] != 'CON':
+            continue
+        for unit_id in units.units_of(item['source'], root):
+            holder = found.get(f'UNIT:{unit_id}')
+            if holder is not None and holder['state'] == 'active':
+                link = {'type': 'provides', 'target': item['id']}
+                if link not in holder['links']:
+                    holder['links'].append(link)
+
+
+def read_lessons(root):
+    """Lessons (LESSON, the Knowledge system): every record under docs/process/lessons/*.yml, validated through
+    scripts/lib/lessons.py (schema, vocabulary and hash-chained audit trail)."""
+    import lessons
+    root = Path(root)
+    folder = lessons.register_dir(root)
+    if not folder.is_dir():
+        return []
+    records, errors = lessons.load(root)
+    suffix = lessons.setting('record_suffix')
+    reg_dir = lessons.setting('register_dir')
+    found, seen_paths = [], set()
+    for ident, record in sorted(records.items()):
+        rel = f'{reg_dir}/{record["slug"]}{suffix}'
+        seen_paths.add(rel)
+        path = root / rel
+        text = path.read_text(encoding='utf-8') if path.is_file() else ident
+        problems = [err.split(': ', 1)[1] if ': ' in err else err for err in errors
+                    if err.startswith(f'{rel}: ') or err.startswith(f'{rel} trail ')]
+        state = LESSON_STATE.get(record.get('status', ''), record.get('status', ''))
+        item = _obj(ident, 'LESSON', state, rel, text)
+        item['body'] = {
+            'kind': record.get('kind', ''), 'class': record.get('class', ''),
+            'owner': record.get('owner', ''), 'owned': bool(str(record.get('owner', '')).strip()),
+            'actionable': bool(str(record.get('change', '')).strip()),
+            'valid': not problems, 'trail_entries': len(record.get('trail', ())),
+            'applied': bool(record.get('applied')),
+        }
+        if problems:
+            item['problems'] = problems
+        found.append(item)
+    for path in sorted(folder.glob('*' + suffix)):
+        rel = path.relative_to(root).as_posix()
+        if rel in seen_paths:
+            continue
+        text = path.read_text(encoding='utf-8', errors='replace')
+        problems = [err.split(': ', 1)[1] if ': ' in err else err for err in errors
+                    if err.startswith(f'{rel}: ') or err.startswith(f'{rel} trail ') or rel in err]
+        item = _obj(f'LESSON:{path.stem}', 'LESSON', 'open', rel, text)
+        item['body'] = {'kind': '', 'class': '', 'owner': '', 'owned': False, 'actionable': False,
+                        'valid': False, 'trail_entries': 0, 'applied': False}
+        item['problems'] = problems or ['failed to load lesson record']
+        found.append(item)
+    return found
+
+
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
-           read_intent, read_problem, read_requirements, read_premises, read_changes, read_escapes, read_architecture, read_adrs, read_validations,
-           read_suppliers, read_dependencies, read_advisories, read_checks, read_data, read_requests,
+           read_intent, read_problem, read_requirements, read_premises, read_lessons, read_changes, read_escapes,
+           read_architecture, read_contracts, read_adrs, read_validations, read_suppliers, read_dependencies,
+           read_advisories, read_checks, read_configs, read_data, read_requests,
            read_risks, read_controls, read_vulns, read_threats, read_measures, read_work)
 
 
@@ -2185,6 +2395,8 @@ def objects(root=ROOT, readers=READERS):
         derive_verdicts(found, root)
     if read_requirements in readers and read_changes in readers:
         link_implemented_by(found)
+    if read_units in readers and read_contracts in readers:
+        link_contracts(found, root)
     if read_validations in readers or read_problem in readers:
         derive_validations(found, root)
     if read_problem in readers:
@@ -2738,7 +2950,8 @@ def summary(found):
                  f'{wanted["implemented"]} implemented, {wanted["verified"]} verified, {wanted["with_element"]} with an '
                  f'architecture element, {wanted["with_test"]} with a test')
     built = found['architecture']
-    lines.append(f'architecture: {built["elements"]} active element(s) ({", ".join(f"{count} {kind}" for kind, count in built["by_kind"].items())}); '
+    lines.append(f'architecture: {built["elements"]} active element(s) ({", ".join(f"{count} {kind}" for kind, count in built["by_kind"].items())}), '
+                 f'{built.get("contracts", 0)} contract(s); '
                  f'{built["satisfying"]} satisfy a requirement, {built["realized"]} realized by a unit; {built["units_realizing"]} '
                  f'of {built["units"]} units realize an element; ADRs {", ".join(f"{count} {state}" for state, count in built["adrs"].items())}')
     mirror = built['reflexion']
@@ -2755,7 +2968,9 @@ def summary(found):
                  f'{proved["needs_met"]} of {proved["needs"]} needs with a validation met')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
-                 f'{known["refuted_assumed"]} refuted and still assumed')
+                 f'{known["refuted_assumed"]} refuted and still assumed; '
+                 f'{known.get("lessons", 0)} lesson(s) ({known.get("lessons_open", 0)} open, '
+                 f'{known.get("lessons_applied", 0)} applied, {known.get("lessons_retired", 0)} retired)')
     counted = found['measurement']
     lines.append(f'measurement: {counted["measures"]} measure(s), {counted["fresh"]} fresh on HEAD, {counted["proposed"]} '
                  f'proposed (no function wired), {counted["unread"]} whose source HEAD does not hold')
