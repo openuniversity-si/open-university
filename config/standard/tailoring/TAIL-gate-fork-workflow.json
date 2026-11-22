@@ -2,9 +2,9 @@
   "id": "TAIL-gate-fork-workflow",
   "exempts": "STD-targets-full",
   "scope": "THREAT-gate",
-  "reason": "THREAT-gate's one open finding: a pull request from a fork brings its own tower-gate.yml into the pull request and merge-group runs, so a required check bound to the GitHub Actions app can be made green by that workflow; nothing inside the repository can refuse it. The barrier is that only a writer queues a merge, under D-344's rule that a session never queues a fork's pull request whose diff touches .github/. A push rule cannot close it: GitHub refused the ruleset (POST /rulesets, target push, file_path_restriction .github/workflows/**) with 422 \"Source public repos cannot have push rules\" (the Torre, 2026-11-19), so a public repository has no such barrier. Ends when the required tower/gate status is bound to a GitHub App whose key lives outside any workflow (the AWS port posts it), so a fork's workflow cannot post as it.",
+  "reason": "THREAT-gate's one open finding: a pull request from a fork brings its own tower-gate.yml into the pull request and merge-group runs, so a required check bound to the GitHub Actions app can be made green by that workflow; nothing inside the repository can refuse it. The barrier is that only a writer queues a merge, under D-344's rule that a session never queues a fork's pull request whose diff touches .github/. A push rule cannot close it: GitHub refused the ruleset (POST /rulesets, target push, file_path_restriction .github/workflows/**) with 422 \"Source public repos cannot have push rules\" (the Torre, 2026-11-19), so a public repository has no such barrier. Ends when the required tower/gate status is bound to a GitHub App whose key lives outside any workflow (the AWS port posts it), so a fork's workflow cannot post as it. Revoked by D-360 (Torre por delegação do Daniel 22/11/2026): session-granted under D-325 without independent approval; THREAT-gate stays open until fixed technically.",
   "owner": "administration",
   "authorized_by": "D-344",
   "valid_until": "2026-12-19",
-  "state": "active"
+  "state": "revoked"
 }
