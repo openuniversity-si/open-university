@@ -18,5 +18,12 @@
     "D-317",
     "D-322"
   ],
-  "layer": 5
+  "layer": 5,
+  "target_fingerprints": {
+    "ARC-config": "537e4811f8d6",
+    "ARC-gate": "fdb04d9f45fe",
+    "ARC-knowledge": "091716462946",
+    "ARC-measurement": "d5b45b06d59d",
+    "REQ-chain-verified": "8478553468d1"
+  }
 }

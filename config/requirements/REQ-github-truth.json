@@ -10,5 +10,9 @@
   "basis": [
     "D-314"
   ],
-  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido",
+  "target_fingerprints": {
+    "D-314": "5af6c777c3e8",
+    "NEED-quality": "581529c9d585"
+  }
 }

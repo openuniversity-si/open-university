@@ -120,5 +120,8 @@
       }
     ]
   },
-  "reviewed": "2026-11-19"
+  "reviewed": "2026-11-19",
+  "target_fingerprints": {
+    "ARC-web": "f8bf98bea777"
+  }
 }

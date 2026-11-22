@@ -12,5 +12,10 @@
     "D-341"
   ],
   "source": "docs/domain/decisions/D-341.md",
-  "verification": "test"
+  "verification": "test",
+  "target_fingerprints": {
+    "D-341": "73a7f90371ea",
+    "NEED-autonomy": "5847ffac3762",
+    "NEED-cost": "a91397b67070"
+  }
 }

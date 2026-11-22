@@ -10,5 +10,9 @@
   "basis": [
     "D-317"
   ],
-  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido"
+  "source": "docs/programs/padrao-dev/avaliacao.md#Pedido",
+  "target_fingerprints": {
+    "D-317": "ea6fae43639b",
+    "NEED-knowledge": "9cf4a6e46a3a"
+  }
 }
