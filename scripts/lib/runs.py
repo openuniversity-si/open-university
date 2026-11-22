@@ -184,12 +184,12 @@ def age_days(recorded, now):
 
 
 def snapshot_max_merges(root=ROOT):
-    """Most first-parent merges on main a snapshot may trail before being rebuilt (slo.snapshot_max_merges, M3)."""
+    """Most first-parent merges on main a snapshot may trail before being rebuilt (medir.snapshot_max_merges, M3)."""
     import config
     try:
-        return config.get('slo.snapshot_max_merges', root)
+        return config.get('medir.snapshot_max_merges', root)
     except config.ConfigError:
-        return config.get('slo.snapshot_max_merges', ROOT)
+        return config.get('medir.snapshot_max_merges', ROOT)
 
 
 def merges_since(root, since_iso, run=subprocess.run):
@@ -226,7 +226,7 @@ def renewed(workflow, found, now):
 
 def refresh(root, workflow, now=None, reader=None, max_merges=None, run=subprocess.run):
     """Rebuilds the snapshot of `workflow` from GitHub's checks when it is missing, older than REFRESH_DAYS, or
-    trailing main by at least slo.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None.
+    trailing main by at least medir.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None.
     `reader(workflow)` answers the runs (fetch by default)."""
     now = now or datetime.now(timezone.utc)
     recorded = read(root, workflow)
@@ -302,7 +302,7 @@ def read_slo(root):
 
 def slo_refresh(root, now=None, reader=None, max_merges=None, run=subprocess.run):
     """Rebuilds the SLO snapshot from GitHub when it is missing, older than REFRESH_DAYS, or trailing main by at least
-    slo.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None."""
+    medir.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None."""
     now = now or datetime.now(timezone.utc)
     recorded = read_slo(root)
     if not stale(root, recorded, now, max_merges=max_merges, run=run):
@@ -370,7 +370,7 @@ def verdicts_write(root, found, now):
 
 def verdicts_refresh(root, now=None, reader=None, max_merges=None, run=subprocess.run):
     """Rebuilds the verdicts snapshot from GitHub when it is missing, older than REFRESH_DAYS, or trailing main by at
-    least slo.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None."""
+    least medir.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None."""
     now = now or datetime.now(timezone.utc)
     recorded = read_verdicts(root)
     if not stale(root, recorded, now, max_merges=max_merges, run=run):

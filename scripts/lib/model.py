@@ -1628,9 +1628,9 @@ def report_quantiles(root=ROOT):
     """Diagnostic report-only percentiles for run-durations validations (M4, D-337: report only, never accept)."""
     import config
     try:
-        return config.get('slo.report_quantiles', root)
+        return config.get('medir.report_quantiles', root)
     except config.ConfigError:
-        return config.get('slo.report_quantiles', ROOT)
+        return config.get('medir.report_quantiles', ROOT)
 
 
 def run_distribution(root, body, quantiles=None):
