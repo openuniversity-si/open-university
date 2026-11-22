@@ -1558,6 +1558,17 @@ class RealRepository(unittest.TestCase):
         self.assertEqual(managed['effective'], ['VER-v9'])
         self.assertEqual(found['VER-v8']['state'], 'superseded')
 
+    def test_system_metadata_uses_english_names_unique_acquisition_owner_and_current_intent_model(self):
+        meta = model.metamodel(ROOT)
+        systems = meta['systems']
+        self.assertEqual(systems['security']['name'], 'Security')
+        self.assertEqual(systems['supply']['name'], 'Supply')
+        self.assertNotIn('15288/12207 acquisition', systems['configuration']['processes'])
+        self.assertIn('15288/12207 acquisition', systems['supply']['processes'])
+        self.assertIn('D-348', systems['intent']['description'])
+        self.assertNotIn('D-347', systems['intent']['measure'])
+        self.assertNotIn('objective', systems['intent']['measure'].lower())
+
     def test_every_refusal_and_gate_stage_of_this_checkout_has_a_rule(self):
         warnings = model.rule_findings(model.objects(ROOT), ROOT)
         self.assertEqual([line for line in warnings if 'with no rule of the standard' in line], [])

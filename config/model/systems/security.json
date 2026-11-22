@@ -1,6 +1,6 @@
 {
   "id": "security",
-  "name": "Segurança",
+  "name": "Security",
   "group": "engineering",
   "processes": [
     "ISO/IEC 27001 information security risk assessment and treatment",
@@ -8,6 +8,6 @@
     "NIST SP 800-218 (SSDF)"
   ],
   "owner": "Daniel",
-  "measure": "The security posture: risks assessed but untreated, architecture elements without a threat model or with a suspect one, vulnerabilities past their deadline, applicable controls with a gap or only partial, high advisories affecting (Fornecimento) and credentials past rotation.",
+  "measure": "The security posture: risks assessed but untreated, architecture elements without a threat model or with a suspect one, vulnerabilities past their deadline, applicable controls with a gap or only partial, high advisories affecting (Supply) and credentials past rotation.",
   "description": "Security risks with their treatment, threat models of the architecture, vulnerabilities of the repository's own code and the controls of a reference catalog with their applicability (D-321)."
 }

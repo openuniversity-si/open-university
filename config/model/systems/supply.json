@@ -1,6 +1,6 @@
 {
   "id": "supply",
-  "name": "Fornecimento",
+  "name": "Supply",
   "group": "engineering",
   "processes": [
     "15288/12207 acquisition",
