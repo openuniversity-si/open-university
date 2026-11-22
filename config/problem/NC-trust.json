@@ -13,7 +13,10 @@
       "NC-autonomy",
       "NC-gate-first-pass",
       "NC-reflexion",
-      "NC-requirements-tested"
+      "NC-requirements-tested",
+      "NC-deploy-1s",
+      "NC-gate-time",
+      "NC-cost"
     ]
   },
   "comparator": "lte",
