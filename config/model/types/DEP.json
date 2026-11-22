@@ -20,6 +20,9 @@
     "unpinned",
     "vulnerable"
   ],
+  "weakness_states": [
+    "vulnerable"
+  ],
   "must_link": [
     "supplied-by"
   ],

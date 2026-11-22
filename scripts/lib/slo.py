@@ -23,10 +23,9 @@ from gate_eta import as_percent, collect, expected_seconds, ledger_steps, moment
 import gate_verdicts
 
 ROOT = Path(__file__).resolve().parents[2]
-NAMES = ('slo.gate_tier1_p95_s', 'slo.train_queue_time_p95_s', 'slo.merged_prs_per_hour_min',
+NAMES = ('slo.train_queue_time_p95_s', 'slo.merged_prs_per_hour_min',
          'slo.gate_failure_rate_max_percent', 'slo.merged_window_s', 'slo.merged_hold_s', 'slo.percentile',
-         'slo.sample_window_events', 'slo.min_samples', 'slo.producer', 'slo.step', 'slo.dashboard_path',
-         'gate.tier1_target_s')
+         'slo.sample_window_events', 'slo.min_samples', 'slo.producer', 'slo.step', 'slo.dashboard_path')
 INPUTS = gate_verdicts.TYPES + ('pr.ready', 'pr.merged')
 
 
@@ -83,21 +82,19 @@ def throughput(series, conf):
 
 
 def evaluate(events, conf=None):
-    """The four SLO results (slo, bound, limit, value, samples, state ok|breached|no_data, evidence)."""
+    """The active SLO results (slo, bound, limit, value, samples, state ok|breached|no_data, evidence)."""
     return evaluate_series(fold(events), conf)
 
 
 def evaluate_series(series, conf=None):
-    """The four SLO results of series shaped as fold() makes them (tier1, queue, merges, span), whatever their source:
-    the event log here, GitHub's pull requests and check runs in runs.slo_series (scripts/model)."""
+    """The active SLO results of series shaped as fold() makes them (tier1, queue, merges, span), whatever their
+    source: the event log here, GitHub's pull requests and check runs in runs.slo_series (scripts/model). The
+    Origin-era tier-1 duration SLO was retired by D-351 (REQ-gate-60s is the canonical gate ceiling)."""
     conf = conf or settings()
     window, floor, percent = conf['slo.sample_window_events'], conf['slo.min_samples'], conf['slo.percentile']
     newest = series['span'][2] if series['span'] else None
     results = []
     tier1 = series['tier1'][-window:]
-    results.append(result('slo.gate_tier1_p95_s', 'max', min(conf['slo.gate_tier1_p95_s'], conf['gate.tier1_target_s']),
-                          percentile([s['value'] for s in tier1], percent) if tier1 else 0, len(tier1),
-                          tier1[-1]['event_id'] if tier1 else newest, len(tier1) >= floor))
     queue = series['queue'][-window:]
     results.append(result('slo.train_queue_time_p95_s', 'max', conf['slo.train_queue_time_p95_s'],
                           percentile([s['value'] for s in queue], percent) if queue else 0, len(queue),

@@ -115,12 +115,45 @@ class ProblemSpace(unittest.TestCase):
         problem_ids = sorted(ident for ident, item in found.items() if item['type'] in kinds)
         for ident in problem_ids:
             self.assertTrue(self.conforms(found, ident), ident)
-        rated = self.rate(found)
+        # Default fixture injects NC-goal as not-met (an operational weakness): catalog conforms, operational stays open.
+        with_weakness = self.rate(found)
+        self.assertEqual((with_weakness['conformant'], with_weakness['nonconformant'], with_weakness['catalog_level']),
+                         (len(problem_ids), [], 'F'))
+        self.assertEqual((with_weakness['level'], with_weakness['weakness_ids'], with_weakness['operational_ready'],
+                          with_weakness['closed']), ('L', ['NC-goal'], False, False))
+        self.assertIn('below F', model.system_line(with_weakness))
+        # Explicitly injecting healthy operational states closes the complete fixture (closed == True, level == F).
+        def resolved(files):
+            files['UDE-slow']['state'] = 'gone'
+        complete = self.found(states={'NC-goal': 'met', 'NC-part': 'met'}, edit=resolved)
+        self.assertEqual(problem_space.problem_errors(complete), [])
+        for ident in problem_ids:
+            self.assertTrue(self.conforms(complete, ident), ident)
+        rated = self.rate(complete)
         self.assertEqual((rated['conformant'], rated['nonconformant'], rated['closed']), (len(problem_ids), [], True))
+        self.assertEqual((rated['level'], rated['weakness_ids'], rated['operational_ready']), ('F', [], True))
         self.assertIn('closed', model.system_line(rated))
         self.assertEqual(problem_space.gaps(found)['NC-goal']['baseline'], 0)
         self.assertEqual(model.knowledge_measure(found)['refuted_assumed'], 0,
                          'a cloud records the premise its chosen injection broke; it no longer assumes it')
+
+    def test_an_injected_operational_weakness_prevents_closed_even_when_catalog_conforms(self):
+        # Hermetic operational-scoreboard rule: catalog conformance stays F while an injected not-met NC blocks F/closed.
+        def resolved(files):
+            files['UDE-slow']['state'] = 'gone'
+        healthy = self.found(states={'NC-goal': 'met', 'NC-part': 'met'}, edit=resolved)
+        self.assertEqual(problem_space.problem_errors(healthy), [])
+        closed = self.rate(healthy)
+        self.assertEqual((closed['catalog_level'], closed['level'], closed['weakness_ids'], closed['closed']),
+                         ('F', 'F', [], True))
+        weak = self.found(states={'NC-goal': 'not-met', 'NC-part': 'met'})
+        self.assertEqual(problem_space.problem_errors(weak), [])
+        rated = self.rate(weak)
+        self.assertEqual((rated['catalog_level'], rated['nonconformant']), ('F', []))
+        self.assertEqual((rated['level'], rated['weakness_ids'], rated['operational_ready'], rated['closed']),
+                         ('L', ['NC-goal'], False, False))
+        self.assertIn('NC-goal', model.system_line(rated))
+        self.assertIn('open', model.system_line(rated))
 
     def test_each_structural_rule_is_an_error_of_check(self):
         def cycle(files):
