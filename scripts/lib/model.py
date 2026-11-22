@@ -1128,34 +1128,102 @@ def _change_id(sha, subject):
 
 
 TRAILER_FIXES = re.compile(r'^Fixes-PR:\s*(.+)$', re.MULTILINE)
+REVERT_COMMIT = re.compile(r'^This reverts commit ([0-9a-f]{7,40})\b', re.MULTILINE)
+REVERT_PR = re.compile(r'^Revert\s+"(?:Merge pull request #(?P<merge>[0-9]+)\b|[^"]*\(#(?P<pr>[0-9]+)\))', re.MULTILINE)
 ESCAPE_REQUIREMENT = 'REQ-escape-under-1'
 
 
 def read_escapes(root):
-    """Escapes (INC, F4d): a defect a merged change brought to main that a later merge repaired. Each pull request the
-    commits of a first-parent merge name in `Fixes-PR:` (comma-separated numbers, `#` optional) is one incident,
-    INC-escape-<n>, resolved: introduced by CHG-<n> (the change that let it through), fixed by every merge that names
-    it, violating REQ-escape-under-1. A number no merge of HEAD carries leaves a link to a change that does not exist
-    (a warning of check), never a guessed target."""
-    found = {}
+    """Escapes (INC, F4d): a defect a merged change brought to main that a later merge repaired or full-suite caught.
+    Derived from four sources, deduplicated per escaped change (INC-escape-<id>, violating REQ-escape-under-1):
+    (1) `Fixes-PR:` trailers in a later merge's commits;
+    (2) git `Revert` commits reverting an earlier merged commit or pull request;
+    (3) `full-suite` red episodes on main in config/validation/verdicts.json (open while main is still red, resolved
+        by the merge whose full-suite run turned green again);
+    (4) post-merge entries in config/model/errata.json (an erratum not already present at the escaped change's merge).
+    A Fixes-PR number no merge of HEAD carries still leaves a link to a change that does not exist (a warning of check),
+    never a guessed target."""
+    import runs
+    found, merge_by_sha, known_changes, commit_to_merge, merge_records = {}, {}, set(), {}, []
     for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
         sha, _, subject = line.partition('\x1f')
         fixer = _change_id(sha, subject)
-        for listed in TRAILER_FIXES.findall(_git(root, 'log', '--format=%B', f'{sha}^1..{sha}')):
+        merge_by_sha[sha] = fixer
+        known_changes.add(fixer)
+        commit_to_merge[sha] = (sha, fixer)
+        raw = _git(root, 'log', '--format=%x1e%H%x1f%B', f'{sha}^1..{sha}')
+        bodies = []
+        for chunk in raw.split('\x1e')[1:]:
+            csha, _, body = chunk.partition('\x1f')
+            csha = csha.strip()
+            if csha:
+                commit_to_merge[csha] = (sha, fixer)
+            bodies.append(body)
+        merge_records.append((sha, fixer, '\n'.join(bodies)))
+
+    def resolve_commit(token):
+        if token in commit_to_merge:
+            return commit_to_merge[token][1]
+        matches = {owner[1] for csha, owner in commit_to_merge.items() if csha.startswith(token)}
+        return next(iter(matches)) if len(matches) == 1 else None
+
+    def record(escaped, source, fixer=None, state='resolved'):
+        if not escaped or escaped == fixer:
+            return
+        key = escaped.removeprefix('CHG-')
+        item = found.get(key)
+        if item is None:
+            links = [{'type': 'introduced-by', 'target': escaped},
+                     {'type': 'violates', 'target': ESCAPE_REQUIREMENT}]
+            item = found[key] = _obj(f'INC-escape-{key}', 'INC', state, source, escaped, links)
+            item['body'] = {'escaped': escaped, 'fixed_by': []}
+        elif state == 'resolved' and item['state'] == 'open':
+            item['state'] = 'resolved'
+        if fixer and fixer not in item['body']['fixed_by']:
+            item['body']['fixed_by'].append(fixer)
+            item['links'].append({'type': 'fixed-by', 'target': fixer})
+
+    for sha, fixer, text in merge_records:
+        for listed in TRAILER_FIXES.findall(text):
             for number in re.findall(r'#?([0-9]+)', listed):
-                escaped = f'CHG-{number}'
-                if escaped == fixer:
-                    continue
-                item = found.get(number)
-                if item is None:
-                    links = [{'type': 'introduced-by', 'target': escaped},
-                             {'type': 'violates', 'target': ESCAPE_REQUIREMENT}]
-                    item = found[number] = _obj(f'INC-escape-{number}', 'INC', 'resolved', f'git:{sha}', escaped,
-                                                links)
-                    item['body'] = {'escaped': escaped, 'fixed_by': []}
-                if fixer not in item['body']['fixed_by']:
-                    item['body']['fixed_by'].append(fixer)
-                    item['links'].append({'type': 'fixed-by', 'target': fixer})
+                record(f'CHG-{number}', f'git:{sha}', fixer)
+        for target_sha in REVERT_COMMIT.findall(text):
+            record(resolve_commit(target_sha), f'git:{sha}', fixer)
+        for match in REVERT_PR.finditer(text):
+            number = match.group('merge') or match.group('pr')
+            if f'CHG-{number}' in known_changes:
+                record(f'CHG-{number}', f'git:{sha}', fixer)
+
+    verdicts = runs.read_verdicts(root) or {}
+    episode = None
+    for run in reversed(verdicts.get('runs', [])):
+        sha = run.get('sha')
+        if sha not in merge_by_sha:
+            continue
+        change = merge_by_sha[sha]
+        if run.get('conclusion') == 'success':
+            if episode is not None:
+                record(episode[0], episode[1], change, state='resolved')
+                episode = None
+        elif episode is None:
+            episode = (change, f'{runs.VERDICTS_FILE} run {run.get("id", sha[:len("0123456789ab")])}')
+    if episode is not None:
+        record(episode[0], episode[1], fixer=None, state='open')
+
+    errata_path = Path(root) / ERRATA
+    if errata_path.is_file():
+        for entry in _read_json(errata_path).get('errata', []):
+            ref = entry.get('commit') or entry.get('sha')
+            owner = commit_to_merge.get(ref) if ref else None
+            if owner is None:
+                continue
+            owner_sha, escaped = owner
+            if ref in _git(root, 'show', f'{owner_sha}:{ERRATA}'):
+                continue
+            added = _git(root, 'log', '-S', ref, '--reverse', '--format=%H', '--', ERRATA).splitlines()
+            fixer = next((commit_to_merge[c][1] for c in added if c in commit_to_merge and commit_to_merge[c][1] != escaped),
+                         None)
+            record(escaped, ERRATA, fixer, state='resolved')
     return list(found.values())
 
 
@@ -1340,14 +1408,22 @@ def measured(body, found, root, today):
         from datetime import date, timedelta
         start = (date.fromisoformat(today) - timedelta(days=window['size'])).isoformat()
         dates = [day for _, day in _merges(root)]
-        return (len(incidents(root, measure['incident'], start, today)), bool(dates) and min(dates) <= start)
+        count = len(incidents(root, measure['incident'], start, today))
+        over = body.get('comparator') == 'lte' and 'threshold' in body and count > body['threshold']
+        observable = _incident_source_observable(root, window['size'], today)
+        return (count, over or (observable and bool(dates) and min(dates) <= start))
     if measure['kind'] == 'run-durations':
         import runs
         from datetime import date
         recorded = runs.read(root, measure['workflow'])
         if not recorded or not recorded['runs']:
             return None, False
-        fresh = (date.fromisoformat(today) - date.fromisoformat(recorded['at'][:len('2026-01-01')])).days <= measure['max_age_days']
+        day_len = len('2026-01-01')
+        at_day = recorded['at'][:day_len]
+        newest = max((run.get('started', '')[:day_len] for run in recorded['runs']
+                      if isinstance(run.get('started'), str) and len(run['started']) >= day_len), default='')
+        ref_day = min(at_day, newest) if newest else at_day
+        fresh = (date.fromisoformat(today) - date.fromisoformat(ref_day)).days <= measure['max_age_days']
         values = [run['seconds'] for run in recorded['runs']]
         return runs.percentile(values, measure['percentile']), fresh and len(values) >= measure['min_runs']
     if measure['kind'] == 'aws-spend':
@@ -1398,15 +1474,57 @@ def refresh_runs(found, root):
     return done
 
 
+INCIDENTS_SNAPSHOT = 'config/validation/incidents.json'
 INCIDENT_FIELD = re.compile(r'^(kind|time): (\S+)$', re.MULTILINE)
 
 
+def _incidents_snapshot(root):
+    path = Path(root) / INCIDENTS_SNAPSHOT
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) and isinstance(data.get('incidents'), list) else None
+
+
+def _incident_source_observable(root, window_days, today):
+    """Whether `incident-count` has an observable source on this checkout: a fresh observed tracked snapshot
+    (config/validation/incidents.json) or a local docs/operations/incidents folder that exists and is not gitignored.
+    Reading zero files from an unobserved snapshot or a missing/gitignored folder never proves zero incidents (D-350)."""
+    from datetime import date
+    day_len = len('2026-01-01')
+    snap = _incidents_snapshot(root)
+    if snap and snap.get('observed', True) is True and isinstance(snap.get('at'), str) and len(snap['at']) >= day_len:
+        if (date.fromisoformat(today) - date.fromisoformat(snap['at'][:day_len])).days <= window_days:
+            return True
+    folder = Path(root) / 'docs/operations/incidents'
+    if not folder.is_dir():
+        return False
+    return subprocess.run(['git', 'check-ignore', '-q', 'docs/operations/incidents'], cwd=root,
+                          capture_output=True).returncode != 0
+
+
 def incidents(root, kind, start, end):
-    """The incident records (docs/operations/incidents, scripts/incident) of one kind opened on [start, end)."""
-    found = []
+    """The incident records (config/validation/incidents.json and local docs/operations/incidents) of one kind opened
+    on [start, end), deduplicated by id."""
+    day_len = len('2026-01-01')
+    found, seen = [], set()
+    snap = _incidents_snapshot(root)
+    if snap:
+        for entry in snap['incidents']:
+            if not isinstance(entry, dict):
+                continue
+            ident = entry.get('id')
+            if ident and entry.get('kind') == kind and start <= str(entry.get('time', ''))[:day_len] < end:
+                if ident not in seen:
+                    seen.add(ident)
+                    found.append(ident)
     for path in sorted((Path(root) / 'docs/operations/incidents').glob('I-*.md')):
         fields = dict(INCIDENT_FIELD.findall(path.read_text().split('\n---', 1)[0]))
-        if fields.get('kind') == kind and start <= fields.get('time', '')[:len('2026-01-01')] < end:
+        if fields.get('kind') == kind and start <= fields.get('time', '')[:day_len] < end and path.stem not in seen:
+            seen.add(path.stem)
             found.append(path.stem)
     return found
 
@@ -1509,8 +1627,9 @@ def derive_validations(found, root, today=None):
     is short, defined while no source is wired."""
     today = today or utc_today()
     vals = [item for item in found.values() if item['type'] in ('VAL', 'NC') and 'body' in item]  # NC: D-348
-    # a composite reads the states of the others, so it is derived after them
-    for item in sorted(vals, key=lambda item: item['body']['measure']['kind'] == 'all-met'):
+    # direct measures first, then model-share (which reads VAL states), then all-met composites last
+    for item in sorted(vals, key=lambda item: (item['body']['measure']['kind'] == 'all-met',
+                                               item['body']['measure']['kind'] == 'model-share')):
         value, enough = measured(item['body'], found, root, today)
         if value is None:
             item['state'] = 'defined'
@@ -1569,7 +1688,8 @@ def requirement_states(found):
 
 def requirements_measure(found):
     """The requirements system's own measure: active requirements by type, implemented, verified, with an
-    architecture element, with a test, and the suspect links pointing at them."""
+    architecture element, with a test, and with passing verification on HEAD (a passing VERD for a test-verified
+    requirement, or a met VAL for a validation-verified requirement)."""
     into = incoming(found)
     states = requirement_states(found)
     active = [found[id] for id in states]
@@ -1579,14 +1699,23 @@ def requirements_measure(found):
         by_type[kind] = by_type.get(kind, 0) + 1
     def has(item, link, kind):
         return any(name == link and found.get(source, {}).get('type') == kind for name, source in into.get(item['id'], []))
+    def has_pass_verdict(test_id):
+        return any(name == 'evidences' and found.get(source, {}).get('type') == 'VERD'
+                   and found[source].get('state') == 'pass' for name, source in into.get(test_id, []))
+    def verified_in_head(item):
+        if item.get('body', {}).get('verification') == 'validation':
+            return any(name == 'validates' and found.get(source, {}).get('type') == 'VAL'
+                       and found[source].get('state') == 'met' for name, source in into.get(item['id'], []))
+        return any(name == 'verifies' and found.get(source, {}).get('type') == 'TEST'
+                   and found[source].get('fingerprint') is not None and has_pass_verdict(source)
+                   for name, source in into.get(item['id'], []))
     return {
         'active': len(active), 'by_type': dict(sorted(by_type.items())),
         'implemented': sum(1 for state in states.values() if state in ('implemented', 'verified')),
         'verified': sum(1 for state in states.values() if state == 'verified'),
         'with_element': sum(1 for item in active if has(item, 'satisfies', 'ARC')),
         'with_test': sum(1 for item in active if has(item, 'verifies', 'TEST')),
-        'with_verification': sum(1 for item in active if has(item, 'verifies', 'TEST') or (
-            item.get('body', {}).get('verification') == 'validation' and has(item, 'validates', 'VAL'))),
+        'with_verification': sum(1 for item in active if verified_in_head(item)),
     }
 
 
