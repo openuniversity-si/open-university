@@ -152,15 +152,26 @@ class RealRepository(unittest.TestCase):
         self.assertTrue(any('RISK-media-single-account: treated risk has no residual_accepted_by' in line
                             for line in warnings), warnings)
 
-    def test_site_iac_risk_is_open_and_security_hardening_proposal_awaits_owner_decision(self):
+    def test_d352_recorded_prop_decided_and_open_security_risks_and_gate_threat_remain_open(self):
         found = model.objects(ROOT)
+        decision = found['D-352']
+        self.assertEqual((decision['state'], decision['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(decision))
+        prop = found['PROP-security-supply-hardening']
+        self.assertEqual(prop['state'], 'decided')
+        self.assertEqual(prop['body']['decided_by'], 'D-352')
+        self.assertEqual(found['TAIL-gate-fork-workflow']['state'], 'revoked')
+        self.assertEqual(found['TAIL-ssdf-pw2-gate']['state'], 'revoked')
+        self.assertEqual(found['THREAT-gate']['state'], 'written')
         risk = found['RISK-site-iac-outside-tree']
         self.assertEqual(risk['state'], 'assessed')
         self.assertEqual([link['target'] for link in risk['links']], ['ARC-web', 'SUP-aws'])
-        prop = found['PROP-security-supply-hardening']
-        self.assertEqual(prop['state'], 'open')
-        self.assertEqual(prop['body']['owner'], 'Daniel')
-        self.assertNotIn('decided_by', prop['body'])
+        for risk_id in ('RISK-media-single-account', 'RISK-personal-data-unregistered'):
+            self.assertFalse(found[risk_id]['body'].get('residual_accepted_by'), risk_id)
+        warnings = model.security_findings(found, ROOT, today='2026-11-22')
+        for risk_id in ('RISK-media-single-account', 'RISK-personal-data-unregistered'):
+            self.assertTrue(any(f'{risk_id}: treated risk has no residual_accepted_by' in line for line in warnings),
+                            (risk_id, warnings))
 
     def test_every_required_check_is_bound_to_the_app_that_reports_it(self):
         """VULN-gate-check-source: a required check named by its context alone is satisfied by a status of that name from

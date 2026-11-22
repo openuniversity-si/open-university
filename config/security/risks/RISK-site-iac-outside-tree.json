@@ -11,7 +11,7 @@
   "impact": "high",
   "treatment": {
     "option": "mitigate",
-    "plan": "Import the site Lambda (open-university-web), its IAM role and its CloudFront distribution into infra/aws/stacks/ with stack tests, and add a read-only post-deploy HTTP synthetic canary over the live site URL (proposed separately in PR W under D-087); awaits owner decision on AWS/IaC scope.",
+    "plan": "Approved by D-352 (Torre por delegação do Daniel 22/11/2026) as future work: import the site Lambda (open-university-web), its IAM role and its CloudFront distribution into infra/aws/stacks/ via CloudFormation import (without replacing resources) with stack tests, and install a read-only post-deploy HTTP synthetic canary over the live site URL via a separate workflow PR for the Torre to install (D-087). Stays assessed until implemented.",
     "by": [
       "CTRL-ssdf-pw.9"
     ]
