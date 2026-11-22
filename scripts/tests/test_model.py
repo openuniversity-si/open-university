@@ -1771,6 +1771,12 @@ class DecisionTable(unittest.TestCase):
         table_decisions, _ = self.rows('| D-20 | d | x | - | `scripts/tests/test_alpha.py` | proposed |')
         self.assertEqual(table_decisions['D-20']['state'], 'proposed')
 
+    def test_real_register_marks_d011_superseded_and_d319_proven(self):
+        decisions = {item['id']: item for item in model.read_decisions(ROOT) if item['type'] == 'D'}
+        self.assertEqual(decisions['D-011']['state'], 'superseded')
+        self.assertEqual(decisions['D-319']['state'], 'accepted')
+        self.assertEqual(decisions['D-319']['proof']['outcome'], 'proven')
+
 
 class CheaperPath(unittest.TestCase):
     """D-327: the retrospective samples merged PRs and the measurement system reads the share with a cheaper path."""
