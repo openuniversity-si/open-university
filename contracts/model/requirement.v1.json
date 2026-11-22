@@ -89,6 +89,14 @@
         "pattern": "^CHG-([0-9]+|initial)$"
       },
       "description": "D-332: the merged changes that implement the requirement when no commit's Implements: trailer names it (history the trailer rule of D-317 did not reach); CHG-initial is the initial public tree. The model reads each as an implements link from that change, which must exist and be merged."
+    },
+    "target_fingerprints": {
+      "type": "object",
+      "description": "Content fingerprints of linked targets verified when this requirement was last stamped (scripts/model stamp); a mismatch marks the link suspect.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{12}$"
+      }
     }
   }
 }

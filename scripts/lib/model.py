@@ -23,6 +23,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
   scripts/model view               the component view (C4 level 3) as Mermaid, generated from the model
   scripts/model seed-rules         writes config/standard/rules/<id>.json for every refusal, gate stage, D-069 principle
                                    and the method that has no rule yet (never rewrites a rule)
+  scripts/model stamp [--check]    records linked target fingerprints in target_fingerprints on THREAT, REQ and ARC
+                                   files so check flags suspect links when a target changes (--check refuses drift)
   scripts/model measure [--json F] the main metric (the share of active requirements whose chain is verified end to
                                    end), the requirement inventory, and each system's objects and calculated conformance,
                                    under a heading per group of systems (management, engineering: D-330), and the
@@ -87,6 +89,15 @@ def _read_json(path):
 def fingerprint(text):
     """The content fingerprint of an object's source, which a link records to tell when its target changed."""
     return hashlib.sha256(text.encode()).hexdigest()[:len('0123456789ab')]
+
+
+def body_fingerprint(body, raw_text):
+    """Content fingerprint of a declared JSON object excluding `target_fingerprints`, so stamping links converges in
+    one pass and never invalidates incoming links from other objects (even across mutual depends-on cycles)."""
+    if isinstance(body, dict):
+        stripped = {key: value for key, value in body.items() if key != 'target_fingerprints'}
+        return fingerprint(json.dumps(stripped, sort_keys=True, ensure_ascii=False))
+    return fingerprint(raw_text)
 
 
 def metamodel(root=ROOT):
@@ -746,7 +757,11 @@ def _declared(root, pattern, contract, kind, links_of):
             found.append({**_obj(f'{kind}:{path.stem}', kind, body.get('state', '') if isinstance(body, dict) else '',
                                  path.relative_to(root).as_posix(), text), 'problems': problems})
             continue
-        item = _obj(body['id'], kind, body.get('state', 'defined'), path.relative_to(root).as_posix(), text, links_of(body))
+        stamps = body.get('target_fingerprints') or {}
+        links = [{**link, **({'fingerprint': stamps[link['target']]} if link['target'] in stamps else {})}
+                 for link in links_of(body)]
+        item = _obj(body['id'], kind, body.get('state', 'defined'), path.relative_to(root).as_posix(), text, links)
+        item['fingerprint'] = body_fingerprint(body, text)
         item['body'] = body
         found.append(item)
     return found
@@ -1928,14 +1943,55 @@ def read_vulns(root):
     return found
 
 
+THREATS = 'config/security/threats/THREAT-*.json'
+STAMP_GLOBS = (THREATS, REQUIREMENTS, ARCHITECTURE)
+
+
 def read_threats(root):
     """Threat models (THREAT), one file each (config/security/threats/): reviewed once a review date is recorded."""
-    found = _declared(Path(root), 'config/security/threats/THREAT-*.json', 'threat.v1.json', 'THREAT',
+    found = _declared(Path(root), THREATS, 'threat.v1.json', 'THREAT',
                       lambda body: [{'type': 'models', 'target': body['models']}])
     for item in found:
         if 'body' in item:
             item['state'] = 'reviewed' if item['body'].get('reviewed') else 'written'
     return found
+
+
+def stamp(root=ROOT, check_only=False, found=None):
+    """Record each linked target's current fingerprint in `target_fingerprints` on THREAT, REQ, and ARC JSON files.
+    Returns the sorted relative paths of files updated (or needing an update when check_only=True). Converges in one
+    pass because body_fingerprint excludes `target_fingerprints`."""
+    root = Path(root)
+    found = found if found is not None else objects(root)
+    changed = []
+    for pattern in STAMP_GLOBS:
+        for path in sorted(root.glob(pattern)):
+            rel = path.relative_to(root).as_posix()
+            body = _read_json(path)
+            if not isinstance(body, dict) or not isinstance(body.get('id'), str):
+                continue
+            item = found.get(body['id'])
+            if item is None:
+                continue
+            stamps = {}
+            for link in item.get('links', ()):
+                target = found.get(link['target'])
+                if target is not None and target.get('fingerprint') is not None:
+                    stamps[link['target']] = target['fingerprint']
+            stamps = dict(sorted(stamps.items()))
+            current = body.get('target_fingerprints')
+            if stamps:
+                if current == stamps:
+                    continue
+                updated = {**body, 'target_fingerprints': stamps}
+            else:
+                if 'target_fingerprints' not in body:
+                    continue
+                updated = {key: value for key, value in body.items() if key != 'target_fingerprints'}
+            changed.append(rel)
+            if not check_only:
+                path.write_text(json.dumps(updated, indent=len('  '), ensure_ascii=False) + '\n')
+    return changed
 
 
 def read_checks(root):
@@ -2900,6 +2956,8 @@ def main(argv=None):
     shown = commands.add_parser('show')
     shown.add_argument('id')
     commands.add_parser('seed-rules', help='write the seed rule of every refusal, gate stage, D-069 principle and the method')
+    stamped = commands.add_parser('stamp', help='stamp target_fingerprints on THREAT, REQ and ARC records')
+    stamped.add_argument('--check', action='store_true', help='exit 1 when any record is unstamped or stale without writing')
     measured = commands.add_parser('measure')
     measured.add_argument('--json')
     args = parser.parse_args(argv)
@@ -2907,6 +2965,18 @@ def main(argv=None):
         if args.command == 'seed-rules':
             written = seed_rules()
             print(f'seed-rules: {len(written)} rule file(s) written')
+            return 0
+        if args.command == 'stamp':
+            full_history(ROOT)
+            changed = stamp(ROOT, check_only=args.check)
+            if args.check:
+                for path in changed:
+                    print(f'STAMP {path}')
+                print(f'model stamp --check: {len(changed)} file(s) need stamping')
+                return 1 if changed else 0
+            for path in changed:
+                print(f'stamped {path}')
+            print(f'model stamp: {len(changed)} file(s) stamped')
             return 0
         if args.command == 'view':
             print(view(objects()))

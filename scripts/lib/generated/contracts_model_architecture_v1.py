@@ -12,4 +12,5 @@ ArchitectureV1 = TypedDict('ArchitectureV1', {
     'depends_on': NotRequired[list[str]],
     'basis': NotRequired[list[str]],
     'layer': NotRequired[int],
+    'target_fingerprints': NotRequired[dict[str, str]],
 }, total=False)

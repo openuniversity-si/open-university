@@ -1347,6 +1347,53 @@ class Architecture(unittest.TestCase):
         self.assertEqual(self.found()['ARC-gate']['links'], [{'type': 'satisfies', 'target': 'REQ-gate-60s'},
                                                              {'type': 'depends-on', 'target': 'ARC-config'}])
 
+    def test_stamp_populates_target_fingerprints_in_one_pass_and_flags_changed_targets_as_suspect(self):
+        write(self.root, 'config/intent/NEED-speed.json', {
+            'id': 'NEED-speed', 'statement': 'fast', 'state': 'active', 'owner': 'o', 'source': 's'})
+        write(self.root, 'config/requirements/REQ-gate-60s.json', {
+            'id': 'REQ-gate-60s', 'type': 'constraint', 'statement': 'under 60 s', 'state': 'approved',
+            'owner': 'o', 'source': 's', 'derives_from': ['NEED-speed']})
+        write(self.root, 'config/architecture/ARC-config.json', {
+            'id': 'ARC-config', 'kind': 'component', 'name': 'Config', 'statement': 'config', 'state': 'active',
+            'owner': 'o', 'depends_on': ['ARC-gate'], 'layer': 0})
+        write(self.root, 'config/security/threats/THREAT-gate.json', {
+            'id': 'THREAT-gate', 'models': 'ARC-gate', 'assets': ['a'], 'boundaries': [],
+            'threats': [{'stride': 'tampering', 'statement': 's'}], 'reviewed': '2026-11-19'})
+        readers = (model.read_intent, model.read_requirements, model.read_architecture, model.read_threats)
+        def load():
+            return model.objects(self.root, readers=readers)
+        # Mutual ARC-gate <-> ARC-config cycle plus THREAT -> ARC and REQ -> NEED converge in a single stamp pass.
+        before = load()
+        self.assertTrue(model.stamp(self.root, check_only=True, found=before))
+        stamped = model.stamp(self.root, found=before)
+        self.assertEqual(stamped, [
+            'config/security/threats/THREAT-gate.json',
+            'config/requirements/REQ-gate-60s.json',
+            'config/architecture/ARC-config.json',
+            'config/architecture/ARC-gate.json',
+        ])
+        after = load()
+        self.assertEqual(model.stamp(self.root, check_only=True, found=after), [])
+        meta = model.metamodel(ROOT)
+        errors, warnings = model.check(meta, after)
+        self.assertEqual(errors, [])
+        self.assertEqual([line for line in warnings if 'is suspect' in line], [])
+        self.assertTrue(all(link.get('fingerprint') for link in after['THREAT-gate']['links']))
+        self.assertTrue(all(link.get('fingerprint') for link in after['REQ-gate-60s']['links']))
+        self.assertTrue(all(link.get('fingerprint') for link in after['ARC-gate']['links']))
+        # Changing ARC-gate invalidates THREAT-gate and ARC-config links as suspect.
+        gate_body = json.loads((self.root / 'config/architecture/ARC-gate.json').read_text())
+        gate_body['statement'] = 'changed responsibility'
+        write(self.root, 'config/architecture/ARC-gate.json', gate_body)
+        drifted = load()
+        _, drifted_warnings = model.check(meta, drifted)
+        self.assertIn('THREAT-gate: models ARC-gate is suspect (the target changed)', drifted_warnings)
+        self.assertIn('ARC-config: depends-on ARC-gate is suspect (the target changed)', drifted_warnings)
+        self.assertEqual(model.stamp(self.root, check_only=True, found=drifted), [
+            'config/security/threats/THREAT-gate.json',
+            'config/architecture/ARC-config.json',
+        ])
+
     def test_a_capability_is_an_element_read_where_it_is_with_its_status_and_the_import_overrides(self):
         found = self.found()
         self.assertEqual((found['ARC-cap-001']['state'], found['ARC-cap-001']['body']['retired_by']), ('deprecated', 'D-111'))
