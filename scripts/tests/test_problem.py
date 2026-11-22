@@ -113,6 +113,10 @@ class ProblemSpace(unittest.TestCase):
     def conforms(self, found, ident):
         return model.covered(model.metamodel(self.root), found[ident], model.incoming(found), found)
 
+
+    def rate(self, found):
+        return model.rate_system(model.metamodel(self.root), found, model.incoming(found), set(), 'problem')
+
     def test_a_complete_problem_space_has_no_error_and_every_object_conforms(self):
         found = self.found()
         self.assertEqual(problem_space.problem_errors(found), [])
@@ -307,37 +311,50 @@ class ProblemSpace(unittest.TestCase):
         self.assertEqual(model.measured({'measure': {'kind': 'all-met', 'of': ['NC-a', 'NC-b']}}, found, self.root, DAY),
                          (1, True))
 
-    def test_the_torre_s_own_problem_space_is_complete(self):
+    def test_open_observed_effects_leave_problem_open_in_measure_without_failing_check(self):
+        # An observed UDE whose violated condition is now met (stale) stays open in model measure, never an error.
+        stale = self.found(states={'NC-goal': 'met', 'NC-part': 'met'})
+        self.assertEqual(problem_space.problem_errors(stale), [])
+        self.assertTrue(stale['UDE-slow']['body']['stale'])
+        self.assertFalse(self.conforms(stale, 'UDE-slow'))
+        rated = self.rate(stale)
+        self.assertEqual((rated['nonconformant'], rated['closed']), (['UDE-slow'], False))
+        self.assertIn('open: UDE-slow', model.system_line(rated))
+
+        # Once the stale effect is marked gone, the problem space closes again.
+        def resolved(files):
+            files['UDE-slow']['state'] = 'gone'
+        closed = self.found(states={'NC-goal': 'met', 'NC-part': 'met'}, edit=resolved)
+        self.assertEqual(problem_space.problem_errors(closed), [])
+        self.assertFalse(closed['UDE-slow']['body']['stale'])
+        rated = self.rate(closed)
+        self.assertEqual((rated['nonconformant'], rated['closed']), ([], True))
+
+        # An observed UDE with no covering cause stays open (along with the core cause whose coverage drops) in measure.
+        def uncovered(files):
+            files['UDE-open'] = {**files['UDE-slow'], 'id': 'UDE-open', 'statement': 'unexplained'}
+        unexplained = self.found(edit=uncovered)
+        self.assertEqual(problem_space.problem_errors(unexplained), [])
+        self.assertFalse(self.conforms(unexplained, 'UDE-open'))
+        self.assertEqual(unexplained['CAUSE-core']['body']['coverage'], 1 / len(('UDE-slow', 'UDE-open')))
+        rated = self.rate(unexplained)
+        self.assertEqual((rated['nonconformant'], rated['closed']), (['CAUSE-core', 'UDE-open'], False))
+        self.assertIn('open: CAUSE-core, UDE-open', model.system_line(rated))
+
+    def test_the_torre_s_own_problem_space_holds_its_structural_rules(self):
+        # Structural shape only (STD-problem-space): live conformance (e.g. an observed UDE whose NC moved) belongs to
+        # `scripts/model measure`, never to this unit test, so a rolling window or open effect never breaks unrelated PRs.
+        meta = model.metamodel(ROOT)
+        self.assertEqual(meta['errors'], [])
         found = model.objects(ROOT)
         self.assertEqual(problem_space.problem_errors(found), [])
-        meta, into = model.metamodel(ROOT), model.incoming(found)
         kinds = {kind for kind, _ in problem_space.KINDS}
-        open_ = sorted(ident for ident, item in found.items() if item['type'] in kinds
-                       and not model.covered(meta, item, into, found))
-        # Level-2 ST nodes were updated with distinct domain tactics and P-NN premise links; they stay proposed
-        # until Daniel validates them (D-354).
-        self.assertEqual(open_, ['ST-administration', 'ST-capacity', 'ST-efficiency'])
-        diag = problem_space.diagnostics(found)
-        self.assertEqual(diag['duplicate_measures'], [
-            ('NC-autonomy', 'VAL-autonomy'), ('NC-cost', 'VAL-aws-200'), ('NC-deploy-1s', 'VAL-deploy-1s'),
-            ('NC-gate-time', 'VAL-gate-60s'), ('NC-quality', 'VAL-escape-under-1'),
-            ('NC-reflexion', 'VAL-changeability'), ('NC-requirements-tested', 'VAL-knowledge'),
-            ('NC-throughput', 'VAL-ladder-1')])
-        self.assertEqual(diag['unvalidated_needs'], [
-            'NEED-autonomy', 'NEED-changeability', 'NEED-cost', 'NEED-knowledge', 'NEED-quality', 'NEED-throughput'])
-        d348 = json.loads((ROOT / 'config/problem/appraisal/D-348.json').read_text())
-        weights = {item['nc']: item['weight'] for item in d348['criteria']}
-        expected = {option: float(sum(weights[s['nc']] * s['value'] for s in d348['scores'] if s['option'] == option))
-                    for option in d348['options']}
-        self.assertEqual(diag['appraisals']['D-348'], expected)
-        self.assertGreater(expected['INJ-tree-governance'], expected['INJ-do-minimum'])
-        self.assertGreater(expected['INJ-do-minimum'], expected['INJ-do-nothing'])
-        deploy_runs = json.loads((ROOT / 'config/validation/runs/deploy-live.json').read_text())['runs']
-        deploy_p100 = max(run['seconds'] for run in deploy_runs)
-        self.assertEqual(diag['gaps']['NC-deploy-1s']['baseline'], deploy_p100)
-        self.assertEqual(diag['gaps']['NC-deploy-1s']['reading'], deploy_p100)
-        self.assertEqual(found['D-354']['state'], 'proposed')
-        self.assertEqual(found['D-348']['state'], 'accepted')
+        self.assertEqual({item['type'] for item in found.values() if item['type'] in kinds}, kinds)
+        self.assertTrue(all(model.judged(meta, kind) for kind in kinds))
+        problems = [f'{ident}: {problem}' for ident, item in sorted(found.items())
+                    if item['type'] in kinds or str(item.get('source', '')).startswith(problem_space.FOLDER)
+                    for problem in item.get('problems', [])]
+        self.assertEqual(problems, [])
 
 
 if __name__ == '__main__':
