@@ -196,6 +196,23 @@ class ProblemSpace(unittest.TestCase):
         self.assertEqual(model.measured({'measure': {'kind': 'all-met', 'of': ['NC-a', 'NC-b']}}, found, self.root, DAY),
                          (1, True))
 
+    def test_nc_trust_aggregates_speed_and_cost_guards_under_d350(self):
+        trust = json.loads((ROOT / 'config/problem/NC-trust.json').read_text())
+        expected = [
+            'NC-quality', 'NC-autonomy', 'NC-gate-first-pass', 'NC-reflexion', 'NC-requirements-tested',
+            'NC-deploy-1s', 'NC-gate-time', 'NC-cost',
+        ]
+        self.assertEqual(trust['measure']['of'], expected)
+        all_met = {ident: {'state': 'met'} for ident in expected}
+        self.assertEqual(model.measured(trust, all_met, self.root, DAY), (0, True))
+        for guard in ('NC-deploy-1s', 'NC-gate-time', 'NC-cost'):
+            with self.subTest(guard=guard, state='not-met'):
+                states = {**all_met, guard: {'state': 'not-met'}}
+                self.assertEqual(model.measured(trust, states, self.root, DAY), (1, True))
+            with self.subTest(guard=guard, state='measuring'):
+                states = {**all_met, guard: {'state': 'measuring'}}
+                self.assertEqual(model.measured(trust, states, self.root, DAY), (0, False))
+
     def test_open_observed_effects_leave_problem_open_in_measure_without_failing_check(self):
         # An observed UDE whose violated condition is now met (stale) stays open in model measure, never an error.
         stale = self.found(states={'NC-goal': 'met', 'NC-part': 'met'})

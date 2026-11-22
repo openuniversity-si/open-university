@@ -9,7 +9,7 @@ source:
   where: "docs/programs/padrao-dev/problema-desenho.md"
   quote: null
   at: null
-status: "refuted"
+status: "to-validate"
 radius: "high"
 blast:
   reasons: ["decision:D-348"]
@@ -17,14 +17,7 @@ blast:
 validate:
   kind: "measurement"
   how: "NC-trust met over consecutive windows while units are generated under validated nodes, with no escape and no owner-stop."
-answer:
-  by: "Daniel"
-  at: "2026-11-19T16:40:00Z"
-  value: "refuted"
-  quote: "uma causa central hoje é que ele ainda não tem confiança no nível de performance do nosso sistema de IA para dar a autonomia que gostaria ... a confiança tem de ser construída e medida, não presumida"
-  where: "the Torre's relay of Daniel's answer on design v5, 19/11"
-  evidence: null
-  translation: "a central cause today is that he does not yet trust the performance level of our AI system to give the autonomy he would like ... trust has to be built and measured, not presumed"
+answer: null
 dependents:
   plans: []
   prs: []

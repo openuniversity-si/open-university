@@ -61,15 +61,19 @@ def record(state, root=None, now=None):
     target = os.path.join(root or RUNS_ROOT, RUNS_FOLDER, DEPLOY_RUNS + '.json')
     try:
         with open(target) as handle:
-            before = json.load(handle).get('runs') or []
+            existing = json.load(handle)
     except (OSError, ValueError):
-        before = []
+        existing = {}
+    before = existing.get('runs') or []
     kept = [run for run in before if run.get('id') != build['build_id']]
     entry = {'id': build['build_id'], 'event': 'deploy', 'conclusion': 'success',
              'started': iso(build.get('started') or build.get('ended') or 0), 'seconds': int(build['seconds'])}
+    ordered = sorted(kept + [entry], key=lambda run: run['started'], reverse=True)[:DEPLOY_KEEP]
+    if ordered == before and existing.get('at'):
+        return before
     made = {'workflow': DEPLOY_RUNS, 'source': 'the AWS deploy builds of GET /v1/deploy/status (scripts/deploy status)',
             'at': iso(now if now is not None else time.time()),
-            'runs': sorted(kept + [entry], key=lambda run: run['started'], reverse=True)[:DEPLOY_KEEP]}
+            'runs': ordered}
     os.makedirs(os.path.dirname(target), exist_ok=True)
     with open(target, 'w') as handle:
         handle.write(json.dumps(made, indent=1) + '\n')
@@ -170,9 +174,10 @@ def record_live(state, root=None, now=None, api=None, repo=None):
     target = os.path.join(root or RUNS_ROOT, RUNS_FOLDER, LIVE_RUNS + '.json')
     try:
         with open(target) as handle:
-            before = json.load(handle).get('runs') or []
+            existing = json.load(handle)
     except (OSError, ValueError):
-        before = []
+        existing = {}
+    before = existing.get('runs') or []
     runs = {run.get('id'): run for run in before if isinstance(run, dict)}
     if api is None and not os.environ.get('TOWER_OFFLINE'):
         import verify_commit  # the gate's github adapter (gh api), as runs.fetch reads GitHub
@@ -200,13 +205,16 @@ def record_live(state, root=None, now=None, api=None, repo=None):
             runs[sha] = landed_run(sha, how, pushes[sha], live, 'push', iso)
         elif sha in runs and 'from' not in runs[sha]:  # its push left the page: kept from merged_at, said, not asked again
             runs[sha] = dict(runs[sha], **{'from': 'merged_at'})
+    ordered = sorted(runs.values(), key=lambda run: run['started'], reverse=True)[:DEPLOY_KEEP]
+    if not ordered:
+        return None
+    if ordered == before and existing.get('at'):
+        return before
     made = {'workflow': LIVE_RUNS, 'source': "code-only merges' landing (the doorbell heard GitHub's signed push of the "
                                              "merge commit to main, else the push in GitHub's activity API) to code live (image_swap/image_live, image_reload of "
                                              'GET /v1/deploy/status)',
             'at': iso(now if now is not None else time.time()),
-            'runs': sorted(runs.values(), key=lambda run: run['started'], reverse=True)[:DEPLOY_KEEP]}
-    if not made['runs']:
-        return None
+            'runs': ordered}
     os.makedirs(os.path.dirname(target), exist_ok=True)
     with open(target, 'w') as handle:
         handle.write(json.dumps(made, indent=1) + '\n')
