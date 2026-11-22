@@ -30,6 +30,8 @@ import units
 TS_IMPORT = re.compile(r'''(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*|\bexport\s+\*\s+from\s*)['"]([^'"\n]+)['"]''')
 PY_IMPORT = re.compile(r'^\s*(?:from\s+([A-Za-z_][\w.]*)\s+import|import\s+([A-Za-z_][\w., ]*))', re.M)
 FILE_REFERENCE = re.compile(r'[\w.$/{}-]*?([\w.-]+(?:/[\w.-]+)*\.(?:py|sh|mjs|js|ts|json))\b')
+CLI_SCRIPT = re.compile(r'(?:^|/)(scripts/(?:lib/)?[A-Za-z0-9_.-]+)$')
+CLI_EXEC_NAMES = frozenset({'run', 'Popen', 'check_output', 'check_call', 'call', 'output', 'spawn', 'execv', 'execvp', '_run'})
 TS_SUFFIXES = ('.ts', '.tsx', '.mts', '.mjs', '.js', '.cjs')
 
 
@@ -109,6 +111,47 @@ def _well_formed_selections(facts):
                     for item in facts['loaded']))
 
 
+def cli_calls(text):
+    """Relative `scripts/<cmd>` or `scripts/lib/<mod>` paths passed to subprocess/exec calls in a Python source.
+
+    AST-only so comments, docstrings, regex patterns, and ArgumentParser help text never produce false edges.
+    """
+    if 'scripts' not in text:
+        return []
+    try:
+        tree = python_source.parse(text)
+    except SyntaxError:
+        return []
+    found = set()
+    for node in python_source.select(tree, ast.Call):
+        func = node.func
+        name = func.attr if isinstance(func, ast.Attribute) else getattr(func, 'id', '')
+        if name not in CLI_EXEC_NAMES:
+            continue
+        for arg in [*node.args, *(kw.value for kw in node.keywords)]:
+            for sub in ast.walk(arg):
+                if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
+                    match = CLI_SCRIPT.search(sub.value)
+                    if match:
+                        found.add(match.group(1))
+                elif isinstance(sub, ast.BinOp) and isinstance(sub.op, ast.Div):
+                    parts, current = [], sub
+                    while isinstance(current, ast.BinOp) and isinstance(current.op, ast.Div):
+                        if isinstance(current.right, ast.Constant) and isinstance(current.right.value, str):
+                            parts.append(current.right.value)
+                        current = current.left
+                    if isinstance(current, ast.Constant) and isinstance(current.value, str):
+                        parts.append(current.value)
+                    parts.reverse()
+                    for index, part in enumerate(parts):
+                        if part == 'scripts' and index + 1 < len(parts):
+                            candidate = '/'.join(parts[index:])
+                            match = CLI_SCRIPT.search(candidate)
+                            if match:
+                                found.add(match.group(1))
+    return sorted(found)
+
+
 class Code:
     """The tracked files of a checkout, which of them are production, their sizes and their import edges."""
 
@@ -125,6 +168,7 @@ class Code:
         self.dynamic_errors = []
         self.facts = source_facts.store(self.root)
         self.dynamic_edges = {path: self._dynamic_imports(path) for path in self.production}
+        self.cli_edges = {path: self._cli_imports(path) for path in self.production}
         self.edges = {path: self.static_edges[path] | self.dynamic_edges[path] for path in self.production}
         self.commits = self._commits(log)
 
@@ -198,6 +242,11 @@ class Code:
         found.discard(None)
         found.discard(path)
         return {item for item in found if item in self.sizes}
+
+    def _cli_imports(self, path):
+        if not path.endswith('.py'):
+            return set()
+        return {target for target in cli_calls(self._text(path)) if target in self.sizes and target != path}
 
     def _dynamic_imports(self, path):
         """Verify literal importlib selections without turning vendor selection into requires.
@@ -442,6 +491,15 @@ def measure(root=None, code=None):
 
 def requires(root=None, code=None):
     """Static imports only: vendor selections are relations, not mandatory unit dependencies (D-283)."""
+    return _unit_edges(root, code, 'static_edges')
+
+
+def cli_requires(root=None, code=None):
+    """Cross-unit subprocess CLI invocations (`scripts/<cmd>`), kept distinct from static requires."""
+    return _unit_edges(root, code, 'cli_edges')
+
+
+def _unit_edges(root, code, attr):
     root = units._root(root)
     code = code or Code(root)
     owner = {}
@@ -450,7 +508,7 @@ def requires(root=None, code=None):
         if len(found) == 1:
             owner[path] = found[0]
     needs = defaultdict(set)
-    for path, targets in code.static_edges.items():
+    for path, targets in getattr(code, attr).items():
         for target in targets:
             if path in owner and target in owner and owner[path] != owner[target]:
                 needs[owner[path]].add(owner[target])

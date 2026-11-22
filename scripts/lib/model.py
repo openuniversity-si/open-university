@@ -1639,9 +1639,41 @@ def view(found):
     return '\n'.join(lines)
 
 
-def architecture_measure(found):
+def cli_couplings(found, root=ROOT):
+    """Cross-component subprocess CLI dependencies (`scripts/<cmd>` via unit_map.cli_requires): pairs, those not
+    declared on the source component, and those pointing to a higher layer (D-322)."""
+    import unit_map
+    import units
+    from config import ConfigError
+    root = Path(root)
+    empty = {'pairs': [], 'undeclared': [], 'upward': []}
+    if not (root / 'units').is_dir() or not (root / 'config/registry/units.json').is_file():
+        return empty
+    try:
+        cli_deps = unit_map.cli_requires(root, unit_map.Code(root, log=''))
+    except (units.UnitError, ConfigError):
+        return empty
+    components = {id: item['body'].get('layer') for id, item in found.items()
+                  if item['type'] == 'ARC' and item.get('body', {}).get('kind') == 'component'}
+    realized = {id.removeprefix('UNIT:'): [link['target'] for link in item['links']
+                                           if link['type'] == 'realizes' and link['target'] in components]
+                for id, item in found.items() if item['type'] == 'UNIT'}
+    declared = {(id, link['target']) for id, item in found.items() if item['type'] == 'ARC'
+                for link in item['links'] if link['type'] == 'depends-on'}
+    pairs = set()
+    for src_unit, targets in cli_deps.items():
+        for dst_unit in targets:
+            pairs |= {(src, dst) for src in realized.get(src_unit, ())
+                      for dst in realized.get(dst_unit, ()) if src != dst}
+    upward = sorted((src, dst) for src, dst in pairs
+                    if components.get(src) is not None and components.get(dst) is not None
+                    and components[dst] > components[src])
+    return {'pairs': sorted(pairs), 'undeclared': sorted(pairs - declared), 'upward': upward}
+
+
+def architecture_measure(found, root=ROOT):
     """The architecture system's own measure: active elements by kind, those that satisfy a requirement, those a
-    unit realizes, the units that realize an element, active contracts, and the ADRs by state."""
+    unit realizes, the units that realize an element, active contracts, CLI couplings, and the ADRs by state."""
     into = incoming(found)
     elements = [item for item in found.values() if item['type'] == 'ARC' and item['state'] in ('proposed', 'active')]
     contracts = [item for item in found.values() if item['type'] == 'CON' and item['state'] in ('proposed', 'active')]
@@ -1661,6 +1693,7 @@ def architecture_measure(found):
         'units_realizing': sum(1 for item in units if any(link['type'] == 'realizes' for link in item['links'])),
         'units': len(units), 'contracts': len(contracts), 'adrs': dict(sorted(adrs.items())),
         'reflexion': reflexion_share(found),
+        'cli': cli_couplings(found, root),
     }
 
 
@@ -2877,7 +2910,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'standard_management': management_measure(found, today or utc_today()),
         'knowledge': knowledge_measure(found),
         'requirements': requirements_measure(found),
-        'architecture': architecture_measure(found),
+        'architecture': architecture_measure(found, root),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
         'measurement': {'cheaper_path': cheaper_path, **measures_measure(found)},
@@ -2975,6 +3008,11 @@ def summary(found):
     mirror = built['reflexion']
     lines.append(f'reflexion: {mirror["share"]:.0%} conformant ({mirror["convergences"]} convergent, {mirror["divergences"]} '
                  f'divergent, {mirror["absences"]} absent dependencies between components)')
+    cli = built.get('cli') or {}
+    if cli.get('pairs'):
+        up = ', '.join(f'{src} -> {dst}' for src, dst in cli.get('upward', []))
+        lines.append(f'cli couplings: {len(cli["pairs"])} cross-component ({len(cli.get("undeclared", []))} undeclared, '
+                     f'{len(cli.get("upward", []))} upward' + (f': {up}' if up else '') + ')')
     decided = found['decisions']
     lines.append(f'decisions: {", ".join(f"{count} {state}" for state, count in decided["by_state"].items())}; '
                  f'{decided["proven"]} of {decided["accepted"]} accepted proven by a test; {decided["edited_records"]} '
@@ -3038,9 +3076,15 @@ def main(argv=None):
             print(view(objects()))
             return 0
         if args.command == 'reflexion':
-            for name, pairs in reflexion(objects()).items():
+            found = objects()
+            for name, pairs in reflexion(found).items():
                 print(f'{name} ({len(pairs)}):')
                 print('\n'.join(f'  {start} -> {end}' for start, end in pairs))
+            for name, pairs in cli_couplings(found).items():
+                if name in ('undeclared', 'upward'):
+                    print(f'cli_{name} ({len(pairs)}):')
+                    if pairs:
+                        print('\n'.join(f'  {start} -> {end}' for start, end in pairs))
             return 0
         if args.command == 'show':
             print(show(args.id))

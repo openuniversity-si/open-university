@@ -59,7 +59,8 @@
     "engine-lessons": "^1",
     "engine-premises": "^1",
     "engine-rules": "^1",
-    "engine-slo": "^1"
+    "engine-slo": "^1",
+    "engine-units": "^1"
   },
   "realizes": [
     "ARC-model"

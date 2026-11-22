@@ -1651,6 +1651,8 @@ class RealRepository(unittest.TestCase):
         self.assertTrue(all(item['level'] in levels for item in result['systems'].values()))
         self.assertEqual(set(result['systems']), set(meta['systems']))
         self.assertIn('chain:', model.summary(result))
+        self.assertIn(('ARC-delivery', 'ARC-measurement'), result['architecture']['cli']['upward'])
+        self.assertIn('cli couplings:', model.summary(result))
 
     def test_the_systems_split_into_a_management_and_an_engineering_group_reported_apart(self):
         # D-330: management holds intent, work, decisions and measurement; every other system is engineering

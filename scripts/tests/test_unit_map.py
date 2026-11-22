@@ -288,6 +288,34 @@ class Measure(Fixture):
     def test_d067_requires_is_seeded_from_the_measured_imports(self):
         self.assertEqual(unit_map.requires(self.root, self.code()), {'one': ['two']})
 
+    def test_cli_calls_detect_subprocess_scripts_without_polluting_static_requires(self):
+        owner = config.get('units.owners', self.root)[0]
+        registry = json.loads((self.root / 'config/registry/units.json').read_text())
+        registry['properties']['units.production_globs']['default'] = ['app/src/**', 'tools/**', 'scripts/**']
+        self.write('config/registry/units.json', registry)
+        self.write('scripts/lib/caller.py',
+                   "import argparse\nimport subprocess\nfrom pathlib import Path\n"
+                   "parser = argparse.ArgumentParser(prog='scripts/ignored')\n"
+                   "def go(root):\n"
+                   "    subprocess.run(['scripts/target', '--flag'])\n"
+                   "    subprocess.Popen([str(Path(root) / 'scripts' / 'other')])\n")
+        self.write('scripts/target', '#!/usr/bin/env bash\necho ok\n')
+        self.write('scripts/other', '#!/usr/bin/env bash\necho ok\n')
+        self.write('scripts/ignored', '#!/usr/bin/env bash\necho ok\n')
+        self.write('units/caller/unit.json', {'id': 'caller', 'purpose': 'Caller.', 'cell': 'engine', 'owner': owner,
+                                              'paths': ['scripts/lib/caller.py']})
+        self.write('units/targets/unit.json', {'id': 'targets', 'purpose': 'Targets.', 'cell': 'engine', 'owner': owner,
+                                               'paths': ['scripts/target', 'scripts/other', 'scripts/ignored']})
+        self.commit()
+        code = self.code()
+        self.assertEqual(code.cli_edges['scripts/lib/caller.py'], {'scripts/target', 'scripts/other'})
+        self.assertEqual(code.static_edges['scripts/lib/caller.py'], set())
+        self.assertEqual(unit_map.cli_requires(self.root, code), {'caller': ['targets']})
+        self.assertNotIn('caller', unit_map.requires(self.root, code))
+        real_cli = unit_map.cli_requires(ROOT, unit_map.Code(ROOT, log=''))
+        self.assertIn('engine-flow', real_cli.get('engine-lane-deliver', []))
+        self.assertIn('engine-session-usage', real_cli.get('engine-lane-deliver', []))
+
 
 if __name__ == '__main__':
     unittest.main()
