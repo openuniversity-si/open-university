@@ -223,6 +223,18 @@ class TinyModel(unittest.TestCase):
         self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'an exemption that is not active')
         found = self.objects(tail(authorized_by='D-8'), decision, {'id': 'CHG-10', 'type': 'CHG'})
         self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'no decision of the model granted it')
+        session_dec = {**decision, 'authority': 'session'}
+        found = self.objects(tail(), session_dec, {'id': 'CHG-10', 'type': 'CHG'})
+        self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'a session-decided record cannot exempt')
+        self_dec = {**decision, 'authority': 'owner', 'author': 'lane-a', 'approver': 'lane-a'}
+        found = self.objects(tail(), self_dec, {'id': 'CHG-10', 'type': 'CHG'})
+        self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'an author cannot self-approve an exemption')
+        independent_dec = {**decision, 'authority': 'independent', 'author': 'lane-a', 'approver': 'torre'}
+        found = self.objects(tail(), independent_dec, {'id': 'CHG-10', 'type': 'CHG'})
+        self.assertEqual(model.exempted_ids(found, '2026-11-19'), {'CHG-10'}, 'an independent approver can exempt')
+        proposed_dec = {**decision, 'state': 'proposed'}
+        found = self.objects(tail(), proposed_dec, {'id': 'CHG-10', 'type': 'CHG'})
+        self.assertEqual(model.exempted_ids(found, '2026-11-19'), set(), 'a proposed decision cannot exempt')
 
     def test_an_object_that_meets_an_unconformant_condition_of_its_type_is_judged_and_not_conformant(self):
         write(self.root, 'config/model/types/VAL.json', {'id': 'VAL', 'name': 'val', 'system': 'reqs', 'states': ['defined'],
@@ -431,11 +443,16 @@ class TargetsFull(unittest.TestCase):
         write(self.root, f'config/registry/{name.split(".", 1)[0]}/{name}.json', {'type': 'number', 'default': default,
                                                                                  **schema})
 
-    def tail(self, scope, **body):
+    def tail(self, scope, decision=None, **body):
         body = {'id': 'TAIL-x', 'exempts': model.TARGETS_RULE, 'scope': scope, 'reason': 'r', 'owner': 'administration',
                 'authorized_by': 'D-337', 'valid_until': '2026-12-31', 'state': 'active', **body}
-        return {'TAIL-x': {'id': 'TAIL-x', 'type': 'TAIL', 'state': body['state'], 'source': 'x', 'links': [],
-                           'body': body}}
+        dec = ({'id': 'D-337', 'type': 'D', 'state': 'accepted', 'authority': 'owner', 'links': []}
+               if decision is None else decision)
+        out = {'TAIL-x': {'id': 'TAIL-x', 'type': 'TAIL', 'state': body['state'], 'source': 'x', 'links': [],
+                          'body': body}}
+        if dec:
+            out[dec['id']] = dec
+        return out
 
     def errors(self, found):
         return model.target_errors(found, self.root, '2026-11-19')
@@ -492,6 +509,15 @@ class TargetsFull(unittest.TestCase):
         self.assertEqual(self.errors(self.tail('config/registry/slo/*')), [], 'a scope is a glob of the path too')
         for late in ({'valid_until': '2026-11-18'}, {'state': 'expired'}, {'owner': ''}, {'exempts': 'STD-other'}):
             self.assertEqual(len(self.errors(self.tail('slo.percentile', **late))), 1, late)
+        for bad in ({}, {'id': 'D-337', 'type': 'D', 'state': 'accepted', 'authority': 'session', 'links': []},
+                    {'id': 'D-337', 'type': 'D', 'state': 'accepted', 'authority': 'self', 'links': []},
+                    {'id': 'D-337', 'type': 'D', 'state': 'accepted', 'authority': 'owner',
+                     'author': 'lane-1', 'approver': 'lane-1', 'links': []},
+                    {'id': 'D-337', 'type': 'D', 'state': 'proposed', 'authority': 'owner', 'links': []}):
+            self.assertEqual(len(self.errors(self.tail('slo.percentile', decision=bad))), 1, bad)
+        independent = {'id': 'D-337', 'type': 'D', 'state': 'accepted', 'authority': 'independent',
+                       'author': 'lane-1', 'approver': 'torre', 'links': []}
+        self.assertEqual(self.errors(self.tail('slo.percentile', decision=independent)), [])
 
     def test_this_checkout_holds_every_target_at_the_whole_or_exempted(self):
         found = model.objects(ROOT)
@@ -588,6 +614,42 @@ class StandardManagement(unittest.TestCase):
         found['VER-v99'] = {**found[f'VER-{self.current}'], 'id': 'VER-v99'}
         errors, _ = model.management_findings(found, '2026-11-16')
         self.assertEqual(len(errors), 1)
+
+    def test_unapproved_active_exemption_warns_and_is_reported_separately_from_owner_approved(self):
+        write(self.root, 'config/standard/tailoring/TAIL-owner.json', {
+            'id': 'TAIL-owner', 'exempts': 'STD-padrao-save-often', 'scope': 'units/engine-a/**', 'reason': 'r',
+            'owner': 'administration', 'authorized_by': 'D-10', 'valid_until': '2026-12-31', 'state': 'active'})
+        write(self.root, 'config/standard/tailoring/TAIL-indep.json', {
+            'id': 'TAIL-indep', 'exempts': 'STD-padrao-save-often', 'scope': 'units/engine-c/**', 'reason': 'r',
+            'owner': 'administration', 'authorized_by': 'D-12', 'valid_until': '2026-12-31', 'state': 'active'})
+        write(self.root, 'config/standard/tailoring/TAIL-self.json', {
+            'id': 'TAIL-self', 'exempts': 'STD-padrao-save-often', 'scope': 'units/engine-b/**', 'reason': 'r',
+            'owner': 'administration', 'authorized_by': 'D-11', 'valid_until': '2026-12-31', 'state': 'active'})
+        write(self.root, 'config/standard/tailoring/TAIL-same-actor.json', {
+            'id': 'TAIL-same-actor', 'exempts': 'STD-padrao-save-often', 'scope': 'units/engine-d/**', 'reason': 'r',
+            'owner': 'administration', 'authorized_by': 'D-13', 'valid_until': '2026-12-31', 'state': 'active'})
+        write(self.root, 'config/standard/tailoring/TAIL-revoked.json', {
+            'id': 'TAIL-revoked', 'exempts': 'STD-padrao-save-often', 'scope': 'units/engine-e/**', 'reason': 'r',
+            'owner': 'administration', 'authorized_by': 'D-11', 'valid_until': '2026-12-31', 'state': 'revoked'})
+        found = self.found()
+        found['D-10'] = {'id': 'D-10', 'type': 'D', 'state': 'accepted', 'authority': 'owner', 'links': []}
+        found['D-11'] = {'id': 'D-11', 'type': 'D', 'state': 'accepted', 'authority': 'session', 'links': []}
+        found['D-12'] = {'id': 'D-12', 'type': 'D', 'state': 'accepted', 'authority': 'independent',
+                         'author': 'lane-1', 'approver': 'torre', 'links': []}
+        found['D-13'] = {'id': 'D-13', 'type': 'D', 'state': 'accepted', 'authority': 'owner',
+                         'author': 'lane-1', 'approver': 'lane-1', 'links': []}
+        _, warnings = model.management_findings(found, '2026-11-19')
+        self.assertTrue(any('TAIL-self: active exemption without independent approval (D-11: session-decided' in w for w in warnings), warnings)
+        self.assertTrue(any('TAIL-same-actor: active exemption without independent approval (D-13: self-approved' in w for w in warnings), warnings)
+        for clean in ('TAIL-owner:', 'TAIL-indep:', 'TAIL-revoked:'):
+            self.assertFalse(any(w.startswith(clean) for w in warnings), warnings)
+        counted = model.management_measure(found, '2026-11-19')
+        approved_ids = ('TAIL-indep', 'TAIL-owner')
+        unapproved_ids = ('TAIL-same-actor', 'TAIL-self')
+        self.assertEqual((counted['exemptions'], counted['unapproved_exemptions']), (len(approved_ids), len(unapproved_ids)))
+        self.assertEqual([(item['id'], item['approved'], item['valid_until']) for item in counted['active_exemptions']],
+                         [('TAIL-indep', True, '2026-12-31'), ('TAIL-owner', True, '2026-12-31'),
+                          ('TAIL-same-actor', False, '2026-12-31'), ('TAIL-self', False, '2026-12-31')])
 
 
 class Requirements(unittest.TestCase):
@@ -1605,6 +1667,39 @@ class RealRepository(unittest.TestCase):
         self.assertTrue(all(item['level'] in levels for item in result['systems'].values()))
         self.assertEqual(set(result['systems']), set(meta['systems']))
         self.assertIn('chain:', model.summary(result))
+        self.assertIn('exemptions (TAIL):', model.summary(result))
+
+    def test_session_decided_exemptions_do_not_close_security_in_this_checkout(self):
+        found = model.objects(ROOT)
+        self.assertEqual(found['D-337']['authority'], 'owner')
+        self.assertEqual(found['D-343']['authority'], 'session')
+        self.assertEqual(found['D-344']['authority'], 'session')
+        revoked_tails = ('TAIL-site-csp-inline', 'TAIL-gate-fork-workflow', 'TAIL-ssdf-pw2-gate')
+        approved_tails = ('TAIL-targets-budget-tolerance', 'TAIL-targets-flake-excuse', 'TAIL-targets-web-coverage')
+        for tail_id in revoked_tails:
+            self.assertEqual(found[tail_id]['state'], 'revoked', tail_id)
+        for tail_id in approved_tails:
+            self.assertEqual(found[tail_id]['state'], 'active', tail_id)
+        exempt = model.exempted_ids(found, model.utc_today())
+        open_targets = ('CTRL-ssdf-pw.2', 'CTRL-ssdf-pw.9', 'THREAT-gate')
+        for ident in open_targets:
+            self.assertNotIn(ident, exempt)
+        self.assertEqual(found['D-349']['state'], 'superseded')
+        self.assertFalse(model.independently_approved(found['D-349']))
+        self.assertEqual((found['D-360']['state'], found['D-360']['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(found['D-360']))
+        self.assertEqual(found['P-59']['state'], 'to-validate')
+        result = model.measure(ROOT, found=found)
+        self.assertFalse(result['systems']['security']['closed'])
+        self.assertFalse(result['systems']['knowledge']['closed'])
+        for ident in open_targets:
+            self.assertIn(ident, result['systems']['security']['nonconformant'])
+        self.assertEqual(result['standard_management']['exemptions'], len(approved_tails))
+        self.assertEqual(result['standard_management']['unapproved_exemptions'], 0)
+        text = model.summary(result)
+        for tail_id in revoked_tails:
+            self.assertNotIn(tail_id, text)
+        self.assertIn('TAIL-targets-budget-tolerance: [approved]', text)
 
     def test_the_systems_split_into_a_management_and_an_engineering_group_reported_apart(self):
         # D-330: management holds intent, work, decisions and measurement; every other system is engineering
@@ -1711,7 +1806,53 @@ class DecisionTable(unittest.TestCase):
         self.assertEqual({id: item['state'] for id, item in decisions.items()},
                          {'D-1': 'superseded', 'D-2': 'deprecated', 'D-3': 'superseded', 'D-4': 'deprecated',
                           'D-5': 'accepted', 'D-6': 'accepted'})
+
+    def test_proposed_records_and_rows_stay_proposed_and_do_not_supersede_accepted_decisions(self):
+        decisions, _ = self.rows('| D-1 | d | x | - | prose | proposed |')
+        self.assertEqual(decisions['D-1']['state'], 'proposed')
+        folder = self.root / Path(model.DECISION_RECORDS).parent
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / 'D-900.md').write_text('---\nnumber: D-900\npremises: none\n---\nOwner rule.\n')
+        (folder / 'D-901.md').write_text('---\nnumber: D-901\npremises: none\nstatus: proposed\nsupersedes: D-900\n---\n'
+                                         'Proposed change (decided by the session under D-325).\n')
+        by_id = {item['id']: item for item in model.read_decisions(self.root) if item['type'] == 'D'}
+        self.assertEqual((by_id['D-900']['state'], by_id['D-900']['authority']), ('accepted', 'owner'))
+        self.assertEqual((by_id['D-901']['state'], by_id['D-901']['authority']), ('proposed', 'session'))
         self.assertEqual(set(model.metamodel(ROOT)['types']['D']['inactive_states']), {'deprecated', 'superseded'})
+
+    def test_d360_independent_approver_no_self_approval_and_daniel_only_for_money_and_people(self):
+        """D-360 amendment (supersedes D-349): an author never approves own work, an independent approver decides
+        without waiting on Daniel, an accepted decision supersedes a proposed one, and only money/people wait on Daniel."""
+        import config
+        folder = self.root / Path(model.DECISION_RECORDS).parent
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / 'D-910.md').write_text('---\nnumber: D-910\npremises: none\nstatus: proposed\n---\nDraft rule.\n')
+        (folder / 'D-911.md').write_text('---\nnumber: D-911\npremises: none\nauthority: owner\nsupersedes: D-910\n---\n'
+                                         'Torre por delegacao do Daniel 22/11/2026.\n')
+        (folder / 'D-912.md').write_text('---\nnumber: D-912\npremises: none\nauthor: lane-a\napprover: torre\n---\n'
+                                         'Independent approval of tailoring.\n')
+        (folder / 'D-913.md').write_text('---\nnumber: D-913\npremises: none\nauthority: owner\nauthor: lane-a\n'
+                                         'approver: lane-a\n---\nAttempted self-approval.\n')
+        by_id = {item['id']: item for item in model.read_decisions(self.root) if item['type'] == 'D'}
+        self.assertEqual(by_id['D-910']['state'], 'superseded', 'accepted D-911 supersedes proposed D-910')
+        self.assertFalse(model.independently_approved(by_id['D-910']))
+        self.assertEqual((by_id['D-911']['state'], by_id['D-911']['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(by_id['D-911']))
+        self.assertEqual((by_id['D-912']['state'], by_id['D-912']['authority']), ('accepted', 'independent'))
+        self.assertTrue(model.independently_approved(by_id['D-912']))
+        self.assertTrue(model.independently_approved(by_id['D-912'], scope='tailoring'))
+        self.assertTrue(model.independently_approved(by_id['D-912'], scope='security'))
+        self.assertEqual(by_id['D-913']['authority'], 'self')
+        self.assertFalse(model.independently_approved(by_id['D-913']))
+        self.assertFalse(model.independently_approved(by_id['D-913'], scope='tailoring'))
+        for owner_scope in ('money', 'people'):
+            self.assertTrue(model.requires_daniel(owner_scope), owner_scope)
+            self.assertFalse(model.independently_approved(by_id['D-912'], scope=owner_scope), owner_scope)
+            self.assertTrue(model.independently_approved(by_id['D-911'], scope=owner_scope), owner_scope)
+            self.assertFalse(model.independently_approved(by_id['D-913'], scope=owner_scope), owner_scope)
+        for non_owner_scope in ('tailoring', 'security', 'governance', 'decisions'):
+            self.assertFalse(model.requires_daniel(non_owner_scope), non_owner_scope)
+        self.assertEqual(set(model.OWNER_ONLY_SCOPES), set(config.get('regime.exception_kept', ROOT)))
 
     def test_a_record_that_names_what_it_supersedes_makes_those_records_and_rows_superseded(self):
         # D-335: a record is written once, so an accepted record changes state only by a later record's supersedes:
