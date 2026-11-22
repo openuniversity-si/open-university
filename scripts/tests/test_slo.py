@@ -130,25 +130,31 @@ class Fold(unittest.TestCase):
         self.assertEqual(config.get('slo.percentile'), 100)
         self.assertEqual(slo.percentile(list(range(1, 1001)), 100), 1000)
         limit = config.get('slo.train_queue_time_p95_s')
+        count = config.get('slo.min_samples')
         spec = []
-        for pr in range(1, 40):
-            spec += [ready(pr * 10, pr), merged(pr * 10 + limit / 2, pr)]
-        spec += [ready(500, 60), merged(500 + limit * 3, 60)]
+        for pr in range(1, count + 1):
+            spec += [ready(pr, pr), merged(pr + limit / (1 + 1), pr)]
+        tail = count + 1
+        slow = limit * (1 + 1 + 1)
+        spec += [ready(tail, tail), merged(tail + slow, tail)]
         item = by_name(slo.evaluate(make_log(spec), conf(**{'slo.percentile': config.get('slo.percentile')})))[
             'slo.train_queue_time_p95_s']
-        self.assertEqual((item['state'], item['value']), ('breached', limit * 3))
+        self.assertEqual((item['state'], item['value']), ('breached', slow))
 
     def test_retired_tier1_slo_is_not_evaluated_and_never_breaches(self):
         # D-351: tier-1 duration verdicts do not generate a false breach for retired slo.gate_tier1_p95_s.
-        log = make_log([gate(i, i + 1, 999) for i in range(20)])
+        limit = config.get('gate.tier1_target_s')
+        count = config.get('slo.min_samples')
+        log = make_log([gate(i, i + 1, limit + limit) for i in range(count)])
         results = by_name(slo.evaluate(log, conf()))
         self.assertNotIn('slo.gate_tier1_p95_s', results)
         self.assertEqual(results['slo.gate_failure_rate_max_percent']['state'], 'ok')
 
     def test_queue_time_within_the_entry_is_ok(self):
+        count = config.get('slo.min_samples')
         spec = []
-        for pr in range(1, 6):
-            spec += [ready(pr * 10, pr), merged(pr * 10 + 5, pr)]
+        for pr in range(1, count + 1):
+            spec += [ready(pr, pr), merged(pr + 1, pr)]
         self.assertEqual(by_name(slo.evaluate(make_log(spec), conf()))['slo.train_queue_time_p95_s']['state'], 'ok')
 
     def test_fewer_samples_than_the_floor_report_no_data(self):

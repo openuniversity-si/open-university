@@ -1902,12 +1902,18 @@ class SupportSystems(unittest.TestCase):
         return model.covered(self.meta, item, model.incoming(found), found)
 
     def test_measures_come_from_the_slo_registry_the_validations_and_the_cheaper_path(self):
+        slo_props = json.loads((ROOT / model.SLO_REGISTRY).read_text())['properties']
+        retired_default = slo_props['slo.gate_tier1_p95_s']['default']
+        queue_default = slo_props['slo.train_queue_time_p95_s']['default']
+        pace_default = slo_props['slo.merged_prs_per_hour_min']['default']
         write(self.root, model.SLO_REGISTRY, {'properties': {
-            'slo.gate_tier1_p95_s': {'default': 10, 'description': 'retired', 'x-unit': 's', 'deprecated': True,
+            'slo.gate_tier1_p95_s': {'default': retired_default, 'description': 'retired', 'x-unit': 's',
+                                     'deprecated': True,
                                      'x-readers': ['docs/domain/decisions/D-351.md', 'scripts/lib/model.py']},
-            'slo.train_queue_time_p95_s': {'default': 900, 'description': 'need', 'x-unit': 's',
+            'slo.train_queue_time_p95_s': {'default': queue_default, 'description': 'need', 'x-unit': 's',
                                            'x-readers': ['scripts/lib/slo.py', model.SLO_CONSUMER]},
-            'slo.merged_prs_per_hour_min': {'default': 42, 'description': 'need', 'x-readers': ['scripts/lib/slo.py']}}})
+            'slo.merged_prs_per_hour_min': {'default': pace_default, 'description': 'need',
+                                            'x-readers': ['scripts/lib/slo.py']}}})
         write(self.root, 'config/validation/VAL-a.json', {'id': 'VAL-a', 'statement': 's', 'owner': 'capacity',
                                                           'measure': {'kind': 'run-durations', 'workflow': 'deploy'},
                                                           'comparator': 'lte', 'threshold': 1})
@@ -1921,7 +1927,7 @@ class SupportSystems(unittest.TestCase):
         self.assertFalse(model.is_active(self.meta, found['MEAS-gate-tier1-p95-s']))
         self.assertEqual(found['MEAS-unwired-b']['state'], 'proposed')
         self.assertEqual(found['MEAS-merged-prs-per-hour-min']['body']['consumer'], '')
-        self.assertEqual(found['MEAS-train-queue-time-p95-s']['body']['criterion'], 'max 900')
+        self.assertEqual(found['MEAS-train-queue-time-p95-s']['body']['criterion'], f'max {queue_default}')
         self.assertEqual(found['MEAS-run-durations-deploy']['body']['scale'], 'derived')
         found['VAL-a'] = {'id': 'VAL-a', 'type': 'VAL', 'state': 'met', 'links': [], 'fingerprint': 'f'}
         found['VAL-b'] = {'id': 'VAL-b', 'type': 'VAL', 'state': 'defined', 'links': [], 'fingerprint': 'f'}
@@ -2099,15 +2105,19 @@ class SupportSystems(unittest.TestCase):
 
     def test_run_durations_report_diagnostic_quantiles_and_outliers_while_accepting_p100(self):
         # M4 / D-337: external percentiles report alongside p100 acceptance without loosening the target.
+        points = model.report_quantiles(ROOT)
+        top = max(points)
+        sample_values = list(points) + [top + top]
         write(self.root, 'config/validation/runs/sample-gate.json', {
             'workflow': 'sample-gate', 'source': 'fixture', 'at': '2026-11-22T00:00:00Z',
-            'runs': [{'seconds': value} for value in (10, 20, 30, 40, 50, 60, 70, 80, 90, 120)]})
-        sample_body = {'measure': {'kind': 'run-durations', 'workflow': 'sample-gate', 'percentile': 100},
-                       'comparator': 'lte', 'threshold': 60}
-        sample_dist = model.run_distribution(self.root, sample_body, quantiles=[50, 95, 100])
-        self.assertEqual(sample_dist['quantiles'], {'p50': 50, 'p95': 120, 'p100': 120})
+            'runs': [{'seconds': value} for value in sample_values]})
+        sample_body = {'measure': {'kind': 'run-durations', 'workflow': 'sample-gate', 'percentile': top},
+                       'comparator': 'lte', 'threshold': points[0]}
+        sample_dist = model.run_distribution(self.root, sample_body, quantiles=points)
+        self.assertEqual(sample_dist['quantiles'],
+                         {f'p{points[0]}': points[1], f'p{points[1]}': top + top, f'p{top}': top + top})
         self.assertEqual((sample_dist['accepted_percentile'], sample_dist['accepted_value'], sample_dist['outliers']),
-                         (100, 120, 4))
+                         (top, top + top, len(sample_values) - 1))
         found = model.measure(ROOT)
         dists = found['validation']['distributions']
         self.assertIn('VAL-deploy-1s', dists)
