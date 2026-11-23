@@ -620,12 +620,13 @@ class TheVerifier(unittest.TestCase):
     def test_the_full_suite_runs_after_each_merge_to_main_and_a_red_one_opens_an_issue(self):
         staged = (ROOT / 'services' / 'runner' / 'github' / 'full-suite.yml').read_text(encoding='utf-8')
         for line in ('  push:\n    branches: [main]', '  issues: write', '--no-post --all',
-                     "if: failure() && steps.suite.outcome == 'failure'", 'gh issue create'):
+                     "if: failure() && steps.suite.outcome == 'failure' && github.ref == 'refs/heads/main'", 'gh issue create'):
             self.assertIn(line, staged)
         self.assertNotIn('pull_request', staged)  # never a check a merge waits for
         # Andon (D-363): one main-red-andon issue, commented on while it stays open, closed by the next green run
+        # only a run of main moves the Andon: a workflow_dispatch on another branch neither opens nor lifts it
         for line in ('--label main-red-andon --state open', 'gh issue comment "$open"', '--label main-red-andon \\',
-                     "if: success()", 'gh issue close "$number"'):
+                     "if: success() && github.ref == 'refs/heads/main'", 'gh issue close "$number"'):
             self.assertIn(line, staged)
         self.assertLess(staged.index('if [ -n "$open" ]'), staged.index('gh issue create'))
 

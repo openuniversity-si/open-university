@@ -47,7 +47,7 @@ jobs:
           source scripts/cloud/env.sh
           scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post --all
       - name: Andon when red
-        if: failure() && steps.suite.outcome == 'failure'
+        if: failure() && steps.suite.outcome == 'failure' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -63,7 +63,7 @@ jobs:
               --title "Andon: full-suite red on main (${GITHUB_SHA::12})" --body "$body"
           fi
       - name: lift the Andon when green
-        if: success()
+        if: success() && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
