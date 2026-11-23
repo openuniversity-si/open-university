@@ -4,8 +4,8 @@
 # lockfile, runs its production build (which reads the build environment the caller exports: the database URL for the
 # catalog bake, SITE_ENV, SITE_URL...), assembles the Docker context from the standalone output and builds one image
 # with every tag given. It pushes nothing; the caller (the CodeBuild project open-university-web) pushes the tags.
-# BUILD_SHA, when set, is the commit the site shows; the caller sets it to the commit it checked out, and the build
-# refuses it unless its full-suite is green (deploy/promotion-guard.sh, D-363).
+# BUILD_SHA, when set, is the commit the site shows; the caller sets it to the commit it checked out. The Torre releases
+# only a commit whose full-suite is green: it runs deploy/promotion-guard.sh before it starts the build (D-364).
 set -euo pipefail
 [[ $# -ge 2 ]] || { echo "usage: $0 <image repository> <tag>..." >&2; exit 2; }
 image="$1"; shift
@@ -13,9 +13,6 @@ web="$(cd "$(dirname "$0")/.." && pwd)"
 ctx="$(mktemp -d)"
 trap 'rm -rf "$ctx"' EXIT
 export NEXT_PRIVATE_STANDALONE=true NEXT_TELEMETRY_DISABLED=1
-# Andon at promotion (D-363): a release (BUILD_SHA set) builds only a commit whose full-suite is green; a local build
-# without BUILD_SHA is no promotion and skips it.
-if [[ -n "${BUILD_SHA:-}" ]]; then bash "$web/deploy/promotion-guard.sh" "$BUILD_SHA"; fi
 (cd "$web" && node -v && pnpm install --frozen-lockfile)
 # Next stops its first build on a known-vulnerability notice and asks for the same command again; only that stop is
 # retried, once (the upgrade of Next is a change of its own). Any other failure ends the build.

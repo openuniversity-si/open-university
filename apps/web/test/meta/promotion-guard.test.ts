@@ -9,12 +9,10 @@ import { describe, expect, it } from "vitest";
 const build = readFileSync(new URL("../../deploy/build-image.sh", import.meta.url), "utf8");
 const guard = readFileSync(new URL("../../deploy/promotion-guard.sh", import.meta.url), "utf8");
 
-describe("promotion guard (D-363)", () => {
-  it("runs before anything is installed or built, for a release (BUILD_SHA set)", () => {
-    const call = build.indexOf('bash "$web/deploy/promotion-guard.sh" "$BUILD_SHA"');
-    expect(call).toBeGreaterThan(-1);
-    expect(build.lastIndexOf('if [[ -n "${BUILD_SHA:-}" ]]', call)).toBeGreaterThan(-1);
-    expect(call).toBeLessThan(build.indexOf("pnpm install"));
+describe("promotion guard (D-363, D-364)", () => {
+  it("is the Torre's step before the build, not a step inside it (D-364)", () => {
+    expect(build).not.toContain("promotion-guard.sh\"");
+    expect(guard).toContain("aws codebuild start-build");
   });
 
   it("asks promotion-health about the exact commit's full-suite and fails closed", () => {
