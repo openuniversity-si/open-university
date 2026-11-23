@@ -1,0 +1,327 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "tower-gate-attester (THREAT-gate, C7, D-359 Salto 2): the GitHub App's webhook verifier that posts tower/gate-attested after reading every fact itself (infra/aws/attester/README.md). Deployed by the Torre as the stack tower-gate-attester (not tower-app-*: the app deployer never touches it). One IAM role, outside tower-boundary because the boundary allows no secret but tower/agent-env/* and tower/torre-webhook-*: logs of its group, GetSecretValue on its two secrets alone, and the asynchronous hand-off to its own worker.",
+  "Parameters": {
+    "AppId": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^[0-9]*$",
+      "Description": "The numeric App ID of tower-gate-attester (empty until the App is created: the worker then refuses every job)"
+    },
+    "Repo": {
+      "Type": "String",
+      "Default": "openuniversity-si/open-university"
+    },
+    "CodeKey": {
+      "Type": "String",
+      "Description": "S3 key in tower-outputs-<account>-<region> of the zip infra/aws/attester/deploy.sh built (artifacts/lambda/tower-gate-attester/<sha256>.zip)"
+    }
+  },
+  "Resources": {
+    "KeySecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Name": "tower/gate-attester/private-key",
+        "Description": "PEM private key of the GitHub App tower-gate-attester; written only by infra/aws/attester/convert-manifest.sh (the generated placeholder is never used)",
+        "GenerateSecretString": {
+          "PasswordLength": 32,
+          "ExcludePunctuation": true
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "HookSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Name": "tower/gate-attester/webhook-secret",
+        "Description": "Webhook secret of the GitHub App tower-gate-attester; written only by infra/aws/attester/convert-manifest.sh",
+        "GenerateSecretString": {
+          "PasswordLength": 32,
+          "ExcludePunctuation": true
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "Logs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/tower-gate-attester",
+        "RetentionInDays": 14,
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "AttesterRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "tower-gate-attester",
+        "Description": "tower-gate-attester: its logs, its two secrets (GetSecretValue only), and invoking its own worker (D-359 Salto 2)",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "gate-attester",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "WriteItsLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "Logs",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "ReadItsTwoSecrets",
+                  "Effect": "Allow",
+                  "Action": "secretsmanager:GetSecretValue",
+                  "Resource": [
+                    {
+                      "Ref": "KeySecret"
+                    },
+                    {
+                      "Ref": "HookSecret"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "HandTheJobToItsWorker",
+                  "Effect": "Allow",
+                  "Action": "lambda:InvokeFunction",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:tower-gate-attester-worker"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ]
+      }
+    },
+    "FrontFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "tower-gate-attester",
+        "Description": "Webhook front of tower-gate-attester: HMAC check, event filter, asynchronous hand-off (answers in milliseconds)",
+        "Runtime": "python3.12",
+        "Architectures": [
+          "arm64"
+        ],
+        "Handler": "attester.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "AttesterRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "tower-outputs-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": {
+            "Ref": "CodeKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "REPO": {
+              "Ref": "Repo"
+            },
+            "BASE_BRANCH": "main",
+            "APP_ID": {
+              "Ref": "AppId"
+            },
+            "ACTIONS_APP_ID": "15368",
+            "KEY_SECRET": "tower/gate-attester/private-key",
+            "HOOK_SECRET": "tower/gate-attester/webhook-secret",
+            "WORKER": "tower-gate-attester-worker"
+          }
+        },
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "Logs"
+          }
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ],
+        "MemorySize": 256,
+        "Timeout": 10
+      }
+    },
+    "WorkerFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "tower-gate-attester-worker",
+        "Description": "Worker of tower-gate-attester: one job at a time, reads the facts through the App token and posts tower/gate-attested",
+        "Runtime": "python3.12",
+        "Architectures": [
+          "arm64"
+        ],
+        "Handler": "attester.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "AttesterRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "tower-outputs-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": {
+            "Ref": "CodeKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "REPO": {
+              "Ref": "Repo"
+            },
+            "BASE_BRANCH": "main",
+            "APP_ID": {
+              "Ref": "AppId"
+            },
+            "ACTIONS_APP_ID": "15368",
+            "KEY_SECRET": "tower/gate-attester/private-key",
+            "HOOK_SECRET": "tower/gate-attester/webhook-secret",
+            "WORKER": "tower-gate-attester-worker"
+          }
+        },
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "Logs"
+          }
+        },
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "tower"
+          }
+        ],
+        "MemorySize": 512,
+        "Timeout": 60,
+        "ReservedConcurrentExecutions": 1
+      }
+    },
+    "WorkerInvokeConfig": {
+      "Type": "AWS::Lambda::EventInvokeConfig",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "WorkerFunction"
+        },
+        "Qualifier": "$LATEST",
+        "MaximumRetryAttempts": 2,
+        "MaximumEventAgeInSeconds": 3600
+      }
+    },
+    "FrontUrl": {
+      "Type": "AWS::Lambda::Url",
+      "Properties": {
+        "AuthType": "NONE",
+        "TargetFunctionArn": {
+          "Fn::GetAtt": [
+            "FrontFunction",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "FrontUrlPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunctionUrl",
+        "FunctionName": {
+          "Ref": "FrontFunction"
+        },
+        "Principal": "*",
+        "FunctionUrlAuthType": "NONE"
+      }
+    },
+    "FrontUrlInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "FrontFunction"
+        },
+        "Principal": "*",
+        "InvokedViaFunctionUrl": true
+      }
+    }
+  },
+  "Outputs": {
+    "WebhookUrl": {
+      "Value": {
+        "Fn::GetAtt": [
+          "FrontUrl",
+          "FunctionUrl"
+        ]
+      }
+    },
+    "RoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "AttesterRole",
+          "Arn"
+        ]
+      }
+    },
+    "KeySecretArn": {
+      "Value": {
+        "Ref": "KeySecret"
+      }
+    },
+    "HookSecretArn": {
+      "Value": {
+        "Ref": "HookSecret"
+      }
+    }
+  }
+}

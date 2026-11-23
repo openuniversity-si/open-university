@@ -1,0 +1,8 @@
+{
+  "script": "scripts/tests/gate-attester.test.sh",
+  "covers": [
+    "scripts/tests/gate-attester.test.sh",
+    "scripts/tests/test_gate_attester.py",
+    "infra/aws/attester/**"
+  ]
+}
