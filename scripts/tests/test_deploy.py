@@ -712,6 +712,8 @@ class CliTests(unittest.TestCase):
         build = {'status': 'succeeded', 'build_id': 'p:b1', 'started': 1795052641, 'ended': 1795052658, 'seconds': 17}
         self.assertEqual(len(deploy.record({'last_build': build}, root, now=1795052700)), 1)
         self.assertEqual(len(deploy.record({'last_build': build}, root, now=1795052800)), 1)
+        first = json.loads((Path(root) / deploy.RUNS_FOLDER / 'deploy.json').read_text())
+        self.assertEqual(first['at'], '2026-11-19T01:45:00Z', 'unchanged build does not re-stamp at')
         later = dict(build, build_id='p:b2', started=1795053641, seconds=9)
         self.assertEqual([run['id'] for run in deploy.record({'last_build': later}, root, now=1795053700)], ['p:b2', 'p:b1'])
         for status in ('failed', 'rolling', 'nothing_new'):
@@ -756,7 +758,16 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(deploy.record_live(state, other, api=refused, repo='o/r'))
         self.assertIsNone(deploy.record_live({}, root, api=api, repo='o/r'))
         written = json.loads((Path(root) / deploy.RUNS_FOLDER / 'deploy-live.json').read_text())
-        self.assertEqual((written['workflow'], written['at']), ('deploy-live', '2026-11-18T11:10:00Z'))
+        self.assertEqual((written['workflow'], written['at']), ('deploy-live', '2026-11-18T11:08:20Z'),
+                         'a repeat status read with no new landing keeps the earlier at stamp')
+        d = hashlib.sha1(b'd').hexdigest()
+        d_live = deploy.iso_epoch('2026-11-18T11:10:50Z') + float('0.5')
+        state['image_swap'].append({'head': d, 'swapped': True, 'at': d_live, 'digest': 'd3', 'versions': {}})
+        pushed.append({'after': d, 'timestamp': '2026-11-18T11:10:50Z'})
+        self.assertEqual(len(deploy.record_live(state, root, now=deploy.iso_epoch('2026-11-18T11:11:40Z'),
+                                                api=api, repo='o/r')), len('abd'))
+        updated = json.loads((Path(root) / deploy.RUNS_FOLDER / 'deploy-live.json').read_text())
+        self.assertEqual(updated['at'], '2026-11-18T11:11:40Z', 'a new landing advances at')
 
     def test_status_says_the_newest_landings_steps_from_its_push_to_live(self):
         # PUSH-STEPS: each step's instant from the events the landing path already writes, the push from the snapshot

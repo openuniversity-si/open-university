@@ -1,0 +1,15 @@
+{
+  "id": "UDE-requirements-unverified",
+  "statement": "Most active requirements have neither a passing test verdict on HEAD nor a met validation (only 1 of 21 verified on HEAD).",
+  "violates": [
+    "NC-requirements-tested",
+    "NC-standard"
+  ],
+  "evidence": [
+    "scripts/model measure (NC-requirements-tested and VAL-knowledge require VERD pass or VAL met)",
+    "config/validation/verdicts.json"
+  ],
+  "state": "observed",
+  "owner": "manager",
+  "source": "docs/programs/padrao-dev/problema-desenho.md#3"
+}

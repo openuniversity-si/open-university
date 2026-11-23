@@ -3,10 +3,10 @@
   "default": 10,
   "exclusiveMinimum": 0,
   "x-unit": "s",
-  "description": "Tier-1 gate wall time (sum of its stages) that the slo.percentile percentile (100, the slowest, D-337) of the last slo.sample_window_events tier-1 verdicts may not exceed. First value: the existing target gate.tier1_target_s (D-065 (5)); the reader enforces the smaller of the two, and a test refuses an SLO looser than that target.",
+  "description": "Deprecated (D-351): measured the Origin-era local tier-1 gate, which no longer exists; the canonical gate ceiling on GitHub is REQ-gate-60s (60 s). Removed in a later revision (D-068 (3), expand->contract). Was: Tier-1 gate wall time (sum of its stages) that the slo.percentile percentile (100, the slowest, D-337) of the last slo.sample_window_events tier-1 verdicts may not exceed.",
   "x-readers": [
-    "docs/process/EVENTS.md",
-    "scripts/lib/model.py",
-    "scripts/lib/slo.py"
-  ]
+    "docs/domain/decisions/D-351.md",
+    "scripts/lib/model.py"
+  ],
+  "deprecated": true
 }

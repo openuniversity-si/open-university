@@ -52,7 +52,13 @@
     "scripts/lib/intention_lock.py",
     "scripts/tests/intention-lock.test.sh",
     "scripts/tests/test_intention_lock.py",
-    "scripts/tests/covers/intention-lock.json"
+    "scripts/tests/covers/intention-lock.json",
+    "config/governance/**",
+    "scripts/lib/trust_metrics.py",
+    "scripts/tests/trust-metrics.test.sh",
+    "scripts/tests/test_trust_metrics.py",
+    "scripts/tests/covers/trust-metrics.json",
+    "scripts/tests/fixtures/trust-metrics.json"
   ],
   "requires": {
     "engine-config": "^1",

@@ -122,16 +122,18 @@ def cross_check(meta):
         if item.get('system') not in systems:
             errors.append(f'type {name}: system {item.get("system")} does not exist')
         states = set(item.get('states', []))
-        for field in ('derived_states', 'inactive_states', 'unconformant_states'):
+        for field in ('derived_states', 'inactive_states', 'unconformant_states', 'weakness_states'):
             extra = sorted(set(item.get(field, [])) - states)
             if extra:
                 errors.append(f'type {name}: {field} {", ".join(extra)} are not states of the type')
-        for condition in item.get('unconformant_when', []):
-            if not condition:
-                errors.append(f'type {name}: an unconformant_when condition names no field')
-            extra = sorted(set(condition.get('state', [])) - states)
-            if extra:
-                errors.append(f'type {name}: unconformant_when state {", ".join(extra)} are not states of the type')
+        for field in ('unconformant_when', 'weakness_when'):
+            for condition in item.get(field, []):
+                if not condition:
+                    errors.append(f'type {name}: a {field} condition names no field'
+                                  if field == 'weakness_when' else f'type {name}: an unconformant_when condition names no field')
+                extra = sorted(set(condition.get('state', [])) - states)
+                if extra:
+                    errors.append(f'type {name}: {field} state {", ".join(extra)} are not states of the type')
         for link_name in item.get('must_link', []):
             if link_name not in links:
                 errors.append(f'type {name}: must_link {link_name} does not exist')
@@ -163,6 +165,59 @@ def _obj(id, type, state, source, text, links=()):
 
 
 REFUTES = re.compile(r'\brefutes (P-[0-9]+)\b')  # a decision that names the premise it refutes (D-320 refutes P-58)
+SESSION_DECISION = re.compile(r'\bdecided by the session\b', re.I)  # session self-decision under D-325
+RECORD_STATES = {'proposed': 'proposed', 'accepted': 'accepted', 'recorded': 'accepted',
+                 'deprecated': 'deprecated', 'superseded': 'superseded'}
+SELF_AUTHORITIES = ('session', 'self')
+INDEPENDENT_AUTHORITIES = ('owner', 'independent')
+OWNER_ONLY_SCOPES = ('money', 'people')  # D-260, D-360: the only scopes that wait on Daniel himself
+
+
+def requires_daniel(scope):
+    """D-360 (with D-260): Daniel intervenes only on money and other people (OWNER_ONLY_SCOPES); every other
+    decision — including governance, tailoring and technical approvals — is decided by an independent approver
+    (such as the Torre) without waiting on Daniel."""
+    return (scope or '').strip().lower() in OWNER_ONLY_SCOPES
+
+
+def decision_authority(text, fields=None):
+    """Who decided a decision record or row (D-360): `self` when front matter names the same actor as `author` and
+    `approver` (an author never self-approves), else explicit `authority` (`session`, `self`, `owner`, `independent`),
+    else `independent` when distinct `author` and `approver` are named, else `session` when the text marks a session
+    self-decision (`decided by the session`), else `owner`."""
+    mapping = fields or {}
+    author = mapping.get('author', '').strip().casefold()
+    approver = mapping.get('approver', '').strip().casefold()
+    if author and approver and author == approver:
+        return 'self'
+    explicit = mapping.get('authority', '').strip().lower()
+    if explicit in (*SELF_AUTHORITIES, *INDEPENDENT_AUTHORITIES):
+        return explicit
+    if author and approver:
+        return 'independent'
+    return 'session' if SESSION_DECISION.search(text or '') else 'owner'
+
+
+def independently_approved(decision, scope=None):
+    """D-360 (supersedes D-349): whether a decision is accepted and approved independently of its author — never
+    proposed, inactive, session-decided under D-325, or self-approved (`author == approver`). When `scope` is one of
+    OWNER_ONLY_SCOPES (`money`, `people`), requires `owner` authority; otherwise any independent approver (`owner` or
+    `independent`) is accepted without waiting on Daniel."""
+    if not (bool(decision) and decision.get('type') == 'D' and decision.get('state') == 'accepted'):
+        return False
+    authority = decision.get('authority')
+    if authority in SELF_AUTHORITIES:
+        return False
+    author = (decision.get('author') or '').strip().casefold()
+    approver = (decision.get('approver') or '').strip().casefold()
+    if author and approver and author == approver:
+        return False
+    if scope is not None and requires_daniel(scope):
+        return authority == 'owner'
+    return True
+
+
+owner_approved = independently_approved
 
 
 def read_decisions(root):
@@ -173,11 +228,20 @@ def read_decisions(root):
         fields = dict(line.split(':', 1) for line in head.group(1).splitlines() if ':' in line) if head else {}
         number = fields.get('number', path.stem).strip()
         seen.add(number)
+        state = RECORD_STATES.get(fields.get('status', '').strip().lower(), 'accepted')
         refuted = set(REFUTES.findall(text))
         assumed = [{'type': 'refutes' if ident in refuted else 'assumes', 'target': ident}
                    for ident in re.findall(r'\bP-[0-9]+\b', fields.get('premises', ''))]
         replaced = [{'type': 'supersedes', 'target': ident} for ident in re.findall(r'\bD-[0-9]+\b', fields.get('supersedes', ''))]
-        objects.append(_obj(number, 'D', 'accepted', path.relative_to(root).as_posix(), text, assumed + replaced))
+        item = _obj(number, 'D', state, path.relative_to(root).as_posix(), text, assumed + replaced)
+        author = fields.get('author', '').strip()
+        approver = fields.get('approver', '').strip()
+        if author:
+            item['author'] = author
+        if approver:
+            item['approver'] = approver
+        item['authority'] = decision_authority(text, fields)
+        objects.append(item)
         proof = fields.get('proof', '').strip().strip('`')
         if proof:
             objects.append({'id': f'TEST:{proof}', 'type': 'TEST', 'state': 'active', 'source': proof, 'claimed': True,
@@ -193,6 +257,7 @@ def read_decisions(root):
             state = row_state(row.get('Status', ''))
             proof = row_proof(root, row.get('Proof', ''), index)
             item = _obj(number, 'D', state, DECISION_TABLE, row['line'])
+            item['authority'] = decision_authority(row['line'])
             item['proof'] = {key: proof[key] for key in ('outcome', 'missing', 'outside')}
             objects.append(item)
             if state == 'accepted' and proof['outcome'] == 'proven':
@@ -200,12 +265,13 @@ def read_decisions(root):
                     objects.append({'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name,
                                     'claimed': True, 'fingerprint': None,
                                     'links': [{'type': 'verifies', 'target': number}]})
-    # A record is written once (D-217), so it changes only by a later one: a record whose `supersedes:` names a
-    # decision makes that decision superseded, a record or a row alike (the row's Status cell is the older path).
-    superseded = {link['target'] for item in objects if item['type'] == 'D' for link in item['links']
-                  if link['type'] == 'supersedes'}
+    # A record is written once (D-217), so it changes only by a later accepted one: a record whose `supersedes:` names
+    # a decision makes that decision superseded, a record or a row alike (a proposed decision does not supersede yet,
+    # and an accepted decision superseding a proposed one transitions it to superseded).
+    superseded = {link['target'] for item in objects if item['type'] == 'D' and item['state'] == 'accepted'
+                  for link in item['links'] if link['type'] == 'supersedes'}
     for item in objects:
-        if item['type'] == 'D' and item['id'] in superseded and item['state'] == 'accepted':
+        if item['type'] == 'D' and item['id'] in superseded and item['state'] in ('accepted', 'proposed'):
             item['state'] = 'superseded'
     return objects
 
@@ -239,14 +305,15 @@ def table_rows(text):
 
 INACTIVE_ROW = {'superseded': 'superseded', 'replaced': 'superseded', 'retired': 'deprecated',
                 'deprecated': 'deprecated'}
+ROW_STATES = {**INACTIVE_ROW, 'proposed': 'proposed'}
 
 
 def row_state(status):
     """A row's state from its Status cell: one that starts with superseded or replaced is superseded, one that starts
-    with retired or deprecated is deprecated (the D type's inactive states); any other status (proven, recorded, test
-    pending, rite, implemented) is accepted."""
+    with retired or deprecated is deprecated (the D type's inactive states), one that starts with proposed is proposed;
+    any other status (proven, recorded, test pending, rite, implemented) is accepted."""
     word = re.match(r'\W*([a-z]+)', status.lower())
-    return INACTIVE_ROW.get(word.group(1), 'accepted') if word else 'accepted'
+    return ROW_STATES.get(word.group(1), 'accepted') if word else 'accepted'
 
 
 PROOF_FILE = re.compile(r'(?<![\w./-])((?:[\w.-]+/)*(?:test_\w+\.py|[\w-]+(?:\.[\w-]+)*\.(?:test|spec)\.(?:sh|ts|tsx|js|mjs)))'
@@ -603,6 +670,10 @@ def rule_findings(found, root, stops=None, stages=None):
             warnings.append(f'{item["id"]}: dormant_by {rule["dormant_by"]} on a rule in {rule["state"]}')
         if rule['state'] == 'warning' and not rule.get('deadline'):
             warnings.append(f'{item["id"]}: in warning with no deadline')
+        if rule['state'] in ('blocking', 'warning') and kind == 'judgment':
+            warnings.append(f'{item["id"]}: {rule["state"]} rule has no executable check (judgment)')
+        if rule['state'] in ('blocking', 'warning') and SEED_MARKER in (rule.get('note') or ''):
+            warnings.append(f'{item["id"]}: {rule["state"]} rule still carries an unreviewed seed note')
     return warnings
 
 
@@ -610,7 +681,8 @@ PRINCIPLES = 'docs/process/principles/D-069.md'
 PRINCIPLE = re.compile(r'^### ([0-9]+)\. (.+)$', re.MULTILINE)
 METHOD = 'docs/padrao/METODO.md'
 VERSION_BASIS = {'v8': 'D-115'}  # the decision that made each version of the Padrão (docs/padrao/README.md)
-SEED_NOTE = 'Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
+SEED_MARKER = 'Seeded by scripts/model seed-rules'
+SEED_NOTE = f'{SEED_MARKER} (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
 
 
 def _slug(text):
@@ -774,9 +846,21 @@ def read_tailoring(root):
         {'type': 'exempts', 'target': body['exempts']}, {'type': 'authorized-by', 'target': body['authorized_by']}])
 
 
+def active_tailoring(found, today):
+    """Active, in-date TAIL exemptions split into (approved, unapproved) by independently_approved(authorized_by) (D-360)."""
+    approved, unapproved = [], []
+    for item in sorted(found.values(), key=lambda entry: entry['id']):
+        body = item.get('body', {})
+        if item['type'] != 'TAIL' or item['state'] != 'active' or body.get('valid_until', '') < today:
+            continue
+        (approved if independently_approved(found.get(body.get('authorized_by'))) else unapproved).append(item)
+    return approved, unapproved
+
+
 def management_findings(found, today):
     """Warnings of the standard's management: an open proposal with no deadline or past it, a decided or applied
-    proposal with no decision, an active exemption past its validity; an error for more than one effective version."""
+    proposal with no decision, an active exemption past its validity or without independent approval (D-360); an error
+    for more than one effective version."""
     warnings, errors = [], []
     for item in found.values():
         body = item.get('body', {})
@@ -787,8 +871,18 @@ def management_findings(found, today):
                 warnings.append(f'{item["id"]}: past its deadline {body["deadline"]}')
         if item['type'] == 'PROP' and item['state'] in ('decided', 'applied') and not body.get('decided_by'):
             warnings.append(f'{item["id"]}: {item["state"]} with no decision')
-        if item['type'] == 'TAIL' and item['state'] == 'active' and body.get('valid_until', today) < today:
-            warnings.append(f'{item["id"]}: active past its validity {body["valid_until"]}')
+        if item['type'] == 'TAIL' and item['state'] == 'active':
+            if body.get('valid_until', today) < today:
+                warnings.append(f'{item["id"]}: active past its validity {body["valid_until"]}')
+            else:
+                auth = body.get('authorized_by')
+                decision = found.get(auth)
+                if not independently_approved(decision):
+                    why = ('no such decision' if decision is None else
+                           f'state {decision["state"]}' if decision.get('state') != 'accepted' else
+                           'session-decided, not independently approved' if decision.get('authority') == 'session' else
+                           'self-approved by author, not independently approved')
+                    warnings.append(f'{item["id"]}: active exemption without independent approval ({auth}: {why})')
     effective = sorted(id for id, item in found.items() if item['type'] == 'VER' and item['state'] == 'effective')
     if len(effective) > 1:
         errors.append(f'{", ".join(effective)}: more than one effective version of the standard')
@@ -808,10 +902,11 @@ REGISTRY_KEYS = 'config/registry/*/*.json'
 
 
 def target_exempt(found, today):
-    """The scopes of the exemptions from STD-targets-full in force: active, inside their validity, with an owner."""
-    return [item['body']['scope'] for item in found.values()
-            if item['type'] == 'TAIL' and item.get('body', {}).get('exempts') == TARGETS_RULE
-            and item['state'] == 'active' and item['body']['valid_until'] >= today and item['body'].get('owner')]
+    """The scopes of the exemptions from STD-targets-full in force: active, inside their validity, with an owner,
+    and authorized by an independently approved accepted decision (D-360)."""
+    approved, _ = active_tailoring(found, today)
+    return [item['body']['scope'] for item in approved
+            if item['body'].get('exempts') == TARGETS_RULE and item['body'].get('owner')]
 
 
 def target_errors(found, root, today=None):
@@ -1040,34 +1135,102 @@ def _change_id(sha, subject):
 
 
 TRAILER_FIXES = re.compile(r'^Fixes-PR:\s*(.+)$', re.MULTILINE)
+REVERT_COMMIT = re.compile(r'^This reverts commit ([0-9a-f]{7,40})\b', re.MULTILINE)
+REVERT_PR = re.compile(r'^Revert\s+"(?:Merge pull request #(?P<merge>[0-9]+)\b|[^"]*\(#(?P<pr>[0-9]+)\))', re.MULTILINE)
 ESCAPE_REQUIREMENT = 'REQ-escape-under-1'
 
 
 def read_escapes(root):
-    """Escapes (INC, F4d): a defect a merged change brought to main that a later merge repaired. Each pull request the
-    commits of a first-parent merge name in `Fixes-PR:` (comma-separated numbers, `#` optional) is one incident,
-    INC-escape-<n>, resolved: introduced by CHG-<n> (the change that let it through), fixed by every merge that names
-    it, violating REQ-escape-under-1. A number no merge of HEAD carries leaves a link to a change that does not exist
-    (a warning of check), never a guessed target."""
-    found = {}
+    """Escapes (INC, F4d): a defect a merged change brought to main that a later merge repaired or full-suite caught.
+    Derived from four sources, deduplicated per escaped change (INC-escape-<id>, violating REQ-escape-under-1):
+    (1) `Fixes-PR:` trailers in a later merge's commits;
+    (2) git `Revert` commits reverting an earlier merged commit or pull request;
+    (3) `full-suite` red episodes on main in config/validation/verdicts.json (open while main is still red, resolved
+        by the merge whose full-suite run turned green again);
+    (4) post-merge entries in config/model/errata.json (an erratum not already present at the escaped change's merge).
+    A Fixes-PR number no merge of HEAD carries still leaves a link to a change that does not exist (a warning of check),
+    never a guessed target."""
+    import runs
+    found, merge_by_sha, known_changes, commit_to_merge, merge_records = {}, {}, set(), {}, []
     for line in _git(root, 'log', '--first-parent', '--merges', '--format=%H%x1f%s', 'HEAD').splitlines():
         sha, _, subject = line.partition('\x1f')
         fixer = _change_id(sha, subject)
-        for listed in TRAILER_FIXES.findall(_git(root, 'log', '--format=%B', f'{sha}^1..{sha}')):
+        merge_by_sha[sha] = fixer
+        known_changes.add(fixer)
+        commit_to_merge[sha] = (sha, fixer)
+        raw = _git(root, 'log', '--format=%x1e%H%x1f%B', f'{sha}^1..{sha}')
+        bodies = []
+        for chunk in raw.split('\x1e')[1:]:
+            csha, _, body = chunk.partition('\x1f')
+            csha = csha.strip()
+            if csha:
+                commit_to_merge[csha] = (sha, fixer)
+            bodies.append(body)
+        merge_records.append((sha, fixer, '\n'.join(bodies)))
+
+    def resolve_commit(token):
+        if token in commit_to_merge:
+            return commit_to_merge[token][1]
+        matches = {owner[1] for csha, owner in commit_to_merge.items() if csha.startswith(token)}
+        return next(iter(matches)) if len(matches) == 1 else None
+
+    def record(escaped, source, fixer=None, state='resolved'):
+        if not escaped or escaped == fixer:
+            return
+        key = escaped.removeprefix('CHG-')
+        item = found.get(key)
+        if item is None:
+            links = [{'type': 'introduced-by', 'target': escaped},
+                     {'type': 'violates', 'target': ESCAPE_REQUIREMENT}]
+            item = found[key] = _obj(f'INC-escape-{key}', 'INC', state, source, escaped, links)
+            item['body'] = {'escaped': escaped, 'fixed_by': []}
+        elif state == 'resolved' and item['state'] == 'open':
+            item['state'] = 'resolved'
+        if fixer and fixer not in item['body']['fixed_by']:
+            item['body']['fixed_by'].append(fixer)
+            item['links'].append({'type': 'fixed-by', 'target': fixer})
+
+    for sha, fixer, text in merge_records:
+        for listed in TRAILER_FIXES.findall(text):
             for number in re.findall(r'#?([0-9]+)', listed):
-                escaped = f'CHG-{number}'
-                if escaped == fixer:
-                    continue
-                item = found.get(number)
-                if item is None:
-                    links = [{'type': 'introduced-by', 'target': escaped},
-                             {'type': 'violates', 'target': ESCAPE_REQUIREMENT}]
-                    item = found[number] = _obj(f'INC-escape-{number}', 'INC', 'resolved', f'git:{sha}', escaped,
-                                                links)
-                    item['body'] = {'escaped': escaped, 'fixed_by': []}
-                if fixer not in item['body']['fixed_by']:
-                    item['body']['fixed_by'].append(fixer)
-                    item['links'].append({'type': 'fixed-by', 'target': fixer})
+                record(f'CHG-{number}', f'git:{sha}', fixer)
+        for target_sha in REVERT_COMMIT.findall(text):
+            record(resolve_commit(target_sha), f'git:{sha}', fixer)
+        for match in REVERT_PR.finditer(text):
+            number = match.group('merge') or match.group('pr')
+            if f'CHG-{number}' in known_changes:
+                record(f'CHG-{number}', f'git:{sha}', fixer)
+
+    verdicts = runs.read_verdicts(root) or {}
+    episode = None
+    for run in reversed(verdicts.get('runs', [])):
+        sha = run.get('sha')
+        if sha not in merge_by_sha:
+            continue
+        change = merge_by_sha[sha]
+        if run.get('conclusion') == 'success':
+            if episode is not None:
+                record(episode[0], episode[1], change, state='resolved')
+                episode = None
+        elif episode is None:
+            episode = (change, f'{runs.VERDICTS_FILE} run {run.get("id", sha[:len("0123456789ab")])}')
+    if episode is not None:
+        record(episode[0], episode[1], fixer=None, state='open')
+
+    errata_path = Path(root) / ERRATA
+    if errata_path.is_file():
+        for entry in _read_json(errata_path).get('errata', []):
+            ref = entry.get('commit') or entry.get('sha')
+            owner = commit_to_merge.get(ref) if ref else None
+            if owner is None:
+                continue
+            owner_sha, escaped = owner
+            if ref in _git(root, 'show', f'{owner_sha}:{ERRATA}'):
+                continue
+            added = _git(root, 'log', '-S', ref, '--reverse', '--format=%H', '--', ERRATA).splitlines()
+            fixer = next((commit_to_merge[c][1] for c in added if c in commit_to_merge and commit_to_merge[c][1] != escaped),
+                         None)
+            record(escaped, ERRATA, fixer, state='resolved')
     return list(found.values())
 
 
@@ -1176,14 +1339,25 @@ def read_validations(root):
                        root)
 
 
+VAL_OWN_FIELDS = ('measure', 'comparator', 'threshold', 'threshold_key', 'window')
+
+
 def _thresholds(found, root):
     """The measured objects (VAL, NC) with each threshold_key resolved to its registry value (D-342); one with both
-    or neither of threshold and threshold_key, or a key that is no number, is a problem of the object."""
+    or neither of threshold and threshold_key, or a key that is no number, is a problem of the object. A VAL that
+    references a canonical NC (`nc`, D-354) must not duplicate measure, comparator, threshold or window."""
     for item in found:
         body = item.get('body')
         if body is None:
             continue
         try:
+            if item['type'] == 'VAL' and 'nc' in body:
+                duplicated = [field for field in VAL_OWN_FIELDS if field in body]
+                if duplicated:
+                    raise ValueError(f'references {body["nc"]} and must not duplicate {", ".join(duplicated)}')
+                continue
+            if 'measure' not in body or 'comparator' not in body:
+                raise ValueError('carries measure and comparator when it does not reference an nc')
             if ('threshold' in body) == ('threshold_key' in body):
                 raise ValueError('carries threshold or threshold_key, exactly one')
             if 'threshold_key' in body:
@@ -1252,14 +1426,22 @@ def measured(body, found, root, today):
         from datetime import date, timedelta
         start = (date.fromisoformat(today) - timedelta(days=window['size'])).isoformat()
         dates = [day for _, day in _merges(root)]
-        return (len(incidents(root, measure['incident'], start, today)), bool(dates) and min(dates) <= start)
+        count = len(incidents(root, measure['incident'], start, today))
+        over = body.get('comparator') == 'lte' and 'threshold' in body and count > body['threshold']
+        observable = _incident_source_observable(root, window['size'], today)
+        return (count, over or (observable and bool(dates) and min(dates) <= start))
     if measure['kind'] == 'run-durations':
         import runs
         from datetime import date
         recorded = runs.read(root, measure['workflow'])
         if not recorded or not recorded['runs']:
             return None, False
-        fresh = (date.fromisoformat(today) - date.fromisoformat(recorded['at'][:len('2026-01-01')])).days <= measure['max_age_days']
+        day_len = len('2026-01-01')
+        at_day = recorded['at'][:day_len]
+        newest = max((run.get('started', '')[:day_len] for run in recorded['runs']
+                      if isinstance(run.get('started'), str) and len(run['started']) >= day_len), default='')
+        ref_day = min(at_day, newest) if newest else at_day
+        fresh = (date.fromisoformat(today) - date.fromisoformat(ref_day)).days <= measure['max_age_days']
         values = [run['seconds'] for run in recorded['runs']]
         return runs.percentile(values, measure['percentile']), fresh and len(values) >= measure['min_runs']
     if measure['kind'] == 'aws-spend':
@@ -1296,29 +1478,75 @@ def measured(body, found, root, today):
 
 def refresh_runs(found, root):
     """Before a measure (the CLI's, never check's or the gate's): each run-durations snapshot of a workflow GitHub's
-    check runs hold (runs.CHECKS) is rebuilt from them when it is a day old (runs.refresh), so VAL-gate-60s does not go
-    stale with no hand. Offline it keeps the recorded snapshot. The workflows whose snapshot was rewritten."""
+    check runs hold (runs.CHECKS) is rebuilt from them when it is a day old (runs.refresh), so VAL-gate-60s /
+    NC-gate-time does not go stale with no hand. Offline it keeps the recorded snapshot. The workflows whose snapshot
+    was rewritten."""
     import runs
-    done = []
+    done, seen = [], set()
     for item in found.values():
         measure = (item.get('body') or {}).get('measure') or {}
-        if item['type'] != 'VAL' or measure.get('kind') != 'run-durations' or measure.get('workflow') not in runs.CHECKS:
+        workflow = measure.get('workflow')
+        if (item['type'] not in ('VAL', 'NC') or measure.get('kind') != 'run-durations'
+                or workflow not in runs.CHECKS or workflow in seen):
             continue
-        before = (runs.read(root, measure['workflow']) or {}).get('at')
-        if (runs.refresh(root, measure['workflow']) or {}).get('at') != before:
-            done.append(measure['workflow'])
+        seen.add(workflow)
+        before = (runs.read(root, workflow) or {}).get('at')
+        if (runs.refresh(root, workflow) or {}).get('at') != before:
+            done.append(workflow)
     return done
 
 
+INCIDENTS_SNAPSHOT = 'config/validation/incidents.json'
 INCIDENT_FIELD = re.compile(r'^(kind|time): (\S+)$', re.MULTILINE)
 
 
+def _incidents_snapshot(root):
+    path = Path(root) / INCIDENTS_SNAPSHOT
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) and isinstance(data.get('incidents'), list) else None
+
+
+def _incident_source_observable(root, window_days, today):
+    """Whether `incident-count` has an observable source on this checkout: a fresh observed tracked snapshot
+    (config/validation/incidents.json) or a local docs/operations/incidents folder that exists and is not gitignored.
+    Reading zero files from an unobserved snapshot or a missing/gitignored folder never proves zero incidents (D-350)."""
+    from datetime import date
+    day_len = len('2026-01-01')
+    snap = _incidents_snapshot(root)
+    if snap and snap.get('observed', True) is True and isinstance(snap.get('at'), str) and len(snap['at']) >= day_len:
+        if (date.fromisoformat(today) - date.fromisoformat(snap['at'][:day_len])).days <= window_days:
+            return True
+    folder = Path(root) / 'docs/operations/incidents'
+    if not folder.is_dir():
+        return False
+    return subprocess.run(['git', 'check-ignore', '-q', 'docs/operations/incidents'], cwd=root,
+                          capture_output=True).returncode != 0
+
+
 def incidents(root, kind, start, end):
-    """The incident records (docs/operations/incidents, scripts/incident) of one kind opened on [start, end)."""
-    found = []
+    """The incident records (config/validation/incidents.json and local docs/operations/incidents) of one kind opened
+    on [start, end), deduplicated by id."""
+    day_len = len('2026-01-01')
+    found, seen = [], set()
+    snap = _incidents_snapshot(root)
+    if snap:
+        for entry in snap['incidents']:
+            if not isinstance(entry, dict):
+                continue
+            ident = entry.get('id')
+            if ident and entry.get('kind') == kind and start <= str(entry.get('time', ''))[:day_len] < end:
+                if ident not in seen:
+                    seen.add(ident)
+                    found.append(ident)
     for path in sorted((Path(root) / 'docs/operations/incidents').glob('I-*.md')):
         fields = dict(INCIDENT_FIELD.findall(path.read_text().split('\n---', 1)[0]))
-        if fields.get('kind') == kind and start <= fields.get('time', '')[:len('2026-01-01')] < end:
+        if fields.get('kind') == kind and start <= fields.get('time', '')[:day_len] < end and path.stem not in seen:
+            seen.add(path.stem)
             found.append(path.stem)
     return found
 
@@ -1416,13 +1644,76 @@ def polling_left(root, paths, exclude):
             if decided.get(f'{path}::{function}', {}).get('class') not in NOT_POLLING]
 
 
+def report_quantiles(root=ROOT):
+    """Diagnostic report-only percentiles for run-durations validations (M4, D-337: report only, never accept)."""
+    import config
+    try:
+        return config.get('medir.report_quantiles', root)
+    except config.ConfigError:
+        return config.get('medir.report_quantiles', ROOT)
+
+
+def run_distribution(root, body, quantiles=None):
+    """Diagnostic distribution (p50/p95/p100 and outlier count outside threshold) for a run-durations validation.
+    Acceptance stays at body['measure']['percentile'] (p100, D-337)."""
+    import runs
+    measure = body.get('measure') or {}
+    if measure.get('kind') != 'run-durations':
+        return None
+    recorded = runs.read(root, measure['workflow'])
+    if not recorded or not recorded.get('runs'):
+        return None
+    values = [run['seconds'] for run in recorded['runs']]
+    points = report_quantiles(root) if quantiles is None else quantiles
+    threshold, comparator = body.get('threshold'), body.get('comparator', 'lte')
+    outliers = 0
+    if threshold is not None:
+        outliers = sum(1 for value in values if (value < threshold if comparator == 'gte' else value > threshold))
+    return {
+        'workflow': measure['workflow'],
+        'runs': len(values),
+        'quantiles': {f'p{point}': runs.percentile(values, point) for point in points},
+        'accepted_percentile': measure['percentile'],
+        'accepted_value': runs.percentile(values, measure['percentile']),
+        'comparator': comparator,
+        'threshold': threshold,
+        'outliers': outliers,
+    }
+
+
+def _measure_spec(item, found):
+    body = item.get('body') or {}
+    if item['type'] == 'VAL' and 'nc' in body:
+        return (found.get(body['nc']) or {}).get('body') or {}
+    return body
+
+
 def derive_validations(found, root, today=None):
     """Sets each validation's state from its measure: met or not-met when the window holds data, measuring while it
-    is short, defined while no source is wired."""
+    is short, defined while no source is wired. A VAL referencing a canonical NC (`nc`, D-354) derives its state,
+    reading and diagnostic distribution from that NC."""
     today = today or utc_today()
     vals = [item for item in found.values() if item['type'] in ('VAL', 'NC') and 'body' in item]  # NC: D-348
-    # a composite reads the states of the others, so it is derived after them
-    for item in sorted(vals, key=lambda item: item['body']['measure']['kind'] == 'all-met'):
+
+    def order(item):
+        kind = (_measure_spec(item, found).get('measure') or {}).get('kind')
+        return (kind == 'all-met', kind == 'model-share', item['type'] == 'VAL' and 'nc' in item['body'])
+
+    # direct measures -> VALs referencing direct NCs -> model-share -> VALs referencing model-share NCs -> all-met
+    for item in sorted(vals, key=order):
+        if item['type'] == 'VAL' and 'nc' in item['body']:
+            nc = found.get(item['body']['nc'])
+            if nc and nc['type'] == 'NC' and 'body' in nc:
+                item['state'] = nc['state']
+                item['measured'] = nc.get('measured')
+                if nc['body']['measure']['kind'] == 'run-durations':
+                    dist = run_distribution(root, nc['body'])
+                    if dist is not None:
+                        item['distribution'] = dist
+            else:
+                item['state'] = 'defined'
+                item['measured'] = None
+            continue
         value, enough = measured(item['body'], found, root, today)
         if value is None:
             item['state'] = 'defined'
@@ -1432,10 +1723,15 @@ def derive_validations(found, root, today=None):
             passes = value >= item['body']['threshold'] if item['body']['comparator'] == 'gte' else value <= item['body']['threshold']
             item['state'] = 'met' if passes else 'not-met'
         item['measured'] = value
+        if item['type'] == 'VAL' and item['body']['measure']['kind'] == 'run-durations':
+            dist = run_distribution(root, item['body'])
+            if dist is not None:
+                item['distribution'] = dist
 
 
 def validation_measure(found):
-    """The validation system's own measure: validations by state, and the needs that have a validation met."""
+    """The validation system's own measure: validations by state, needs with a validation met, and diagnostic
+    run-duration distributions (report only; acceptance stays p100, D-337)."""
     into = incoming(found)
     by_state = {}
     for item in found.values():
@@ -1444,7 +1740,11 @@ def validation_measure(found):
     needs = [item for item in found.values() if item['type'] == 'NEED']
     met = sum(1 for item in needs if any(kind == 'validates' and found.get(source, {}).get('state') == 'met'
                                          for kind, source in into.get(item['id'], [])))
-    return {'by_state': dict(sorted(by_state.items())), 'needs': len(needs), 'needs_met': met}
+    distributions = {item['id']: item['distribution']
+                     for item in sorted(found.values(), key=lambda item: item['id'])
+                     if item['type'] == 'VAL' and item.get('distribution')}
+    return {'by_state': dict(sorted(by_state.items())), 'needs': len(needs), 'needs_met': met,
+            **({'distributions': distributions} if distributions else {})}
 
 
 def implemented(item, into, found):
@@ -1481,7 +1781,8 @@ def requirement_states(found):
 
 def requirements_measure(found):
     """The requirements system's own measure: active requirements by type, implemented, verified, with an
-    architecture element, with a test, and the suspect links pointing at them."""
+    architecture element, with a test, and with passing verification on HEAD (a passing VERD for a test-verified
+    requirement, or a met VAL for a validation-verified requirement)."""
     into = incoming(found)
     states = requirement_states(found)
     active = [found[id] for id in states]
@@ -1491,14 +1792,23 @@ def requirements_measure(found):
         by_type[kind] = by_type.get(kind, 0) + 1
     def has(item, link, kind):
         return any(name == link and found.get(source, {}).get('type') == kind for name, source in into.get(item['id'], []))
+    def has_pass_verdict(test_id):
+        return any(name == 'evidences' and found.get(source, {}).get('type') == 'VERD'
+                   and found[source].get('state') == 'pass' for name, source in into.get(test_id, []))
+    def verified_in_head(item):
+        if item.get('body', {}).get('verification') == 'validation':
+            return any(name == 'validates' and found.get(source, {}).get('type') == 'VAL'
+                       and found[source].get('state') == 'met' for name, source in into.get(item['id'], []))
+        return any(name == 'verifies' and found.get(source, {}).get('type') == 'TEST'
+                   and found[source].get('fingerprint') is not None and has_pass_verdict(source)
+                   for name, source in into.get(item['id'], []))
     return {
         'active': len(active), 'by_type': dict(sorted(by_type.items())),
         'implemented': sum(1 for state in states.values() if state in ('implemented', 'verified')),
         'verified': sum(1 for state in states.values() if state == 'verified'),
         'with_element': sum(1 for item in active if has(item, 'satisfies', 'ARC')),
         'with_test': sum(1 for item in active if has(item, 'verifies', 'TEST')),
-        'with_verification': sum(1 for item in active if has(item, 'verifies', 'TEST') or (
-            item.get('body', {}).get('verification') == 'validation' and has(item, 'validates', 'VAL'))),
+        'with_verification': sum(1 for item in active if verified_in_head(item)),
     }
 
 
@@ -1711,14 +2021,14 @@ def read_dependencies(root):
     ecosystems, tools = supply.suppliers_of(root)
     snapshot = supply.read_snapshot(root) or {'advisories': []}
     granted, today = supply.exemptions(root), utc_today()
-    hit = {(advisory['package'], version) for advisory in snapshot['advisories']
+    hit = {(advisory.get('ecosystem', 'npm'), advisory['package'], version) for advisory in snapshot['advisories']
            if supply.advisory_state(advisory, granted.get(advisory['id']), today) == 'affecting'
            for version in advisory['versions']}
     found = []
     for entry in supply.dependencies(root):
         ident = supply.dep_id(entry['ecosystem'], entry['name'], entry['version'])
         owner = supply.supplier(entry, ecosystems, tools)
-        state = 'vulnerable' if (entry['ecosystem'] == 'npm' and (entry['name'], entry['version']) in hit) else (
+        state = 'vulnerable' if (entry['ecosystem'], entry['name'], entry['version']) in hit else (
             'in-use' if entry['pinned'] else 'unpinned')
         item = _obj(ident, 'DEP', state, entry['sources'][0], json.dumps(entry, sort_keys=True),
                     [{'type': 'supplied-by', 'target': owner}] if owner else [])
@@ -1737,7 +2047,8 @@ def read_advisories(root):
     granted, today = supply.exemptions(root), utc_today()
     found = []
     for advisory in snapshot['advisories']:
-        links = [{'type': 'affects', 'target': supply.dep_id('npm', advisory['package'], version)}
+        ecosystem = advisory.get('ecosystem', 'npm')
+        links = [{'type': 'affects', 'target': supply.dep_id(ecosystem, advisory['package'], version)}
                  for version in advisory['versions']]
         exempt = granted.get(advisory['id']) or {}
         links += [{'type': 'authorized-by', 'target': exempt['authorized_by']}] if exempt.get('authorized_by') else []
@@ -1836,13 +2147,148 @@ def read_risks(root):
                      lambda body: [{'type': 'threatens', 'target': asset} for asset in body['assets']])
 
 
-def control_state(body, found_ids):
-    """not-applicable with its reason; gap while nothing that exists implements it; partial or implemented by coverage."""
+OPERATION_RELATIONS = 'scripts/lib/operation_relations.json'
+INERT_STD_STATES = ('dormant', 'draft', 'replaced')
+INERT_REQ_STATES = ('draft', 'superseded', 'obsolete')
+INERT_DATA_STATES = ('unregistered', 'unprotected', 'unverified')
+
+
+def unexercised_rules(found, root):
+    """Ids of STD rules whose function check lives in a module marked `not exercised` in operation_relations.json."""
+    if root is None:
+        return set()
+    path = Path(root) / OPERATION_RELATIONS
+    if not path.is_file():
+        return set()
+    try:
+        doc = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return set()
+    notes = [note for op in doc.get('operations', []) for note in op.get('unknowns', [])
+             if isinstance(note, str) and note.lower().startswith('not exercised')]
+    if not notes:
+        return set()
+    found_ids = set()
+    for item in found.values():
+        if item['type'] != 'STD' or 'rule' not in item:
+            continue
+        check_ = item['rule'].get('check') or {}
+        if check_.get('kind') != 'function':
+            continue
+        target = check_file(item['rule'])
+        if not target:
+            continue
+        stem = Path(target).stem
+        if any(re.search(rf'\b{re.escape(stem)}\b', note) for note in notes):
+            found_ids.add(item['id'])
+    return found_ids
+
+
+def _called_in_ast(tree, name, excluded=()):
+    """Whether an AST calls `name` (as Name or Attribute) outside any excluded function definition."""
+    import ast
+    excluded_set = set(excluded)
+
+    def walk(node):
+        if node in excluded_set:
+            return False
+        if isinstance(node, ast.Call):
+            callee = node.func
+            if (isinstance(callee, ast.Name) and callee.id == name) or (
+                    isinstance(callee, ast.Attribute) and callee.attr == name):
+                return True
+        return any(walk(child) for child in ast.iter_child_nodes(node))
+
+    return walk(tree)
+
+
+def function_check_issue(rule, root):
+    """D-352: reason a function-checked STD rule is absent or unexercised in `root`, else None.
+    Verifies both that `<file>:<fn>` is defined (`def <fn>`) and that live non-test code calls `<fn>`
+    outside its own definition."""
+    if root is None:
+        return None
+    check_ = (rule or {}).get('check') or {}
+    if check_.get('kind') != 'function':
+        return None
+    ref = check_.get('ref', '')
+    if ':' not in ref:
+        return f'function check ref {ref!r} is malformed'
+    rel_path, fn_name = ref.split(':', 1)
+    root_path = Path(root)
+    target = root_path / rel_path
+    if not target.is_file():
+        return f'function {ref} is not present (file missing)'
+    import ast
+    try:
+        tree = ast.parse(target.read_text())
+    except (OSError, SyntaxError):
+        return f'function {ref} is unreadable'
+    defs = [node for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == fn_name]
+    if not defs:
+        return f'function {ref} is not present'
+    if _called_in_ast(tree, fn_name, defs):
+        return None
+    lib_dir = root_path / 'scripts' / 'lib'
+    if lib_dir.is_dir():
+        for other in sorted(lib_dir.glob('*.py')):
+            if other.resolve() == target.resolve():
+                continue
+            try:
+                other_tree = ast.parse(other.read_text())
+            except (OSError, SyntaxError):
+                continue
+            if _called_in_ast(other_tree, fn_name):
+                return None
+    return f'function {ref} is not exercised in live code'
+
+
+def control_target_issue(target, found, unexercised=frozenset(), root=None):
+    """Reason a CTRL implemented_by target is inert (missing, inactive, non-executable, absent or unexercised), else None."""
+    if not isinstance(found, dict):
+        return None if target in found else 'does not exist'
+    item = found.get(target)
+    if item is None or item.get('fingerprint') is None:
+        return 'does not exist'
+    kind, state = item['type'], item.get('state')
+    if kind == 'STD':
+        if state in INERT_STD_STATES:
+            return f'rule is {state}'
+        if (item.get('rule') or {}).get('check', {}).get('kind') == 'judgment':
+            return 'rule check is judgment (not executable)'
+        if target in unexercised:
+            return 'rule is not exercised in the live flow'
+        issue = function_check_issue(item.get('rule'), root)
+        if issue is not None:
+            return issue
+    elif kind == 'TEST' and state != 'active':
+        return f'test is {state}'
+    elif kind == 'REQ' and state in INERT_REQ_STATES:
+        return f'requirement is {state}'
+    elif kind == 'CHK' and state != 'required':
+        return f'check is {state}, not required'
+    elif kind == 'DATA' and state in INERT_DATA_STATES:
+        return f'data store is {state}'
+    return None
+
+
+def control_state(body, found, unexercised=frozenset(), root=None):
+    """not-applicable with its reason; gap when coverage is omitted or nothing active implements it; partial when
+    coverage is partial or any implemented_by target is inert; implemented only with explicit full coverage and
+    every implemented_by target active, present and exercised."""
     if not body['applicable']:
         return 'not-applicable'
-    if not [target for target in body.get('implemented_by', []) if target in found_ids]:
+    coverage = body.get('coverage')
+    if coverage not in ('full', 'partial'):
         return 'gap'
-    return 'implemented' if body.get('coverage', 'full') == 'full' else 'partial'
+    targets = body.get('implemented_by', [])
+    issues = [control_target_issue(target, found, unexercised, root) for target in targets]
+    if not any(issue is None for issue in issues):
+        return 'gap'
+    if coverage == 'full' and any(issue is not None for issue in issues):
+        return 'partial'
+    return 'implemented' if coverage == 'full' else 'partial'
 
 
 def read_controls(root):
@@ -1852,11 +2298,38 @@ def read_controls(root):
                      lambda body: [{'type': 'implemented-by', 'target': target} for target in body.get('implemented_by', [])])
 
 
-def derive_controls(found):
-    ids = set(found)
+def derive_controls(found, root=None):
+    unexercised = unexercised_rules(found, root)
     for item in found.values():
         if item['type'] == 'CTRL' and 'body' in item:
-            item['state'] = control_state(item['body'], ids)
+            item['state'] = control_state(item['body'], found, unexercised, root)
+
+
+def security_findings(found, root=None, today=None):
+    """Warnings of the Segurança system: applicable controls without explicit coverage or citing inert
+    (dormant, draft, replaced, judgment, missing or unexercised) controls, and active risks missing or past review_by
+    or treated/accepted without residual_accepted_by."""
+    today = today or utc_today()
+    unexercised = unexercised_rules(found, root)
+    warnings = []
+    for item in sorted(found.values(), key=lambda entry: entry['id']):
+        body = item.get('body', {})
+        if item['type'] == 'CTRL' and body.get('applicable'):
+            if body.get('coverage') not in ('full', 'partial'):
+                warnings.append(f'{item["id"]}: applicable control omits explicit coverage (full or partial)')
+            for target in body.get('implemented_by', []):
+                issue = control_target_issue(target, found, unexercised, root)
+                if issue is not None:
+                    warnings.append(f'{item["id"]}: implemented_by {target} is inert ({issue})')
+        elif item['type'] == 'RISK' and item.get('state') != 'closed' and body:
+            review_by = body.get('review_by')
+            if not review_by:
+                warnings.append(f'{item["id"]}: active risk has no review_by date')
+            elif review_by < today:
+                warnings.append(f'{item["id"]}: review_by {review_by} has passed')
+            if item['state'] in ('treated', 'accepted') and not (body.get('residual_accepted_by') or '').strip():
+                warnings.append(f'{item["id"]}: {item["state"]} risk has no residual_accepted_by')
+    return warnings
 
 
 def vuln_state(body, today, deadlines):
@@ -1971,12 +2444,21 @@ def read_measures(root):
         entry = registry.get(name)
         if entry is None:
             continue
+        if entry.get('deprecated'):
+            found.append(_measure(f'MEAS-{_slug(name.removeprefix("slo."))}', 'retired', SLO_REGISTRY, {
+                'need': entry.get('description', ''),
+                'consumer': SLO_CONSUMER if SLO_CONSUMER in entry.get('x-readers', []) else '',
+                'scale': 'derived', 'function': 'scripts/lib/slo.py evaluate_series', 'unit': entry.get('x-unit', ''),
+                'criterion': f'{bound} {entry.get("default")}', 'source': SLO_SOURCE, 'unread': False, 'fresh': True,
+                'deprecated': True}))
+            continue
         value = values.get(name)
         found.append(_measure(f'MEAS-{_slug(name.removeprefix("slo."))}', 'active', SLO_REGISTRY, {
             'need': entry.get('description', ''), 'consumer': SLO_CONSUMER if SLO_CONSUMER in entry.get('x-readers', []) else '',
             'scale': 'derived', 'function': 'scripts/lib/slo.py evaluate_series', 'unit': entry.get('x-unit', ''),
             'criterion': f'{bound} {entry.get("default")}', 'source': SLO_SOURCE, 'unread': value is None,
-            **({'value': value['value'], 'state': value['state'], 'samples': value['samples']} if value else {}),
+            **({'value': value['value'], 'state': value['state'], 'breached': value['state'] == 'breached',
+                'samples': value['samples']} if value else {}),
             'fresh': bool(value) and value['fresh']}))
     seen = set()
     for path in sorted(root.glob(VALIDATIONS)) + sorted(root.glob(problem_space.FOLDER + '/NC-*.json')):  # NC: D-348
@@ -1999,18 +2481,22 @@ def read_measures(root):
     found.append(_measure('MEAS-cheaper-path', 'active', RETRO_SAMPLES, {
         'need': 'D-327: was there a clearly cheaper path that solved it?', 'consumer': 'the retrospective (administration)',
         'scale': 'derived', 'function': 'scripts/lib/model.py cheaper_path_measure', 'unit': 'share of sampled PRs',
-        'criterion': f'lt {cheaper["target"]}', 'fresh': cheaper['prs'] > 0}))
+        'criterion': f'lt {cheaper["target"]}', 'fresh': cheaper['prs'] > 0, 'met': cheaper['met'],
+        'reviewed': cheaper['reviewed']}))
     return found
 
 
 def derive_measures(found):
-    """After the validations are derived: each validation is measured by its measure, which is fresh while the
-    validation holds a value (any state but defined)."""
+    """After the validations are derived: each validation or NC is measured by its measure, which is fresh while it
+    holds a value (any state but defined). A VAL referencing a canonical NC (`nc`, D-354) shares that NC's measure."""
     for item in found.values():
         validation = (item.get('body') or {}).get('validation') if item['type'] == 'MEAS' else None
         if validation in found:
             item['body']['fresh'] = found[validation]['state'] != 'defined'
             found[validation]['links'].append({'type': 'measured-by', 'target': item['id']})
+            for other in found.values():
+                if other['type'] == 'VAL' and (other.get('body') or {}).get('nc') == validation:
+                    other['links'].append({'type': 'measured-by', 'target': item['id']})
 
 
 PHASE_ITEM = re.compile(r'^[0-9]+\. \*\*(F[0-9]+[a-z])\b([^*]*)\*\*(.*)$', re.MULTILINE)  # a Padrão v8 phase plan item
@@ -2053,6 +2539,8 @@ def read_work(root):
     root = Path(root)
     folder = root / config.get('coordinator.programs_dir')
     template, plan_file, fence = (config.get(f'coordinator.{key}') for key in ('template_dir', 'plan_file', 'plan_fence'))
+    archive_schema_path = root / CONTRACTS_DIR / 'program-archive.v1.json'
+    archive_schema = _read_json(archive_schema_path) if archive_schema_path.is_file() else None
     found = []
     for program in sorted(path for path in folder.iterdir() if path.is_dir() and path.name != template) if folder.is_dir() else ():
         items, problems = [], []
@@ -2089,8 +2577,30 @@ def read_work(root):
                 items.append(_work(f'WORK-{program.name}-{unit}', 'queued', QUEUE_FILE,
                                    {'program': program.name, 'kind': 'queue-row',
                                     'delivers': bool(row.get('Escopo (arquivos)') or row.get('Valor'))}))
-        program_item = _work(f'WORK-program-{program.name}', 'queued', program.relative_to(root).as_posix(),
-                             {'program': program.name, 'kind': 'program', 'delivers': bool(items)})
+        archived = None
+        archive_path = program / 'archived.json'
+        if archive_path.is_file():
+            try:
+                archive_body = _read_json(archive_path)
+            except ValueError as error:
+                problems.append(f'{archive_path.name}: does not parse ({error})')
+                archive_body = None
+            if archive_body is not None:
+                broken = list(json_schema.validate(archive_schema, archive_body)) if archive_schema else []
+                if broken:
+                    problems += [f'{archive_path.name}: {problem}' for problem in broken]
+                else:
+                    archived = archive_body
+                    for child in items:
+                        child['body']['archived'] = True
+                        if child['state'] != 'delivered':
+                            child['state'] = 'archived'
+        program_body = {'program': program.name, 'kind': 'program', 'delivers': bool(items)}
+        if archived is not None:
+            program_body['archived'] = True
+            program_body['archived_by'] = archived['archived_by']
+        program_item = _work(f'WORK-program-{program.name}', 'archived' if archived is not None else 'queued',
+                             program.relative_to(root).as_posix(), program_body)
         if problems:
             program_item['problems'] = problems
         found += [program_item, *items]
@@ -2099,7 +2609,8 @@ def read_work(root):
 
 def derive_work(found):
     """A merge that names a phase item (its PR title or a commit subject, `F7d`) tracks it, and the item is delivered;
-    a name two programs share links nothing. A program is delivered when every item is, in progress when some are."""
+    a name two programs share links nothing. A program is delivered when every item is, in progress when some are; an
+    archived program stays archived."""
     phase_items = {}
     for id, item in found.items():
         if item['type'] == 'WORK' and (item.get('body') or {}).get('kind') == 'phase-item':
@@ -2117,6 +2628,9 @@ def derive_work(found):
             programs.setdefault(item['body']['program'], []).append(item['state'] == 'delivered')
     for item in found.values():
         if item['type'] == 'WORK' and item['body']['kind'] == 'program':
+            if item['body'].get('archived'):
+                item['state'] = 'archived'
+                continue
             done = programs.get(item['body']['program'], [])
             item['state'] = 'delivered' if done and all(done) else 'in-progress' if any(done) else 'queued'
 
@@ -2189,7 +2703,7 @@ def objects(root=ROOT, readers=READERS):
         problem_space.attach(found, root, _declared)
         problem_space.derive(found)
     if read_controls in readers:
-        derive_controls(found)
+        derive_controls(found, root)
     if read_measures in readers:
         derive_measures(found)
     if read_work in readers:
@@ -2227,6 +2741,7 @@ def check(meta, found, root=None, today=None, base=None, pr_body=None, pr_title=
         errors += skipped_stage_errors(found, root)
         warnings += requirement_findings(found)
         warnings += supply_findings(found)
+        warnings += security_findings(found, root, today or utc_today())
         managed_errors, managed_warnings = management_findings(found, today or utc_today())
         errors += managed_errors
         warnings += managed_warnings
@@ -2270,7 +2785,7 @@ def check(meta, found, root=None, today=None, base=None, pr_body=None, pr_title=
     return errors, warnings
 
 
-HISTORY = ('superseded', 'deprecated', 'rejected', 'obsolete', 'retired', 'replaced')
+HISTORY = ('superseded', 'deprecated', 'rejected', 'obsolete', 'retired', 'replaced', 'archived')
 
 
 def historical(item):
@@ -2315,10 +2830,22 @@ def judged(meta, type_id):
 
 
 def meets(condition, item):
-    """Whether an object meets one `unconformant_when` condition: every field it names (`state`, else a field of the
-    object's body) holds one of the condition's values."""
+    """Whether an object meets one `unconformant_when` or `weakness_when` condition: every field it names (`state`,
+    else a field of the object's body) holds one of the condition's values."""
     body = item.get('body') or {}
     return all((item['state'] if field == 'state' else body.get(field)) in values for field, values in condition.items())
+
+
+def is_weakness(meta, item):
+    """Whether an active object carries a significant operational weakness (ISO/IEC 33020 F: 'no significant
+    weaknesses'): its state is in `weakness_states` (or WEAKNESS_STATES) or its body/state meets `weakness_when`.
+    Separate from catalog conformance (covered): a wired, fresh object whose target is missed or breached keeps its
+    system below F and open."""
+    kind = meta['types'].get(item['type'], {})
+    states = kind.get('weakness_states', WEAKNESS_STATES.get(item['type'], ()))
+    if item['state'] in states:
+        return True
+    return any(meets(condition, item) for condition in kind.get('weakness_when', ()))
 
 
 def covered(meta, item, into, found, tested=None):
@@ -2432,7 +2959,12 @@ def standard_measure(found, today):
                    for kind, source in into.get(item['id'], []))
     return {
         'rules': len(rules),
+        'blocking': sum(1 for item in rules if item['state'] == 'blocking'),
+        'warning': sum(1 for item in rules if item['state'] == 'warning'),
+        'draft': sum(1 for item in rules if item['state'] == 'draft'),
         'executable': sum(1 for item in rules if item['rule']['check']['kind'] != 'judgment'),
+        'judgment': sum(1 for item in rules if item['rule']['check']['kind'] == 'judgment'),
+        'unreviewed': sum(1 for item in rules if SEED_MARKER in (item['rule'].get('note') or '')),
         'tested': sum(1 for item in rules if tested(item)),
         'justified': sum(1 for item in rules if item['rule'].get('basis')),
         'overdue': sum(1 for item in rules if item['state'] == 'warning' and item['rule'].get('deadline', today) < today),
@@ -2443,43 +2975,92 @@ def standard_measure(found, today):
 
 def management_measure(found, today):
     """The standard management's own measure: its proposals by state, those open with no deadline or past it, the
-    exemptions in force, and the version in effect."""
+    independently approved and unapproved active exemptions (with scope, decision and expiry), and the version in
+    effect."""
     proposals = [item for item in found.values() if item['type'] == 'PROP']
     open_ones = [item for item in proposals if item['state'] in ('open', 'warning')]
+    approved, unapproved = active_tailoring(found, today)
+
+    def detail(item, is_approved):
+        body = item['body']
+        return {'id': item['id'], 'exempts': body.get('exempts'), 'scope': body.get('scope'),
+                'authorized_by': body.get('authorized_by'), 'valid_until': body.get('valid_until'),
+                'owner': body.get('owner'), 'approved': is_approved}
+
     return {
         'proposals': len(proposals),
         'open': len(open_ones),
         'closed': sum(1 for item in proposals if item['state'] in ('decided', 'applied', 'rejected')),
         'undated': sum(1 for item in open_ones if not item.get('body', {}).get('deadline')),
         'overdue': sum(1 for item in open_ones if item.get('body', {}).get('deadline', today) < today),
-        'exemptions': sum(1 for item in found.values() if item['type'] == 'TAIL' and item['state'] == 'active'),
+        'exemptions': len(approved),
+        'unapproved_exemptions': len(unapproved),
+        'active_exemptions': [detail(item, True) for item in approved] + [detail(item, False) for item in unapproved],
         'effective': sorted(id for id, item in found.items() if item['type'] == 'VER' and item['state'] == 'effective'),
     }
 
 
-def measures_measure(found):
-    """The measurement system's own counts: its measures, those with a value on HEAD, those proposed (no function
-    wired) and those whose source HEAD does not hold (an SLO with no GitHub snapshot)."""
-    measures = [item for item in found.values() if item['type'] == 'MEAS']
+def snapshot_lag(root):
+    """{snapshot name: first-parent merges on main strictly newer than snapshot['at']} for the GitHub validation
+    snapshots present under `root` (M3: exposes snapshot lag even offline)."""
+    import runs
+    snaps = {'slo': runs.read_slo(root), 'verdicts': runs.read_verdicts(root),
+             **{name: runs.read(root, name) for name in sorted(runs.CHECKS)}}
+    return {name: runs.merges_since(root, snap['at']) for name, snap in sorted(snaps.items())
+            if isinstance(snap, dict) and snap.get('at')}
+
+
+def measures_measure(found, root=None):
+    """The measurement system's own counts: its active measures, those with a value on HEAD, those proposed (no
+    function wired), those whose source HEAD does not hold (an SLO with no GitHub snapshot), and snapshot lag vs.
+    main."""
+    measures = [item for item in found.values() if item['type'] == 'MEAS' and item['state'] != 'retired']
+    lag = snapshot_lag(root) if root is not None else {}
     return {'measures': len(measures), 'fresh': sum(1 for item in measures if item['body']['fresh']),
             'proposed': sum(1 for item in measures if item['state'] == 'proposed'),
             'unread': sum(1 for item in measures if item['body'].get('unread')),
             'slos': {item['id']: {key: item['body'][key] for key in ('value', 'criterion', 'state', 'samples')}
                      for item in sorted(measures, key=lambda item: item['id'])
-                     if item['body'].get('source') == SLO_SOURCE and 'value' in item['body']}}
+                     if item['body'].get('source') == SLO_SOURCE and 'value' in item['body']},
+            **({'snapshot_lag': lag} if lag else {})}
+
+
+def construction_measure(found):
+    """The construction system's change traceability breakdown (M5): active changes with explicit intent links
+    (Implements: trailer or requirement implemented_by) vs. diff-only links (`source: diff`) vs. unlinked."""
+    changes = [item for item in found.values() if item['type'] == 'CHG' and item['state'] != 'reverted']
+    explicit, diff_only, unlinked = 0, 0, 0
+    for item in changes:
+        impl = [link for link in item['links'] if link['type'] == 'implements']
+        if not impl:
+            unlinked += 1
+        elif any(link.get('source') != 'diff' for link in impl):
+            explicit += 1
+        else:
+            diff_only += 1
+    total = len(changes)
+    return {'changes': total, 'explicit': explicit, 'diff_only': diff_only, 'unlinked': unlinked,
+            'explicit_share': explicit / total if total else 0}
 
 
 def work_measure(found):
-    """The work system's own counts: programs, their items by state, and the items a merge on HEAD tracks."""
+    """The work system's own counts: active vs archived programs and items, active items by state, and items a merge on
+    HEAD tracks."""
     work = [item for item in found.values() if item['type'] == 'WORK']
+    programs = [item for item in work if item['body']['kind'] == 'program']
     items = [item for item in work if item['body']['kind'] != 'program']
+    active_programs = [item for item in programs if item['state'] != 'archived']
+    archived_programs = [item for item in programs if item['state'] == 'archived']
+    active_items = [item for item in items if not item['body'].get('archived')]
+    archived_items = [item for item in items if item['body'].get('archived')]
     by_state = {}
-    for item in items:
+    for item in active_items:
         by_state[item['state']] = by_state.get(item['state'], 0) + 1
     tracked = {link['target'] for item in found.values() if item['type'] == 'CHG' for link in item['links']
                if link['type'] == 'tracks'}
-    return {'programs': len(work) - len(items), 'items': len(items), 'by_state': dict(sorted(by_state.items())),
-            'tracked': len(tracked)}
+    return {'programs': len(active_programs), 'archived_programs': len(archived_programs),
+            'items': len(active_items), 'archived_items': len(archived_items),
+            'by_state': dict(sorted(by_state.items())), 'tracked': len(tracked)}
 
 
 RETRO_SAMPLES = 'docs/programs/*/retro-sample-*.json'
@@ -2490,7 +3071,8 @@ def cheaper_path_measure(root=ROOT):
     """The measurement system's D-327 measure (management group, D-330): over the PRs the retrospectives sample
     (docs/programs/<program>/retro-sample-<n>.json, contracts/model/retro-sample.v1.json), the share whose answer to
     "was there a clearly cheaper path that solved it?" is yes; share None when there is no sample yet. A sample that
-    breaks its contract is a problem, counted as a model error, and left out of the share."""
+    breaks its contract or names a reviewer equal to author_session is a problem, counted as a model error and left
+    out of the share; samples without an independent `reviewer` are counted in `unreviewed` (M5)."""
     root = Path(root)
     schema = _read_json(root / CONTRACTS_DIR / 'retro-sample.v1.json')
     samples, problems = [], []
@@ -2499,15 +3081,22 @@ def cheaper_path_measure(root=ROOT):
         broken = list(json_schema.validate(schema, body))
         if isinstance(body, dict) and body.get('id') != path.stem:
             broken.append(f'its id must equal the file name {path.stem}')
+        if isinstance(body, dict):
+            reviewer = (body.get('reviewer') or '').strip()
+            author = (body.get('author_session') or '').strip()
+            if reviewer and author and reviewer.casefold() == author.casefold():
+                broken.append('reviewer must be independent of author_session')
         if broken:
             problems += [f'{path.relative_to(root).as_posix()}: {problem}' for problem in broken]
             continue
         samples.append(body)
     prs = [pr for body in samples for pr in body['prs']]
     cheaper = sum(1 for pr in prs if pr['cheaper'])
+    unreviewed = sum(1 for body in samples if not (body.get('reviewer') or '').strip())
     share = cheaper / len(prs) if prs else None
     return {'samples': len(samples), 'prs': len(prs), 'cheaper': cheaper, 'share': share, 'target': CHEAPER_TARGET,
-            'met': None if share is None else share < CHEAPER_TARGET, 'problems': problems}
+            'met': None if share is None else share < CHEAPER_TARGET,
+            'unreviewed': unreviewed, 'reviewed': None if not samples else unreviewed == 0, 'problems': problems}
 
 
 def cheaper_path_line(item):
@@ -2515,9 +3104,10 @@ def cheaper_path_line(item):
     head = 'measurement: cheaper path (D-327): '
     if item['share'] is None:
         return head + f'no sample (target under {item["target"]:.0%})'
+    note = f' ({item["unreviewed"]} unreviewed/self-assessed)' if item.get('unreviewed') else ''
     return head + (f'{item["cheaper"]} of {item["prs"]} sampled PR(s) in {item["samples"]} retrospective(s) had a '
                    f'clearly cheaper path ({item["share"]:.0%}), target under {item["target"]:.0%}: '
-                   f'{"met" if item["met"] else "not met"}')
+                   f'{"met" if item["met"] else "not met"}{note}')
 
 
 def utc_today():
@@ -2526,15 +3116,13 @@ def utc_today():
 
 
 def exempted_ids(found, today):
-    """D-335: the objects an exemption in force covers (config/standard/tailoring, TAIL): an active exemption not past
-    its validity, granted by a decision of the model (`authorized_by`), covers every object whose id or source its
-    `scope` matches (a glob)."""
+    """D-335, D-360: the objects an exemption in force covers (config/standard/tailoring, TAIL): an active exemption not
+    past its validity, granted by an independently approved accepted decision (`authorized_by`), covers every object
+    whose id or source its `scope` matches (a glob)."""
     from fnmatch import fnmatchcase
-    granted = [item['body'] for item in found.values() if item['type'] == 'TAIL' and item['state'] == 'active'
-               and item.get('body', {}).get('valid_until', '') >= today
-               and found.get(item['body'].get('authorized_by'), {}).get('type') == 'D']
-    return {id for id, item in found.items() for body in granted
-            if fnmatchcase(id, body['scope']) or fnmatchcase(item.get('source', ''), body['scope'])}
+    approved, _ = active_tailoring(found, today)
+    return {id for id, item in found.items() for tail in approved
+            if fnmatchcase(id, tail['body']['scope']) or fnmatchcase(item.get('source', ''), tail['body']['scope'])}
 
 
 def closed_shown():
@@ -2554,11 +3142,13 @@ def deferred(meta, item, into, found):
 
 
 def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
-    """One system's conformance: its active objects, those a rule judges and pass every rule, the share, the level
-    (below F while a significant weakness stands), the types no rule judges and the verdict types not read; D-335:
-    the objects that are not conformant (an object no rule judges included), those an exemption in force covers, the
-    requirements D-331 measures after the stop (deferred), and whether the system is closed (every other object
-    conformant, no significant weakness and no verdict left unread)."""
+    """One system's conformance, separating catalog integrity from operational readiness: its active objects, those a
+    rule judges and pass every catalog rule, the catalog share and level (`catalog_level`), the significant operational
+    weaknesses (`weaknesses`, `weakness_ids`, from `weakness_states`/`weakness_when`, keeping the system's `level`
+    below F and `operational_ready` false), the types no rule judges and the verdict types not read; D-335: the objects
+    that are not conformant, those an exemption in force covers, the requirements D-331 measures after the stop
+    (deferred), and whether the system is closed (every other object conformant, no significant operational weakness
+    and no verdict left unread)."""
     kinds = {type_id for type_id, kind in meta['types'].items() if kind['system'] == name}
     mine = [item for item in found.values() if item['type'] in kinds and is_active(meta, item)
             and item.get('fingerprint') is not None]
@@ -2567,8 +3157,10 @@ def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
                and covered(meta, item, into, found)}
     good = len(passing)
     share = good / len(mine) if mine else 0
-    level = rate(share, meta['scale'])
-    weak = sum(1 for item in mine if item['state'] in WEAKNESS_STATES.get(item['type'], ()))
+    catalog_level = rate(share, meta['scale'])
+    level = catalog_level
+    weak_ids = sorted(item['id'] for item in mine if is_weakness(meta, item))
+    weak = len(weak_ids)
     levels = [step['level'] for step in meta['scale']]
     if weak and level == levels[-1] and len(levels) > 1:
         level = levels[levels.index(level) - 1]
@@ -2579,19 +3171,25 @@ def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
     later = sorted(item['id'] for item in mine if item['id'] in failing and item['id'] not in flagged
                    and item['id'] not in exempt and deferred(meta, item, into, found))
     open_ids = [id for id in failing if id not in exempt and id not in later]
+    operational_ready = bool(mine) and not weak and not unread
     return {'group': meta['systems'][name].get('group', ''), 'objects': len(mine), 'conformant': good,
-            'share': share, 'level': level,
+            'share': share, 'catalog_level': catalog_level, 'level': level,
             'not_judged': sum(1 for item in mine if item['type'] in unjudged), 'unjudged_types': unjudged,
-            'weaknesses': weak, 'verdicts_unread': unread,
+            'weaknesses': weak, 'weakness_ids': weak_ids, 'operational_ready': operational_ready,
+            'verdicts_unread': unread,
             'nonconformant': open_ids, 'exempted': sorted(set(failing) & set(exempt)), 'measured_after': later,
             'closed': bool(mine) and not open_ids and not weak and not unread}
 
 
 def assessment(name, rated, sha):
     """The conformance assessment (ASSESS) of one system on a sha, calculated from its rating: it rests on evidence
-    when at least one of the system's objects is judged by a rule (ISO/IEC 33020 N: little or no evidence otherwise)."""
-    body = {'system': name, 'sha': sha, 'level': rated['level'], 'share': rated['share'], 'objects': rated['objects'],
-            'evidence': rated['objects'] - rated['not_judged'] > 0}
+    when at least one of the system's objects is judged by a rule (ISO/IEC 33020 N: little or no evidence otherwise),
+    and `ready` says whether the assessed system is operationally closed (both catalog-complete and free of significant
+    operational weaknesses)."""
+    body = {'system': name, 'sha': sha, 'level': rated['level'],
+            'catalog_level': rated.get('catalog_level', rated['level']), 'share': rated['share'],
+            'objects': rated['objects'], 'weaknesses': rated.get('weaknesses', 0),
+            'evidence': rated['objects'] - rated['not_judged'] > 0, 'ready': bool(rated.get('closed', False))}
     item = _obj(f'ASSESS-{name}', 'ASSESS', 'calculated', 'scripts/model measure', json.dumps(body, sort_keys=True))
     item['body'] = body
     return item
@@ -2636,15 +3234,24 @@ def measure(root=ROOT, meta=None, found=None, today=None):
                                                         if (count := sum(1 for name in names
                                                                          if systems[name]['level'] == step['level']))}}
                    for group, names in system_groups(systems).items()},
+        'scoreboard': {
+            'systems': len(systems),
+            'catalog_full': sorted(name for name, item in systems.items()
+                                   if item['objects'] and not item['nonconformant'] and not item['verdicts_unread']),
+            'operational_ready': sorted(name for name, item in systems.items() if item['operational_ready']),
+            'closed': sorted(name for name, item in systems.items() if item['closed']),
+            'weaknesses': {name: item['weakness_ids'] for name, item in sorted(systems.items()) if item['weakness_ids']},
+        },
         'stop': {'systems': len(systems), 'closed': sorted(name for name, item in systems.items() if item['closed'])},
         'standard': standard_measure(found, today or utc_today()),
         'standard_management': management_measure(found, today or utc_today()),
         'knowledge': knowledge_measure(found),
         'requirements': requirements_measure(found),
         'architecture': architecture_measure(found),
+        'construction': construction_measure(found),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
-        'measurement': {'cheaper_path': cheaper_path, **measures_measure(found)},
+        'measurement': {'cheaper_path': cheaper_path, **measures_measure(found, root)},
         'work': work_measure(found),
         'objects': len(found),
         'errors': len(meta['errors']) + len(errors) + len(cheaper_path['problems']),
@@ -2686,7 +3293,12 @@ def system_line(item):
     if item.get('not_judged'):
         parts.append(f'{item["not_judged"]} not judged: no rule of {", ".join(item["unjudged_types"])}')
     if item.get('weaknesses'):
-        parts.append(f'{item["weaknesses"]} significant weakness(es), below F whatever the share')
+        weak_ids = item.get('weakness_ids', [])
+        most = closed_shown()
+        shown = ', '.join(weak_ids[:most]) + (f' and {len(weak_ids) - most} more' if len(weak_ids) > most else '')
+        catalog = item.get('catalog_level', item['level'])
+        detail = f': {shown}' if weak_ids else ''
+        parts.append(f'{item["weaknesses"]} significant weakness(es) ({catalog} catalog, below F){detail}')
     if item.get('exempted'):
         parts.append(f'{len(item["exempted"])} exempted by a decision')
     if item.get('measured_after'):
@@ -2712,16 +3324,34 @@ def summary(found):
         lines.append(f'  {group or "no group"} ({len(item["systems"])} system(s): {counted}):')
         lines += [f'    {name}: {found["systems"][name]["level"]} ({system_line(found["systems"][name])})'
                   for name in item['systems']]
+    if 'scoreboard' in found:
+        board = found['scoreboard']
+        lines.append(
+            f'scoreboard: catalog {len(board["catalog_full"])} of {board["systems"]} full; '
+            f'operational {len(board["operational_ready"])} of {board["systems"]} ready; '
+            f'closed {len(board["closed"])} of {board["systems"]}'
+        )
     if 'stop' in found:  # D-331, D-335: the program's stop counts the systems closed, not the systems at F
         lines.append(f'stop (D-335): {len(found["stop"]["closed"])} of {found["stop"]["systems"]} system(s) closed')
-    rules = found['standard']
-    lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
-                 f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
-                 f'their deadline; {rules["dormant"]} dormant (D-326)')
     managed = found['standard_management']
+    active_tails = managed.get('active_exemptions', [])
+    if active_tails:
+        lines.append(f'exemptions (TAIL): {managed["exemptions"]} independently approved, '
+                     f'{managed.get("unapproved_exemptions", 0)} unapproved (not in force):')
+        for tail in active_tails:
+            tag = 'approved' if tail['approved'] else 'UNAPPROVED'
+            lines.append(f'  {tail["id"]}: [{tag}] {tail["exempts"]} on {tail["scope"]} '
+                         f'by {tail["authorized_by"]} until {tail["valid_until"]}')
+    rules = found['standard']
+    lines.append(f'standard: {rules["rules"]} rule(s) ({rules["blocking"]} blocking, {rules["warning"]} warning, '
+                 f'{rules["draft"]} draft; {rules["executable"]} executable, {rules["judgment"]} judgment, '
+                 f'{rules["unreviewed"]} unreviewed), {rules["tested"]} verified by a test, '
+                 f'{rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
+                 f'their deadline; {rules["dormant"]} dormant (D-326)')
     lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '
                  f'with no deadline, {managed["overdue"]} past it), {managed["closed"]} closed; {managed["exemptions"]} '
-                 f'exemption(s) in force; effective version {", ".join(managed["effective"]) or "none"}')
+                 f'independently approved exemption(s) in force ({managed.get("unapproved_exemptions", 0)} unapproved); '
+                 f'effective version {", ".join(managed["effective"]) or "none"}')
     wanted = found['requirements']
     lines.append(f'requirements: {wanted["active"]} active ({", ".join(f"{count} {kind}" for kind, count in wanted["by_type"].items())}); '
                  f'{wanted["implemented"]} implemented, {wanted["verified"]} verified, {wanted["with_element"]} with an '
@@ -2733,6 +3363,12 @@ def summary(found):
     mirror = built['reflexion']
     lines.append(f'reflexion: {mirror["share"]:.0%} conformant ({mirror["convergences"]} convergent, {mirror["divergences"]} '
                  f'divergent, {mirror["absences"]} absent dependencies between components)')
+    if 'construction' in found:
+        built_chg = found['construction']
+        diff_share = built_chg['diff_only'] / built_chg['changes'] if built_chg['changes'] else 0
+        lines.append(f'construction: {built_chg["changes"]} change(s): {built_chg["explicit"]} explicit Implements: '
+                     f'({built_chg["explicit_share"]:.0%}), {built_chg["diff_only"]} diff-only ({diff_share:.0%}), '
+                     f'{built_chg["unlinked"]} unlinked')
     decided = found['decisions']
     lines.append(f'decisions: {", ".join(f"{count} {state}" for state, count in decided["by_state"].items())}; '
                  f'{decided["proven"]} of {decided["accepted"]} accepted proven by a test; {decided["edited_records"]} '
@@ -2742,6 +3378,14 @@ def summary(found):
     proved = found['validation']
     lines.append(f'validation: {", ".join(f"{count} {state}" for state, count in proved["by_state"].items()) or "none"}; '
                  f'{proved["needs_met"]} of {proved["needs"]} needs with a validation met')
+    if proved.get('distributions'):
+        parts = []
+        for ident, dist in proved['distributions'].items():
+            sign = '>=' if dist['comparator'] == 'gte' else '<='
+            points = ' '.join(f'{label}={value:g}s' for label, value in dist['quantiles'].items() if value is not None)
+            threshold = f'{dist["threshold"]:g}s' if dist['threshold'] is not None else '?'
+            parts.append(f'{ident} {points} ({dist["outliers"]}/{dist["runs"]} outside {sign}{threshold})')
+        lines.append('validation: run-durations (report only; accepted at p100, D-337): ' + ', '.join(parts))
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')
@@ -2752,9 +3396,14 @@ def summary(found):
         lines.append('measurement: SLOs from GitHub: ' + ', '.join(
             f'{id.removeprefix("MEAS-")} {item["value"]} ({item["criterion"]}, {item["state"]}, {item["samples"]} sample(s))'
             for id, item in counted['slos'].items()))
+    if counted.get('snapshot_lag') and any(counted['snapshot_lag'].values()):
+        lines.append('measurement: snapshot lag vs. main: ' + ', '.join(
+            f'{name} {lag} merge(s)' for name, lag in counted['snapshot_lag'].items()))
     lines.append(cheaper_path_line(found['measurement']['cheaper_path']))
     planned = found['work']
-    lines.append(f'work: {planned["programs"]} program(s), {planned["items"]} item(s): '
+    archived_p = f' ({planned["archived_programs"]} archived)' if planned.get('archived_programs') else ''
+    archived_i = f' ({planned["archived_items"]} archived)' if planned.get('archived_items') else ''
+    lines.append(f'work: {planned["programs"]} active program(s){archived_p}, {planned["items"]} item(s){archived_i}: '
                  f'{", ".join(f"{count} {state}" for state, count in planned["by_state"].items()) or "none"}; '
                  f'{planned["tracked"]} tracked by a merge on HEAD')
     lines += [f'  ERROR {problem}' for problem in found['measurement']['cheaper_path']['problems']]

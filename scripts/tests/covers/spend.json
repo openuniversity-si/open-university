@@ -7,6 +7,7 @@
     "scripts/lib/spend.py",
     "scripts/lib/model.py",
     "config/validation/**",
+    "config/problem/NC-cost.json",
     "contracts/model/validation.v1.json"
   ]
 }

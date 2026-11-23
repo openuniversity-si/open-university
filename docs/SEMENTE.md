@@ -65,25 +65,23 @@ Contexto. A tese de A Torre é que o mundo vai precisar de cada vez mais computa
 Dia é unidade ruim em tempo de máquina. A medida é rápida e dinâmica:
 
 - **Vazão:** PRs por segundo numa janela móvel curta que acompanha a taxa, por exemplo o tempo dos últimos N merges em
-  `mod/roadmap-integration` no Origin, ou alguns minutos. Quanto maior a taxa, menor a janela. Instrumentos de hoje:
-  `scripts/flow-metrics --prs N` (PR/s nos últimos N merges, até agora, e o degrau atingido) e
-  `scripts/flow-metrics --closed-hours N` (PR/min de cada hora fechada, a leitura que Daniel acompanha, 03/11 04:13
-  BRT). `scripts/commit-rate` e `scripts/flow-metrics --rolling` contam commits, não PRs: são contexto, não a métrica.
+  `main` no GitHub (D-314), ou alguns minutos. Quanto maior a taxa, menor a janela. Instrumentos de hoje:
+  `scripts/flow-metrics --prs N` (PR/s nos últimos N merges, até agora, e o degrau atingido),
+  `scripts/flow-metrics --closed-hours N` (PR/min de cada hora fechada) e `scripts/model measure`.
+  `scripts/commit-rate` e `scripts/flow-metrics --rolling` contam commits, não PRs: são contexto, não a métrica.
 - **Guardas**, nas mesmas janelas móveis: retrabalho (PRs revertidas ou corrigidas por outra PR), gate verde no head
-  exato, cota gasta por PR mergeada e incidentes abertos sem causa raiz.
-  Instrumentos de hoje: `scripts/flow-metrics --guards` (retrabalho por PR em K = 5 merges, um teto que também conta a
-  iteração no mesmo arquivo, incidentes abertos sem causa raiz, a fração p de execuções do gate que voltam vermelhas
-  e as execuções do gate por PR mergeada n_r nas últimas N PRs, `--gate-runs N`) e `scripts/deliver`, que só faz o
-  merge depois do gate verde no head exato. A cota gasta por PR: `scripts/usage --tokens --per-pr <transcrição>` (tokens que a
-  transcrição registra, divididos pelas PRs mergeadas no mesmo intervalo).
+  exato (`tower/gate` via `scripts/verify-commit` e merge queue do GitHub, D-314), estabilidade pós-merge
+  (`full-suite`), cota gasta por PR mergeada e incidentes abertos sem causa raiz.
+  Instrumentos de hoje: `scripts/model measure`, `scripts/flow-metrics --guards` (retrabalho por PR em K = 5 merges e
+  execuções do gate), `scripts/deploy status` e `scripts/usage --tokens --per-pr <transcrição>`.
 - **Cota usada por janela** (Daniel 03/11): a cota não usada é capacidade desperdiçada. A guarda é a fração da janela de 5
   horas e da semanal usada, com meta perto de 100 % sem estourar; a leitura vem da conta (Settings › Usage), que a Torre
   informa. Com folga, mais frentes que não passam pelo gate; perto do teto, menos frentes.
-- **Cabe no plano gratuito, com folga** (Daniel 03/11, depois do I-5102f4e9): toda infraestrutura do motor (o painel de
-  controle na Cloudflare, o Origin, a caixa) roda dentro do plano gratuito com no máximo metade de cada limite diário
-  usada. Não caber é sinal de arquitetura errada, não de plano pequeno: a resposta é redesenhar, não pagar. É critério de
-  desenho (a leitura custa o que o leitor precisa) e guarda medida (linhas lidas por hora no Durable Object contra o
-  limite de 5.000.000 por dia; unidade F34 da fila).
+- **Custo de infraestrutura sob teto medido** (atualizado após D-314 e D-323): o painel de controle na Cloudflare
+  (Durable Object) foi aposentado por D-323 e o Origin virou espelho somente leitura (D-314). A infraestrutura viva do
+  motor roda no GitHub Actions e na AWS, acompanhada contra o teto de gasto AWS em `scripts/model measure` e
+  `scripts/deploy status`. Estourar orçamento é sinal de arquitetura errada: a resposta é redesenhar antes de ampliar
+  escala.
 
 A janela, as guardas e os instrumentos são a versão corrente. O sistema pode trocá-los.
 
@@ -133,9 +131,10 @@ físico, menos se perde.
 
 ## 7. Onde o sistema lê e registra (hoje)
 
-- **Estado atual:** o `git log` de `mod/roadmap-integration` no Origin, `scripts/commit-rate` e `scripts/flow-metrics`,
-  o painel do control plane (`/status`), os incidentes em `docs/operations/incidents/`, as decisões em
-  `docs/domain/DECISIONS.md` e as lições em `scripts/lessons list`.
+- **Estado atual:** o `git log` de `main` no GitHub (D-314), `scripts/model measure`, `scripts/flow-metrics`,
+  `scripts/deploy status`, as decisões em `docs/domain/DECISIONS.md` e `docs/domain/decisions/` e as lições em
+  `scripts/lessons list`. O painel de controle na Cloudflare foi aposentado (D-323), e `docs/operations/incidents/` é
+  local e ignorado pelo `.gitignore` (não é fonte compartilhada no repositório).
 - **Pesquisa:** as fontes vão no corpo da PR ou no documento da unidade.
 - **Retrospectiva:** `scripts/plan note ... --kind lesson`; uma lição que muda o padrão entra com `scripts/lessons add`
   marcada `padrao_candidate`.
@@ -143,9 +142,10 @@ físico, menos se perde.
 
 ## 8. Como a sessão única usa a semente
 
-0. Ao receber `continue` ou `continue (docs/RETOMAR.md)`, executa [RETOMAR.md](RETOMAR.md): chega à base atual do
-   Origin, liga o ciclo (`scripts/cycle on`), prepara o ambiente e reconstrói entregas, claims e cota antes de voltar
-   ao passo 3. A partir daí o hook de Stop aplica a regra do Vigia ao fim de cada turno (I-0d1c3a25, abaixo).
+0. Ao receber `continue` ou `continue (docs/RETOMAR.md)`, executa [RETOMAR.md](RETOMAR.md): chega à base atual
+   (`main` no GitHub, D-314), liga o ciclo (`scripts/cycle on`), prepara o ambiente e reconstrói entregas, claims e cota
+   antes de voltar ao passo 3. A partir daí o hook de Stop aplica a regra do Vigia ao fim de cada turno (I-0d1c3a25,
+   abaixo).
 1. Lê esta semente.
 2. Lê o [METODO.md](padrao/METODO.md) e os documentos que o AGENTS.md lista.
 3. Mede o estado atual: a vazão, as guardas e a cota restante.

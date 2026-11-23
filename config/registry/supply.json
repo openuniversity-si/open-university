@@ -31,6 +31,39 @@
         "scripts/lib/supply.py"
       ],
       "x-source": "D-320 (PADRAO-DEV F7c)"
+    },
+    "supply.osv_timeout_s": {
+      "type": "integer",
+      "default": 15,
+      "minimum": 1,
+      "x-unit": "s",
+      "description": "HTTP timeout in seconds for each OSV API request made by scripts/supply audit.",
+      "x-readers": [
+        "scripts/lib/supply.py"
+      ],
+      "x-source": "D-320"
+    },
+    "supply.osv_url": {
+      "type": "string",
+      "default": "https://api.osv.dev/v1",
+      "minLength": 1,
+      "x-unit": "url",
+      "description": "Base URL of the OSV API queried by scripts/supply audit for pinned PyPI requirements.",
+      "x-readers": [
+        "scripts/lib/supply.py"
+      ],
+      "x-source": "D-320"
+    },
+    "supply.snapshot_max_days": {
+      "type": "integer",
+      "default": 7,
+      "minimum": 1,
+      "x-unit": "days",
+      "description": "Maximum age in days of config/supply/advisories.json before scripts/supply check refuses it as stale.",
+      "x-readers": [
+        "scripts/lib/supply.py"
+      ],
+      "x-source": "D-320"
     }
   }
 }

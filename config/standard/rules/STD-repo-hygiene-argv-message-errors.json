@@ -13,5 +13,5 @@
   "basis": [
     "D-206"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-206 (a) decides it: the record passed as a command-line argument is fixed as a class, since every git write of text has the same shape (unit C1); the module head cites C1, D-206 for this rule."
+  "note": "Basis: D-206 (a) decides it: the record passed as a command-line argument is fixed as a class, since every git write of text has the same shape (unit C1); the module head cites C1, D-206 for this rule."
 }

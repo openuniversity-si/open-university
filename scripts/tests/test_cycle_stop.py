@@ -10,7 +10,9 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib'))
+import config  # noqa: E402
 import cycle_stop  # noqa: E402
+from unittest import mock  # noqa: E402
 
 
 def transcript(directory, *texts):
@@ -42,10 +44,19 @@ class CycleStopTests(unittest.TestCase):
         answer = self.run_hook({'transcript_path': transcript(self.tmp.name, 'Summary: PR merged. Next bottleneck: X.')})
         self.assertEqual(answer['decision'], 'block')
         self.assertIn('standing determination', answer['reason'])
-        self.assertIn(cycle_stop.DETERMINATION, answer['reason'])
+        self.assertEqual(cycle_stop.default_determination(), config.get('flow.cycle_determination'))
+        self.assertNotIn('concluir o motor AWS ponta a ponta', answer['reason'])
+        self.assertIn(cycle_stop.default_determination(), answer['reason'])
         self.assertIn('short status', answer['reason'])
         self.assertNotIn('step 3', answer['reason'])
         self.assertNotIn('find the next bottleneck', answer['reason'])
+
+    def test_default_determination_reads_flow_cycle_determination_from_registry(self):
+        cycle_stop.main(['on'], self.marker)
+        with mock.patch.object(cycle_stop.config, 'get', return_value='close the active program unit') as get:
+            answer = self.run_hook({'last_assistant_message': 'Summary.'})
+        get.assert_called_once_with('flow.cycle_determination')
+        self.assertIn('close the active program unit', answer['reason'])
 
     def test_the_marker_text_names_the_determination(self):
         self.marker.parent.mkdir(parents=True, exist_ok=True)

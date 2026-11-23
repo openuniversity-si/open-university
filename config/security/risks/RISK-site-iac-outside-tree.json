@@ -1,0 +1,21 @@
+{
+  "id": "RISK-site-iac-outside-tree",
+  "statement": "The site Lambda (open-university-web), its IAM role and its CloudFront front door are defined outside this repository's IaC stacks, and D-346 retired the runner-based canary alert and image rollback with no live synthetic canary replacing them; infrastructure drift or a broken deploy on the live site path has no IaC test or automated rollback.",
+  "state": "assessed",
+  "owner": "Daniel",
+  "assets": [
+    "ARC-web",
+    "SUP-aws"
+  ],
+  "likelihood": "medium",
+  "impact": "high",
+  "treatment": {
+    "option": "mitigate",
+    "plan": "Approved by D-352 (Torre por delegação do Daniel 22/11/2026) as future work: import the site Lambda (open-university-web), its IAM role and its CloudFront distribution into infra/aws/stacks/ via CloudFormation import (without replacing resources) with stack tests, and install a read-only post-deploy HTTP synthetic canary over the live site URL via a separate workflow PR for the Torre to install (D-087). Stays assessed until implemented.",
+    "by": [
+      "CTRL-ssdf-pw.9"
+    ]
+  },
+  "review_by": "2026-12-19",
+  "source": "docs/domain/decisions/D-346.md; config/standard/tailoring/TAIL-site-csp-inline.json"
+}

@@ -1,7 +1,7 @@
 {
   "id": "VER-v9",
-  "state": "draft",
-  "statement": "Padrão v9: the management method unchanged and the engineering standard as the catalog of config/standard/rules/, the rules of v8 among them, each with its check and mode (PADRAO-DEV, D-317). It becomes effective when coordinator.padrao_version names it.",
+  "state": "effective",
+  "statement": "Padrão v9: the management method unchanged and the engineering standard as the catalog of config/standard/rules/, the rules of v8 among them, each with its check and mode (PADRAO-DEV, D-317). Effective as coordinator.padrao_version names v9.",
   "contains": "catalog",
   "supersedes": "VER-v8"
 }

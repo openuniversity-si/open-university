@@ -1,7 +1,8 @@
 {
   "id": "STD-train-refused",
   "statement": "A merge the forge refused (D-078: never a pr.conflicted with no file).",
-  "state": "blocking",
+  "state": "dormant",
+  "dormant_by": "D-314",
   "owner": "administration",
   "applies_to": [
     "CHG"
@@ -11,7 +12,8 @@
     "ref": "scripts/lib/train.py:refused"
   },
   "basis": [
-    "D-078"
+    "D-078",
+    "D-326"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Basis: D-078 states that a merge refused by the forge is never recorded as pr.conflicted without files; D-326 (dormant: the merge train is stopped by D-314)."
 }

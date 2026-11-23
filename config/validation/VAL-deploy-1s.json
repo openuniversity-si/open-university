@@ -5,13 +5,5 @@
     "REQ-deploy-1s"
   ],
   "owner": "efficiency",
-  "measure": {
-    "kind": "run-durations",
-    "workflow": "deploy-live",
-    "percentile": 100,
-    "min_runs": 20,
-    "max_age_days": 7
-  },
-  "comparator": "lte",
-  "threshold": 1
+  "nc": "NC-deploy-1s"
 }

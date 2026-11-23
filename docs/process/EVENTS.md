@@ -1,10 +1,12 @@
 # Event contract (D-065)
 
-Every step of the delivery flow is triggered by an event; nothing runs on a clock. All state lives in the forge (pull
-requests, refs, commit statuses). The forge is Cursor Origin (`forge-events.adapter` = `origin` since ORIGIN-FINISH,
-Daniel 03/11 00:10 BRT); GitHub `openuniversity-si/open-university` is archived. Every tool reaches the forge through one port,
-`scripts/lib/forge_events.py` (M2), so no tool depends on a forge-specific feature. The decision is
-[D-065](../domain/DECISIONS.md); production stays frozen ([D-054](RELEASES.md)).
+Every step of the delivery flow is triggered by an event; nothing runs on a clock. Since **D-314** (14/11/2026), the
+live source-of-truth forge is GitHub `openuniversity-si/open-university` (`main`, GitHub merge queue, the `tower/gate`
+and `web` GitHub Actions checks, and `.github/workflows/deploy-doorbell.yml` for the engine's AWS deploy); Cursor Origin
+is only a one-way mirror of `main`. The Origin-era event port (`scripts/lib/forge_events.py`, M2), merge train
+(`scripts/train`) and battery role documented below remain in the tree as dormant tooling (`D-314`), and the
+Cloudflare Worker control plane was retired (`D-323`). The original event-contract decision is
+[D-065](../domain/DECISIONS.md); production stays protected by [D-054](RELEASES.md).
 Events use the envelope and the metrics event of the [shared contract](principles/D-069.md#event-envelope-owner-m2)
 (D-069).
 
@@ -172,7 +174,7 @@ expand→contract: add `<type>.v<N+1>.json` (expand), teach readers to accept bo
 version (`emit` uses the newest unless a version is passed), and retire the old file only when no producer emits it
 and replay no longer needs its events (contract). Envelope changes follow the same rule with `envelope.v<N+1>.json`.
 
-### Adapter interface (GitHub today, Cursor Origin next)
+### Adapter interface (Origin-era dormant port, D-314)
 
 An adapter implements three methods; payloads and callers never change when the adapter does.
 
@@ -184,37 +186,35 @@ An adapter implements three methods; payloads and callers never change when the 
 
 A channel is `(repo, pr)`: one log per change, plus the repository log (`pr` null) for integration, train and release
 events. `MemoryAdapter` (tests) and `FileAdapter` (append-only JSON Lines under `.gate/events/`, offline runs) live in
-the port; `scripts/lib/forge_github.py` is the only module that knows GitHub. Origin implements the same three methods
-over its statuses, comments or refs.
+the port; the Origin adapter (`scripts/lib/forge_origin.py`) is dormant under D-314.
 
-## Storage: the control plane's journal (v0)
+## Storage: the dormant Origin-era journal (v0, retired control plane D-323)
 
 - **Events: the journal.** `forge-events.log_adapter` is `git-ref` for good (D-296 made permanent by D-300, VAZÃO
-  F61): every kind not routed elsewhere, the diary (`scripts/plan note`) and the gate proof with it, goes to the
-  `train/events` branch on Origin (EVENTS-REF, D-273). The engine does not depend on Cloudflare for what is its own: on
-  03/11 the control plane's journal went down with the free plan's read allowance (I-5102f4e9). `control` (D-282,
-  CANALE7) left the enum (D-300, SEMENTE §6: no double path): `ControlAdapter` (`scripts/lib/forge_control.py`) is no
-  log adapter any more, only the client of what the Worker keeps: `POST /v1/check-run` (D-299). The Origin adapter's
-  journal left it too (D-300 addendum): the `forge.status` trail is the git-ref log, and push history is this clone's
-  reflog of the branch's remote-tracking ref, proven against Origin's head (`scripts/lib/forge_origin_history.py`).
-  The client sends `Authorization: Bearer $TOWER_EVENTS_TOKEN` (the variable named by `forge-events.control_token_env`,
-  never read from a file and never printed) plus `content-type: application/json` and `service.user_agent` (D-091: the
-  edge refuses urllib's default). Its `append`, `read` and `recent` methods on `/v1/events` had no engine reader left and
-  were removed (D-300).
-- **One writer, and it is also a trigger.** The Worker behind `service.control_url` (`services/control-plane`, the one
-  Durable Object) keeps one record per append, keeps the newest `KEEP_EVENTS` of them, refuses a POST carrying more than
-  `EVENTS_PAGE` envelopes, answers 503 when its own `EVENTS_TOKEN` secret is unset and 401 without the bearer token. An
-  envelope it receives is not only stored: `pr.ready` queues a train job and a merge or a gate verdict records a fact, so
-  the journal wakes the train with nobody commenting on a PR. Its Origin route writes the forge's native events there too
-  (`pr.opened`, `pr.pushed`, `pr.merged`, on the repository channel and on the PR's).
-- **A read does not go back to the forge.** With `log_adapter` set, `RoutingAdapter.read` returns the routed logs only: the
-  forge's PR comment history is not read again as part of the channel.
+  F61): every kind not routed elsewhere, the diary (`scripts/plan note`) and the gate proof with it, went to the
+  `train/events` branch on Origin (EVENTS-REF, D-273; dormant since D-314). The engine does not depend on Cloudflare
+  for what is its own: on 03/11 the control plane's journal went down with the free plan's read allowance (I-5102f4e9).
+  `control` (D-282, CANALE7) left the enum (D-300, SEMENTE §6: no double path): `ControlAdapter`
+  (`scripts/lib/forge_control.py`, dormant since D-323 retired the Cloudflare Worker) kept only the `POST /v1/check-run`
+  client (D-299). The Origin adapter's journal left it too (D-300 addendum): the `forge.status` trail is the git-ref
+  log, and push history is this clone's reflog of the branch's remote-tracking ref, proven against Origin's head
+  (`scripts/lib/forge_origin_history.py`). The client sent `Authorization: Bearer $TOWER_EVENTS_TOKEN` (the variable
+  named by `forge-events.control_token_env`, never read from a file and never printed) plus
+  `content-type: application/json` and `service.user_agent` (D-091: the edge refused urllib's default). Its `append`,
+  `read` and `recent` methods on `/v1/events` had no engine reader left and were removed (D-300).
+- **Retired control plane (D-323).** The Cloudflare Worker behind `service.control_url` (previously
+  `services/control-plane`) was retired by D-323 and is no longer deployed; live delivery runs on GitHub Actions
+  (`tower/gate`) and GitHub's merge queue (D-314).
+- **A read does not go back to the forge.** With `log_adapter` set, `RoutingAdapter.read` returns the routed logs only:
+  the forge's PR comment history is not read again as part of the channel.
 - **A broken transport is a broken environment.** No token raises `ControlError('no events token: set
-  $TOWER_EVENTS_TOKEN')` before a request is made, a refused call `control plane /v1/check-run answered <code>`, a dead host
-  `control plane unreachable: <error>`. None of the three is a reason to fall back to comments: a session that meets one
-  records it as a blocker (`scripts/plan note … --kind blocker`) and says so, and the gate fails on
+  $TOWER_EVENTS_TOKEN')` before a request is made, a refused call `control plane /v1/check-run answered <code>`, a dead
+  host `control plane unreachable: <error>`. None of the three is a reason to fall back to comments: a session that
+  meets one records it as a blocker (`scripts/plan note … --kind blocker`) and says so, and the gate fails on
   `FAIL gate evidence: … (class env)` rather than pass without a verdict (D-065).
-- **Offline journal.** `file` is the append-only JSON Lines adapter under `forge-events.local_log_dir`. D-293 retired the GitHub adapter, client and tuning keys; selecting it is refused. Origin owns forge operations and `git-ref` owns the live journal (D-300).
+- **Offline journal.** `file` is the append-only JSON Lines adapter under `forge-events.local_log_dir`. D-293 retired
+  the old GitHub event-port adapter, client and tuning keys; selecting it is refused. Live merges and checks now run
+  natively on GitHub (D-314), while the dormant Origin-era event port keeps `git-ref` (D-300) and `file`.
 
 ### Gate evidence and `.dev.pass`
 
@@ -334,9 +334,10 @@ change store (TR1):
 **Who emits `pr.ready` and who runs the train.** A dev `gate.passed` on the exact head of a PR whose plan is fully
 ticked emits `pr.ready` from `gate_report` (`pr_ready.ready_after_gate`; `scripts/pr-ready` is the manual entry). The
 producer then starts `scripts/train run` detached (`scripts/lib/train_trigger.py`, output in `train.trigger_log_dir`);
-the run takes the lock or ends `busy`, and does nothing while `train.enabled` is off. The train is stopped until the runner VM is resized;
-meanwhile each session merges its own PR with `origin pr merge` (AGENTS.md, Delivery flow). What to do on
-`pr.refused`, `pr.conflicted` and `pr.ejected`: running the merge train.
+the run takes the lock or ends `busy`, and does nothing while `train.enabled` is off. The Origin-era train is dormant
+(D-314): pull requests now land on GitHub `main` through GitHub's merge queue once `tower/gate`, `web`, and
+`gate pinned to the base` are green (AGENTS.md, Delivery flow). What to do on `pr.refused`, `pr.conflicted` and
+`pr.ejected`: running the merge train.
 
 ## The quarantine (M7)
 

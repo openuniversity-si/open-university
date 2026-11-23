@@ -12,6 +12,7 @@
     "scripts/coordinator",
     "scripts/program-gate",
     "docs/padrao/**",
+    "config/standard/versions/*.json",
     "docs/units/*/retro.md",
     "scripts/lib/train.py",
     "scripts/lib/defects.py",

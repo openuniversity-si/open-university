@@ -41,10 +41,21 @@ class Row(unittest.TestCase):
         for proof, cell in cases.items():
             self.assertIn(f'| {cell} | recorded |', decision_table.row(self.record('none', proof)))
 
+    def test_a_proposed_record_renders_proposed_in_its_status_column(self):
+        proposed = decision_table.parse(FIXTURE['record'].replace('premises: none\n', 'premises: none\nstatus: proposed\n'))
+        self.assertTrue(decision_table.row(proposed).endswith('| proposed |'))
+        self.assertEqual(decision_table.row(proposed).count('|'), FIXTURE['pipes_per_row'])
+
 
     def test_a_relative_link_is_moved_from_the_records_folder_to_the_tables(self):
         record = dict(decision_table.parse(FIXTURE['record']), body='See [the plan](../../units/U/plan.md), [D-1](D-1.md), [web](https://x.y/z) and [here](#a).')
         self.assertIn('[the plan](../units/U/plan.md), [D-1](decisions/D-1.md), [web](https://x.y/z) and [here](#a).', decision_table.row(record))
+
+    def test_a_record_with_status_proposed_renders_proposed_instead_of_recorded(self):
+        record = decision_table.parse(FIXTURE['record'].replace('proof:', 'status: proposed\nproof:'))
+        line = decision_table.row(record)
+        self.assertTrue(line.endswith('| proposed |'), line)
+        self.assertEqual(line.count('|'), FIXTURE['pipes_per_row'])
 
 FIRST = len(FIXTURE['table'])  # an id far above the fixture's own D-2 row
 LATER_NUMBER, OLDER_NUMBER = FIRST + True, FIRST - True
