@@ -289,8 +289,31 @@ class ProblemSpace(unittest.TestCase):
         def unvalidated(files):
             files['ST-domain']['validated'] = {'by': 'manager', 'date': DAY}
         found = self.found(edit=unvalidated)
-        self.assertEqual(found['ST-domain']['state'], 'proposed', 'level 2 is validated by Daniel')
+        self.assertEqual(found['ST-domain']['state'], 'proposed', 'level 2 is validated by Daniel or Torre (D-354)')
         self.assertFalse(self.conforms(found, 'ST-domain'))
+        def torre_no_authority(files):
+            files['ST-domain']['validated'] = {'by': 'Torre', 'date': DAY}
+        found = self.found(edit=torre_no_authority)
+        self.assertEqual(found['ST-domain']['state'], 'proposed', 'Torre validation requires explicit delegation authority')
+        self.assertFalse(self.conforms(found, 'ST-domain'))
+        def torre_level2(files):
+            files['ST-domain']['validated'] = {'by': 'Torre', 'date': DAY,
+                                               'authority': 'Torre por delegação do Daniel 22/11/2026'}
+        found = self.found(edit=torre_level2)
+        self.assertEqual(found['ST-domain']['state'], 'not-met', 'D-354: Torre validates level-2 technical tactics')
+        self.assertTrue(self.conforms(found, 'ST-domain'))
+        def torre_level2_refuted(files):
+            torre_level2(files)
+            files['ST-domain']['assumptions']['necessary']['premise'] = 'P-1'
+        found = self.found(edit=torre_level2_refuted)
+        self.assertEqual(found['ST-domain']['state'], 'proposed', 'rule 11 still reopens Torre-validated L2 on refuted P-*')
+        self.assertFalse(self.conforms(found, 'ST-domain'))
+        def torre_level1(files):
+            files['ST-top']['validated'] = {'by': 'Torre', 'date': DAY,
+                                            'authority': 'Torre por delegação do Daniel 22/11/2026'}
+        found = self.found(edit=torre_level1)
+        self.assertEqual(found['ST-top']['state'], 'proposed', 'level 1 (intention) remains locked to Daniel')
+        self.assertFalse(self.conforms(found, 'ST-top'))
         def refuted_premise(files):
             files['ST-domain']['assumptions']['necessary']['premise'] = 'P-1'
         found = self.found(edit=refuted_premise)
@@ -422,6 +445,12 @@ class ProblemSpace(unittest.TestCase):
         )
         for ident in problem_space.unvalidated_needs(found):
             self.assertFalse(model.covered(model.metamodel(ROOT), found[ident], model.incoming(found), found), ident)
+        for ident in ('ST-capacity', 'ST-efficiency', 'ST-administration'):
+            validated = found[ident]['body'].get('validated') or {}
+            self.assertEqual(validated.get('by'), 'Torre', ident)
+            self.assertEqual(validated.get('authority'), 'Torre por delegação do Daniel 22/11/2026', ident)
+            self.assertNotEqual(found[ident]['state'], 'proposed', ident)
+            self.assertTrue(model.covered(model.metamodel(ROOT), found[ident], model.incoming(found), found), ident)
 
 
 if __name__ == '__main__':

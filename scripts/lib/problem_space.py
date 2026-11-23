@@ -26,9 +26,17 @@ KINDS = (('NC', 'nc'), ('UDE', 'ude'), ('CAUSE', 'cause'), ('CONFLICT', 'conflic
          ('ST', 'st'))
 STATED = ('CAUSE', 'CONFLICT')  # no lifecycle of their own: a stated entity of the tree or the cloud
 # the levels of the strategy and tactics tree, from the intention down: who validates a node of each and who writes it
-# (the contract's level 1 is the first): the intention and the domains, the programs, the units of the lanes
-VALIDATORS = ('Daniel', 'Daniel', 'manager', 'coordinator')
+# (the contract's level 1 is the first): intention (Daniel only), domains (Daniel or Torre by delegation, D-354),
+# programs (manager), and units of the lanes (coordinator)
+VALIDATORS = (('Daniel',), ('Daniel', 'Torre'), ('manager',), ('coordinator',))
 WRITERS = ('manager', 'manager', 'domain-coordinator', 'lane')
+
+
+def _validated_at_level(validated, level):
+    by = validated.get('by')
+    if by not in of_level(VALIDATORS, level):
+        return False
+    return bool((validated.get('authority') or '').strip()) if by == 'Torre' else True
 
 
 def of_level(levels, level):
@@ -152,7 +160,7 @@ def derive(found):
             refuted = any((found.get(each.get('premise') or '') or {}).get('state') == 'refuted'
                           for each in body['assumptions'].values() if each.get('premise'))
             body['reopened_by_premise'] = refuted
-            if refuted or validated.get('by') != of_level(VALIDATORS, body['level']):
+            if refuted or not _validated_at_level(validated, body['level']):
                 item['state'] = 'proposed'
             elif body['strategy'].startswith('INT-'):
                 item['state'] = goal_state(found, body['strategy'])

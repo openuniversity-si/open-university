@@ -19,6 +19,11 @@
   },
   "child_of": "ST-torre",
   "owner_role": "manager",
+  "validated": {
+    "by": "Torre",
+    "date": "2026-11-22",
+    "authority": "Torre por delegação do Daniel 22/11/2026"
+  },
   "owner": "manager",
   "source": "docs/programs/padrao-dev/problema-desenho.md#3 (S&T)"
 }
