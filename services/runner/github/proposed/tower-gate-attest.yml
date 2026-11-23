@@ -1,16 +1,16 @@
-# tower-gate-attest (PROPOSED — D-087, D-359 proposed, C7 / THREAT-gate): workflow change for Daniel / the Torre to install.
-# Closes THREAT-gate (fork PR spoofing tower/gate under GitHub Actions integration_id 15368):
-#   1. Triggers ONLY on `workflow_run` of `tower-gate` (always executes main's immutable workflow definition,
-#      never the fork's or PR's checkout).
-#   2. Never checks out or executes any code from the PR head.
-#   3. Runs main's `scripts/workflow-attest verify` over the REST diff (base...head) and exact-head check runs:
-#      refuses any change to .github/workflows/, .github/actions/, .github/rulesets/, any fork PR touching .github/,
-#      and any missing or non-green required check.
-#   4. Sends the verified verdict to the external AWS Port / GitHub App (`TOWER_GATE_ATTESTER_URL`, private key
-#      held outside every workflow, TAIL-gate-fork-workflow.json), which posts the required status check
-#      `tower/gate-attested` under the external GitHub App's own integration_id (never 15368).
-# Requires adding `.github/workflows/tower-gate-attest.yml` to `gate.allowed_workflows` and installing to both
-# services/runner/github/tower-gate-attest.yml and .github/workflows/tower-gate-attest.yml in the owner PR.
+# tower-gate-attest (SALTO 2 — D-087, D-359, C7 / THREAT-gate): instalado pela Torre, D-359 (after conditions B/C/D).
+# Staged Salto 2 draft closing THREAT-gate (fork PR spoofing tower/gate under GitHub Actions integration_id 15368).
+# Under D-359, workflow logic stays unchanged here and must satisfy conditions B, C, and D before Salto 2 install:
+#   (B) AWS attester verifies facts independently via App token (files, head repo, exact-SHA checks) without trusting
+#       a workflow-sent verdict; credentials live only in an environment restricted to main, never a repo secret.
+#   (C) Triggers on completion of both tower-gate and web (and in the merge queue), attesting green only when all
+#       required checks are green.
+#   (D) Explicit path lets the Torre install workflows (D-087) without being blocked by tower/gate-attested.
+# Staged draft summary:
+#   1. Triggers on `workflow_run` (executes main's immutable workflow definition, never untrusted PR head code).
+#   2. Runs main's `scripts/workflow-attest verify` and dispatches to the external GitHub App / AWS Port.
+# Requires adding `.github/workflows/tower-gate-attest.yml` to `gate.allowed_workflows` in a gate PR citing D-359
+# and installing to both services/runner/github/tower-gate-attest.yml and .github/workflows/tower-gate-attest.yml.
 name: tower-gate-attest
 on:
   workflow_run:

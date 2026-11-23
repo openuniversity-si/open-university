@@ -1,14 +1,15 @@
-# full-suite (PROPOSED — D-087, D-359 proposed, C6): workflow change for Daniel / the Torre to install.
-# Replaces services/runner/github/full-suite.yml and .github/workflows/full-suite.yml in the same owner PR
-# (queue-checks requires installed == staged).
+# full-suite (SALTO 2 — D-087, D-359, C6): instalado pela Torre, D-359 (after main full-suite stabilizes).
+# Replaces services/runner/github/full-suite.yml and .github/workflows/full-suite.yml in the same Torre PR
+# (queue-checks requires installed == staged). Under D-359, Andon is approved in principle for Salto 2 and
+# refresh-snapshots / TOWER_SNAPSHOT_TOKEN are deferred (workflow logic unchanged in this staged draft until Salto 2).
 #
 # Changes over the current full-suite.yml:
-#   1. Andon stop-the-line (C6): a red run opens or updates a single deduplicated issue labeled `main-red-andon`
-#      (paired with `main-health` in proposed/tower-gate.yml, which blocks non-`fix-main` PRs while main is red);
+#   1. Andon stop-the-line (C6, Salto 2): a red run opens or updates a single deduplicated issue labeled `main-red-andon`
+#      (paired with `main-health` in proposed/tower-gate.yml after full-suite stabilizes on main);
 #      the next green run automatically closes every open `main-red-andon` issue.
-#   2. Automated snapshot refresh (C6): after a green run, refreshes config/validation/{verdicts,slo,runs/tower-gate}.json
-#      (and scripts/tests/traced-covers.json when stale or requested) and opens a PR on `automation/refresh-snapshots`
-#      using TOWER_SNAPSHOT_TOKEN (never pushes to main, D-054; skips self-refresh commits to prevent loops).
+#   2. Automated snapshot refresh (deferred by D-359): refreshes config/validation/{verdicts,slo,runs/tower-gate}.json
+#      (and scripts/tests/traced-covers.json when stale or requested) via a merge-queue PR when enabled
+#      (TOWER_SNAPSHOT_TOKEN deferred; prefer an App token over a personal token if introduced later).
 #   3. CACHE-PGDATA: keeps the exact actions/cache step of tower-gate.yml, byte for byte.
 name: full-suite
 on:

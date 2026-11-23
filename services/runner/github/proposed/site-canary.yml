@@ -1,9 +1,9 @@
-# site-canary (PROPOSED — D-087, D-359 proposed, M6): workflow change for Daniel / the Torre to install.
+# site-canary (SALTO 1 — D-087, D-359, M6): instalado pela Torre, D-359.
 # Replaces the retired AWS-runner canary (D-346) with a read-only synthetic HTTP probe over the live
 # Open University site (https://openuniversity.si, Lambda open-university-web behind CloudFront).
 # Holds zero AWS credentials, zero deploy secrets, and performs zero production writes (D-054).
-# Requires adding `.github/workflows/site-canary.yml` to `gate.allowed_workflows` and copying this file
-# to both services/runner/github/site-canary.yml and .github/workflows/site-canary.yml in the owner PR.
+# Salto 1: first add `.github/workflows/site-canary.yml` to `gate.allowed_workflows` in a separate gate PR
+# citing D-359, then the Torre copies this file to services/runner/github/site-canary.yml and .github/workflows/site-canary.yml.
 name: site-canary
 on:
   push:

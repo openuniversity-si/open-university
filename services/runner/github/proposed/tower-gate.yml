@@ -1,15 +1,15 @@
-# tower/gate (PROPOSED — D-087, D-359 proposed, C6, C7): workflow change for Daniel / the Torre to install.
-# Replaces services/runner/github/tower-gate.yml and .github/workflows/tower-gate.yml in the same owner PR.
+# tower/gate (SALTO 2 — D-087, D-359, C6, C7): instalado pela Torre, D-359 (after main full-suite stabilizes).
+# Replaces services/runner/github/tower-gate.yml and .github/workflows/tower-gate.yml in the same Torre PR.
 #
 # Changes over the current tower-gate.yml:
-#   1. Adds `main-health` (Andon stop-the-line, C6): runs from the base's checkout of scripts/workflow-attest
-#      against base's latest completed `full-suite` check-run and open `main-red-andon` issues; refuses
-#      non-`fix-main` PRs while main is red.
+#   1. Adds `main-health` (Andon stop-the-line, C6, Salto 2): runs from the base's checkout of scripts/workflow-attest
+#      against base's latest completed `full-suite` check-run and open `main-red-andon` issues; enters only after
+#      fixing full-suite reds on main (gate-areas coupled to live covers graph) and stabilizing full-suite.
 #   2. `tower/gate` requires `needs: [part, pinned, main_health]`, so every part, the pinned base gate, and
 #      main's Andon health must all pass.
 #   3. Preserves GATE-PARTS, VERDICT-REUSE, CACHE-PGDATA, PINNED-ON-GITHUB (no cache on pinned), and
 #      40-char commit SHA pins on every external action. Paired with proposed/tower-gate-attest.yml and
-#      proposed/ruleset-main.json to close THREAT-gate via an external GitHub App (C7).
+#      proposed/ruleset-main.json in Salto 2 (subject to D-359 conditions B/C/D) to close THREAT-gate (C7).
 name: tower-gate
 on:
   pull_request:

@@ -337,6 +337,33 @@ class ProposalAuditTests(unittest.TestCase):
         self.assertEqual(len(rows), 1, 'DECISIONS.md must have exactly one row for D-359')
         self.assertTrue(rows[0].endswith('| recorded |'), rows[0])
 
+    def test_staged_readme_and_workflow_headers_reflect_d359_two_leaps_without_daniel_wait(self):
+        proposed_dir = ROOT / workflow_attest.PROPOSED_DIR
+        readme = (proposed_dir / 'README.md').read_text(encoding='utf-8')
+        for required in ('instalado pela Torre, D-359', 'Salto 1', 'Salto 2', 'tower-gate-attester', '(B)', '(C)', '(D)'):
+            self.assertIn(required, readme)
+        readme_lower = readme.lower()
+        for forbidden in (
+            'owner decision required',
+            'requer decisão do daniel',
+            'requer aprovação do daniel',
+            "daniel's explicit approval",
+            'd-359 proposed',
+            'status: proposed',
+        ):
+            self.assertNotIn(forbidden, readme_lower)
+        for name in ('site-canary.yml', 'full-suite.yml', 'tower-gate.yml', 'tower-gate-attest.yml'):
+            header_lines = []
+            for line in (proposed_dir / name).read_text(encoding='utf-8').splitlines():
+                if not line.startswith('#'):
+                    break
+                header_lines.append(line)
+            header = '\n'.join(header_lines)
+            self.assertIn('instalado pela Torre, D-359', header, name)
+            header_lower = header.lower()
+            for forbidden in ('for daniel', 'requer decisão', 'explicit approval', 'd-359 proposed'):
+                self.assertNotIn(forbidden, header_lower, f'{name}: {forbidden}')
+
 
 if __name__ == '__main__':
     unittest.main()
