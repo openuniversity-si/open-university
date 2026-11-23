@@ -326,10 +326,31 @@ class TinyModel(unittest.TestCase):
                              {'id': 'a.one', 'type': 'ARC'})
         counted = model.inventory(self.meta(), found, self.root)['all']
         self.assertEqual((counted['ids'], counted['imported']), (len(['D-1', 'D-2', 'D-3', 'A', 'a.one', 'a.two']), 2))
+        self.assertEqual(counted['by_type'], {'REQ': counted['imported']})
         write(self.root, 'config/model/inventory/all.json', {
             'id': 'all', 'name': 'all', 'becomes': ['REQ'], 'description': 'd',
             'parts': [{'kind': 'registry', 'glob': 'reg.json', 'pattern': 'two$'}]})
         self.assertEqual(model.inventory(self.meta(), found, self.root)['all']['ids'], 1)
+
+    def test_the_inventory_banner_separates_cataloged_object_types_from_requirements(self):
+        write(self.root, 'docs/D-1.md', '')
+        write(self.root, 'docs/R-1.md', '')
+        write(self.root, 'config/model/inventory/decisions.json', {
+            'id': 'decisions', 'name': 'd', 'becomes': ['D', 'REQ'], 'description': 'd',
+            'parts': [{'kind': 'filename', 'glob': 'docs/D-*.md', 'pattern': '^(D-[0-9]+)\\.md$'}]})
+        write(self.root, 'config/model/inventory/reqs.json', {
+            'id': 'reqs', 'name': 'r', 'becomes': ['REQ'], 'description': 'r',
+            'parts': [{'kind': 'filename', 'glob': 'docs/R-*.md', 'pattern': '^(R-[0-9]+)\\.md$'}]})
+        found = self.objects({'id': 'D-1', 'type': 'D', 'state': 'accepted'},
+                             {'id': 'REQ-1', 'type': 'REQ', 'state': 'draft', 'source_id': 'R-1'})
+        result = model.measure(self.root, meta=self.meta(), found=found)
+        self.assertEqual(result['inventory']['by_type'], {'D': 1, 'REQ': 1})
+        self.assertEqual(result['inventory']['requirements'], 1)
+        rendered = model.summary(result)
+        self.assertIn('inventory: 2 of 2 cataloged id(s) are objects of the model (1 D, 1 REQ)', rendered)
+        self.assertNotIn('requirement id(s)', rendered)
+        self.assertIn('  decisions: 1 of 1 (1 D)', rendered)
+        self.assertIn('  reqs: 1 of 1 (1 REQ)', rendered)
 
 
 class Rules(unittest.TestCase):
@@ -767,6 +788,43 @@ class Requirements(unittest.TestCase):
         found = self.found()
         self.assertEqual(found['REQ-slo-slo-gate-p95-s']['body']['implemented_by'], ['CHG-initial'])
         self.assertNotIn('problems', found['REQ-slo-slo-gate-p95-s'])
+
+    def test_a_batch_import_implemented_by_applies_to_its_requirements(self):
+        write(self.root, 'config/requirements/imports/contract.json', {
+            'id': 'contract', 'type': 'product', 'state': 'approved', 'owner': 'Daniel',
+            'derives_from': {'*': 'NEED-throughput'}, 'implemented_by': ['CHG-161']})
+        found = self.found()
+        self.assertEqual(found['REQ-contract-inv-a1']['body']['implemented_by'], ['CHG-161'])
+        self.assertEqual(found['REQ-contract-g-b2']['body']['implemented_by'], ['CHG-161'])
+        self.assertNotIn('problems', found['REQ-contract-inv-a1'])
+
+    def test_active_requirements_without_test_links_stay_honestly_unverified_and_pass_check(self):
+        write(self.root, 'config/requirements/imports/contract.json', {
+            'id': 'contract', 'type': 'product', 'state': 'approved', 'owner': 'Daniel',
+            'derives_from': {'*': 'NEED-throughput'}, 'implemented_by': ['CHG-161']})
+        write(self.root, 'config/architecture/ARC-web.json', {
+            'id': 'ARC-web', 'kind': 'component', 'name': 'Site', 'statement': 'Site', 'state': 'active',
+            'owner': 'Daniel', 'satisfies': ['REQ-contract-inv-a1', 'REQ-contract-g-b2'], 'depends_on': [], 'layer': 1})
+        found = self.found(model.read_intent, model.read_requirements, model.read_architecture)
+        found['CHG-161'] = {'id': 'CHG-161', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'c', 'links': []}
+        model.link_implemented_by(found)
+        meta = model.metamodel(self.root)
+        errors, _ = model.check(meta, found)
+        self.assertEqual(errors, [])
+        states = model.requirement_states(found)
+        self.assertEqual(states['REQ-contract-inv-a1'], 'implemented')
+        self.assertEqual(states['REQ-contract-g-b2'], 'implemented')
+        into = model.incoming(found)
+        self.assertFalse(model.covered(meta, found['REQ-contract-inv-a1'], into, found))
+        self.assertFalse(model.covered(meta, found['REQ-contract-g-b2'], into, found))
+
+    def test_a_decision_record_with_status_proposed_stays_proposed(self):
+        write(self.root, 'docs/domain/decisions/D-999.md',
+              '---\nnumber: D-999\nstatus: proposed\ntime: 22/11 13:47 BRT\npremises: none\n'
+              'proof: scripts/tests/test_model.py\n---\nPending owner decision.\n')
+        found = {item['id']: item for item in model.read_decisions(self.root)}
+        self.assertEqual(found['D-999']['state'], 'proposed')
+        self.assertEqual(model.row_state('proposed'), 'proposed')
 
     def test_a_requirement_file_links_its_need_and_decision_and_gaps_are_warnings(self):
         write(self.root, 'config/requirements/REQ-gate-60s.json', {
@@ -1547,21 +1605,27 @@ class Architecture(unittest.TestCase):
             'owner': 'o', 'source': 's', 'derives_from': ['NEED-speed']})
         write(self.root, 'config/architecture/ARC-config.json', {
             'id': 'ARC-config', 'kind': 'component', 'name': 'Config', 'statement': 'config', 'state': 'active',
-            'owner': 'o', 'depends_on': ['ARC-gate'], 'layer': 0})
+            'owner': 'o', 'depends_on': [], 'layer': 0})
+        write(self.root, 'config/architecture/ARC-gate.json', {
+            'id': 'ARC-gate', 'kind': 'component', 'name': 'The gate', 'statement': 's', 'state': 'active',
+            'owner': 'capacity', 'satisfies': ['REQ-gate-60s'], 'depends_on': ['ARC-config'], 'layer': 1})
+        write(self.root, 'config/architecture/ARC-delivery.json', {
+            'id': 'ARC-delivery', 'kind': 'component', 'name': 'Delivery', 'statement': 'delivery', 'state': 'active',
+            'owner': 'o', 'depends_on': ['ARC-gate'], 'layer': 1})
         write(self.root, 'config/security/threats/THREAT-gate.json', {
             'id': 'THREAT-gate', 'models': 'ARC-gate', 'assets': ['a'], 'boundaries': [],
             'threats': [{'stride': 'tampering', 'statement': 's'}], 'reviewed': '2026-11-19'})
         readers = (model.read_intent, model.read_requirements, model.read_architecture, model.read_threats)
         def load():
             return model.objects(self.root, readers=readers)
-        # Mutual ARC-gate <-> ARC-config cycle plus THREAT -> ARC and REQ -> NEED converge in a single stamp pass.
+        # Multi-hop DAG (THREAT -> ARC-gate, ARC-delivery -> ARC-gate -> ARC-config, REQ -> NEED) converges in one pass.
         before = load()
         self.assertTrue(model.stamp(self.root, check_only=True, found=before))
         stamped = model.stamp(self.root, found=before)
         self.assertEqual(stamped, [
             'config/security/threats/THREAT-gate.json',
             'config/requirements/REQ-gate-60s.json',
-            'config/architecture/ARC-config.json',
+            'config/architecture/ARC-delivery.json',
             'config/architecture/ARC-gate.json',
         ])
         after = load()
@@ -1572,18 +1636,19 @@ class Architecture(unittest.TestCase):
         self.assertEqual([line for line in warnings if 'is suspect' in line], [])
         self.assertTrue(all(link.get('fingerprint') for link in after['THREAT-gate']['links']))
         self.assertTrue(all(link.get('fingerprint') for link in after['REQ-gate-60s']['links']))
+        self.assertTrue(all(link.get('fingerprint') for link in after['ARC-delivery']['links']))
         self.assertTrue(all(link.get('fingerprint') for link in after['ARC-gate']['links']))
-        # Changing ARC-gate invalidates THREAT-gate and ARC-config links as suspect.
+        # Changing ARC-gate invalidates THREAT-gate and ARC-delivery links as suspect.
         gate_body = json.loads((self.root / 'config/architecture/ARC-gate.json').read_text())
         gate_body['statement'] = 'changed responsibility'
         write(self.root, 'config/architecture/ARC-gate.json', gate_body)
         drifted = load()
         _, drifted_warnings = model.check(meta, drifted)
         self.assertIn('THREAT-gate: models ARC-gate is suspect (the target changed)', drifted_warnings)
-        self.assertIn('ARC-config: depends-on ARC-gate is suspect (the target changed)', drifted_warnings)
+        self.assertIn('ARC-delivery: depends-on ARC-gate is suspect (the target changed)', drifted_warnings)
         self.assertEqual(model.stamp(self.root, check_only=True, found=drifted), [
             'config/security/threats/THREAT-gate.json',
-            'config/architecture/ARC-config.json',
+            'config/architecture/ARC-delivery.json',
         ])
 
     def test_a_capability_is_an_element_read_where_it_is_with_its_status_and_the_import_overrides(self):
@@ -1769,6 +1834,117 @@ class Layers(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn('ARC-up: depends on ARC-mid of a higher layer', errors[0])
 
+    def test_same_layer_and_multi_node_dependency_cycles_are_refused(self):
+        def arc(id, layer, *targets):
+            return {'id': id, 'type': 'ARC', 'state': 'active', 'fingerprint': 'f', 'body': {'layer': layer},
+                    'links': [{'type': 'depends-on', 'target': target} for target in targets]}
+        same_layer = {item['id']: item for item in (arc('ARC-a', 0, 'ARC-b'), arc('ARC-b', 0, 'ARC-a'))}
+        errors = model.layer_errors(same_layer)
+        self.assertEqual(errors, ['ARC-a: dependency cycle ARC-a -> ARC-b -> ARC-a; '
+                                  'break the cycle instead of declaring it (D-322)'])
+        three_node = {item['id']: item for item in (arc('ARC-x', 1, 'ARC-y'), arc('ARC-y', 1, 'ARC-z'),
+                                                    arc('ARC-z', 1, 'ARC-x'))}
+        self.assertEqual(model.layer_errors(three_node),
+                         ['ARC-x: dependency cycle ARC-x -> ARC-y -> ARC-z -> ARC-x; '
+                          'break the cycle instead of declaring it (D-322)'])
+        self_loop = {'ARC-self': arc('ARC-self', 0, 'ARC-self')}
+        self.assertEqual(model.layer_errors(self_loop),
+                         ['ARC-self: dependency cycle ARC-self -> ARC-self; '
+                          'break the cycle instead of declaring it (D-322)'])
+
+
+class PhantomTypes(unittest.TestCase):
+    """CFG, CON, and LESSON have real readers and conformance rules (audit finding A6)."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='model-phantom-'))
+        self.addCleanup(shutil.rmtree, self.root)
+        for folder in ('contracts/model', 'config/model', 'contracts/lessons'):
+            shutil.copytree(ROOT / folder, self.root / folder)
+
+    def test_cfg_reads_toolchain_pins_and_registry_aggregates_and_flags_drift_and_bad_checksums(self):
+        import generate_registry
+        import json_schema
+        good_sha = 'a' * len('0123456789abcdef' * len('abcd'))
+        write(self.root, 'scripts/cloud/toolchain.json', {
+            'python': {'sha256': {'3.12.15': {'x86_64': good_sha}}},
+            'ruff': {'sha256': {'0.16.9': {'x86_64': 'not-a-sha'}}},
+        })
+        write(self.root, 'config/registry/demo/_owner.json', {
+            '$schema': json_schema.DIALECT,
+            '$id': 'config/registry/demo.json', 'x-owner': 'demo', 'type': 'object',
+        })
+        write(self.root, 'config/registry/demo/demo.flag.json', {
+            'type': 'boolean', 'default': True, 'description': 'A demo flag.', 'x-unit': 'flag', 'x-readers': [],
+        })
+        expected = generate_registry.assemble(self.root, 'demo')
+        write(self.root, 'config/registry/demo.json', expected)
+        items = {item['id']: item for item in model.read_configs(self.root)}
+        self.assertTrue(items['CFG-toolchain-python']['body']['valid'])
+        self.assertFalse(items['CFG-toolchain-ruff']['body']['valid'])
+        self.assertIn('problems', items['CFG-toolchain-ruff'])
+        self.assertTrue(items['CFG-registry-demo']['body']['valid'])
+        self.assertFalse(items['CFG-registry-demo']['body']['drifted'])
+        # Introduce drift in the aggregate against its split key file
+        write(self.root, 'config/registry/demo.json', expected.replace('true', 'false'))
+        drifted = {item['id']: item for item in model.read_configs(self.root)}
+        self.assertTrue(drifted['CFG-registry-demo']['body']['drifted'])
+        self.assertFalse(drifted['CFG-registry-demo']['body']['valid'])
+        meta = model.metamodel(self.root)
+        self.assertTrue(model.judged(meta, 'CFG'))
+        errors, _ = model.check(meta, drifted)
+        self.assertTrue(any(err.startswith('CFG-registry-demo:') for err in errors), errors)
+        self.assertTrue(any(err.startswith('CFG-toolchain-ruff:') for err in errors), errors)
+
+    def test_con_reads_versioned_contracts_and_flags_invalid_schema_or_id(self):
+        import json_schema
+        write(self.root, 'contracts/events/schemas.lock.json', {'schemas': {}})
+        write(self.root, 'contracts/demo/ok.v1.json', {
+            '$schema': json_schema.DIALECT,
+            '$id': 'contracts/demo/ok.v1.json', 'type': 'object', 'properties': {'a': {'type': 'string'}},
+        })
+        write(self.root, 'contracts/demo/bad.v1.json', {
+            '$schema': json_schema.DIALECT,
+            '$id': 'contracts/demo/wrong.v1.json', 'type': 'object',
+        })
+        items = {item['id']: item for item in model.read_contracts(self.root)}
+        self.assertIn('CON-demo-ok-v1', items)
+        self.assertTrue(items['CON-demo-ok-v1']['body']['valid'])
+        self.assertFalse(items['CON-demo-bad-v1']['body']['valid'])
+        self.assertIn('problems', items['CON-demo-bad-v1'])
+        self.assertFalse(any('schemas-lock' in ident for ident in items))
+        meta = model.metamodel(self.root)
+        self.assertTrue(model.judged(meta, 'CON'))
+        errors, _ = model.check(meta, items)
+        self.assertTrue(any(err.startswith('CON-demo-bad-v1:') for err in errors), errors)
+
+    def test_lesson_reads_records_and_flags_corrupt_audit_trail(self):
+        sample = next((ROOT / 'docs/process/lessons').glob('*.yml'))
+        audit = sample.with_name(sample.stem + '.audit.jsonl')
+        (self.root / 'docs/process/lessons').mkdir(parents=True, exist_ok=True)
+        shutil.copy(sample, self.root / 'docs/process/lessons' / sample.name)
+        shutil.copy(audit, self.root / 'docs/process/lessons' / audit.name)
+        items = {item['id']: item for item in model.read_lessons(self.root)}
+        self.assertEqual(len(items), 1)
+        item = next(iter(items.values()))
+        self.assertEqual(item['state'], 'open')
+        self.assertTrue(item['body']['valid'])
+        self.assertTrue(item['body']['owned'])
+        self.assertTrue(item['body']['actionable'])
+        # Corrupt the audit chain digest
+        broken_audit = self.root / 'docs/process/lessons' / audit.name
+        entry = json.loads(broken_audit.read_text().splitlines()[0])
+        entry['digest'] = '0' * len(entry['digest'])
+        broken_audit.write_text(json.dumps(entry, sort_keys=True) + '\n')
+        corrupt = {obj['id']: obj for obj in model.read_lessons(self.root)}
+        bad = next(iter(corrupt.values()))
+        self.assertFalse(bad['body']['valid'])
+        self.assertIn('problems', bad)
+        meta = model.metamodel(self.root)
+        self.assertTrue(model.judged(meta, 'LESSON'))
+        errors, _ = model.check(meta, corrupt)
+        self.assertTrue(any(err.startswith(f'{bad["id"]}:') for err in errors), errors)
+
 
 class RealRepository(unittest.TestCase):
     def test_a_site_test_counts_only_when_it_declares_what_it_verifies_and_a_typescript_comment_declares_it(self):
@@ -1783,8 +1959,13 @@ class RealRepository(unittest.TestCase):
         self.assertEqual({kind['system'] for kind in meta['types'].values()}, set(meta['systems']))
 
     def test_every_object_of_this_checkout_fits_the_metamodel(self):
-        errors, _ = model.check(model.metamodel(ROOT), model.objects(ROOT))
+        meta = model.metamodel(ROOT)
+        found = model.objects(ROOT)
+        errors, _ = model.check(meta, found)
         self.assertEqual(errors, [])
+        for kind in ('CFG', 'CON', 'LESSON'):
+            self.assertTrue(model.judged(meta, kind), kind)
+            self.assertTrue(any(item['type'] == kind for item in found.values()), kind)
 
     def test_a_decision_proof_becomes_a_verifies_link_on_the_test_and_a_gone_proof_a_warning(self):
         found = model.objects(ROOT)
@@ -1807,11 +1988,41 @@ class RealRepository(unittest.TestCase):
         meta = model.metamodel(ROOT)
         self.assertEqual(set(result['inventory']['sources']), set(meta['inventory']))
         self.assertTrue(all(item['ids'] for item in result['inventory']['sources'].values()))
+        self.assertEqual(result['requirements']['by_type'].get('product'),
+                         len(model.source_entries(ROOT, meta['inventory']['contract'])))
+        self.assertNotIn('REQ-slo-budgets-budgets-pr-commits-max', model.objects(ROOT))
+        self.assertNotIn('REQ-slo-budgets-budgets-pr-commits-min', model.objects(ROOT))
+        d356 = model.objects(ROOT)['D-356']
+        self.assertEqual((d356['state'], d356['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(d356))
         levels = {level['level'] for level in meta['scale']}
         self.assertTrue(all(item['level'] in levels for item in result['systems'].values()))
         self.assertEqual(set(result['systems']), set(meta['systems']))
         self.assertIn('chain:', model.summary(result))
+        self.assertIn(('ARC-delivery', 'ARC-measurement'), result['architecture']['cli']['upward'])
+        self.assertIn('cli couplings:', model.summary(result))
         self.assertIn('exemptions (TAIL):', model.summary(result))
+
+    def test_d356_scope_accepted_contract_active_and_slo_budgets_excludes_commit_counts(self):
+        found = model.objects(ROOT)
+        meta = model.metamodel(ROOT)
+        d356 = found['D-356']
+        self.assertEqual((d356['state'], d356['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(d356))
+        self.assertNotIn('REQ-slo-budgets-budgets-pr-commits-max', found)
+        self.assertNotIn('REQ-slo-budgets-budgets-pr-commits-min', found)
+        self.assertEqual(found['CFG-registry-budgets']['state'], 'active')
+        budgets = json.loads((ROOT / 'config/registry/budgets.json').read_text())['properties']
+        self.assertIn('budgets.pr_commits_max', budgets)
+        self.assertIn('budgets.pr_commits_min', budgets)
+        contract_ids = {f'REQ-contract-{model._slug(source_id)}'
+                        for source_id in model.source_entries(ROOT, meta['inventory']['contract'])}
+        self.assertTrue(contract_ids)
+        satisfied = {link['target'] for link in found['ARC-web']['links'] if link['type'] == 'satisfies'}
+        for ident in contract_ids:
+            self.assertEqual(found[ident]['state'], 'approved')
+            self.assertEqual(found[ident]['body']['type'], 'product')
+            self.assertIn(ident, satisfied)
 
     def test_session_decided_exemptions_do_not_close_security_in_this_checkout(self):
         found = model.objects(ROOT)

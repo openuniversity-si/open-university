@@ -10,11 +10,11 @@
     {
       "kind": "registry",
       "glob": "config/registry/budgets.json",
-      "pattern": "^budgets\\.(pr_changed_lines|pr_commits_min|pr_commits_max|regression_tolerance_percent|tighten_only)$"
+      "pattern": "^budgets\\.(pr_changed_lines|regression_tolerance_percent|tighten_only)$"
     }
   ],
   "becomes": [
     "REQ"
   ],
-  "description": "Quality requirements held as registry values: the 9 SLO and budget keys that are thresholds; the other keys of the two owners are their parameters (configuration items), not requirements (PADRAO-DEV F2a)."
+  "description": "Quality requirements held as registry values: the 7 SLO and budget keys that are active thresholds; budgets.pr_commits_max (0, unlimited under D-307) and budgets.pr_commits_min (1, structural commit-plan floor enforced by STD-commit-check-plan-errors) remain configuration items (CFG), not quality requirements (D-356)."
 }

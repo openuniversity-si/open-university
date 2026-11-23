@@ -20,8 +20,8 @@
   ],
   "layer": 5,
   "target_fingerprints": {
-    "ARC-config": "537e4811f8d6",
-    "ARC-delivery": "27deb0478131",
+    "ARC-config": "93555f69260e",
+    "ARC-delivery": "5b25bcf488f9",
     "ARC-deploy": "fa8eccbe88e1",
     "ARC-events": "da9896b4db87",
     "ARC-gate": "fdb04d9f45fe",

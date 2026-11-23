@@ -12,5 +12,15 @@
     "deprecated",
     "retired"
   ],
-  "description": "A versioned JSON Schema contract a unit provides or consumes."
+  "unconformant_states": [
+    "proposed"
+  ],
+  "unconformant_when": [
+    {
+      "valid": [
+        false
+      ]
+    }
+  ],
+  "description": "A versioned JSON Schema contract under contracts/, validated for 2020-12 dialect, $id path identity, naming and schema validity; unconformant when proposed or invalid."
 }

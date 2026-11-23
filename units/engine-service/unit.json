@@ -23,12 +23,6 @@
     "scripts/tests/test_service_workflows.py",
     "docs/operations/services.md"
   ],
-  "requires": {
-    "engine-config": "^1",
-    "engine-events": "^1",
-    "engine-git-ref": "^1",
-    "engine-role": "^1"
-  },
   "realizes": [
     "ARC-deploy"
   ],
@@ -37,5 +31,12 @@
     "D-086",
     "D-087",
     "D-088"
-  ]
+  ],
+  "requires": {
+    "engine-config": "^1",
+    "engine-events": "^1",
+    "engine-git-ref": "^1",
+    "engine-records": "^1",
+    "engine-role": "^1"
+  }
 }

@@ -16,6 +16,7 @@ from pathlib import Path
 import re
 
 DIALECT = 'https://json-schema.org/draft/2020-12/schema'
+EVENT_PAYLOAD_FILE = re.compile(r'^(?P<type>[a-z][a-z-]*(?:\.[a-z][a-z-]*)+)\.v(?P<version>[1-9][0-9]*)\.json$')
 ANNOTATIONS = frozenset({'$schema', '$id', '$comment', 'title', 'description', 'default', 'deprecated', 'examples',
                          'readOnly', 'writeOnly'})
 APPLICATORS = frozenset({'$defs', '$ref', 'type', 'enum', 'const', 'properties', 'required', 'additionalProperties',

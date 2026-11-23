@@ -22,11 +22,11 @@ import urllib.error
 import urllib.request
 
 import config
+import forge_events
 
 
 def system_clock():
     """The registry's clock (forge-events.clock); tests pass their own time to main."""
-    import forge_events
     return forge_events.clock_from_config().now()
 
 
