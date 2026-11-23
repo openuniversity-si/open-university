@@ -9,8 +9,8 @@ import json
 from pathlib import Path
 
 import config
-from event_contracts import PAYLOAD_FILE
 from generate import sources
+from json_schema import EVENT_PAYLOAD_FILE as PAYLOAD_FILE
 
 
 def cell(value):

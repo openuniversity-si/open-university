@@ -2,7 +2,7 @@
 and the aws-spend measure of VAL-aws-200; the supplier-spend measure on a reading checked by hand, its threshold read
 from a registry key (D-342). Hermetic: in-memory answers and temporary folders.
 
-Verifies: REQ-aws-200, REQ-anthropic-budget
+Verifies: REQ-aws-200
 """
 import contextlib
 import io
@@ -130,13 +130,18 @@ class SupplierSpend(unittest.TestCase):
         self.assertEqual(found['VAL-acme']['problems'], ['its threshold_key test.no_such_key is not a registered parameter'])
         self.assertNotIn('body', found['VAL-acme'])
 
-    def test_the_repositorys_anthropic_budget_is_met_by_its_first_reading(self):
-        item = next(item for item in model.read_validations(ROOT) if item['id'] == 'VAL-anthropic-budget')
-        body = item['body']
-        self.assertEqual(body['threshold'], model.registry_threshold(body['threshold_key'], ROOT))
-        recorded = spend.read_supplier(ROOT, body['measure']['supplier'])
-        model.derive_validations({item['id']: item}, ROOT, recorded['day'])
-        self.assertEqual((item['measured'], item['state']), (recorded['usd'], 'met'))
+    def test_anthropic_monthly_budget_validation_snapshot_and_registry_key_are_retired_by_d362(self):
+        vals = model.read_validations(ROOT)
+        self.assertNotIn('VAL-anthropic-budget', [item['id'] for item in vals])
+        self.assertFalse((ROOT / 'config/validation/VAL-anthropic-budget.json').exists())
+        self.assertFalse((ROOT / 'config/validation/spend/anthropic.json').exists())
+        for item in vals + model.read_problem(ROOT):
+            measure = (item.get('body') or {}).get('measure') or {}
+            self.assertNotEqual(measure.get('supplier'), 'anthropic', item['id'])
+        req = json.loads((ROOT / 'config/requirements/REQ-anthropic-budget.json').read_text())
+        self.assertEqual((req['state'], req['retired_by']), ('obsolete', 'D-362'))
+        supply_props = json.loads((ROOT / 'config/registry/supply.json').read_text())['properties']
+        self.assertFalse(any('anthropic' in key for key in supply_props), sorted(supply_props))
 
 
 if __name__ == '__main__':

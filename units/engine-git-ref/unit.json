@@ -6,11 +6,9 @@
   "paths": [
     "scripts/lib/branch_age.py",
     "scripts/lib/forge_git_ref.py",
-    "scripts/lib/git_objects.py",
     "scripts/tests/forge-git-ref.test.sh",
     "scripts/tests/test_branch_age.py",
-    "scripts/tests/test_forge_git_ref.py",
-    "scripts/tests/test_git_objects.py"
+    "scripts/tests/test_forge_git_ref.py"
   ],
   "requires": {
     "engine-config": "^1"

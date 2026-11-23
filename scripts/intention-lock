@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Usage: scripts/intention-lock [--base REF] [--pr-body FILE] [--title TITLE] [--worktree]
+# Enforces the SEMENTE §6 intention lock on docs/SEMENTE.md (§3, §6) and config/intent/INT-*.json.
+set -euo pipefail
+exec "${OU_PYTHON:-python3}" "$(dirname "$0")/lib/intention_lock.py" "$@"

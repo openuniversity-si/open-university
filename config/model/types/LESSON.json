@@ -11,5 +11,22 @@
     "applied",
     "retired"
   ],
-  "description": "A lesson from a retrospective, or a friction counted until it becomes a unit."
+  "unconformant_when": [
+    {
+      "valid": [
+        false
+      ]
+    },
+    {
+      "owned": [
+        false
+      ]
+    },
+    {
+      "actionable": [
+        false
+      ]
+    }
+  ],
+  "description": "A lesson from a retrospective (docs/process/lessons/*.yml), validated through scripts/lib/lessons.py (schema, vocabulary and hash-chained audit trail); unconformant when invalid, unowned or without an actionable change."
 }

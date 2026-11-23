@@ -1,6 +1,6 @@
 """The registry check that refuses a looser budget and a rewritten-upward baseline (B1, D-069 item 14). Hermetic: a
 temporary git repository per case, no network."""
-# Verifies: REQ-slo-budgets-budgets-pr-commits-min, REQ-slo-budgets-budgets-pr-commits-max, REQ-slo-budgets-budgets-regression-tolerance-percent, REQ-slo-budgets-budgets-tighten-only
+# Verifies: REQ-slo-budgets-budgets-regression-tolerance-percent, REQ-slo-budgets-budgets-tighten-only
 import copy
 import json
 from pathlib import Path

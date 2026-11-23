@@ -9,8 +9,6 @@
     "slo.merged_prs_per_hour_min": "NEED-throughput",
     "slo.train_queue_time_p95_s": "NEED-throughput",
     "budgets.pr_changed_lines": "NEED-changeability",
-    "budgets.pr_commits_min": "NEED-changeability",
-    "budgets.pr_commits_max": "NEED-changeability",
     "budgets.regression_tolerance_percent": "NEED-quality",
     "budgets.tighten_only": "NEED-quality"
   },
@@ -24,18 +22,6 @@
       "retired_by": "D-316"
     },
     "budgets.pr_changed_lines": {
-      "state": "approved",
-      "implemented_by": [
-        "CHG-initial"
-      ]
-    },
-    "budgets.pr_commits_min": {
-      "state": "approved",
-      "implemented_by": [
-        "CHG-initial"
-      ]
-    },
-    "budgets.pr_commits_max": {
       "state": "approved",
       "implemented_by": [
         "CHG-initial"
@@ -66,5 +52,5 @@
       ]
     }
   },
-  "note": "slo.gate_tier1_p95_s (10 s) was the gate of the engine's own box; on GitHub (D-314) the gate's ceiling is REQ-gate-60s, and D-351 retired the registry key (deprecated: true) and its SLO reader. slo.train_queue_time_p95_s measured the train, dormant since D-316. D-332: the seven approved keys are implemented by the initial public tree (CHG-initial): structure.py (budgets.pr_changed_lines), commit_check.py (budgets.pr_commits_min/max), budget_check.py (budgets.regression_tolerance_percent, budgets.tighten_only) and slo.py (the two SLOs)."
+  "note": "slo.gate_tier1_p95_s (10 s) was the gate of the engine's own box; on GitHub (D-314) the gate's ceiling is REQ-gate-60s, and D-351 retired the registry key (deprecated: true) and its SLO reader. slo.train_queue_time_p95_s measured the train, dormant since D-316. budgets.pr_commits_max (0, unlimited under D-307) and budgets.pr_commits_min (1, structural plan floor) stay configuration items (CFG) rather than quality requirements (D-356). D-332: the five approved keys are implemented by the initial public tree (CHG-initial): structure.py (budgets.pr_changed_lines), budget_check.py (budgets.regression_tolerance_percent, budgets.tighten_only) and slo.py (the two SLOs)."
 }

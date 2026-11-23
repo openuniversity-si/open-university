@@ -12,5 +12,25 @@
     "deprecated",
     "retired"
   ],
-  "description": "A registry key, a toolchain pin or another configured value."
+  "unconformant_states": [
+    "proposed"
+  ],
+  "unconformant_when": [
+    {
+      "valid": [
+        false
+      ]
+    },
+    {
+      "drifted": [
+        true
+      ]
+    },
+    {
+      "owned": [
+        false
+      ]
+    }
+  ],
+  "description": "A registry owner aggregate (checked for shape and regeneration drift against its split key files) or a toolchain pin (checked for valid SHA-256 checksums); unconformant when proposed, invalid, drifted or unowned."
 }

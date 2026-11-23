@@ -1076,10 +1076,11 @@ def read_requirements(root):
             need = needs.get(source_id, needs.get('*'))
             own = body.get('overrides', {}).get(source_id, {})
             retired = own.get('retired_by', body.get('retired_by'))
+            impl = own.get('implemented_by', body.get('implemented_by'))
             fields = {'type': body['type'], 'statement': statement, 'state': own.get('state', body['state']),
                       'owner': body['owner'], 'source': where, **({'retired_by': retired} if retired else {}),
                       **({'derives_from': [need]} if need else {}),
-                      **({'implemented_by': own['implemented_by']} if 'implemented_by' in own else {})}
+                      **({'implemented_by': impl} if impl else {})}
             item = _obj(f'REQ-{path.stem}-{_slug(source_id)}', 'REQ', fields['state'], where, statement,
                         _requirement_links(fields))
             item.update(body=fields, source_id=source_id)
@@ -1921,14 +1922,32 @@ def read_adrs(root):
 
 
 def layer_errors(found):
-    """An architecture element may declare a dependency on its own layer or a lower one (D-322); one that goes up is
-    a defect to break, never accepted by declaring it."""
+    """An architecture element may declare a dependency on its own layer or a lower one (D-322), and the declared
+    dependency graph between elements must be acyclic; an upward edge or a cycle (even within the same layer) is a
+    defect to break, never accepted by declaring it."""
     layers = {id: item['body'].get('layer') for id, item in found.items() if item['type'] == 'ARC' and 'body' in item}
-    return [f'{id}: depends on {link["target"]} of a higher layer ({layers[link["target"]]} > {layers[id]}); break the '
-            f'dependency instead of declaring it (D-322)'
-            for id in sorted(layers) for link in found[id]['links']
-            if link['type'] == 'depends-on' and layers[id] is not None and layers.get(link['target']) is not None
-            and layers[link['target']] > layers[id]]
+    errors = [f'{id}: depends on {link["target"]} of a higher layer ({layers[link["target"]]} > {layers[id]}); break the '
+              f'dependency instead of declaring it (D-322)'
+              for id in sorted(layers) for link in found[id]['links']
+              if link['type'] == 'depends-on' and layers[id] is not None and layers.get(link['target']) is not None
+              and layers[link['target']] > layers[id]]
+    graph = {id: sorted({link['target'] for link in found[id]['links']
+                         if link['type'] == 'depends-on' and link['target'] in layers})
+             for id in sorted(layers)}
+    cycles = set()
+    for start in sorted(graph):
+        stack = [(start, [start])]
+        while stack:
+            node, path = stack.pop()
+            for nxt in graph[node]:
+                if nxt == start:
+                    cycles.add(tuple(path))
+                elif nxt > start and nxt not in path:
+                    stack.append((nxt, [*path, nxt]))
+    for cycle in sorted(cycles):
+        errors.append(f'{cycle[0]}: dependency cycle {" -> ".join([*cycle, cycle[0]])}; '
+                      f'break the cycle instead of declaring it (D-322)')
+    return errors
 
 
 def reflexion(found):
@@ -1968,11 +1987,44 @@ def view(found):
     return '\n'.join(lines)
 
 
-def architecture_measure(found):
+def cli_couplings(found, root=ROOT):
+    """Cross-component subprocess CLI dependencies (`scripts/<cmd>` via unit_map.cli_requires): pairs, those not
+    declared on the source component, and those pointing to a higher layer (D-322)."""
+    import unit_map
+    import units
+    from config import ConfigError
+    root = Path(root)
+    empty = {'pairs': [], 'undeclared': [], 'upward': []}
+    if not (root / 'units').is_dir() or not (root / 'config/registry/units.json').is_file():
+        return empty
+    try:
+        cli_deps = unit_map.cli_requires(root, unit_map.Code(root, log=''))
+    except (units.UnitError, ConfigError):
+        return empty
+    components = {id: item['body'].get('layer') for id, item in found.items()
+                  if item['type'] == 'ARC' and item.get('body', {}).get('kind') == 'component'}
+    realized = {id.removeprefix('UNIT:'): [link['target'] for link in item['links']
+                                           if link['type'] == 'realizes' and link['target'] in components]
+                for id, item in found.items() if item['type'] == 'UNIT'}
+    declared = {(id, link['target']) for id, item in found.items() if item['type'] == 'ARC'
+                for link in item['links'] if link['type'] == 'depends-on'}
+    pairs = set()
+    for src_unit, targets in cli_deps.items():
+        for dst_unit in targets:
+            pairs |= {(src, dst) for src in realized.get(src_unit, ())
+                      for dst in realized.get(dst_unit, ()) if src != dst}
+    upward = sorted((src, dst) for src, dst in pairs
+                    if components.get(src) is not None and components.get(dst) is not None
+                    and components[dst] > components[src])
+    return {'pairs': sorted(pairs), 'undeclared': sorted(pairs - declared), 'upward': upward}
+
+
+def architecture_measure(found, root=ROOT):
     """The architecture system's own measure: active elements by kind, those that satisfy a requirement, those a
-    unit realizes, the units that realize an element, and the ADRs by state."""
+    unit realizes, the units that realize an element, active contracts, CLI couplings, and the ADRs by state."""
     into = incoming(found)
     elements = [item for item in found.values() if item['type'] == 'ARC' and item['state'] in ('proposed', 'active')]
+    contracts = [item for item in found.values() if item['type'] == 'CON' and item['state'] in ('proposed', 'active')]
     by_kind = {}
     for item in elements:
         kind = item.get('body', {}).get('kind', '?')
@@ -1987,8 +2039,9 @@ def architecture_measure(found):
         'satisfying': sum(1 for item in elements if any(link['type'] == 'satisfies' for link in item['links'])),
         'realized': sum(1 for item in elements if any(kind == 'realizes' for kind, _ in into.get(item['id'], []))),
         'units_realizing': sum(1 for item in units if any(link['type'] == 'realizes' for link in item['links'])),
-        'units': len(units), 'adrs': dict(sorted(adrs.items())),
+        'units': len(units), 'contracts': len(contracts), 'adrs': dict(sorted(adrs.items())),
         'reflexion': reflexion_share(found),
+        'cli': cli_couplings(found, root),
     }
 
 
@@ -2040,10 +2093,11 @@ def decisions_measure(found, root=ROOT):
 
 def knowledge_measure(found, radius='high'):
     """The knowledge system's own measure: the premises, the high-blast ones not confirmed or validated, the refuted
-    ones still assumed by an active object."""
+    ones still assumed by an active object, and the lessons by state."""
     into = incoming(found)
     settled = ('confirmed', 'validated')
     premises_found = [item for item in found.values() if item['type'] == 'P']
+    lessons_found = [item for item in found.values() if item['type'] == 'LESSON']
     return {
         'premises': len(premises_found),
         'high_unsettled': sum(1 for item in premises_found if item['body'].get('radius') == radius
@@ -2051,6 +2105,10 @@ def knowledge_measure(found, radius='high'):
         'refuted_assumed': sum(1 for item in premises_found if item['state'] == 'refuted'
                                and any(kind == 'assumes' and not broken_by_injection(found, source, item['id'])
                                        for kind, source in into.get(item['id'], []))),
+        'lessons': len(lessons_found),
+        'lessons_open': sum(1 for item in lessons_found if item['state'] == 'open'),
+        'lessons_applied': sum(1 for item in lessons_found if item['state'] == 'applied'),
+        'lessons_retired': sum(1 for item in lessons_found if item['state'] == 'retired'),
     }
 
 
@@ -2117,9 +2175,9 @@ SUPPLIER_INACTIVE = {'SUP': ('retired',), 'DEP': ('removed',), 'REQ': ('supersed
 
 
 def supply_findings(found):
-    """Warnings of the suppliers (SUP, D-320, D-335): an active account whose spend is measured against no requirement
-    that exists (its `budget`), and an active registry or platform that supplies nothing (no component or data store
-    is supplied by it): retire it."""
+    """Warnings of the suppliers (SUP, D-320, D-335, D-362): an active account with neither an active `budget`
+    requirement nor an owner-approved `no_budget_by` decision (scope='money'), one carrying both, and an active
+    registry or platform that supplies nothing (no component or data store is supplied by it): retire it."""
     def live(id):
         item = found.get(id, {})
         return item.get('fingerprint') is not None and item['state'] not in SUPPLIER_INACTIVE.get(item['type'], ())
@@ -2130,10 +2188,17 @@ def supply_findings(found):
         body = item.get('body', {})
         if item['type'] != 'SUP' or 'kind' not in body or item['state'] != 'active':
             continue
-        if body['kind'] == 'account' and not body.get('budget'):
-            warnings.append(f'{item["id"]}: an account with no budget requirement its spend is measured against')
-        elif body['kind'] == 'account' and not (found.get(body['budget'], {}).get('type') == 'REQ' and live(body['budget'])):
-            warnings.append(f'{item["id"]}: its budget {body["budget"]} is no active requirement')
+        if body['kind'] == 'account':
+            budget, exempt = body.get('budget'), body.get('no_budget_by')
+            if budget and exempt:
+                warnings.append(f'{item["id"]}: carries both budget {budget} and no_budget_by {exempt}')
+            elif exempt:
+                if not independently_approved(found.get(exempt), scope='money'):
+                    warnings.append(f'{item["id"]}: its no_budget_by {exempt} is not an owner-approved accepted decision')
+            elif not budget:
+                warnings.append(f'{item["id"]}: an account with no budget requirement its spend is measured against')
+            elif not (found.get(budget, {}).get('type') == 'REQ' and live(budget)):
+                warnings.append(f'{item["id"]}: its budget {budget} is no active requirement')
         if body['kind'] != 'account' and item['id'] not in supplied:
             warnings.append(f'{item["id"]}: a {body["kind"]} nothing is supplied by; retire it')
     return warnings
@@ -2730,9 +2795,213 @@ def derive_work(found):
             item['state'] = 'delivered' if done and all(done) else 'in-progress' if any(done) else 'queued'
 
 
+TOOLCHAIN_MANIFEST = 'scripts/cloud/toolchain.json'
+REGISTRY_AGGREGATES = 'config/registry/*.json'
+SHA256_HEX = re.compile(r'^[0-9a-f]{64}$')
+CONTRACTS_GLOB = 'contracts/**/*.json'
+LESSON_STATE = {'proposed': 'open', 'applied': 'applied', 'retired': 'retired'}
+
+
+def read_configs(root):
+    """Configuration items (CFG, the Configuration system): toolchain pins in scripts/cloud/toolchain.json (checked for
+    valid SHA-256 digests) and registry owner aggregates in config/registry/*.json (checked for shape, ownership and
+    regeneration drift against split key files via generate_registry.assemble)."""
+    import generate_registry
+    root = Path(root)
+    found = []
+    manifest_path = root / TOOLCHAIN_MANIFEST
+    if manifest_path.is_file():
+        text = manifest_path.read_text(encoding='utf-8')
+        try:
+            manifest = json.loads(text)
+            if not isinstance(manifest, dict):
+                raise ValueError('manifest must be a JSON object')
+        except (ValueError, OSError) as error:
+            item = _obj('CFG-toolchain', 'CFG', 'active', TOOLCHAIN_MANIFEST, text)
+            item['body'] = {'kind': 'toolchain-pin', 'owner': 'engine-env', 'owned': True, 'drifted': False, 'valid': False}
+            item['problems'] = [f'unreadable toolchain manifest ({error})']
+            found.append(item)
+            manifest = {}
+        for tool, spec in sorted(manifest.items()):
+            problems = []
+            sha_map = spec.get('sha256') if isinstance(spec, dict) else None
+            if not isinstance(sha_map, dict) or not sha_map:
+                problems.append('missing sha256 checksum table')
+                versions = []
+            else:
+                versions = sorted(sha_map)
+                for version, arches in sorted(sha_map.items()):
+                    if not isinstance(arches, dict) or not arches:
+                        problems.append(f'version {version} has no architecture checksums')
+                        continue
+                    for arch, digest in sorted(arches.items()):
+                        if not isinstance(digest, str) or not SHA256_HEX.match(digest):
+                            problems.append(f'version {version} ({arch}) has invalid sha256 digest')
+            item = _obj(f'CFG-toolchain-{_slug(tool)}', 'CFG', 'active', TOOLCHAIN_MANIFEST,
+                        json.dumps({tool: spec}, sort_keys=True))
+            item['body'] = {'kind': 'toolchain-pin', 'owner': 'engine-env', 'owned': True,
+                            'drifted': False, 'valid': not problems, 'versions': versions}
+            if problems:
+                item['problems'] = problems
+            found.append(item)
+    for path in sorted(root.glob(REGISTRY_AGGREGATES)):
+        if not path.is_file():
+            continue
+        owner = path.stem
+        rel = path.relative_to(root).as_posix()
+        text = path.read_text(encoding='utf-8')
+        problems, drifted = [], False
+        try:
+            doc = json.loads(text)
+            if not isinstance(doc, dict):
+                raise ValueError('aggregate must be a JSON object')
+        except ValueError as error:
+            doc = {}
+            problems.append(f'not valid JSON ({error})')
+        declared_owner = doc.get('x-owner') if isinstance(doc.get('x-owner'), str) else ''
+        if doc and doc.get('$id') != rel:
+            problems.append(f'$id is {doc.get("$id")!r}, not {rel!r}')
+        if doc and declared_owner != owner:
+            problems.append(f'x-owner is {declared_owner!r}, not {owner!r}')
+        props = doc.get('properties') if isinstance(doc.get('properties'), dict) else {}
+        if doc and not isinstance(doc.get('properties'), dict):
+            problems.append('properties must be an object')
+        for key, spec in sorted(props.items()):
+            if not isinstance(spec, dict) or not str(spec.get('description', '')).strip():
+                problems.append(f'{key} has no description')
+        split_header = root / 'config' / 'registry' / owner / generate_registry.HEADER
+        if split_header.is_file():
+            try:
+                expected = generate_registry.assemble(root, owner)
+                if text != expected:
+                    drifted = True
+                    problems.append(f'differs from its key files; run scripts/generate registry')
+            except (generate_registry.RegistrySplitError, ValueError, OSError) as error:
+                drifted = True
+                problems.append(f'cannot assemble from key files ({error})')
+        state = ('deprecated' if props and all(isinstance(spec, dict) and spec.get('deprecated') is True
+                                               for spec in props.values()) else 'active')
+        item = _obj(f'CFG-registry-{owner}', 'CFG', state, rel, text)
+        item['body'] = {'kind': 'registry-owner', 'owner': declared_owner, 'owned': bool(declared_owner),
+                        'keys': len(props), 'drifted': drifted, 'valid': not problems}
+        if problems:
+            item['problems'] = problems
+        found.append(item)
+    return found
+
+
+def read_contracts(root):
+    """Contracts (CON, the Architecture system): every versioned JSON Schema under contracts/, validated with
+    schema_compat.check_shape for dialect, $id path identity, naming and schema validity."""
+    import schema_compat
+    root = Path(root)
+    folder = root / 'contracts'
+    if not folder.is_dir():
+        return []
+    cfg_root = root if (root / 'config/registry/contracts.json').is_file() else ROOT
+    found = []
+    for path in sorted(root.glob(CONTRACTS_GLOB)):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        text = path.read_text(encoding='utf-8')
+        versioned = bool(schema_compat.VERSION.match(rel))
+        problems = []
+        try:
+            doc = json.loads(text)
+        except json.JSONDecodeError as error:
+            if not versioned:
+                continue
+            doc = None
+            problems.append(f'not JSON ({error.msg})')
+        if doc is not None:
+            if not isinstance(doc, dict) or (not versioned and '$schema' not in doc):
+                continue  # non-schema manifest/lock file (e.g. contracts/events/schemas.lock.json)
+            problems += [err.removeprefix(f'{rel}: ') for err in schema_compat.check_shape(cfg_root, rel, doc)]
+        state = 'deprecated' if isinstance(doc, dict) and doc.get('deprecated') is True else 'active'
+        slug = _slug(rel.removeprefix('contracts/').removesuffix('.json'))
+        item = _obj(f'CON-{slug}', 'CON', state, rel, text)
+        item['body'] = {'kind': 'schema', 'owner': doc.get('x-owner', '') if isinstance(doc, dict) else '',
+                        'version': doc.get('x-schema-version') if isinstance(doc, dict) else None,
+                        'valid': not problems}
+        if problems:
+            item['problems'] = problems
+        found.append(item)
+    return found
+
+
+def link_contracts(found, root):
+    """Link each live unit to the contracts (CON) whose file path its manifest claims (`provides`)."""
+    import units
+    from config import ConfigError
+    root = Path(root)
+    if not (root / 'units').is_dir():
+        return
+    try:
+        units.manifests(root)
+    except (units.UnitError, ConfigError):
+        return
+    for item in found.values():
+        if item['type'] != 'CON':
+            continue
+        for unit_id in units.units_of(item['source'], root):
+            holder = found.get(f'UNIT:{unit_id}')
+            if holder is not None and holder['state'] == 'active':
+                link = {'type': 'provides', 'target': item['id']}
+                if link not in holder['links']:
+                    holder['links'].append(link)
+
+
+def read_lessons(root):
+    """Lessons (LESSON, the Knowledge system): every record under docs/process/lessons/*.yml, validated through
+    scripts/lib/lessons.py (schema, vocabulary and hash-chained audit trail)."""
+    import lessons
+    root = Path(root)
+    folder = lessons.register_dir(root)
+    if not folder.is_dir():
+        return []
+    records, errors = lessons.load(root)
+    suffix = lessons.setting('record_suffix')
+    reg_dir = lessons.setting('register_dir')
+    found, seen_paths = [], set()
+    for ident, record in sorted(records.items()):
+        rel = f'{reg_dir}/{record["slug"]}{suffix}'
+        seen_paths.add(rel)
+        path = root / rel
+        text = path.read_text(encoding='utf-8') if path.is_file() else ident
+        problems = [err.split(': ', 1)[1] if ': ' in err else err for err in errors
+                    if err.startswith(f'{rel}: ') or err.startswith(f'{rel} trail ')]
+        state = LESSON_STATE.get(record.get('status', ''), record.get('status', ''))
+        item = _obj(ident, 'LESSON', state, rel, text)
+        item['body'] = {
+            'kind': record.get('kind', ''), 'class': record.get('class', ''),
+            'owner': record.get('owner', ''), 'owned': bool(str(record.get('owner', '')).strip()),
+            'actionable': bool(str(record.get('change', '')).strip()),
+            'valid': not problems, 'trail_entries': len(record.get('trail', ())),
+            'applied': bool(record.get('applied')),
+        }
+        if problems:
+            item['problems'] = problems
+        found.append(item)
+    for path in sorted(folder.glob('*' + suffix)):
+        rel = path.relative_to(root).as_posix()
+        if rel in seen_paths:
+            continue
+        text = path.read_text(encoding='utf-8', errors='replace')
+        problems = [err.split(': ', 1)[1] if ': ' in err else err for err in errors
+                    if err.startswith(f'{rel}: ') or err.startswith(f'{rel} trail ') or rel in err]
+        item = _obj(f'LESSON:{path.stem}', 'LESSON', 'open', rel, text)
+        item['body'] = {'kind': '', 'class': '', 'owner': '', 'owned': False, 'actionable': False,
+                        'valid': False, 'trail_entries': 0, 'applied': False}
+        item['problems'] = problems or ['failed to load lesson record']
+        found.append(item)
+    return found
+
+
 READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, read_versions, read_tailoring,
-           read_intent, read_problem, read_requirements, read_premises, read_changes, read_escapes, read_architecture, read_adrs, read_validations,
-           read_suppliers, read_dependencies, read_advisories, read_checks, read_data, read_requests,
+           read_intent, read_problem, read_requirements, read_premises, read_lessons, read_changes, read_escapes,
+           read_architecture, read_contracts, read_adrs, read_validations, read_suppliers, read_dependencies,
+           read_advisories, read_checks, read_configs, read_data, read_requests,
            read_risks, read_controls, read_vulns, read_threats, read_measures, read_work)
 
 
@@ -2933,6 +3202,8 @@ def objects(root=ROOT, readers=READERS):
         derive_flakes(found, root)
     if read_requirements in readers and read_changes in readers:
         link_implemented_by(found)
+    if read_units in readers and read_contracts in readers:
+        link_contracts(found, root)
     if read_validations in readers or read_problem in readers:
         derive_validations(found, root)
     if read_problem in readers:
@@ -2967,10 +3238,12 @@ def fold_parts(found):
                              for owner in owners.get(link['target'], [link['target']])]
 
 
-def check(meta, found, root=None, today=None):
-    """(errors, warnings) of the objects against the metamodel; with `root`, also the warnings of the standard."""
+def check(meta, found, root=None, today=None, base=None, pr_body=None, pr_title=None):
+    """(errors, warnings) of the objects against the metamodel; with `root`, also the warnings of the standard and the
+    SEMENTE §6 intention lock (hard error when `base` is given, pending warning otherwise)."""
     errors, warnings = [], []
     if root is not None:
+        import intention_lock
         warnings += rule_findings(found, root)
         errors += skipped_stage_errors(found, root)
         warnings += requirement_findings(found)
@@ -2980,6 +3253,11 @@ def check(meta, found, root=None, today=None):
         errors += managed_errors
         warnings += managed_warnings
         errors += target_errors(found, root, today)
+        errors += intention_lock.check_intent_objects(found, root)
+        if base is not None:
+            errors += intention_lock.intention_lock_errors(root, base, body=pr_body, title=pr_title)
+        else:
+            warnings += intention_lock.pending_lock_warnings(root)
     errors += layer_errors(found)
     errors += problem_space.problem_errors(found)
     for id, item in sorted(found.items()):
@@ -3153,13 +3431,17 @@ def chain_verified(item, into, found):
 
 
 def inventory(meta, found, root=ROOT):
-    """{source: {name, ids, imported}}: the distinct ids each source holds, and how many of them are objects of the
-    model of a type the source may become (the object's id, or the source id it was imported from)."""
+    """{source: {name, ids, imported, by_type}}: the distinct ids each source holds, how many of them are objects of
+    the model of a type the source may become, and the breakdown per object type (the object's id, or the source id it
+    was imported from)."""
     root = Path(root)
     result = {}
     for name, source in sorted(meta['inventory'].items()):
-        imported_ids = {key for item in found.values() if item['type'] in source['becomes']
-                        for key in (item['id'], item.get('source_id')) if key}
+        by_kind = {}
+        for kind in sorted(set(source['becomes'])):
+            by_kind[kind] = {key for item in found.values() if item['type'] == kind
+                             for key in (item['id'], item.get('source_id')) if key}
+        imported_ids = {key for keys in by_kind.values() for key in keys}
         ids = set()
         for part in source['parts']:
             paths = sorted(root.glob(part['glob']))
@@ -3172,7 +3454,8 @@ def inventory(meta, found, root=ROOT):
             elif part['kind'] == 'registry':
                 ids |= {key for path in paths for key in _read_json(path).get('properties', {})
                         if not part.get('pattern') or re.search(part['pattern'], key)}
-        result[name] = {'name': source['name'], 'ids': len(ids), 'imported': len(ids & imported_ids)}
+        typed = {kind: len(ids & keys) for kind, keys in by_kind.items() if ids & keys}
+        result[name] = {'name': source['name'], 'ids': len(ids), 'imported': len(ids & imported_ids), 'by_type': typed}
     return result
 
 
@@ -3500,12 +3783,18 @@ def measure(root=ROOT, meta=None, found=None, today=None):
     verified = sum(1 for item in requirements if chain_verified(item, into, found))
     systems, found = assess_systems(meta, found, into, flagged, root, today)
     sources = inventory(meta, found, root)
+    stock_types = {}
+    for item in sources.values():
+        for kind, count in item['by_type'].items():
+            stock_types[kind] = stock_types.get(kind, 0) + count
+    stock_types = dict(sorted(stock_types.items()))
     cheaper_path = cheaper_path_measure(root)
     return {
         'chain': {'active_requirements': len(requirements), 'verified': verified,
                   'share': verified / len(requirements) if requirements else 0},
         'inventory': {'sources': sources, 'ids': sum(item['ids'] for item in sources.values()),
-                      'imported': sum(item['imported'] for item in sources.values())},
+                      'imported': sum(item['imported'] for item in sources.values()),
+                      'by_type': stock_types, 'requirements': stock_types.get('REQ', 0)},
         'systems': systems,
         'groups': {group: {'systems': names, 'levels': {step['level']: count for step in reversed(meta['scale'])
                                                         if (count := sum(1 for name in names
@@ -3524,7 +3813,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'standard_management': management_measure(found, today or utc_today()),
         'knowledge': knowledge_measure(found),
         'requirements': requirements_measure(found),
-        'architecture': architecture_measure(found),
+        'architecture': architecture_measure(found, root),
         'construction': construction_measure(found),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
@@ -3594,12 +3883,17 @@ def system_line(item):
 
 def summary(found):
     chain, stock = found['chain'], found['inventory']
+    typed = ', '.join(f'{count} {kind}' for kind, count in stock.get('by_type', {}).items())
     lines = [
         f'chain: {chain["verified"]} of {chain["active_requirements"]} active requirement(s) verified end to end '
         f'({chain["share"]:.0%})',
-        f'inventory: {stock["imported"]} of {stock["ids"]} requirement id(s) of the inventory are objects of the model',
+        f'inventory: {stock["imported"]} of {stock["ids"]} cataloged id(s) are objects of the model'
+        + (f' ({typed})' if typed else ''),
     ]
-    lines += [f'  {name}: {item["imported"]} of {item["ids"]}' for name, item in stock['sources'].items()]
+    lines += [f'  {name}: {item["imported"]} of {item["ids"]}'
+              + (f' ({", ".join(f"{count} {kind}" for kind, count in item.get("by_type", {}).items())})'
+                 if item.get('by_type') else '')
+              for name, item in stock['sources'].items()]
     lines.append(f'systems ({found["objects"]} object(s)):')
     for group, item in found['groups'].items():  # D-330: each group's levels apart
         counted = ', '.join(f'{count} {level}' for level, count in item['levels'].items())
@@ -3639,12 +3933,18 @@ def summary(found):
                  f'{wanted["implemented"]} implemented, {wanted["verified"]} verified, {wanted["with_element"]} with an '
                  f'architecture element, {wanted["with_test"]} with a test')
     built = found['architecture']
-    lines.append(f'architecture: {built["elements"]} active element(s) ({", ".join(f"{count} {kind}" for kind, count in built["by_kind"].items())}); '
+    lines.append(f'architecture: {built["elements"]} active element(s) ({", ".join(f"{count} {kind}" for kind, count in built["by_kind"].items())}), '
+                 f'{built.get("contracts", 0)} contract(s); '
                  f'{built["satisfying"]} satisfy a requirement, {built["realized"]} realized by a unit; {built["units_realizing"]} '
                  f'of {built["units"]} units realize an element; ADRs {", ".join(f"{count} {state}" for state, count in built["adrs"].items())}')
     mirror = built['reflexion']
     lines.append(f'reflexion: {mirror["share"]:.0%} conformant ({mirror["convergences"]} convergent, {mirror["divergences"]} '
                  f'divergent, {mirror["absences"]} absent dependencies between components)')
+    cli = built.get('cli') or {}
+    if cli.get('pairs'):
+        up = ', '.join(f'{src} -> {dst}' for src, dst in cli.get('upward', []))
+        lines.append(f'cli couplings: {len(cli["pairs"])} cross-component ({len(cli.get("undeclared", []))} undeclared, '
+                     f'{len(cli.get("upward", []))} upward' + (f': {up}' if up else '') + ')')
     if 'construction' in found:
         built_chg = found['construction']
         diff_share = built_chg['diff_only'] / built_chg['changes'] if built_chg['changes'] else 0
@@ -3691,7 +3991,9 @@ def summary(found):
                      f'{verified["site_with_verd"]}/{verified["site"]} site){flake_note}{traced_note}')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
-                 f'{known["refuted_assumed"]} refuted and still assumed')
+                 f'{known["refuted_assumed"]} refuted and still assumed; '
+                 f'{known.get("lessons", 0)} lesson(s) ({known.get("lessons_open", 0)} open, '
+                 f'{known.get("lessons_applied", 0)} applied, {known.get("lessons_retired", 0)} retired)')
     counted = found['measurement']
     lines.append(f'measurement: {counted["measures"]} measure(s), {counted["fresh"]} fresh on HEAD, {counted["proposed"]} '
                  f'proposed (no function wired), {counted["unread"]} whose source HEAD does not hold')
@@ -3729,6 +4031,9 @@ def main(argv=None):
     commands = parser.add_subparsers(dest='command', required=True)
     checked = commands.add_parser('check')
     checked.add_argument('--strict', action='store_true')
+    checked.add_argument('--base', help='enforce the SEMENTE §6 intention lock against this base ref')
+    checked.add_argument('--pr-body', type=Path, help='PR body file holding an Intention-Change: authorization line')
+    checked.add_argument('--pr-title', help='PR title (must start with intencao: when locked intention changes)')
     commands.add_parser('view', help='print the component view (C4) as Mermaid, generated from the model')
     commands.add_parser('reflexion', help='list the convergent, divergent and absent dependencies between components')
     shown = commands.add_parser('show')
@@ -3760,9 +4065,15 @@ def main(argv=None):
             print(view(objects()))
             return 0
         if args.command == 'reflexion':
-            for name, pairs in reflexion(objects()).items():
+            found = objects()
+            for name, pairs in reflexion(found).items():
                 print(f'{name} ({len(pairs)}):')
                 print('\n'.join(f'  {start} -> {end}' for start, end in pairs))
+            for name, pairs in cli_couplings(found).items():
+                if name in ('undeclared', 'upward'):
+                    print(f'cli_{name} ({len(pairs)}):')
+                    if pairs:
+                        print('\n'.join(f'  {start} -> {end}' for start, end in pairs))
             return 0
         if args.command == 'show':
             print(show(args.id))
@@ -3775,7 +4086,8 @@ def main(argv=None):
             runs.verdicts_refresh(ROOT)  # so is the full-suite's verdicts snapshot (derive_verdicts)
         found = objects()
         if args.command == 'check':
-            errors, warnings = check(meta, found, ROOT)
+            pr_body = args.pr_body.read_text(encoding='utf-8') if args.pr_body else None
+            errors, warnings = check(meta, found, ROOT, base=args.base, pr_body=pr_body, pr_title=args.pr_title)
             errors = meta['errors'] + errors
             for line in errors:
                 print(f'ERROR {line}')

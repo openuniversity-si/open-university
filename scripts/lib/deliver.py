@@ -54,6 +54,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import box_queue  # noqa: E402
 import config  # noqa: E402
+import forge_events  # noqa: E402, F401 - registers the config store port for switches()
 import gate_areas  # noqa: E402
 import gate_classify  # noqa: E402
 import merge_train  # noqa: E402

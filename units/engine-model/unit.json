@@ -48,6 +48,11 @@
     "scripts/tests/problem.test.sh",
     "scripts/tests/covers/problem.json",
     "config/problem/**",
+    "scripts/intention-lock",
+    "scripts/lib/intention_lock.py",
+    "scripts/tests/intention-lock.test.sh",
+    "scripts/tests/test_intention_lock.py",
+    "scripts/tests/covers/intention-lock.json",
     "config/governance/**",
     "scripts/lib/trust_metrics.py",
     "scripts/tests/trust-metrics.test.sh",
@@ -61,9 +66,12 @@
     "engine-gate-infra": "^1",
     "engine-gate-plan": "^1",
     "engine-gate-tests": "^1",
+    "engine-generate": "^1",
+    "engine-lessons": "^1",
     "engine-premises": "^1",
     "engine-rules": "^1",
-    "engine-slo": "^1"
+    "engine-slo": "^1",
+    "engine-units": "^1"
   },
   "realizes": [
     "ARC-model"
