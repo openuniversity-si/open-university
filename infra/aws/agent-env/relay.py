@@ -56,6 +56,14 @@ def forward(url, key, ident, text, timeout):
         return 0
 
 
+def token_hash(ssm, ident):
+    """The environment's token hash; '' while the operator has not put it, so no credential matches (401, not 500)."""
+    try:
+        return ssm.get_parameter(Name=TOKEN.format(ident))['Parameter']['Value']
+    except ssm.exceptions.ParameterNotFound:
+        return ''
+
+
 def handler(event, context):
     e = os.environ
     rid = getattr(context, 'aws_request_id', '')
@@ -65,7 +73,7 @@ def handler(event, context):
         header = (event.get('headers') or {}).get('authorization', '')
         bearer = header[7:] if header[:7].lower() == 'bearer ' else ''
         given = hashlib.sha256(bearer.encode()).hexdigest()
-        want = ssm.get_parameter(Name=TOKEN.format(ident))['Parameter']['Value'] if ident and bearer else ''
+        want = token_hash(ssm, ident) if ident and bearer else ''
         if not want or not hmac.compare_digest(given, want.strip().lower()):
             return answer(ident, 401, rid)
         text = text_of(event, int(e['LIMIT']))
