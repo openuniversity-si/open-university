@@ -7,18 +7,6 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "supply.anthropic_monthly_usd": {
-      "type": "number",
-      "default": 100,
-      "exclusiveMinimum": 0,
-      "x-unit": "usd",
-      "description": "The monthly ceiling of the Anthropic account (SUP-anthropic) in US$: what Daniel pays Anthropic a month. VAL-anthropic-budget reads it as its threshold (threshold_key), so raising the budget is a change of this one value.",
-      "x-readers": [
-        "scripts/lib/model.py",
-        "config/validation/VAL-anthropic-budget.json"
-      ],
-      "x-source": "D-342"
-    },
     "supply.blocking_severities": {
       "type": "array",
       "default": [

@@ -51,7 +51,8 @@ def read(root):
 
 def read_supplier(root, name):
     """A supplier's spend reading ({usd, day, source}) of config/validation/spend/<name>.json, or None: for a supplier
-    with no API the engine reads, the reading is checked by hand against the invoice (D-342, SUP-anthropic)."""
+    with no API the engine reads, the reading is checked by hand against the invoice (D-342; retired for SUP-anthropic
+    by D-362)."""
     path = Path(root) / Path(SNAPSHOT).parent / f'{name}.json'
     return json.loads(path.read_text()) if path.exists() else None
 
