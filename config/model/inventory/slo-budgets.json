@@ -16,5 +16,5 @@
   "becomes": [
     "REQ"
   ],
-  "description": "Quality requirements held as registry values: the 7 SLO and budget keys that are active thresholds; budgets.pr_commits_max (0, unlimited under D-307) and budgets.pr_commits_min (1, structural commit-plan floor enforced by STD-commit-check-plan-errors) remain configuration items (CFG), not quality requirements (D-356, proposed)."
+  "description": "Quality requirements held as registry values: the 7 SLO and budget keys that are active thresholds; budgets.pr_commits_max (0, unlimited under D-307) and budgets.pr_commits_min (1, structural commit-plan floor enforced by STD-commit-check-plan-errors) remain configuration items (CFG), not quality requirements (D-356)."
 }

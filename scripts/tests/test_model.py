@@ -1992,7 +1992,9 @@ class RealRepository(unittest.TestCase):
                          len(model.source_entries(ROOT, meta['inventory']['contract'])))
         self.assertNotIn('REQ-slo-budgets-budgets-pr-commits-max', model.objects(ROOT))
         self.assertNotIn('REQ-slo-budgets-budgets-pr-commits-min', model.objects(ROOT))
-        self.assertEqual(model.objects(ROOT)['D-356']['state'], 'proposed')
+        d356 = model.objects(ROOT)['D-356']
+        self.assertEqual((d356['state'], d356['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(d356))
         levels = {level['level'] for level in meta['scale']}
         self.assertTrue(all(item['level'] in levels for item in result['systems'].values()))
         self.assertEqual(set(result['systems']), set(meta['systems']))
@@ -2000,6 +2002,27 @@ class RealRepository(unittest.TestCase):
         self.assertIn(('ARC-delivery', 'ARC-measurement'), result['architecture']['cli']['upward'])
         self.assertIn('cli couplings:', model.summary(result))
         self.assertIn('exemptions (TAIL):', model.summary(result))
+
+    def test_d356_scope_accepted_contract_active_and_slo_budgets_excludes_commit_counts(self):
+        found = model.objects(ROOT)
+        meta = model.metamodel(ROOT)
+        d356 = found['D-356']
+        self.assertEqual((d356['state'], d356['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(d356))
+        self.assertNotIn('REQ-slo-budgets-budgets-pr-commits-max', found)
+        self.assertNotIn('REQ-slo-budgets-budgets-pr-commits-min', found)
+        self.assertEqual(found['CFG-registry-budgets']['state'], 'active')
+        budgets = json.loads((ROOT / 'config/registry/budgets.json').read_text())['properties']
+        self.assertIn('budgets.pr_commits_max', budgets)
+        self.assertIn('budgets.pr_commits_min', budgets)
+        contract_ids = {f'REQ-contract-{model._slug(source_id)}'
+                        for source_id in model.source_entries(ROOT, meta['inventory']['contract'])}
+        self.assertTrue(contract_ids)
+        satisfied = {link['target'] for link in found['ARC-web']['links'] if link['type'] == 'satisfies'}
+        for ident in contract_ids:
+            self.assertEqual(found[ident]['state'], 'approved')
+            self.assertEqual(found[ident]['body']['type'], 'product')
+            self.assertIn(ident, satisfied)
 
     def test_session_decided_exemptions_do_not_close_security_in_this_checkout(self):
         found = model.objects(ROOT)
