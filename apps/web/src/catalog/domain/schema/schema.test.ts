@@ -9,7 +9,7 @@ import { batchLicenseSchema, catalogBatchV2Schema } from "./batch-v2.ts";
 import { publishedKeepsRights } from "../rules/status.ts";
 import { ccByLicense, LIMITS, rightsStatuses } from "./fields.ts";
 
-// Verifies: D-035, REQ-contract-inv-r1
+// Verifies: D-035
 const author = { id: "author-a", slug: "ann", name: "Ann", monogram: "A", kind: "person" };
 const course = { id: "course-live", slug: "contracts", title: "Contracts", authorId: "author-a", coverFrom: "own", sharedWith: [] };
 const edition = { id: "edition-1", slug: "original", label: "Original", position: 1, year: 2021 };

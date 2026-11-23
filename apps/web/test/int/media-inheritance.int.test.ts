@@ -10,7 +10,6 @@ import { createAdminRateLimiter, handleAdminMediaList, handleAdminMediaPruneInhe
 import { catalogCourseOf, catalogOwners } from "../../src/catalog/server/media-owners.ts";
 import sharp from "sharp";
 
-// Verifies: REQ-contract-inv-m5
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("Missing inheritance test fixture");
   return value;

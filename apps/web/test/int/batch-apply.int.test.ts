@@ -6,7 +6,7 @@ import { batchV2Hash, chunkBatchV2, type ApplyBatchData } from "../../src/catalo
 import { catalogBatchV2Schema, taxonomyCoverEntries, type CatalogBatchV2 } from "../../src/catalog/domain/schema/batch-v2.ts";
 import { call, createHarness, seedCatalog, slotText, type Harness, type Seed } from "../fixtures/admin-catalog.ts";
 
-// Verifies: D-053, REQ-contract-g-1, REQ-contract-g-2, REQ-contract-g-3, REQ-contract-g-4, REQ-contract-g-5
+// Verifies: D-053
 /** POST /batches/apply on PostgreSQL 18 (S08): the CONTRACT §5 guarantees G-1 … G-5. No network. */
 
 const sha = (seed: string) => createHash("sha256").update(seed).digest("hex");

@@ -6,7 +6,6 @@ import {
   activeRelease, auditRows, call, catalogFingerprint, createHarness, insideTransactions, NOW, type CourseDetail, type CourseView, type PublicationData, revisionOf, seedCatalog, seedDraftCourse, type Harness, type Seed,
 } from "../fixtures/admin-catalog.ts";
 
-// Verifies: REQ-contract-inv-r5
 /** The events once the last transaction committed: revalidation must come after it, once. */
 const afterLastCommit = (events: readonly string[]) => events.slice(events.map((event) => event.startsWith("COMMIT#")).lastIndexOf(true) + 1);
 

@@ -798,6 +798,26 @@ class Requirements(unittest.TestCase):
         self.assertEqual(found['REQ-contract-g-b2']['body']['implemented_by'], ['CHG-161'])
         self.assertNotIn('problems', found['REQ-contract-inv-a1'])
 
+    def test_active_requirements_without_test_links_stay_honestly_unverified_and_pass_check(self):
+        write(self.root, 'config/requirements/imports/contract.json', {
+            'id': 'contract', 'type': 'product', 'state': 'approved', 'owner': 'Daniel',
+            'derives_from': {'*': 'NEED-throughput'}, 'implemented_by': ['CHG-161']})
+        write(self.root, 'config/architecture/ARC-web.json', {
+            'id': 'ARC-web', 'kind': 'component', 'name': 'Site', 'statement': 'Site', 'state': 'active',
+            'owner': 'Daniel', 'satisfies': ['REQ-contract-inv-a1', 'REQ-contract-g-b2'], 'depends_on': [], 'layer': 1})
+        found = self.found(model.read_intent, model.read_requirements, model.read_architecture)
+        found['CHG-161'] = {'id': 'CHG-161', 'type': 'CHG', 'state': 'merged', 'fingerprint': 'c', 'links': []}
+        model.link_implemented_by(found)
+        meta = model.metamodel(self.root)
+        errors, _ = model.check(meta, found)
+        self.assertEqual(errors, [])
+        states = model.requirement_states(found)
+        self.assertEqual(states['REQ-contract-inv-a1'], 'implemented')
+        self.assertEqual(states['REQ-contract-g-b2'], 'implemented')
+        into = model.incoming(found)
+        self.assertFalse(model.covered(meta, found['REQ-contract-inv-a1'], into, found))
+        self.assertFalse(model.covered(meta, found['REQ-contract-g-b2'], into, found))
+
     def test_a_decision_record_with_status_proposed_stays_proposed(self):
         write(self.root, 'docs/domain/decisions/D-999.md',
               '---\nnumber: D-999\nstatus: proposed\ntime: 22/11 13:47 BRT\npremises: none\n'
@@ -1588,10 +1608,10 @@ class Architecture(unittest.TestCase):
             'owner': 'o', 'depends_on': [], 'layer': 0})
         write(self.root, 'config/architecture/ARC-gate.json', {
             'id': 'ARC-gate', 'kind': 'component', 'name': 'The gate', 'statement': 's', 'state': 'active',
-            'owner': 'capacity', 'satisfies': ['REQ-gate-60s'], 'depends_on': ['ARC-config'], 'layer': 2})
+            'owner': 'capacity', 'satisfies': ['REQ-gate-60s'], 'depends_on': ['ARC-config'], 'layer': 1})
         write(self.root, 'config/architecture/ARC-delivery.json', {
             'id': 'ARC-delivery', 'kind': 'component', 'name': 'Delivery', 'statement': 'delivery', 'state': 'active',
-            'owner': 'o', 'depends_on': ['ARC-gate'], 'layer': 3})
+            'owner': 'o', 'depends_on': ['ARC-gate'], 'layer': 1})
         write(self.root, 'config/security/threats/THREAT-gate.json', {
             'id': 'THREAT-gate', 'models': 'ARC-gate', 'assets': ['a'], 'boundaries': [],
             'threats': [{'stride': 'tampering', 'statement': 's'}], 'reviewed': '2026-11-19'})

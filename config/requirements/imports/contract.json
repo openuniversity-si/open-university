@@ -9,5 +9,5 @@
   "implemented_by": [
     "CHG-161"
   ],
-  "note": "D-319 brought Open University's site back under apps/web (PR #161, CHG-161), where the domain invariants (INV-H1..H5, INV-M1..M5, INV-R1..R5) and batch guarantees (G-1..G-6) of docs/domain/CONTRACT.md are active and tested."
+  "note": "D-319 brought Open University's site back under apps/web (PR #161, CHG-161), where the domain invariants (INV-H1..H5, INV-M1..M5, INV-R1..R5) and batch guarantees (G-1..G-6) of docs/domain/CONTRACT.md are active and satisfied by ARC-web; Verifies: links in apps/web tests land in the companion site-lane PR (neon/requirements-site-tags) to keep one lane per PR."
 }

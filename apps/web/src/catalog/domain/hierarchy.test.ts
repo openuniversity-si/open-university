@@ -1,7 +1,6 @@
 import { expect, it } from "vitest";
 import { ancestorsOf, parentOf, type HierarchyNode } from "./hierarchy.ts";
 
-// Verifies: REQ-contract-inv-h3
 const nodes: HierarchyNode[] = [
   { kind: "institution", id: "school" }, { kind: "area", id: "subject" },
   { kind: "subarea", id: "branch", areaId: "subject" },
