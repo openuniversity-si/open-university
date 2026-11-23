@@ -193,9 +193,19 @@ class DocsScriptTests(unittest.TestCase):
         import gate_script_tests
         return sorted(Path(item).name for item in gate_script_tests.select_plan(plan)[0])
 
+    def covering(self, path, mapping=None):
+        import gate_script_tests
+        mapping = mapping if mapping is not None else gate_script_tests.load()
+        return sorted(Path(test["script"]).name for test in mapping["tests"]
+                      if any(gate_areas.glob_match(path, glob) for glob in test["covers"]))
+
     def test_events_doc_selects_the_tests_that_read_it(self):
-        # judgment-rule reads EVENTS.md since f4a0c6f (D-314, D-323), so it covers it too.
-        self.assertEqual(self.chosen(["docs/process/EVENTS.md"]), ["event-contracts.test.sh", "judgment-rule.test.sh"])
+        # Which tests cover EVENTS.md evolves with scripts/tests/covers/*.json (D-359); derive the exact set from
+        # the mapping and anchor only on event-contracts.test.sh.
+        expected = self.covering("docs/process/EVENTS.md")
+        chosen = self.chosen(["docs/process/EVENTS.md"])
+        self.assertEqual(chosen, expected)
+        self.assertIn("event-contracts.test.sh", chosen)
 
     def test_each_covered_doc_selects_exactly_the_covering_tests(self):
         import gate_script_tests
@@ -203,24 +213,41 @@ class DocsScriptTests(unittest.TestCase):
         for path in ("docs/units/GX18/retro.md", "docs/programs/gate-excellence/plan.md",
                      "docs/process/premises/P-42.yml"):
             with self.subTest(path=path):
-                expected = sorted(Path(test["script"]).name for test in mapping["tests"]
-                                  if any(gate_areas.glob_match(path, glob) for glob in test["covers"]))
+                expected = self.covering(path, mapping)
                 self.assertTrue(expected)
                 self.assertEqual(self.chosen([path]), expected)
         self.assertIn("lessons.test.sh", self.chosen(["docs/units/GX18/retro.md"]))
         self.assertIn("program.test.sh", self.chosen(["docs/programs/gate-excellence/plan.md"]))
         # The decisions register is covered only by the tests that read it (D-175); which they are changes with
         # the covers, so the selection is asserted against the mapping, never a name.
-        self.assertEqual(self.chosen(["docs/domain/DECISIONS.md"]), sorted(
-            Path(test["script"]).name for test in mapping["tests"]
-            if any(gate_areas.glob_match("docs/domain/DECISIONS.md", glob) for glob in test["covers"])) or None)
+        self.assertEqual(self.chosen(["docs/domain/DECISIONS.md"]),
+                         self.covering("docs/domain/DECISIONS.md", mapping) or None)
         self.assertIn("premises.test.sh", self.chosen(["docs/process/premises/P-42.yml"]))
 
     def test_an_uncovered_doc_runs_no_script_test(self):
         self.assertIsNone(self.chosen(["docs/operations/local-gate.md"]))
 
     def test_a_covered_doc_beside_an_uncovered_one_selects_only_the_covered_tests(self):
-        self.assertEqual(self.chosen(["docs/operations/local-gate.md", "docs/process/EVENTS.md"]), ["event-contracts.test.sh", "judgment-rule.test.sh"])
+        expected = self.covering("docs/process/EVENTS.md")
+        self.assertTrue(expected)
+        self.assertEqual(self.covering("docs/operations/local-gate.md"), [])
+        self.assertEqual(self.chosen(["docs/operations/local-gate.md", "docs/process/EVENTS.md"]), expected)
+
+    def test_doc_selection_follows_the_covers_map_hermetically(self):
+        import gate_script_tests
+        mapping = {
+            "fallback": (),
+            "scripts": ("scripts/tests/a.test.sh", "scripts/tests/b.test.sh", "scripts/tests/c.test.sh"),
+            "tests": (
+                {"script": "scripts/tests/a.test.sh", "covers": ("scripts/tests/a.test.sh", "docs/process/EVENTS.md")},
+                {"script": "scripts/tests/b.test.sh", "covers": ("scripts/tests/b.test.sh", "docs/process/*.md")},
+                {"script": "scripts/tests/c.test.sh", "covers": ("scripts/tests/c.test.sh", "docs/other.md")},
+            ),
+        }
+        with mock.patch.object(gate_script_tests, "load", return_value=mapping):
+            self.assertEqual(self.chosen(["docs/process/EVENTS.md"]), ["a.test.sh", "b.test.sh"])
+            self.assertEqual(self.chosen(["docs/uncovered.md", "docs/process/EVENTS.md"]), ["a.test.sh", "b.test.sh"])
+            self.assertIsNone(self.chosen(["docs/uncovered.md"]))
 
     def test_unreadable_covers_still_run_the_script_tests(self):
         import gate_script_tests
