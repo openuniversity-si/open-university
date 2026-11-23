@@ -12,7 +12,8 @@
     "ref": "scripts/lib/intention_lock.py:intention_lock_errors"
   },
   "basis": [
-    "D-317"
+    "D-317",
+    "D-358"
   ],
-  "note": "Enforces the SEMENTE.md §6 intention lock over docs/SEMENTE.md (§3, §6) and config/intent/INT-*.json via scripts/lib/intention_lock.py, scripts/intention-lock, and scripts/model check --base (formalization proposed in D-358)."
+  "note": "Enforces the SEMENTE.md §6 intention lock over docs/SEMENTE.md (§3, §6) and config/intent/INT-*.json via scripts/lib/intention_lock.py, scripts/intention-lock, and scripts/model check --base (formalized in D-358, Option B approved by Daniel 2026-11-22 15:35 BRT)."
 }

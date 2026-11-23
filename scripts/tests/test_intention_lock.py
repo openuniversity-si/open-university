@@ -241,19 +241,29 @@ class RepositorySection6QuotaAlignment(unittest.TestCase):
         self.assertEqual(sup['budget'], 'REQ-anthropic-budget')
         self.assertEqual(val['threshold_key'], 'supply.anthropic_monthly_usd')
 
-    def test_decision_d358_remains_proposed_and_never_self_approved(self):
-        text = (ROOT / 'docs/domain/decisions/D-358.md').read_text(encoding='utf-8')
-        head = model.FRONT.match(text)
-        self.assertIsNotNone(head)
-        fields = {line.split(':', 1)[0].strip(): line.split(':', 1)[1].strip()
-                  for line in head.group(1).splitlines() if ':' in line}
-        self.assertEqual(fields.get('number'), 'D-358')
-        self.assertEqual(fields.get('status'), 'proposed')
-        self.assertNotIn('supersedes', fields)
-        self.assertEqual(fields.get('proof'), 'scripts/tests/intention-lock.test.sh')
-        self.assertIn('not approved by the owner', text)
+    def test_decisions_d358_and_d362_are_accepted_and_d362_supersedes_d342(self):
         table_text = (ROOT / 'docs/domain/DECISIONS.md').read_text(encoding='utf-8')
-        self.assertIn('| D-358 |', table_text)
+        for number, expected_proof, expected_supersedes in (
+            ('D-358', 'scripts/tests/intention-lock.test.sh', None),
+            ('D-362', 'scripts/tests/supply.test.sh', 'D-342'),
+        ):
+            text = (ROOT / f'docs/domain/decisions/{number}.md').read_text(encoding='utf-8')
+            head = model.FRONT.match(text)
+            self.assertIsNotNone(head, number)
+            fields = {line.split(':', 1)[0].strip(): line.split(':', 1)[1].strip()
+                      for line in head.group(1).splitlines() if ':' in line}
+            self.assertEqual(fields.get('number'), number)
+            self.assertNotIn('status', fields, number)
+            self.assertEqual(fields.get('authority'), 'owner', number)
+            self.assertEqual(fields.get('supersedes'), expected_supersedes, number)
+            self.assertEqual(fields.get('proof'), expected_proof, number)
+            self.assertIn('Torre por delegação do Daniel 22/11/2026', text, number)
+            row = next((line for line in table_text.splitlines() if line.startswith(f'| {number} |')), '')
+            self.assertTrue(row.endswith('| recorded |'), f'{number}: {row}')
+        decisions = {item['id']: item for item in model.read_decisions(ROOT) if item['type'] == 'D'}
+        self.assertEqual(decisions['D-358']['state'], 'accepted')
+        self.assertEqual(decisions['D-362']['state'], 'accepted')
+        self.assertEqual(decisions['D-342']['state'], 'superseded')
 
 
 if __name__ == '__main__':
