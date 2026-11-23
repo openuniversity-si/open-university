@@ -104,8 +104,8 @@
       {
         "about": "spoofing",
         "finding": "A pull request that edits .github/workflows/tower-gate.yml (or adds a job named tower/gate or gate pinned to the base to another allowed workflow) defines its own check: pull_request and merge_group runs take the workflow file from the commit under judgment, and every repository-side check (gate_workflows.refused, queue-checks' installed == staged, the structure and commit-check rules, the pinned job) runs inside that workflow, so the change can remove them. The ruleset's app binding names GitHub Actions, not a workflow. GitHub's server-side refusal of a push that touches .github/workflows without the workflow scope is a real barrier for this repository's own branches, since sessions hold no such token (D-087), and the owner's own change is an accepted residual. It does not cover a fork: its author holds that scope on the fork, the fork's workflow runs on the pull request and enters the merge group commit, and the only barrier left is that someone with write access enqueues it (required_approving_review_count 0, D-055).",
-        "disposition": "open",
-        "reason": "the owner path is an accepted residual (D-087), the fork path is not mitigated: needs a repository-side rule on .github/** (for example a ruleset or code-owner review required for changes there, or fork pull request workflows kept from the queue), or an owner's recorded acceptance of the fork path."
+        "disposition": "fixed",
+        "reason": "Closed on 23/11/2026 by D-359 Salto 2 (Torre por delegação do Daniel 22/11/2026): ruleset 27250343 also requires tower/gate-attested bound to the GitHub App tower-gate-attester (5888233), which no workflow can report; its AWS verifier (infra/aws/attester) reads the PR's files and head repository itself and refuses any fork pull request that changes a path under .github/, even with a Decision, and attests a same-repository .github/workflows, actions or rulesets change only with an administrator's Decision comment naming the exact head (Attest-Head). Proven live: PR #363 (a workflow change) got failure without Attest-Head and success with it; #364 merged through the queue under the new ruleset. Residual (accepted, D-087): an administrator's account is trusted to attest a workflow change."
       },
       {
         "about": "tampering",
@@ -163,9 +163,9 @@
       },
       {
         "about": "elevation-of-privilege",
-        "finding": "No approving review is required, so the checks are the whole barrier. With the regime off the locks refuse again, but the two open findings above (the workflow a fork defines, the tracked change store) let a change get past the checks.",
+        "finding": "No approving review is required, so the checks are the whole barrier. With the regime off the locks refuse again; the two findings that once let a change get past the checks (the workflow a fork defines, the tracked change store) are fixed: the store by the registry-only gate mode and the overlay, the fork path by tower/gate-attested (D-359 Salto 2).",
         "disposition": "accepted",
-        "reason": "the residual is honest as written (D-055); its strength depends on the two open findings."
+        "reason": "the residual is honest as written (D-055); both findings it depended on are closed."
       }
     ]
   },
