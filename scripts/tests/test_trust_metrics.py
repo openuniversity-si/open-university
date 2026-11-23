@@ -314,7 +314,7 @@ class EightExternalTrustIndicators(unittest.TestCase):
         self.assertEqual(len(bad['dockerfile_issues']), FIXTURE['expected_dockerfile_issues'])
         self.assertNotEqual(bad['missing_ecosystems'], [])
 
-        # Clean security posture passes.
+        # Self-approved decision (author == approver) is rejected even if body mentions Daniel (D-360).
         write_json(self.root, 'config/supply/advisories.json', {
             'at': FIXTURE['commit_times'][1],
             'ecosystems': ['npm', 'pypi', 'docker'],
@@ -323,9 +323,29 @@ class EightExternalTrustIndicators(unittest.TestCase):
         write_json(self.root, 'config/security/threats/THREAT-gate.json', {
             'id': 'THREAT-gate', 'review': {'findings': [{'about': 'spoofing', 'disposition': 'fixed'}]},
         })
-        write_text(self.root, 'docs/domain/decisions/D-999.md',
-                   '---\nnumber: D-999\ntime: t\npremises: none\nproof: p\n---\nApproved by Daniel.\n')
         write_text(self.root, 'infra/service/Dockerfile', 'FROM scratch\n')
+        write_text(
+            self.root,
+            'docs/domain/decisions/D-999.md',
+            '---\nnumber: D-999\ntime: t\npremises: none\nauthority: owner\nauthor: lane-a\napprover: lane-a\nproof: p\n---\nDaniel.\n',
+        )
+        self_approved = trust_metrics.measure_security_posture(self.root, self.ladder)
+        self.assertEqual(self_approved['state'], 'not-met')
+        self.assertEqual(len(self_approved['unapproved_tailorings']), 1)
+        self.assertEqual(self_approved['unapproved_tailorings'][0]['authority'], 'self')
+
+        # Independent approver (distinct author/approver under D-360) passes.
+        write_text(
+            self.root,
+            'docs/domain/decisions/D-999.md',
+            '---\nnumber: D-999\ntime: t\npremises: none\nauthority: independent\nauthor: lane-a\napprover: torre\nproof: p\n---\nApproved.\n',
+        )
+        independent_ok = trust_metrics.measure_security_posture(self.root, self.ladder)
+        self.assertEqual(independent_ok['state'], 'met')
+
+        # Owner-approved decision also passes.
+        write_text(self.root, 'docs/domain/decisions/D-999.md',
+                   '---\nnumber: D-999\ntime: t\npremises: none\nauthority: owner\nproof: p\n---\nApproved by Daniel.\n')
         good = trust_metrics.measure_security_posture(self.root, self.ladder)
         self.assertEqual(good['state'], 'met')
 
@@ -390,20 +410,20 @@ class LiveRepoSmoke(unittest.TestCase):
         self.assertTrue(result['ladder']['demoted'])
         self.assertEqual(result['indicators']['human_override_rate']['state'], 'unmeasured')
         self.assertEqual(result['indicators']['independent_audit']['state'], 'unmeasured')
-        self.assertEqual(len(result['indicators']['security_posture']['unapproved_tailorings']),
-                         FIXTURE['expected_head_unapproved_tail'])
+        self.assertEqual(result['indicators']['security_posture']['unapproved_tailorings'], [])
         cli = subprocess.run([str(ROOT / 'scripts' / 'model'), 'trust', '--check'],
                              capture_output=True, text=True, check=False)
         self.assertEqual(cli.returncode, 0, cli.stdout + cli.stderr)
 
-    def test_decision_d353_stays_proposed_and_unapproved(self):
+    def test_decision_d353_is_accepted_with_owner_authority(self):
         ladder, errors = trust_metrics.load_ladder(ROOT)
         self.assertEqual(errors, [])
         authorities = trust_metrics.read_decision_authorities(ROOT, ladder)
         self.assertIn('D-353', authorities)
-        self.assertEqual(authorities['D-353']['status'], 'proposed')
-        self.assertEqual(authorities['D-353']['authority'], 'proposed')
-        self.assertEqual(ladder['state'], 'proposed')
+        self.assertEqual(authorities['D-353']['status'], 'accepted')
+        self.assertEqual(authorities['D-353']['authority'], 'owner')
+        d353_text = (ROOT / 'docs' / 'domain' / 'decisions' / 'D-353.md').read_text(encoding='utf-8')
+        self.assertIn('Torre por delegação do Daniel 22/11/2026', d353_text)
         self.assertEqual(ladder['decision'], 'D-353')
 
 

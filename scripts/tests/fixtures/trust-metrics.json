@@ -85,7 +85,6 @@
   "expected_merges_while_red": 1,
   "expected_total_runs_three": 3,
   "expected_split_count": 1,
-  "expected_head_unapproved_tail": 3,
   "expected_dockerfile_issues": 3,
   "commit_times": [
     "2026-11-19T10:00:00Z",

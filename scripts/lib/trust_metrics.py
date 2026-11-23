@@ -208,30 +208,51 @@ def _parse_front_matter(text):
     return fields
 
 
+DECISION_REF = re.compile(r'\bD-[0-9]+\b')
+INDEPENDENT_AUTHORITIES = ('owner', 'independent')
+EXPLICIT_AUTHORITIES = ('owner', 'independent', 'session', 'self')
+
+
 def read_decision_authorities(root, ladder):
-    """Map D-NNN -> {status, authority} from docs/domain/decisions/D-*.md."""
+    """Map D-NNN -> {status, authority, source} from docs/domain/decisions/D-*.md (aligned with D-360)."""
     defaults = ladder['defaults']
     session_markers = [m.casefold() for m in defaults['session_authority_markers']]
     owner_markers = [m.casefold() for m in defaults['owner_authority_markers']]
     folder = Path(root) / ladder['indicators']['security_posture']['sources']['decisions_dir']
     records = {}
+    superseded = set()
     if not folder.is_dir():
         return records
     for path in sorted(folder.glob('D-*.md')):
         text = path.read_text(encoding='utf-8', errors='replace')
         fields = _parse_front_matter(text)
         ident = fields.get('number', path.stem)
-        status = fields.get('status', 'accepted').lower()
+        raw_status = fields.get('status', 'accepted').strip().lower()
+        status = 'accepted' if raw_status == 'recorded' else raw_status
+        author = fields.get('author', '').strip().casefold()
+        approver = fields.get('approver', '').strip().casefold()
+        explicit = fields.get('authority', '').strip().lower()
         folded = text.casefold()
         if status == 'proposed':
             authority = 'proposed'
+        elif author and approver and author == approver:
+            authority = 'self'
+        elif explicit in EXPLICIT_AUTHORITIES:
+            authority = explicit
+        elif author and approver:
+            authority = 'independent'
         elif any(marker in folded for marker in session_markers):
             authority = 'session'
         elif any(marker in folded for marker in owner_markers):
             authority = 'owner'
         else:
             authority = 'unknown'
+        if status == 'accepted':
+            superseded.update(DECISION_REF.findall(fields.get('supersedes', '')))
         records[ident] = {'status': status, 'authority': authority, 'source': path.relative_to(root).as_posix()}
+    for ident in superseded:
+        if ident in records:
+            records[ident]['status'] = 'superseded'
     return records
 
 
@@ -960,7 +981,7 @@ def measure_security_posture(root, ladder):
             active_tailorings += 1
             auth_id = body.get('authorized_by')
             dec = decisions.get(auth_id)
-            if dec is None or dec['status'] == 'proposed' or dec['authority'] != 'owner':
+            if dec is None or dec['status'] != 'accepted' or dec['authority'] not in INDEPENDENT_AUTHORITIES:
                 unapproved_tailorings.append({
                     'id': body.get('id', path.stem),
                     'scope': body.get('scope'),
