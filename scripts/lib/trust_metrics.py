@@ -705,6 +705,9 @@ def measure_signal_to_overhead(root, ladder, merges=None):
     digits = len(defaults['diagnostic_percentiles'])
     if merges is None:
         merges = first_parent_merges(root, defaults['max_window_merges'])
+    has_value_threshold = 'min_value_share' in target
+    has_meta_threshold = 'max_meta_governance_share' in target
+    work_mix_diagnostic_only = not has_value_threshold and not has_meta_threshold
     if not merges:
         return {
             'number': spec['number'],
@@ -720,6 +723,7 @@ def measure_signal_to_overhead(root, ladder, merges=None):
             'capacity_share': None,
             'value_share': None,
             'meta_governance_share': None,
+            'work_mix_diagnostic_only': work_mix_diagnostic_only,
             'sequential_same_scope_splits': 0,
             'split_pairs': [],
             'target': target,
@@ -769,9 +773,11 @@ def measure_signal_to_overhead(root, ladder, merges=None):
     capacity_share = capacity_n / total
     value_share = value_n / total
     meta_share = meta_n / total
-    met = (value_share >= target['min_value_share']
-           and meta_share <= target['max_meta_governance_share']
-           and len(split_pairs) <= target['max_sequential_same_scope_splits'])
+    value_ok = (not has_value_threshold) or (value_share >= target['min_value_share'])
+    meta_ok = (not has_meta_threshold) or (meta_share <= target['max_meta_governance_share'])
+    splits_ok = ('max_sequential_same_scope_splits' not in target
+                 or len(split_pairs) <= target['max_sequential_same_scope_splits'])
+    met = value_ok and meta_ok and splits_ok
     return {
         'number': spec['number'],
         'name': spec['name'],
@@ -786,6 +792,7 @@ def measure_signal_to_overhead(root, ladder, merges=None):
         'capacity_share': _round_metric(capacity_share, digits),
         'value_share': _round_metric(value_share, digits),
         'meta_governance_share': _round_metric(meta_share, digits),
+        'work_mix_diagnostic_only': work_mix_diagnostic_only,
         'sequential_same_scope_splits': len(split_pairs),
         'split_pairs': split_pairs,
         'target': target,
@@ -1119,6 +1126,7 @@ def evaluate_ladder(ladder, indicators, today=None):
         'effective_level': effective_level,
         'levels': levels_status,
         'always_owner_locked': [item['id'] for item in ladder['always_owner_locked']],
+        'independent_approval_locked': [item['id'] for item in ladder.get('independent_approval_locked') or []],
     }
 
 
@@ -1173,8 +1181,10 @@ def _indicator_detail(key, item):
             return f'unwired (legacy gitignored={item["legacy_source_gitignored"]}, exists={item["legacy_dir_exists"]})'
         return f'overrides {item["overrides"]}, lock violations {item["lock_violations"]}'
     if key == 'signal_to_overhead':
+        mode = ' (diagnostic only)' if item.get('work_mix_diagnostic_only') else ''
         return (f'product {_fmt_pct(item["product_share"])}, value {_fmt_pct(item["value_share"])}, '
-                f'meta-governance {_fmt_pct(item["meta_governance_share"])}, splits {item["sequential_same_scope_splits"]}')
+                f'meta-governance {_fmt_pct(item["meta_governance_share"])}{mode}, '
+                f'splits {item["sequential_same_scope_splits"]}')
     if key == 'production_health_and_cost':
         p = item['deploy_percentiles']
         canary = _fmt_pct(item['canary_pass_rate']) if item['canary_wired'] else 'unwired'
@@ -1212,6 +1222,9 @@ def summary(result):
         lines.append(f'  Level {lvl["level"]} ({lvl["status"]}): {lvl["days_qualified"]}/{lvl["days_required"]} day(s); '
                      f'missing: {missing}')
     lines.append(f'always owner-locked ({len(ladder["always_owner_locked"])}): {", ".join(ladder["always_owner_locked"])}')
+    if ladder.get('independent_approval_locked'):
+        ind = ladder['independent_approval_locked']
+        lines.append(f'independent approval required ({len(ind)}): {", ".join(ind)}')
     return '\n'.join(lines)
 
 

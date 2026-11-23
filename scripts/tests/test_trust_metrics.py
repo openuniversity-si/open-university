@@ -128,6 +128,12 @@ class AutonomyContractAndConfig(unittest.TestCase):
         missing_indicator = copy.deepcopy(self.ladder)
         del missing_indicator['indicators']['security_posture']
         self.assertNotEqual(json_schema.validate(self.schema, missing_indicator), [])
+        bad_ind_lock = copy.deepcopy(self.ladder)
+        bad_ind_lock['independent_approval_locked'] = [{'id': 'BAD-id', 'domain': 'x', 'reason': 'y'}]
+        self.assertNotEqual(json_schema.validate(self.schema, bad_ind_lock), [])
+        good_ind_lock = copy.deepcopy(self.ladder)
+        good_ind_lock['independent_approval_locked'] = [{'id': 'IND-sample', 'domain': 'x', 'reason': 'y'}]
+        self.assertEqual(json_schema.validate(self.schema, good_ind_lock), [])
 
 
 class EightExternalTrustIndicators(unittest.TestCase):
@@ -247,6 +253,19 @@ class EightExternalTrustIndicators(unittest.TestCase):
         self.assertEqual(res['meta_governance_merges'], FIXTURE['expected_meta_merges_one'])
         self.assertEqual(res['sequential_same_scope_splits'], FIXTURE['expected_split_count'])
         self.assertEqual(res['state'], 'not-met')
+
+    def test_indicator_6_diagnostic_work_mix_without_numeric_thresholds(self):
+        t0, _, _, t3, t4 = FIXTURE['commit_times']
+        merge_feature(self.root, 'feat-web', '1', {'apps/web/p1.ts': 'a\n'}, t0)
+        merge_feature(self.root, 'feat-meta-1', '2', {'config/model/a.json': '{}\n'}, t3)
+        merge_feature(self.root, 'feat-meta-2', '3', {'config/model/b.json': '{}\n'}, t4)
+        diag_ladder = copy.deepcopy(self.ladder)
+        diag_ladder['indicators']['signal_to_overhead']['target'] = {'max_sequential_same_scope_splits': 0}
+        res = trust_metrics.measure_signal_to_overhead(self.root, diag_ladder)
+        self.assertTrue(res['work_mix_diagnostic_only'])
+        self.assertEqual(res['sequential_same_scope_splits'], 0)
+        self.assertEqual(res['state'], 'met')
+        self.assertGreater(res['meta_governance_share'], res['value_share'])
 
     def test_indicator_7_production_deploy_canary_and_gross_aws_spend(self):
         write_json(self.root, 'config/validation/runs/deploy-live.json', {

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contracts/model/autonomy.v1.json",
   "title": "Autonomy ladder and external trust indicators v1",
-  "description": "config/governance/autonomy-ladder.json (D-353, proposed): scope-calibrated autonomy ladder (levels A, B, C), eight external trust indicators computed from non-self-reported repository and CI/production artifacts, automatic demotion circuit breakers, and owner-locked domains that never become autonomous without explicit approval.",
+  "description": "config/governance/autonomy-ladder.json (D-353): scope-calibrated autonomy ladder (levels A, B, C), eight external trust indicators computed from non-self-reported repository and CI/production artifacts, automatic demotion circuit breakers, owner-locked domains, and independent-approval domains.",
   "x-owner": "model",
   "x-schema-version": 1,
   "type": "object",
@@ -31,7 +31,7 @@
         "active",
         "superseded"
       ],
-      "description": "proposed: awaiting explicit owner decision; active: adopted by the owner; superseded: replaced by a later ladder."
+      "description": "proposed: awaiting independent or owner decision; active: adopted; superseded: replaced by a later ladder."
     },
     "decision": {
       "type": "string",
@@ -360,6 +360,32 @@
           "id": {
             "type": "string",
             "pattern": "^LOCK-[a-z0-9][a-z0-9-]*$"
+          },
+          "domain": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "independent_approval_locked": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "domain",
+          "reason"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^IND-[a-z0-9][a-z0-9-]*$"
           },
           "domain": {
             "type": "string",

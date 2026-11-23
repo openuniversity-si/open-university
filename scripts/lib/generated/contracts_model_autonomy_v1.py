@@ -26,5 +26,6 @@ AutonomyV1 = TypedDict('AutonomyV1', {
     'levels': Required[list[dict[str, Any]]],
     'circuit_breakers': Required[list[dict[str, Any]]],
     'always_owner_locked': Required[list[dict[str, Any]]],
+    'independent_approval_locked': NotRequired[list[dict[str, Any]]],
     'history': Required[list[dict[str, Any]]],
 }, total=False)
