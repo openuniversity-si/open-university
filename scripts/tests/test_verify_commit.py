@@ -628,7 +628,8 @@ class TheVerifier(unittest.TestCase):
         # the Torre's choice (a), 14/11/2026: a GitHub-hosted job, free on a public repository, named as the check
         import config
         self.assertEqual(config.get('gate.allowed_workflows'), ['.github/workflows/tower-gate.yml', '.github/workflows/deploy-doorbell.yml',
-                          '.github/workflows/full-suite.yml', '.github/workflows/web.yml'])  # web.yml: the site's checks (D-319)
+                          '.github/workflows/full-suite.yml', '.github/workflows/web.yml',  # web.yml: the site's checks (D-319)
+                          '.github/workflows/site-canary.yml'])  # site-canary.yml: read-only live-site canary (D-359 Salto 1)
         staged = (ROOT / 'services' / 'runner' / 'github' / 'tower-gate.yml').read_text(encoding='utf-8')
         for line in ('  pull_request:', '  merge_group:', '    name: tower/gate',
                      'scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post'):

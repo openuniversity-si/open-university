@@ -36,9 +36,14 @@ class Stage(unittest.TestCase):
                          ['.github/actions/setup/action.yml'])
 
     def test_every_staged_workflow_is_the_one_its_installed_path_allows(self):
-        staged = sorted(path.name for path in STAGED.glob('*.yml'))
-        installed = sorted(Path(name).name for name in config.get('gate.allowed_workflows'))
-        self.assertEqual(staged, installed)
+        staged = {path.name for path in STAGED.glob('*.yml')}
+        proposed_dir = STAGED / 'proposed'
+        proposed = {path.name for path in proposed_dir.glob('*.yml')} if proposed_dir.is_dir() else set()
+        allowed = {Path(name).name for name in config.get('gate.allowed_workflows')}
+        self.assertTrue(staged <= allowed, f'staged workflow not in gate.allowed_workflows: {sorted(staged - allowed)}')
+        # D-087 / D-359: an allowlisted workflow is staged in services/runner/github/ (or in proposed/ ahead of Torre installation).
+        self.assertTrue(allowed <= staged | proposed,
+                        f'allowlisted workflow has no staged copy: {sorted(allowed - (staged | proposed))}')
 
 
 if __name__ == '__main__':
