@@ -1,0 +1,21 @@
+{
+  "id": "openai",
+  "provider": "openai",
+  "variables": {
+    "OU_CREDENTIALS": "network"
+  },
+  "secrets": [
+    {
+      "name": "TOWER_PORT_TOKEN",
+      "store": "ssm",
+      "ref": "/tower/agent-env/openai/port-token"
+    }
+  ],
+  "network": {
+    "hosts": []
+  },
+  "starting_credential": {
+    "kind": "bearer-env",
+    "variable": "TOWER_OPENAI_ENV_TOKEN"
+  }
+}

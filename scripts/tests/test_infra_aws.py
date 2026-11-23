@@ -2421,7 +2421,10 @@ class AgentEnvStackTests(unittest.TestCase):
         sys.modules['boto3'] = stub
         try:
             scope = {}
-            [function] = self.functions.values()
+            codes = {item['Properties']['Code']['ZipFile'] for item in self.functions.values()}
+            self.assertEqual(len(codes), 1)  # every environment runs the one handler; its declaration is its environment
+            function = self.functions[next(name for name, item in self.functions.items()
+                                           if item['Properties']['FunctionName'] == agent_env_stack.NAME.format(id='the-tower'))]
             exec(compile(function['Properties']['Code']['ZipFile'], 'index.py', 'exec'), scope)
         finally:
             if saved is None:
@@ -2697,6 +2700,12 @@ class TorreRelayTests(unittest.TestCase):
             self.assertEqual(json.loads(answer['body']), {})
         answer, out = self.call(scope, 'Bearer ' + TOKEN, json.dumps({'text': 'hi'}), route='POST /agent-env/x/v1/torre')
         self.assertEqual(json.loads(out)['status'], HTTPStatus.UNAUTHORIZED)
+        # a declared environment whose token-sha256 the Torre has not put yet: 401, never 500
+        unprovisioned = [route for route in json.loads(self.environment['ROUTES']) if '/the-tower/' not in route]
+        self.assertTrue(unprovisioned)
+        for route in unprovisioned:
+            answer, out = self.call(scope, 'Bearer ' + TOKEN, json.dumps({'text': 'hi'}), route=route)
+            self.assertEqual(json.loads(out)['status'], HTTPStatus.UNAUTHORIZED, route)
         self.assertEqual((self.secrets.calls, self.upstream.requests), ([], []))
 
     def test_a_body_over_the_limit_or_not_a_json_text_answers_400(self):

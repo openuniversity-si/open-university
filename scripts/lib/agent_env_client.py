@@ -67,12 +67,26 @@ def credential_variable(declaration):
     return (declaration.get('starting_credential') or {}).get('variable', '')
 
 
+def chosen(declarations, environ):
+    """The declarations whose starting credential variable is set."""
+    return [declaration for declaration in declarations if environ.get(credential_variable(declaration))]
+
+
 def select(declarations, environ):
-    """The first declaration whose starting credential variable is set, or None."""
-    for declaration in declarations:
-        if environ.get(credential_variable(declaration)):
-            return declaration
-    return None
+    """The one declaration whose starting credential variable is set, or None: none set, or several (ambiguous, so the
+    client fails closed rather than sending one environment's credential to another's endpoint)."""
+    found = chosen(declarations, environ)
+    return found[0] if len(found) == 1 else None
+
+
+def unchosen(declarations, environ, what):
+    """The one line that says why no environment was selected."""
+    found = chosen(declarations, environ)
+    if len(found) > 1:
+        names = ', '.join(sorted(credential_variable(item) for item in found))
+        return f'several starting credentials are set ({names}); set one; nothing {what}'
+    names = ', '.join(sorted({credential_variable(item) for item in declarations})) or 'none declared'
+    return f'no starting credential is set ({names}); nothing {what}'
 
 
 def declared(declaration):
@@ -174,8 +188,7 @@ def torre(text, environ=None, root=ROOT, out=print):
     declarations = load_declarations(root)
     declaration = select(declarations, environ)
     if declaration is None:
-        names = ', '.join(sorted({credential_variable(item) for item in declarations})) or 'none declared'
-        out(f'{LABEL}: torre: no starting credential is set ({names}); nothing sent')
+        out(f'{LABEL}: torre: {unchosen(declarations, environ, "sent")}')
         return 0
     timeout = config.get('agent-env.torre_timeout_s', root) + config.get('agent-env.fetch_timeout_s', root)
     base = endpoint(root, environ, declaration['id'])
@@ -194,8 +207,7 @@ def fetch(environ=None, root=ROOT, out=print):
     declarations = load_declarations(root)
     declaration = select(declarations, environ)
     if declaration is None:
-        names = ', '.join(sorted({credential_variable(item) for item in declarations})) or 'none declared'
-        out(f'{LABEL}: no starting credential is set ({names}); nothing fetched')
+        out(f'{LABEL}: {unchosen(declarations, environ, "fetched")}')
         return 0
     try:
         bundle = request(endpoint(root, environ, declaration['id']) + ROUTE, environ[credential_variable(declaration)],
@@ -220,8 +232,10 @@ def preflight_lines(environ=None, root=ROOT):
     environ = os.environ if environ is None else environ
     if not endpoint(root, environ):
         return [f'{LABEL}: not provisioned'], []
-    if select(load_declarations(root), environ) is None:
-        return [], [f'{LABEL}: no starting credential is set']
+    declarations = load_declarations(root)
+    if select(declarations, environ) is None:
+        several = len(chosen(declarations, environ)) > 1
+        return [], [f'{LABEL}: several starting credentials are set' if several else f'{LABEL}: no starting credential is set']
     return [], []
 
 

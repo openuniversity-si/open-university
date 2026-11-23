@@ -149,6 +149,16 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(Stub.seen, [])
         self.assertFalse(self.env_file.exists())
 
+    def test_several_credentials_set_is_ambiguous_and_sends_nothing(self):
+        other = {**DECLARATION, 'id': 'other', 'starting_credential': {'kind': 'bearer-env', 'variable': 'TOWER_OTHER_START'}}
+        with mock.patch.object(client, 'load_declarations', return_value=[DECLARATION, other]):
+            line = self.run_fetch({**self.environ, 'TOWER_OTHER_START': TOKEN})
+            self.assertIn(f'several starting credentials are set (TOWER_OTHER_START, {CREDENTIAL})', line)
+            self.assertEqual(client.preflight_lines({CREDENTIAL: TOKEN, 'TOWER_OTHER_START': TOKEN}),
+                             ([], ['agent-env: several starting credentials are set']))
+        self.assertEqual(Stub.seen, [])
+        self.assertFalse(self.env_file.exists())
+
     def test_a_non_200_or_unreachable_endpoint_is_one_line_and_exit_0(self):
         self.serve({'error': 'no'}, status=HTTPStatus.FORBIDDEN)
         self.assertIn(f'answered {HTTPStatus.FORBIDDEN.value}', self.run_fetch())
