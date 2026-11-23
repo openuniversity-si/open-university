@@ -65,25 +65,53 @@ class Db:
         raise AssertionError(sql)
 
 
+class Clock:
+    now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
 class TheWatch(unittest.TestCase):
     def setUp(self):
-        self.db, self.sent = Db(), []
-        self.watch = stall.Watch(Settings(), publish=lambda said, subject: self.sent.append((subject, said)))
+        self.db, self.sent, self.clock = Db(), [], Clock()
+        self.watch = stall.Watch(Settings(), publish=lambda said, subject: self.sent.append((subject, said)),
+                                 clock=self.clock)
+
+    def later(self, seconds, runs, oldest):
+        self.clock.now += seconds
+        self.db.waiting = (runs, oldest)
+        return self.watch.beat(self.db)
 
     def test_runs_not_taken_past_the_limit_alert_once_and_their_end_once(self):
+        beat = stall.SETTLE_S / 2  # the service's heartbeat
         self.assertIsNone(self.watch.beat(self.db))  # nothing handed over
-        self.db.waiting = (2, 75.0)  # a runner the rollout replaced is warming: under the limit
-        self.assertIsNone(self.watch.beat(self.db))
-        self.db.waiting = (3, 181.5)
-        said = self.watch.beat(self.db)
+        self.assertIsNone(self.later(beat, 2, 75.0))  # a runner the rollout replaced is warming: under the limit
+        said = self.later(beat, 3, 181.5)
         self.assertEqual(said, {'state': 'stalled', 'runs': 3, 'oldest_s': 181.5, 'limit_s': 180.0})
-        self.db.waiting = (4, 240.0)
-        self.assertIsNone(self.watch.beat(self.db))  # still stalled: said once
-        self.db.waiting = (1, 12.0)  # a reaped run handed over again, and the runner is back: taken soon
-        self.assertEqual(self.watch.beat(self.db)['state'], 'recovered')
-        self.assertIsNone(self.watch.beat(self.db))
+        self.assertIsNone(self.later(beat, 4, 240.0))  # still stalled: said once
+        self.assertIsNone(self.later(beat, 1, 12.0))  # the runner is back: it takes what is handed over
+        self.assertIsNone(self.later(beat, 0, 0.0))  # RUNNER-STALL-QUIET: calm, not yet for SETTLE_S
+        self.assertEqual(self.later(beat, 0, 0.0)['state'], 'recovered')  # calm for SETTLE_S: it takes runs again
+        self.assertIsNone(self.later(beat, 0, 0.0))
         self.assertEqual([each['state'] for each in self.db.events], ['stalled', 'recovered'])
         self.assertEqual([subject for subject, _ in self.sent], [stall.SUBJECTS[True], stall.SUBJECTS[False]])
+
+    def test_runs_reaped_and_handed_over_again_stay_stalled_said_once(self):
+        # RUNNER-STALL-QUIET, live 16-23/11: runs nobody took, each reaped at its lease and its job handed over again as
+        # a new run, so the oldest fell under the limit at each reap; it said recovered and stalled every 2.5 minutes
+        self.assertGreaterEqual(stall.SETTLE_S, stall.CALM_S)  # a run that ages from zero is calm for under CALM_S
+        self.assertLess(stall.CALM_S, config_data.SPEC[stall.LIMIT][1])
+        limit = config_data.SPEC[stall.LIMIT][1]
+        lease = limit + stall.SETTLE_S  # any lease past the limit
+        self.assertEqual(self.later(0, 3, lease)['state'], 'stalled')
+        for every in (stall.SETTLE_S / 2, stall.CALM_S / stall.CALM_S):  # the heartbeat, and a look every second
+            ages = [float(age) for age in range(0, int(lease), int(every))]  # a run handed over again at each lease
+            for _ in ages:
+                for age in ages:
+                    self.assertIsNone(self.later(every, 1, age))
+        self.assertEqual([each['state'] for each in self.db.events], ['stalled'])
+        self.assertEqual(len(self.sent), 1)
 
     def test_the_limit_is_data_and_stays_under_the_lease(self):
         self.assertEqual(config_data.SPEC[stall.LIMIT], (float, 180.0))
@@ -102,13 +130,6 @@ class TheWatch(unittest.TestCase):
         loop = (ROOT / 'infra/service/tower_infra/__main__.py').read_text()
         self.assertIn('taking = stall.Watch(settings)', loop)
         self.assertLess(loop.index('measured.beat(db)'), loop.index('taking.beat(db)'))
-
-
-class Clock:
-    now = 1000.0
-
-    def __call__(self):
-        return self.now
 
 
 class TheStandbysWatch(unittest.TestCase):
@@ -188,7 +209,8 @@ class OnPostgres(unittest.TestCase):
         return [each['payload'] for each in json.loads(answer['body'])['events']]
 
     def test_a_run_handed_over_and_not_taken_is_stalled_and_recovered_once_the_runner_takes_it(self):
-        watch = stall.Watch(Settings(limit=0.05), publish=lambda said, subject: self.sent.append(subject))
+        clock = Clock()
+        watch = stall.Watch(Settings(limit=0.05), publish=lambda said, subject: self.sent.append(subject), clock=clock)
         self.assertIsNone(watch.beat(self.db))  # no run handed over
         self.world.job('one', 'true')
         self.assertEqual(len(self.tick()), 1)  # dispatched: the run is handed over to the runner's executor
@@ -198,7 +220,9 @@ class OnPostgres(unittest.TestCase):
         self.assertEqual((said['state'], said['runs']), ('stalled', 1))
         self.assertGreaterEqual(said['oldest_s'], 0.05)
         self.world.runner.once()  # the runner takes it and runs it
-        self.assertEqual(watch.beat(self.db)['state'], 'recovered')
+        self.assertIsNone(watch.beat(self.db))  # RUNNER-STALL-QUIET: calm from now
+        clock.now += stall.SETTLE_S
+        self.assertEqual(watch.beat(self.db)['state'], 'recovered')  # calm for SETTLE_S: it takes runs again
         self.assertEqual([each['state'] for each in self.events()], ['stalled', 'recovered'])  # the configuration tenant reads it
         self.assertEqual(self.sent, [stall.SUBJECTS[True], stall.SUBJECTS[False]])
 
