@@ -14,12 +14,14 @@
   "threats": [
     {
       "stride": "spoofing",
-      "statement": "A run that did not judge the commit, such as a fork's run or a run of another head, passes its green verdict off as the queue commit's; or a tower/gate status is posted on a commit by a credential other than the gate's own job. The ruleset binds each required check to the GitHub Actions app (integration 15368), so a status of that name from a session's credential (verify-commit without --no-post) or any other writer does not count. Residual: the binding names the GitHub Actions app, not the workflow, so a change that edits the workflow defines its own check; GitHub refuses such a push without the workflow scope, which only the owner holds here (D-087), but a fork's pull request carries its own workflow (VULN-gate-check-source is fixed: the owner applied the binding on 19/11).",
+      "statement": "A run that did not judge the commit, such as a fork's run or a run of another head, passes its green verdict off as the queue commit's; or a tower/gate status is posted on a commit by a credential other than the gate's own job. The ruleset binds each required check to the GitHub Actions app (integration 15368), so a status of that name from a session's credential (verify-commit without --no-post) or any other writer does not count. Residual: the binding names the GitHub Actions app, not the workflow, so a change that edits the workflow defines its own check; GitHub refuses such a push without the workflow scope, which only the owner holds here (D-087), and a fork's pull request carries its own workflow (VULN-gate-check-source is fixed: the owner applied the binding on 19/11). Since 23/11 (D-359 Salto 2) the ruleset also requires tower/gate-attested bound to the GitHub App tower-gate-attester, which no workflow can report: its AWS verifier reads the facts itself (the required checks of integration 15368 on the exact head, the changed files, the head repository, the merge group's parents), refuses a fork that touches .github/ and attests a .github/workflows, actions or rulesets change only with an administrator's Decision comment naming the exact head (Attest-Head). Residual: an administrator's account is trusted to attest a workflow change.",
       "mitigated_by": [
         "TEST:scripts/tests/verify-commit.test.sh",
         "TEST:scripts/tests/security.test.sh",
         "REQ-github-truth",
-        ".github/rulesets/main.json"
+        ".github/rulesets/main.json",
+        "infra/aws/attester/README.md",
+        "TEST:scripts/tests/gate-attester.test.sh"
       ]
     },
     {

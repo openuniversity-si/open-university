@@ -1,5 +1,5 @@
 {
-  "name": "main: merge queue and tower/gate",
+  "name": "main: merge queue, tower/gate and externally attested tower/gate-attested",
   "target": "branch",
   "enforcement": "active",
   "conditions": {
@@ -36,6 +36,10 @@
         "strict_required_status_checks_policy": false,
         "required_status_checks": [
           {
+            "context": "tower/gate-attested",
+            "integration_id": 5888233
+          },
+          {
             "context": "tower/gate",
             "integration_id": 15368
           },
@@ -62,5 +66,6 @@
         "check_response_timeout_minutes": 20
       }
     }
-  ]
+  ],
+  "bypass_actors": []
 }

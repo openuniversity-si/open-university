@@ -646,9 +646,12 @@ class TheVerifier(unittest.TestCase):
         rules = {rule['type']: rule.get('parameters') for rule in ruleset['rules']}
         # web: the site's checks (D-319); the gate pinned to the base (D-335); each bound to the GitHub Actions app, so no
         # other status writer satisfies it (VULN-gate-check-source)
+        # tower/gate-attested (D-359 Salto 2, THREAT-gate): bound to the App tower-gate-attester, which verifies in AWS
+        attester_app = json.loads((ROOT / 'infra' / 'aws' / 'attester' / 'app.json').read_text(encoding='utf-8'))['id']
         self.assertEqual(rules['required_status_checks']['required_status_checks'],
-                         [{'context': context, 'integration_id': 15368} for context in
-                          ('tower/gate', 'web', 'gate pinned to the base')])
+                         [{'context': 'tower/gate-attested', 'integration_id': attester_app}]
+                         + [{'context': context, 'integration_id': 15368} for context in
+                            ('tower/gate', 'web', 'gate pinned to the base')])
         self.assertEqual(rules['merge_queue']['merge_method'], 'MERGE')
         # QUEUE-RUN: entries build side by side and merge together, and every one of them must be green to merge
         # (ALLGREEN, never HEADGREEN), so each commit main takes was judged green; an entry whose check never answers
