@@ -36,6 +36,25 @@ class Checks(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp(prefix='queue-checks-'))
         self.addCleanup(shutil.rmtree, self.root)
 
+    def test_a_check_bound_to_an_external_app_needs_no_workflow_and_refuses_one(self):
+        """D-359 Salto 2 (THREAT-gate): tower/gate-attested comes from the App tower-gate-attester, not from a job."""
+        jobs_app = len('github-actions')
+        other_app = jobs_app + 1
+        bound = {'rules': [{'type': 'required_status_checks', 'parameters': {'required_status_checks': [
+            {'context': 'tower/gate', 'integration_id': jobs_app},
+            {'context': 'tower/gate-attested', 'integration_id': other_app}]}}]}
+        write(self.root, '.github/rulesets/main.json', bound)
+        write(self.root, queue_checks.EXTERNAL_APPS[0], {'id': other_app})
+        write(self.root, '.github/workflows/tower-gate.yml', GATE)
+        write(self.root, 'services/runner/github/tower-gate.yml', GATE)
+        self.assertEqual(queue_checks.check(self.root), [])
+        attested = next(e for e in queue_checks.checks(self.root) if e['name'] == 'tower/gate-attested')
+        self.assertEqual((attested['state'], attested['external']), ('required', True))
+        spoof = GATE + '  fake:\n    name: tower/gate-attested\n'
+        write(self.root, '.github/workflows/tower-gate.yml', spoof)
+        write(self.root, 'services/runner/github/tower-gate.yml', spoof)
+        self.assertTrue(any('no workflow may report it' in e for e in queue_checks.check(self.root)))
+
     def states(self):
         return {entry['name']: entry['state'] for entry in queue_checks.checks(self.root)}
 

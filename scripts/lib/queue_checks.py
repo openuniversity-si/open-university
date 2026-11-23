@@ -13,6 +13,11 @@ every merge on the deploy service).
 
 `check` refuses a required check that no installed job produces (the queue would wait for it forever) and an installed
 workflow that differs from its staged copy (the copy the owner installs is the one a session reviewed).
+
+EXTERNAL (D-359 Salto 2, THREAT-gate): a required check bound to the integration_id of an external GitHub App declared in
+the tree (EXTERNAL_APPS: infra/aws/attester/app.json, the App tower-gate-attester verifying in AWS) is reported by that
+App, not by a job (tower/gate-attested); it stays `required`, carries external=true, and no installed workflow is expected to run it. A workflow job of that name is refused
+instead: the check exists precisely so that no workflow can report it.
 """
 import json
 from pathlib import Path
@@ -21,6 +26,7 @@ import re
 STAGED = 'services/runner/github'
 INSTALLED = '.github/workflows'
 RULESETS = '.github/rulesets'
+EXTERNAL_APPS = ('infra/aws/attester/app.json',)
 
 JOB = re.compile(r'^  ([A-Za-z0-9_-]+):\s*$')
 NAME = re.compile(r'^    name:\s*(.+?)\s*$')
@@ -81,14 +87,31 @@ def job_names(text):
 
 def required(root):
     """{check name: ruleset file} of every required status check of the rulesets."""
+    return {name: where for name, (where, _) in required_bound(root).items()}
+
+
+def required_bound(root):
+    """{check name: (ruleset file, integration_id or None)} of every required status check of the rulesets."""
     found = {}
     for path in sorted((Path(root) / RULESETS).glob('*.json')):
         body = json.loads(path.read_text())
         for rule in body.get('rules', []):
             if rule.get('type') == 'required_status_checks':
                 for item in rule.get('parameters', {}).get('required_status_checks', []):
-                    found[item['context']] = path.relative_to(root).as_posix()
+                    found[item['context']] = (path.relative_to(root).as_posix(), item.get('integration_id'))
     return found
+
+
+def external_apps(root):
+    """The integration ids of the external GitHub Apps the tree declares (EXTERNAL_APPS)."""
+    ids = set()
+    for name in EXTERNAL_APPS:
+        path = Path(root) / name
+        if path.is_file():
+            got = json.loads(path.read_text()).get('id')
+            if isinstance(got, int):
+                ids.add(got)
+    return ids
 
 
 def workflows(root, folder):
@@ -110,8 +133,12 @@ def checks(root):
                 entry[kind] = True
     for check, ruleset in wanted.items():
         found.setdefault(check, {'name': check, 'workflow': None, 'staged': False, 'installed': False})
+    bound = required_bound(root)
+    apps = external_apps(root)
     for entry in found.values():
         entry['required_by'] = wanted.get(entry['name'])
+        app = bound.get(entry['name'], (None, None))[1]
+        entry['external'] = bool(entry['required_by'] and isinstance(app, int) and app in apps)
         entry['state'] = 'required' if entry['required_by'] else 'installed' if entry['installed'] else 'staged'
     return sorted(found.values(), key=lambda entry: entry['name'])
 
@@ -119,8 +146,12 @@ def checks(root):
 def check(root):
     """The refusals: a required check no installed job produces, an installed workflow that differs from its staged copy."""
     root = Path(root)
+    entries = checks(root)
     errors = [f'check {entry["name"]}: required by {entry["required_by"]} but no installed workflow runs it'
-              for entry in checks(root) if entry['required_by'] and not entry['installed']]
+              for entry in entries if entry['required_by'] and not entry['installed'] and not entry['external']]
+    errors += [f'check {entry["name"]}: reported by an external App ({entry["required_by"]}) but a workflow job of that '
+               f'name exists ({entry["workflow"]}); no workflow may report it (THREAT-gate)'
+               for entry in entries if entry['external'] and entry['workflow']]
     staged = workflows(root, STAGED)
     for name, path in workflows(root, INSTALLED).items():
         if name in staged and staged[name].read_bytes() != path.read_bytes():

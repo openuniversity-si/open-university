@@ -15,6 +15,10 @@ sys.path.insert(0, str(ROOT / 'scripts' / 'lib'))
 import model  # noqa: E402
 
 GITHUB_ACTIONS = 15368  # the GitHub Actions app, the source of every check a workflow job reports
+# the GitHub App tower-gate-attester (D-359 Salto 2): the only source of tower/gate-attested, verified in AWS
+ATTESTER_APP = json.loads((Path(__file__).resolve().parent.parent.parent / 'infra' / 'aws' / 'attester' / 'app.json')
+                          .read_text(encoding='utf-8'))['id']
+ATTESTED_CONTEXT = 'tower/gate-attested'
 BAR = {'critical': 7, 'high': 30, 'moderate': 90, 'low': 180}
 
 
@@ -247,7 +251,9 @@ class RealRepository(unittest.TestCase):
         for path in sorted((ROOT / '.github' / 'rulesets').glob('*.json')):
             for rule in json.loads(path.read_text()).get('rules', []):
                 for item in (rule.get('parameters') or {}).get('required_status_checks', []):
-                    self.assertEqual(item.get('integration_id'), GITHUB_ACTIONS, f'{path.name}: {item["context"]}')
+                    want = ATTESTER_APP if item['context'] == ATTESTED_CONTEXT else GITHUB_ACTIONS
+                    self.assertEqual(item.get('integration_id'), want, f'{path.name}: {item["context"]}')
+        self.assertNotEqual(ATTESTER_APP, GITHUB_ACTIONS)  # THREAT-gate: a workflow cannot report the attested check
 
     def test_every_threat_model_covers_stride_on_an_active_element_and_every_mitigation_exists(self):
         """The automated design review of SSDF PW.2.1: each threat model models an active architecture element, names

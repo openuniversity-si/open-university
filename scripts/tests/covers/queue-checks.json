@@ -9,6 +9,7 @@
     "contracts/model/*.json",
     ".github/workflows/*.yml",
     "services/runner/github/*.yml",
-    ".github/rulesets/*.json"
+    ".github/rulesets/*.json",
+    "infra/aws/attester/app.json"
   ]
 }

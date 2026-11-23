@@ -1,0 +1,30 @@
+{
+  "id": 5888233,
+  "slug": "tower-gate-attester",
+  "name": "tower-gate-attester",
+  "owner": "openuniversity-si",
+  "html_url": "https://github.com/apps/tower-gate-attester",
+  "permissions": {
+    "checks": "write",
+    "statuses": "read",
+    "pull_requests": "read",
+    "issues": "read",
+    "contents": "read",
+    "metadata": "read",
+    "merge_queues": "read"
+  },
+  "events": [
+    "check_run",
+    "check_suite",
+    "status",
+    "merge_group",
+    "pull_request",
+    "issue_comment"
+  ],
+  "installation": {
+    "id": 185014234,
+    "repositories": [
+      "openuniversity-si/open-university"
+    ]
+  }
+}

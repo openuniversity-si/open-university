@@ -13,6 +13,7 @@
     "config/standard/**",
     "config/registry/security/**",
     "docs/domain/decisions/*.md",
-    ".github/rulesets/*.json"
+    ".github/rulesets/*.json",
+    "infra/aws/attester/app.json"
   ]
 }
