@@ -51,6 +51,8 @@ archive and through a release pipeline of its own. The engine has no database mi
    build runs `scripts/retired-vendors` and then `apps/web/deploy/build-image.sh`, and pushes `lambda-<sha7>` and
    `live`. The ECR source image `src-251b64f` is no longer read. Check: the build SUCCEEDED, its log shows
    `retired-vendors: 0 reference(s)` and both tags are in ECR.
+   Every release since D-364 starts only after `GITHUB_TOKEN="$(gh auth token)" apps/web/deploy/promotion-guard.sh
+   <SRC_SHA>` exits 0 (the commit's newest `full-suite` run is green); any other exit starts no build.
 6. **The Lambda `open-university-web`** runs `lambda-<sha7>` (update-function-code, wait for function-updated). Check:
    `LastUpdateStatus` Successful and the `ImageUri` of the new tag; then a CloudFront invalidation of `/*` on
    E20KHUP9NU9TI4.
