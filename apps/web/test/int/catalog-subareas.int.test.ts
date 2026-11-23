@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { swapMedia } from "../../src/media/server/repository.ts";
 import { activeRelease, auditRows, call, coverInput, createHarness, revisionOf, seedCatalog, type Harness, type Seed } from "../fixtures/admin-catalog.ts";
 
+// Verifies: REQ-contract-inv-h2
 // ADR-26: a course's subarea always belongs to its area (API first, the composite key underneath); classify is idempotent.
 interface ClassifyData { changed: { id: string; after: { areaId: string | null; subareaId: string | null } }[]; unchanged: number; noop?: boolean }
 interface SubareaRow { id: string; areaId: string; position: number; uses: number; published: number }
