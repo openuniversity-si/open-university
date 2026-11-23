@@ -1,4 +1,4 @@
-"""Read-only synthetic HTTP canary for the live site (M6, D-346, D-359 proposed).
+"""Read-only synthetic HTTP canary for the live site (M6, D-346, D-359).
 
 Probes the public Open University site without AWS credentials, secrets, or any write:
   1. GET /api/health  HTTP 200, Cache-Control: no-store, JSON status "ok", non-empty catalog sha/source and release.

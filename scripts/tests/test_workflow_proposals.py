@@ -1,4 +1,4 @@
-"""Workflow proposals and live-site canary (PR W, D-087, D-359 proposed). Hermetic: no network calls.
+"""Workflow proposals and live-site canary (PR W, D-087, D-359). Hermetic: no network calls.
 
 Verifies: REQ-github-truth
 """
@@ -311,13 +311,31 @@ class ProposalAuditTests(unittest.TestCase):
         self.assertEqual(queue_checks.check(ROOT), [])
         self.assertEqual(gate_workflows.refused(ROOT), [])
 
-    def test_d359_record_is_proposed_never_self_approved_and_points_to_this_suite(self):
+    def test_d359_record_is_accepted_with_owner_authority_and_torre_delegation(self):
         record = (ROOT / 'docs' / 'domain' / 'decisions' / 'D-359.md').read_text(encoding='utf-8')
-        self.assertIn('number: D-359\n', record)
-        self.assertIn('status: proposed\n', record)
-        self.assertIn('proof: scripts/tests/workflow-proposals.test.sh\n', record)
-        self.assertNotIn('decided by the session', record.lower())
-        self.assertIn('never self-approved', record)
+        self.assertTrue(record.startswith('---\n'), 'D-359 must start with YAML front matter')
+        front, sep, body = record.removeprefix('---\n').partition('\n---\n')
+        self.assertTrue(sep, 'D-359 front matter must be closed with ---')
+        self.assertIn('number: D-359\n', f'{front}\n')
+        self.assertIn('authority: owner\n', f'{front}\n')
+        self.assertIn('premises: none\n', f'{front}\n')
+        self.assertIn('proof: scripts/tests/workflow-proposals.test.sh\n', f'{front}\n')
+        self.assertNotIn('status:', front)
+        self.assertIn('Torre por delegação do Daniel 22/11/2026', body)
+        self.assertIn('builds on D-352 (1)(3), D-360, D-087', body)
+        lowered = record.lower()
+        for forbidden in (
+            'decided by the session',
+            'requer decisão do daniel',
+            'requer aprovação do daniel',
+            "daniel's explicit approval",
+            "for daniel's decision",
+        ):
+            self.assertNotIn(forbidden, lowered)
+        table = (ROOT / 'docs' / 'domain' / 'DECISIONS.md').read_text(encoding='utf-8')
+        rows = [line for line in table.splitlines() if line.startswith('| D-359 |')]
+        self.assertEqual(len(rows), 1, 'DECISIONS.md must have exactly one row for D-359')
+        self.assertTrue(rows[0].endswith('| recorded |'), rows[0])
 
 
 if __name__ == '__main__':
