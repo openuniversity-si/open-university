@@ -170,6 +170,8 @@ class TheVerifier(unittest.TestCase):
             metric = json.loads(metric_lines[0].removeprefix('verify-commit: flake-metric '))
             expected_rate = 1 / len(PLAN['tests'])
             self.assertEqual(metric['flakes'], ['scripts/tests/x.test.sh'])
+            self.assertEqual(metric['alone'], ['scripts/tests/x.test.sh'])
+            self.assertTrue(metric['flaked'])
             self.assertEqual(metric['flake_count'], 1)
             self.assertAlmostEqual(metric['flake_rate'], expected_rate)
             self.assertFalse(metric['strict_alone'])
@@ -197,7 +199,15 @@ class TheVerifier(unittest.TestCase):
                                                     run=Fake()), 0)
             lines = [json.loads(line) for line in log_path.read_text().splitlines()]
             self.assertEqual([item['flake_count'] for item in lines], [1, 0, 1])
+            self.assertEqual([item['flaked'] for item in lines], [True, False, True])
+            self.assertEqual([item['alone'] for item in lines],
+                             [['scripts/tests/x.test.sh'], [], ['scripts/tests/x.test.sh']])
             self.assertEqual([item['strict_alone'] for item in lines], [False, False, True])
+            # D-355 is recorded as accepted (authority: owner, Torre por delegação do Daniel 22/11/2026).
+            d355 = (ROOT / 'docs' / 'domain' / 'decisions' / 'D-355.md').read_text(encoding='utf-8')
+            self.assertIn('\nauthority: owner\n', d355)
+            self.assertNotIn('\nstatus: proposed\n', d355)
+            self.assertIn('Torre por delegação do Daniel 22/11/2026', d355)
 
     def test_an_isolated_test_runs_by_itself_beside_a_batch_of_one_worker_fewer(self):
         """GATE-ISOLATED: the named timing-bound test is never in the batch; it runs alone at the same time, and the

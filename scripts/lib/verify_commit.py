@@ -441,12 +441,15 @@ def repo_of(run=run):
 
 
 def flake_entry(sha, base, planned, part=None, strict_alone=False):
-    """D-355: structured VERIFY-ALONE flake telemetry record for one verify-commit run."""
+    """D-355: structured VERIFY-ALONE flake telemetry record for one verify-commit run (compatible with
+    config/validation/runs/flakes.json, D-351 operational weaknesses and D-353 trust indicator 3)."""
     flakes = list(planned.get('flakes') or [])
     return {
         'sha': sha,
         'base': base,
         'part': part,
+        'flaked': bool(flakes),
+        'alone': flakes,
         'flakes': flakes,
         'flake_count': len(flakes),
         'flake_rate': float(planned.get('flake_rate') or 0.0),
