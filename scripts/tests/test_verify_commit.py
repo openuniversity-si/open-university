@@ -623,6 +623,11 @@ class TheVerifier(unittest.TestCase):
                      "if: failure() && steps.suite.outcome == 'failure'", 'gh issue create'):
             self.assertIn(line, staged)
         self.assertNotIn('pull_request', staged)  # never a check a merge waits for
+        # Andon (D-363): one main-red-andon issue, commented on while it stays open, closed by the next green run
+        for line in ('--label main-red-andon --state open', 'gh issue comment "$open"', '--label main-red-andon \\',
+                     "if: success()", 'gh issue close "$number"'):
+            self.assertIn(line, staged)
+        self.assertLess(staged.index('if [ -n "$open" ]'), staged.index('gh issue create'))
 
     def test_the_tower_gate_workflow_is_the_one_allowed_and_runs_the_verifier_on_the_queue_too(self):
         # the Torre's choice (a), 14/11/2026: a GitHub-hosted job, free on a public repository, named as the check

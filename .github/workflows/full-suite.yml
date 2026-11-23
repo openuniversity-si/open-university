@@ -1,7 +1,9 @@
 # full-suite (FULL-SUITE-MAIN; the migration to GitHub, 14/11/2026): the safety net of the plan's section 2, the whole script
 # suite after each merge into main, as the AWS FULL-RUN was. tower/gate judges only the tests a diff touches; this job
-# judges every one (scripts/verify-commit --all: a test red in the batch runs again alone, VERIFY-ALONE). A red run opens an
-# issue and blocks nothing. Staged here and installed by the owner as .github/workflows/full-suite.yml (D-087).
+# judges every one (scripts/verify-commit --all: a test red in the batch runs again alone, VERIFY-ALONE). Andon (D-363): a
+# red run opens one main-red-andon issue (or comments on the open one), the next green run closes it, and the merge queue
+# is never held; a red commit is not promoted (apps/web/deploy/promotion-guard.sh). Staged here and installed by the
+# Torre as .github/workflows/full-suite.yml (D-087).
 # CACHE-PGDATA: its run on main saves the toolchain cache the pull requests and the merge queue restore, so its cache step
 # is tower-gate.yml's, byte for byte (the paths are part of the cache's version): the binaries, never the test cluster.
 name: full-suite
@@ -44,11 +46,28 @@ jobs:
           git cat-file -e "${base}^{commit}" 2>/dev/null || base="$(git rev-parse HEAD~1)"
           source scripts/cloud/env.sh
           scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post --all
-      - name: open an issue when red
+      - name: Andon when red
         if: failure() && steps.suite.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          gh issue create --repo "$GITHUB_REPOSITORY" --title "full-suite red on ${GITHUB_SHA::12}" \
-            --body "The whole script suite was red on main at $GITHUB_SHA: $RUN_URL. The job's log names each red test and the end of its output."
+          gh label create main-red-andon --repo "$GITHUB_REPOSITORY" --color B60205 \
+            --description "Andon: full-suite red on main (D-363)" 2>/dev/null || true
+          body="The whole script suite was red on main at $GITHUB_SHA: $RUN_URL. The job's log names each red test and the end of its output. This commit is not promoted (D-363); a flake is cleared by re-running this workflow."
+          open="$(gh issue list --repo "$GITHUB_REPOSITORY" --label main-red-andon --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --label main-red-andon \
+              --title "Andon: full-suite red on main (${GITHUB_SHA::12})" --body "$body"
+          fi
+      - name: lift the Andon when green
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          for number in $(gh issue list --repo "$GITHUB_REPOSITORY" --label main-red-andon --state open --json number --jq '.[].number'); do
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" --comment "full-suite green on main at $GITHUB_SHA: $RUN_URL."
+          done
