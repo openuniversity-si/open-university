@@ -9,8 +9,15 @@ Watch.beat(db), on the live service's heartbeat, reads the runs handed over to t
 the age of the oldest (one statement on the partial index run_starting). Past service.runner_stall_alert_s (a runner
 task the rollout replaced warms for about a minute, and a run handed over is taken within a second) the service records
 platform.runner.stalled {state: stalled, runs, oldest_s, limit_s} (the configuration tenant's, so the port's log query
-reads it) and publishes it to the platform's topic; when none is left past the limit, {state: recovered}. Once per change
-of state of a process. Never raises.
+reads it) and publishes it to the platform's topic. Once per change of state of a process. Never raises.
+
+RUNNER-STALL-QUIET (live 16-23/11: 288 to 447 stalled and as many recovered a day, two emails each, for runs nobody ever
+took): a run not taken is reaped at its lease (five minutes) and its job handed over again as a new run, so the oldest
+run handed over fell under the limit at each reap and the watch said recovered, then stalled again three minutes later,
+while still nothing was taken. Recovered now says the runner takes runs again: no run handed over older than CALM_S
+(one handed over is taken within a second; a runner that warms, in about a minute, takes the ones that waited) for
+SETTLE_S of this process's looks. A run handed over again at a reap is young for less than CALM_S and ages from there,
+so it never holds the calm for SETTLE_S: a runner that takes nothing stays stalled, said once.
 
 DISPATCH-STALL-ALERT (the review's finding 32): a service that stands by watches the dispatch. On 11/11 20:41 UTC the
 process that had the service's role became a strict standby with no pointer; for 7.7 minutes nobody dispatched and
@@ -41,22 +48,33 @@ WAITING = ("select count(*), coalesce(extract(epoch from clock_timestamp() - min
 RECORD = ("insert into log.event (event_id, tenant_id, type, occurred_at, producer, subject, payload) "
           f"select %(id)s, t.id, '{EVENT}', clock_timestamp(), 'tower-service', 'runner', %(payload)s::jsonb "
           "from work.tenant t where t.name = %(tenant)s")
+CALM_S = 30.0  # RUNNER-STALL-QUIET: no run handed over older than this is a runner that takes them
+SETTLE_S = 60.0  # and for this long (two heartbeats of the service): a reap's new run is never calm that long
 SUBJECTS = {True: 'tower runner: runs are handed over and not taken', False: 'tower runner: taking runs again'}
 
 
 class Watch:
     """The live service's watch of the runner. config: the service's settings (get(name), tenant); publish(said,
-    subject=) sends the alert; adapter: the runner's (runner.Runner's default)."""
+    subject=) sends the alert; adapter: the runner's (runner.Runner's default); clock: the process's, for the calm."""
 
-    def __init__(self, config, publish=canary.alert, adapter='container'):
+    def __init__(self, config, publish=canary.alert, adapter='container', clock=time.monotonic):
         self.config, self.publish, self.adapter, self.stalled = config, publish, adapter, False
+        self.clock, self.calm = clock, None  # RUNNER-STALL-QUIET: since when no run handed over is older than CALM_S
         self.tenant = getattr(config, 'tenant', config_data.TENANT)
 
     def beat(self, db):
         try:
             runs, oldest = db.rows(WAITING, {'adapter': self.adapter})[0]
             limit = float(self.config.get(LIMIT))
-            late = float(oldest) >= limit
+            now = self.clock()
+            if float(oldest) >= min(CALM_S, limit):
+                self.calm = None
+            elif self.calm is None:
+                self.calm = now
+            if self.stalled:  # RUNNER-STALL-QUIET: recovered once runs are taken again, not when a reap renews the oldest
+                late = self.calm is None or now - self.calm < SETTLE_S
+            else:
+                late = float(oldest) >= limit
             if late == self.stalled:
                 return None
             said = {'state': 'stalled' if late else 'recovered', 'runs': int(runs), 'oldest_s': round(float(oldest), 1),
