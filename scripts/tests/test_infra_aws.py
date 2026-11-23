@@ -258,7 +258,11 @@ class BootstrapTests(unittest.TestCase):
     # nothing else of Secrets Manager; tower-cfn-exec, whose one policy is the boundary, already creates the later stack's
     # tower-app-* functions, roles and SSM parameters. The Torre applies it from S3 (the runbook's "AGENT-ENV-BOUNDARY"),
     # with no order to the merge: nothing reads those secrets yet. 54,636 bytes.
-    APPLIED = '38bdc05f44129bb5795761b728715a19c9cb419ff9c510a830e45f060cec6e2e'
+    # DEPLOY-QUIET-SUCCESS (Daniel through the Torre, 23/11/2026): the deploy build's post_build publishes to the topic only
+    # when the build failed (subject `tower deploy FAILED`); a build that succeeded says so in its own log and in the
+    # deployer's record (/tower/deploy/last-build), not in an email. The Torre applies it from S3 BEFORE the merge, so the
+    # merge's own build is the proof (UsePreviousValue for every parameter). 54,781 bytes.
+    APPLIED = '46e75218908fdd5db740158b8dc0348488de8f903098749c40bfbf3c671cccf3'
 
     # MEDIA-REPLICA: the workload services in the stack region and in the media replica's, nowhere else
     REGIONS = {'StringEquals': {'aws:RequestedRegion': [{'Ref': 'AWS::Region'}, {'Ref': 'ReplicaRegion'}]}}

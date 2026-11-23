@@ -952,6 +952,14 @@ class BootstrapTests(unittest.TestCase):
         self.assertNotIn('origin', self.spec.replace('$ORIGIN_REPO_URL', ''))  # BUILD-NO-ORIGIN: a public clone, no Origin CLI
         self.assertIn('aws sns publish --topic-arn "$ALERTS_TOPIC_ARN"', self.spec)
         lines = [line.strip() for line in self.spec.splitlines()]
+        # DEPLOY-QUIET-SUCCESS: the topic hears a failed build only; a build that succeeded is said in its log
+        after = lines[lines.index('post_build:') + 1:]
+        [post] = [line.removeprefix('- ') for line in after if line.startswith('- ')]
+        self.assertTrue(post.startswith('if [ "${CODEBUILD_BUILD_SUCCEEDING:-0}" = 1 ]; then echo '), post)
+        quiet, loud = post.split('; else ', 1)
+        self.assertNotIn('sns', quiet)
+        self.assertIn('--subject "tower deploy FAILED"', loud)
+        self.assertEqual(self.spec.count('aws sns publish'), 1)
         self.assertIn('- bash repo/infra/aws/deploy.sh', lines)
         check = next(line for line in lines if line.startswith('- test -f repo/infra/aws/deploy.sh'))
         self.assertTrue(check.endswith('false; }'))

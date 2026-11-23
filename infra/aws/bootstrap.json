@@ -917,7 +917,7 @@
         },
         "Source": {
           "Type": "NO_SOURCE",
-          "BuildSpec": "version: 0.2\nenv:\n  shell: bash\nphases:\n  build:\n    commands:\n      - git clone --quiet --single-branch --branch \"$BASE_BRANCH\" \"$ORIGIN_REPO_URL\" repo\n      - head=$(git -C repo rev-parse HEAD) && echo \"base head $head\"\n      - test -f repo/infra/aws/deploy.sh || { echo \"repo/infra/aws/deploy.sh is missing in the base head $head, so nothing was deployed (and nothing recorded)\"; false; }\n      - bash repo/infra/aws/deploy.sh\n  post_build:\n    commands:\n      - aws sns publish --topic-arn \"$ALERTS_TOPIC_ARN\" --subject \"tower deploy $CODEBUILD_BUILD_SUCCEEDING\" --message \"build $CODEBUILD_BUILD_ID, base head ${head:-unknown}\" || true\n"
+          "BuildSpec": "version: 0.2\nenv:\n  shell: bash\nphases:\n  build:\n    commands:\n      - git clone --quiet --single-branch --branch \"$BASE_BRANCH\" \"$ORIGIN_REPO_URL\" repo\n      - head=$(git -C repo rev-parse HEAD) && echo \"base head $head\"\n      - test -f repo/infra/aws/deploy.sh || { echo \"repo/infra/aws/deploy.sh is missing in the base head $head, so nothing was deployed (and nothing recorded)\"; false; }\n      - bash repo/infra/aws/deploy.sh\n  post_build:\n    commands:\n      - if [ \"${CODEBUILD_BUILD_SUCCEEDING:-0}\" = 1 ]; then echo \"tower deploy succeeded, build $CODEBUILD_BUILD_ID, base head ${head:-unknown}, not published\"; else aws sns publish --topic-arn \"$ALERTS_TOPIC_ARN\" --subject \"tower deploy FAILED\" --message \"build $CODEBUILD_BUILD_ID, base head ${head:-unknown}\" || true; fi\n"
         },
         "ConcurrentBuildLimit": 1,
         "TimeoutInMinutes": 45,
