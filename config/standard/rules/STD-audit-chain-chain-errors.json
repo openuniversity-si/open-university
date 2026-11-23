@@ -13,5 +13,5 @@
   "basis": [
     "D-069"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-069 item 4 (the event log is append-only), cited with item 3 by the module head for this hash chain: an edited or removed entry breaks it."
+  "note": "Basis: D-069 item 4 (the event log is append-only), cited with item 3 by the module head for this hash chain: an edited or removed entry breaks it."
 }

@@ -13,5 +13,5 @@
   "basis": [
     "D-069"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-069 item 15: user-facing text is keyed by locale and sourced from config, so visible text outside the text entries is refused (the module head cites item 15)."
+  "note": "Basis: D-069 item 15: user-facing text is keyed by locale and sourced from config, so visible text outside the text entries is refused (the module head cites item 15)."
 }

@@ -26,12 +26,30 @@ def setting(name):
 
 
 def padrao(root=None):
-    """(version, [(rule id, text)]) of the active Padrão version."""
-    folder = Path(root or ROOT) / setting('padrao_dir') / setting('padrao_version')
-    manifest = json.loads((folder / setting('padrao_manifest')).read_text())
-    if manifest['version'] != setting('padrao_version'):
-        raise LaunchError(f'{folder.name}: manifest says {manifest["version"]}')
-    return manifest['version'], [(rule['id'], (folder / rule['file']).read_text().strip()) for rule in manifest['rules']]
+    """(version, [(rule id, text)]) of the active Padrão version: a docs/padrao/<version>/ folder, or a catalog
+    version file (config/standard/versions/VER-<version>.json) whose launch prose inherits from its supersedes
+    folder (VER-v9, D-317)."""
+    base = Path(root or ROOT)
+    version = setting('padrao_version')
+    folder = base / setting('padrao_dir') / version
+    manifest_path = folder / setting('padrao_manifest')
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text())
+        if manifest['version'] != version:
+            raise LaunchError(f'{folder.name}: manifest says {manifest["version"]}')
+        return manifest['version'], [(rule['id'], (folder / rule['file']).read_text().strip()) for rule in manifest['rules']]
+    record_path = base / 'config' / 'standard' / 'versions' / f'VER-{version}.json'
+    if record_path.is_file():
+        record = json.loads(record_path.read_text())
+        if record.get('id') != f'VER-{version}' or record.get('contains') != 'catalog':
+            raise LaunchError(f'{record_path.name}: unexpected version record for {version}')
+        inherited = (record.get('supersedes') or '').removeprefix('VER-')
+        if inherited:
+            parent = base / setting('padrao_dir') / inherited
+            manifest = json.loads((parent / setting('padrao_manifest')).read_text())
+            return version, [(rule['id'], (parent / rule['file']).read_text().strip()) for rule in manifest['rules']]
+        return version, []
+    raise LaunchError(f'{version}: no Padrão manifest at {manifest_path} or version record at {record_path}')
 
 
 class NullLessons:

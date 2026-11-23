@@ -15,5 +15,5 @@
     "D-324",
     "D-326"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-324 (a CO1 program's plan.md carries the program.v1 block, valid and acyclic; the module head cites D-069 (CO1), D-071 and D-077) and D-326 (dormant: program.check is the Origin-era coordinator's, stopped by D-314)."
+  "note": "Basis: D-324 (a CO1 program's plan.md carries the program.v1 block, valid and acyclic; the module head cites D-069 (CO1), D-071 and D-077) and D-326 (dormant: program.check is the Origin-era coordinator's, stopped by D-314)."
 }

@@ -14,5 +14,5 @@
     "D-326",
     "D-329"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-326 and D-329 (live, not dormant: tower/gate's pr metadata stage runs it through commit_check.pr_errors on the GitHub pull request's merge base since D-329; D-326 had judged it dormant while the stage was skipped). GX-21 (docs/units/GX21) defined \"lane undecidable\"; D-065 (4) / D-067 (2) give each unit one exclusive lane."
+  "note": "Basis: D-326 and D-329 (live, not dormant: tower/gate's pr metadata stage runs it through commit_check.pr_errors on the GitHub pull request's merge base since D-329; D-326 had judged it dormant while the stage was skipped). GX-21 (docs/units/GX21) defined \"lane undecidable\"; D-065 (4) / D-067 (2) give each unit one exclusive lane."
 }
