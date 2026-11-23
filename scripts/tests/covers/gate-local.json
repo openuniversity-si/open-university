@@ -4,8 +4,11 @@
     "scripts/tests/gate-local.test.sh",
     "scripts/tests/gate-local/**",
     "scripts/tests/lib/**",
+    "scripts/gate-local",
     "scripts/lib/gate-budget.sh",
     "scripts/lib/gate-hooks/**",
-    "scripts/lib/gate-runner.sh"
+    "scripts/lib/gate-runner.sh",
+    "scripts/lib/preflight.py",
+    ".gitleaks.toml"
   ]
 }

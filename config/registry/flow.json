@@ -27,6 +27,17 @@
       ],
       "x-source": "F80; 03/11 lane census: median 4 calls over 2k tokens (154k weighted), one whole-file cat 82k"
     },
+    "flow.cycle_determination": {
+      "type": "string",
+      "default": "deliver the active program unit with a green gate",
+      "minLength": 1,
+      "x-unit": "text",
+      "description": "Default standing determination named by scripts/hooks/cycle-stop when .gate/cycle.on carries only 'on' (I-0d1c3a25); replaces the obsolete hardcoded AWS-engine determination.",
+      "x-readers": [
+        "scripts/lib/cycle_stop.py"
+      ],
+      "x-source": "I-0d1c3a25"
+    },
     "flow.frictions_log": {
       "type": "string",
       "default": "~/.cache/the-tower/frictions.jsonl",
@@ -36,6 +47,16 @@
         "scripts/lib/fronts.py"
       ],
       "x-source": "VAZÃO F69; lane rule 9 (03/11)"
+    },
+    "flow.home_checkout": {
+      "type": "string",
+      "default": "",
+      "x-unit": "path",
+      "description": "Default home checkout whose .toolchain scripts/lane worktree symlinks; when empty, lane.py derives it from TOWER_HOME_CHECKOUT or the current checkout root.",
+      "x-readers": [
+        "scripts/lib/lane.py"
+      ],
+      "x-source": "D-314"
     },
     "flow.lanes_ledger": {
       "type": "string",
@@ -118,6 +139,16 @@
         "scripts/lib/usage.py"
       ],
       "x-source": "VAZÃO F69 (docs/programs/vazao/fila.md)"
+    },
+    "flow.worktree_root": {
+      "type": "string",
+      "default": "",
+      "x-unit": "path",
+      "description": "Default parent directory where scripts/lane worktree places per-unit worktrees; when empty, lane.py derives it from TOWER_WORKTREE_ROOT or the repository checkout's parent directory.",
+      "x-readers": [
+        "scripts/lib/lane.py"
+      ],
+      "x-source": "D-314"
     }
   }
 }

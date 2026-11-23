@@ -13,5 +13,9 @@
     "D-317",
     "D-322"
   ],
-  "layer": 1
+  "layer": 1,
+  "target_fingerprints": {
+    "ARC-config": "93555f69260e",
+    "ARC-events": "da9896b4db87"
+  }
 }

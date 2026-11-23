@@ -8,12 +8,13 @@
   "satisfies": [
     "REQ-slo-budgets-budgets-tighten-only"
   ],
-  "depends_on": [
-    "ARC-events"
-  ],
+  "depends_on": [],
   "basis": [
     "D-317",
     "D-322"
   ],
-  "layer": 0
+  "layer": 0,
+  "target_fingerprints": {
+    "REQ-slo-budgets-budgets-tighten-only": "dd81dd5e7b3b"
+  }
 }

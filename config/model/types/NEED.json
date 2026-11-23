@@ -11,6 +11,9 @@
   "inactive_states": [
     "superseded"
   ],
+  "unconformant_states": [
+    "proposed"
+  ],
   "covered_by": [
     {
       "type": "REQ",
@@ -21,7 +24,7 @@
       "link": "validates"
     }
   ],
-  "description": "A need that refines the intention and that requirements and validations answer.",
+  "description": "A need that refines the intention and that requirements and validations answer; proposed until validated by the owner.",
   "must_link": [
     "serves"
   ]

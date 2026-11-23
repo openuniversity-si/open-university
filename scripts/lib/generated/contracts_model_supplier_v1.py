@@ -9,6 +9,7 @@ SupplierV1 = TypedDict('SupplierV1', {
     'kind': Required[Literal['account', 'registry', 'platform']],
     'ecosystems': NotRequired[list[Literal['npm', 'pypi', 'toolchain', 'action', 'image']]],
     'budget': NotRequired[str],
+    'no_budget_by': NotRequired[str],
     'note': NotRequired[str],
     'tools': NotRequired[list[str]],
 }, total=False)

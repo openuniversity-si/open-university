@@ -5,13 +5,16 @@
   "tactic": "INJ-tree-governance",
   "assumptions": {
     "necessary": {
-      "statement": "About 33 merged PRs a day against 1,000, and the trust that would delegate the flow is not measured."
+      "statement": "About 33 merged PRs a day against 1,000, and the trust that would delegate the flow is not measured.",
+      "premise": "P-27"
     },
     "parallel": {
-      "statement": "Governance by a measured tree keeps Daniel's trust without approving each unit (P-59 is the premise it invalidates)."
+      "statement": "Governance by a measured tree keeps Daniel's trust without approving each unit (P-59 is the premise it invalidates).",
+      "premise": "P-39"
     },
     "sufficiency": {
-      "statement": "The three domains together cover throughput, cost and the system itself."
+      "statement": "The three domains together cover throughput, cost and the system itself.",
+      "premise": "P-36"
     }
   },
   "owner_role": "manager",

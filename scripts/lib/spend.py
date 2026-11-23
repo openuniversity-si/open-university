@@ -33,13 +33,14 @@ def reading(answer):
         return None
     day, start, usd = found.get('day'), found.get('from'), found.get('usd')
     if not (isinstance(day, str) and DAY.match(day) and isinstance(start, str) and DAY.match(start)
-            and start <= day and start[:len('2026-01')] == day[:len('2026-01')] and isinstance(usd, (int, float)) and usd >= 0):
+            and start <= day and start[:len('2026-01')] == day[:len('2026-01')]
+            and isinstance(usd, (int, float)) and not isinstance(usd, bool) and usd >= 0):
         return None
     return {'day': day, 'from': start, 'usd': float(f'{usd:.2f}')}
 
 
 def snapshot(found, now=None):
-    return {'source': 'AWS Cost Explorer GetCostAndUsage (UnblendedCost, month to date), read by the deploy build',
+    return {'source': 'AWS Cost Explorer GetCostAndUsage (UnblendedCost, excluding Credit and Refund, month to date), read by the deploy build',
             'at': now or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), **found}
 
 
@@ -50,7 +51,8 @@ def read(root):
 
 def read_supplier(root, name):
     """A supplier's spend reading ({usd, day, source}) of config/validation/spend/<name>.json, or None: for a supplier
-    with no API the engine reads, the reading is checked by hand against the invoice (D-342, SUP-anthropic)."""
+    with no API the engine reads, the reading is checked by hand against the invoice (D-342; retired for SUP-anthropic
+    by D-362)."""
     path = Path(root) / Path(SNAPSHOT).parent / f'{name}.json'
     return json.loads(path.read_text()) if path.exists() else None
 

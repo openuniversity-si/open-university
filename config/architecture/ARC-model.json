@@ -12,11 +12,20 @@
     "ARC-config",
     "ARC-gate",
     "ARC-knowledge",
-    "ARC-measurement"
+    "ARC-measurement",
+    "ARC-planning"
   ],
   "basis": [
     "D-317",
     "D-322"
   ],
-  "layer": 5
+  "layer": 5,
+  "target_fingerprints": {
+    "ARC-config": "93555f69260e",
+    "ARC-gate": "fdb04d9f45fe",
+    "ARC-knowledge": "091716462946",
+    "ARC-measurement": "31616c2bafb4",
+    "ARC-planning": "07767116892c",
+    "REQ-chain-verified": "8478553468d1"
+  }
 }

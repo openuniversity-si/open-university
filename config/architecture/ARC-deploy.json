@@ -18,5 +18,13 @@
   "basis": [
     "D-317"
   ],
-  "layer": 4
+  "layer": 4,
+  "target_fingerprints": {
+    "ARC-config": "93555f69260e",
+    "ARC-environment": "bcf004cf5c58",
+    "ARC-events": "da9896b4db87",
+    "ARC-gate": "fdb04d9f45fe",
+    "REQ-aws-200": "3cbb1c853fc2",
+    "REQ-deploy-1s": "7b7820680b49"
+  }
 }

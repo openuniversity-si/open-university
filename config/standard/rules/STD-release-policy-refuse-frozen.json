@@ -13,5 +13,5 @@
   "basis": [
     "D-054"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-054: production is frozen; pending production changes wait in docs/process/host-swap-queue.md (the queue the refusal names); the module head cites D-054."
+  "note": "Basis: D-054: production is frozen; pending production changes wait in docs/process/host-swap-queue.md (the queue the refusal names); the module head cites D-054."
 }

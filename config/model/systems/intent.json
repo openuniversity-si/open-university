@@ -7,6 +7,6 @@
     "15288/12207 stakeholder needs and requirements definition"
   ],
   "owner": "Daniel",
-  "measure": "Share of the intent objects that conform: every intention refined by a problem, every problem addressed by an objective, every objective measured and with a need deriving from it, every need with a requirement and a validation (D-347).",
-  "description": "The owner's intention, goals and locked constraints (docs/SEMENTE.md), the problems and opportunities that make them concrete, the objectives measured against a baseline and a target, and the needs that derive from them (D-347)."
+  "measure": "Share of the intent objects that conform: every intention refined by a necessary condition (NC) of the problem space, every need serving a condition and deriving a requirement and a validation (D-348).",
+  "description": "The owner's intention, goals and locked constraints (docs/SEMENTE.md) and the stakeholder needs that derive from them and serve the problem space's Goal Tree (D-348, superseding D-347)."
 }

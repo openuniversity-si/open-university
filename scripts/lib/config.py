@@ -11,7 +11,7 @@ library, so an HTTP endpoint can call the same functions.
 """
 import contextlib
 import copy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import math
@@ -47,6 +47,24 @@ _registry_memo = {}  # registry directory -> (signature, params, racy): one pars
 _checked = {}  # registry directory -> signature, stat once per outermost get/overrides call (_one_check)
 _depth = [0]
 _replay_memo = {}  # store key -> (source, overrides): one replay per read of the log (remote) or per log file state (file)
+_STORE_PORT = [None]  # dependency-inverted event store port registered by forge_events on import (D-322)
+
+
+def register_store_port(port):
+    """Register the event-port provider (forge_events) so config never imports forge_events upward (D-322)."""
+    _STORE_PORT[0] = port
+
+
+def _store_port():
+    if _STORE_PORT[0] is None:
+        raise ConfigError("config: change store requires forge_events to be initialized")
+    return _STORE_PORT[0]
+
+
+def _rfc3339(moment):
+    if moment.tzinfo is None:
+        raise ConfigError("config: the clock must give an aware time")
+    return moment.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 class ConfigError(KeyError):
@@ -361,8 +379,8 @@ def use_store_of(root):
     """Read another checkout's change store (its file log) in this process while the block runs, this checkout's registry
     still giving every default: how a tool run from a worktree of the base reads the box's own switches (GATE-INFRA 12,
     scripts/deliver --branch)."""
-    import forge_events
-    return use_adapter(forge_events.FileAdapter(pathlib.Path(root) / _entry("config.store_dir")["default"]))
+    port = _store_port()
+    return use_adapter(port.FileAdapter(pathlib.Path(root) / _entry("config.store_dir")["default"]))
 
 
 def pin_store(kind):
@@ -394,16 +412,16 @@ def store_kind(root=None):
 def store(root=None, clock=None, correlation_id=None):
     """The change store: the config.changed log on the forge_events port, with the adapter chosen in process
     (use_adapter), else the one store_kind names."""
-    import forge_events  # the port imports this module; load it when the store is used
+    port_api = _store_port()
     if _chosen:
         adapter, chosen_clock = _chosen[-1]
         clock = clock or chosen_clock
     else:  # D-300: the file store is the only one; store_kind still refuses a name outside the registry's enum
         store_kind(root)
-        adapter = forge_events.FileAdapter(_base(root) / _entry("config.store_dir", root)["default"])
-    forge_events.checked_adapter(adapter, {'append', 'read'}, 'config store')
-    port = forge_events.ForgeEvents(adapter, clock or forge_events.clock_from_config(), _PRODUCER,
-                                    correlation_id or _PRODUCER)
+        adapter = port_api.FileAdapter(_base(root) / _entry("config.store_dir", root)["default"])
+    port_api.checked_adapter(adapter, {'append', 'read'}, 'config store')
+    port = port_api.ForgeEvents(adapter, clock or port_api.clock_from_config(), _PRODUCER,
+                                correlation_id or _PRODUCER)
     return PortStore(port, _entry("forge-events.repo")["default"], root)
 
 
@@ -477,7 +495,6 @@ _READS = {"events": _healed, "state": _state}  # what a cached read of a remote 
 
 
 def _cached(target, root, what="events"):
-    import forge_events
     key, now = f"{_cache_key(target.port.adapter, target.repo)}-{what}", target.port.clock.now()
     shareable = not _chosen or hasattr(target.port.adapter, "cache_identity")  # an in-process adapter names itself to share a file
     held = _memo.get(key) or (_read_cache(root, key) if shareable else None)
@@ -494,7 +511,7 @@ def _cached(target, root, what="events"):
     path = _cache_file(root, key)
     path.parent.mkdir(parents=True, exist_ok=True)
     partial = path.with_suffix(f".{os.getpid()}.tmp")
-    partial.write_text(json.dumps({"key": key, "expires": forge_events.rfc3339(expires), "held": found}),
+    partial.write_text(json.dumps({"key": key, "expires": _rfc3339(expires), "held": found}),
                        encoding="utf-8")
     partial.replace(path)
     return found
@@ -539,14 +556,47 @@ def _invalidate(root=None):
 def _log_state(adapter, repo):
     """What identifies the log a replay folded: the read itself for a remote store (held for config.store_cache_ttl_s
     by _cached), the log file's stat for the file adapter, else None (read and replayed every time)."""
-    import forge_events
-    if type(adapter) is not forge_events.FileAdapter:
+    port_api = _STORE_PORT[0]
+    if port_api is None or type(adapter) is not port_api.FileAdapter:
         return None
     try:
-        stat = adapter.path(forge_events.Channel(repo, None)).stat()
+        stat = adapter.path(port_api.Channel(repo, None)).stat()
         return (stat.st_dev, stat.st_ino, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size)
     except FileNotFoundError:
         return "absent"
+
+
+def _local_overrides(root, repo):
+    """Read-only replay of the local JSONL file store when forge_events has not been imported."""
+    store_kind(root)
+    directory = _base(root) / _entry("config.store_dir", root)["default"]
+    path = directory / repo.replace("/", "__") / "repository.jsonl"
+    try:
+        stat = path.stat()
+        source = (stat.st_dev, stat.st_ino, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size)
+    except FileNotFoundError:
+        source = "absent"
+    key = ("local-file", repo, str(_base(root)), str(directory))
+    held = _replay_memo.get(key)
+    if held is not None and held[0] == source:
+        return held[1]
+    if source == "absent":
+        folded = {}
+    else:
+        events = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                events.append(json.loads(line))
+            except ValueError as error:
+                raise StoreError(f"config: unreadable entry in {path}: {error}") from None
+        folded = replay(events)
+    if not _racy(source):
+        _replay_memo[key] = (source, folded)
+    else:
+        _replay_memo.pop(key, None)
+    return folded
 
 
 def overrides(root=None):
@@ -578,14 +628,18 @@ def _overrides(root, fresh=True):
         return {}
     _replaying.append(True)
     try:
+        repo = _entry("forge-events.repo")["default"]
+        port_api = _STORE_PORT[0]
+        if port_api is None and not _chosen:
+            folded = _local_overrides(root, repo)
+            return copy.deepcopy(folded) if fresh else folded
         # An unchanged local fold is pure data: constructing another journal port cannot refresh it. Observe its
         # file identity before consulting the existing replay memo; an actual read still uses the checked port.
-        import forge_events
+        file_adapter = getattr(port_api, "FileAdapter", None)
         adapter = _chosen[-1][0] if _chosen else (
-            forge_events.FileAdapter(_base(root) / _entry("config.store_dir", root)["default"])
-            if store_kind(root) == "file" else None)
-        repo = _entry("forge-events.repo")["default"]
-        if type(adapter) is forge_events.FileAdapter:
+            file_adapter(_base(root) / _entry("config.store_dir", root)["default"])
+            if file_adapter is not None and store_kind(root) == "file" else None)
+        if file_adapter is not None and type(adapter) is file_adapter:
             source = _log_state(adapter, repo)
             key = (_cache_key(adapter, repo), str(_base(root)), str(adapter.directory))
             held = _replay_memo.get(key)
@@ -758,11 +812,11 @@ class _At:
 
 
 def _record(name, old, new, actor, reason, now, root, correlation_id=None, reverts=None):
-    import forge_events
+    port_api = _store_port()
     clock = _At(now)
-    payload = {**forge_events.subject(_entry("forge-events.repo")["default"], None, None),
+    payload = {**port_api.subject(_entry("forge-events.repo")["default"], None, None),
                "name": name, "old": old, "new": new, "actor": actor, "reason": reason,
-               "at": forge_events.rfc3339(clock.now())}
+               "at": port_api.rfc3339(clock.now())}
     if reverts:
         payload["reverts"] = reverts
     target = store(root, clock, correlation_id or f"{_PRODUCER}:{name}")
@@ -801,12 +855,12 @@ def _append_snapshot(target, found, root):
     missed = target.window_missed  # the newest window held no snapshot: append one, even with nothing pending
     if not changes(found) or (len(pending) < _entry("config.store_snapshot_after_events", root)["default"] and not missed):
         return None
-    import forge_events
+    port_api = _store_port()
     last = changes(found)[-1]
     count = (snapshots[-1]["payload"]["count"] if snapshots else 0) + len(pending)
-    payload = {**forge_events.subject(_entry("forge-events.repo")["default"], None, None),
+    payload = {**port_api.subject(_entry("forge-events.repo")["default"], None, None),
                "overrides": folded, "through": last["event_id"], "count": count,
-               "at": forge_events.rfc3339(target.port.clock.now())}
+               "at": port_api.rfc3339(target.port.clock.now())}
     _replaying.append(True)
     try:
         return target.append(_SNAPSHOT, payload)

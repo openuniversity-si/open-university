@@ -193,8 +193,9 @@ class DocsScriptTests(unittest.TestCase):
         import gate_script_tests
         return sorted(Path(item).name for item in gate_script_tests.select_plan(plan)[0])
 
-    def test_events_doc_selects_event_contracts_only(self):
-        self.assertEqual(self.chosen(["docs/process/EVENTS.md"]), ["event-contracts.test.sh"])
+    def test_events_doc_selects_the_tests_that_read_it(self):
+        # judgment-rule reads EVENTS.md since f4a0c6f (D-314, D-323), so it covers it too.
+        self.assertEqual(self.chosen(["docs/process/EVENTS.md"]), ["event-contracts.test.sh", "judgment-rule.test.sh"])
 
     def test_each_covered_doc_selects_exactly_the_covering_tests(self):
         import gate_script_tests
@@ -219,7 +220,7 @@ class DocsScriptTests(unittest.TestCase):
         self.assertIsNone(self.chosen(["docs/operations/local-gate.md"]))
 
     def test_a_covered_doc_beside_an_uncovered_one_selects_only_the_covered_tests(self):
-        self.assertEqual(self.chosen(["docs/operations/local-gate.md", "docs/process/EVENTS.md"]), ["event-contracts.test.sh"])
+        self.assertEqual(self.chosen(["docs/operations/local-gate.md", "docs/process/EVENTS.md"]), ["event-contracts.test.sh", "judgment-rule.test.sh"])
 
     def test_unreadable_covers_still_run_the_script_tests(self):
         import gate_script_tests

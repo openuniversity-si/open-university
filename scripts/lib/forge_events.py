@@ -692,6 +692,10 @@ class ForgeEvents:
         else:
             operation(repo, name, owner)
 
+    def measured(self, step, subject_fields):
+        """Time a step on this port and emit engine.step.measured (delegates to measured())."""
+        return measured(self, step, subject_fields)
+
 
 def step_payload(subject_fields, step, duration_ms, result, retries=0, tokens_in=0, tokens_out=0, model=None,
                  provider=None):
@@ -839,6 +843,9 @@ def main(argv=None):
     result = events if args.command == 'read' else replay(events)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
+
+
+config.register_store_port(sys.modules[__name__])
 
 
 if __name__ == '__main__':

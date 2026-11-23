@@ -19,12 +19,104 @@ BAR = {'critical': 7, 'high': 30, 'moderate': 90, 'low': 180}
 
 
 class Controls(unittest.TestCase):
-    def test_a_control_is_a_gap_until_something_that_exists_implements_it(self):
-        body = {'applicable': True, 'implemented_by': ['STD-gone']}
+    def test_a_control_is_a_gap_until_something_that_exists_implements_it_with_explicit_coverage(self):
+        body = {'applicable': True, 'implemented_by': ['STD-gone'], 'coverage': 'full'}
         self.assertEqual(model.control_state(body, {'STD-here'}), 'gap')
+        self.assertEqual(model.control_state({'applicable': True, 'implemented_by': ['STD-here']}, {'STD-here'}), 'gap')
         self.assertEqual(model.control_state({**body, 'implemented_by': ['STD-here']}, {'STD-here'}), 'implemented')
         self.assertEqual(model.control_state({**body, 'implemented_by': ['STD-here'], 'coverage': 'partial'}, {'STD-here'}), 'partial')
         self.assertEqual(model.control_state({'applicable': False}, set()), 'not-applicable')
+
+    def test_a_control_refuses_dormant_draft_judgment_or_unexercised_rules(self):
+        def std(ident, state='blocking', kind='function'):
+            return {'id': ident, 'type': 'STD', 'state': state, 'fingerprint': 'f', 'links': [],
+                    'rule': {'id': ident, 'state': state, 'check': {'kind': kind, 'ref': 'scripts/lib/x.py:f'}}}
+
+        found = {
+            'STD-live': std('STD-live'),
+            'STD-dormant': std('STD-dormant', state='dormant'),
+            'STD-draft': std('STD-draft', state='draft'),
+            'STD-judge': std('STD-judge', kind='judgment'),
+            'STD-idle': std('STD-idle'),
+        }
+        unexercised = {'STD-idle'}
+        for bad in ('STD-dormant', 'STD-draft', 'STD-judge', 'STD-idle'):
+            only_bad = {'applicable': True, 'implemented_by': [bad], 'coverage': 'full'}
+            self.assertEqual(model.control_state(only_bad, found, unexercised), 'gap', bad)
+            mixed = {'applicable': True, 'implemented_by': ['STD-live', bad], 'coverage': 'full'}
+            self.assertEqual(model.control_state(mixed, found, unexercised), 'partial', bad)
+        ok = {'applicable': True, 'implemented_by': ['STD-live'], 'coverage': 'full'}
+        self.assertEqual(model.control_state(ok, found, unexercised), 'implemented')
+        found['CTRL-bad'] = {'id': 'CTRL-bad', 'type': 'CTRL', 'state': 'gap', 'fingerprint': 'f', 'links': [],
+                             'body': {'applicable': True, 'implemented_by': ['STD-dormant']}}
+        warnings = model.security_findings(found, today='2026-11-19')
+        self.assertTrue(any('omits explicit coverage' in line for line in warnings), warnings)
+        self.assertTrue(any('STD-dormant is inert (rule is dormant)' in line for line in warnings), warnings)
+
+    def test_a_function_checked_control_requires_the_function_present_and_exercised(self):
+        """D-352 (4): CTRL-ssdf-po.2 derives implemented only when independently_approved is present and exercised in
+        live code; when absent or uncalled it stays partial and warns."""
+        with tempfile.TemporaryDirectory(prefix='ctrl-fn-') as tmp:
+            root = Path(tmp)
+            model_py = root / 'scripts' / 'lib' / 'model.py'
+            model_py.parent.mkdir(parents=True, exist_ok=True)
+            std_indep = {
+                'id': 'STD-model-independent-approval', 'type': 'STD', 'state': 'blocking', 'fingerprint': 'f',
+                'links': [], 'rule': {'id': 'STD-model-independent-approval', 'state': 'blocking',
+                                      'check': {'kind': 'function', 'ref': 'scripts/lib/model.py:independently_approved'}},
+            }
+            std_guard = {
+                'id': 'STD-gate-production-guard', 'type': 'STD', 'state': 'blocking', 'fingerprint': 'f',
+                'links': [], 'rule': {'id': 'STD-gate-production-guard', 'state': 'blocking',
+                                      'check': {'kind': 'gate-stage', 'ref': 'production guard'}},
+            }
+            ctrl_body = {
+                'applicable': True, 'coverage': 'full',
+                'implemented_by': ['STD-model-independent-approval', 'STD-gate-production-guard'],
+            }
+            found = {
+                'STD-model-independent-approval': std_indep,
+                'STD-gate-production-guard': std_guard,
+                'CTRL-ssdf-po.2': {'id': 'CTRL-ssdf-po.2', 'type': 'CTRL', 'state': 'gap', 'fingerprint': 'f',
+                                   'links': [], 'body': ctrl_body},
+            }
+            model_py.write_text('def other():\n    return True\n')
+            self.assertEqual(model.control_state(ctrl_body, found, root=root), 'partial')
+            warnings = model.security_findings(found, root=root, today='2026-11-22')
+            self.assertTrue(any('is not present' in line for line in warnings), warnings)
+
+            model_py.write_text('def independently_approved(decision):\n    return bool(decision)\n')
+            self.assertEqual(model.control_state(ctrl_body, found, root=root), 'partial')
+            warnings = model.security_findings(found, root=root, today='2026-11-22')
+            self.assertTrue(any('is not exercised in live code' in line for line in warnings), warnings)
+
+            model_py.write_text(
+                'def independently_approved(decision):\n    return bool(decision)\n'
+                'def active_tailoring(found):\n    return [d for d in found if independently_approved(d)]\n'
+            )
+            self.assertEqual(model.control_state(ctrl_body, found, root=root), 'implemented')
+            self.assertEqual(model.security_findings(found, root=root, today='2026-11-22'), [])
+
+    def test_a_risk_checks_review_by_and_residual_acceptance(self):
+        def risk(ident, state, **extra):
+            return {'id': ident, 'type': 'RISK', 'state': state, 'fingerprint': 'f', 'links': [],
+                    'body': {'id': ident, 'state': state, 'owner': 'Daniel', **extra}}
+
+        found = {
+            'RISK-ok': risk('RISK-ok', 'treated', review_by='2026-12-19', residual_accepted_by='Daniel'),
+            'RISK-closed': risk('RISK-closed', 'closed', review_by='2025-01-01'),
+            'RISK-no-date': risk('RISK-no-date', 'assessed'),
+            'RISK-late': risk('RISK-late', 'treated', review_by='2026-11-01', residual_accepted_by='Daniel'),
+            'RISK-unaccepted': risk('RISK-unaccepted', 'treated', review_by='2026-12-19'),
+            'RISK-accepted-blank': risk('RISK-accepted-blank', 'accepted', review_by='2026-12-19', residual_accepted_by=''),
+        }
+        warnings = model.security_findings(found, today='2026-11-19')
+        flagged = {line.split(':', 1)[0] for line in warnings}
+        self.assertEqual(flagged, {'RISK-no-date', 'RISK-late', 'RISK-unaccepted', 'RISK-accepted-blank'})
+        self.assertTrue(any('RISK-no-date: active risk has no review_by' in line for line in warnings))
+        self.assertTrue(any('RISK-late: review_by 2026-11-01 has passed' in line for line in warnings))
+        self.assertTrue(any('RISK-unaccepted: treated risk has no residual_accepted_by' in line for line in warnings))
+        self.assertTrue(any('RISK-accepted-blank: accepted risk has no residual_accepted_by' in line for line in warnings))
 
 
 class Vulnerabilities(unittest.TestCase):
@@ -77,6 +169,22 @@ class Readers(unittest.TestCase):
         self.write('config/security/threats/THREAT-gate.json', {**body, 'reviewed': '2026-11-17'})
         self.assertEqual(model.read_threats(self.root)[0]['state'], 'reviewed')
 
+    def test_a_stamped_threat_model_turns_suspect_when_its_architecture_element_changes(self):
+        arc = {'id': 'ARC-gate', 'kind': 'component', 'name': 'Gate', 'statement': 'judges PRs',
+               'state': 'active', 'owner': 'capacity'}
+        threat = {'id': 'THREAT-gate', 'models': 'ARC-gate', 'assets': ['main'], 'boundaries': [],
+                  'threats': [{'stride': 'tampering', 'statement': 's'}], 'reviewed': '2026-11-19'}
+        self.write('config/architecture/ARC-gate.json', arc)
+        self.write('config/security/threats/THREAT-gate.json', threat)
+        readers = (model.read_architecture, model.read_threats)
+        stamped = model.stamp(self.root, found=model.objects(self.root, readers=readers))
+        self.assertEqual(stamped, ['config/security/threats/THREAT-gate.json'])
+        meta = model.metamodel(ROOT)
+        self.assertEqual(model.check(meta, model.objects(self.root, readers=readers)), ([], []))
+        self.write('config/architecture/ARC-gate.json', {**arc, 'statement': 'judges PRs and merges'})
+        _, warnings = model.check(meta, model.objects(self.root, readers=readers))
+        self.assertIn('THREAT-gate: models ARC-gate is suspect (the target changed)', warnings)
+
     def test_a_risk_keeps_the_state_its_process_wrote_and_threatens_its_assets(self):
         self.write('config/security/risks/RISK-a.json', {'id': 'RISK-a', 'statement': 's', 'state': 'accepted', 'owner': 'Daniel',
                                                           'assets': ['DATA-x'], 'likelihood': 'low', 'impact': 'high',
@@ -91,6 +199,46 @@ class RealRepository(unittest.TestCase):
         self.assertEqual(len({item['body']['control'] for item in controls}), len(['PO.1', 'PO.2', 'PO.3', 'PO.4', 'PO.5',
                          'PS.1', 'PS.2', 'PS.3', 'PW.1', 'PW.2', 'PW.4', 'PW.5', 'PW.6', 'PW.7', 'PW.8', 'PW.9', 'RV.1', 'RV.2', 'RV.3']))
         self.assertTrue(all(item['body']['reason'] for item in controls))
+        for item in controls:
+            if item['body']['applicable']:
+                self.assertIn(item['body'].get('coverage'), ('full', 'partial'), item['id'])
+
+    def test_ctrl_ssdf_po2_is_implemented_via_d360_independent_approval_and_inert_rules_stay_flagged(self):
+        found = model.objects(ROOT)
+        ctrl = found['CTRL-ssdf-po.2']
+        self.assertIn('STD-model-independent-approval', ctrl['body']['implemented_by'])
+        self.assertNotIn('STD-train-ownership-refusals', ctrl['body']['implemented_by'])
+        self.assertEqual(ctrl['state'], 'implemented')
+        std = found['STD-model-independent-approval']
+        self.assertEqual(std['state'], 'blocking')
+        self.assertEqual(std['rule']['check'],
+                         {'kind': 'function', 'ref': 'scripts/lib/model.py:independently_approved'})
+        self.assertIn('STD-train-ownership-refusals', model.unexercised_rules(found, ROOT))
+        warnings = model.security_findings(found, ROOT, today='2026-11-22')
+        self.assertFalse(any(line.startswith('CTRL-ssdf-po.2:') for line in warnings), warnings)
+        self.assertTrue(any('RISK-media-single-account: treated risk has no residual_accepted_by' in line
+                            for line in warnings), warnings)
+
+    def test_d352_recorded_prop_decided_and_open_security_risks_and_gate_threat_remain_open(self):
+        found = model.objects(ROOT)
+        decision = found['D-352']
+        self.assertEqual((decision['state'], decision['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(decision))
+        prop = found['PROP-security-supply-hardening']
+        self.assertEqual(prop['state'], 'decided')
+        self.assertEqual(prop['body']['decided_by'], 'D-352')
+        self.assertEqual(found['TAIL-gate-fork-workflow']['state'], 'revoked')
+        self.assertEqual(found['TAIL-ssdf-pw2-gate']['state'], 'revoked')
+        self.assertEqual(found['THREAT-gate']['state'], 'written')
+        risk = found['RISK-site-iac-outside-tree']
+        self.assertEqual(risk['state'], 'assessed')
+        self.assertEqual([link['target'] for link in risk['links']], ['ARC-web', 'SUP-aws'])
+        for risk_id in ('RISK-media-single-account', 'RISK-personal-data-unregistered'):
+            self.assertFalse(found[risk_id]['body'].get('residual_accepted_by'), risk_id)
+        warnings = model.security_findings(found, ROOT, today='2026-11-22')
+        for risk_id in ('RISK-media-single-account', 'RISK-personal-data-unregistered'):
+            self.assertTrue(any(f'{risk_id}: treated risk has no residual_accepted_by' in line for line in warnings),
+                            (risk_id, warnings))
 
     def test_every_required_check_is_bound_to_the_app_that_reports_it(self):
         """VULN-gate-check-source: a required check named by its context alone is satisfied by a status of that name from

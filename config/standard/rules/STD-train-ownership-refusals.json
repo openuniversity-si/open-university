@@ -1,7 +1,8 @@
 {
   "id": "STD-train-ownership-refusals",
   "statement": "[{unit, owner, files}] of the units outside lane_id that the files touch without their owner's approval.",
-  "state": "blocking",
+  "state": "dormant",
+  "dormant_by": "D-314",
   "owner": "administration",
   "applies_to": [
     "CHG"
@@ -12,7 +13,8 @@
   },
   "basis": [
     "D-067",
-    "D-069"
+    "D-069",
+    "D-326"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-069 item 8: a change outside the unit needs its owner; D-067 (2) and (6): the owner is the lane that exclusively owns the unit, and units.owner_of_path is what the train's ownership refusal (M3) calls."
+  "note": "Basis: D-069 item 8 and D-067 (2), (6) define unit lane ownership for the merge train (M3); D-326 (dormant: the merge train is stopped by D-314)."
 }

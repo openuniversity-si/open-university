@@ -13,4 +13,5 @@ RequirementV1 = TypedDict('RequirementV1', {
     'source': Required[str],
     'verification': NotRequired[Literal['test', 'validation']],
     'implemented_by': NotRequired[list[str]],
+    'target_fingerprints': NotRequired[dict[str, str]],
 }, total=False)

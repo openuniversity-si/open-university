@@ -1,0 +1,6 @@
+{
+ "source": "scripts/incident snapshot (metadata only: id, kind, time, status; docs/operations/ stays gitignored)",
+ "at": null,
+ "observed": false,
+ "incidents": []
+}

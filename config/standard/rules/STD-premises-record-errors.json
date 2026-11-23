@@ -13,5 +13,5 @@
   "basis": [
     "D-066"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-066 states the record it checks: one file per premise named by its slug, the statuses (open ones carry no answer, confirmed needs a literal quote) and the radius computed from the blast reasons."
+  "note": "Basis: D-066 states the record it checks: one file per premise named by its slug, the statuses (open ones carry no answer, confirmed needs a literal quote) and the radius computed from the blast reasons."
 }

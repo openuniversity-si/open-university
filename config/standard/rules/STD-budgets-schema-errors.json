@@ -13,5 +13,5 @@
   "basis": [
     "D-324"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-324 (every record the engine reads conforms to its contract): the budgets baseline validates against contracts/budgets/baseline.v1.json. The module head cites D-069 item 14 and D-111."
+  "note": "Basis: D-324 (every record the engine reads conforms to its contract): the budgets baseline validates against contracts/budgets/baseline.v1.json. The module head cites D-069 item 14 and D-111."
 }

@@ -110,5 +110,8 @@
       }
     ]
   },
-  "reviewed": "2026-11-19"
+  "reviewed": "2026-11-19",
+  "target_fingerprints": {
+    "ARC-delivery": "5b25bcf488f9"
+  }
 }

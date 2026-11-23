@@ -2,11 +2,15 @@
 from typing import Any, Literal, NotRequired, Required, TypedDict  # noqa: F401
 
 Name = Literal[
-    'supply.anthropic_monthly_usd',
     'supply.blocking_severities',
+    'supply.osv_timeout_s',
+    'supply.osv_url',
+    'supply.snapshot_max_days',
 ]
 
 Values = TypedDict('Values', {
-    'supply.anthropic_monthly_usd': float,
     'supply.blocking_severities': list[Any],
+    'supply.osv_timeout_s': int,
+    'supply.osv_url': str,
+    'supply.snapshot_max_days': int,
 })

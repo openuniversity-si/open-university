@@ -5,13 +5,5 @@
     "REQ-gate-60s"
   ],
   "owner": "capacity",
-  "measure": {
-    "kind": "run-durations",
-    "workflow": "tower-gate",
-    "percentile": 100,
-    "min_runs": 20,
-    "max_age_days": 7
-  },
-  "comparator": "lte",
-  "threshold": 60
+  "nc": "NC-gate-time"
 }

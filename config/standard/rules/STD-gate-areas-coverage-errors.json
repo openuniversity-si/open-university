@@ -13,5 +13,5 @@
   "basis": [
     "D-106"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Reviewed: every tracked path belongs to a declared gate area (D-106)."
 }

@@ -756,5 +756,123 @@ class WindowCache(unittest.TestCase):
         self.assertEqual((Refs.fetches, refs.read == original), (2, True))
 
 
+class GitHubConstraint(unittest.TestCase):
+    """Live GitHub constraint meter: reads slo.json, runs/*.json, git merges and config/problem/ instead of Origin's lock log."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.now = flow_metrics.DAY_S
+        self.two = 1 + 1
+        self.three = self.two + 1
+        self.gate_target = flow_metrics.LADDER_FACTOR
+        self.day_target = int(flow_metrics.DAY_S / flow_metrics.HOUR_S) * self.two
+        for nc_id, threshold in (('NC-gate-first-pass', 0), ('NC-gate-time', self.gate_target), ('NC-deploy-1s', 1),
+                                 ('NC-throughput', self.day_target)):
+            self._write(f'config/problem/{nc_id}.json', {'id': nc_id, 'threshold': threshold})
+        for st_id, strategy in (('ST-gate', 'NC-gate-first-pass'), ('ST-deploy', 'NC-deploy-1s'),
+                                ('ST-flow', 'NC-throughput')):
+            self._write(f'config/problem/{st_id}.json', {'id': st_id, 'level': self.three, 'strategy': strategy})
+
+    def _write(self, rel, body):
+        path = self.root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(body))
+
+    def _snapshots(self, failed=0, gate_secs=None, queue_secs=None, deploy_secs=None, reloads=0):
+        half = 1 / self.two
+        gate_secs = gate_secs or (1, self.two)
+        queue_secs = queue_secs or (1, self.two)
+        deploy_secs = deploy_secs or (half, 1)
+        verdicts = [{'passed': index >= failed, 'seconds': gate_secs[index % len(gate_secs)]}
+                    for index in range(max(len(gate_secs), failed + 1))]
+        self._write('config/validation/slo.json', {
+            'at': '2026-11-19T12:00:00Z',
+            'verdicts': verdicts,
+            'queue': [{'seconds': sec} for sec in queue_secs],
+        })
+        self._write('config/validation/runs/tower-gate.json', {
+            'at': '2026-11-19T12:00:00Z',
+            'runs': [{'seconds': sec, 'conclusion': 'success'} for sec in gate_secs],
+        })
+        self._write('config/validation/runs/deploy-live.json', {
+            'at': '2026-11-19T12:00:00Z',
+            'runs': [{'seconds': sec, 'event': 'reload' if index < reloads else 'swap'}
+                     for index, sec in enumerate(deploy_secs)],
+        })
+
+    def test_missing_snapshots_reports_unmeasured_instead_of_fake_supply_constraint(self):
+        found = flow_metrics.github_constraint(self.root, [], self.now, 1.0)
+        self.assertEqual(found['source'], 'github')
+        self.assertTrue(found['constraint'].startswith('unmeasured'))
+        self.assertIsNone(found['st_node'])
+
+    def test_orders_bottlenecks_reliability_queue_gate_latency_deploy_then_pace(self):
+        slow_gate = self.gate_target + self.two
+        slow_deploy = self.gate_target * self.two
+        self._snapshots(failed=1, gate_secs=(1, slow_gate), queue_secs=(1, self.gate_target),
+                        deploy_secs=(1, slow_deploy), reloads=1)
+        found = flow_metrics.github_constraint(self.root, [], self.now, 1.0)
+        self.assertEqual(found['constraint'], 'tower/gate reliability (first-pass failure rate)')
+        self.assertEqual(found['next_constraint'], 'tower/gate latency (duration)')
+        self.assertEqual(found['st_node'], 'ST-gate')
+        self.assertEqual([item['nc'] for item in found['bottlenecks']],
+                         ['NC-gate-first-pass', 'NC-gate-time', 'NC-deploy-1s', 'NC-throughput'])
+        rendered = flow_metrics.render({'days': {}, 'total': {}, 'guards': {}, 'constraint': found})
+        self.assertIn('constraint (github, last 1.0 h): tower/gate reliability', rendered)
+        self.assertIn('[ST-gate]', rendered)
+        self.assertIn('deploy-live: p50', rendered)
+        self.assertNotIn('box busy', rendered)
+
+    def test_gate_latency_then_deploy_latency_then_pace_then_none_within_target(self):
+        half = 1 / self.two
+        slow_gate = self.gate_target + self.two
+        slow_deploy = self.two + self.two
+        self._snapshots(failed=0, gate_secs=(1, slow_gate), deploy_secs=(half, slow_deploy), reloads=1)
+        found = flow_metrics.github_constraint(self.root, [], self.now, 1.0)
+        self.assertEqual((found['constraint'], found['st_node']), ('tower/gate latency (duration)', 'ST-gate'))
+
+        self._snapshots(failed=0, gate_secs=(1, self.gate_target), deploy_secs=(half, slow_deploy), reloads=1)
+        found = flow_metrics.github_constraint(self.root, [], self.now, 1.0)
+        self.assertEqual((found['constraint'], found['st_node']), ('deploy latency (merge-to-live)', 'ST-deploy'))
+
+        self._snapshots(failed=0, gate_secs=(1, self.gate_target), deploy_secs=(half, 1))
+        found = flow_metrics.github_constraint(self.root, [], self.now, 1.0)
+        self.assertEqual((found['constraint'], found['st_node']),
+                         ('pr arrival / authoring throughput (upstream of merge queue)', 'ST-flow'))
+
+        fast_merges = [(None, self.now - index, 'lane', []) for index in range(self.three)]
+        found = flow_metrics.github_constraint(self.root, fast_merges, self.now, 1.0)
+        self.assertEqual(found['constraint'], 'none (all measured GitHub stages within target)')
+        self.assertEqual(found['bottlenecks'], [])
+
+    def test_queue_limit_flags_merge_queue_wait(self):
+        half = 1 / self.two
+        limit = flow_metrics.HOUR_S
+        self._snapshots(failed=0, gate_secs=(1, self.gate_target), queue_secs=(1, limit + 1), deploy_secs=(half, 1))
+        found = flow_metrics.github_constraint(self.root, [], self.now, 1.0, queue_limit_s=limit)
+        self.assertEqual((found['constraint'], found['st_node']), ('github merge queue (wait time)', 'ST-flow'))
+
+    def test_cli_constraint_uses_github_meter_by_default_without_calling_origin_box_meter(self):
+        import contextlib
+        import io
+        out = io.StringIO()
+        with mock.patch.object(flow_metrics, 'merged_envelopes', return_value=[]), \
+                mock.patch.object(flow_metrics, 'constraint', side_effect=AssertionError('box meter called')), \
+                mock.patch.object(flow_metrics, 'measured_batch_reading', side_effect=AssertionError('origin called')), \
+                mock.patch.object(flow_metrics, 'github_constraint', return_value={
+                    'source': 'github', 'hours': 1.0, 'merged': 0, 'merged_24h': 0, 'per_pr_s': None,
+                    'prs_per_hour': 0.0, 'gate': {}, 'queue': {}, 'deploy': {}, 'bottlenecks': [],
+                    'constraint': 'tower/gate reliability (first-pass failure rate)',
+                    'next_constraint': None, 'st_node': 'ST-gate'}), \
+                contextlib.redirect_stdout(out):
+            code = flow_metrics.main(['--constraint', '--json'])
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload['constraint']['source'], 'github')
+        self.assertNotIn('batch_reading', payload)
+
+
 if __name__ == '__main__':
     unittest.main()

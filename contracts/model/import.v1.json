@@ -52,6 +52,16 @@
       },
       "description": "Source id -> the need it derives from; `*` for every id."
     },
+    "implemented_by": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^CHG-([0-9]+|initial)$"
+      },
+      "description": "Merged changes that implement the whole batch when no commit's Implements: trailer names each imported requirement (D-332); overrides.<id>.implemented_by replaces it for one requirement."
+    },
     "note": {
       "type": "string"
     },

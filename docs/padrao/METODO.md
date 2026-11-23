@@ -1,8 +1,9 @@
 # Método de gestão: programa, projeto, processo, operação
 
 Decidido por Daniel em 02/11/2026 e registrado aqui em 03/11/2026. Este documento é o padrão de gestão do motor. Onde
-ele diverge do Padrão v7/v8 (`docs/padrao/v7/`, `docs/padrao/v8/program.md`) ou da regra de fluxo de unidade do
-AGENTS.md (D-077), vale este documento. O `structure check` já não cobra a regra de intake e pesquisa (D-292).
+ele diverge das versões antigas do Padrão (`docs/padrao/v7/`, `docs/padrao/v8/program.md`, superadas por `VER-v9` em
+`config/standard/rules/`, D-317) ou da regra de fluxo de unidade do AGENTS.md (D-077), vale este documento. O
+`structure check` já não cobra a regra de intake e pesquisa (D-292).
 A pesquisa da unidade MGMT-METHOD (a antiga PR #1066 no GitHub, hoje a
 [PR #3 no Origin](https://cursor.com/codebase/openuniversity-si/open-university/pull/3), branch `arq/gestao`) fica
 como referência de literatura. O plano dela foi superado por este documento e a PR não será mergeada.
@@ -18,8 +19,8 @@ como referência de literatura. O plano dela foi superado por este documento e a
 
 Exemplo: uma PR é um conjunto de operações; dentro de cada operação há passos.
 
-Acima do programa fica o portfólio. Cada fase de capacidade do motor (1.000, 10.000 e 100.000 commits por dia) abre um
-portfólio, dividido em programas.
+Acima do programa fica o portfólio. Cada fase de capacidade do motor (1.000, 10.000 e 100.000 PRs por dia, conforme
+`docs/SEMENTE.md` §3) abre um portfólio, dividido em programas.
 
 A literatura não oferece quatro níveis num eixo único (PMI, ITIL, TOGAF e SAFe, ver a pesquisa da PR #3). Por isso o
 nível não é só posição numa hierarquia: cada item de trabalho declara a sua natureza (o nível), o seu critério de
@@ -88,11 +89,12 @@ A intenção, o ciclo e a trava da intenção estão na [semente](../SEMENTE.md)
 ## 7. No motor de hoje
 
 Os itens abaixo são instrumentos do nível mais baixo deste motor, as operações e os passos. Não são regras gerais do
-método e podem mudar sem mudar o método:
+método e podem mudar sem mudar o método (fluxo vivo no GitHub/AWS desde D-314):
 
-- a PR em rascunho como primeiro ato;
-- o gate (`scripts/gate-dev`) no head exato;
-- `scripts/pr-ready` e `scripts/commit-check`, com o plano de commits e o trailer `Plan: N`;
-- o momento de cada commit e a taxa de commits por segundo;
-- o trem de merge (`scripts/train`);
-- o canal de status.
+- a PR em rascunho contra `main` como primeiro ato;
+- o gate `tower/gate` (`scripts/verify-commit`) e `web` no head exato e no commit da merge queue;
+- `scripts/commit-check` e `scripts/structure-check`, com o plano de commits e o trailer `Plan: N`;
+- `scripts/model check` e `scripts/model measure` sobre o modelo de engenharia (`VER-v9`);
+- a merge queue do GitHub e a campainha de deploy AWS (`.github/workflows/deploy-doorbell.yml`, `scripts/deploy status`);
+- os instrumentos dormentes da era Origin (`scripts/gate-dev`, `scripts/pr-ready`, `scripts/train`) permanecem no tree
+  sem operar no fluxo vivo (D-314).

@@ -4,6 +4,6 @@
   "state": "active",
   "owner": "Daniel",
   "kind": "account",
-  "budget": "REQ-anthropic-budget",
-  "note": "The models every session runs on."
+  "no_budget_by": "D-362",
+  "note": "The models every session runs on. No monthly dollar ceiling tracked (Option B, Daniel 2026-11-22 15:35 BRT, D-358, D-362): when inference quota is the measured bottleneck, the session proposes an increase to Daniel with reason and expected gain."
 }

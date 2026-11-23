@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/model/program-archive.v1.json",
+  "title": "Archived program marker v1",
+  "description": "docs/programs/<program>/archived.json (D-314, D-324): marks a program folder as archived history so its unmerged items leave the active WORK queue while its plan and retrospective remain readable in the tree.",
+  "x-owner": "model",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "archived_by",
+    "archived_at",
+    "reason"
+  ],
+  "properties": {
+    "archived_by": {
+      "type": "string",
+      "pattern": "^D-[0-9]+$",
+      "description": "The decision under which the program was archived."
+    },
+    "archived_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "ISO date when the program was marked archived."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Why the program is archived rather than active in the live flow."
+    }
+  }
+}

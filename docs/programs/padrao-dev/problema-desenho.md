@@ -122,7 +122,7 @@ Tudo aqui é proposta da sessão, a validar por Daniel nos pontos marcados.
 | NC-requirements-tested | nc | Todo requisito é testado | model-share requirements-tested | 1,0 | ≥ 1,0 | NC-standard |
 | NC-gate-first-pass | nc | O gate passa na primeira rodada | o SLO gate-failure-rate (medida `slo`, nova) | 22,5 % | ≤ 0 % | NC-throughput |
 | NC-gate-time | nc | O gate dura no máximo 60 s | run-durations do gate | 119 s | ≤ 60 s | NC-throughput |
-| NC-deploy-1s | nc | Uma merge só de código fica no ar em até 1 s | run-durations deploy-live (relógio da D-345) | 1,48 a 2,26 s | ≤ 1 s | NC-throughput |
+| NC-deploy-1s | nc | Uma merge só de código fica no ar em até 1 s | run-durations deploy-live (p100, 20 runs; 0/20 no relógio heard da D-345) | 204,535 s p100 (4 reloads 18,3–204,5 s; 16 swaps 1,2–3,5 s) | ≤ 1 s | NC-throughput |
 
 ### UDE (estado atual)
 
@@ -131,7 +131,7 @@ Tudo aqui é proposta da sessão, a validar por Daniel nos pontos marcados.
 | UDE-few-merges | A Torre mergeia cerca de 33 PRs por dia, 30 vezes menos que o degrau 1; na última hora foram 0 merges com a fila parada | NC-throughput | VAL-ladder-1; SLO merged PRs por hora 2 contra 42; `flow-metrics --constraint --base origin/main` (19/11) aponta o "suprimento de unidades prontas" |
 | UDE-gate-red | 22,5 % das rodadas do gate falham | NC-gate-first-pass | SLO gate-failure-rate, 40 amostras |
 | UDE-gate-slow | O gate leva 119 s | NC-gate-time | VAL-gate-60s |
-| UDE-deploy-slow | O código fica no ar em 1,5 a 2,3 s | NC-deploy-1s | config/validation/runs/deploy-live.json |
+| UDE-deploy-slow | O código leva até 204,535 s p100 para ficar no ar (reloads 18,3–204,5 s; swaps 1,2–3,5 s; 0/20 no relógio heard) | NC-deploy-1s | config/validation/runs/deploy-live.json |
 | UDE-owner-stop | Uma parada para Daniel em 7 dias | NC-autonomy | VAL-autonomy, docs/operations/incidents/ |
 | UDE-trust-unmeasured | As guardas que diriam a Daniel se pode dar mais autonomia não estão todas cumpridas, e nenhuma medida as junta | NC-trust | NC-trust: 2 guardas não cumpridas (19/11) |
 | UDE-blind-constraint | O medidor da restrição ainda lê a base da era Origin: sem `--base` falha, e a ocupação da caixa lê um adaptador Origin | NC-standard | `scripts/flow-metrics --constraint` |

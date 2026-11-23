@@ -5,8 +5,9 @@ asks it instead of reading a message. `lift(lock, ...)` is the call a lock makes
 warning naming the lock and the regime's decision and emits the `lock.lifted` event; it returns whether the lock lifted.
 Nothing is silent. The state is the registry keys `regime.exception_*`; this module never writes it.
 """
+from datetime import timezone
+
 import config
-import forge_events
 
 FIELDS = ('active', 'granted_by', 'granted_at', 'reason', 'exit', 'kept')  # regime.exception_<field>, one registry key each
 EVENT = 'lock.lifted'
@@ -50,7 +51,11 @@ def lift(lock, sha, lane, port, repo, pr=None, out=print, recorded=None):
     if not lifted(lock, recorded):
         return False
     out(warning(lock, recorded))
-    payload = dict(forge_events.subject(repo, pr, sha), lock=lock, lane=lane,
-                   time=forge_events.rfc3339(port.clock.now()))
+    moment = port.clock.now()
+    if moment.tzinfo is None:
+        raise ValueError('the injected clock must return an aware datetime')
+    stamped = moment.astimezone(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+    payload = {'repo': repo, 'pr': pr, 'sha': sha, 'unit': None, 'premises': [],
+               'lock': lock, 'lane': lane, 'time': stamped}
     port.emit(EVENT, payload)
     return True

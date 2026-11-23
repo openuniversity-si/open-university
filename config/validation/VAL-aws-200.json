@@ -6,10 +6,5 @@
     "NEED-cost"
   ],
   "owner": "efficiency",
-  "measure": {
-    "kind": "aws-spend",
-    "max_age_days": 2
-  },
-  "comparator": "lte",
-  "threshold": 200
+  "nc": "NC-cost"
 }

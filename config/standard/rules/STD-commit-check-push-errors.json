@@ -13,5 +13,5 @@
   "basis": [
     "D-025"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-025 states it: commit-check refuses a PR where one push brought several of its commits at the same instant (the D-022 push-each-commit rite); proof test_refuses_several_commits_in_one_push."
+  "note": "Basis: D-025 states it: commit-check refuses a PR where one push brought several of its commits at the same instant (the D-022 push-each-commit rite); proof test_refuses_several_commits_in_one_push."
 }

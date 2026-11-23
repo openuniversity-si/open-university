@@ -29,22 +29,24 @@ def next_number(root):
     return max(found, default=0) + 1
 
 
-def record_text(number, when, text, premises, proof, supersedes=''):
+def record_text(number, when, text, premises, proof, supersedes='', status=''):
     """The record of one decision as text; `supersedes` (D-NNN, comma separated) names the decisions it replaces, the only
-    way an accepted record changes state, since a record is never edited (D-335; scripts/lib/model.py reads it)."""
+    way an accepted record changes state, since a record is never edited (D-335; scripts/lib/model.py reads it). Optional
+    `status` (e.g. `proposed`) is written only when requested so accepted records stay unchanged."""
     head = ['---', f'number: {number}', f'time: {when}', f'premises: {premises}',
+            *([f'status: {status}'] if status else []),
             *([f'supersedes: {supersedes}'] if supersedes else []), f'proof: {proof}', '---', '']
     return '\n'.join(head) + text.strip() + '\n'
 
 
-def write(root, number, when, text, premises, proof, supersedes=''):
+def write(root, number, when, text, premises, proof, supersedes='', status=''):
     """Write the record; refuses a number that already has one (a decision is never rewritten by a second command)."""
     folder = Path(root) / RECORDS
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f'{number}.md'
     if path.exists():
         raise FileExistsError(f'{path} exists; a decision is written once')
-    path.write_text(record_text(number, when, text, premises, proof, supersedes))
+    path.write_text(record_text(number, when, text, premises, proof, supersedes, status))
     return path
 
 
@@ -54,12 +56,14 @@ def main(argv=None, root=ROOT):
     parser.add_argument('--premises', default='none')
     parser.add_argument('--proof', required=True, help='a test file that proves the decision')
     parser.add_argument('--supersedes', default='', help='the decisions this one supersedes, D-NNN comma separated (D-335)')
+    parser.add_argument('--status', default='', choices=('', 'accepted', 'proposed', 'recorded'),
+                        help='optional status front matter (omit for accepted/recorded; use proposed for pending decisions)')
     args = parser.parse_args(argv)
     number = next_number(root)
     when = decision_next.brt()
     if args.supersedes and not re.fullmatch(r'D-[0-9]+(?:, ?D-[0-9]+)*', args.supersedes.strip()):
         parser.error(f'--supersedes takes D-NNN, comma separated, not {args.supersedes!r}')
-    path = write(root, f'D-{number}', when, args.text, args.premises, args.proof, args.supersedes.strip())
+    path = write(root, f'D-{number}', when, args.text, args.premises, args.proof, args.supersedes.strip(), args.status)
     print(path)
     if not (Path(root) / decision_table.TABLE).is_file():
         print(f'{decision_table.TABLE} is missing; no row written (run scripts/decision-table --write)', file=sys.stderr)

@@ -16,6 +16,7 @@
     "scripts/cloud/toolchain.json",
     ".github/workflows/*.yml",
     "services/runner/github/*.yml",
-    "infra/service/requirements*.txt"
+    "infra/service/requirements*.txt",
+    "**/Dockerfile"
   ]
 }
