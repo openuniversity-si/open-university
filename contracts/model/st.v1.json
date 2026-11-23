@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contracts/model/st.v1.json",
   "title": "Strategy and tactics node v1",
-  "description": "config/problem/ST-<name>.json (D-348): a node of Goldratt's strategy and tactics tree. Its strategy is an NC of the Goal Tree (its state is that NC's), its tactic a chosen injection (levels 1 to 3) or the text of the step (level 4); its necessary, parallel and sufficiency assumptions; its parent; the work it decomposes into; its owner role and who validated it (levels 1 and 2 Daniel, 3 the manager, 4 the coordinator).",
+  "description": "config/problem/ST-<name>.json (D-348, D-354): a node of Goldratt's strategy and tactics tree. Its strategy is an NC of the Goal Tree (its state is that NC's), its tactic a chosen injection (level 1) or distinct tactic text (levels 2 to 4); its necessary, parallel and sufficiency assumptions; its parent; the work it decomposes into; its owner role and who validated it (level 1 Daniel, level 2 Daniel or Torre by delegation, 3 the manager, 4 the coordinator).",
   "x-owner": "model",
   "x-schema-version": 1,
   "type": "object",
@@ -131,6 +131,7 @@
         "by": {
           "enum": [
             "Daniel",
+            "Torre",
             "manager",
             "coordinator"
           ]
@@ -138,6 +139,11 @@
         "date": {
           "type": "string",
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "authority": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Delegation authority when validated on Daniel's behalf (e.g. Torre por delegação do Daniel 22/11/2026, D-354)."
         }
       }
     },

@@ -53,7 +53,9 @@ class Measure(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp(prefix='spend-'))
         self.addCleanup(shutil.rmtree, self.root)
-        self.body = json.loads((ROOT / 'config/validation/VAL-aws-200.json').read_text())
+        val = json.loads((ROOT / 'config/validation/VAL-aws-200.json').read_text())
+        self.assertEqual(val['nc'], 'NC-cost')
+        self.body = json.loads((ROOT / 'config/problem/NC-cost.json').read_text())
 
     def write(self, **reading):
         target = self.root / spend.SNAPSHOT

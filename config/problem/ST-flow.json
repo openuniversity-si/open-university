@@ -2,13 +2,15 @@
   "id": "ST-flow",
   "level": 3,
   "strategy": "NC-throughput",
-  "tactic": "INJ-tree-governance",
+  "tactic": "Feed concurrent capacity fronts from open programs and units prioritized by the live GitHub constraint.",
   "assumptions": {
     "necessary": {
-      "statement": "The units that feed the fronts come from these programs."
+      "statement": "The units that feed the fronts come from open capacity programs.",
+      "premise": "P-08"
     },
     "parallel": {
-      "statement": "Programs already planned are the cheapest supply of ready units."
+      "statement": "Programs already planned are the cheapest supply of ready units.",
+      "premise": "P-31"
     },
     "sufficiency": {
       "statement": "With the queue fed, the fronts merge to the ladder's pace."

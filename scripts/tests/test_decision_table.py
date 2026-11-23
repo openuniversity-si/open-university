@@ -51,6 +51,12 @@ class Row(unittest.TestCase):
         record = dict(decision_table.parse(FIXTURE['record']), body='See [the plan](../../units/U/plan.md), [D-1](D-1.md), [web](https://x.y/z) and [here](#a).')
         self.assertIn('[the plan](../units/U/plan.md), [D-1](decisions/D-1.md), [web](https://x.y/z) and [here](#a).', decision_table.row(record))
 
+    def test_a_record_with_status_proposed_renders_proposed_instead_of_recorded(self):
+        record = decision_table.parse(FIXTURE['record'].replace('proof:', 'status: proposed\nproof:'))
+        line = decision_table.row(record)
+        self.assertTrue(line.endswith('| proposed |'), line)
+        self.assertEqual(line.count('|'), FIXTURE['pipes_per_row'])
+
 FIRST = len(FIXTURE['table'])  # an id far above the fixture's own D-2 row
 LATER_NUMBER, OLDER_NUMBER = FIRST + True, FIRST - True
 NEWEST_NUMBER = LATER_NUMBER + True
