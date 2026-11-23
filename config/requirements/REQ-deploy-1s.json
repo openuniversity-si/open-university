@@ -10,6 +10,6 @@
   "source": "docs/programs/padrao-dev/avaliacao.md#Pedido",
   "verification": "validation",
   "target_fingerprints": {
-    "NEED-throughput": "b912a20a063f"
+    "NEED-throughput": "d47e3f6e5ae7"
   }
 }

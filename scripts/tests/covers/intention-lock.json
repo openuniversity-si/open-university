@@ -1,0 +1,15 @@
+{
+  "script": "scripts/tests/intention-lock.test.sh",
+  "covers": [
+    "scripts/tests/intention-lock.test.sh",
+    "scripts/tests/test_intention_lock.py",
+    "scripts/intention-lock",
+    "scripts/lib/intention_lock.py",
+    "scripts/lib/model.py",
+    "docs/SEMENTE.md",
+    "config/intent/**",
+    "config/problem/NC-cost.json",
+    "config/standard/rules/STD-intention-lock-errors.json",
+    "docs/domain/decisions/*.md"
+  ]
+}

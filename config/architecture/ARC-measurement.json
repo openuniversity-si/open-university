@@ -5,9 +5,6 @@
   "statement": "Flow metrics, measures, SLOs, budgets, effort, session usage and the census.",
   "state": "active",
   "owner": "administration",
-  "satisfies": [
-    "REQ-anthropic-budget"
-  ],
   "depends_on": [
     "ARC-config",
     "ARC-delivery",
@@ -29,7 +26,6 @@
     "ARC-events": "da9896b4db87",
     "ARC-gate": "fdb04d9f45fe",
     "ARC-knowledge": "091716462946",
-    "ARC-planning": "07767116892c",
-    "REQ-anthropic-budget": "812581acd64d"
+    "ARC-planning": "07767116892c"
   }
 }

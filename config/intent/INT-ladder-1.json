@@ -1,6 +1,6 @@
 {
   "id": "INT-ladder-1",
-  "statement": "Ladder step 1: 1,000 merged PRs a day (0.0116 PR/s) measured from outside, with no guard worse.",
+  "statement": "Ladder step 1: 1,000 verified useful deliveries a day (0.0116 useful deliveries/s merged to main, excluding meta-governance overhead and artificial splits) measured from outside, with 100% external guard conformance.",
   "state": "active",
   "owner": "Daniel",
   "source": "docs/SEMENTE.md#3"
