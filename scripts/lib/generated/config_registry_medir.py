@@ -5,7 +5,9 @@ Name = Literal[
     'medir.landing_slack_s',
     'medir.log_page',
     'medir.quantiles',
+    'medir.report_quantiles',
     'medir.shadow_prs',
+    'medir.snapshot_max_merges',
     'medir.webhook_ack_limit_s',
 ]
 
@@ -13,6 +15,8 @@ Values = TypedDict('Values', {
     'medir.landing_slack_s': float,
     'medir.log_page': int,
     'medir.quantiles': list[float],
+    'medir.report_quantiles': list[int],
     'medir.shadow_prs': int,
+    'medir.snapshot_max_merges': int,
     'medir.webhook_ack_limit_s': float,
 })

@@ -1,0 +1,11 @@
+{
+  "type": "string",
+  "default": "deliver the active program unit with a green gate",
+  "minLength": 1,
+  "x-unit": "text",
+  "description": "Default standing determination named by scripts/hooks/cycle-stop when .gate/cycle.on carries only 'on' (I-0d1c3a25); replaces the obsolete hardcoded AWS-engine determination.",
+  "x-readers": [
+    "scripts/lib/cycle_stop.py"
+  ],
+  "x-source": "I-0d1c3a25"
+}

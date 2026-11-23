@@ -74,8 +74,8 @@ def proof_cell(proof):
 
 def row(record):
     """The table row of one record: every cell is one line with no pipe, and the proof names its test as the structure
-    check reads it."""
-    status = cell(record['status'].lower()) if record.get('status') else 'recorded'
+    check reads it. Optional `status` front matter (e.g. `proposed`) is carried into the Status column."""
+    status = cell((record.get('status') or 'recorded').lower())
     return (f"| {record['number']} | {cell(record['time'])} | {cell(from_table(record['body']))} | Premises: {cell(record['premises'])} "
             f"| {proof_cell(record['proof'])} | {status} |")
 

@@ -1,8 +1,12 @@
 {
  "generated_by": "scripts/supply audit",
- "at": "2026-11-19T06:03:10Z",
+ "at": "2026-11-20T01:11:54Z",
  "lockfiles": {
   "apps/web/pnpm-lock.yaml": "a8cf8b201b56a1dff19523279395742a32e321c00bb56fb369dba5f1ec9301e6"
+ },
+ "pipfiles": {
+  "infra/service/requirements-lambda.txt": "94bbd035badb162139518b327e4a58fd47724386f7cac3b7f5708aa9c387e7a8",
+  "infra/service/requirements.txt": "78a9fc0e03fdcbcfc91e2c66cd8d94ecf89b3853a3909d70dd4ad54540955e9c"
  },
  "advisories": []
 }

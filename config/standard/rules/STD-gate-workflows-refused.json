@@ -13,5 +13,5 @@
   "basis": [
     "D-087"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-087 states it: the gate's \"no GitHub Actions workflows\" stage refuses any Actions file gate.allowed_workflows does not name."
+  "note": "Basis: D-087 states it: the gate's \"no GitHub Actions workflows\" stage refuses any Actions file gate.allowed_workflows does not name."
 }

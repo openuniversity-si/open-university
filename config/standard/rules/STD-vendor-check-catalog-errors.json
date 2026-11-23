@@ -13,5 +13,5 @@
   "basis": [
     "D-324"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-324 (every record the engine reads conforms to its contract): the vendor catalog's paths exist, every baseline site is classified, a forbidden vendor has no adapter and a slot has none. The module head cites D-069 item 7 for the vendor check."
+  "note": "Basis: D-324 (every record the engine reads conforms to its contract): the vendor catalog's paths exist, every baseline site is classified, a forbidden vendor has no adapter and a slot has none. The module head cites D-069 item 7 for the vendor check."
 }

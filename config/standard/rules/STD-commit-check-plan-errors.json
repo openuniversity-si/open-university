@@ -14,5 +14,5 @@
     "D-022",
     "D-307"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Reviewed: commit plan checklist enforcement (D-022) with no maximum while budgets.pr_commits_max is 0 (D-307)."
 }

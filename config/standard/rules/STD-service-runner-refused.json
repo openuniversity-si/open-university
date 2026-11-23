@@ -1,7 +1,8 @@
 {
   "id": "STD-service-runner-refused",
   "statement": "The sentence of a refused runner token (service.token_holders): which variable, which secret it must equal, where its holder is.",
-  "state": "blocking",
+  "state": "dormant",
+  "dormant_by": "D-314",
   "owner": "administration",
   "applies_to": [
     "CHG"
@@ -11,7 +12,8 @@
     "ref": "scripts/lib/service_runner.py:refused"
   },
   "basis": [
-    "D-291"
+    "D-291",
+    "D-326"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-291 (5) states it: a refused runner request names the stale credential from service.token_holders (this function calls service_credentials.refused_sentence)."
+  "note": "Basis: D-291 (5) states that a refused runner request names the stale credential from service.token_holders; D-326 (dormant: the runner service is stopped by D-314)."
 }

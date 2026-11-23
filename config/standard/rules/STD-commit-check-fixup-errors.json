@@ -13,5 +13,5 @@
   "basis": [
     "D-025"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-025 states it: commit-check refuses a PR that contains a fix-up commit (fixup!/squash!/amend!, or a \"fix tests/ids\" commit touching only the previous commit's files); proof test_refuses_fixup_commits."
+  "note": "Basis: D-025 states it: commit-check refuses a PR that contains a fix-up commit (fixup!/squash!/amend!, or a \"fix tests/ids\" commit touching only the previous commit's files); proof test_refuses_fixup_commits."
 }

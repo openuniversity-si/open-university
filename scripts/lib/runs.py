@@ -127,23 +127,54 @@ def from_checks(event, checks, final, parts):
             'seconds': int((stamp(last['completed_at']) - stamp(began)).total_seconds())}
 
 
+def pr_commits(repo, api, count=None, limit=KEEP):
+    """[(sha, 'pull_request')] of commits pushed to the newest pull requests (pass and fail alike, removing
+    merge-only survival bias, M3), newest commit first and deduplicated by sha."""
+    from concurrent.futures import ThreadPoolExecutor
+    recent = api(f'repos/{repo}/pulls?state=all&sort=created&direction=desc&per_page={SLO_PRS if count is None else count}')
+    numbers = [pull['number'] for pull in recent]
+    with ThreadPoolExecutor(SLO_WORKERS) as pool:
+        timelines = list(pool.map(lambda n: api(f'repos/{repo}/issues/{n}/timeline?per_page=100'), numbers))
+    commits = [(item['sha'], (item.get('committer') or {}).get('date', ''))
+               for timeline in timelines for item in timeline
+               if item.get('event') == 'committed' and item.get('sha')]
+    ordered = sorted(commits, key=lambda item: item[1], reverse=True)
+    return [(sha, 'pull_request') for sha in dict.fromkeys(sha for sha, _ in ordered)][:limit]
+
+
 def fetch(root, workflow, repo=None, api=None, run=subprocess.run):
-    """The runs of `workflow` (a CHECKS entry) on main's last merges, newest first; None offline or when the API
+    """The runs of `workflow` (a CHECKS entry) across commits pushed to recent pull requests (pass and fail alike,
+    removing merge-only survival bias, M3) plus main's merge_group commits, newest first; None offline or when the API
     refuses. `api(path)` answers GitHub's REST API (the gate's github adapter, verify_commit.gh_json, by default)."""
     if workflow not in CHECKS or os.environ.get('TOWER_OFFLINE'):
         return None
     if api is None:
         import verify_commit  # the gate's github adapter: tower/gate's own reads of GitHub's REST API
         api = lambda path: verify_commit.gh_json(verify_commit.run, path)  # noqa: E731
+    from concurrent.futures import ThreadPoolExecutor
     final, parts = CHECKS[workflow]
-    repo, found = repo or repository(), []
-    for sha, event in merges(root, KEEP, run):
-        try:
-            answer = api(f'repos/{repo}/commits/{sha}/check-runs?per_page=100')
-        except (OSError, RuntimeError, ValueError):
-            return None
+    repo = repo or repository()
+    try:
+        pushed = pr_commits(repo, api, SLO_PRS, KEEP)
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError):
+        return None
+    queued = [(sha, event) for sha, event in merges(root, KEEP, run) if event == 'merge_group']
+    targets, seen_shas = [], set()
+    for sha, event in pushed + queued:
+        if sha not in seen_shas:
+            seen_shas.add(sha)
+            targets.append((sha, event))
+    try:
+        with ThreadPoolExecutor(SLO_WORKERS) as pool:
+            answers = list(pool.map(lambda target: api(f'repos/{repo}/commits/{target[0]}/check-runs?per_page=100'),
+                                    targets))
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError):
+        return None
+    found, seen_ids = [], set()
+    for (_, event), answer in zip(targets, answers):
         made = from_checks(event, answer.get('check_runs', []), final, parts)
-        if made:
+        if made and made['id'] not in seen_ids:
+            seen_ids.add(made['id'])
             found.append(made)
     return sorted(found, key=lambda item: item['started'], reverse=True)[:KEEP]
 
@@ -152,17 +183,54 @@ def age_days(recorded, now):
     return (now - stamp(recorded['at'])).total_seconds() / 86400
 
 
+def snapshot_max_merges(root=ROOT):
+    """Most first-parent merges on main a snapshot may trail before being rebuilt (medir.snapshot_max_merges, M3)."""
+    import config
+    try:
+        return config.get('medir.snapshot_max_merges', root)
+    except config.ConfigError:
+        return config.get('medir.snapshot_max_merges', ROOT)
+
+
+def merges_since(root, since_iso, run=subprocess.run):
+    """Number of first-parent merges on origin/main (else HEAD) strictly newer than `since_iso` (UTC);
+    0 when `root` is not a git repository or `since_iso` cannot be parsed."""
+    try:
+        cutoff = int(stamp(since_iso).timestamp())
+    except (TypeError, ValueError):
+        return 0
+    for ref in ('origin/main', 'HEAD'):
+        done = run(['git', 'log', '--first-parent', '--merges', '--format=%ct', ref], cwd=root,
+                   capture_output=True, text=True)
+        if done.returncode == 0 and done.stdout.strip():
+            return sum(1 for line in done.stdout.splitlines() if line.strip().isdigit() and int(line.strip()) > cutoff)
+    return 0
+
+
+def stale(root, recorded, now, max_merges=None, run=subprocess.run):
+    """Whether a snapshot should be rebuilt: missing, at least REFRESH_DAYS old, or at least max_merges merges
+    behind main (M3)."""
+    if not recorded:
+        return True
+    if age_days(recorded, now) >= REFRESH_DAYS:
+        return True
+    limit = snapshot_max_merges(root) if max_merges is None else max_merges
+    return bool(limit) and merges_since(root, recorded['at'], run) >= limit
+
+
 def renewed(workflow, found, now):
-    return {'workflow': workflow, 'source': f"GitHub check runs of main's last merges, check {CHECKS[workflow][0]}",
+    return {'workflow': workflow,
+            'source': f"GitHub check runs of pull-request commits and main's merges, check {CHECKS[workflow][0]}",
             'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'runs': found[:KEEP]}
 
 
-def refresh(root, workflow, now=None, reader=None):
-    """Rebuilds the snapshot of `workflow` from GitHub's checks when it is missing or older than REFRESH_DAYS and the
-    API answers; the snapshot (new or kept) or None. `reader(workflow)` answers the runs (fetch by default)."""
+def refresh(root, workflow, now=None, reader=None, max_merges=None, run=subprocess.run):
+    """Rebuilds the snapshot of `workflow` from GitHub's checks when it is missing, older than REFRESH_DAYS, or
+    trailing main by at least medir.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None.
+    `reader(workflow)` answers the runs (fetch by default)."""
     now = now or datetime.now(timezone.utc)
     recorded = read(root, workflow)
-    if recorded and age_days(recorded, now) < REFRESH_DAYS:
+    if not stale(root, recorded, now, max_merges=max_merges, run=run):
         return recorded
     found = (reader or (lambda name: fetch(root, name)))(workflow)
     if not found:
@@ -232,12 +300,12 @@ def read_slo(root):
     return json.loads(path.read_text()) if path.exists() else None
 
 
-def slo_refresh(root, now=None, reader=None):
-    """Rebuilds the SLO snapshot from GitHub when it is missing or older than REFRESH_DAYS and the API answers; the
-    snapshot (new or kept) or None. `reader()` answers the samples (slo_fetch by default)."""
+def slo_refresh(root, now=None, reader=None, max_merges=None, run=subprocess.run):
+    """Rebuilds the SLO snapshot from GitHub when it is missing, older than REFRESH_DAYS, or trailing main by at least
+    medir.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None."""
     now = now or datetime.now(timezone.utc)
     recorded = read_slo(root)
-    if recorded and age_days(recorded, now) < REFRESH_DAYS:
+    if not stale(root, recorded, now, max_merges=max_merges, run=run):
         return recorded
     found = (reader or slo_fetch)()
     return slo_write(root, found, now) if found else recorded
@@ -357,12 +425,13 @@ def verdicts_write(root, found, now, web=None):
     return made
 
 
-def verdicts_refresh(root, now=None, reader=None, web_reader=None):
-    """Rebuilds the verdicts snapshot from GitHub when it is missing or older than REFRESH_DAYS and the API answers;
-    the snapshot (new or kept) or None. `reader(root)` answers the full-suite runs; `web_reader(root)` answers `web`."""
+def verdicts_refresh(root, now=None, reader=None, web_reader=None, max_merges=None, run=subprocess.run):
+    """Rebuilds the verdicts snapshot from GitHub when it is missing, older than REFRESH_DAYS, or trailing main by at
+    least medir.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None. `reader(root)`
+    answers the full-suite runs; `web_reader(root)` answers `web`."""
     now = now or datetime.now(timezone.utc)
     recorded = read_verdicts(root)
-    if recorded and age_days(recorded, now) < REFRESH_DAYS:
+    if not stale(root, recorded, now, max_merges=max_merges, run=run):
         return recorded
     found = (reader or verdicts_fetch)(root)
     if not found:

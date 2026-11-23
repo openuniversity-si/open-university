@@ -13,5 +13,5 @@
   "basis": [
     "D-068"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-068 (5) and (6): one schema language (JSON Schema 2020-12) and the structure check refuses a file that does not validate; its proof is scripts/tests/test_json_schema.py (the validator and the subset guard this function runs)."
+  "note": "Basis: D-068 (5) and (6): one schema language (JSON Schema 2020-12) and the structure check refuses a file that does not validate; its proof is scripts/tests/test_json_schema.py (the validator and the subset guard this function runs)."
 }
