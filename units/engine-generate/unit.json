@@ -32,6 +32,7 @@
   ],
   "requires": {
     "engine-config": "^1",
-    "engine-config-check": "^1"
+    "engine-config-check": "^1",
+    "engine-events": "^1"
   }
 }

@@ -16,6 +16,7 @@
     "ARC-config"
   ],
   "requires": {
-    "engine-config": "^1"
+    "engine-config": "^1",
+    "engine-events": "^1"
   }
 }

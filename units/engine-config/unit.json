@@ -20,5 +20,8 @@
   ],
   "realizes": [
     "ARC-config"
-  ]
+  ],
+  "requires": {
+    "engine-events": "^1"
+  }
 }
