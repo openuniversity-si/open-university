@@ -2,7 +2,11 @@
 
 Subcommands (`scripts/workflow-attest`):
   main-health        Andon stop-the-line check (C6): evaluates base's full-suite check runs and open
-                     `main-red-andon` issues; non-`fix-main` PRs fail closed while main is red.
+                     `main-red-andon` issues; non-`fix-main` PRs fail closed while main is red. Staged only: D-363
+                     keeps it out of the merge queue (a flake would freeze every merge); see promotion-health.
+  promotion-health   Andon at promotion (C6, D-363): a commit of main is promoted to the site only when the newest
+                     full-suite run on that exact SHA succeeded. Exit 0 green; 1 red or not decided yet (the summary
+                     says which, and --json carries the state).
   verify             External GitHub App attestation check (C7, THREAT-gate): verifies base..head changed no
                      workflow/action/ruleset file (and no .github/ file from a fork) and that 100% of required
                      check runs passed on the exact head SHA (D-337).
@@ -140,6 +144,35 @@ def evaluate_main_health(
             f'only PRs carrying label {fix_label} may advance until {full_suite_name} is green on main'
         ),
     }
+
+
+def evaluate_promotion(check_runs, sha, full_suite_name=FULL_SUITE_CHECK):
+    """Andon at promotion (C6, D-363): may this commit of main be promoted (the site release)?
+
+    The newest full-suite run (by id) on this exact SHA decides: completed success is green; completed with any other
+    conclusion is red (the suite already re-ran each red test alone, VERIFY-ALONE, so a red run is a confirmed red; a
+    flake is cleared by re-running the workflow, whose newer run then decides); queued, in progress or absent is not
+    decided yet. The merge queue is never consulted or held: a red main stops only what reaches production."""
+    if not isinstance(sha, str) or not SHA40.match(sha):
+        return {'state': 'red', 'ok': False, 'summary': f'promotion-health RED: {sha!r} is not a 40-hex commit SHA'}
+    runs = [
+        item for item in _normalize_check_runs(check_runs)
+        if isinstance(item, dict) and item.get('name') == full_suite_name and item.get('head_sha') == sha
+    ]
+    if not runs:
+        return {'state': 'pending', 'ok': False,
+                'summary': f'promotion-health WAIT: no {full_suite_name} run on {sha} yet; promote after it is green'}
+    newest = max(runs, key=lambda item: int(item.get('id') or 0))
+    if newest.get('status') != 'completed':
+        return {'state': 'pending', 'ok': False,
+                'summary': f'promotion-health WAIT: {full_suite_name} run {newest.get("id")} on {sha} is '
+                           f'{newest.get("status")}; promote after it is green'}
+    if newest.get('conclusion') == 'success':
+        return {'state': 'green', 'ok': True,
+                'summary': f'promotion-health ok: {full_suite_name} run {newest.get("id")} green on {sha}'}
+    return {'state': 'red', 'ok': False,
+            'summary': f'promotion-health RED (Andon, D-363): {full_suite_name} run {newest.get("id")} on {sha} is '
+                       f'{newest.get("conclusion")!r}; fix main (or re-run the suite if it was a flake) before promoting'}
 
 
 def changed_paths(root, base, head):
@@ -399,6 +432,11 @@ def main(argv=None):
     health.add_argument('--label', action='append', default=[], help='label on the current PR (repeatable)')
     health.add_argument('--json', action='store_true', dest='as_json')
 
+    promote = sub.add_parser('promotion-health', help='may this commit of main be promoted? (Andon, D-363)')
+    promote.add_argument('--checks', required=True, help="JSON of the SHA's full-suite check runs (or - for stdin)")
+    promote.add_argument('--sha', required=True, help='the commit to promote (40 hex)')
+    promote.add_argument('--json', action='store_true', dest='as_json')
+
     verify = sub.add_parser('verify', help='fail-closed verifier for external App attestation (C7)')
     verify.add_argument('--base', required=True, help='base commit SHA (40 hex)')
     verify.add_argument('--head', required=True, help='head commit SHA (40 hex)')
@@ -418,6 +456,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command == 'main-health':
         verdict = evaluate_main_health(_read_json_arg(args.checks), _read_json_arg(args.issues), pr_labels=args.label)
+        print(json.dumps(verdict, indent=1, sort_keys=True) if args.as_json else verdict['summary'])
+        return 0 if verdict['ok'] else 1
+
+    if args.command == 'promotion-health':
+        verdict = evaluate_promotion(_read_json_arg(args.checks), args.sha)
         print(json.dumps(verdict, indent=1, sort_keys=True) if args.as_json else verdict['summary'])
         return 0 if verdict['ok'] else 1
 

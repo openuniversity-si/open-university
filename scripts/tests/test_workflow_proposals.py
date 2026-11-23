@@ -21,6 +21,7 @@ import workflow_attest
 SITE_URL = urllib.parse.urlunsplit(('https', 'site.test', '', '', ''))
 BASE_SHA = 'a' * len('0123456789abcdef0123456789abcdef01234567')
 HEAD_SHA = 'b' * len('0123456789abcdef0123456789abcdef01234567')
+NEWER = len('ab')
 PINNED_SHA = 'c' * len('0123456789abcdef0123456789abcdef01234567')
 HEALTH_BODY = json.dumps({
     'status': 'ok',
@@ -183,6 +184,49 @@ class MainHealthTests(unittest.TestCase):
         verdict = workflow_attest.evaluate_main_health(red_runs, [], pr_labels=('fix-main',))
         self.assertTrue(verdict['ok'])
         self.assertTrue(verdict['override'])
+
+
+class PromotionHealthTests(unittest.TestCase):
+    """Andon at promotion (D-363): a red main stops the site release, never the merge queue."""
+
+    @staticmethod
+    def suite(rid, status='completed', conclusion='success', sha=HEAD_SHA):
+        return {'id': rid, 'name': 'full-suite', 'status': status, 'head_sha': sha,
+                'conclusion': conclusion if status == 'completed' else None}
+
+    def test_green_only_when_the_newest_run_on_the_exact_sha_succeeded(self):
+        verdict = workflow_attest.evaluate_promotion({'check_runs': [self.suite(1)]}, HEAD_SHA)
+        self.assertEqual((verdict['state'], verdict['ok']), ('green', True))
+        other = workflow_attest.evaluate_promotion({'check_runs': [self.suite(1, sha=BASE_SHA)]}, HEAD_SHA)
+        self.assertEqual(other['state'], 'pending')
+        unnamed = {key: value for key, value in self.suite(1).items() if key != 'head_sha'}
+        self.assertEqual(workflow_attest.evaluate_promotion([unnamed], HEAD_SHA)['state'], 'pending')
+
+    def test_red_is_a_stop_and_a_rerun_that_passes_clears_a_flake(self):
+        red = [self.suite(1, conclusion='failure')]
+        self.assertEqual(workflow_attest.evaluate_promotion(red, HEAD_SHA)['state'], 'red')
+        self.assertIn('Andon', workflow_attest.evaluate_promotion(red, HEAD_SHA)['summary'])
+        self.assertEqual(workflow_attest.evaluate_promotion(red + [self.suite(NEWER)], HEAD_SHA)['state'], 'green')
+        rerun_red = [self.suite(1), self.suite(NEWER, conclusion='failure')]
+        self.assertEqual(workflow_attest.evaluate_promotion(rerun_red, HEAD_SHA)['state'], 'red')
+        cancelled = [self.suite(1, conclusion='cancelled')]
+        self.assertEqual(workflow_attest.evaluate_promotion(cancelled, HEAD_SHA)['state'], 'red')
+
+    def test_running_or_absent_is_undecided_and_a_bad_sha_is_red(self):
+        running = [self.suite(1), self.suite(NEWER, status='in_progress')]
+        self.assertEqual(workflow_attest.evaluate_promotion(running, HEAD_SHA)['state'], 'pending')
+        self.assertEqual(workflow_attest.evaluate_promotion({'check_runs': []}, HEAD_SHA)['state'], 'pending')
+        self.assertEqual(workflow_attest.evaluate_promotion([self.suite(1)], 'main')['state'], 'red')
+
+    def test_cli_exit_codes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for runs, want in (([self.suite(1)], 0), ([self.suite(1, conclusion='failure')], 1),
+                               ([self.suite(1, status='queued')], 1)):
+                path = Path(tmp) / 'c.json'
+                path.write_text(json.dumps({'check_runs': runs}), encoding='utf-8')
+                with contextlib.redirect_stdout(io.StringIO()):
+                    code = workflow_attest.main(['promotion-health', '--checks', str(path), '--sha', HEAD_SHA])
+                self.assertEqual(code, want)
 
 
 class AttestationTests(unittest.TestCase):

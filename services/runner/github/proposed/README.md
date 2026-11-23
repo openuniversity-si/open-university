@@ -9,7 +9,7 @@
 |---|---|---|---|
 | `site-canary.yml` | **M6** | **Salto 1 (approved now)** | Read-only synthetic HTTP probe (`scripts/site-canary`) against `https://openuniversity.si` (`/api/health` + `/` security headers) on `push` to `main`, every 15 minutes, and `workflow_dispatch`, with deduplicated `site-canary-red` issue alerting and zero deploy/AWS secrets. |
 | `full-suite.yml` | **C6** | **Salto 2 (Andon in principle; `refresh-snapshots` deferred)** | Keeps `CACHE-PGDATA` byte-for-byte identical to `tower-gate.yml` and adds a deduplicated `main-red-andon` issue on failure (auto-closing on green recovery). `refresh-snapshots` and `TOWER_SNAPSHOT_TOKEN` are deferred by `D-359` (no new key now; prefer an App token over a personal token if introduced later). |
-| `tower-gate.yml` | **C6**, **C7** | **Salto 2 (after `full-suite` stabilizes)** | Adds the `main-health` Andon stop-the-line job (running from `base`'s `scripts/workflow-attest main-health`, refusing non-`fix-main` PRs while `main` is red) and binds `tower/gate` to `needs: [part, pinned, main_health]`. Enters only after fixing `full-suite` reds on `main` (22/11 21:07–21:24 BRT: `gate-areas` coupled to the live covers graph) and stabilizing `full-suite`. |
+| `tower-gate.yml` | **C6**, **C7** | **Not installed: `main-health` declined by `D-363`** (a flake would freeze the queue; the Andon stops the site release instead, `scripts/workflow-attest promotion-health`). Kept as the record of the D-359 draft: | Adds the `main-health` Andon stop-the-line job (running from `base`'s `scripts/workflow-attest main-health`, refusing non-`fix-main` PRs while `main` is red) and binds `tower/gate` to `needs: [part, pinned, main_health]`. Enters only after fixing `full-suite` reds on `main` (22/11 21:07–21:24 BRT: `gate-areas` coupled to the live covers graph) and stabilizing `full-suite`. |
 | `tower-gate-attest.yml` | **C7** | **Salto 2 (subject to conditions B/C/D)** | Staged draft for external GitHub App attestation (`tower-gate-attester`, `THREAT-gate`). Must be updated to satisfy mandatory design conditions **(B)**, **(C)**, and **(D)** of `D-359` before installation in Salto 2. |
 | `ruleset-main.json` | **C7** | **Salto 2 (subject to conditions B/C/D)** | Staged draft update to ruleset `27250343` requiring `tower/gate-attested` bound to the external GitHub App `integration_id` (outside `15368`) and `main-health`, while preserving `MERGE` and `ALLGREEN`. Applied only in Salto 2 after `full-suite` stabilizes and conditions **(B)**, **(C)**, **(D)** are met. |
 
@@ -31,7 +31,7 @@
 1. **`full-suite` Andon (`main-red-andon`) and `main-health` (`C6`):**
    - First fix the root cause of `full-suite` reds on `main` (22/11 21:07–21:24 BRT: `gate-areas` test coupled to the live covers graph) and confirm `full-suite` is green and stable on `main`.
    - Keep `refresh-snapshots` and `TOWER_SNAPSHOT_TOKEN` out of Salto 2 while deferred under `D-359` (no new key now; if introduced later, prefer a GitHub App token over a personal token).
-   - Then have the Torre install the `full-suite.yml` Andon (`main-red-andon`) and `tower-gate.yml` `main-health` changes atomically into `services/runner/github/` and `.github/workflows/` (`D-087`).
+   - Then have the Torre install the `full-suite.yml` Andon (`main-red-andon`) into `services/runner/github/` and `.github/workflows/` (`D-087`). `D-363`: the `tower-gate.yml` `main-health` job is **not** installed; a confirmed red stops promotion (`apps/web/deploy/promotion-guard.sh`), never the merge queue.
 2. **External GitHub App `tower-gate-attester` (`THREAT-gate`, `C7`) — mandatory conditions before installation:**
    - **(B) Independent AWS-side verification and `main`-restricted environment:** the AWS attester verifies the facts on its own using the GitHub App token (changed files, head repository, required checks on the exact head SHA) and never trusts a verdict sent by the workflow; attester credentials live only in a deployment environment restricted to `main`, never as a repository secret.
    - **(C) Complete trigger and check coverage:** attestation triggers on completion of both `tower-gate` and `web` (and in the merge queue), posting green `tower/gate-attested` only when all required checks are green.
@@ -49,6 +49,6 @@
 ## Revert Paths
 
 - **Site canary (Salto 1):** Remove `site-canary.yml` from `.github/workflows/`, `services/runner/github/`, and `gate.allowed_workflows` via a Torre PR.
-- **Andon (`main-health`, Salto 2):** Apply label `fix-main` to an urgent PR, close the `main-red-andon` issue, or restore the prior `full-suite.yml` / `tower-gate.yml` via a Torre PR.
+- **Andon (`D-363`):** Re-run `full-suite` on the commit (a flake), close the `main-red-andon` issue, remove the guard call from `apps/web/deploy/build-image.sh`, or restore the prior `full-suite.yml` via a Torre PR.
 - **External App attestation (`THREAT-gate`, Salto 2):** Restore the previous `.github/rulesets/main.json` on ruleset `27250343` and remove `tower-gate-attest.yml` via a Torre PR.
 - **Decision (`D-359`):** Record a superseding decision by an independent approver (Torre or owner), or by Daniel for money or other people.
