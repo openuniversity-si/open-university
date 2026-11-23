@@ -306,21 +306,34 @@ class Check(unittest.TestCase):
                          [('affecting', [{'type': 'affects', 'target': 'DEP:npm:left-pad@1.3.0'}])])
 
     def test_a_supplier_is_judged_an_account_by_its_budget_and_a_registry_by_what_it_supplies(self):
-        """STD-supply-supplier-answers (D-335): the warnings that make a supplier non-conformant."""
+        """STD-supply-supplier-answers (D-335, D-362): the warnings that make a supplier non-conformant."""
         def sup(id, kind, **body):
             return {'id': id, 'type': 'SUP', 'state': body.pop('state', 'active'), 'fingerprint': 'f', 'links': [],
                     'body': {'id': id, 'kind': kind, **body}}
         found = {item['id']: item for item in (
             sup('SUP-paid', 'account', budget='REQ-cap'), sup('SUP-free', 'account'),
-            sup('SUP-lost', 'account', budget='REQ-gone'), sup('SUP-used', 'registry'), sup('SUP-idle', 'platform'),
+            sup('SUP-lost', 'account', budget='REQ-gone'),
+            sup('SUP-uncapped-ok', 'account', no_budget_by='D-900'),
+            sup('SUP-uncapped-session', 'account', no_budget_by='D-901'),
+            sup('SUP-uncapped-independent', 'account', no_budget_by='D-902'),
+            sup('SUP-uncapped-proposed', 'account', no_budget_by='D-903'),
+            sup('SUP-uncapped-missing', 'account', no_budget_by='D-999'),
+            sup('SUP-both', 'account', budget='REQ-cap', no_budget_by='D-900'),
+            sup('SUP-used', 'registry'), sup('SUP-idle', 'platform'),
             sup('SUP-old', 'registry', state='retired'), sup('SUP-only-removed', 'registry'),
             {'id': 'REQ-cap', 'type': 'REQ', 'state': 'approved', 'fingerprint': 'f', 'links': []},
+            {'id': 'D-900', 'type': 'D', 'state': 'accepted', 'authority': 'owner', 'fingerprint': 'f', 'links': []},
+            {'id': 'D-901', 'type': 'D', 'state': 'accepted', 'authority': 'session', 'fingerprint': 'f', 'links': []},
+            {'id': 'D-902', 'type': 'D', 'state': 'accepted', 'authority': 'independent', 'fingerprint': 'f', 'links': []},
+            {'id': 'D-903', 'type': 'D', 'state': 'proposed', 'authority': 'owner', 'fingerprint': 'f', 'links': []},
             {'id': 'DEP:npm:a@1', 'type': 'DEP', 'state': 'in-use', 'fingerprint': 'f',
              'links': [{'type': 'supplied-by', 'target': 'SUP-used'}]},
             {'id': 'DEP:npm:b@1', 'type': 'DEP', 'state': 'removed', 'fingerprint': 'f',
              'links': [{'type': 'supplied-by', 'target': 'SUP-only-removed'}]})}
         self.assertEqual(sorted(line.split(':', 1)[0] for line in model.supply_findings(found)),
-                         ['SUP-free', 'SUP-idle', 'SUP-lost', 'SUP-only-removed'])
+                         ['SUP-both', 'SUP-free', 'SUP-idle', 'SUP-lost', 'SUP-only-removed',
+                          'SUP-uncapped-independent', 'SUP-uncapped-missing', 'SUP-uncapped-proposed',
+                          'SUP-uncapped-session'])
         self.assertTrue(model.judged(model.metamodel(ROOT), 'SUP'))
 
 
@@ -329,6 +342,15 @@ class RealRepository(unittest.TestCase):
 
     def test_the_supply_check_of_this_repository_passes(self):
         self.assertEqual(supply.check(ROOT), [])
+
+    def test_sup_anthropic_is_active_without_monthly_budget_under_d362(self):
+        sup = json.loads((ROOT / 'config/supply/suppliers/SUP-anthropic.json').read_text())
+        self.assertEqual((sup['state'], sup['kind']), ('active', 'account'))
+        self.assertNotIn('budget', sup)
+        self.assertEqual(sup['no_budget_by'], 'D-362')
+        found = model.objects(ROOT, (model.read_suppliers, model.read_dependencies, model.read_data,
+                                     model.read_requirements, model.read_decisions))
+        self.assertEqual(model.supply_findings(found), [])
 
 
 if __name__ == '__main__':

@@ -2117,9 +2117,9 @@ SUPPLIER_INACTIVE = {'SUP': ('retired',), 'DEP': ('removed',), 'REQ': ('supersed
 
 
 def supply_findings(found):
-    """Warnings of the suppliers (SUP, D-320, D-335): an active account whose spend is measured against no requirement
-    that exists (its `budget`), and an active registry or platform that supplies nothing (no component or data store
-    is supplied by it): retire it."""
+    """Warnings of the suppliers (SUP, D-320, D-335, D-362): an active account with neither an active `budget`
+    requirement nor an owner-approved `no_budget_by` decision (scope='money'), one carrying both, and an active
+    registry or platform that supplies nothing (no component or data store is supplied by it): retire it."""
     def live(id):
         item = found.get(id, {})
         return item.get('fingerprint') is not None and item['state'] not in SUPPLIER_INACTIVE.get(item['type'], ())
@@ -2130,10 +2130,17 @@ def supply_findings(found):
         body = item.get('body', {})
         if item['type'] != 'SUP' or 'kind' not in body or item['state'] != 'active':
             continue
-        if body['kind'] == 'account' and not body.get('budget'):
-            warnings.append(f'{item["id"]}: an account with no budget requirement its spend is measured against')
-        elif body['kind'] == 'account' and not (found.get(body['budget'], {}).get('type') == 'REQ' and live(body['budget'])):
-            warnings.append(f'{item["id"]}: its budget {body["budget"]} is no active requirement')
+        if body['kind'] == 'account':
+            budget, exempt = body.get('budget'), body.get('no_budget_by')
+            if budget and exempt:
+                warnings.append(f'{item["id"]}: carries both budget {budget} and no_budget_by {exempt}')
+            elif exempt:
+                if not independently_approved(found.get(exempt), scope='money'):
+                    warnings.append(f'{item["id"]}: its no_budget_by {exempt} is not an owner-approved accepted decision')
+            elif not budget:
+                warnings.append(f'{item["id"]}: an account with no budget requirement its spend is measured against')
+            elif not (found.get(budget, {}).get('type') == 'REQ' and live(budget)):
+                warnings.append(f'{item["id"]}: its budget {budget} is no active requirement')
         if body['kind'] != 'account' and item['id'] not in supplied:
             warnings.append(f'{item["id"]}: a {body["kind"]} nothing is supplied by; retire it')
     return warnings
