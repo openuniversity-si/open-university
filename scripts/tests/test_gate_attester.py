@@ -201,8 +201,29 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual((path, body['name'], body['head_sha'], body['conclusion']),
                          (f'/repos/{REPO}/check-runs', attester.CONTEXT, SHA, 'success'))
         mine = {'id': rid(), 'name': attester.CONTEXT, 'status': 'completed', 'conclusion': 'success',
-                'app': {'id': APP}, 'head_sha': SHA, 'output': {'title': body['output']['title']}}
+                'app': {'id': APP}, 'head_sha': SHA, 'output': {**body['output'], 'text': None}}
         self.assertFalse(attester.write(gh, cfg(), sha, runs + [mine], v, APP)['wrote'])
+
+    def test_rewrites_when_only_the_summary_or_text_changed(self):
+        gh = FakeGitHub(routes_pr(['docs/a.md'], green()))
+        sha, runs, v = attester.evaluate(gh, cfg(), {'sha': SHA, 'pr': 7}, APP)
+        output = attester.render(sha, v)
+        base = {'id': rid(), 'name': attester.CONTEXT, 'status': 'completed', 'conclusion': 'success',
+                'app': {'id': APP}, 'head_sha': SHA}
+        stale = {**base, 'output': {**output, 'summary': output['summary'] + '\n- an older finding'}}
+        self.assertTrue(attester.write(gh, cfg(), sha, runs + [stale], v, APP)['wrote'])
+        texted = {**base, 'id': rid(), 'output': {**output, 'text': 'details no longer true'}}
+        self.assertTrue(attester.write(gh, cfg(), sha, runs + [texted], v, APP)['wrote'])
+        untitled = {**base, 'id': rid(), 'output': {'summary': output['summary']}}
+        self.assertTrue(attester.write(gh, cfg(), sha, runs + [untitled], v, APP)['wrote'])
+        self.assertEqual(len(gh.posts), 3)
+        same = {**base, 'id': rid(), 'output': dict(output)}
+        self.assertFalse(attester.write(gh, cfg(), sha, runs + [same], v, APP)['wrote'])
+
+    def test_same_output_treats_missing_as_empty(self):
+        self.assertTrue(attester.same_output({'title': 't', 'summary': 's', 'text': None}, {'title': 't', 'summary': 's'}))
+        self.assertTrue(attester.same_output(None, {'title': '', 'summary': ''}))
+        self.assertFalse(attester.same_output({'title': 't', 'summary': 's'}, {'title': 't', 'summary': 's2'}))
 
     def test_workflow_pr_needs_the_torre_decision(self):
         files = ['.github/workflows/x.yml', 'services/runner/github/x.yml']
