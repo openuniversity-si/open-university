@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Autonomy ladder contract, proposed configuration, and eight external trust indicators (D-353, C8). Hermetic.
+# Autonomy ladder contract, active configuration, and eight external trust indicators (D-353, C8). Hermetic.
 # Verifies: D-353, UNIT:engine-model
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"

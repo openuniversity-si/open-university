@@ -78,10 +78,10 @@ class AutonomyContractAndConfig(unittest.TestCase):
         self.assertEqual(self.schema.get('$id'), 'contracts/model/autonomy.v1.json')
         self.assertEqual(json_schema.check_schema(self.schema), [])
 
-    def test_proposed_autonomy_ladder_validates_and_stays_proposed(self):
+    def test_active_autonomy_ladder_validates_and_starts_unmeasured(self):
         loaded, errors = trust_metrics.load_ladder(ROOT)
         self.assertEqual(errors, [])
-        self.assertEqual(loaded['state'], 'proposed')
+        self.assertEqual(loaded['state'], 'active')
         self.assertEqual(loaded['decision'], 'D-353')
         self.assertEqual(loaded['owner'], 'Daniel')
         self.assertEqual(loaded['history'], [])
@@ -99,10 +99,8 @@ class AutonomyContractAndConfig(unittest.TestCase):
         self.assertEqual(indicators['independent_audit']['target']['min_clean_approval_rate'], 1)
         self.assertEqual(indicators['independent_audit']['target']['max_gaming_cases'], 0)
         self.assertEqual(indicators['human_override_rate']['target']['max_overrides'], 0)
-        self.assertEqual(indicators['signal_to_overhead']['target']['min_value_share'],
-                         FIXTURE['portfolio_targets']['min_value_share'])
-        self.assertEqual(indicators['signal_to_overhead']['target']['max_meta_governance_share'],
-                         FIXTURE['portfolio_targets']['max_meta_governance_share'])
+        self.assertNotIn('min_value_share', indicators['signal_to_overhead']['target'])
+        self.assertNotIn('max_meta_governance_share', indicators['signal_to_overhead']['target'])
         self.assertEqual(indicators['signal_to_overhead']['target']['max_sequential_same_scope_splits'], 0)
         self.assertEqual(indicators['production_health_and_cost']['target']['max_deploy_p100_s'], 1)
         self.assertEqual(indicators['production_health_and_cost']['target']['min_canary_pass_rate'], 1)
@@ -119,7 +117,12 @@ class AutonomyContractAndConfig(unittest.TestCase):
         self.assertEqual(actual_levels, FIXTURE['expected_levels'])
         breakers = [item['indicator'] for item in self.ladder['circuit_breakers']]
         self.assertEqual(breakers, FIXTURE['expected_circuit_breakers'])
-        self.assertEqual(len(self.ladder['always_owner_locked']), FIXTURE['expected_owner_locks'])
+        owner_ids = [item['id'] for item in self.ladder['always_owner_locked']]
+        self.assertEqual(len(owner_ids), FIXTURE['expected_owner_locks'])
+        self.assertEqual(owner_ids, FIXTURE['expected_owner_lock_ids'])
+        independent_ids = [item['id'] for item in self.ladder['independent_approval_locked']]
+        self.assertEqual(len(independent_ids), FIXTURE['expected_independent_locks'])
+        self.assertEqual(independent_ids, FIXTURE['expected_independent_lock_ids'])
 
     def test_schema_refuses_invalid_level_or_missing_indicator(self):
         bad_level = copy.deepcopy(self.ladder)
@@ -252,6 +255,7 @@ class EightExternalTrustIndicators(unittest.TestCase):
         self.assertEqual(res['product_merges'], FIXTURE['expected_product_merges_three'])
         self.assertEqual(res['meta_governance_merges'], FIXTURE['expected_meta_merges_one'])
         self.assertEqual(res['sequential_same_scope_splits'], FIXTURE['expected_split_count'])
+        self.assertTrue(res['work_mix_diagnostic_only'])
         self.assertEqual(res['state'], 'not-met')
 
     def test_indicator_6_diagnostic_work_mix_without_numeric_thresholds(self):
@@ -259,9 +263,7 @@ class EightExternalTrustIndicators(unittest.TestCase):
         merge_feature(self.root, 'feat-web', '1', {'apps/web/p1.ts': 'a\n'}, t0)
         merge_feature(self.root, 'feat-meta-1', '2', {'config/model/a.json': '{}\n'}, t3)
         merge_feature(self.root, 'feat-meta-2', '3', {'config/model/b.json': '{}\n'}, t4)
-        diag_ladder = copy.deepcopy(self.ladder)
-        diag_ladder['indicators']['signal_to_overhead']['target'] = {'max_sequential_same_scope_splits': 0}
-        res = trust_metrics.measure_signal_to_overhead(self.root, diag_ladder)
+        res = trust_metrics.measure_signal_to_overhead(self.root, self.ladder)
         self.assertTrue(res['work_mix_diagnostic_only'])
         self.assertEqual(res['sequential_same_scope_splits'], 0)
         self.assertEqual(res['state'], 'met')
@@ -387,6 +389,7 @@ class AutonomyLadderEvaluation(unittest.TestCase):
 
     def test_proposed_ladder_never_activates_effective_level(self):
         ladder = copy.deepcopy(self.ladder)
+        ladder['state'] = 'proposed'
         ladder['history'] = self._history(FIXTURE['level_c_days'], trust_metrics.ORDER)
         res = trust_metrics.evaluate_ladder(ladder, self._all_met(), today=FIXTURE['today'])
         self.assertEqual(res['eligible_level'], 'C')
@@ -395,8 +398,15 @@ class AutonomyLadderEvaluation(unittest.TestCase):
 
     def test_active_ladder_promotes_by_days_and_demotes_on_circuit_breaker(self):
         ladder = copy.deepcopy(self.ladder)
-        ladder['state'] = 'active'
+        self.assertEqual(ladder['state'], 'active')
         level_a_keys = ladder['levels'][0]['required_indicators']
+
+        # Active ladder with no measured history stays at none (nothing granted by decree).
+        ladder['history'] = []
+        res_empty = trust_metrics.evaluate_ladder(ladder, self._all_met(), today=FIXTURE['today'])
+        self.assertEqual(res_empty['eligible_level'], 'none')
+        self.assertEqual(res_empty['effective_level'], 'none')
+        self.assertFalse(res_empty['proposal_pending_owner'])
 
         ladder['history'] = self._history(FIXTURE['level_a_days'], level_a_keys)
         res_a = trust_metrics.evaluate_ladder(ladder, self._all_met(), today=FIXTURE['today'])
@@ -410,13 +420,14 @@ class AutonomyLadderEvaluation(unittest.TestCase):
         res_c = trust_metrics.evaluate_ladder(ladder, self._all_met(), today=FIXTURE['today'])
         self.assertEqual(res_c['effective_level'], 'C')
 
-        # Tripping security circuit breaker immediately demotes to none.
-        broken = self._all_met()
-        broken['security_posture']['state'] = 'not-met'
-        demoted = trust_metrics.evaluate_ladder(ladder, broken, today=FIXTURE['today'])
-        self.assertTrue(demoted['demoted'])
-        self.assertEqual(demoted['eligible_level'], 'none')
-        self.assertEqual(demoted['effective_level'], 'none')
+        # Tripping any circuit breaker (indicators 1, 2 or 8) immediately demotes to none.
+        for ind in FIXTURE['expected_circuit_breakers']:
+            broken = self._all_met()
+            broken[ind]['state'] = 'not-met'
+            demoted = trust_metrics.evaluate_ladder(ladder, broken, today=FIXTURE['today'])
+            self.assertTrue(demoted['demoted'])
+            self.assertEqual(demoted['eligible_level'], 'none')
+            self.assertEqual(demoted['effective_level'], 'none')
 
 
 class LiveRepoSmoke(unittest.TestCase):
@@ -424,11 +435,13 @@ class LiveRepoSmoke(unittest.TestCase):
         result = trust_metrics.measure(ROOT, today=FIXTURE['today'])
         self.assertEqual(result['errors'], [])
         self.assertEqual(result['indicator_count'], FIXTURE['expected_indicator_count'])
+        self.assertEqual(result['ladder']['state'], 'active')
+        self.assertFalse(result['ladder']['proposal_pending_owner'])
         self.assertEqual(result['ladder']['eligible_level'], 'none')
         self.assertEqual(result['ladder']['effective_level'], 'none')
-        self.assertTrue(result['ladder']['demoted'])
-        self.assertEqual(result['indicators']['human_override_rate']['state'], 'unmeasured')
-        self.assertEqual(result['indicators']['independent_audit']['state'], 'unmeasured')
+        self.assertEqual(result['ladder']['always_owner_locked'], FIXTURE['expected_owner_lock_ids'])
+        self.assertEqual(result['ladder']['independent_approval_locked'], FIXTURE['expected_independent_lock_ids'])
+        self.assertTrue(result['indicators']['signal_to_overhead']['work_mix_diagnostic_only'])
         self.assertEqual(result['indicators']['security_posture']['unapproved_tailorings'], [])
         cli = subprocess.run([str(ROOT / 'scripts' / 'model'), 'trust', '--check'],
                              capture_output=True, text=True, check=False)
@@ -443,6 +456,7 @@ class LiveRepoSmoke(unittest.TestCase):
         self.assertEqual(authorities['D-353']['authority'], 'owner')
         d353_text = (ROOT / 'docs' / 'domain' / 'decisions' / 'D-353.md').read_text(encoding='utf-8')
         self.assertIn('Torre por delegação do Daniel 22/11/2026', d353_text)
+        self.assertEqual(ladder['state'], 'active')
         self.assertEqual(ladder['decision'], 'D-353')
 
 

@@ -1,9 +1,9 @@
 {
   "id": "AUTONOMY-torre-v1",
-  "state": "proposed",
+  "state": "active",
   "decision": "D-353",
   "owner": "Daniel",
-  "description": "Scope-calibrated autonomy ladder (levels A, B, C) governed by eight external, non-self-reported trust indicators and automatic demotion circuit breakers. Quality, reliability, audit, canary, escape, flake, PR-split and security criteria enforce 100% pass / 0 failure targets (D-337); work-mix allocation bounds in indicator 6 are submitted for Daniel's decision in D-353.",
+  "description": "Scope-calibrated autonomy ladder (levels A, B, C) governed by eight external, non-self-reported trust indicators and automatic demotion circuit breakers (D-353). Quality, reliability, audit, canary, escape, flake, PR-split and security criteria enforce 100% pass / 0 failure targets (D-337); indicator 6 work-mix shares are reported diagnostically without numeric thresholds until a measured baseline exists.",
   "defaults": {
     "rework_window_prs": 5,
     "split_window_seconds": 7200,
@@ -158,11 +158,9 @@
         "git_base": "HEAD"
       },
       "target": {
-        "min_value_share": 0.7,
-        "max_meta_governance_share": 0.15,
         "max_sequential_same_scope_splits": 0
       },
-      "note": "C8: guards against PR inflation and self-referential governance churn; 0 sequential same-scope splits (D-337), portfolio split >=70% product/capacity and <=15% meta-governance pending Daniel's decision in D-353."
+      "note": "C8 (D-353): 0 sequential same-scope splits (D-337). Fixed work-mix percentages (value_share >= 0.70, meta_governance_share <= 0.15) were rejected; work-mix shares are reported diagnostically without numeric thresholds until a measured baseline exists, and adopting any future threshold requires a new decision."
     },
     "production_health_and_cost": {
       "number": 7,
@@ -202,7 +200,7 @@
         "max_dockerfile_issues": 0,
         "require_multi_ecosystem_audit": true
       },
-      "note": "D-337: 0 open critical/high advisories, 0 open vulns/threat findings, 0 session-authorized or proposed TAIL exemptions, 0 unpinned or curl|sh Dockerfiles."
+      "note": "D-337 and D-360: 0 open critical/high advisories, 0 open vulns/threat findings, 0 session-authorized, self-approved, or proposed TAIL exemptions (active TAIL exemptions require independent approval), 0 unpinned or curl|sh Dockerfiles."
     }
   },
   "levels": [
@@ -306,28 +304,40 @@
   "always_owner_locked": [
     {
       "id": "LOCK-intention",
-      "domain": "Intention, primary metrics and limits (docs/SEMENTE.md, config/intent/INT-*.json)",
-      "reason": "SEMENTE section 6 intention lock: only Daniel validates changes to intention and limits."
+      "domain": "Intention, primary metrics, objectives and limits (docs/SEMENTE.md, config/intent/INT-*.json)",
+      "reason": "SEMENTE section 6 intention lock and D-353: only Daniel validates changes to intention, objectives and limits."
     },
     {
-      "id": "LOCK-stop-and-trust-guards",
+      "id": "LOCK-money",
+      "domain": "Money, spending, purchases, billing and budget above approved ceiling",
+      "reason": "D-260, D-360 and D-353: money and spend above ceiling stay locked to Daniel."
+    },
+    {
+      "id": "LOCK-people",
+      "domain": "Other people (messages, commitments or actions toward third parties)",
+      "reason": "D-260, D-360 and D-353: actions involving other people stay locked to Daniel."
+    }
+  ],
+  "independent_approval_locked": [
+    {
+      "id": "IND-stop-and-trust-guards",
       "domain": "Stop criteria, conformance definitions and trust/autonomy guard thresholds",
-      "reason": "Separation of powers: the autonomous system never edits its own passing criteria or trust ladder."
+      "reason": "D-353 and D-360: decided by the Torre with independent approval; an autonomous session never edits its own passing criteria."
     },
     {
-      "id": "LOCK-security-exemptions",
+      "id": "IND-security-exemptions",
       "domain": "Security exemptions (config/standard/tailoring/TAIL-*.json) and residual risk acceptance",
-      "reason": "An autonomous session never self-authorizes security exemptions or accepts residual production risk."
+      "reason": "D-353 and D-360: decided by the Torre with independent approval; never self-authorized by the author session."
     },
     {
-      "id": "LOCK-github-controls",
+      "id": "IND-github-controls",
       "domain": "GitHub permissions, workflows (.github/workflows/**) and branch rulesets (.github/rulesets/**)",
-      "reason": "D-087: sessions never install or weaken repository workflows, rulesets, or check bindings."
+      "reason": "D-353, D-360 and D-087: decided by the Torre with independent approval; sessions never self-install workflows or weaken check bindings."
     },
     {
-      "id": "LOCK-production-and-budget",
-      "domain": "Irreversible production changes, IAM/AWS account changes and spend above approved ceiling",
-      "reason": "D-054 and closed owner list: money, credentials, third parties and irreversible production changes stay with Daniel."
+      "id": "IND-irreversible-production-no-cost",
+      "domain": "Irreversible production changes without cost",
+      "reason": "D-353, D-360 and D-054: decided by the Torre with independent approval (changes involving money remain in LOCK-money)."
     }
   ],
   "history": []

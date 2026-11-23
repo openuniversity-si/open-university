@@ -12,11 +12,19 @@
     "change_failure_rework",
     "security_posture"
   ],
-  "expected_owner_locks": 5,
-  "portfolio_targets": {
-    "min_value_share": 0.7,
-    "max_meta_governance_share": 0.15
-  },
+  "expected_owner_locks": 3,
+  "expected_owner_lock_ids": [
+    "LOCK-intention",
+    "LOCK-money",
+    "LOCK-people"
+  ],
+  "expected_independent_locks": 4,
+  "expected_independent_lock_ids": [
+    "IND-stop-and-trust-guards",
+    "IND-security-exemptions",
+    "IND-github-controls",
+    "IND-irreversible-production-no-cost"
+  ],
   "aws_ceiling_usd": 200.0,
   "deploy_slow_seconds": [0.9, 1.5, 24.0, 204.535],
   "deploy_fast_seconds": [0.4, 0.6, 0.8, 0.95],
