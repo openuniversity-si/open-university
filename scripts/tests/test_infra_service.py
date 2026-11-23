@@ -335,7 +335,12 @@ class ImageTests(unittest.TestCase):
 
     def test_the_image_is_pinned_carries_the_migrations_and_runs_unprivileged(self):
         dockerfile = (SERVICE / 'Dockerfile').read_text(encoding='utf-8')
-        self.assertRegex(dockerfile, r'(?m)^FROM public\.ecr\.aws/docker/library/python:[\d.]+-slim$')
+        instructions = '\n'.join(line for line in dockerfile.splitlines() if not line.lstrip().startswith('#'))
+        self.assertRegex(dockerfile, r'(?m)^FROM public\.ecr\.aws/docker/library/node:[\d.]+-slim@sha256:[0-9a-f]{64} AS clis$')
+        self.assertRegex(dockerfile, r'(?m)^FROM public\.ecr\.aws/docker/library/python:[\d.]+-slim@sha256:[0-9a-f]{64}$')
+        self.assertNotIn('--no-audit', instructions)
+        self.assertNotIn('origin/install.sh', instructions)
+        self.assertNotRegex(instructions, r'\b(?:curl|wget)\b[^;\n]*\|[^;\n]*\bsh\b')
         for needle in ('COPY infra/service/tower_infra /app/tower_infra', 'COPY infra/db/migrations /app/migrations',
                        'TOWER_MIGRATIONS=/app/migrations', 'USER nobody', 'ENTRYPOINT ["python", "-m", "tower_infra"]',
                        ' git xz-utils', 'chown nobody:nogroup /work'):  # the container executor's checkout and setup

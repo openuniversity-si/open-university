@@ -6,15 +6,17 @@
     "queued",
     "claimed",
     "in-progress",
-    "delivered"
+    "delivered",
+    "archived"
   ],
   "derived_states": [
     "delivered"
   ],
   "inactive_states": [
-    "delivered"
+    "delivered",
+    "archived"
   ],
-  "description": "A program, a unit of its plan, an item of its phases or an open row of the queue. It is not conformant while it does not say what it delivers (a unit's done criteria, an item's text, a row's scope; a program with no item). A phase item is delivered when a merge on HEAD names it (it tracks the item); a unit when its plan records its PR. A plan that does not parse is a problem of its program.",
+  "description": "A program, a unit of its plan, an item of its phases or an open row of the queue. It is not conformant while it does not say what it delivers (a unit's done criteria, an item's text, a row's scope; a program with no item). A phase item is delivered when a merge on HEAD names it (it tracks the item); a unit when its plan records its PR; a program with a valid archived.json marker (contracts/model/program-archive.v1.json) and its unmerged items are archived (inactive). A plan or archive marker that does not parse is a problem of its program.",
   "unconformant_when": [
     {
       "delivers": [

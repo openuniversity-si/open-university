@@ -670,6 +670,10 @@ def rule_findings(found, root, stops=None, stages=None):
             warnings.append(f'{item["id"]}: dormant_by {rule["dormant_by"]} on a rule in {rule["state"]}')
         if rule['state'] == 'warning' and not rule.get('deadline'):
             warnings.append(f'{item["id"]}: in warning with no deadline')
+        if rule['state'] in ('blocking', 'warning') and kind == 'judgment':
+            warnings.append(f'{item["id"]}: {rule["state"]} rule has no executable check (judgment)')
+        if rule['state'] in ('blocking', 'warning') and SEED_MARKER in (rule.get('note') or ''):
+            warnings.append(f'{item["id"]}: {rule["state"]} rule still carries an unreviewed seed note')
     return warnings
 
 
@@ -677,7 +681,8 @@ PRINCIPLES = 'docs/process/principles/D-069.md'
 PRINCIPLE = re.compile(r'^### ([0-9]+)\. (.+)$', re.MULTILINE)
 METHOD = 'docs/padrao/METODO.md'
 VERSION_BASIS = {'v8': 'D-115'}  # the decision that made each version of the Padrão (docs/padrao/README.md)
-SEED_NOTE = 'Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
+SEED_MARKER = 'Seeded by scripts/model seed-rules'
+SEED_NOTE = f'{SEED_MARKER} (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
 
 
 def _slug(text):
@@ -1976,14 +1981,14 @@ def read_dependencies(root):
     ecosystems, tools = supply.suppliers_of(root)
     snapshot = supply.read_snapshot(root) or {'advisories': []}
     granted, today = supply.exemptions(root), utc_today()
-    hit = {(advisory['package'], version) for advisory in snapshot['advisories']
+    hit = {(advisory.get('ecosystem', 'npm'), advisory['package'], version) for advisory in snapshot['advisories']
            if supply.advisory_state(advisory, granted.get(advisory['id']), today) == 'affecting'
            for version in advisory['versions']}
     found = []
     for entry in supply.dependencies(root):
         ident = supply.dep_id(entry['ecosystem'], entry['name'], entry['version'])
         owner = supply.supplier(entry, ecosystems, tools)
-        state = 'vulnerable' if (entry['ecosystem'] == 'npm' and (entry['name'], entry['version']) in hit) else (
+        state = 'vulnerable' if (entry['ecosystem'], entry['name'], entry['version']) in hit else (
             'in-use' if entry['pinned'] else 'unpinned')
         item = _obj(ident, 'DEP', state, entry['sources'][0], json.dumps(entry, sort_keys=True),
                     [{'type': 'supplied-by', 'target': owner}] if owner else [])
@@ -2002,7 +2007,8 @@ def read_advisories(root):
     granted, today = supply.exemptions(root), utc_today()
     found = []
     for advisory in snapshot['advisories']:
-        links = [{'type': 'affects', 'target': supply.dep_id('npm', advisory['package'], version)}
+        ecosystem = advisory.get('ecosystem', 'npm')
+        links = [{'type': 'affects', 'target': supply.dep_id(ecosystem, advisory['package'], version)}
                  for version in advisory['versions']]
         exempt = granted.get(advisory['id']) or {}
         links += [{'type': 'authorized-by', 'target': exempt['authorized_by']}] if exempt.get('authorized_by') else []
@@ -2101,13 +2107,148 @@ def read_risks(root):
                      lambda body: [{'type': 'threatens', 'target': asset} for asset in body['assets']])
 
 
-def control_state(body, found_ids):
-    """not-applicable with its reason; gap while nothing that exists implements it; partial or implemented by coverage."""
+OPERATION_RELATIONS = 'scripts/lib/operation_relations.json'
+INERT_STD_STATES = ('dormant', 'draft', 'replaced')
+INERT_REQ_STATES = ('draft', 'superseded', 'obsolete')
+INERT_DATA_STATES = ('unregistered', 'unprotected', 'unverified')
+
+
+def unexercised_rules(found, root):
+    """Ids of STD rules whose function check lives in a module marked `not exercised` in operation_relations.json."""
+    if root is None:
+        return set()
+    path = Path(root) / OPERATION_RELATIONS
+    if not path.is_file():
+        return set()
+    try:
+        doc = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return set()
+    notes = [note for op in doc.get('operations', []) for note in op.get('unknowns', [])
+             if isinstance(note, str) and note.lower().startswith('not exercised')]
+    if not notes:
+        return set()
+    found_ids = set()
+    for item in found.values():
+        if item['type'] != 'STD' or 'rule' not in item:
+            continue
+        check_ = item['rule'].get('check') or {}
+        if check_.get('kind') != 'function':
+            continue
+        target = check_file(item['rule'])
+        if not target:
+            continue
+        stem = Path(target).stem
+        if any(re.search(rf'\b{re.escape(stem)}\b', note) for note in notes):
+            found_ids.add(item['id'])
+    return found_ids
+
+
+def _called_in_ast(tree, name, excluded=()):
+    """Whether an AST calls `name` (as Name or Attribute) outside any excluded function definition."""
+    import ast
+    excluded_set = set(excluded)
+
+    def walk(node):
+        if node in excluded_set:
+            return False
+        if isinstance(node, ast.Call):
+            callee = node.func
+            if (isinstance(callee, ast.Name) and callee.id == name) or (
+                    isinstance(callee, ast.Attribute) and callee.attr == name):
+                return True
+        return any(walk(child) for child in ast.iter_child_nodes(node))
+
+    return walk(tree)
+
+
+def function_check_issue(rule, root):
+    """D-352: reason a function-checked STD rule is absent or unexercised in `root`, else None.
+    Verifies both that `<file>:<fn>` is defined (`def <fn>`) and that live non-test code calls `<fn>`
+    outside its own definition."""
+    if root is None:
+        return None
+    check_ = (rule or {}).get('check') or {}
+    if check_.get('kind') != 'function':
+        return None
+    ref = check_.get('ref', '')
+    if ':' not in ref:
+        return f'function check ref {ref!r} is malformed'
+    rel_path, fn_name = ref.split(':', 1)
+    root_path = Path(root)
+    target = root_path / rel_path
+    if not target.is_file():
+        return f'function {ref} is not present (file missing)'
+    import ast
+    try:
+        tree = ast.parse(target.read_text())
+    except (OSError, SyntaxError):
+        return f'function {ref} is unreadable'
+    defs = [node for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == fn_name]
+    if not defs:
+        return f'function {ref} is not present'
+    if _called_in_ast(tree, fn_name, defs):
+        return None
+    lib_dir = root_path / 'scripts' / 'lib'
+    if lib_dir.is_dir():
+        for other in sorted(lib_dir.glob('*.py')):
+            if other.resolve() == target.resolve():
+                continue
+            try:
+                other_tree = ast.parse(other.read_text())
+            except (OSError, SyntaxError):
+                continue
+            if _called_in_ast(other_tree, fn_name):
+                return None
+    return f'function {ref} is not exercised in live code'
+
+
+def control_target_issue(target, found, unexercised=frozenset(), root=None):
+    """Reason a CTRL implemented_by target is inert (missing, inactive, non-executable, absent or unexercised), else None."""
+    if not isinstance(found, dict):
+        return None if target in found else 'does not exist'
+    item = found.get(target)
+    if item is None or item.get('fingerprint') is None:
+        return 'does not exist'
+    kind, state = item['type'], item.get('state')
+    if kind == 'STD':
+        if state in INERT_STD_STATES:
+            return f'rule is {state}'
+        if (item.get('rule') or {}).get('check', {}).get('kind') == 'judgment':
+            return 'rule check is judgment (not executable)'
+        if target in unexercised:
+            return 'rule is not exercised in the live flow'
+        issue = function_check_issue(item.get('rule'), root)
+        if issue is not None:
+            return issue
+    elif kind == 'TEST' and state != 'active':
+        return f'test is {state}'
+    elif kind == 'REQ' and state in INERT_REQ_STATES:
+        return f'requirement is {state}'
+    elif kind == 'CHK' and state != 'required':
+        return f'check is {state}, not required'
+    elif kind == 'DATA' and state in INERT_DATA_STATES:
+        return f'data store is {state}'
+    return None
+
+
+def control_state(body, found, unexercised=frozenset(), root=None):
+    """not-applicable with its reason; gap when coverage is omitted or nothing active implements it; partial when
+    coverage is partial or any implemented_by target is inert; implemented only with explicit full coverage and
+    every implemented_by target active, present and exercised."""
     if not body['applicable']:
         return 'not-applicable'
-    if not [target for target in body.get('implemented_by', []) if target in found_ids]:
+    coverage = body.get('coverage')
+    if coverage not in ('full', 'partial'):
         return 'gap'
-    return 'implemented' if body.get('coverage', 'full') == 'full' else 'partial'
+    targets = body.get('implemented_by', [])
+    issues = [control_target_issue(target, found, unexercised, root) for target in targets]
+    if not any(issue is None for issue in issues):
+        return 'gap'
+    if coverage == 'full' and any(issue is not None for issue in issues):
+        return 'partial'
+    return 'implemented' if coverage == 'full' else 'partial'
 
 
 def read_controls(root):
@@ -2117,11 +2258,38 @@ def read_controls(root):
                      lambda body: [{'type': 'implemented-by', 'target': target} for target in body.get('implemented_by', [])])
 
 
-def derive_controls(found):
-    ids = set(found)
+def derive_controls(found, root=None):
+    unexercised = unexercised_rules(found, root)
     for item in found.values():
         if item['type'] == 'CTRL' and 'body' in item:
-            item['state'] = control_state(item['body'], ids)
+            item['state'] = control_state(item['body'], found, unexercised, root)
+
+
+def security_findings(found, root=None, today=None):
+    """Warnings of the Segurança system: applicable controls without explicit coverage or citing inert
+    (dormant, draft, replaced, judgment, missing or unexercised) controls, and active risks missing or past review_by
+    or treated/accepted without residual_accepted_by."""
+    today = today or utc_today()
+    unexercised = unexercised_rules(found, root)
+    warnings = []
+    for item in sorted(found.values(), key=lambda entry: entry['id']):
+        body = item.get('body', {})
+        if item['type'] == 'CTRL' and body.get('applicable'):
+            if body.get('coverage') not in ('full', 'partial'):
+                warnings.append(f'{item["id"]}: applicable control omits explicit coverage (full or partial)')
+            for target in body.get('implemented_by', []):
+                issue = control_target_issue(target, found, unexercised, root)
+                if issue is not None:
+                    warnings.append(f'{item["id"]}: implemented_by {target} is inert ({issue})')
+        elif item['type'] == 'RISK' and item.get('state') != 'closed' and body:
+            review_by = body.get('review_by')
+            if not review_by:
+                warnings.append(f'{item["id"]}: active risk has no review_by date')
+            elif review_by < today:
+                warnings.append(f'{item["id"]}: review_by {review_by} has passed')
+            if item['state'] in ('treated', 'accepted') and not (body.get('residual_accepted_by') or '').strip():
+                warnings.append(f'{item["id"]}: {item["state"]} risk has no residual_accepted_by')
+    return warnings
 
 
 def vuln_state(body, today, deadlines):
@@ -2328,6 +2496,8 @@ def read_work(root):
     root = Path(root)
     folder = root / config.get('coordinator.programs_dir')
     template, plan_file, fence = (config.get(f'coordinator.{key}') for key in ('template_dir', 'plan_file', 'plan_fence'))
+    archive_schema_path = root / CONTRACTS_DIR / 'program-archive.v1.json'
+    archive_schema = _read_json(archive_schema_path) if archive_schema_path.is_file() else None
     found = []
     for program in sorted(path for path in folder.iterdir() if path.is_dir() and path.name != template) if folder.is_dir() else ():
         items, problems = [], []
@@ -2364,8 +2534,30 @@ def read_work(root):
                 items.append(_work(f'WORK-{program.name}-{unit}', 'queued', QUEUE_FILE,
                                    {'program': program.name, 'kind': 'queue-row',
                                     'delivers': bool(row.get('Escopo (arquivos)') or row.get('Valor'))}))
-        program_item = _work(f'WORK-program-{program.name}', 'queued', program.relative_to(root).as_posix(),
-                             {'program': program.name, 'kind': 'program', 'delivers': bool(items)})
+        archived = None
+        archive_path = program / 'archived.json'
+        if archive_path.is_file():
+            try:
+                archive_body = _read_json(archive_path)
+            except ValueError as error:
+                problems.append(f'{archive_path.name}: does not parse ({error})')
+                archive_body = None
+            if archive_body is not None:
+                broken = list(json_schema.validate(archive_schema, archive_body)) if archive_schema else []
+                if broken:
+                    problems += [f'{archive_path.name}: {problem}' for problem in broken]
+                else:
+                    archived = archive_body
+                    for child in items:
+                        child['body']['archived'] = True
+                        if child['state'] != 'delivered':
+                            child['state'] = 'archived'
+        program_body = {'program': program.name, 'kind': 'program', 'delivers': bool(items)}
+        if archived is not None:
+            program_body['archived'] = True
+            program_body['archived_by'] = archived['archived_by']
+        program_item = _work(f'WORK-program-{program.name}', 'archived' if archived is not None else 'queued',
+                             program.relative_to(root).as_posix(), program_body)
         if problems:
             program_item['problems'] = problems
         found += [program_item, *items]
@@ -2374,7 +2566,8 @@ def read_work(root):
 
 def derive_work(found):
     """A merge that names a phase item (its PR title or a commit subject, `F7d`) tracks it, and the item is delivered;
-    a name two programs share links nothing. A program is delivered when every item is, in progress when some are."""
+    a name two programs share links nothing. A program is delivered when every item is, in progress when some are; an
+    archived program stays archived."""
     phase_items = {}
     for id, item in found.items():
         if item['type'] == 'WORK' and (item.get('body') or {}).get('kind') == 'phase-item':
@@ -2392,6 +2585,9 @@ def derive_work(found):
             programs.setdefault(item['body']['program'], []).append(item['state'] == 'delivered')
     for item in found.values():
         if item['type'] == 'WORK' and item['body']['kind'] == 'program':
+            if item['body'].get('archived'):
+                item['state'] = 'archived'
+                continue
             done = programs.get(item['body']['program'], [])
             item['state'] = 'delivered' if done and all(done) else 'in-progress' if any(done) else 'queued'
 
@@ -2464,7 +2660,7 @@ def objects(root=ROOT, readers=READERS):
         problem_space.attach(found, root, _declared)
         problem_space.derive(found)
     if read_controls in readers:
-        derive_controls(found)
+        derive_controls(found, root)
     if read_measures in readers:
         derive_measures(found)
     if read_work in readers:
@@ -2500,6 +2696,7 @@ def check(meta, found, root=None, today=None):
         errors += skipped_stage_errors(found, root)
         warnings += requirement_findings(found)
         warnings += supply_findings(found)
+        warnings += security_findings(found, root, today or utc_today())
         managed_errors, managed_warnings = management_findings(found, today or utc_today())
         errors += managed_errors
         warnings += managed_warnings
@@ -2538,7 +2735,7 @@ def check(meta, found, root=None, today=None):
     return errors, warnings
 
 
-HISTORY = ('superseded', 'deprecated', 'rejected', 'obsolete', 'retired', 'replaced')
+HISTORY = ('superseded', 'deprecated', 'rejected', 'obsolete', 'retired', 'replaced', 'archived')
 
 
 def historical(item):
@@ -2712,7 +2909,12 @@ def standard_measure(found, today):
                    for kind, source in into.get(item['id'], []))
     return {
         'rules': len(rules),
+        'blocking': sum(1 for item in rules if item['state'] == 'blocking'),
+        'warning': sum(1 for item in rules if item['state'] == 'warning'),
+        'draft': sum(1 for item in rules if item['state'] == 'draft'),
         'executable': sum(1 for item in rules if item['rule']['check']['kind'] != 'judgment'),
+        'judgment': sum(1 for item in rules if item['rule']['check']['kind'] == 'judgment'),
+        'unreviewed': sum(1 for item in rules if SEED_MARKER in (item['rule'].get('note') or '')),
         'tested': sum(1 for item in rules if tested(item)),
         'justified': sum(1 for item in rules if item['rule'].get('basis')),
         'overdue': sum(1 for item in rules if item['state'] == 'warning' and item['rule'].get('deadline', today) < today),
@@ -2792,16 +2994,23 @@ def construction_measure(found):
 
 
 def work_measure(found):
-    """The work system's own counts: programs, their items by state, and the items a merge on HEAD tracks."""
+    """The work system's own counts: active vs archived programs and items, active items by state, and items a merge on
+    HEAD tracks."""
     work = [item for item in found.values() if item['type'] == 'WORK']
+    programs = [item for item in work if item['body']['kind'] == 'program']
     items = [item for item in work if item['body']['kind'] != 'program']
+    active_programs = [item for item in programs if item['state'] != 'archived']
+    archived_programs = [item for item in programs if item['state'] == 'archived']
+    active_items = [item for item in items if not item['body'].get('archived')]
+    archived_items = [item for item in items if item['body'].get('archived')]
     by_state = {}
-    for item in items:
+    for item in active_items:
         by_state[item['state']] = by_state.get(item['state'], 0) + 1
     tracked = {link['target'] for item in found.values() if item['type'] == 'CHG' for link in item['links']
                if link['type'] == 'tracks'}
-    return {'programs': len(work) - len(items), 'items': len(items), 'by_state': dict(sorted(by_state.items())),
-            'tracked': len(tracked)}
+    return {'programs': len(active_programs), 'archived_programs': len(archived_programs),
+            'items': len(active_items), 'archived_items': len(archived_items),
+            'by_state': dict(sorted(by_state.items())), 'tracked': len(tracked)}
 
 
 RETRO_SAMPLES = 'docs/programs/*/retro-sample-*.json'
@@ -3084,8 +3293,10 @@ def summary(found):
             lines.append(f'  {tail["id"]}: [{tag}] {tail["exempts"]} on {tail["scope"]} '
                          f'by {tail["authorized_by"]} until {tail["valid_until"]}')
     rules = found['standard']
-    lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
-                 f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
+    lines.append(f'standard: {rules["rules"]} rule(s) ({rules["blocking"]} blocking, {rules["warning"]} warning, '
+                 f'{rules["draft"]} draft; {rules["executable"]} executable, {rules["judgment"]} judgment, '
+                 f'{rules["unreviewed"]} unreviewed), {rules["tested"]} verified by a test, '
+                 f'{rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
                  f'their deadline; {rules["dormant"]} dormant (D-326)')
     lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '
                  f'with no deadline, {managed["overdue"]} past it), {managed["closed"]} closed; {managed["exemptions"]} '
@@ -3140,7 +3351,9 @@ def summary(found):
             f'{name} {lag} merge(s)' for name, lag in counted['snapshot_lag'].items()))
     lines.append(cheaper_path_line(found['measurement']['cheaper_path']))
     planned = found['work']
-    lines.append(f'work: {planned["programs"]} program(s), {planned["items"]} item(s): '
+    archived_p = f' ({planned["archived_programs"]} archived)' if planned.get('archived_programs') else ''
+    archived_i = f' ({planned["archived_items"]} archived)' if planned.get('archived_items') else ''
+    lines.append(f'work: {planned["programs"]} active program(s){archived_p}, {planned["items"]} item(s){archived_i}: '
                  f'{", ".join(f"{count} {state}" for state, count in planned["by_state"].items()) or "none"}; '
                  f'{planned["tracked"]} tracked by a merge on HEAD')
     lines += [f'  ERROR {problem}' for problem in found['measurement']['cheaper_path']['problems']]

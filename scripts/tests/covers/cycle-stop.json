@@ -6,6 +6,8 @@
     "scripts/cycle",
     "scripts/hooks/cycle-stop",
     "scripts/lib/cycle_stop.py",
+    "scripts/lib/config.py",
+    "config/registry/flow/flow.cycle_determination.json",
     ".claude/settings.json"
   ]
 }
