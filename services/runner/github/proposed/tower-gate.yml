@@ -1,0 +1,157 @@
+# tower/gate (SALTO 2 — D-087, D-359, C6, C7): instalado pela Torre, D-359 (after main full-suite stabilizes).
+# Replaces services/runner/github/tower-gate.yml and .github/workflows/tower-gate.yml in the same Torre PR.
+#
+# Changes over the current tower-gate.yml:
+#   1. Adds `main-health` (Andon stop-the-line, C6, Salto 2): runs from the base's checkout of scripts/workflow-attest
+#      against base's latest completed `full-suite` check-run and open `main-red-andon` issues; enters only after
+#      fixing full-suite reds on main (gate-areas coupled to live covers graph) and stabilizing full-suite.
+#   2. `tower/gate` requires `needs: [part, pinned, main_health]`, so every part, the pinned base gate, and
+#      main's Andon health must all pass.
+#   3. Preserves GATE-PARTS, VERDICT-REUSE, CACHE-PGDATA, PINNED-ON-GITHUB (no cache on pinned), and
+#      40-char commit SHA pins on every external action. Paired with proposed/tower-gate-attest.yml and
+#      proposed/ruleset-main.json in Salto 2 (subject to D-359 conditions B/C/D) to close THREAT-gate (C7).
+name: tower-gate
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+permissions:
+  contents: read
+  actions: read
+  issues: read
+  pull-requests: read
+concurrency:
+  group: tower-gate-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+jobs:
+  part:
+    name: gate part (${{ matrix.part }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [main, shard1, alone]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            .toolchain
+            !.toolchain/pgdata
+            !.toolchain/postgres.log
+            !.toolchain/pgsocket
+            !.toolchain/pghome
+          key: toolchain-bin-${{ runner.os }}-${{ hashFiles('scripts/cloud/toolchain.json', 'config/registry/toolchain.json') }}
+      - name: toolchain
+        run: bash scripts/cloud/setup.sh
+      - name: verify
+        id: verify
+        env:
+          EVENT: ${{ github.event_name }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PART: ${{ matrix.part }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base="$PR_BASE"
+          verdict=(--record "$RUNNER_TEMP/verdict")
+          if [ "$EVENT" = merge_group ]; then base="$QUEUE_BASE"; verdict=(--reuse); fi
+          source scripts/cloud/env.sh
+          scripts/verify-commit --sha "$GITHUB_SHA" --base "$base" --repo "$GITHUB_REPOSITORY" --no-post --part "$PART" "${verdict[@]}"
+      - name: keep the green verdict
+        if: github.event_name == 'pull_request' && steps.verify.outputs.verdict != ''
+        continue-on-error: true  # no record only costs the merge queue's run its reuse, never this verdict
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.verify.outputs.verdict }}
+          path: ${{ runner.temp }}/verdict
+          retention-days: 7
+          if-no-files-found: error
+  pinned:
+    name: gate pinned to the base
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: the base's gate
+        id: pin
+        env:
+          EVENT: ${{ github.event_name }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base="$PR_BASE"
+          if [ "$EVENT" = merge_group ]; then base="$QUEUE_BASE"; fi
+          git worktree add --detach "$RUNNER_TEMP/base" "$base"
+          python3 "$RUNNER_TEMP/base/scripts/lib/gate_pin.py" overlay --root "$GITHUB_WORKSPACE" --base "$base" | tee "$RUNNER_TEMP/pinned"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          if grep -q '^gate: 0 gate file' "$RUNNER_TEMP/pinned"; then echo "changed=" >> "$GITHUB_OUTPUT"; else echo "changed=1" >> "$GITHUB_OUTPUT"; fi
+      - name: toolchain
+        if: steps.pin.outputs.changed
+        run: bash scripts/cloud/setup.sh
+      - name: verify the stages with the base's gate
+        if: steps.pin.outputs.changed
+        env:
+          BASE: ${{ steps.pin.outputs.base }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source scripts/cloud/env.sh
+          scripts/verify-commit --sha "$GITHUB_SHA" --base "$BASE" --repo "$GITHUB_REPOSITORY" --no-post --stages-only
+  main_health:
+    name: main-health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: check Andon stop-the-line state on base
+        env:
+          EVENT: ${{ github.event_name }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+          QUEUE_REF: ${{ github.event.merge_group.head_ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base="$PR_BASE"
+          pr_num="$PR_NUMBER"
+          if [ "$EVENT" = merge_group ]; then
+            base="$QUEUE_BASE"
+            pr_num="$(printf '%s' "$QUEUE_REF" | sed -nE 's|.*pr-([0-9]+)-[0-9a-f]+$|\1|p')"
+          fi
+          git worktree add --detach "$RUNNER_TEMP/base" "$base"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${base}/check-runs?check_name=full-suite&per_page=100" > "$RUNNER_TEMP/base-checks.json"
+          gh api "repos/${GITHUB_REPOSITORY}/issues?labels=main-red-andon&state=open&per_page=10" > "$RUNNER_TEMP/andon-issues.json"
+          label_args=()
+          if [ -n "$pr_num" ]; then
+            while IFS= read -r label; do
+              [ -n "$label" ] && label_args+=(--label "$label")
+            done < <(gh api "repos/${GITHUB_REPOSITORY}/issues/${pr_num}" --jq '.labels[].name')
+          fi
+          "$RUNNER_TEMP/base/scripts/workflow-attest" main-health \
+            --checks "$RUNNER_TEMP/base-checks.json" \
+            --issues "$RUNNER_TEMP/andon-issues.json" \
+            "${label_args[@]}"
+  gate:
+    name: tower/gate
+    needs: [part, pinned, main_health]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every part, pinned gate, and main-health green
+        env:
+          PARTS: ${{ needs.part.result }}
+          PINNED: ${{ needs.pinned.result }}
+          HEALTH: ${{ needs.main_health.result }}
+        run: |
+          echo "the parts of tower/gate: $PARTS; the gate pinned to the base: $PINNED; main-health: $HEALTH"
+          test "$PARTS" = success
+          test "$PINNED" = success
+          test "$HEALTH" = success

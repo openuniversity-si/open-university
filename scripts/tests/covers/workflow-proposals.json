@@ -1,0 +1,15 @@
+{
+  "script": "scripts/tests/workflow-proposals.test.sh",
+  "covers": [
+    "scripts/tests/workflow-proposals.test.sh",
+    "scripts/tests/test_workflow_proposals.py",
+    "scripts/site-canary",
+    "scripts/lib/site_canary.py",
+    "scripts/workflow-attest",
+    "scripts/lib/workflow_attest.py",
+    "services/runner/github/proposed/**",
+    "services/runner/github/tower-gate.yml",
+    ".github/rulesets/main.json",
+    "docs/domain/decisions/D-359.md"
+  ]
+}
