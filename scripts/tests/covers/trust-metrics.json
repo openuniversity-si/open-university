@@ -1,0 +1,14 @@
+{
+  "script": "scripts/tests/trust-metrics.test.sh",
+  "covers": [
+    "scripts/tests/trust-metrics.test.sh",
+    "scripts/tests/test_trust_metrics.py",
+    "scripts/tests/fixtures/trust-metrics.json",
+    "scripts/model",
+    "scripts/lib/trust_metrics.py",
+    "scripts/lib/json_schema.py",
+    "contracts/model/autonomy.v1.json",
+    "config/governance/autonomy-ladder.json",
+    "docs/domain/decisions/D-353.md"
+  ]
+}
