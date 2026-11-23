@@ -7,5 +7,8 @@
   "derives_from": [
     "NEED-quality"
   ],
-  "source": "Lei 13.709/2018 (LGPD), art. 7, 18, 19 and 37; docs/programs/padrao-dev/phases/F7.md"
+  "source": "Lei 13.709/2018 (LGPD), art. 7, 18, 19 and 37; docs/programs/padrao-dev/phases/F7.md",
+  "target_fingerprints": {
+    "NEED-quality": "581529c9d585"
+  }
 }

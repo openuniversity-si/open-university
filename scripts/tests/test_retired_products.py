@@ -1,4 +1,5 @@
-"""Retired products (OU-DECOUPLE F5, D-113): the engine names no product it retired."""
+"""Retired products (OU-DECOUPLE F5, D-113) and site return under apps/web (D-319)."""
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -56,6 +57,31 @@ class RetiredProducts(Repo):
 class ThisCheckout(unittest.TestCase):
     def test_d113_this_checkout_names_no_retired_product(self):
         self.assertEqual(retired_products.check(ROOT), [])
+
+
+class D319ReturnedSite(unittest.TestCase):
+    """D-319: Open University's site returned under apps/web, left retired_product_roots, has gate area web, and runs web.yml."""
+
+    def test_d319_apps_web_returned_and_left_retired_product_roots(self):
+        self.assertNotIn('apps/web', config.get('structure.retired_product_roots'))
+        self.assertTrue((ROOT / 'apps' / 'web' / 'package.json').is_file())
+        self.assertTrue((ROOT / 'apps' / 'web' / 'deploy' / 'Dockerfile').is_file())
+        self.assertEqual(retired_products.check(ROOT), [])
+
+    def test_d319_gate_area_web_claims_apps_web_without_engine_script_tests(self):
+        areas = json.loads((ROOT / 'scripts' / 'lib' / 'gate-areas.json').read_text(encoding='utf-8'))['areas']
+        web = next(area for area in areas if area['id'] == 'web')
+        self.assertIn('apps/web/**', web['paths'])
+        self.assertEqual(web['groups'], [])
+
+    def test_d319_web_workflow_is_allowed_and_runs_site_commands(self):
+        self.assertIn('.github/workflows/web.yml', config.get('gate.allowed_workflows'))
+        installed = (ROOT / '.github' / 'workflows' / 'web.yml').read_text(encoding='utf-8')
+        staged = (ROOT / 'services' / 'runner' / 'github' / 'web.yml').read_text(encoding='utf-8')
+        self.assertEqual(installed, staged)
+        for line in ('working-directory: apps/web', 'run: pnpm lint', 'run: pnpm typecheck',
+                     'run: pnpm test', 'run: pnpm build', 'run: pnpm test:int'):
+            self.assertIn(line, installed)
 
 
 if __name__ == '__main__':

@@ -11,5 +11,9 @@
     "D-317"
   ],
   "source": "docs/programs/padrao-dev/avaliacao.md#Pedido",
-  "verification": "validation"
+  "verification": "validation",
+  "target_fingerprints": {
+    "D-317": "ea6fae43639b",
+    "NEED-quality": "581529c9d585"
+  }
 }

@@ -166,5 +166,8 @@
         "reason": "the residual is honest as written (D-055); its strength depends on the two open findings."
       }
     ]
+  },
+  "target_fingerprints": {
+    "ARC-gate": "fdb04d9f45fe"
   }
 }

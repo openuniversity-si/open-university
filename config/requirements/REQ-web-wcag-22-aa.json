@@ -7,5 +7,8 @@
   "derives_from": [
     "NEED-quality"
   ],
-  "source": "apps/web/e2e/a11y.spec.ts (D-319); W3C WCAG 2.2 and WCAG-EM 2.0"
+  "source": "apps/web/e2e/a11y.spec.ts (D-319); W3C WCAG 2.2 and WCAG-EM 2.0",
+  "target_fingerprints": {
+    "NEED-quality": "581529c9d585"
+  }
 }

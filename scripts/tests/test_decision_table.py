@@ -51,6 +51,15 @@ class Row(unittest.TestCase):
         record = dict(decision_table.parse(FIXTURE['record']), body='See [the plan](../../units/U/plan.md), [D-1](D-1.md), [web](https://x.y/z) and [here](#a).')
         self.assertIn('[the plan](../units/U/plan.md), [D-1](decisions/D-1.md), [web](https://x.y/z) and [here](#a).', decision_table.row(record))
 
+    def test_a_proposed_record_renders_proposed_status_and_file_case_proof(self):
+        text = FIXTURE['record'].replace('premises: none\n', 'premises: none\nstatus: proposed\n').replace(
+            'proof: scripts/tests/decision-table.test.sh', 'proof: scripts/tests/test_repeats.py › "test_a"')
+        record = decision_table.parse(text)
+        line = decision_table.row(record)
+        self.assertIn('| `scripts/tests/test_repeats.py` › "test_a" | proposed |', line)
+        with self.assertRaises(ValueError):
+            decision_table.parse(FIXTURE['record'].replace('premises: none\n', 'premises: none\nstatus: bogus\n'))
+
     def test_a_record_with_status_proposed_renders_proposed_instead_of_recorded(self):
         record = decision_table.parse(FIXTURE['record'].replace('proof:', 'status: proposed\nproof:'))
         line = decision_table.row(record)

@@ -8,6 +8,7 @@ selection, re-exports every name here for its own callers. A `modules` field lef
 """
 import json
 from pathlib import Path
+import subprocess
 
 import config
 
@@ -98,3 +99,64 @@ def _traced(root):
 def patterns(test):
     """What selects one test: its declared covers and its traced files."""
     return (*test['covers'], *test.get('traced', ()))
+
+
+def _git_out(root, *args):
+    done = subprocess.run(['git', '-C', str(root), *args], capture_output=True, text=True)
+    return done.stdout if done.returncode == 0 else None
+
+
+def traced_health(root=ROOT):
+    """Freshness and integrity of the traced covers map (gate-tests.traced_file): base commit validity, merges behind
+    HEAD, new script tests added since base that are not in the map, and any deleted script test or code path still
+    listed. Returns None when no traced map exists under root."""
+    root = Path(root)
+    rel = config.get('gate-tests.traced_file', ROOT)
+    target = root / rel
+    if not target.is_file():
+        return None
+    raw = json.loads(target.read_text())
+    tests = raw.get('tests') if isinstance(raw, dict) else None
+    if not isinstance(tests, dict):
+        raise ScriptTestMapError(f'{rel}: tests must map a script to a list of paths')
+    base = str(raw.get('base') or '').strip()
+    gone_tests = sorted(script for script in tests if not (root / script).is_file())
+    gone_files = sorted({path for files in tests.values() for path in files if not (root / path).is_file()})
+    base_valid, merges_behind, untraced_tests = None, None, []
+    if base and _git_out(root, 'rev-parse', '--git-dir') is not None:
+        base_valid = _git_out(root, 'rev-parse', '--verify', '-q', f'{base}^{{commit}}') is not None
+        if base_valid:
+            counted = _git_out(root, 'rev-list', '--count', '--first-parent', '--merges', f'{base}..HEAD')
+            merges_behind = int(counted.strip()) if counted and counted.strip().isdigit() else 0
+            added = _git_out(root, 'diff', '--name-only', '--diff-filter=A', f'{base}..HEAD', '--', 'scripts/tests/*.test.sh')
+            untraced_tests = sorted(name for name in (added or '').splitlines()
+                                    if name and name not in tests and (root / name).is_file())
+    return {'file': rel, 'base': base, 'base_valid': base_valid, 'merges_behind': merges_behind,
+            'gone_tests': gone_tests, 'gone_files': gone_files, 'untraced_tests': untraced_tests}
+
+
+def traced_findings(root=ROOT):
+    """(errors, warnings) of the traced covers map: deleted scripts/files or an unknown base commit are errors;
+    a base behind HEAD or newly added untraced script tests are warnings."""
+    try:
+        health = traced_health(root)
+    except (OSError, json.JSONDecodeError, ScriptTestMapError) as error:
+        return [str(error)], []
+    if health is None:
+        return [], []
+    rel = health['file']
+    found_errors = [f'{rel}: lists script test {script}, which does not exist' for script in health['gone_tests']]
+    found_errors += [f'{rel}: lists path {path}, which does not exist' for path in health['gone_files']]
+    if health['base'] and health['base_valid'] is False:
+        found_errors.append(f'{rel}: base commit {health["base"]} does not exist in git history')
+    warnings = []
+    if health['untraced_tests']:
+        shown = ', '.join(health['untraced_tests'][:len('abc')])
+        extra = len(health['untraced_tests']) - len('abc')
+        tail = f' and {extra} more' if extra > 0 else ''
+        behind = f'{health["merges_behind"]} merge(s) behind HEAD; ' if health['merges_behind'] else ''
+        warnings.append(f'{rel}: base {health["base"]} is {behind}{len(health["untraced_tests"])} script test(s) '
+                        f'added since were never traced ({shown}{tail})')
+    elif health['merges_behind']:
+        warnings.append(f'{rel}: base {health["base"]} is {health["merges_behind"]} merge(s) behind HEAD')
+    return found_errors, warnings

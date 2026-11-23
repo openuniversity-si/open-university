@@ -98,5 +98,8 @@
       }
     ]
   },
-  "reviewed": "2026-11-19"
+  "reviewed": "2026-11-19",
+  "target_fingerprints": {
+    "ARC-environment": "bcf004cf5c58"
+  }
 }

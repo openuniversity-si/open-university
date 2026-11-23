@@ -169,6 +169,22 @@ class Readers(unittest.TestCase):
         self.write('config/security/threats/THREAT-gate.json', {**body, 'reviewed': '2026-11-17'})
         self.assertEqual(model.read_threats(self.root)[0]['state'], 'reviewed')
 
+    def test_a_stamped_threat_model_turns_suspect_when_its_architecture_element_changes(self):
+        arc = {'id': 'ARC-gate', 'kind': 'component', 'name': 'Gate', 'statement': 'judges PRs',
+               'state': 'active', 'owner': 'capacity'}
+        threat = {'id': 'THREAT-gate', 'models': 'ARC-gate', 'assets': ['main'], 'boundaries': [],
+                  'threats': [{'stride': 'tampering', 'statement': 's'}], 'reviewed': '2026-11-19'}
+        self.write('config/architecture/ARC-gate.json', arc)
+        self.write('config/security/threats/THREAT-gate.json', threat)
+        readers = (model.read_architecture, model.read_threats)
+        stamped = model.stamp(self.root, found=model.objects(self.root, readers=readers))
+        self.assertEqual(stamped, ['config/security/threats/THREAT-gate.json'])
+        meta = model.metamodel(ROOT)
+        self.assertEqual(model.check(meta, model.objects(self.root, readers=readers)), ([], []))
+        self.write('config/architecture/ARC-gate.json', {**arc, 'statement': 'judges PRs and merges'})
+        _, warnings = model.check(meta, model.objects(self.root, readers=readers))
+        self.assertIn('THREAT-gate: models ARC-gate is suspect (the target changed)', warnings)
+
     def test_a_risk_keeps_the_state_its_process_wrote_and_threatens_its_assets(self):
         self.write('config/security/risks/RISK-a.json', {'id': 'RISK-a', 'statement': 's', 'state': 'accepted', 'owner': 'Daniel',
                                                           'assets': ['DATA-x'], 'likelihood': 'low', 'impact': 'high',

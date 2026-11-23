@@ -154,5 +154,8 @@
       }
     ]
   },
-  "reviewed": "2026-11-19"
+  "reviewed": "2026-11-19",
+  "target_fingerprints": {
+    "ARC-config": "537e4811f8d6"
+  }
 }

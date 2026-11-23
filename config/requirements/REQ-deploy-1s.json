@@ -8,5 +8,8 @@
     "NEED-throughput"
   ],
   "source": "docs/programs/padrao-dev/avaliacao.md#Pedido",
-  "verification": "validation"
+  "verification": "validation",
+  "target_fingerprints": {
+    "NEED-throughput": "b912a20a063f"
+  }
 }
