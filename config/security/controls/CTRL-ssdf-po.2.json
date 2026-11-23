@@ -4,9 +4,9 @@
   "control": "PO.2",
   "title": "Implement roles and responsibilities",
   "applicable": true,
-  "reason": "The roles are recorded and enforced: the owner of the security system and of every risk, supplier and personal data store is Daniel (config/model/systems/security.json and each record's owner); nobody changes production by hand (D-054), which the production guard refuses; a unit's files change only with its owner's approval, which commit-check refuses otherwise (STD-train-ownership-refusals); the security records and their owner were set by D-321; and every session, the only developer, loads the same rules (AGENTS.md) and judges every request against them (D-294), which is its training (PO.2.2).",
+  "reason": "The roles are recorded and enforced: the owner of the security system and of every risk, supplier and personal data store is Daniel (config/model/systems/security.json and each record's owner, D-321); nobody changes production by hand (D-054), which the production guard refuses (STD-gate-production-guard, STD-production-guard-refusal); author and approver roles are separated and enforced on decisions and TAIL exemptions by scripts/lib/model.py:independently_approved (STD-model-independent-approval, D-360, replacing the inert STD-train-ownership-refusals per D-352), with money and other people reserved to Daniel; and every session, the only developer, loads the same rules (AGENTS.md) and judges every request against them (D-294), which is its training (PO.2.2).",
   "implemented_by": [
-    "STD-train-ownership-refusals",
+    "STD-model-independent-approval",
     "STD-gate-production-guard",
     "STD-production-guard-refusal"
   ],

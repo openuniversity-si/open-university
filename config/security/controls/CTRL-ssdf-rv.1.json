@@ -8,5 +8,6 @@
   "implemented_by": [
     "TEST:scripts/tests/supply.test.sh",
     "STD-lint-ratchet"
-  ]
+  ],
+  "coverage": "full"
 }

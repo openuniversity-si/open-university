@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 15,
+  "minimum": 1,
+  "x-unit": "s",
+  "description": "HTTP timeout in seconds for each OSV API request made by scripts/supply audit.",
+  "x-readers": [
+    "scripts/lib/supply.py"
+  ],
+  "x-source": "D-320"
+}

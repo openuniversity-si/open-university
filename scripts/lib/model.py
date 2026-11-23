@@ -1976,14 +1976,14 @@ def read_dependencies(root):
     ecosystems, tools = supply.suppliers_of(root)
     snapshot = supply.read_snapshot(root) or {'advisories': []}
     granted, today = supply.exemptions(root), utc_today()
-    hit = {(advisory['package'], version) for advisory in snapshot['advisories']
+    hit = {(advisory.get('ecosystem', 'npm'), advisory['package'], version) for advisory in snapshot['advisories']
            if supply.advisory_state(advisory, granted.get(advisory['id']), today) == 'affecting'
            for version in advisory['versions']}
     found = []
     for entry in supply.dependencies(root):
         ident = supply.dep_id(entry['ecosystem'], entry['name'], entry['version'])
         owner = supply.supplier(entry, ecosystems, tools)
-        state = 'vulnerable' if (entry['ecosystem'] == 'npm' and (entry['name'], entry['version']) in hit) else (
+        state = 'vulnerable' if (entry['ecosystem'], entry['name'], entry['version']) in hit else (
             'in-use' if entry['pinned'] else 'unpinned')
         item = _obj(ident, 'DEP', state, entry['sources'][0], json.dumps(entry, sort_keys=True),
                     [{'type': 'supplied-by', 'target': owner}] if owner else [])
@@ -2002,7 +2002,8 @@ def read_advisories(root):
     granted, today = supply.exemptions(root), utc_today()
     found = []
     for advisory in snapshot['advisories']:
-        links = [{'type': 'affects', 'target': supply.dep_id('npm', advisory['package'], version)}
+        ecosystem = advisory.get('ecosystem', 'npm')
+        links = [{'type': 'affects', 'target': supply.dep_id(ecosystem, advisory['package'], version)}
                  for version in advisory['versions']]
         exempt = granted.get(advisory['id']) or {}
         links += [{'type': 'authorized-by', 'target': exempt['authorized_by']}] if exempt.get('authorized_by') else []
@@ -2101,13 +2102,148 @@ def read_risks(root):
                      lambda body: [{'type': 'threatens', 'target': asset} for asset in body['assets']])
 
 
-def control_state(body, found_ids):
-    """not-applicable with its reason; gap while nothing that exists implements it; partial or implemented by coverage."""
+OPERATION_RELATIONS = 'scripts/lib/operation_relations.json'
+INERT_STD_STATES = ('dormant', 'draft', 'replaced')
+INERT_REQ_STATES = ('draft', 'superseded', 'obsolete')
+INERT_DATA_STATES = ('unregistered', 'unprotected', 'unverified')
+
+
+def unexercised_rules(found, root):
+    """Ids of STD rules whose function check lives in a module marked `not exercised` in operation_relations.json."""
+    if root is None:
+        return set()
+    path = Path(root) / OPERATION_RELATIONS
+    if not path.is_file():
+        return set()
+    try:
+        doc = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return set()
+    notes = [note for op in doc.get('operations', []) for note in op.get('unknowns', [])
+             if isinstance(note, str) and note.lower().startswith('not exercised')]
+    if not notes:
+        return set()
+    found_ids = set()
+    for item in found.values():
+        if item['type'] != 'STD' or 'rule' not in item:
+            continue
+        check_ = item['rule'].get('check') or {}
+        if check_.get('kind') != 'function':
+            continue
+        target = check_file(item['rule'])
+        if not target:
+            continue
+        stem = Path(target).stem
+        if any(re.search(rf'\b{re.escape(stem)}\b', note) for note in notes):
+            found_ids.add(item['id'])
+    return found_ids
+
+
+def _called_in_ast(tree, name, excluded=()):
+    """Whether an AST calls `name` (as Name or Attribute) outside any excluded function definition."""
+    import ast
+    excluded_set = set(excluded)
+
+    def walk(node):
+        if node in excluded_set:
+            return False
+        if isinstance(node, ast.Call):
+            callee = node.func
+            if (isinstance(callee, ast.Name) and callee.id == name) or (
+                    isinstance(callee, ast.Attribute) and callee.attr == name):
+                return True
+        return any(walk(child) for child in ast.iter_child_nodes(node))
+
+    return walk(tree)
+
+
+def function_check_issue(rule, root):
+    """D-352: reason a function-checked STD rule is absent or unexercised in `root`, else None.
+    Verifies both that `<file>:<fn>` is defined (`def <fn>`) and that live non-test code calls `<fn>`
+    outside its own definition."""
+    if root is None:
+        return None
+    check_ = (rule or {}).get('check') or {}
+    if check_.get('kind') != 'function':
+        return None
+    ref = check_.get('ref', '')
+    if ':' not in ref:
+        return f'function check ref {ref!r} is malformed'
+    rel_path, fn_name = ref.split(':', 1)
+    root_path = Path(root)
+    target = root_path / rel_path
+    if not target.is_file():
+        return f'function {ref} is not present (file missing)'
+    import ast
+    try:
+        tree = ast.parse(target.read_text())
+    except (OSError, SyntaxError):
+        return f'function {ref} is unreadable'
+    defs = [node for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == fn_name]
+    if not defs:
+        return f'function {ref} is not present'
+    if _called_in_ast(tree, fn_name, defs):
+        return None
+    lib_dir = root_path / 'scripts' / 'lib'
+    if lib_dir.is_dir():
+        for other in sorted(lib_dir.glob('*.py')):
+            if other.resolve() == target.resolve():
+                continue
+            try:
+                other_tree = ast.parse(other.read_text())
+            except (OSError, SyntaxError):
+                continue
+            if _called_in_ast(other_tree, fn_name):
+                return None
+    return f'function {ref} is not exercised in live code'
+
+
+def control_target_issue(target, found, unexercised=frozenset(), root=None):
+    """Reason a CTRL implemented_by target is inert (missing, inactive, non-executable, absent or unexercised), else None."""
+    if not isinstance(found, dict):
+        return None if target in found else 'does not exist'
+    item = found.get(target)
+    if item is None or item.get('fingerprint') is None:
+        return 'does not exist'
+    kind, state = item['type'], item.get('state')
+    if kind == 'STD':
+        if state in INERT_STD_STATES:
+            return f'rule is {state}'
+        if (item.get('rule') or {}).get('check', {}).get('kind') == 'judgment':
+            return 'rule check is judgment (not executable)'
+        if target in unexercised:
+            return 'rule is not exercised in the live flow'
+        issue = function_check_issue(item.get('rule'), root)
+        if issue is not None:
+            return issue
+    elif kind == 'TEST' and state != 'active':
+        return f'test is {state}'
+    elif kind == 'REQ' and state in INERT_REQ_STATES:
+        return f'requirement is {state}'
+    elif kind == 'CHK' and state != 'required':
+        return f'check is {state}, not required'
+    elif kind == 'DATA' and state in INERT_DATA_STATES:
+        return f'data store is {state}'
+    return None
+
+
+def control_state(body, found, unexercised=frozenset(), root=None):
+    """not-applicable with its reason; gap when coverage is omitted or nothing active implements it; partial when
+    coverage is partial or any implemented_by target is inert; implemented only with explicit full coverage and
+    every implemented_by target active, present and exercised."""
     if not body['applicable']:
         return 'not-applicable'
-    if not [target for target in body.get('implemented_by', []) if target in found_ids]:
+    coverage = body.get('coverage')
+    if coverage not in ('full', 'partial'):
         return 'gap'
-    return 'implemented' if body.get('coverage', 'full') == 'full' else 'partial'
+    targets = body.get('implemented_by', [])
+    issues = [control_target_issue(target, found, unexercised, root) for target in targets]
+    if not any(issue is None for issue in issues):
+        return 'gap'
+    if coverage == 'full' and any(issue is not None for issue in issues):
+        return 'partial'
+    return 'implemented' if coverage == 'full' else 'partial'
 
 
 def read_controls(root):
@@ -2117,11 +2253,38 @@ def read_controls(root):
                      lambda body: [{'type': 'implemented-by', 'target': target} for target in body.get('implemented_by', [])])
 
 
-def derive_controls(found):
-    ids = set(found)
+def derive_controls(found, root=None):
+    unexercised = unexercised_rules(found, root)
     for item in found.values():
         if item['type'] == 'CTRL' and 'body' in item:
-            item['state'] = control_state(item['body'], ids)
+            item['state'] = control_state(item['body'], found, unexercised, root)
+
+
+def security_findings(found, root=None, today=None):
+    """Warnings of the Segurança system: applicable controls without explicit coverage or citing inert
+    (dormant, draft, replaced, judgment, missing or unexercised) controls, and active risks missing or past review_by
+    or treated/accepted without residual_accepted_by."""
+    today = today or utc_today()
+    unexercised = unexercised_rules(found, root)
+    warnings = []
+    for item in sorted(found.values(), key=lambda entry: entry['id']):
+        body = item.get('body', {})
+        if item['type'] == 'CTRL' and body.get('applicable'):
+            if body.get('coverage') not in ('full', 'partial'):
+                warnings.append(f'{item["id"]}: applicable control omits explicit coverage (full or partial)')
+            for target in body.get('implemented_by', []):
+                issue = control_target_issue(target, found, unexercised, root)
+                if issue is not None:
+                    warnings.append(f'{item["id"]}: implemented_by {target} is inert ({issue})')
+        elif item['type'] == 'RISK' and item.get('state') != 'closed' and body:
+            review_by = body.get('review_by')
+            if not review_by:
+                warnings.append(f'{item["id"]}: active risk has no review_by date')
+            elif review_by < today:
+                warnings.append(f'{item["id"]}: review_by {review_by} has passed')
+            if item['state'] in ('treated', 'accepted') and not (body.get('residual_accepted_by') or '').strip():
+                warnings.append(f'{item["id"]}: {item["state"]} risk has no residual_accepted_by')
+    return warnings
 
 
 def vuln_state(body, today, deadlines):
@@ -2464,7 +2627,7 @@ def objects(root=ROOT, readers=READERS):
         problem_space.attach(found, root, _declared)
         problem_space.derive(found)
     if read_controls in readers:
-        derive_controls(found)
+        derive_controls(found, root)
     if read_measures in readers:
         derive_measures(found)
     if read_work in readers:
@@ -2500,6 +2663,7 @@ def check(meta, found, root=None, today=None):
         errors += skipped_stage_errors(found, root)
         warnings += requirement_findings(found)
         warnings += supply_findings(found)
+        warnings += security_findings(found, root, today or utc_today())
         managed_errors, managed_warnings = management_findings(found, today or utc_today())
         errors += managed_errors
         warnings += managed_warnings
