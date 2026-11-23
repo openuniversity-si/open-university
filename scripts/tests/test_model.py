@@ -1585,21 +1585,27 @@ class Architecture(unittest.TestCase):
             'owner': 'o', 'source': 's', 'derives_from': ['NEED-speed']})
         write(self.root, 'config/architecture/ARC-config.json', {
             'id': 'ARC-config', 'kind': 'component', 'name': 'Config', 'statement': 'config', 'state': 'active',
-            'owner': 'o', 'depends_on': ['ARC-gate'], 'layer': 0})
+            'owner': 'o', 'depends_on': [], 'layer': 0})
+        write(self.root, 'config/architecture/ARC-gate.json', {
+            'id': 'ARC-gate', 'kind': 'component', 'name': 'The gate', 'statement': 's', 'state': 'active',
+            'owner': 'capacity', 'satisfies': ['REQ-gate-60s'], 'depends_on': ['ARC-config'], 'layer': 2})
+        write(self.root, 'config/architecture/ARC-delivery.json', {
+            'id': 'ARC-delivery', 'kind': 'component', 'name': 'Delivery', 'statement': 'delivery', 'state': 'active',
+            'owner': 'o', 'depends_on': ['ARC-gate'], 'layer': 3})
         write(self.root, 'config/security/threats/THREAT-gate.json', {
             'id': 'THREAT-gate', 'models': 'ARC-gate', 'assets': ['a'], 'boundaries': [],
             'threats': [{'stride': 'tampering', 'statement': 's'}], 'reviewed': '2026-11-19'})
         readers = (model.read_intent, model.read_requirements, model.read_architecture, model.read_threats)
         def load():
             return model.objects(self.root, readers=readers)
-        # Mutual ARC-gate <-> ARC-config cycle plus THREAT -> ARC and REQ -> NEED converge in a single stamp pass.
+        # Multi-hop DAG (THREAT -> ARC-gate, ARC-delivery -> ARC-gate -> ARC-config, REQ -> NEED) converges in one pass.
         before = load()
         self.assertTrue(model.stamp(self.root, check_only=True, found=before))
         stamped = model.stamp(self.root, found=before)
         self.assertEqual(stamped, [
             'config/security/threats/THREAT-gate.json',
             'config/requirements/REQ-gate-60s.json',
-            'config/architecture/ARC-config.json',
+            'config/architecture/ARC-delivery.json',
             'config/architecture/ARC-gate.json',
         ])
         after = load()
@@ -1610,18 +1616,19 @@ class Architecture(unittest.TestCase):
         self.assertEqual([line for line in warnings if 'is suspect' in line], [])
         self.assertTrue(all(link.get('fingerprint') for link in after['THREAT-gate']['links']))
         self.assertTrue(all(link.get('fingerprint') for link in after['REQ-gate-60s']['links']))
+        self.assertTrue(all(link.get('fingerprint') for link in after['ARC-delivery']['links']))
         self.assertTrue(all(link.get('fingerprint') for link in after['ARC-gate']['links']))
-        # Changing ARC-gate invalidates THREAT-gate and ARC-config links as suspect.
+        # Changing ARC-gate invalidates THREAT-gate and ARC-delivery links as suspect.
         gate_body = json.loads((self.root / 'config/architecture/ARC-gate.json').read_text())
         gate_body['statement'] = 'changed responsibility'
         write(self.root, 'config/architecture/ARC-gate.json', gate_body)
         drifted = load()
         _, drifted_warnings = model.check(meta, drifted)
         self.assertIn('THREAT-gate: models ARC-gate is suspect (the target changed)', drifted_warnings)
-        self.assertIn('ARC-config: depends-on ARC-gate is suspect (the target changed)', drifted_warnings)
+        self.assertIn('ARC-delivery: depends-on ARC-gate is suspect (the target changed)', drifted_warnings)
         self.assertEqual(model.stamp(self.root, check_only=True, found=drifted), [
             'config/security/threats/THREAT-gate.json',
-            'config/architecture/ARC-config.json',
+            'config/architecture/ARC-delivery.json',
         ])
 
     def test_a_capability_is_an_element_read_where_it_is_with_its_status_and_the_import_overrides(self):
