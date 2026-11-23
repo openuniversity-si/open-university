@@ -32,7 +32,7 @@ describe("promotion guard (D-363)", () => {
     writeFileSync(curl, `#!/usr/bin/env bash\n${body}\n`);
     chmodSync(curl, 0o755);
     const script = fileURLToPath(new URL("../../deploy/promotion-guard.sh", import.meta.url));
-    return spawnSync("bash", [script, sha], { env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, encoding: "utf8" });
+    return spawnSync("bash", [script, sha], { env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` }, encoding: "utf8" });
   }
   const sha = "b".repeat(40);
   const suite = (conclusion: string | null, status = "completed") => ({ id: 1, name: "full-suite", head_sha: sha, status, conclusion });
