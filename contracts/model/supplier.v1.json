@@ -61,6 +61,11 @@
       "pattern": "^REQ-[a-z0-9][a-z0-9.-]*$",
       "description": "The requirement its spend is measured against."
     },
+    "no_budget_by": {
+      "type": "string",
+      "pattern": "^D-[0-9]+$",
+      "description": "Owner-approved decision that explicitly exempts an active account supplier from a tracked monthly dollar ceiling (D-362)."
+    },
     "note": {
       "type": "string"
     },

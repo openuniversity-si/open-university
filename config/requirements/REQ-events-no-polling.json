@@ -11,7 +11,7 @@
   "source": "docs/programs/padrao-dev/avaliacao.md#Pedido",
   "verification": "validation",
   "target_fingerprints": {
-    "NEED-cost": "a91397b67070",
-    "NEED-throughput": "b912a20a063f"
+    "NEED-cost": "3a15f76c4db5",
+    "NEED-throughput": "d47e3f6e5ae7"
   }
 }

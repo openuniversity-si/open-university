@@ -1,6 +1,6 @@
 {
   "id": "STD-supply-supplier-answers",
-  "statement": "An active supplier answers for what the engine takes from it: an account names the requirement its spend is measured against (its budget, an active requirement), and a registry or a platform supplies at least one active component or data store; a supplier nothing is taken from is retired.",
+  "statement": "An active supplier answers for what the engine takes from it: an account names either an active budget requirement (`budget`) or an owner-approved decision (`no_budget_by`, scope money, D-362) exempting it from a monthly ceiling (never both), and a registry or a platform supplies at least one active component or data store; a supplier nothing is taken from is retired.",
   "state": "warning",
   "owner": "administration",
   "applies_to": [
@@ -12,8 +12,9 @@
   },
   "basis": [
     "D-320",
-    "D-335"
+    "D-335",
+    "D-362"
   ],
   "deadline": "2026-11-24",
-  "note": "D-335: the supply system's suppliers had no rule (7 not judged on ff8fa43); the model reads this function's warnings as the SUP's non-conformance (JUDGED_BY_FINDINGS). Its proof is scripts/tests/test_supply.py. In warning, not blocking: the model's warnings stop no change; the deadline is PROP-supply-system's."
+  "note": "D-335, D-362: the model reads supply_findings warnings as the SUP's non-conformance (JUDGED_BY_FINDINGS); accounts require an active budget REQ or an owner-approved no_budget_by decision (D-362 for SUP-anthropic under Option B). Its proof is scripts/tests/test_supply.py."
 }

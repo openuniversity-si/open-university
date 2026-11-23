@@ -2117,9 +2117,9 @@ SUPPLIER_INACTIVE = {'SUP': ('retired',), 'DEP': ('removed',), 'REQ': ('supersed
 
 
 def supply_findings(found):
-    """Warnings of the suppliers (SUP, D-320, D-335): an active account whose spend is measured against no requirement
-    that exists (its `budget`), and an active registry or platform that supplies nothing (no component or data store
-    is supplied by it): retire it."""
+    """Warnings of the suppliers (SUP, D-320, D-335, D-362): an active account with neither an active `budget`
+    requirement nor an owner-approved `no_budget_by` decision (scope='money'), one carrying both, and an active
+    registry or platform that supplies nothing (no component or data store is supplied by it): retire it."""
     def live(id):
         item = found.get(id, {})
         return item.get('fingerprint') is not None and item['state'] not in SUPPLIER_INACTIVE.get(item['type'], ())
@@ -2130,10 +2130,17 @@ def supply_findings(found):
         body = item.get('body', {})
         if item['type'] != 'SUP' or 'kind' not in body or item['state'] != 'active':
             continue
-        if body['kind'] == 'account' and not body.get('budget'):
-            warnings.append(f'{item["id"]}: an account with no budget requirement its spend is measured against')
-        elif body['kind'] == 'account' and not (found.get(body['budget'], {}).get('type') == 'REQ' and live(body['budget'])):
-            warnings.append(f'{item["id"]}: its budget {body["budget"]} is no active requirement')
+        if body['kind'] == 'account':
+            budget, exempt = body.get('budget'), body.get('no_budget_by')
+            if budget and exempt:
+                warnings.append(f'{item["id"]}: carries both budget {budget} and no_budget_by {exempt}')
+            elif exempt:
+                if not independently_approved(found.get(exempt), scope='money'):
+                    warnings.append(f'{item["id"]}: its no_budget_by {exempt} is not an owner-approved accepted decision')
+            elif not budget:
+                warnings.append(f'{item["id"]}: an account with no budget requirement its spend is measured against')
+            elif not (found.get(budget, {}).get('type') == 'REQ' and live(budget)):
+                warnings.append(f'{item["id"]}: its budget {budget} is no active requirement')
         if body['kind'] != 'account' and item['id'] not in supplied:
             warnings.append(f'{item["id"]}: a {body["kind"]} nothing is supplied by; retire it')
     return warnings
@@ -2967,10 +2974,12 @@ def fold_parts(found):
                              for owner in owners.get(link['target'], [link['target']])]
 
 
-def check(meta, found, root=None, today=None):
-    """(errors, warnings) of the objects against the metamodel; with `root`, also the warnings of the standard."""
+def check(meta, found, root=None, today=None, base=None, pr_body=None, pr_title=None):
+    """(errors, warnings) of the objects against the metamodel; with `root`, also the warnings of the standard and the
+    SEMENTE §6 intention lock (hard error when `base` is given, pending warning otherwise)."""
     errors, warnings = [], []
     if root is not None:
+        import intention_lock
         warnings += rule_findings(found, root)
         errors += skipped_stage_errors(found, root)
         warnings += requirement_findings(found)
@@ -2980,6 +2989,11 @@ def check(meta, found, root=None, today=None):
         errors += managed_errors
         warnings += managed_warnings
         errors += target_errors(found, root, today)
+        errors += intention_lock.check_intent_objects(found, root)
+        if base is not None:
+            errors += intention_lock.intention_lock_errors(root, base, body=pr_body, title=pr_title)
+        else:
+            warnings += intention_lock.pending_lock_warnings(root)
     errors += layer_errors(found)
     errors += problem_space.problem_errors(found)
     for id, item in sorted(found.items()):
@@ -3729,6 +3743,9 @@ def main(argv=None):
     commands = parser.add_subparsers(dest='command', required=True)
     checked = commands.add_parser('check')
     checked.add_argument('--strict', action='store_true')
+    checked.add_argument('--base', help='enforce the SEMENTE §6 intention lock against this base ref')
+    checked.add_argument('--pr-body', type=Path, help='PR body file holding an Intention-Change: authorization line')
+    checked.add_argument('--pr-title', help='PR title (must start with intencao: when locked intention changes)')
     commands.add_parser('view', help='print the component view (C4) as Mermaid, generated from the model')
     commands.add_parser('reflexion', help='list the convergent, divergent and absent dependencies between components')
     shown = commands.add_parser('show')
@@ -3775,7 +3792,8 @@ def main(argv=None):
             runs.verdicts_refresh(ROOT)  # so is the full-suite's verdicts snapshot (derive_verdicts)
         found = objects()
         if args.command == 'check':
-            errors, warnings = check(meta, found, ROOT)
+            pr_body = args.pr_body.read_text(encoding='utf-8') if args.pr_body else None
+            errors, warnings = check(meta, found, ROOT, base=args.base, pr_body=pr_body, pr_title=args.pr_title)
             errors = meta['errors'] + errors
             for line in errors:
                 print(f'ERROR {line}')

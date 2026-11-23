@@ -2,7 +2,8 @@
   "id": "REQ-anthropic-budget",
   "type": "constraint",
   "statement": "The Anthropic spend stays within the monthly ceiling of supply.anthropic_monthly_usd.",
-  "state": "approved",
+  "state": "obsolete",
+  "retired_by": "D-362",
   "owner": "Daniel",
   "derives_from": [
     "NEED-cost"
@@ -13,6 +14,6 @@
   "source": "docs/domain/decisions/D-342.md",
   "target_fingerprints": {
     "D-342": "5c44e28bf122",
-    "NEED-cost": "a91397b67070"
+    "NEED-cost": "3a15f76c4db5"
   }
 }
