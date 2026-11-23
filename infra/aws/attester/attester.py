@@ -338,12 +338,21 @@ def render(sha, v):
     return {'title': title[:250], 'summary': '\n'.join(lines)[:60000]}
 
 
+def same_output(posted, output):
+    """The posted check run shows exactly this output: title, summary and text all equal (a missing field is empty).
+
+    Comparing the title alone kept a stale summary when only the findings changed (the same title, another reason),
+    so the check run on GitHub could explain a verdict with facts that no longer held."""
+    posted = posted or {}
+    return all((posted.get(k) or '') == (output.get(k) or '') for k in ('title', 'summary', 'text'))
+
+
 def write(gh, cfg, sha, runs, v, app_id):
     status, conclusion = v[0], v[1]
     output = render(sha, v)
     last = newest(runs, CONTEXT, app_id)
     if last and last.get('status') == status and last.get('conclusion') == conclusion \
-            and (last.get('output') or {}).get('title') == output['title']:
+            and same_output(last.get('output'), output):
         return {'wrote': False, 'status': status, 'conclusion': conclusion}
     body = {'name': CONTEXT, 'head_sha': sha, 'status': status, 'output': output,
             'external_id': hashlib.sha256(output['summary'].encode()).hexdigest()[:20]}
