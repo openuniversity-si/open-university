@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Usage: apps/web/deploy/promotion-guard.sh <commit sha>
-# Andon at promotion (C6, D-363): the site's image is built only for a commit of main whose newest full-suite run
-# succeeded. build-image.sh runs this first when BUILD_SHA is set (the CodeBuild project open-university-web), so a
-# confirmed red on main stops the release without holding the merge queue. It reads the public check runs of the
-# commit (anonymously, or with GITHUB_TOKEN when the caller has one) and asks scripts/workflow-attest
-# promotion-health. It does not wait (no polling): a suite still running ends the build with "not decided yet", and the Torre starts the release after the suite is green. A flake is
-# cleared by re-running the full-suite workflow on that commit; its newer run then decides.
-# Exit: 0 green; 1 red, not decided, or the check runs unreadable (fail closed: an anonymous read past GitHub's
-# per-address limit refuses the release, which the Torre starts again later; production is untouched either way).
+# Andon at promotion (C6, D-363, D-364): a commit of main is released to the site only when its newest full-suite run
+# succeeded. The Torre runs this before it starts the CodeBuild project open-university-web, with GITHUB_TOKEN from its
+# own GitHub login, and starts the build only on exit 0:
+#   GITHUB_TOKEN="$(gh auth token)" apps/web/deploy/promotion-guard.sh <sha> && aws codebuild start-build ... SRC_SHA=<sha>
+# It does not run inside the build (D-364): CodeBuild's shared addresses exhaust GitHub's anonymous limit, so the read
+# failed closed on every release, and whoever may start a build may also override its buildspec, so the start-build
+# permission is the boundary either way. The merge queue is never consulted. It does not wait (no polling): a suite
+# still running is "not decided yet". A flake is cleared by re-running the full-suite workflow on that commit.
+# Exit: 0 green; 1 red, not decided, or the check runs unreadable (fail closed).
 set -euo pipefail
 sha="${1:?usage: $0 <commit sha>}"
 root="$(cd "$(dirname "$0")/../../.." && pwd)"
