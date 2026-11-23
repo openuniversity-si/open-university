@@ -4,7 +4,8 @@
     ".github/workflows/tower-gate.yml",
     ".github/workflows/deploy-doorbell.yml",
     ".github/workflows/full-suite.yml",
-    ".github/workflows/web.yml"
+    ".github/workflows/web.yml",
+    ".github/workflows/site-canary.yml"
   ],
   "items": {
     "type": "string",
@@ -12,9 +13,9 @@
   },
   "uniqueItems": true,
   "x-unit": "path",
-  "description": "The only GitHub Actions files the gate's `no GitHub Actions workflows` stage allows (ADR-24 as amended by ADR-41, D-086): `tower-gate.yml`, the tower/gate check of main's merge queue, `deploy-doorbell.yml`, which rings the AWS deploy's doorbell on a merge to main, `full-suite.yml`, the whole script suite after each merge to main (a red run opens an issue), and `web.yml`, the site's own checks on apps/web (D-319) (the migration to GitHub, 14/11/2026: the Torre's choice (a), a GitHub-hosted runner, free on a public repository), staged in services/runner/github/ and installed by the owner, never by a session (D-087).",
+  "description": "The only GitHub Actions files the gate's `no GitHub Actions workflows` stage allows (ADR-24 as amended by ADR-41, D-086): `tower-gate.yml`, the tower/gate check of main's merge queue, `deploy-doorbell.yml`, which rings the AWS deploy's doorbell on a merge to main, `full-suite.yml`, the whole script suite after each merge to main (a red run opens an issue), `web.yml`, the site's own checks on apps/web (D-319), and `site-canary.yml`, the read-only live-site synthetic HTTP canary (D-359 Salto 1) (the migration to GitHub, 14/11/2026: the Torre's choice (a), a GitHub-hosted runner, free on a public repository), staged in services/runner/github/ (or services/runner/github/proposed/ before Torre installation) and installed under D-087, never by a session.",
   "x-readers": [
     "scripts/lib/gate_workflows.py"
   ],
-  "x-source": "D-086, D-087; docs/adr/ADR-41-gate-and-train-services.md"
+  "x-source": "D-086, D-087, D-319, D-359; docs/adr/ADR-41-gate-and-train-services.md"
 }
