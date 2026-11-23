@@ -7,6 +7,7 @@
     "scripts/lib/gate_areas.py",
     "scripts/lib/globs.py",
     "scripts/lib/gate-areas.json",
+    "scripts/tests/covers/*.json",
     "scripts/lib/gate_policy.py",
     "scripts/lib/gate_report.py",
     "scripts/lib/git_objects.py"
