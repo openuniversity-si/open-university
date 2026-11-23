@@ -241,5 +241,36 @@ class FullRunRemnants(World):
         self.assertEqual(int(self.db.rows(cancelled)[0][0]), len(battery))
 
 
+class ContainerRemnants(World):
+    """CONTAINER-REMNANTS (migration 0025, RUNNER-STALL-QUIET): the open jobs of the adapter `container`, whose runner is
+    gone (D-314), are cancelled, and their runs handed over and never taken end at once: no run is left `starting`."""
+
+    def test_the_container_jobs_open_are_cancelled_and_their_runs_never_taken_end(self):
+        slots = int(self.db.rows("select sum(slots) from work.capacity where executor = 'script-runner'")[0][0])
+        exact = [self.job(f'check-{n}', executor='script-runner') for n in range(slots)]
+        chosen = [self.job(name, selector={'adapter': 'container'}) for name in ('bundle-a', 'bundle-b')]
+        other = self.job('session', executor='codex-sub')
+        made = mechanisms.dispatch(self.db)  # the runner's slots all handed over, the session's too; two more wait
+        self.assertEqual(int(self.in_use('script-runner')), slots)
+        done = self.job('done', executor='script-runner')
+        self.db.rows("update work.job set state = 'succeeded' where id = %(id)s::uuid returning id", {'id': done})
+        migration = (ROOT / 'infra/db/migrations/0025_container_remnants.sql').read_text()
+        cancelled = "select count(*) from log.event where type = 'job.cancelled' and producer = 'migration'"
+        starting = ("select count(*) from work.run r join work.executor e on e.name = r.executor "
+                    "where r.state = 'starting' and e.adapter = 'container'")
+        self.db.run(migration)
+        self.assertEqual({self.state(job) for job in exact + chosen}, {'cancelled'})
+        self.assertEqual((self.state(done), self.state(other)), ('succeeded', 'running'))
+        self.assertEqual(int(self.db.rows(cancelled)[0][0]), len(exact + chosen))
+        self.assertEqual(int(self.db.rows(starting)[0][0]), 0)  # nothing for the runner's watch to say
+        self.assertEqual(int(self.in_use('script-runner')), 0)  # the slots came back
+        self.assertEqual(int(self.in_use('codex-sub')), 1)  # another adapter's run is untouched
+        session = [run for run in made if run['job'] == other][0]
+        self.assertEqual(mechanisms.end(self.db, session['run'], session['fence'], 'succeeded'), 'succeeded')
+        self.assertEqual(mechanisms.dispatch(self.db), [])  # nothing of the container is handed over again
+        self.db.run(migration)  # idempotent: none open
+        self.assertEqual(int(self.db.rows(cancelled)[0][0]), len(exact + chosen))
+
+
 if __name__ == '__main__':
     unittest.main()
