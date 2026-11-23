@@ -2492,6 +2492,127 @@ class SupportSystems(unittest.TestCase):
         self.assertEqual((prop['state'], prop['body'].get('decided_by')), ('decided', 'D-351'))
         self.assertIn({'type': 'decided-by', 'target': 'D-351'}, prop['links'])
 
+    def test_verify_alone_flakes_count_as_verification_operational_weakness_until_fixed_or_quarantined(self):
+        """D-355, D-351: a VERIFY-ALONE flake keeps verification below F and open on the operational scoreboard until
+        the test is fixed (fixed record >= flake time or subsequent Stabilizes: commit) or placed in quarantine."""
+        import runs
+        import subprocess
+        import trust_metrics
+        import verify_commit
+        meta = model.metamodel(ROOT)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            def git_run(*args):
+                return subprocess.run(['git', '-c', 'user.email=t@t', '-c', 'user.name=t', *args], cwd=root,
+                                      check=True, capture_output=True, text=True).stdout.strip()
+
+            git_run('init', '-q', '-b', 'main')
+            write(root, 'scripts/tests/alpha.test.sh', '# Verifies: REQ-1\necho ok\n')
+            write(root, 'scripts/tests/beta.test.sh', '# Verifies: REQ-1\necho ok\n')
+            git_run('add', '.')
+            git_run('commit', '-q', '-m', 'add alpha and beta tests')
+            flake_sha = git_run('rev-parse', 'HEAD')
+
+            def evaluate():
+                found = {
+                    'REQ-1': {'id': 'REQ-1', 'type': 'REQ', 'state': 'approved', 'source': 'req', 'fingerprint': 'r',
+                              'links': []},
+                    'TEST:scripts/tests/alpha.test.sh': {
+                        'id': 'TEST:scripts/tests/alpha.test.sh', 'type': 'TEST', 'state': 'active',
+                        'source': 'scripts/tests/alpha.test.sh', 'fingerprint': 'a',
+                        'links': [{'type': 'verifies', 'target': 'REQ-1'}]},
+                    'TEST:scripts/tests/beta.test.sh': {
+                        'id': 'TEST:scripts/tests/beta.test.sh', 'type': 'TEST', 'state': 'active',
+                        'source': 'scripts/tests/beta.test.sh', 'fingerprint': 'b',
+                        'links': [{'type': 'verifies', 'target': 'REQ-1'}]},
+                    'VERD:scripts/tests/alpha.test.sh': {
+                        'id': 'VERD:scripts/tests/alpha.test.sh', 'type': 'VERD', 'state': 'pass',
+                        'source': 'verdicts', 'fingerprint': 'va',
+                        'links': [{'type': 'evidences', 'target': 'TEST:scripts/tests/alpha.test.sh'}]},
+                    'VERD:scripts/tests/beta.test.sh': {
+                        'id': 'VERD:scripts/tests/beta.test.sh', 'type': 'VERD', 'state': 'pass',
+                        'source': 'verdicts', 'fingerprint': 'vb',
+                        'links': [{'type': 'evidences', 'target': 'TEST:scripts/tests/beta.test.sh'}]},
+                }
+                model.derive_flakes(found, root)
+                into = model.incoming(found)
+                rated = model.rate_system(meta, found, into, set(), 'verification')
+                counted = model.verification_measure(found)
+                errors, _ = model.check(meta, found)
+                return found, rated, counted, errors
+
+            # Clean baseline: 100% pass VERD and no flakes -> F, operationally ready, closed.
+            _, clean, counted, errors = evaluate()
+            self.assertEqual((clean['level'], clean['operational_ready'], clean['closed'], clean['weakness_ids']),
+                             ('F', True, True, []))
+            self.assertEqual((counted['flaky'], counted['quarantined'], errors), (0, 0, []))
+
+            # Record a VERIFY-ALONE flake emitted by verify_commit.flake_entry -> operational weakness on verification.
+            entry = verify_commit.flake_entry(flake_sha, flake_sha,
+                                              {'flakes': ['scripts/tests/alpha.test.sh'], 'flake_rate': 1 / (1 + 1)})
+            entry['at'] = '2026-11-22T10:00:00Z'
+            runs.record_flakes(root, [entry], now=runs.stamp('2026-11-22T10:00:00Z'))
+            found, flaky, counted, errors = evaluate()
+            self.assertTrue(found['TEST:scripts/tests/alpha.test.sh']['body']['flaky'])
+            self.assertEqual((flaky['catalog_level'], flaky['level'], flaky['operational_ready'], flaky['closed']),
+                             ('F', 'L', False, False))
+            self.assertEqual(flaky['weakness_ids'], ['TEST:scripts/tests/alpha.test.sh'])
+            self.assertEqual((counted['flaky'], counted['flaky_tests'], errors),
+                             (1, ['TEST:scripts/tests/alpha.test.sh'], []))
+            # Same flakes.json wires trust_metrics indicator 3 directly.
+            ladder, _ = trust_metrics.load_ladder(ROOT)
+            write(root, 'config/validation/slo.json', {
+                'at': '2026-11-22T10:00:00Z',
+                'verdicts': [{'pr': 1, 'sha': flake_sha, 'at': '2026-11-22T10:00:00Z', 'passed': True}],
+            })
+            ind3 = trust_metrics.measure_first_pass_yield(root, ladder)
+            self.assertTrue(ind3['flake_source_wired'])
+            self.assertEqual((ind3['state'], ind3['flake_events']), ('not-met', 1))
+
+            # Quarantining alpha transitions it to state: quarantined and lifts the unresolved flake weakness.
+            runs.record_flakes(root, [], quarantined=['scripts/tests/alpha.test.sh'],
+                               now=runs.stamp('2026-11-22T11:00:00Z'))
+            found, quar, counted, errors = evaluate()
+            self.assertEqual(found['TEST:scripts/tests/alpha.test.sh']['state'], 'quarantined')
+            self.assertEqual((quar['level'], quar['operational_ready'], quar['closed'], quar['weakness_ids']),
+                             ('F', True, True, []))
+            self.assertEqual((counted['flaky'], counted['quarantined'], errors), (0, 1, []))
+
+            # Leaving quarantine without a fix restores the weakness; a fixed record >= flake time clears it.
+            runs.record_flakes(root, [], quarantined=[], fixed=[], now=runs.stamp('2026-11-22T11:30:00Z'))
+            _, reopened, _, _ = evaluate()
+            self.assertEqual(reopened['weakness_ids'], ['TEST:scripts/tests/alpha.test.sh'])
+            runs.record_flakes(root, [], quarantined=[],
+                               fixed=[{'test': 'scripts/tests/alpha.test.sh', 'at': '2026-11-22T12:00:00Z'}],
+                               now=runs.stamp('2026-11-22T12:00:00Z'))
+            _, fixed_state, _, _ = evaluate()
+            self.assertEqual((fixed_state['level'], fixed_state['closed'], fixed_state['weakness_ids']),
+                             ('F', True, []))
+
+            # A newer flake after a prior fix re-opens the operational weakness; a Stabilizes: commit clears it.
+            later = verify_commit.flake_entry(flake_sha, flake_sha,
+                                              {'flakes': ['scripts/tests/alpha.test.sh'], 'flake_rate': 1 / (1 + 1)})
+            later['at'] = '2026-11-22T13:00:00Z'
+            runs.record_flakes(root, [later], now=runs.stamp('2026-11-22T13:00:00Z'))
+            _, reflaked, _, _ = evaluate()
+            self.assertEqual((reflaked['level'], reflaked['closed'], reflaked['weakness_ids']),
+                             ('L', False, ['TEST:scripts/tests/alpha.test.sh']))
+            write(root, 'scripts/tests/alpha.test.sh', '# Verifies: REQ-1\n# stabilized\necho ok\n')
+            git_run('add', '.')
+            git_run('commit', '-q', '-m', 'stabilize alpha\n\nStabilizes: scripts/tests/alpha.test.sh')
+            _, stabilized, _, _ = evaluate()
+            self.assertEqual((stabilized['level'], stabilized['closed'], stabilized['weakness_ids']),
+                             ('F', True, []))
+
+    def test_d355_is_accepted_with_owner_authority_in_live_repository(self):
+        found = model.objects(ROOT, (model.read_decisions, model.read_tests))
+        decision = found['D-355']
+        self.assertEqual((decision['state'], decision['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(decision))
+        self.assertEqual((decision.get('proof') or {}).get('outcome'), 'proven')
+        self.assertTrue(decision.get('proof_cases'))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -2747,6 +2747,130 @@ def derive_verdicts(found, root, select=None):
     return made
 
 
+STABILIZES_LINE = re.compile(r'^Stabilizes:[ \t]*(.+?)[ \t]*$', re.M)
+
+
+def _flake_test_id(name):
+    cleaned = str(name or '').strip()
+    if not cleaned:
+        return ''
+    return cleaned if cleaned.startswith('TEST:') else f'TEST:{cleaned}'
+
+
+def _is_ancestor(root, ancestor, descendant='HEAD'):
+    if not ancestor:
+        return False
+    return subprocess.run(['git', 'merge-base', '--is-ancestor', ancestor, descendant], cwd=root,
+                          capture_output=True).returncode == 0
+
+
+def _stabilized_after(root, sha):
+    """Test ids named on `Stabilizes:` lines in commits strictly after `sha` up to HEAD (quarantine.py convention)."""
+    if not sha or not _is_ancestor(root, sha, 'HEAD'):
+        return set()
+    body = _git(root, 'log', '--format=%B', f'{sha}..HEAD')
+    return {_flake_test_id(item) for line in STABILIZES_LINE.findall(body)
+            for item in line.split(',') if item.strip()}
+
+
+def _flake_fixed(tid, info, fixed_entries, root, stabilized_cache):
+    """Whether a recorded VERIFY-ALONE flake for `tid` was fixed at or after its latest occurrence."""
+    last_at, last_sha = info['last_at'], info['last_sha']
+    for entry in fixed_entries:
+        if isinstance(entry, str):
+            if _flake_test_id(entry) == tid:
+                return True
+            continue
+        if not isinstance(entry, dict) or _flake_test_id(entry.get('test')) != tid:
+            continue
+        fix_at = str(entry.get('at') or '')
+        fix_sha = str(entry.get('sha') or '')
+        if fix_at and last_at:
+            if fix_at >= last_at:
+                return True
+        elif fix_sha:
+            if _is_ancestor(root, fix_sha, 'HEAD') and (
+                    not last_sha or (fix_sha != last_sha and _is_ancestor(root, last_sha, fix_sha))):
+                return True
+        else:
+            return True
+    if last_sha:
+        if last_sha not in stabilized_cache:
+            stabilized_cache[last_sha] = _stabilized_after(root, last_sha)
+        if tid in stabilized_cache[last_sha]:
+            return True
+    return False
+
+
+def derive_flakes(found, root):
+    """D-355, D-351: read structured VERIFY-ALONE flake telemetry from config/validation/runs/flakes.json and flag
+    every active TEST with an unresolved flake as `body['flaky'] = True` (a significant operational weakness of
+    verification via TEST.weakness_when) until the test is fixed (`fixed` entry at/after the flake or a subsequent
+    `Stabilizes:` commit on HEAD) or placed in quarantine (`quarantined` list -> `state = 'quarantined'`)."""
+    import runs
+    recorded = runs.read_flakes(root)
+    if not isinstance(recorded, dict):
+        return []
+    quarantined = set()
+    for entry in recorded.get('quarantined') or []:
+        tid = _flake_test_id(entry.get('test') if isinstance(entry, dict) else entry)
+        if tid:
+            quarantined.add(tid)
+    sightings = {}
+    for run_entry in recorded.get('runs') or []:
+        if not isinstance(run_entry, dict):
+            continue
+        names = []
+        for key in ('flakes', 'alone'):
+            val = run_entry.get(key)
+            if isinstance(val, list):
+                names.extend(str(item) for item in val if item)
+            elif isinstance(val, str) and val:
+                names.append(val)
+        at = str(run_entry.get('at') or '')
+        sha = str(run_entry.get('sha') or '')
+        for name in dict.fromkeys(names):
+            tid = _flake_test_id(name)
+            if not tid:
+                continue
+            current = sightings.setdefault(tid, {'count': 0, 'last_at': '', 'last_sha': ''})
+            current['count'] += 1
+            if at >= current['last_at']:
+                current['last_at'] = at
+                if sha:
+                    current['last_sha'] = sha
+            elif not current['last_sha'] and sha:
+                current['last_sha'] = sha
+    fixed_entries = list(recorded.get('fixed') or []) + list(recorded.get('stabilized') or [])
+    stabilized_cache = {}
+    flaky_ids = []
+    for tid in sorted(quarantined | set(sightings)):
+        item = found.get(tid)
+        if (item is None or item.get('type') != 'TEST' or item.get('state') == 'retired'
+                or item.get('fingerprint') is None):
+            continue
+        body = item.setdefault('body', {})
+        if tid in quarantined:
+            item['state'] = 'quarantined'
+            body['quarantined'] = True
+            body['flaky'] = False
+            if tid in sightings:
+                body['flake_count'] = sightings[tid]['count']
+                body['last_flake_at'] = sightings[tid]['last_at']
+                body['last_flake_sha'] = sightings[tid]['last_sha']
+            continue
+        info = sightings[tid]
+        body['flake_count'] = info['count']
+        body['last_flake_at'] = info['last_at']
+        body['last_flake_sha'] = info['last_sha']
+        if _flake_fixed(tid, info, fixed_entries, root, stabilized_cache):
+            body['flaky'] = False
+        else:
+            body['flaky'] = True
+            flaky_ids.append(tid)
+    return flaky_ids
+
+
 def objects(root=ROOT, readers=READERS):
     """Every object the readers find, by id. A decision's proof becomes a link on the test it names; a proof that names
     no test file stays as a test object of its own, claimed but without a source, so the link to it can be judged."""
@@ -2763,6 +2887,7 @@ def objects(root=ROOT, readers=READERS):
     fold_parts(found)
     if read_tests in readers:
         derive_verdicts(found, root)
+        derive_flakes(found, root)
     if read_requirements in readers and read_changes in readers:
         link_implemented_by(found)
     if read_validations in readers or read_problem in readers:
@@ -3312,10 +3437,13 @@ def verification_measure(found, root=None):
             traced = script_covers.traced_health(root)
         except (OSError, ValueError, script_covers.ScriptTestMapError):
             traced = None
+    flaky = sorted(item['id'] for item in tests if (item.get('body') or {}).get('flaky'))
+    quarantined = sorted(item['id'] for item in tests if item['state'] == 'quarantined')
     return {'tests': len(tests), 'engine': len(engine), 'site': len(site), 'with_verd': with_verd,
             'engine_with_verd': sum(1 for item in engine if passed(item)),
             'site_with_verd': sum(1 for item in site if passed(item)),
             'share': with_verd / len(tests) if tests else 0,
+            'flaky': len(flaky), 'flaky_tests': flaky, 'quarantined': len(quarantined),
             **({'traced': traced} if traced is not None else {})}
 
 
@@ -3511,10 +3639,13 @@ def summary(found):
             if traced.get('gone_files') or traced.get('gone_tests'):
                 parts.append(f'{len(traced["gone_files"]) + len(traced["gone_tests"])} missing path(s)')
             traced_note = f'; traced-covers base {traced["base"]}' + (f' ({", ".join(parts)})' if parts else '')
+        flake_note = ''
+        if verified.get('flaky') or verified.get('quarantined'):
+            flake_note = f'; {verified.get("flaky", 0)} flaky weakness(es), {verified.get("quarantined", 0)} quarantined'
         lines.append(f'verification: {verified["tests"]} active test(s) ({verified["engine"]} engine, {verified["site"]} site); '
                      f'{verified["with_verd"]} of {verified["tests"]} with pass VERD on HEAD ({verified["share"]:.0%}: '
                      f'{verified["engine_with_verd"]}/{verified["engine"]} engine, '
-                     f'{verified["site_with_verd"]}/{verified["site"]} site){traced_note}')
+                     f'{verified["site_with_verd"]}/{verified["site"]} site){flake_note}{traced_note}')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed')
