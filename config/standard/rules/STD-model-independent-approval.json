@@ -1,0 +1,19 @@
+{
+  "id": "STD-model-independent-approval",
+  "statement": "An author never approves their own work: decisions and TAIL exemptions require an independent approver (author differs from approver; never session self-decisions under D-325 or proposed records), and scopes involving money or other people require Daniel (D-360).",
+  "state": "blocking",
+  "owner": "administration",
+  "applies_to": [
+    "D",
+    "TAIL"
+  ],
+  "check": {
+    "kind": "function",
+    "ref": "scripts/lib/model.py:independently_approved"
+  },
+  "basis": [
+    "D-360",
+    "D-352"
+  ],
+  "note": "D-352 (Torre por delegação do Daniel 22/11/2026): replaces inert STD-train-ownership-refusals as active roles-and-responsibilities evidence for CTRL-ssdf-po.2 (SSDF PO.2). Exercised on decisions and TAIL exemptions by active_tailoring() and management_findings() in scripts/lib/model.py."
+}

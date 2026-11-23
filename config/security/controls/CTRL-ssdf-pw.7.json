@@ -8,5 +8,6 @@
   "implemented_by": [
     "STD-lint-ratchet",
     "STD-gate-secret-scan-tree"
-  ]
+  ],
+  "coverage": "full"
 }

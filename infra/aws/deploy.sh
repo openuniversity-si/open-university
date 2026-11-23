@@ -111,24 +111,27 @@ bootstrap_pid=$!
 # (`scripts/deploy status --json | scripts/spend record`) and scripts/model judges VAL-aws-200 by that snapshot.
 spend_day="$(date -u +%F)"
 # SPEND-PARSE: the version of the reading's parser; a refusal of an older parser does not hold the day (2: a credit or an
-# exponent is a reading, #317)
-spend_parse=2
+# exponent is a reading, #317; 3: Cost Explorer excludes Credit/Refund per D-303 and refuses negative amounts)
+spend_parse=3
 spend_read() {
   local from="${spend_day:0:8}01" until usd
   until="$(date -u -d "$spend_day + 1 day" +%F 2>/dev/null)" || return 1
   local said=0
   usd="$(timeout 30 aws ce get-cost-and-usage --region us-east-1 --time-period "Start=$from,End=$until" --granularity MONTHLY \
+    --filter '{"Not":{"Dimensions":{"Key":"RECORD_TYPE","Values":["Credit","Refund"]}}}' \
     --metrics UnblendedCost --query 'ResultsByTime[0].Total.UnblendedCost.Amount' --output text 2>"$work/spend.err")" || said=$?
-  # a credit can make the month negative, and the CLI may print a tiny amount with an exponent: both are a number
-  if (( said != 0 )) || ! [[ "$usd" =~ ^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$ ]]; then
+  # D-303: gross unblended spend excludes Credit/Refund so negative readings are refused (aligned with scripts/lib/spend.py);
+  # a tiny non-negative amount with an exponent is still a reading
+  if (( said != 0 )) || ! [[ "$usd" =~ ^[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$ ]]; then
     # SPEND-WHY (VAL-aws-200): the class of the refusal, never the CLI's text, so the record says why there is no reading
     local why=other
     if (( said == 124 )); then why=timeout
     elif grep -qiE 'AccessDenied|not authorized' "$work/spend.err" 2>/dev/null; then why=access-denied
     elif grep -qiE 'not enabled|DataUnavailable|opt.?in' "$work/spend.err" 2>/dev/null; then why=not-enabled
+    elif (( said == 0 )) && [[ "$usd" =~ ^-[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$ ]]; then why=negative
     elif (( said == 0 )); then why=no-amount; fi
-    # no-amount keeps what the CLI printed instead, cut to 24 characters of [A-Za-z0-9.+-] (an amount or None, no secret)
-    local seen=""; [[ "$why" = no-amount ]] && seen="$(printf '%s' "$usd" | tr -cd 'A-Za-z0-9.+-' | cut -c1-24)"
+    # no-amount and negative keep what the CLI printed instead, cut to 24 characters of [A-Za-z0-9.+-] (an amount or None, no secret)
+    local seen=""; [[ "$why" = no-amount || "$why" = negative ]] && seen="$(printf '%s' "$usd" | tr -cd 'A-Za-z0-9.+-' | cut -c1-24)"
     jq -nc --arg day "$spend_day" --arg why "$why" --arg seen "$seen" --argjson parse "$spend_parse" \
       '{day: $day, why: $why, parse: $parse} + (if $seen != "" then {seen: $seen} else {} end)' >"$work/spend.why"
     return 1
