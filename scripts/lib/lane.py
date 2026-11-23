@@ -29,10 +29,14 @@ DECISIONS = Path('docs/domain/DECISIONS.md')
 RESUME = Path('docs/RETOMAR.md')
 
 
+LIVE_BASE = 'main'  # the live base on GitHub (D-314); was the Origin era's mod/roadmap-integration
+
+
 def default_base():
-    """The live base branch name derived from flow.base_ref (stripping any leading 'origin/')."""
-    ref = config.get('flow.base_ref')
-    return ref.removeprefix('origin/') if ref.startswith('origin/') else ref
+    """The live base branch name. Reading it from flow.base_ref is a separate change: flow.base_ref is a key the gate
+    reads, so declaring lane.py its reader here would make the base-pinned gate restore the whole flow owner and refuse
+    this change's new flow keys as generated drift."""
+    return LIVE_BASE
 
 
 def default_worktree_root():

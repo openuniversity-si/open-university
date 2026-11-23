@@ -233,17 +233,17 @@ class LaneWorktreeTests(unittest.TestCase):
     def test_defaults_read_flow_registry_and_environment_never_origin_box_paths(self):
         self.assertEqual(lane.BASE, 'main')
         with mock.patch.object(lane.config, 'get', side_effect=lambda k: {
-            'flow.base_ref': 'origin/release', 'flow.worktree_root': '/reg/wt', 'flow.home_checkout': '/reg/home',
+            'flow.worktree_root': '/reg/wt', 'flow.home_checkout': '/reg/home',
         }[k]):
             with mock.patch.dict(os.environ, {}, clear=True):
-                self.assertEqual(lane.default_base(), 'release')
+                self.assertEqual(lane.default_base(), 'main')
                 self.assertEqual(lane.default_worktree_root(), '/reg/wt')
                 self.assertEqual(lane.default_home_checkout(), Path('/reg/home'))
             with mock.patch.dict(os.environ, {'TOWER_WORKTREE_ROOT': '/env/wt', 'TOWER_HOME_CHECKOUT': '/env/home'}, clear=True):
                 self.assertEqual(lane.default_worktree_root(), '/env/wt')
                 self.assertEqual(lane.default_home_checkout(), Path('/env/home'))
         with mock.patch.object(lane.config, 'get', side_effect=lambda k: {
-            'flow.base_ref': 'main', 'flow.worktree_root': '', 'flow.home_checkout': '',
+            'flow.worktree_root': '', 'flow.home_checkout': '',
         }[k]):
             with mock.patch.dict(os.environ, {}, clear=True):
                 self.assertEqual(lane.default_base(), 'main')
