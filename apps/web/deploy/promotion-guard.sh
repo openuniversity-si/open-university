@@ -22,7 +22,7 @@ if ! curl -fsS --retry 2 --max-time 20 "${auth[@]}" -H 'Accept: application/vnd.
   exit 1
 fi
 set +e
-python3 "$root/scripts/workflow-attest" promotion-health --checks "$checks" --sha "$sha"
+bash "$root/scripts/workflow-attest" promotion-health --checks "$checks" --sha "$sha"
 code=$?
 set -e
 if [[ $code -ne 0 ]]; then
