@@ -1,0 +1,62 @@
+# site-canary (SALTO 1 — D-087, D-359, M6): instalado pela Torre, D-359.
+# Replaces the retired AWS-runner canary (D-346) with a read-only synthetic HTTP probe over the live
+# Open University site (https://openuniversity.si, Lambda open-university-web behind CloudFront).
+# Holds zero AWS credentials, zero deploy secrets, and performs zero production writes (D-054).
+# Salto 1: first add `.github/workflows/site-canary.yml` to `gate.allowed_workflows` in a separate gate PR
+# citing D-359, then the Torre copies this file to services/runner/github/site-canary.yml and .github/workflows/site-canary.yml.
+name: site-canary
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: site-canary
+  cancel-in-progress: false
+jobs:
+  canary:
+    name: site-canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: probe live site (read-only)
+        id: probe
+        env:
+          SITE_URL: ${{ vars.TOWER_SITE_URL || 'https://openuniversity.si' }}
+        run: |
+          scripts/site-canary --url "$SITE_URL" | tee "$RUNNER_TEMP/canary.out"
+      - name: open or update canary alert issue when red
+        if: failure() && steps.probe.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SITE_URL: ${{ vars.TOWER_SITE_URL || 'https://openuniversity.si' }}
+          CHECKS_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}/checks
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          gh label create site-canary-red --repo "$GITHUB_REPOSITORY" --color D93F0B \
+            --description "Live-site synthetic HTTP canary failed (M6)" 2>/dev/null || true
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --label site-canary-red --state open --json number --jq '.[0].number // empty')"
+          summary="$(cat "$RUNNER_TEMP/canary.out" 2>/dev/null || echo 'site-canary failed without output')"
+          body=$(printf "Live-site canary failed against %s at commit %s (run %s): %s\n\n\`\`\`\n%s\n\`\`\`\n" "$SITE_URL" "$GITHUB_SHA" "$RUN_ID" "$CHECKS_URL" "$summary")
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --label site-canary-red \
+              --title "site-canary RED on ${SITE_URL}" --body "$body"
+          fi
+      - name: close canary alert issue on recovery
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SITE_URL: ${{ vars.TOWER_SITE_URL || 'https://openuniversity.si' }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          for num in $(gh issue list --repo "$GITHUB_REPOSITORY" --label site-canary-red --state open --json number --jq '.[].number'); do
+            gh issue close "$num" --repo "$GITHUB_REPOSITORY" \
+              --comment "site-canary recovered against ${SITE_URL} at ${GITHUB_SHA} (run ${RUN_ID})."
+          done
