@@ -11,5 +11,9 @@
     "D-339"
   ],
   "source": "docs/domain/decisions/D-339.md",
-  "verification": "validation"
+  "verification": "validation",
+  "target_fingerprints": {
+    "D-339": "8d14d7c8d8bd",
+    "NEED-autonomy": "5847ffac3762"
+  }
 }

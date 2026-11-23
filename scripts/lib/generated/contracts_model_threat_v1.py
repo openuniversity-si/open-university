@@ -9,4 +9,5 @@ ThreatV1 = TypedDict('ThreatV1', {
     'threats': Required[list[dict[str, Any]]],
     'reviewed': NotRequired[str],
     'review': NotRequired[dict[str, Any]],
+    'target_fingerprints': NotRequired[dict[str, str]],
 }, total=False)

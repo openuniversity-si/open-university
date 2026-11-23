@@ -2,6 +2,7 @@
 run-durations measure of scripts/model. The gate runs with no network, so it reads the snapshot, never the API.
 
     scripts/runs record <workflow> < runs.json    writes config/validation/runs/<workflow>.json from an API answer
+    scripts/runs record-flakes < flakes.jsonl     merges VERIFY-ALONE flake telemetry into config/validation/runs/flakes.json
     scripts/runs refresh <workflow>               rebuilds it from GitHub's checks of main's last merges
     scripts/runs refresh-slo                      rebuilds config/validation/slo.json, the four SLOs' samples
     scripts/runs refresh-verdicts                 rebuilds config/validation/verdicts.json, the full-suite's verdicts
@@ -323,6 +324,154 @@ def slo_write(root, found, now):
 VERDICTS_FILE = 'config/validation/verdicts.json'  # the full-suite's verdicts on main (not a VAL-*.json)
 VERDICTS_CHECK = 'full-suite'  # .github/workflows/full-suite.yml's job: every script test on each merge into main
 VERDICTS_MERGES = 40  # main's last merges whose full-suite run is read: how far back a green run is looked for
+WEB_CHECK = 'web'  # .github/workflows/web.yml's job: apps/web unit & integration tests on PRs and merge queue
+WEB_PATH = 'apps/web'  # path that web.yml judges when changed
+FLAKES_FILE = 'config/validation/runs/flakes.json'  # D-355: structured VERIFY-ALONE flake telemetry snapshot
+
+
+def read_flakes(root):
+    """Read the structured VERIFY-ALONE flake snapshot (config/validation/runs/flakes.json), or None when absent."""
+    path = Path(root) / FLAKES_FILE
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+
+
+def write_flakes(root, made):
+    """Write the structured VERIFY-ALONE flake snapshot to config/validation/runs/flakes.json."""
+    target = Path(root) / FLAKES_FILE
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(made, indent=1) + '\n', encoding='utf-8')
+    return target
+
+
+def normalize_flake_entry(entry):
+    """Normalize one VERIFY-ALONE telemetry entry so both trust_metrics (flaked/alone) and model (flakes) read it."""
+    raw = []
+    for key in ('flakes', 'alone'):
+        val = entry.get(key)
+        if isinstance(val, list):
+            raw.extend(str(item) for item in val if item)
+        elif isinstance(val, str) and val:
+            raw.append(val)
+    flakes = list(dict.fromkeys(raw))
+    flaked = bool(entry.get('flaked')) or bool(flakes)
+    return {
+        'sha': entry.get('sha', ''),
+        'base': entry.get('base', ''),
+        'part': entry.get('part'),
+        'at': entry.get('at', ''),
+        'flaked': flaked,
+        'alone': flakes,
+        'flakes': flakes,
+        'flake_count': int(entry.get('flake_count', len(flakes))),
+        'flake_rate': float(entry.get('flake_rate') or 0.0),
+        'strict_alone': bool(entry.get('strict_alone', False)),
+    }
+
+
+def parse_flake_stream(text):
+    """Parse flake entries from JSON (object with `runs`, list of objects, or JSONL from `verify-commit --flake-log`)."""
+    stripped = (text or '').strip()
+    if not stripped:
+        return []
+    try:
+        parsed = json.loads(stripped)
+    except ValueError:
+        return [json.loads(line) for line in stripped.splitlines() if line.strip()]
+    if isinstance(parsed, dict):
+        if isinstance(parsed.get('runs'), list):
+            return list(parsed['runs'])
+        return [parsed]
+    if isinstance(parsed, list):
+        return parsed
+    raise ValueError('expected JSON object, list, or JSONL flake telemetry entries')
+
+
+def record_flakes(root, entries, quarantined=None, fixed=None, now=None):
+    """Merge normalized VERIFY-ALONE flake entries into config/validation/runs/flakes.json (D-355), deduplicating
+    identical (sha, part, at, flakes) records while preserving existing quarantined and fixed records."""
+    existing = read_flakes(root) or {}
+    merged = [normalize_flake_entry(item) for item in (existing.get('runs') or []) if isinstance(item, dict)]
+    seen = {(item['sha'], item['part'], item['at'], tuple(item['flakes'])) for item in merged}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        norm = normalize_flake_entry(entry)
+        key = (norm['sha'], norm['part'], norm['at'], tuple(norm['flakes']))
+        if key not in seen:
+            seen.add(key)
+            merged.append(norm)
+    stamp_at = (now.strftime('%Y-%m-%dT%H:%M:%SZ') if isinstance(now, datetime)
+                else now or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))
+    made = {
+        'source': 'verify-commit VERIFY-ALONE structured flake telemetry (D-355)',
+        'at': stamp_at,
+        'runs': merged,
+        'quarantined': list(existing.get('quarantined') or []) if quarantined is None else list(quarantined),
+        'fixed': list(existing.get('fixed') or []) if fixed is None else list(fixed),
+    }
+    write_flakes(root, made)
+    return made
+
+
+def _completed_check(checks, name):
+    """The newest completed, not cancelled/skipped check run of `name`, else None."""
+    done = sorted((check for check in checks if check.get('name') == name
+                   and check.get('status') == 'completed' and check.get('completed_at')
+                   and check.get('conclusion') not in ('cancelled', 'skipped')), key=lambda check: check['completed_at'])
+    return done[-1] if done else None
+
+
+def web_merges(root, count, run=subprocess.run):
+    """[(merge_sha, pr_head_or_none)] of main's last `count` first-parent merges that touched apps/web."""
+    for ref in ('origin/main', 'HEAD'):
+        done = run(['git', 'log', '--first-parent', '--merges', f'-n{count}', '--format=%H %P', ref, '--', WEB_PATH],
+                   cwd=root, capture_output=True, text=True)
+        if done.returncode == 0:
+            found = []
+            for line in done.stdout.splitlines():
+                sha, *parents = line.split()
+                found.append((sha, parents[1] if len(parents) > 1 else None))
+            return found
+    return []
+
+
+def web_verdicts_fetch(root, repo=None, api=None, run=subprocess.run):
+    """[{sha, id, conclusion, completed}] of the newest completed `web` check run on each of main's last merges
+    that touched apps/web (checking the merge commit first, else the PR head). Only merges touching apps/web count,
+    because web.yml skips pnpm test when apps/web is unchanged; None offline or when the API refuses."""
+    if os.environ.get('TOWER_OFFLINE'):
+        return None
+    if api is None:
+        import verify_commit  # the gate's github adapter: tower/gate's own reads of GitHub's REST API
+        api = lambda path: verify_commit.gh_json(verify_commit.run, path)  # noqa: E731
+    repo = repo or repository()
+    pairs = web_merges(root, VERDICTS_MERGES, run)
+    if not pairs:
+        return []
+    found = []
+    try:
+        for merge_sha, pr_head in pairs:
+            picked, queried = None, merge_sha
+            for candidate in (merge_sha, *([pr_head] if pr_head else [])):
+                answer = api(f'repos/{repo}/commits/{candidate}/check-runs?check_name={WEB_CHECK}&per_page=100')
+                picked = _completed_check(answer.get('check_runs', []), WEB_CHECK)
+                if picked is not None:
+                    queried = candidate
+                    break
+            if picked is not None:
+                entry = {'sha': merge_sha, 'id': picked['id'], 'conclusion': picked.get('conclusion', ''),
+                         'completed': picked['completed_at']}
+                if queried != merge_sha:
+                    entry['check_sha'] = queried
+                found.append(entry)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return found
 
 
 def verdicts_fetch(root, repo=None, api=None, run=subprocess.run):
@@ -345,12 +494,10 @@ def verdicts_fetch(root, repo=None, api=None, run=subprocess.run):
         return None
     found = []
     for sha, answer in zip(shas, answers):
-        done = sorted((check for check in answer.get('check_runs', []) if check.get('name') == VERDICTS_CHECK
-                       and check.get('status') == 'completed' and check.get('completed_at')
-                       and check.get('conclusion') not in ('cancelled', 'skipped')), key=lambda check: check['completed_at'])
-        if done:
-            found.append({'sha': sha, 'id': done[-1]['id'], 'conclusion': done[-1].get('conclusion', ''),
-                          'completed': done[-1]['completed_at']})
+        last = _completed_check(answer.get('check_runs', []), VERDICTS_CHECK)
+        if last is not None:
+            found.append({'sha': sha, 'id': last['id'], 'conclusion': last.get('conclusion', ''),
+                          'completed': last['completed_at']})
     return found
 
 
@@ -359,24 +506,29 @@ def read_verdicts(root):
     return json.loads(path.read_text()) if path.exists() else None
 
 
-def verdicts_write(root, found, now):
+def verdicts_write(root, found, now, web=None):
     made = {'source': f"GitHub check runs {VERDICTS_CHECK} of main's last merges", 'check': VERDICTS_CHECK,
-            'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'runs': found}
+            'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'runs': found,
+            **({'web_check': WEB_CHECK, 'web_runs': web} if web is not None else {})}
     target = Path(root) / VERDICTS_FILE
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(made, indent=1) + '\n')
     return made
 
 
-def verdicts_refresh(root, now=None, reader=None, max_merges=None, run=subprocess.run):
+def verdicts_refresh(root, now=None, reader=None, web_reader=None, max_merges=None, run=subprocess.run):
     """Rebuilds the verdicts snapshot from GitHub when it is missing, older than REFRESH_DAYS, or trailing main by at
-    least medir.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None."""
+    least medir.snapshot_max_merges merges and the API answers; the snapshot (new or kept) or None. `reader(root)`
+    answers the full-suite runs; `web_reader(root)` answers `web`."""
     now = now or datetime.now(timezone.utc)
     recorded = read_verdicts(root)
     if not stale(root, recorded, now, max_merges=max_merges, run=run):
         return recorded
     found = (reader or verdicts_fetch)(root)
-    return verdicts_write(root, found, now) if found else recorded
+    if not found:
+        return recorded
+    web = (web_reader or web_verdicts_fetch)(root) if (reader is None or web_reader is not None) else None
+    return verdicts_write(root, found, now, web=web)
 
 
 def slo_series(recorded):
@@ -401,14 +553,23 @@ def main(argv=None, root=ROOT):
     again.add_argument('workflow', choices=sorted(CHECKS))
     commands.add_parser('refresh-slo', help="rebuild the SLOs' samples from GitHub's pull requests and check runs")
     commands.add_parser('refresh-verdicts', help="rebuild the full-suite's verdicts from GitHub's check runs of main")
+    commands.add_parser('record-flakes', help='merge VERIFY-ALONE flake telemetry JSON/JSONL from stdin into config/validation/runs/flakes.json')
     args = parser.parse_args(argv)
+    if args.command == 'record-flakes':
+        entries = parse_flake_stream(sys.stdin.read())
+        made = record_flakes(root, entries)
+        flaked_runs = sum(1 for item in made['runs'] if item.get('flaked'))
+        print(f"runs: {len(made['runs'])} flake telemetry run(s) ({flaked_runs} with flake) -> {FLAKES_FILE}")
+        return 0
     if args.command == 'refresh-verdicts':
         found = verdicts_fetch(root)
         if not found:
             print('runs: no full-suite verdicts read (offline, gh missing or the API refused); snapshot kept', file=sys.stderr)
             return 2
-        made = verdicts_write(root, found, datetime.now(timezone.utc))
-        print(f"runs: {len(made['runs'])} full-suite verdict(s) at {made['at']} -> {VERDICTS_FILE}")
+        web = web_verdicts_fetch(root)
+        made = verdicts_write(root, found, datetime.now(timezone.utc), web=web)
+        web_note = f", {len(made['web_runs'])} web verdict(s)" if 'web_runs' in made else ''
+        print(f"runs: {len(made['runs'])} full-suite verdict(s){web_note} at {made['at']} -> {VERDICTS_FILE}")
         return 0
     if args.command == 'refresh-slo':
         found = slo_fetch()

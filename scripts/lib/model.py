@@ -23,6 +23,8 @@ contracts/model/. The objects are read from where each system keeps them; F1a re
   scripts/model view               the component view (C4 level 3) as Mermaid, generated from the model
   scripts/model seed-rules         writes config/standard/rules/<id>.json for every refusal, gate stage, D-069 principle
                                    and the method that has no rule yet (never rewrites a rule)
+  scripts/model stamp [--check]    records linked target fingerprints in target_fingerprints on THREAT, REQ and ARC
+                                   files so check flags suspect links when a target changes (--check refuses drift)
   scripts/model measure [--json F] the main metric (the share of active requirements whose chain is verified end to
                                    end), the requirement inventory, and each system's objects and calculated conformance,
                                    under a heading per group of systems (management, engineering: D-330), and the
@@ -87,6 +89,15 @@ def _read_json(path):
 def fingerprint(text):
     """The content fingerprint of an object's source, which a link records to tell when its target changed."""
     return hashlib.sha256(text.encode()).hexdigest()[:len('0123456789ab')]
+
+
+def body_fingerprint(body, raw_text):
+    """Content fingerprint of a declared JSON object excluding `target_fingerprints`, so stamping links converges in
+    one pass and never invalidates incoming links from other objects (even across mutual depends-on cycles)."""
+    if isinstance(body, dict):
+        stripped = {key: value for key, value in body.items() if key != 'target_fingerprints'}
+        return fingerprint(json.dumps(stripped, sort_keys=True, ensure_ascii=False))
+    return fingerprint(raw_text)
 
 
 def metamodel(root=ROOT):
@@ -221,7 +232,7 @@ owner_approved = independently_approved
 
 
 def read_decisions(root):
-    objects, seen = [], set()
+    objects, seen, index = [], set(), {}
     for path in sorted(Path(root).glob(DECISION_RECORDS)):
         text = path.read_text()
         head = FRONT.match(text)
@@ -241,14 +252,26 @@ def read_decisions(root):
         if approver:
             item['approver'] = approver
         item['authority'] = decision_authority(text, fields)
+        raw_proof = fields.get('proof', '').strip()
+        proof_objs = []
+        if raw_proof:
+            proof = row_proof(root, raw_proof, index)
+            if proof['outcome'] in ('proven', 'dangling', 'outside'):
+                item['proof'] = {key: proof[key] for key in ('outcome', 'missing', 'outside')}
+                item['proof_cases'] = proof['cases']
+                if state in ('accepted', 'proposed') and proof['outcome'] == 'proven':
+                    for name in proof['files']:
+                        proof_objs.append({'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name,
+                                           'claimed': True, 'fingerprint': None,
+                                           'links': [{'type': 'verifies', 'target': number}]})
+            else:
+                bare = raw_proof.strip('`')
+                proof_objs.append({'id': f'TEST:{bare}', 'type': 'TEST', 'state': 'active', 'source': bare, 'claimed': True,
+                                   'fingerprint': None, 'links': [{'type': 'verifies', 'target': number}]})
         objects.append(item)
-        proof = fields.get('proof', '').strip().strip('`')
-        if proof:
-            objects.append({'id': f'TEST:{proof}', 'type': 'TEST', 'state': 'active', 'source': proof, 'claimed': True,
-                            'fingerprint': None, 'links': [{'type': 'verifies', 'target': number}]})
+        objects.extend(proof_objs)
     table = Path(root) / DECISION_TABLE
     if table.is_file():
-        index = {}
         for row in table_rows(table.read_text()):
             number = row['Id']
             if number in seen:
@@ -259,8 +282,9 @@ def read_decisions(root):
             item = _obj(number, 'D', state, DECISION_TABLE, row['line'])
             item['authority'] = decision_authority(row['line'])
             item['proof'] = {key: proof[key] for key in ('outcome', 'missing', 'outside')}
+            item['proof_cases'] = proof['cases']
             objects.append(item)
-            if state == 'accepted' and proof['outcome'] == 'proven':
+            if state in ('accepted', 'proposed') and proof['outcome'] == 'proven':
                 for name in proof['files']:
                     objects.append({'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name,
                                     'claimed': True, 'fingerprint': None,
@@ -319,6 +343,7 @@ def row_state(status):
 PROOF_FILE = re.compile(r'(?<![\w./-])((?:[\w.-]+/)*(?:test_\w+\.py|[\w-]+(?:\.[\w-]+)*\.(?:test|spec)\.(?:sh|ts|tsx|js|mjs)))'
                         r'(?![\w/-])')
 PROOF_QUOTED = re.compile(r'["“]([^"”]+)["”]')
+PROOF_BARE = re.compile(r'\b(test_\w+)\b')
 PROOF_NAMED = re.compile(r'`((?:test|Test)\w*|[A-Z][A-Za-z0-9]*[a-z][A-Za-z0-9]*)`')
 PLACEHOLDERS = ('', '-', '—', 'none', 'n/a')
 SKIPPED = {'node_modules', '.git', '.toolchain', '.gate', '.next', '__pycache__'}
@@ -326,14 +351,19 @@ SKIPPED = {'node_modules', '.git', '.toolchain', '.gate', '.next', '__pycache__'
 
 def proof_refs(cell):
     """[(file, [cases])] the Proof cell names: every test file (test_*.py, *.test.*, *.spec.*), each with the cases named
-    after it up to the next file or semicolon: the quoted names after a `›`, and the backticked test names (test_…,
-    or a CamelCase class) after it or in its parentheses. Prose between them names nothing."""
+    after it up to the next file or semicolon: the quoted names or bare `test_...` identifiers after a `›`, and the
+    backticked test names (test_…, or a CamelCase class) after it or in its parentheses. Prose between them names nothing."""
     found = list(PROOF_FILE.finditer(cell))
     refs = []
     for at, match in enumerate(found):
         end = found[at + 1].start() if at + 1 < len(found) else len(cell)
         segment = cell[match.end():end].lstrip('`').split(';', 1)[0]
-        cases = PROOF_QUOTED.findall(segment) if segment.lstrip().startswith('›') else []
+        if segment.lstrip().startswith('›'):
+            cases = PROOF_QUOTED.findall(segment)
+            unquoted = PROOF_QUOTED.sub('', segment)
+            cases += [name for name in PROOF_BARE.findall(unquoted) if name not in cases]
+        else:
+            cases = []
         cases += [name for name in PROOF_NAMED.findall(segment) if name not in cases]
         refs.append((match.group(1), cases))
     return refs
@@ -399,7 +429,7 @@ def in_model(root, path):
 
 
 def row_proof(root, cell, index=None):
-    """What a row's Proof cell proves: {outcome, files, missing, outside}. `proven` when it names at least one test file
+    """What a row's Proof cell proves: {outcome, files, missing, outside, cases}. `proven` when it names at least one test file
     and every file and case it names exists and is a test of the model; `dangling` when a file or case it names does not
     exist (missing lists them as `file` or `file › case`); `outside` when they exist but a file is not a test of the
     model (a site test that declares nothing, D-319); `prose` when it names no test file; `none` when it is empty.
@@ -408,8 +438,8 @@ def row_proof(root, cell, index=None):
     refs = proof_refs(cell)
     if not refs:
         return {'outcome': 'none' if cell.strip().strip('.').lower() in PLACEHOLDERS else 'prose', 'files': [],
-                'missing': [], 'outside': []}
-    files, missing, outside = [], [], []
+                'missing': [], 'outside': [], 'cases': []}
+    files, missing, outside, verified = [], [], [], []
     for name, cases in refs:
         path = _resolve(root, name, index)
         if path is None:
@@ -417,11 +447,15 @@ def row_proof(root, cell, index=None):
             continue
         sources = [(part, (Path(root) / part).read_text(errors='replace'))
                    for part in [path, *(_runs(root, index).get(path, []) if cases else [])] if (Path(root) / part).is_file()]
-        missing += [f'{name} › {case}' for case in cases if not _has_case(sources, case)]
+        for case in cases:
+            if _has_case(sources, case):
+                verified.append(f'{path} › {case}')
+            else:
+                missing.append(f'{name} › {case}')
         (files if in_model(root, path) else outside).append(path)
     outcome = 'dangling' if missing else 'outside' if outside else 'proven'
     return {'outcome': outcome, 'files': list(dict.fromkeys(files)), 'missing': missing,
-            'outside': list(dict.fromkeys(outside))}
+            'outside': list(dict.fromkeys(outside)), 'cases': list(dict.fromkeys(verified))}
 
 
 def read_units(root):
@@ -793,7 +827,11 @@ def _declared(root, pattern, contract, kind, links_of):
             found.append({**_obj(f'{kind}:{path.stem}', kind, body.get('state', '') if isinstance(body, dict) else '',
                                  path.relative_to(root).as_posix(), text), 'problems': problems})
             continue
-        item = _obj(body['id'], kind, body.get('state', 'defined'), path.relative_to(root).as_posix(), text, links_of(body))
+        stamps = body.get('target_fingerprints') or {}
+        links = [{**link, **({'fingerprint': stamps[link['target']]} if link['target'] in stamps else {})}
+                 for link in links_of(body)]
+        item = _obj(body['id'], kind, body.get('state', 'defined'), path.relative_to(root).as_posix(), text, links)
+        item['fingerprint'] = body_fingerprint(body, text)
         item['body'] = body
         found.append(item)
     return found
@@ -1873,6 +1911,7 @@ def read_adrs(root):
         if cell:
             proof = row_proof(root, cell.group(1), index)
             item['proof'] = {key: proof[key] for key in ('outcome', 'missing', 'outside')}
+            item['proof_cases'] = proof['cases']
             if state == 'accepted' and proof['outcome'] == 'proven':
                 found += [{'id': f'TEST:{name}', 'type': 'TEST', 'state': 'active', 'source': name, 'claimed': True,
                            'fingerprint': None, 'links': [{'type': 'verifies', 'target': ident}]} for name in proof['files']]
@@ -2014,27 +2053,42 @@ def reflexion_share(found):
 
 
 def decisions_measure(found, root=ROOT):
-    """The decisions system's own measure: decisions by state, the accepted ones a test proves, the decision
-    records edited after the commit that wrote them (an accepted decision changes by a new one that supersedes it), and
-    the accepted rows of DECISIONS.md by what their Proof cell proves (row_proof), when there are any."""
+    """The decisions system's own measure: decisions by state, the accepted ones proven by a test with a passing VERD
+    on HEAD (`proven`), those linked to an existing test (`with_test`), those naming an existing case (`with_case`), the
+    decision records edited after the commit that wrote them (an accepted decision changes by a new one that supersedes
+    it), and the accepted rows of DECISIONS.md by what their Proof cell proves (row_proof), when there are any."""
     into = incoming(found)
     decisions = [item for item in found.values() if item['type'] == 'D' and item.get('fingerprint') is not None]
     by_state = {}
     for item in decisions:
         by_state[item['state']] = by_state.get(item['state'], 0) + 1
     accepted = [item for item in decisions if item['state'] == 'accepted']
-    proven = sum(1 for item in accepted if any(kind == 'verifies' and found.get(source, {}).get('fingerprint') is not None
-                                               for kind, source in into.get(item['id'], [])))
+
+    def has_pass_verd(test_id):
+        return any(kind == 'evidences' and found.get(source, {}).get('type') == 'VERD'
+                   and found[source].get('state') == 'pass' and found[source].get('fingerprint') is not None
+                   for kind, source in into.get(test_id, []))
+
+    def verifying_tests(item):
+        return [source for kind, source in into.get(item['id'], [])
+                if kind == 'verifies' and found.get(source, {}).get('fingerprint') is not None]
+
+    with_test = sum(1 for item in accepted if verifying_tests(item))
+    proven = sum(1 for item in accepted if any(has_pass_verd(test_id) for test_id in verifying_tests(item)))
+    with_case = sum(1 for item in accepted
+                    if item.get('proof_cases') and (item.get('proof') or {}).get('outcome') == 'proven')
     edited = 0
     for path in sorted(Path(root).glob(DECISION_RECORDS)):
         commits = _git(root, 'log', '--format=%H', '--', path.relative_to(root).as_posix()).split()
         edited += len(commits) > 1
     rows = {}
     for item in accepted:
-        if 'proof' in item and not item.get('body', {}).get('adr'):
+        if ('proof' in item and not item.get('body', {}).get('adr')
+                and not item.get('source', '').startswith('docs/domain/decisions/')):
             rows[item['proof']['outcome']] = rows.get(item['proof']['outcome'], 0) + 1
     return {'by_state': dict(sorted(by_state.items())), 'accepted': len(accepted), 'proven': proven,
-            'edited_records': edited, **({'table_proofs': dict(sorted(rows.items()))} if rows else {})}
+            'with_test': with_test, 'with_case': with_case, 'edited_records': edited,
+            **({'table_proofs': dict(sorted(rows.items()))} if rows else {})}
 
 
 def knowledge_measure(found, radius='high'):
@@ -2418,14 +2472,55 @@ def read_vulns(root):
     return found
 
 
+THREATS = 'config/security/threats/THREAT-*.json'
+STAMP_GLOBS = (THREATS, REQUIREMENTS, ARCHITECTURE)
+
+
 def read_threats(root):
     """Threat models (THREAT), one file each (config/security/threats/): reviewed once a review date is recorded."""
-    found = _declared(Path(root), 'config/security/threats/THREAT-*.json', 'threat.v1.json', 'THREAT',
+    found = _declared(Path(root), THREATS, 'threat.v1.json', 'THREAT',
                       lambda body: [{'type': 'models', 'target': body['models']}])
     for item in found:
         if 'body' in item:
             item['state'] = 'reviewed' if item['body'].get('reviewed') else 'written'
     return found
+
+
+def stamp(root=ROOT, check_only=False, found=None):
+    """Record each linked target's current fingerprint in `target_fingerprints` on THREAT, REQ, and ARC JSON files.
+    Returns the sorted relative paths of files updated (or needing an update when check_only=True). Converges in one
+    pass because body_fingerprint excludes `target_fingerprints`."""
+    root = Path(root)
+    found = found if found is not None else objects(root)
+    changed = []
+    for pattern in STAMP_GLOBS:
+        for path in sorted(root.glob(pattern)):
+            rel = path.relative_to(root).as_posix()
+            body = _read_json(path)
+            if not isinstance(body, dict) or not isinstance(body.get('id'), str):
+                continue
+            item = found.get(body['id'])
+            if item is None:
+                continue
+            stamps = {}
+            for link in item.get('links', ()):
+                target = found.get(link['target'])
+                if target is not None and target.get('fingerprint') is not None:
+                    stamps[link['target']] = target['fingerprint']
+            stamps = dict(sorted(stamps.items()))
+            current = body.get('target_fingerprints')
+            if stamps:
+                if current == stamps:
+                    continue
+                updated = {**body, 'target_fingerprints': stamps}
+            else:
+                if 'target_fingerprints' not in body:
+                    continue
+                updated = {key: value for key, value in body.items() if key != 'target_fingerprints'}
+            changed.append(rel)
+            if not check_only:
+                path.write_text(json.dumps(updated, indent=len('  '), ensure_ascii=False) + '\n')
+    return changed
 
 
 def read_checks(root):
@@ -2904,41 +2999,181 @@ READERS = (read_decisions, read_units, read_tests, read_rules, read_proposals, r
 
 
 def derive_verdicts(found, root, select=None):
-    """Verdicts (VERD): the pass state of each script test on HEAD, from the full-suite check runs of main's merges
-    (runs.VERDICTS_FILE, renewed where scripts/model measures; the gate reads the snapshot, never the network). The
-    newest run on a commit HEAD contains judged every script test there. When it is green, a test the gate's own
-    selection (gate_script_tests.select) would not run for that commit's diff to HEAD reads the same declared files
-    there and here, so its verdict on that commit is its verdict on HEAD: VERD:<script>, pass, evidencing
-    TEST:<script>, with the sha and the run. A test that selection would run again has no verdict. When the newest run
-    is red, no test has one: the run names no red test (they are in the job's log, which only the Actions API
-    serves), and an older green run is no evidence past it, since a red after it means some test's declared files
-    did not cover what broke it. `select(paths)` answers the tests to run again (the gate's selection by default)."""
+    """Verdicts (VERD): the pass state of each script test and site unit/integration test on HEAD, from the recorded
+    check runs of main's merges (runs.VERDICTS_FILE, renewed where scripts/model measures; the gate reads the snapshot,
+    never the network). For engine script tests (`*.test.sh`), the newest full-suite run on a commit HEAD contains
+    judged every script test there; when green, a test the gate's selection would not run again keeps its pass verdict.
+    For site tests (`apps/web/**/*.test.ts`, excluding Playwright `e2e/*.spec.ts` which web.yml does not run), the
+    newest `web` check run on a merge touching apps/web that HEAD contains, when green and with no diff under apps/web
+    to HEAD, evidences each site `.test.ts` test. A red newest run gives no verdict."""
     import runs
     recorded = runs.read_verdicts(root) or {}
-    green = next((item for item in recorded.get('runs', [])
-                  if subprocess.run(['git', 'merge-base', '--is-ancestor', item['sha'], 'HEAD'], cwd=root,
-                                    capture_output=True).returncode == 0), None)
-    if green is None or green.get('conclusion') != 'success':
-        return []
-    paths = _git(root, 'diff', '--name-only', green['sha'], 'HEAD').split()
-    if select is None:
-        import gate_script_tests
-        mapping = gate_script_tests.load(root)
-        select = lambda changed: gate_script_tests.select(changed, mapping)[0]  # noqa: E731
-    again = set(select(paths)) if paths else set()
     made = []
-    for id, item in sorted(found.items()):
-        script = item['source'] if item['type'] == 'TEST' else ''
-        if not script.endswith('.test.sh') or script in again or item.get('fingerprint') is None:
-            continue
-        body = {'sha': green['sha'], 'check': recorded.get('check', runs.VERDICTS_CHECK), 'run': green['id'],
-                'completed': green['completed'], 'test': id}
-        verdict = _obj(f'VERD:{script}', 'VERD', 'pass', f'{runs.VERDICTS_FILE} run {green["id"]}',
-                       json.dumps(body, sort_keys=True), [{'type': 'evidences', 'target': id}])
-        verdict['body'] = body
-        made.append(verdict)
+
+    def newest_ancestor(items):
+        return next((item for item in items
+                     if subprocess.run(['git', 'merge-base', '--is-ancestor', item['sha'], 'HEAD'], cwd=root,
+                                       capture_output=True).returncode == 0), None)
+
+    green = newest_ancestor(recorded.get('runs', []))
+    if green is not None and green.get('conclusion') == 'success':
+        paths = _git(root, 'diff', '--name-only', green['sha'], 'HEAD').split()
+        if select is None:
+            import gate_script_tests
+            mapping = gate_script_tests.load(root)
+            select = lambda changed: gate_script_tests.select(changed, mapping)[0]  # noqa: E731
+        again = set(select(paths)) if paths else set()
+        for id, item in sorted(found.items()):
+            script = item['source'] if item['type'] == 'TEST' else ''
+            if not script.endswith('.test.sh') or script in again or item.get('fingerprint') is None:
+                continue
+            body = {'sha': green['sha'], 'check': recorded.get('check', runs.VERDICTS_CHECK), 'run': green['id'],
+                    'completed': green['completed'], 'test': id}
+            verdict = _obj(f'VERD:{script}', 'VERD', 'pass', f'{runs.VERDICTS_FILE} run {green["id"]}',
+                           json.dumps(body, sort_keys=True), [{'type': 'evidences', 'target': id}])
+            verdict['body'] = body
+            made.append(verdict)
+    web_green = newest_ancestor(recorded.get('web_runs', []))
+    if web_green is not None and web_green.get('conclusion') == 'success':
+        web_changed = _git(root, 'diff', '--name-only', web_green['sha'], 'HEAD', '--', runs.WEB_PATH).split()
+        if not web_changed:
+            web_prefix = f'{runs.WEB_PATH}/'
+            for id, item in sorted(found.items()):
+                source = item['source'] if item['type'] == 'TEST' else ''
+                if not source.startswith(web_prefix) or not source.endswith('.test.ts') or item.get('fingerprint') is None:
+                    continue
+                body = {'sha': web_green['sha'], 'check': recorded.get('web_check', runs.WEB_CHECK), 'run': web_green['id'],
+                        'completed': web_green['completed'], 'test': id}
+                verdict = _obj(f'VERD:{source}', 'VERD', 'pass', f'{runs.VERDICTS_FILE} run {web_green["id"]}',
+                               json.dumps(body, sort_keys=True), [{'type': 'evidences', 'target': id}])
+                verdict['body'] = body
+                made.append(verdict)
     found.update({item['id']: item for item in made})
     return made
+
+
+STABILIZES_LINE = re.compile(r'^Stabilizes:[ \t]*(.+?)[ \t]*$', re.M)
+
+
+def _flake_test_id(name):
+    cleaned = str(name or '').strip()
+    if not cleaned:
+        return ''
+    return cleaned if cleaned.startswith('TEST:') else f'TEST:{cleaned}'
+
+
+def _is_ancestor(root, ancestor, descendant='HEAD'):
+    if not ancestor:
+        return False
+    return subprocess.run(['git', 'merge-base', '--is-ancestor', ancestor, descendant], cwd=root,
+                          capture_output=True).returncode == 0
+
+
+def _stabilized_after(root, sha):
+    """Test ids named on `Stabilizes:` lines in commits strictly after `sha` up to HEAD (quarantine.py convention)."""
+    if not sha or not _is_ancestor(root, sha, 'HEAD'):
+        return set()
+    body = _git(root, 'log', '--format=%B', f'{sha}..HEAD')
+    return {_flake_test_id(item) for line in STABILIZES_LINE.findall(body)
+            for item in line.split(',') if item.strip()}
+
+
+def _flake_fixed(tid, info, fixed_entries, root, stabilized_cache):
+    """Whether a recorded VERIFY-ALONE flake for `tid` was fixed at or after its latest occurrence."""
+    last_at, last_sha = info['last_at'], info['last_sha']
+    for entry in fixed_entries:
+        if isinstance(entry, str):
+            if _flake_test_id(entry) == tid:
+                return True
+            continue
+        if not isinstance(entry, dict) or _flake_test_id(entry.get('test')) != tid:
+            continue
+        fix_at = str(entry.get('at') or '')
+        fix_sha = str(entry.get('sha') or '')
+        if fix_at and last_at:
+            if fix_at >= last_at:
+                return True
+        elif fix_sha:
+            if _is_ancestor(root, fix_sha, 'HEAD') and (
+                    not last_sha or (fix_sha != last_sha and _is_ancestor(root, last_sha, fix_sha))):
+                return True
+        else:
+            return True
+    if last_sha:
+        if last_sha not in stabilized_cache:
+            stabilized_cache[last_sha] = _stabilized_after(root, last_sha)
+        if tid in stabilized_cache[last_sha]:
+            return True
+    return False
+
+
+def derive_flakes(found, root):
+    """D-355, D-351: read structured VERIFY-ALONE flake telemetry from config/validation/runs/flakes.json and flag
+    every active TEST with an unresolved flake as `body['flaky'] = True` (a significant operational weakness of
+    verification via TEST.weakness_when) until the test is fixed (`fixed` entry at/after the flake or a subsequent
+    `Stabilizes:` commit on HEAD) or placed in quarantine (`quarantined` list -> `state = 'quarantined'`)."""
+    import runs
+    recorded = runs.read_flakes(root)
+    if not isinstance(recorded, dict):
+        return []
+    quarantined = set()
+    for entry in recorded.get('quarantined') or []:
+        tid = _flake_test_id(entry.get('test') if isinstance(entry, dict) else entry)
+        if tid:
+            quarantined.add(tid)
+    sightings = {}
+    for run_entry in recorded.get('runs') or []:
+        if not isinstance(run_entry, dict):
+            continue
+        names = []
+        for key in ('flakes', 'alone'):
+            val = run_entry.get(key)
+            if isinstance(val, list):
+                names.extend(str(item) for item in val if item)
+            elif isinstance(val, str) and val:
+                names.append(val)
+        at = str(run_entry.get('at') or '')
+        sha = str(run_entry.get('sha') or '')
+        for name in dict.fromkeys(names):
+            tid = _flake_test_id(name)
+            if not tid:
+                continue
+            current = sightings.setdefault(tid, {'count': 0, 'last_at': '', 'last_sha': ''})
+            current['count'] += 1
+            if at >= current['last_at']:
+                current['last_at'] = at
+                if sha:
+                    current['last_sha'] = sha
+            elif not current['last_sha'] and sha:
+                current['last_sha'] = sha
+    fixed_entries = list(recorded.get('fixed') or []) + list(recorded.get('stabilized') or [])
+    stabilized_cache = {}
+    flaky_ids = []
+    for tid in sorted(quarantined | set(sightings)):
+        item = found.get(tid)
+        if (item is None or item.get('type') != 'TEST' or item.get('state') == 'retired'
+                or item.get('fingerprint') is None):
+            continue
+        body = item.setdefault('body', {})
+        if tid in quarantined:
+            item['state'] = 'quarantined'
+            body['quarantined'] = True
+            body['flaky'] = False
+            if tid in sightings:
+                body['flake_count'] = sightings[tid]['count']
+                body['last_flake_at'] = sightings[tid]['last_at']
+                body['last_flake_sha'] = sightings[tid]['last_sha']
+            continue
+        info = sightings[tid]
+        body['flake_count'] = info['count']
+        body['last_flake_at'] = info['last_at']
+        body['last_flake_sha'] = info['last_sha']
+        if _flake_fixed(tid, info, fixed_entries, root, stabilized_cache):
+            body['flaky'] = False
+        else:
+            body['flaky'] = True
+            flaky_ids.append(tid)
+    return flaky_ids
 
 
 def objects(root=ROOT, readers=READERS):
@@ -2957,6 +3192,7 @@ def objects(root=ROOT, readers=READERS):
     fold_parts(found)
     if read_tests in readers:
         derive_verdicts(found, root)
+        derive_flakes(found, root)
     if read_requirements in readers and read_changes in readers:
         link_implemented_by(found)
     if read_units in readers and read_contracts in readers:
@@ -3018,8 +3254,9 @@ def check(meta, found, root=None, today=None):
         errors += [f'{id}: {problem}' for problem in item.get('problems', [])]
         if item['state'] not in kind['states']:
             errors.append(f'{id}: state {item["state"]} is not a state of {item["type"]}')
-        for missing in (item.get('proof') or {}).get('missing', []):
-            warnings.append(f'{id}: its proof names {missing}, which does not exist ({item["source"]})')
+        if not historical(item):
+            for missing in (item.get('proof') or {}).get('missing', []):
+                warnings.append(f'{id}: its proof names {missing}, which does not exist ({item["source"]})')
         if item.get('claimed') and item.get('fingerprint') is None and \
                 not all(historical(found.get(link['target'])) for link in item['links']):
             warnings.append(f'{id}: named by a link but no such file exists ({", ".join(link["target"] for link in item["links"])})')
@@ -3120,6 +3357,12 @@ def covered(meta, item, into, found, tested=None):
     for rule in meta['types'][item['type']].get('covered_by', []):
         if item['type'] == 'REQ' and (rule['type'], rule['link']) == ('TEST', 'verifies'):
             if not (requirement_tested(item, into, found) if tested is None else tested):
+                return False
+            continue
+        if (rule['type'], rule['link']) == ('VERD', 'evidences'):
+            if not any(kind == 'evidences' and found.get(source, {}).get('type') == 'VERD'
+                       and found[source].get('state') == 'pass' and found[source].get('fingerprint') is not None
+                       for kind, source in into.get(item['id'], [])):
                 return False
             continue
         if not any(kind == rule['link'] and found.get(source, {}).get('type') == rule['type'] and
@@ -3426,9 +3669,20 @@ def rate_system(meta, found, into, flagged, name, exempt=frozenset()):
     levels = [step['level'] for step in meta['scale']]
     if weak and level == levels[-1] and len(levels) > 1:
         level = levels[levels.index(level) - 1]
-    unread = {type_id: {'verdict': VERDICTS[type_id][0], 'means': VERDICTS[type_id][1]}
-              for type_id in sorted(kinds & set(VERDICTS))
-              if not any(item['type'] == VERDICTS[type_id][0] for item in found.values())}
+    unread = {}
+    for type_id in sorted(kinds & set(VERDICTS)):
+        verdict_type, means = VERDICTS[type_id]
+        if not any(item['type'] == verdict_type for item in found.values()):
+            unread[type_id] = {'verdict': verdict_type, 'means': means}
+            continue
+        typed = [item for item in mine if item['type'] == type_id]
+        if typed:
+            evidenced = sum(1 for item in typed if any(
+                kind == 'evidences' and found.get(source, {}).get('type') == verdict_type
+                and found[source].get('state') == 'pass' and found[source].get('fingerprint') is not None
+                for kind, source in into.get(item['id'], [])))
+            if evidenced < len(typed):
+                unread[type_id] = {'verdict': verdict_type, 'means': means, 'covered': evidenced, 'total': len(typed)}
     failing = sorted(item['id'] for item in mine if item['id'] not in passing)
     later = sorted(item['id'] for item in mine if item['id'] in failing and item['id'] not in flagged
                    and item['id'] not in exempt and deferred(meta, item, into, found))
@@ -3475,6 +3729,36 @@ def assess_systems(meta, found, into, flagged, root, today=None):
     return systems, found
 
 
+def verification_measure(found, root=None):
+    """The verification system's own counts: active tests (engine vs. site), how many carry a pass VERD on HEAD,
+    and the freshness of scripts/tests/traced-covers.json when present."""
+    into = incoming(found)
+    tests = [item for item in found.values() if item['type'] == 'TEST' and item['state'] != 'retired'
+             and item.get('fingerprint') is not None]
+    def passed(item):
+        return any(kind == 'evidences' and found.get(source, {}).get('type') == 'VERD'
+                   and found[source].get('state') == 'pass' and found[source].get('fingerprint') is not None
+                   for kind, source in into.get(item['id'], []))
+    engine = [item for item in tests if item['source'].endswith('.test.sh')]
+    site = [item for item in tests if item['source'].startswith('apps/web/')]
+    with_verd = sum(1 for item in tests if passed(item))
+    traced = None
+    if root is not None:
+        import script_covers
+        try:
+            traced = script_covers.traced_health(root)
+        except (OSError, ValueError, script_covers.ScriptTestMapError):
+            traced = None
+    flaky = sorted(item['id'] for item in tests if (item.get('body') or {}).get('flaky'))
+    quarantined = sorted(item['id'] for item in tests if item['state'] == 'quarantined')
+    return {'tests': len(tests), 'engine': len(engine), 'site': len(site), 'with_verd': with_verd,
+            'engine_with_verd': sum(1 for item in engine if passed(item)),
+            'site_with_verd': sum(1 for item in site if passed(item)),
+            'share': with_verd / len(tests) if tests else 0,
+            'flaky': len(flaky), 'flaky_tests': flaky, 'quarantined': len(quarantined),
+            **({'traced': traced} if traced is not None else {})}
+
+
 def measure(root=ROOT, meta=None, found=None, today=None):
     meta = meta or metamodel(root)
     found = found if found is not None else objects(root)
@@ -3519,6 +3803,7 @@ def measure(root=ROOT, meta=None, found=None, today=None):
         'construction': construction_measure(found),
         'decisions': decisions_measure(found, root),
         'validation': validation_measure(found),
+        'verification': verification_measure(found, root),
         'measurement': {'cheaper_path': cheaper_path, **measures_measure(found, root)},
         'work': work_measure(found),
         'objects': len(found),
@@ -3555,9 +3840,13 @@ def system_line(item):
     """What a system's count means: conformant, or, for a type whose verdicts are not read, what is counted; the
     objects no rule judges; the significant weaknesses that keep it below F."""
     counted = 'conformant'
-    for unread in item.get('verdicts_unread', {}).values():
-        counted = f'{unread["means"]}; pass state not read: no {unread["verdict"]} source'
-    parts = [f'{item["conformant"]} of {item["objects"]} {counted}']
+    partial = []
+    for type_id, unread in item.get('verdicts_unread', {}).items():
+        if 'covered' in unread:
+            partial.append(f'{unread["covered"]} of {unread["total"]} {type_id} with pass {unread["verdict"]} on HEAD')
+        else:
+            counted = f'{unread["means"]}; pass state not read: no {unread["verdict"]} source'
+    parts = [f'{item["conformant"]} of {item["objects"]} {counted}', *partial]
     if item.get('not_judged'):
         parts.append(f'{item["not_judged"]} not judged: no rule of {", ".join(item["unjudged_types"])}')
     if item.get('weaknesses'):
@@ -3650,7 +3939,8 @@ def summary(found):
                      f'{built_chg["unlinked"]} unlinked')
     decided = found['decisions']
     lines.append(f'decisions: {", ".join(f"{count} {state}" for state, count in decided["by_state"].items())}; '
-                 f'{decided["proven"]} of {decided["accepted"]} accepted proven by a test; {decided["edited_records"]} '
+                 f'{decided["proven"]} of {decided["accepted"]} accepted proven by pass VERD '
+                 f'({decided["with_test"]} with a test, {decided["with_case"]} naming a case); {decided["edited_records"]} '
                  f'record(s) edited after they were written'
                  + (f'; table rows by proof: {", ".join(f"{count} {kind}" for kind, count in decided["table_proofs"].items())}'
                     if decided.get('table_proofs') else ''))
@@ -3665,6 +3955,26 @@ def summary(found):
             threshold = f'{dist["threshold"]:g}s' if dist['threshold'] is not None else '?'
             parts.append(f'{ident} {points} ({dist["outliers"]}/{dist["runs"]} outside {sign}{threshold})')
         lines.append('validation: run-durations (report only; accepted at p100, D-337): ' + ', '.join(parts))
+    if 'verification' in found:
+        verified = found['verification']
+        traced_note = ''
+        traced = verified.get('traced')
+        if traced and traced.get('base'):
+            parts = []
+            if traced.get('merges_behind') is not None:
+                parts.append(f'{traced["merges_behind"]} merge(s) behind HEAD')
+            if traced.get('untraced_tests'):
+                parts.append(f'{len(traced["untraced_tests"])} untraced new test(s)')
+            if traced.get('gone_files') or traced.get('gone_tests'):
+                parts.append(f'{len(traced["gone_files"]) + len(traced["gone_tests"])} missing path(s)')
+            traced_note = f'; traced-covers base {traced["base"]}' + (f' ({", ".join(parts)})' if parts else '')
+        flake_note = ''
+        if verified.get('flaky') or verified.get('quarantined'):
+            flake_note = f'; {verified.get("flaky", 0)} flaky weakness(es), {verified.get("quarantined", 0)} quarantined'
+        lines.append(f'verification: {verified["tests"]} active test(s) ({verified["engine"]} engine, {verified["site"]} site); '
+                     f'{verified["with_verd"]} of {verified["tests"]} with pass VERD on HEAD ({verified["share"]:.0%}: '
+                     f'{verified["engine_with_verd"]}/{verified["engine"]} engine, '
+                     f'{verified["site_with_verd"]}/{verified["site"]} site){flake_note}{traced_note}')
     known = found['knowledge']
     lines.append(f'knowledge: {known["premises"]} premise(s), {known["high_unsettled"]} high-blast not confirmed, '
                  f'{known["refuted_assumed"]} refuted and still assumed; '
@@ -3712,6 +4022,8 @@ def main(argv=None):
     shown = commands.add_parser('show')
     shown.add_argument('id')
     commands.add_parser('seed-rules', help='write the seed rule of every refusal, gate stage, D-069 principle and the method')
+    stamped = commands.add_parser('stamp', help='stamp target_fingerprints on THREAT, REQ and ARC records')
+    stamped.add_argument('--check', action='store_true', help='exit 1 when any record is unstamped or stale without writing')
     measured = commands.add_parser('measure')
     measured.add_argument('--json')
     args = parser.parse_args(argv)
@@ -3719,6 +4031,18 @@ def main(argv=None):
         if args.command == 'seed-rules':
             written = seed_rules()
             print(f'seed-rules: {len(written)} rule file(s) written')
+            return 0
+        if args.command == 'stamp':
+            full_history(ROOT)
+            changed = stamp(ROOT, check_only=args.check)
+            if args.check:
+                for path in changed:
+                    print(f'STAMP {path}')
+                print(f'model stamp --check: {len(changed)} file(s) need stamping')
+                return 1 if changed else 0
+            for path in changed:
+                print(f'stamped {path}')
+            print(f'model stamp: {len(changed)} file(s) stamped')
             return 0
         if args.command == 'view':
             print(view(objects()))

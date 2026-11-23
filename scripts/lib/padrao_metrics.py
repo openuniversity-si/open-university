@@ -213,7 +213,17 @@ def main(argv=None):
     written.add_argument('--traces', required=True)
     written.add_argument('--base', required=True, help='the commit the traces were taken on')
     written.add_argument('--out', help='default: gate-tests.traced_file')
+    commands.add_parser('check', help='check freshness and integrity of the traced covers map (gate-tests.traced_file)')
     args = parser.parse_args(argv)
+    if args.command == 'check':
+        import script_covers
+        errors, warnings = script_covers.traced_findings(ROOT)
+        for line in errors:
+            print('FAIL ' + line)
+        for line in warnings:
+            print('WARN ' + line)
+        print(f'traced-covers: {len(errors)} error(s), {len(warnings)} warning(s)')
+        return 1 if errors else 0
     if args.command == 'trace':
         wrong = [script for script in args.tests if not (script.startswith(TESTS_DIR) and script.endswith(TEST_SUFFIX)
                                                          and (ROOT / script).is_file())]

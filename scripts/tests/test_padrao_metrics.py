@@ -151,6 +151,21 @@ class Trace(unittest.TestCase):
             (Path(out) / 'a.strace').write_text('x')
             self.assertEqual(padrao_metrics.read_traces(out), {'scripts/tests/a.test.sh': 'x'})
 
+    def test_check_reports_traced_covers_errors_and_warnings(self):
+        import contextlib
+        import io
+        import script_covers
+        out = io.StringIO()
+        with mock.patch.object(script_covers, 'traced_findings', return_value=([], ['stale'])), \
+                contextlib.redirect_stdout(out):
+            self.assertEqual(padrao_metrics.main(['check']), 0)
+        self.assertIn('WARN stale', out.getvalue())
+        out = io.StringIO()
+        with mock.patch.object(script_covers, 'traced_findings', return_value=(['gone'], [])), \
+                contextlib.redirect_stdout(out):
+            self.assertEqual(padrao_metrics.main(['check']), 1)
+        self.assertIn('FAIL gone', out.getvalue())
+
 
 if __name__ == '__main__':
     unittest.main()

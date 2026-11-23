@@ -15,6 +15,7 @@ import sys
 
 import gate_areas
 import hermetic_check
+import script_covers
 import test_orphans
 
 
@@ -22,7 +23,8 @@ def check(root, base=None):
     errors = list(gate_areas.coverage_errors(root))  # OU-DECOUPLE F1 (D-106): every tracked path has an area
     errors += test_orphans.check(root)  # TX25: every test_*.py is run by exactly one wrapper
     hermetic_errors, warnings = hermetic_check.check(root, base)  # plan v3 H1, D-069 item 5
-    return errors + list(hermetic_errors), list(warnings)
+    traced_errors, traced_warnings = script_covers.traced_findings(root)  # C6: traced-covers integrity & freshness
+    return errors + list(hermetic_errors) + list(traced_errors), list(warnings) + list(traced_warnings)
 
 
 def main(argv=None):

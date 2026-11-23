@@ -89,5 +89,8 @@
       }
     ]
   },
-  "reviewed": "2026-11-19"
+  "reviewed": "2026-11-19",
+  "target_fingerprints": {
+    "ARC-knowledge": "091716462946"
+  }
 }

@@ -35,5 +35,10 @@
   "basis": [
     "D-319"
   ],
-  "layer": 4
+  "layer": 4,
+  "target_fingerprints": {
+    "REQ-web-home-perf-budget": "b194e430e289",
+    "REQ-web-lgpd-processing": "3ba5d98ad874",
+    "REQ-web-wcag-22-aa": "4c7fd48d6a31"
+  }
 }

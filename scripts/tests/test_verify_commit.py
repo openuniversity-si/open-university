@@ -153,6 +153,62 @@ class TheVerifier(unittest.TestCase):
         self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE], run=fake), 1)
         self.assertEqual(fake.statuses[-1][1:], ('failure', 'tower/gate', 'red: scripts/tests/y.test.sh'))
 
+    def test_verify_alone_records_structured_flake_telemetry_and_strict_alone_option(self):
+        """D-355: VERIFY-ALONE emits structured flake metrics, writes verdict.json/JSONL, and supports --strict-alone."""
+        import contextlib
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / 'flakes.jsonl'
+            verdict_dir = Path(tmp) / 'verdict'
+            # Default mode: batch-red/alone-green stays green, records flakes in planned, stdout, verdict.json, and JSONL.
+            fake, out = Fake(crowded=('scripts/tests/x.test.sh',)), io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post', '--record', str(verdict_dir),
+                                           '--flake-log', str(log_path)], run=fake, environ=IMAGE)
+            self.assertEqual(code, 0)
+            metric_lines = [line for line in out.getvalue().splitlines() if line.startswith('verify-commit: flake-metric ')]
+            self.assertEqual(len(metric_lines), 1)
+            metric = json.loads(metric_lines[0].removeprefix('verify-commit: flake-metric '))
+            expected_rate = 1 / len(PLAN['tests'])
+            self.assertEqual(metric['flakes'], ['scripts/tests/x.test.sh'])
+            self.assertEqual(metric['alone'], ['scripts/tests/x.test.sh'])
+            self.assertTrue(metric['flaked'])
+            self.assertEqual(metric['flake_count'], 1)
+            self.assertAlmostEqual(metric['flake_rate'], expected_rate)
+            self.assertFalse(metric['strict_alone'])
+            saved = json.loads((verdict_dir / 'verdict.json').read_text())
+            self.assertEqual(saved['flakes'], ['scripts/tests/x.test.sh'])
+            self.assertAlmostEqual(saved['flake_rate'], expected_rate)
+            # Clean run with --flake-log appends a zero-flake record; verdict key matches clean run.
+            _, _, clean_record = self.recorded_name()
+            self.assertEqual(saved['key'], clean_record['key'])
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post',
+                                                     '--flake-log', str(log_path)], run=Fake()), 0)
+            # Strict mode: batch flake fails the gate while still emitting structured telemetry.
+            strict_fake, strict_out, strict_err = Fake(crowded=('scripts/tests/x.test.sh',)), io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(strict_out), contextlib.redirect_stderr(strict_err):
+                strict_code = verify_commit.main(['--sha', SHA, '--base', BASE, '--strict-alone',
+                                                  '--flake-log', str(log_path)], run=strict_fake)
+            self.assertEqual(strict_code, 1)
+            self.assertEqual(strict_fake.statuses[-1][1:], ('failure', 'tower/gate', 'red: scripts/tests/x.test.sh (flake)'))
+            self.assertIn('--strict-alone, D-355', strict_err.getvalue())
+            self.assertIn('verify-commit: flake-metric ', strict_out.getvalue())
+            # Strict mode on a clean run stays green.
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(verify_commit.main(['--sha', SHA, '--base', BASE, '--no-post', '--strict-alone'],
+                                                    run=Fake()), 0)
+            lines = [json.loads(line) for line in log_path.read_text().splitlines()]
+            self.assertEqual([item['flake_count'] for item in lines], [1, 0, 1])
+            self.assertEqual([item['flaked'] for item in lines], [True, False, True])
+            self.assertEqual([item['alone'] for item in lines],
+                             [['scripts/tests/x.test.sh'], [], ['scripts/tests/x.test.sh']])
+            self.assertEqual([item['strict_alone'] for item in lines], [False, False, True])
+            # D-355 is recorded as accepted (authority: owner, Torre por delegação do Daniel 22/11/2026).
+            d355 = (ROOT / 'docs' / 'domain' / 'decisions' / 'D-355.md').read_text(encoding='utf-8')
+            self.assertIn('\nauthority: owner\n', d355)
+            self.assertNotIn('\nstatus: proposed\n', d355)
+            self.assertIn('Torre por delegação do Daniel 22/11/2026', d355)
+
     def test_an_isolated_test_runs_by_itself_beside_a_batch_of_one_worker_fewer(self):
         """GATE-ISOLATED: the named timing-bound test is never in the batch; it runs alone at the same time, and the
         batch of the others is told one worker fewer than the runner's CPUs."""

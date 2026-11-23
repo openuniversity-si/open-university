@@ -32,7 +32,7 @@ def next_number(root):
 def record_text(number, when, text, premises, proof, supersedes='', status=''):
     """The record of one decision as text; `supersedes` (D-NNN, comma separated) names the decisions it replaces, the only
     way an accepted record changes state, since a record is never edited (D-335; scripts/lib/model.py reads it). Optional
-    `status` (e.g. `proposed`) marks a record awaiting owner approval without recording it as accepted."""
+    `status` (e.g. `proposed`) is written only when requested so accepted records stay unchanged."""
     head = ['---', f'number: {number}', f'time: {when}', f'premises: {premises}',
             *([f'status: {status}'] if status else []),
             *([f'supersedes: {supersedes}'] if supersedes else []), f'proof: {proof}', '---', '']
@@ -56,8 +56,8 @@ def main(argv=None, root=ROOT):
     parser.add_argument('--premises', default='none')
     parser.add_argument('--proof', required=True, help='a test file that proves the decision')
     parser.add_argument('--supersedes', default='', help='the decisions this one supersedes, D-NNN comma separated (D-335)')
-    parser.add_argument('--status', default='', choices=('', 'proposed', 'recorded'),
-                        help='optional status front matter (`proposed` when awaiting owner decision)')
+    parser.add_argument('--status', default='', choices=('', 'accepted', 'proposed', 'recorded'),
+                        help='optional status front matter (omit for accepted/recorded; use proposed for pending decisions)')
     args = parser.parse_args(argv)
     number = next_number(root)
     when = decision_next.brt()
