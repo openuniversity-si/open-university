@@ -452,6 +452,63 @@ class ProblemSpace(unittest.TestCase):
             self.assertNotEqual(found[ident]['state'], 'proposed', ident)
             self.assertTrue(model.covered(model.metamodel(ROOT), found[ident], model.incoming(found), found), ident)
 
+    def test_val_referencing_canonical_nc_derives_state_and_eliminates_duplicates(self):
+        # D-354: a VAL referencing an NC via `nc` derives state/measured from that NC without duplicating measure/threshold.
+        write(self.root, 'config/validation/VAL-ref.json', {
+            'id': 'VAL-ref', 'statement': 'references NC-goal', 'validates': ['NEED-x'], 'owner': 'manager',
+            'nc': 'NC-goal',
+        })
+        write(self.root, 'config/validation/VAL-dup.json', {
+            'id': 'VAL-dup', 'statement': 'bad duplicate', 'validates': ['NEED-x'], 'owner': 'manager',
+            'nc': 'NC-goal', 'measure': {'kind': 'unwired', 'source': 'x'}, 'comparator': 'gte', 'threshold': 1,
+        })
+        write(self.root, 'config/validation/VAL-missing-measure.json', {
+            'id': 'VAL-missing-measure', 'statement': 'neither nc nor measure', 'validates': ['NEED-x'], 'owner': 'manager',
+        })
+        vals = {item['id']: item for item in model.read_validations(self.root)}
+        self.assertNotIn('problems', vals['VAL-ref'])
+        self.assertTrue(any('must not duplicate' in p for p in vals['VAL-dup'].get('problems', [])))
+        self.assertTrue(any('carries measure and comparator' in p for p in vals['VAL-missing-measure'].get('problems', [])))
+
+        found = self.found(extra={'VAL-ref': vals['VAL-ref']})
+        found['NC-goal']['measured'] = 0
+        model.derive_validations(found, self.root, DAY)
+        # NC-goal is unwired -> defined; inject met state on NC-goal and verify VAL-ref follows it when re-derived via NC
+        found['NC-goal']['body']['measure'] = {'kind': 'code-scan', 'paths': ['nope/**']}
+        found['NC-goal']['body']['comparator'] = 'lte'
+        found['NC-goal']['body']['threshold'] = 0
+        model.derive_validations(found, self.root, DAY)
+        self.assertEqual((found['VAL-ref']['state'], found['VAL-ref']['measured']), ('met', 0))
+        self.assertEqual(problem_space.duplicate_measures(found), [])
+        self.assertEqual(problem_space.problem_errors(found), [])
+
+        found['VAL-dangling'] = {'id': 'VAL-dangling', 'type': 'VAL', 'state': 'defined', 'fingerprint': 'f',
+                                 'links': [], 'body': {'id': 'VAL-dangling', 'nc': 'NC-none'}}
+        self.assertTrue(any('VAL-dangling: references NC-none' in line for line in problem_space.problem_errors(found)))
+
+    def test_live_val_nc_consolidation_has_zero_duplicates_under_d354(self):
+        found = model.objects(ROOT)
+        self.assertEqual(problem_space.duplicate_measures(found), [])
+        expected_pairs = {
+            'VAL-autonomy': 'NC-autonomy',
+            'VAL-aws-200': 'NC-cost',
+            'VAL-deploy-1s': 'NC-deploy-1s',
+            'VAL-escape-under-1': 'NC-quality',
+            'VAL-gate-60s': 'NC-gate-time',
+            'VAL-changeability': 'NC-reflexion',
+            'VAL-knowledge': 'NC-requirements-tested',
+            'VAL-ladder-1': 'NC-throughput',
+        }
+        for val_id, nc_id in expected_pairs.items():
+            val, nc = found[val_id], found[nc_id]
+            self.assertEqual(val['body'].get('nc'), nc_id, val_id)
+            for forbidden in model.VAL_OWN_FIELDS:
+                self.assertNotIn(forbidden, val['body'], (val_id, forbidden))
+            self.assertEqual((val['state'], val.get('measured')), (nc['state'], nc.get('measured')), (val_id, nc_id))
+            val_meas = {link['target'] for link in val['links'] if link['type'] == 'measured-by'}
+            nc_meas = {link['target'] for link in nc['links'] if link['type'] == 'measured-by'}
+            self.assertTrue(val_meas and val_meas == nc_meas, (val_id, val_meas, nc_meas))
+
 
 if __name__ == '__main__':
     unittest.main()

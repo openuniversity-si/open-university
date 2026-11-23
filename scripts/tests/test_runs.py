@@ -67,7 +67,9 @@ class Measure(unittest.TestCase):
         # REQ-deploy-1s counts a code-only merge's landing to live (QUEUE-RELOAD), the snapshot scripts/deploy status
         # records (deploy.record_live), not the builds' seconds (deploy.json): the same reader as the gate's, on the whole
         # sample, its maximum (D-337)
-        body = json.loads((ROOT / 'config/validation/VAL-deploy-1s.json').read_text())
+        val = json.loads((ROOT / 'config/validation/VAL-deploy-1s.json').read_text())
+        self.assertEqual(val['nc'], 'NC-deploy-1s')
+        body = json.loads((ROOT / 'config/problem/NC-deploy-1s.json').read_text())
         self.assertEqual(body['measure']['workflow'], 'deploy-live')
         builds = [{'id': f'm{i}', 'event': 'swap', 'conclusion': 'success', 'started': '2026-11-19T01:00:00Z',
                    'seconds': seconds} for i, seconds in enumerate((26, 17, 9))]
@@ -87,7 +89,8 @@ class Measure(unittest.TestCase):
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-18'), (None, False))
 
     def test_run_distribution_reports_quantiles_and_outlier_count_without_changing_acceptance(self):
-        body = json.loads((ROOT / 'config/validation/VAL-deploy-1s.json').read_text())
+        val = json.loads((ROOT / 'config/validation/VAL-deploy-1s.json').read_text())
+        body = json.loads((ROOT / 'config/problem' / f'{val["nc"]}.json').read_text())
         times = [1, 1, 1, 1, body['threshold'] + 1]
         builds = [{'id': f'm{i}', 'event': 'swap', 'conclusion': 'success', 'started': '2026-11-19T01:00:00Z',
                    'seconds': sec} for i, sec in enumerate(times)]

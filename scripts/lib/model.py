@@ -1334,14 +1334,25 @@ def read_validations(root):
                        root)
 
 
+VAL_OWN_FIELDS = ('measure', 'comparator', 'threshold', 'threshold_key', 'window')
+
+
 def _thresholds(found, root):
     """The measured objects (VAL, NC) with each threshold_key resolved to its registry value (D-342); one with both
-    or neither of threshold and threshold_key, or a key that is no number, is a problem of the object."""
+    or neither of threshold and threshold_key, or a key that is no number, is a problem of the object. A VAL that
+    references a canonical NC (`nc`, D-354) must not duplicate measure, comparator, threshold or window."""
     for item in found:
         body = item.get('body')
         if body is None:
             continue
         try:
+            if item['type'] == 'VAL' and 'nc' in body:
+                duplicated = [field for field in VAL_OWN_FIELDS if field in body]
+                if duplicated:
+                    raise ValueError(f'references {body["nc"]} and must not duplicate {", ".join(duplicated)}')
+                continue
+            if 'measure' not in body or 'comparator' not in body:
+                raise ValueError('carries measure and comparator when it does not reference an nc')
             if ('threshold' in body) == ('threshold_key' in body):
                 raise ValueError('carries threshold or threshold_key, exactly one')
             if 'threshold_key' in body:
@@ -1462,17 +1473,21 @@ def measured(body, found, root, today):
 
 def refresh_runs(found, root):
     """Before a measure (the CLI's, never check's or the gate's): each run-durations snapshot of a workflow GitHub's
-    check runs hold (runs.CHECKS) is rebuilt from them when it is a day old (runs.refresh), so VAL-gate-60s does not go
-    stale with no hand. Offline it keeps the recorded snapshot. The workflows whose snapshot was rewritten."""
+    check runs hold (runs.CHECKS) is rebuilt from them when it is a day old (runs.refresh), so VAL-gate-60s /
+    NC-gate-time does not go stale with no hand. Offline it keeps the recorded snapshot. The workflows whose snapshot
+    was rewritten."""
     import runs
-    done = []
+    done, seen = [], set()
     for item in found.values():
         measure = (item.get('body') or {}).get('measure') or {}
-        if item['type'] != 'VAL' or measure.get('kind') != 'run-durations' or measure.get('workflow') not in runs.CHECKS:
+        workflow = measure.get('workflow')
+        if (item['type'] not in ('VAL', 'NC') or measure.get('kind') != 'run-durations'
+                or workflow not in runs.CHECKS or workflow in seen):
             continue
-        before = (runs.read(root, measure['workflow']) or {}).get('at')
-        if (runs.refresh(root, measure['workflow']) or {}).get('at') != before:
-            done.append(measure['workflow'])
+        seen.add(workflow)
+        before = (runs.read(root, workflow) or {}).get('at')
+        if (runs.refresh(root, workflow) or {}).get('at') != before:
+            done.append(workflow)
     return done
 
 
@@ -1661,14 +1676,39 @@ def run_distribution(root, body, quantiles=None):
     }
 
 
+def _measure_spec(item, found):
+    body = item.get('body') or {}
+    if item['type'] == 'VAL' and 'nc' in body:
+        return (found.get(body['nc']) or {}).get('body') or {}
+    return body
+
+
 def derive_validations(found, root, today=None):
     """Sets each validation's state from its measure: met or not-met when the window holds data, measuring while it
-    is short, defined while no source is wired."""
+    is short, defined while no source is wired. A VAL referencing a canonical NC (`nc`, D-354) derives its state,
+    reading and diagnostic distribution from that NC."""
     today = today or utc_today()
     vals = [item for item in found.values() if item['type'] in ('VAL', 'NC') and 'body' in item]  # NC: D-348
-    # direct measures first, then model-share (which reads VAL states), then all-met composites last
-    for item in sorted(vals, key=lambda item: (item['body']['measure']['kind'] == 'all-met',
-                                               item['body']['measure']['kind'] == 'model-share')):
+
+    def order(item):
+        kind = (_measure_spec(item, found).get('measure') or {}).get('kind')
+        return (kind == 'all-met', kind == 'model-share', item['type'] == 'VAL' and 'nc' in item['body'])
+
+    # direct measures -> VALs referencing direct NCs -> model-share -> VALs referencing model-share NCs -> all-met
+    for item in sorted(vals, key=order):
+        if item['type'] == 'VAL' and 'nc' in item['body']:
+            nc = found.get(item['body']['nc'])
+            if nc and nc['type'] == 'NC' and 'body' in nc:
+                item['state'] = nc['state']
+                item['measured'] = nc.get('measured')
+                if nc['body']['measure']['kind'] == 'run-durations':
+                    dist = run_distribution(root, nc['body'])
+                    if dist is not None:
+                        item['distribution'] = dist
+            else:
+                item['state'] = 'defined'
+                item['measured'] = None
+            continue
         value, enough = measured(item['body'], found, root, today)
         if value is None:
             item['state'] = 'defined'
@@ -2442,13 +2482,16 @@ def read_measures(root):
 
 
 def derive_measures(found):
-    """After the validations are derived: each validation is measured by its measure, which is fresh while the
-    validation holds a value (any state but defined)."""
+    """After the validations are derived: each validation or NC is measured by its measure, which is fresh while it
+    holds a value (any state but defined). A VAL referencing a canonical NC (`nc`, D-354) shares that NC's measure."""
     for item in found.values():
         validation = (item.get('body') or {}).get('validation') if item['type'] == 'MEAS' else None
         if validation in found:
             item['body']['fresh'] = found[validation]['state'] != 'defined'
             found[validation]['links'].append({'type': 'measured-by', 'target': item['id']})
+            for other in found.values():
+                if other['type'] == 'VAL' and (other.get('body') or {}).get('nc') == validation:
+                    other['links'].append({'type': 'measured-by', 'target': item['id']})
 
 
 PHASE_ITEM = re.compile(r'^[0-9]+\. \*\*(F[0-9]+[a-z])\b([^*]*)\*\*(.*)$', re.MULTILINE)  # a Padrão v8 phase plan item

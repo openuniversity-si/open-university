@@ -236,6 +236,12 @@ def problem_errors(found):
                     out.append(f'{item["id"]}: its tactic duplicates sibling {earlier} under {parent_id}')
                 else:
                     by_parent[key] = item['id']
+    for item in sorted(found.values(), key=lambda entry: entry['id']):
+        if item['type'] == 'VAL' and 'body' in item and 'nc' in item['body']:
+            target = item['body']['nc']
+            nc = found.get(target)
+            if not nc or nc.get('type') != 'NC' or 'body' not in nc:
+                out.append(f'{item["id"]}: references {target}, which is no condition of the Goal Tree')
     out += orphans(found)
     return out
 
@@ -345,9 +351,9 @@ def _measure_signature(body):
 def duplicate_measures(found):
     """[(nc_id, val_id)] where an NC and a VAL declare the exact same measure, comparator, threshold and window."""
     vals = [(item['id'], _measure_signature(item['body'])) for item in sorted(found.values(), key=lambda entry: entry['id'])
-            if item['type'] == 'VAL' and 'body' in item]
+            if item['type'] == 'VAL' and 'body' in item and 'measure' in item['body']]
     ncs = [(item['id'], _measure_signature(item['body'])) for item in sorted(found.values(), key=lambda entry: entry['id'])
-           if item['type'] == 'NC' and 'body' in item]
+           if item['type'] == 'NC' and 'body' in item and 'measure' in item['body']]
     return [(nc_id, val_id) for nc_id, nc_sig in ncs for val_id, val_sig in vals if nc_sig == val_sig]
 
 

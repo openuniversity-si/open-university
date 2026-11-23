@@ -7,6 +7,7 @@
     "scripts/lib/runs.py",
     "scripts/lib/model.py",
     "config/validation/**",
+    "config/problem/NC-deploy-1s.json",
     "contracts/model/validation.v1.json"
   ]
 }
