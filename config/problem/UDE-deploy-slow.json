@@ -1,11 +1,11 @@
 {
   "id": "UDE-deploy-slow",
-  "statement": "Code goes live in 1.5 to 2.3 s after a code-only merge.",
+  "statement": "Code-only merges take up to 204.535 s p100 to go live (4 reloads 18.3-204.5 s, 16 swaps 1.2-3.5 s; 0 of 20 runs on the D-345 heard clock) against the 1 s target.",
   "violates": [
     "NC-deploy-1s"
   ],
   "evidence": [
-    "config/validation/runs/deploy-live.json"
+    "config/validation/runs/deploy-live.json (p100 204.535 s across 20 runs, 2026-11-15 to 2026-11-18)"
   ],
   "state": "observed",
   "owner": "manager",

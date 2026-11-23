@@ -1,0 +1,344 @@
+{
+  "id": "AUTONOMY-torre-v1",
+  "state": "active",
+  "decision": "D-353",
+  "owner": "Daniel",
+  "description": "Scope-calibrated autonomy ladder (levels A, B, C) governed by eight external, non-self-reported trust indicators and automatic demotion circuit breakers (D-353). Quality, reliability, audit, canary, escape, flake, PR-split and security criteria enforce 100% pass / 0 failure targets (D-337); indicator 6 work-mix shares are reported diagnostically without numeric thresholds until a measured baseline exists.",
+  "defaults": {
+    "rework_window_prs": 5,
+    "split_window_seconds": 7200,
+    "snapshot_max_age_days": 1,
+    "snapshot_max_merges_behind": 20,
+    "override_normalization_prs": 50,
+    "diagnostic_percentiles": [
+      50,
+      95,
+      99,
+      100
+    ],
+    "max_window_merges": 300,
+    "product_prefixes": [
+      "apps/web/"
+    ],
+    "capacity_prefixes": [
+      "infra/",
+      "services/",
+      ".github/",
+      "scripts/verify-commit",
+      "scripts/deploy",
+      "scripts/gate-",
+      "scripts/lib/verify_commit.py",
+      "scripts/lib/deploy.py",
+      "scripts/lib/gate_",
+      "scripts/lib/runs.py",
+      "scripts/lib/spend.py",
+      "scripts/lib/supply.py"
+    ],
+    "meta_governance_prefixes": [
+      "config/model/",
+      "config/problem/",
+      "config/standard/",
+      "config/requirements/",
+      "config/architecture/",
+      "config/security/",
+      "config/supply/",
+      "config/validation/",
+      "config/intent/",
+      "config/governance/",
+      "contracts/model/",
+      "docs/programs/padrao-dev/"
+    ],
+    "meta_governance_files": [
+      "scripts/model",
+      "scripts/lib/model.py",
+      "scripts/lib/problem_space.py",
+      "scripts/lib/trust_metrics.py"
+    ],
+    "session_authority_markers": [
+      "decided by the session"
+    ],
+    "owner_authority_markers": [
+      "Daniel"
+    ],
+    "high_severities": [
+      "critical",
+      "high"
+    ],
+    "dockerfile_names": [
+      "Dockerfile"
+    ],
+    "expected_ecosystems": [
+      "npm",
+      "pypi",
+      "docker"
+    ]
+  },
+  "indicators": {
+    "main_integrity": {
+      "number": 1,
+      "name": "Main branch integrity",
+      "dimension": "Real stability of main (post-merge full-suite)",
+      "external_source": "GitHub Actions full-suite check runs on main merges (config/validation/verdicts.json)",
+      "sources": {
+        "verdicts": "config/validation/verdicts.json"
+      },
+      "target": {
+        "min_pass_rate": 1.0,
+        "max_merges_while_red": 0
+      },
+      "note": "D-337: 100% green full-suite runs on main and 0 merges accepted while main is red."
+    },
+    "change_failure_rework": {
+      "number": 2,
+      "name": "Change failure and rework rate",
+      "dimension": "External post-merge failure rate (CFR) and 5-PR line rework",
+      "external_source": "Git Revert commits, config/model/errata.json, full-suite green-to-red transitions, non-success deploy-live runs, Fixes-PR trailers, and git 5-PR line rework diff",
+      "sources": {
+        "verdicts": "config/validation/verdicts.json",
+        "errata": "config/model/errata.json",
+        "deploy_live": "config/validation/runs/deploy-live.json"
+      },
+      "target": {
+        "max_escape_rate": 0.0
+      },
+      "note": "D-337: 0% external post-merge escapes; 5-PR line rework rate is reported diagnostically without inventing an arbitrary tolerance."
+    },
+    "first_pass_yield": {
+      "number": 3,
+      "name": "First-pass yield and flake rate",
+      "dimension": "PR check pass rate on first attempt plus VERIFY-ALONE flake visibility",
+      "external_source": "GitHub tower/gate PR check runs (config/validation/slo.json) and external flake log (config/validation/runs/flakes.json)",
+      "sources": {
+        "slo": "config/validation/slo.json",
+        "flakes": "config/validation/runs/flakes.json"
+      },
+      "target": {
+        "min_first_pass_rate": 1.0,
+        "max_flake_rate": 0.0
+      },
+      "note": "D-337: 100% first-pass yield and 0% flake rate; stays unmeasured (never green) while flake telemetry is unwired."
+    },
+    "independent_audit": {
+      "number": 4,
+      "name": "Independent audit agreement",
+      "dimension": "Clean approval by an independent reviewer without author history or write access",
+      "external_source": "Independent audit records in config/governance/audits/ and retro samples declaring a distinct external reviewer",
+      "sources": {
+        "audits_dir": "config/governance/audits",
+        "retro_glob": "docs/programs/*/retro-sample-*.json"
+      },
+      "target": {
+        "min_clean_approval_rate": 1.0,
+        "max_critical_high_findings": 0,
+        "max_gaming_cases": 0
+      },
+      "note": "D-337: 100% clean independent approval, 0 critical/high findings, 0 metric-gaming or self-exemption cases; self-reviewed samples are excluded."
+    },
+    "human_override_rate": {
+      "number": 5,
+      "name": "Owner corrective intervention rate",
+      "dimension": "Corrective overrides, vetoes, reverts or lock violations recorded outside gitignored local paths",
+      "external_source": "Tracked external override log (config/governance/overrides.json); legacy gitignored docs/operations/incidents/ is detected and refused as blind",
+      "sources": {
+        "overrides": "config/governance/overrides.json",
+        "legacy_incidents_dir": "docs/operations/incidents"
+      },
+      "target": {
+        "max_overrides": 0,
+        "max_lock_violations": 0
+      },
+      "note": "D-337: 0 corrective owner overrides and 0 lock violations; reports unmeasured when no tracked/external source exists."
+    },
+    "signal_to_overhead": {
+      "number": 6,
+      "name": "Value-to-overhead work composition",
+      "dimension": "Product and real bottleneck delivery share vs. metamodel/governance maintenance and PR splitting (C8)",
+      "external_source": "Git first-parent merge diff classification on main plus consecutive same-scope PR split detection",
+      "sources": {
+        "git_base": "HEAD"
+      },
+      "target": {
+        "max_sequential_same_scope_splits": 0
+      },
+      "note": "C8 (D-353): 0 sequential same-scope splits (D-337). Fixed work-mix percentages (value_share >= 0.70, meta_governance_share <= 0.15) were rejected; work-mix shares are reported diagnostically without numeric thresholds until a measured baseline exists, and adopting any future threshold requires a new decision."
+    },
+    "production_health_and_cost": {
+      "number": 7,
+      "name": "Production deploy health, canary and gross AWS cost",
+      "dimension": "End-to-end deploy latency (p100 + diagnostic p50/p95/p99), synthetic canary, and gross AWS spend excluding credits",
+      "external_source": "config/validation/runs/deploy-live.json, config/validation/runs/canary.json, config/validation/spend/aws.json",
+      "sources": {
+        "deploy_live": "config/validation/runs/deploy-live.json",
+        "canary": "config/validation/runs/canary.json",
+        "aws_spend": "config/validation/spend/aws.json"
+      },
+      "target": {
+        "max_deploy_p100_s": 1.0,
+        "min_canary_pass_rate": 1.0,
+        "require_gross_aws_spend": true,
+        "max_aws_monthly_usd": 200.0
+      },
+      "note": "D-337: p100 acceptance <=1s (REQ-deploy-1s) with p50/p95/p99 and swap/reload breakdown reported diagnostically; canary 100% green; gross AWS spend verified with credits excluded (D-303)."
+    },
+    "security_posture": {
+      "number": 8,
+      "name": "Security posture without self-exemption",
+      "dimension": "Zero open critical/high vulnerabilities, closed THREAT findings, zero session-authorized TAIL exemptions, clean Dockerfiles and multi-ecosystem audit",
+      "external_source": "config/supply/advisories.json, config/security/{vulns,threats}, config/standard/tailoring, docs/domain/decisions, tracked Dockerfiles",
+      "sources": {
+        "advisories": "config/supply/advisories.json",
+        "vulns_dir": "config/security/vulns",
+        "threats_dir": "config/security/threats",
+        "tailoring_dir": "config/standard/tailoring",
+        "decisions_dir": "docs/domain/decisions"
+      },
+      "target": {
+        "max_open_critical_high_advisories": 0,
+        "max_open_vulns": 0,
+        "max_open_threat_findings": 0,
+        "max_unapproved_tailorings": 0,
+        "max_dockerfile_issues": 0,
+        "require_multi_ecosystem_audit": true
+      },
+      "note": "D-337 and D-360: 0 open critical/high advisories, 0 open vulns/threat findings, 0 session-authorized, self-approved, or proposed TAIL exemptions (active TAIL exemptions require independent approval), 0 unpinned or curl|sh Dockerfiles."
+    }
+  },
+  "levels": [
+    {
+      "level": "A",
+      "name": "Low-risk autonomous execution",
+      "feng_role": "Level 4 Approver -> Level 5 Observer (low-risk scope)",
+      "scope": "Documentation, tests, and internal refactors that do not alter contracts, gate tooling, security posture, or production infrastructure",
+      "prerequisite_level": null,
+      "promotion_days": 7,
+      "required_indicators": [
+        "main_integrity",
+        "change_failure_rework",
+        "first_pass_yield",
+        "security_posture"
+      ],
+      "excluded_paths": [
+        "docs/SEMENTE.md",
+        ".github/**",
+        "infra/**",
+        "contracts/**",
+        "config/security/**",
+        "config/standard/tailoring/**",
+        "config/governance/**"
+      ]
+    },
+    {
+      "level": "B",
+      "name": "Product and delivery flow autonomy",
+      "feng_role": "Level 4 Approver -> Level 5 Observer (product and flow under owner-validated goals)",
+      "scope": "Product delivery in apps/web and gate/deploy flow optimization inside owner-validated objectives, with live canary and automatic rollback",
+      "prerequisite_level": "A",
+      "promotion_days": 14,
+      "required_indicators": [
+        "main_integrity",
+        "change_failure_rework",
+        "first_pass_yield",
+        "independent_audit",
+        "human_override_rate",
+        "signal_to_overhead",
+        "production_health_and_cost",
+        "security_posture"
+      ],
+      "excluded_paths": [
+        "docs/SEMENTE.md",
+        ".github/**",
+        "config/standard/tailoring/**",
+        "config/governance/**"
+      ]
+    },
+    {
+      "level": "C",
+      "name": "Autonomous backlog and unit generation",
+      "feng_role": "Level 5 Observer (tactical decomposition below owner-validated program objectives)",
+      "scope": "Autonomous generation and dispatch of backlog units below owner-validated program objectives after sustained Level B performance",
+      "prerequisite_level": "B",
+      "promotion_days": 30,
+      "required_indicators": [
+        "main_integrity",
+        "change_failure_rework",
+        "first_pass_yield",
+        "independent_audit",
+        "human_override_rate",
+        "signal_to_overhead",
+        "production_health_and_cost",
+        "security_posture"
+      ],
+      "excluded_paths": [
+        "docs/SEMENTE.md",
+        ".github/**",
+        "config/standard/tailoring/**",
+        "config/governance/**"
+      ],
+      "extra_guards": {
+        "max_overrides_per_50_prs": 0,
+        "max_gaming_cases": 0,
+        "max_sequential_same_scope_splits": 0
+      }
+    }
+  ],
+  "circuit_breakers": [
+    {
+      "id": "CB-main-integrity",
+      "indicator": "main_integrity",
+      "action": "demote_to_none",
+      "reason": "A broken main branch (full-suite failure or merges while red) immediately revokes autonomous execution until main is green again."
+    },
+    {
+      "id": "CB-change-failure",
+      "indicator": "change_failure_rework",
+      "action": "demote_to_none",
+      "reason": "A post-merge escape, revert, or deploy failure immediately revokes autonomous execution until root cause is fixed."
+    },
+    {
+      "id": "CB-security-posture",
+      "indicator": "security_posture",
+      "action": "demote_to_none",
+      "reason": "Any open critical/high vulnerability, open threat finding, Dockerfile supply-chain defect, or unapproved TAIL exemption immediately revokes autonomous execution."
+    }
+  ],
+  "always_owner_locked": [
+    {
+      "id": "LOCK-intention",
+      "domain": "Intention, primary metrics, objectives and limits (docs/SEMENTE.md, config/intent/INT-*.json)",
+      "reason": "SEMENTE section 6 intention lock and D-353: only Daniel validates changes to intention, objectives and limits."
+    },
+    {
+      "id": "LOCK-money",
+      "domain": "Money, spending, purchases, billing and budget above approved ceiling",
+      "reason": "D-260, D-360 and D-353: money and spend above ceiling stay locked to Daniel."
+    },
+    {
+      "id": "LOCK-people",
+      "domain": "Other people (messages, commitments or actions toward third parties)",
+      "reason": "D-260, D-360 and D-353: actions involving other people stay locked to Daniel."
+    }
+  ],
+  "independent_approval_locked": [
+    {
+      "id": "IND-stop-and-trust-guards",
+      "domain": "Stop criteria, conformance definitions and trust/autonomy guard thresholds",
+      "reason": "D-353 and D-360: decided by the Torre with independent approval; an autonomous session never edits its own passing criteria."
+    },
+    {
+      "id": "IND-security-exemptions",
+      "domain": "Security exemptions (config/standard/tailoring/TAIL-*.json) and residual risk acceptance",
+      "reason": "D-353 and D-360: decided by the Torre with independent approval; never self-authorized by the author session."
+    },
+    {
+      "id": "IND-github-controls",
+      "domain": "GitHub permissions, workflows (.github/workflows/**) and branch rulesets (.github/rulesets/**)",
+      "reason": "D-353, D-360 and D-087: decided by the Torre with independent approval; sessions never self-install workflows or weaken check bindings."
+    },
+    {
+      "id": "IND-irreversible-production-no-cost",
+      "domain": "Irreversible production changes without cost",
+      "reason": "D-353, D-360 and D-054: decided by the Torre with independent approval (changes involving money remain in LOCK-money)."
+    }
+  ],
+  "history": []
+}

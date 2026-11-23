@@ -49,6 +49,12 @@ class Padrao(unittest.TestCase):
         self.assertIn('Never hold more than one green step unpushed', texts['save-often'])
         self.assertIn('Ending a turn with "this is a decision for the owner" is a failure.', texts['decide-then-report'])
 
+    def test_catalog_version_is_active_and_missing_version_raises(self):
+        self.assertEqual(config.get('coordinator.padrao_version'), 'v9')
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(coordinator_launch.LaunchError):
+                coordinator_launch.padrao(Path(tmp))
+
 
 class Brief(unittest.TestCase):
     def test_brief_has_unit_padrao_lessons_and_defects(self):

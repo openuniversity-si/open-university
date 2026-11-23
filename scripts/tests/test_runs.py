@@ -52,11 +52,24 @@ class Measure(unittest.TestCase):
         self.body['measure']['min_runs'] = len('abcd')
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-18')[1], False)
 
+    def test_a_fresh_at_stamp_over_old_runs_is_still_stale(self):
+        old = [run(i, '2026-11-01T10:00:00Z', '2026-11-01T10:00:35Z') for i in range(len('abc'))]
+        (self.root / runs.FOLDER / 'tower-gate.json').write_text(
+            json.dumps(runs.snapshot('tower-gate', old, now='2026-11-19T12:00:00Z')))
+        self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-19')[1], False,
+                         'freshness judges the newest run date too, not only the query timestamp')
+        mixed = old[:-1] + [run(len('abc'), '2026-11-18T10:00:00Z', '2026-11-18T10:00:35Z')]
+        (self.root / runs.FOLDER / 'tower-gate.json').write_text(
+            json.dumps(runs.snapshot('tower-gate', mixed, now='2026-11-19T12:00:00Z')))
+        self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-19')[1], True)
+
     def test_val_deploy_1s_reads_the_slowest_landing_to_live_of_the_snapshot(self):
         # REQ-deploy-1s counts a code-only merge's landing to live (QUEUE-RELOAD), the snapshot scripts/deploy status
         # records (deploy.record_live), not the builds' seconds (deploy.json): the same reader as the gate's, on the whole
         # sample, its maximum (D-337)
-        body = json.loads((ROOT / 'config/validation/VAL-deploy-1s.json').read_text())
+        val = json.loads((ROOT / 'config/validation/VAL-deploy-1s.json').read_text())
+        self.assertEqual(val['nc'], 'NC-deploy-1s')
+        body = json.loads((ROOT / 'config/problem/NC-deploy-1s.json').read_text())
         self.assertEqual(body['measure']['workflow'], 'deploy-live')
         builds = [{'id': f'm{i}', 'event': 'swap', 'conclusion': 'success', 'started': '2026-11-19T01:00:00Z',
                    'seconds': seconds} for i, seconds in enumerate((26, 17, 9))]
@@ -74,6 +87,22 @@ class Measure(unittest.TestCase):
     def test_no_snapshot_is_no_source(self):
         self.body['measure']['workflow'] = 'other'
         self.assertEqual(model.measured(self.body, {}, self.root, '2026-11-18'), (None, False))
+
+    def test_run_distribution_reports_quantiles_and_outlier_count_without_changing_acceptance(self):
+        val = json.loads((ROOT / 'config/validation/VAL-deploy-1s.json').read_text())
+        body = json.loads((ROOT / 'config/problem' / f'{val["nc"]}.json').read_text())
+        times = [1, 1, 1, 1, body['threshold'] + 1]
+        builds = [{'id': f'm{i}', 'event': 'swap', 'conclusion': 'success', 'started': '2026-11-19T01:00:00Z',
+                   'seconds': sec} for i, sec in enumerate(times)]
+        (self.root / runs.FOLDER / 'deploy-live.json').write_text(json.dumps({
+            'workflow': 'deploy-live', 'at': '2026-11-19T02:00:00Z', 'runs': builds}))
+        dist = model.run_distribution(self.root, body)
+        self.assertEqual(dist['runs'], len(times))
+        self.assertEqual(dist['outliers'], 1)
+        self.assertEqual(dist['accepted_value'], max(times))
+        self.assertEqual(dist['quantiles'][f'p{min(model.report_quantiles(ROOT))}'], min(times))
+        self.assertEqual(dist['quantiles'][f'p{max(model.report_quantiles(ROOT))}'], max(times))
+        self.assertEqual(model.measured(body, {}, self.root, '2026-11-19')[0], max(times))
 
 
 def check(id, name, started, completed, conclusion='success'):
@@ -111,19 +140,66 @@ class Refresh(unittest.TestCase):
         self.assertEqual([runs.from_checks('pull_request', each, 'tower/gate', 'gate part') for each in ([], cancelled)],
                          [None, None])
 
-    def test_the_runs_are_read_on_the_merge_commit_and_the_pull_requests_head(self):
-        log = type('Done', (), {'returncode': 0, 'stdout': 'm1 p1 h1\nm2 p2 h2\n'})()
+    def test_the_runs_include_failed_pr_pushes_and_merge_group_runs_without_survival_bias(self):
+        # M3: fetch reads pushed PR commits from timelines (capturing failures before merge) plus merge_group commits
+        log = type('Done', (), {'returncode': 0, 'stdout': 'm1 p1 h1\n'})()
         paths = []
+        timelines = {
+            1: [{'event': 'committed', 'sha': 'fail1', 'committer': {'date': '2026-11-19T01:00:00Z'}},
+                {'event': 'committed', 'sha': 'h1', 'committer': {'date': '2026-11-19T02:00:00Z'}}],
+        }
+        checks = {
+            'fail1': [check(1, 'tower/gate', '2026-11-19T01:00:10Z', '2026-11-19T01:00:50Z', 'failure')],
+            'h1': [check(len('ab'), 'tower/gate', '2026-11-19T02:00:10Z', '2026-11-19T02:00:50Z', 'success')],
+            'm1': [check(len('abc'), 'tower/gate', '2026-11-19T03:00:10Z', '2026-11-19T03:00:50Z', 'success')],
+        }
 
         def api(path):
             paths.append(path)
-            return {'check_runs': [check(len(paths), 'tower/gate', f'2026-11-19T0{len(paths)}:00:00Z',
-                                         f'2026-11-19T0{len(paths)}:00:40Z')]}
+            if '/pulls?state=all' in path:
+                return [{'number': 1}]
+            if '/timeline' in path:
+                return timelines[1]
+            sha = path.split('/commits/')[1].split('/')[0]
+            return {'check_runs': checks[sha]}
+
         found = runs.fetch(self.root, 'tower-gate', repo='o/r', api=api, run=lambda *a, **k: log)
-        self.assertEqual(paths, [f'repos/o/r/commits/{sha}/check-runs?per_page=100' for sha in ('m1', 'h1', 'm2', 'h2')])
-        self.assertEqual([(item['event'], item['seconds']) for item in found],
-                         [('pull_request', 40), ('merge_group', 40), ('pull_request', 40), ('merge_group', 40)])
+        elapsed = int((runs.stamp('2026-11-19T01:00:50Z') - runs.stamp('2026-11-19T01:00:10Z')).total_seconds())
+        self.assertEqual([(item['event'], item['conclusion'], item['seconds']) for item in found],
+                         [('merge_group', 'success', elapsed),
+                          ('pull_request', 'success', elapsed),
+                          ('pull_request', 'failure', elapsed)])
         self.assertFalse(any('/actions/' in path for path in paths))
+
+    def test_snapshots_refresh_when_trailing_main_by_max_merges_even_under_one_day(self):
+        # M3: high merge pace outdates snapshots well before REFRESH_DAYS passes
+        now = runs.stamp('2026-11-17T14:00:00Z')  # only two hours after the setUp snapshot at 12:00Z
+        newer = str(int(runs.stamp('2026-11-17T13:00:00Z').timestamp()))
+        older = str(int(runs.stamp('2026-11-17T11:00:00Z').timestamp()))
+        two_merges = type('Done', (), {'returncode': 0, 'stdout': f'{newer}\n{newer}\n{older}\n'})()
+        one_merge = type('Done', (), {'returncode': 0, 'stdout': f'{newer}\n{older}\n'})()
+        limit = len('ab')
+        self.assertEqual(runs.merges_since(self.root, '2026-11-17T12:00:00Z', run=lambda *a, **k: two_merges), limit)
+        # Under the merge threshold: kept
+        runs.refresh(self.root, 'tower-gate', now=now, reader=self.reader([]), max_merges=limit,
+                     run=lambda *a, **k: one_merge)
+        self.assertEqual(self.asked, [])
+        # At the merge threshold: rebuilt even though age < 1 day
+        fresh = [{'id': 1, 'event': 'pull_request', 'conclusion': 'failure', 'started': '2026-11-17T13:30:00Z',
+                  'seconds': 1}]
+        made = runs.refresh(self.root, 'tower-gate', now=now, reader=self.reader(fresh), max_merges=limit,
+                            run=lambda *a, **k: two_merges)
+        self.assertEqual((self.asked, made['at']), (['tower-gate'], '2026-11-17T14:00:00Z'))
+        # Same merge-count staleness applies to slo_refresh and verdicts_refresh
+        slo_asked, verd_asked = [], []
+        runs.slo_write(self.root, {'merges': [], 'queue': [], 'verdicts': []}, runs.stamp('2026-11-17T12:00:00Z'))
+        runs.slo_refresh(self.root, now=now, reader=lambda: slo_asked.append(1) or {'merges': [], 'queue': [], 'verdicts': []},
+                         max_merges=limit, run=lambda *a, **k: two_merges)
+        runs.verdicts_write(self.root, [], runs.stamp('2026-11-17T12:00:00Z'))
+        runs.verdicts_refresh(self.root, now=now, reader=lambda root: verd_asked.append(1) or [{'sha': 'a', 'id': 1,
+                              'conclusion': 'success', 'completed': '2026-11-17T13:30:00Z'}],
+                              max_merges=limit, run=lambda *a, **k: two_merges)
+        self.assertEqual((slo_asked, verd_asked), ([1], [1]))
 
     def test_an_api_that_refuses_or_an_offline_session_reads_nothing(self):
         log = type('Done', (), {'returncode': 0, 'stdout': 'm1 p1 h1\n'})()
@@ -231,10 +307,10 @@ class Slo(unittest.TestCase):
         registry = {'slo.merged_prs_per_hour_min': {'default': 4}, 'slo.min_samples': {'default': 20}}
         values = model.slo_values(self.root, registry, today='2026-11-20')
         self.assertEqual({name: (item['value'], item['state'], item['fresh']) for name, item in values.items()}, {
-            'slo.gate_tier1_p95_s': (24, 'breached', True),  # the maximum (D-337); the limit is the smaller of 10 and its target
             'slo.train_queue_time_p95_s': (1200, 'breached', True),
             'slo.merged_prs_per_hour_min': (5, 'ok', True),  # five merges in every hour, ends included
             'slo.gate_failure_rate_max_percent': (25.0, 'breached', True)})
+        self.assertNotIn('slo.gate_tier1_p95_s', values)
         stale = model.slo_values(self.root, registry, today='2026-11-25')
         self.assertFalse(any(item['fresh'] for item in stale.values()))
         self.assertEqual(model.slo_values(Path(tempfile.mkdtemp(dir=self.root)), registry), {})

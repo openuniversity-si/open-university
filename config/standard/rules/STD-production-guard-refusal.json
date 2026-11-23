@@ -13,5 +13,5 @@
   "basis": [
     "D-054"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-054: production is frozen and no agent session deploys, promotes, rolls back or migrates it; the refusal's own message cites D-054."
+  "note": "Basis: D-054: production is frozen and no agent session deploys, promotes, rolls back or migrates it; the refusal's own message cites D-054."
 }

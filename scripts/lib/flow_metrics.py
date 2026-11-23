@@ -201,6 +201,173 @@ def pr_rate(merged, now, count):
             'next': LADDER_STEP_1 * LADDER_FACTOR ** step}
 
 
+def render_github_constraint(c):
+    """Lines of `github_constraint`: the live GitHub constraint, next bottleneck, owning ST node and stage readings."""
+    per_pr = f"{c['per_pr_s']:.0f} s per merged PR" if c['per_pr_s'] else 'no merge'
+    owner = f" [{c['st_node']}]" if c.get('st_node') else ''
+    next_part = f"; next: {c['next_constraint']}" if c.get('next_constraint') else ''
+    lines = [(f"constraint (github, last {c['hours']} h): {c['constraint']}{owner}{next_part}; "
+              f"{c['merged']} merged ({c['prs_per_hour']:.1f}/h, {per_pr}; last 24 h: {c['merged_24h']})")]
+    gate = c.get('gate') or {}
+    if gate.get('samples') or gate.get('runs'):
+        rate = (f"{gate['failure_rate_pct']:.1f}% red ({gate['failed']}/{gate['samples']})"
+                if gate.get('failure_rate_pct') is not None else 'failure rate unread')
+        dur = (f"p50 {gate['p50_s']:g} s, p100 {gate['p100_s']:g} s"
+               if gate.get('p100_s') is not None else 'duration unread')
+        target = f" (target <= {gate['target_s']:g} s)" if gate.get('target_s') is not None else ''
+        lines.append(f"tower/gate: {rate}; {dur}{target}")
+    queue = c.get('queue') or {}
+    if queue.get('samples'):
+        lines.append(f"merge queue: p50 {queue['p50_s']:g} s, p100 {queue['p100_s']:g} s ({queue['samples']} samples)")
+    deploy = c.get('deploy') or {}
+    if deploy.get('runs'):
+        target = f" (target <= {deploy['target_s']:g} s)" if deploy.get('target_s') is not None else ''
+        lines.append(f"deploy-live: p50 {deploy['p50_s']:g} s, p100 {deploy['p100_s']:g} s{target} "
+                     f"({deploy['runs']} runs, {deploy['reloads']} reloads)")
+    return lines
+
+
+def _read_json(path):
+    try:
+        return json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def _problem_targets(root):
+    """Read NC thresholds and level-3/2 ST owners from config/problem/, returning ({nc: threshold}, {nc: st_id})."""
+    folder = Path(root) / 'config' / 'problem'
+    targets, st_by_nc, st_level = {}, {}, {}
+    if not folder.is_dir():
+        return targets, st_by_nc
+    for path in sorted(folder.glob('NC-*.json')):
+        body = _read_json(path)
+        if isinstance(body, dict) and isinstance(body.get('threshold'), (int, float)):
+            targets[body['id']] = body['threshold']
+    for path in sorted(folder.glob('ST-*.json')):
+        body = _read_json(path)
+        if isinstance(body, dict) and body.get('strategy') and isinstance(body.get('level'), int):
+            strategy = body['strategy']
+            if body['level'] >= st_level.get(strategy, 0):
+                st_by_nc[strategy] = body['id']
+                st_level[strategy] = body['level']
+    return targets, st_by_nc
+
+
+def github_constraint(root, merged, now, hours, queue_limit_s=None):
+    """The current constraint on the live GitHub flow, read from git merges, GitHub telemetry snapshots
+    (config/validation/slo.json, config/validation/runs/{tower-gate,deploy-live}.json) and the Goal Tree / S&T targets
+    in config/problem/. Replaces the dormant Origin-era box lock-log meter (box_meter.constraint)."""
+    root = Path(root)
+    window = hours * HOUR_S
+    landed = [merged_at for _landed, merged_at, _lane, _facts in merged if now - window <= merged_at <= now]
+    landed_24h = [merged_at for _landed, merged_at, _lane, _facts in merged if now - DAY_S <= merged_at <= now]
+    prs_per_hour = len(landed) / hours if hours else 0.0
+
+    slo_snap = _read_json(root / 'config' / 'validation' / 'slo.json')
+    gate_snap = _read_json(root / 'config' / 'validation' / 'runs' / 'tower-gate.json')
+    deploy_snap = _read_json(root / 'config' / 'validation' / 'runs' / 'deploy-live.json')
+    targets, st_by_nc = _problem_targets(root)
+
+    verdicts = (slo_snap or {}).get('verdicts') or []
+    failed = sum(1 for row in verdicts if not row.get('passed'))
+    failure_rate = (failed / len(verdicts)) if verdicts else None
+    failure_rate_pct = float(f'{failure_rate:%}'[:-1]) if failure_rate is not None else None
+
+    gate_rows = (gate_snap or {}).get('runs') or verdicts
+    gate_secs = [row['seconds'] for row in gate_rows if isinstance(row.get('seconds'), (int, float))]
+    gate_target = targets.get('NC-gate-time')
+    gate_fail_target = targets.get('NC-gate-first-pass')
+
+    queue_rows = (slo_snap or {}).get('queue') or []
+    queue_secs = [row['seconds'] for row in queue_rows if isinstance(row.get('seconds'), (int, float))]
+
+    deploy_rows = (deploy_snap or {}).get('runs') or []
+    deploy_secs = [row['seconds'] for row in deploy_rows if isinstance(row.get('seconds'), (int, float))]
+    deploy_reloads = sum(1 for row in deploy_rows if row.get('event') == 'reload')
+    deploy_target = targets.get('NC-deploy-1s')
+
+    day_target = targets.get('NC-throughput')
+    hour_target = day_target / (DAY_S / HOUR_S) if day_target is not None else None
+
+    gate = {
+        'samples': len(verdicts), 'failed': failed,
+        'failure_rate_pct': failure_rate_pct,
+        'max_failure_rate_pct': gate_fail_target,
+        'runs': len(gate_secs),
+        'p50_s': statistics.median(gate_secs) if gate_secs else None,
+        'p100_s': max(gate_secs) if gate_secs else None,
+        'target_s': gate_target,
+        'over_target': (sum(1 for sec in gate_secs if sec > gate_target)
+                        if gate_secs and gate_target is not None else None),
+        'snapshot_at': (gate_snap or slo_snap or {}).get('at'),
+    }
+    queue = {
+        'samples': len(queue_secs),
+        'p50_s': statistics.median(queue_secs) if queue_secs else None,
+        'p100_s': max(queue_secs) if queue_secs else None,
+        'limit_s': queue_limit_s,
+        'snapshot_at': (slo_snap or {}).get('at'),
+    }
+    deploy = {
+        'runs': len(deploy_secs), 'reloads': deploy_reloads,
+        'p50_s': statistics.median(deploy_secs) if deploy_secs else None,
+        'p100_s': max(deploy_secs) if deploy_secs else None,
+        'target_s': deploy_target,
+        'snapshot_at': (deploy_snap or {}).get('at'),
+    }
+
+    bottlenecks = []
+    if failure_rate_pct is not None and gate_fail_target is not None and failure_rate_pct > gate_fail_target:
+        bottlenecks.append({
+            'stage': 'tower/gate reliability (first-pass failure rate)', 'nc': 'NC-gate-first-pass',
+            'st': st_by_nc.get('NC-gate-first-pass'), 'measured': failure_rate_pct,
+            'target': gate_fail_target,
+            'detail': f'{failure_rate_pct:.1f}% red ({failed}/{len(verdicts)}) > {gate_fail_target:g}%',
+        })
+    if queue['p100_s'] is not None and queue_limit_s is not None and queue['p100_s'] > queue_limit_s:
+        bottlenecks.append({
+            'stage': 'github merge queue (wait time)', 'nc': 'NC-throughput',
+            'st': st_by_nc.get('NC-throughput'), 'measured': queue['p100_s'], 'target': queue_limit_s,
+            'detail': f'p100 {queue["p100_s"]:g} s > {queue_limit_s:g} s',
+        })
+    if gate['p100_s'] is not None and gate_target is not None and gate['p100_s'] > gate_target:
+        bottlenecks.append({
+            'stage': 'tower/gate latency (duration)', 'nc': 'NC-gate-time',
+            'st': st_by_nc.get('NC-gate-time') or st_by_nc.get('NC-gate-first-pass'),
+            'measured': gate['p100_s'], 'target': gate_target,
+            'detail': f'p100 {gate["p100_s"]:g} s > {gate_target:g} s',
+        })
+    if deploy['p100_s'] is not None and deploy_target is not None and deploy['p100_s'] > deploy_target:
+        bottlenecks.append({
+            'stage': 'deploy latency (merge-to-live)', 'nc': 'NC-deploy-1s',
+            'st': st_by_nc.get('NC-deploy-1s'), 'measured': deploy['p100_s'], 'target': deploy_target,
+            'detail': f'p100 {deploy["p100_s"]:g} s > {deploy_target:g} s',
+        })
+    if hour_target is not None and prs_per_hour < hour_target:
+        bottlenecks.append({
+            'stage': 'pr arrival / authoring throughput (upstream of merge queue)', 'nc': 'NC-throughput',
+            'st': st_by_nc.get('NC-throughput'), 'measured': prs_per_hour,
+            'target': hour_target,
+            'detail': f'{prs_per_hour:.1f} PR/h < {hour_target:.1f} PR/h',
+        })
+
+    if slo_snap is None and gate_snap is None and deploy_snap is None:
+        primary, st_node, next_constraint = 'unmeasured (no GitHub telemetry snapshots)', None, None
+    elif bottlenecks:
+        primary, st_node = bottlenecks[0]['stage'], bottlenecks[0]['st']
+        next_constraint = bottlenecks[1]['stage'] if len(bottlenecks) > 1 else None
+    else:
+        primary, st_node, next_constraint = 'none (all measured GitHub stages within target)', None, None
+
+    return {
+        'source': 'github', 'hours': hours, 'merged': len(landed), 'merged_24h': len(landed_24h),
+        'per_pr_s': window / len(landed) if landed else None, 'prs_per_hour': prs_per_hour,
+        'gate': gate, 'queue': queue, 'deploy': deploy, 'bottlenecks': bottlenecks,
+        'constraint': primary, 'next_constraint': next_constraint, 'st_node': st_node,
+    }
+
+
 def render_batch_reading(reading):
     """The `batch:` line of --constraint (F64): ready or not and why, p, and the projected ceiling with k."""
     busy = f"box busy {reading['busy']:.0%} {'>=' if reading['busy'] >= BOX_BOUND else '<'} {BOX_BOUND:.0%}"
@@ -521,20 +688,23 @@ def render(data):
         lines.append(f"{row['hour']}  {row['prs']:>3} PRs  {row['per_minute']:.3f} PR/min")
     if 'constraint' in data:
         c = data['constraint']
-        per_pr = f"{c['per_pr_s']:.0f} s per merged PR" if c['per_pr_s'] else 'no merge'
-        held = f"{c['held_per_delivery_s']:.0f} s held per delivery" if c['held_per_delivery_s'] else 'no delivery logged'
-        suites = f"{c['held_per_suite_s']:.0f} s held per suite" if c.get('held_per_suite_s') else 'no suite logged'
-        lines.append(f"constraint (last {c['hours']} h): {c['constraint']}; {c['merged']} merged, {per_pr}; box busy "
-                     f"{c['busy']:.0%} ({c['deliveries']} deliveries, {held}; {c.get('suites', 0)} suites, {suites}; "
-                     f"{c['waits']} waited, longest "
-                     f"{c['wait_max_s']:.0f} s); {c['queue_rows']} rows in the queue")
-        if c.get('cpu'):
-            lines.append(render_cpu(c['cpu']))
-        if c.get('slots'):
-            lines.append(f"--changed suites off the box: {c['slots']} slot holds, {c['held_per_slot_s']:.0f} s held per "
-                         f"suite, {c['slot_waits']} waited, longest {c['slot_wait_max_s']:.0f} s")
-        if render_batches(c.get('batches')):
-            lines.append(render_batches(c['batches']))
+        if c.get('source') == 'github':
+            lines.extend(render_github_constraint(c))
+        else:
+            per_pr = f"{c['per_pr_s']:.0f} s per merged PR" if c['per_pr_s'] else 'no merge'
+            held = f"{c['held_per_delivery_s']:.0f} s held per delivery" if c['held_per_delivery_s'] else 'no delivery logged'
+            suites = f"{c['held_per_suite_s']:.0f} s held per suite" if c.get('held_per_suite_s') else 'no suite logged'
+            lines.append(f"constraint (last {c['hours']} h): {c['constraint']}; {c['merged']} merged, {per_pr}; box busy "
+                         f"{c['busy']:.0%} ({c['deliveries']} deliveries, {held}; {c.get('suites', 0)} suites, {suites}; "
+                         f"{c['waits']} waited, longest "
+                         f"{c['wait_max_s']:.0f} s); {c['queue_rows']} rows in the queue")
+            if c.get('cpu'):
+                lines.append(render_cpu(c['cpu']))
+            if c.get('slots'):
+                lines.append(f"--changed suites off the box: {c['slots']} slot holds, {c['held_per_slot_s']:.0f} s held per "
+                             f"suite, {c['slot_waits']} waited, longest {c['slot_wait_max_s']:.0f} s")
+            if render_batches(c.get('batches')):
+                lines.append(render_batches(c['batches']))
     if 'batch_reading' in data:
         lines.append(render_batch_reading(data['batch_reading']))
     if 'rolling' in data:
@@ -577,9 +747,10 @@ def main(argv=None):
     parser.add_argument('--gate-runs', type=int, metavar='N', help='window of --guards gate runs: the last N merged PRs '
                         f'(default: --prs N, else {GATE_RUNS_WINDOW})')
     parser.add_argument('--constraint', type=float, nargs='?', const=1.0, metavar='HOURS',
-                        help='the current constraint over the last HOURS (default 1): box busy share from the lock log, '
-                             'merges, waits and the queue rows (F38); the batch reading, ready when busy >= 0.70 and '
-                             'p <= 0.25, and its projected ceiling with k (F64, D-297)')
+                        help='the current constraint over the last HOURS (default 1), read from GitHub snapshots '
+                             '(slo.json, runs/*.json) and config/problem/; pass --box for the dormant Origin lock log')
+    parser.add_argument('--box', action='store_true',
+                        help='with --constraint, read the dormant Origin-era box lock log instead of GitHub snapshots')
     parser.add_argument('--quota', type=int, metavar='N', help='weighted tokens, wall time and tool calls per merged PR over the '
                         f'last N merged lanes of the quota ledger (flow.lanes_ledger; --guards reads {QUOTA_WINDOW}) (F59)')
     parser.add_argument('--rolling', action='store_true', help='counted commits landed in the last 24 hours (a lane-day)')
@@ -601,9 +772,12 @@ def main(argv=None):
     if args.closed_hours:
         data['closed_hours'] = closed_hours(merged, time.time(), args.closed_hours, args.tz)
     if args.constraint:
-        data['constraint'] = constraint(merged, time.time(), args.constraint, config.get('delivery.gate_lock_log'),
-                                        ROOT / 'docs' / 'programs' / 'vazao' / 'fila.md')
-        data['batch_reading'] = measured_batch_reading(data['constraint'], base=args.base, since=args.since, zone=args.tz)
+        if args.box:
+            data['constraint'] = constraint(merged, time.time(), args.constraint, config.get('delivery.gate_lock_log'),
+                                            ROOT / 'docs' / 'programs' / 'vazao' / 'fila.md')
+            data['batch_reading'] = measured_batch_reading(data['constraint'], base=args.base, since=args.since, zone=args.tz)
+        else:
+            data['constraint'] = github_constraint(ROOT, merged, time.time(), args.constraint)
     if args.rolling:
         data['rolling'] = rolling(merged, time.time(), DAY_S)
     if args.cycles:

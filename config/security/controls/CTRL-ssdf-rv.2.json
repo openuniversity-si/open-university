@@ -8,5 +8,6 @@
   "implemented_by": [
     "TEST:scripts/tests/supply.test.sh",
     "TEST:scripts/tests/security.test.sh"
-  ]
+  ],
+  "coverage": "full"
 }

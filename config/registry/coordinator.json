@@ -221,9 +221,9 @@
     },
     "coordinator.padrao_version": {
       "type": "string",
-      "default": "v8",
+      "default": "v9",
       "x-unit": "text",
-      "description": "The active Padrão version folder the brief renderer installs.",
+      "description": "The active Padrão version the brief renderer and model install (folder under docs/padrao/ or catalog version in config/standard/versions/).",
       "x-readers": [
         "scripts/lib/coordinator_launch.py",
         "scripts/lib/model.py"

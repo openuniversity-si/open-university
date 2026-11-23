@@ -5,10 +5,5 @@
     "NEED-knowledge"
   ],
   "owner": "administration",
-  "measure": {
-    "kind": "model-share",
-    "name": "requirements-tested"
-  },
-  "comparator": "gte",
-  "threshold": 1
+  "nc": "NC-requirements-tested"
 }

@@ -6,13 +6,5 @@
     "NEED-quality"
   ],
   "owner": "administration",
-  "measure": {
-    "kind": "escape-rate"
-  },
-  "comparator": "lte",
-  "threshold": 0,
-  "window": {
-    "kind": "merges",
-    "size": 1000
-  }
+  "nc": "NC-quality"
 }

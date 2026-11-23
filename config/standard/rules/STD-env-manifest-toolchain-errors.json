@@ -13,5 +13,5 @@
   "basis": [
     "D-027"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-027 states it: scripts/env-check compares the installed versions with the environment manifest and stops a PR before it starts; the module head cites D-027."
+  "note": "Basis: D-027 states it: scripts/env-check compares the installed versions with the environment manifest and stops a PR before it starts; the module head cites D-027."
 }

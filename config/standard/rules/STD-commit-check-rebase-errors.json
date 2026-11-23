@@ -13,5 +13,5 @@
   "basis": [
     "D-070"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement and types are to be reviewed. Basis: D-070 (f) decides it: the P-G3 relaxation of the base-merge requirement goes behind a registry switch (merge.tier1_requires_base_merge), and \"Merge commits only, no rebase, stays\". Built by unit FP1 (docs/units/FP1, 27/10) after D-070 the same day."
+  "note": "Basis: D-070 (f) decides it: the P-G3 relaxation of the base-merge requirement goes behind a registry switch (merge.tier1_requires_base_merge), and \"Merge commits only, no rebase, stays\". Built by unit FP1 (docs/units/FP1, 27/10) after D-070 the same day."
 }

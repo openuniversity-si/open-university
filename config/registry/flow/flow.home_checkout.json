@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "",
+  "x-unit": "path",
+  "description": "Default home checkout whose .toolchain scripts/lane worktree symlinks; when empty, lane.py derives it from TOWER_HOME_CHECKOUT or the current checkout root.",
+  "x-readers": [
+    "scripts/lib/lane.py"
+  ],
+  "x-source": "D-314"
+}

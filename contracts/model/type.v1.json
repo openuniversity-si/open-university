@@ -120,6 +120,37 @@
       },
       "description": "Conditions under which an active object of this type is never conformant: each entry maps a field of the object's body (or `state`) to the values that meet it, and an object that meets every field of one entry fails (a blocking premise that is not settled: {\"blocking\": [true], \"settled\": [false]})."
     },
+    "weakness_states": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "States in which an active object of this type carries a significant operational weakness (ISO/IEC 33020 F: 'no significant weaknesses'), keeping its system below F and open even when the catalog record conforms."
+    },
+    "weakness_when": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "propertyNames": {
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "additionalProperties": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": [
+              "string",
+              "boolean",
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "description": "Conditions under which an active object of this type carries a significant operational weakness (ISO/IEC 33020 F: 'no significant weaknesses'): each entry maps a field of the object's body (or `state`) to matching values, keeping its system below F and open even when the catalog record conforms."
+    },
     "description": {
       "type": "string",
       "minLength": 1

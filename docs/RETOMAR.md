@@ -46,14 +46,15 @@ Falha transitória de rede se diagnostica e tenta resolver antes de parar.
    PR aberta ou em rascunho, branch não integrada ou tarefa explicitamente atribuída a outra sessão são claims.
    Para uma branch sem PR, busque o ref e compare seu head com a base (`git merge-base --is-ancestor <sha>
    origin/main`): branch já integrada não ocupa a unidade.
-3. **Fila:** leia [VAZÃO/fila.md](programs/vazao/fila.md), o programa e a fase atual. Desconte entregas confirmadas no
-   passo 1, respeite dependências e exclua claims do passo 2. Linha entregue que sobrou é defeito da fila: retire-a
-   numa unidade documental pequena, sem refazer a implementação.
-4. **Diário:** leia as últimas `plan.note` do programa no canal de eventos do repositório e das PRs em voo
-   (`python3 scripts/lib/forge_events.py read [--pr N]`, filtrando o JSON antes de exibir). `scripts/plan` escreve e
-   tria essas notas; não tem comando de leitura. Confira também as decisões recentes em
-   [DECISIONS.md](domain/DECISIONS.md), `scripts/lessons list` e `scripts/incident list`/incidentes recentes em
-   docs/operations/incidents/. Ausência de nota não prova que um claim foi abandonado.
+3. **Fila e programa ativo:** leia o programa corrente (`docs/programs/padrao-dev/`), o espaço do problema
+   (`config/problem/`) e a saída de `scripts/model measure`. Os programas legados da era Origin (incluindo
+   `docs/programs/vazao/fila.md`, arquivado sob D-314) são histórico e não são a fila viva. Desconte entregas
+   confirmadas no passo 1, respeite dependências e exclua claims do passo 2.
+4. **Estado, decisões e histórico:** confira `scripts/model measure`, `scripts/deploy status`, as decisões recentes em
+   [DECISIONS.md](domain/DECISIONS.md) e `docs/domain/decisions/`, e `scripts/lessons list`. Nota: o diretório
+   `docs/operations/incidents/` é local e ignorado no git (`.gitignore`), e o diário `forge_events` / `train/events` da
+   era Origin está dormente (D-314); não trate ausência de arquivo local como prova de zero incidentes nem de claim
+   abandonado.
 5. **Cota:** leia o limite real da conta no provedor (janela de 5 h, semanal e qualquer teto adicional), com o horário
    de reset e seu fuso. Não infira saldo de uma transcrição antiga nem invente números. Pouca cota pede unidades
    menores e menos concorrência; evite suítes pesadas em paralelo.
@@ -80,8 +81,9 @@ e reavalie se vierem argumentos novos.
 
 ## 3b. Pedir à Torre o que só ela alcança
 
-A Torre age com as capacidades de Daniel: credenciais, Cloudflare e o Worker do painel de controle, a VM, cotas,
-configurações fora do repositório e as rotinas dele (Daniel 03/11). Um pedido a ela leva o quê, por quê, o critério de
+A Torre age com as capacidades de Daniel: credenciais, workflows e rulesets do GitHub (D-087), configurações de conta
+AWS/Cloudflare fora do repositório, cotas e as rotinas dele (Daniel 03/11; o Worker do painel de controle na Cloudflare
+foi aposentado por D-323 e a VM do runner está parada desde D-314). Um pedido a ela leva o quê, por quê, o critério de
 pronto e a referência (PR, unidade ou incidente). O canal é o texto da própria sessão: no agente principal (nunca num
 subagente), um parágrafo que começa com `PEDIDO À TORRE:`. A Torre lê os eventos da sessão a cada 10 minutos, das 8h às
 23h50 de Brasília, executa e responde na sessão como "Resposta da Torre". Decisão nunca vai para o canal (D-294).
@@ -105,16 +107,13 @@ registre a limitação e o reset; não declare um despertar que não foi agendad
 
 ## 5. Deixar o próximo `continue` pronto
 
-Ao fim de cada unidade, registre no diário o que foi entregue, o que ficou em voo (PR, branch, responsável e próximo
-passo) e o próximo gargalo, com prova citável:
+Ao fim de cada unidade, deixe o registro no histórico do repositório (merge commit em `main`, provas da PR, estado do
+programa ativo e `scripts/deploy status`), e quando houver nota de diário em sessão local registre com prova citável:
 
 ```bash
 scripts/plan note --program <programa> --from <unidade> --affects <unidades|áreas|all> \
   --pr <N> --kind engine --evidence <ref> '<entrega; em voo; próximo gargalo>'
 ```
 
-A fila é o estoque disponível. Com uma lane, a linha sai na mesma PR que entrega a unidade (na última, se forem
-várias PRs); com várias lanes, o coordenador retira as linhas entregues em lote, para que as lanes não se choquem
-na mesma tabela ([sistema §4](programs/vazao/sistema.md#4-migração-cada-passo-começa-medindo-e-termina-verificando)).
-Descarte e adiamento ficam com motivo e condição de retorno fora da tabela ativa. Claims se conferem novamente
-no GitHub a cada retomada; nenhum retrato datado substitui essa leitura.
+Os programas legados da era Origin (como `vazao/fila.md` e `vazao/sistema.md`) ficam arquivados como histórico (D-314).
+Claims se conferem novamente no GitHub a cada retomada; nenhum retrato datado substitui essa leitura.

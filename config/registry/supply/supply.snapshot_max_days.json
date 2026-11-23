@@ -1,0 +1,11 @@
+{
+  "type": "integer",
+  "default": 7,
+  "minimum": 1,
+  "x-unit": "days",
+  "description": "Maximum age in days of config/supply/advisories.json before scripts/supply check refuses it as stale.",
+  "x-readers": [
+    "scripts/lib/supply.py"
+  ],
+  "x-source": "D-320"
+}
