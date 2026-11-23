@@ -19,5 +19,8 @@
   "unconformant_states": [
     "defined"
   ],
-  "description": "A validation criterion: a need, a measure, a threshold and a window."
+  "weakness_states": [
+    "not-met"
+  ],
+  "description": "A validation criterion: a need, a measure, a threshold and a window. Unwired (`defined`) fails catalog conformance; `not-met` is a significant operational weakness that keeps the system below F and open."
 }

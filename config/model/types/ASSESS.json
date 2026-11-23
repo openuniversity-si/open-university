@@ -8,10 +8,17 @@
   "derived_states": [
     "calculated"
   ],
-  "description": "The conformance of a system on a sha, calculated by scripts/model measure and never written by hand. It is not conformant when it rests on no evidence: none of the system's objects is judged by a rule (ISO/IEC 33020 N).",
+  "description": "The conformance of a system on a sha, calculated by scripts/model measure and never written by hand. Catalog conformance requires evidence (at least one object judged by a rule, ISO/IEC 33020 N); an assessed system that is not closed (`ready: false`) is a significant operational weakness that keeps conformance below F and open.",
   "unconformant_when": [
     {
       "evidence": [
+        false
+      ]
+    }
+  ],
+  "weakness_when": [
+    {
+      "ready": [
         false
       ]
     }
