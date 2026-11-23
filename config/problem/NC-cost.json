@@ -1,6 +1,6 @@
 {
   "id": "NC-cost",
-  "statement": "Gross AWS spend costs less than US$ 200 a month; Anthropic inference quota is not a strategic growth cap (when it is the bottleneck, the session proposes a raise to Daniel with why and expected gain), while authorized monthly Anthropic spend stays tracked by REQ-anthropic-budget against supply.anthropic_monthly_usd.",
+  "statement": "Gross AWS spend costs less than US$ 200 a month; Anthropic inference quota is not a strategic growth cap and has no tracked monthly dollar ceiling (Option B, D-348, D-358, D-362): when inference quota is the measured bottleneck, the session proposes a raise to Daniel with reason and expected gain, and buying/raising quota remains Daniel's money action.",
   "level": "csf",
   "necessary_for": [
     "INT-intention-v1",

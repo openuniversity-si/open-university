@@ -1,6 +1,8 @@
-"""Mechanical enforcement of the docs/SEMENTE.md §6 intention lock (D-317, audit C4).
+"""Mechanical enforcement of the docs/SEMENTE.md §6 intention lock (D-317, D-358, D-360, audit C4).
 
-Locked targets:
+Locked targets (only changes to the intention itself require Daniel's Intention-Change trailer; TAIL-*
+exemptions, stop criteria/trust guards, and GitHub permissions/workflows are governed by independent Torre
+approval under D-360, never locked here):
   - docs/SEMENTE.md sections 3 and 6 (the intention, its ladder goals, and its locked constraints);
     non-locked sections (§1, §2, §4, §5, §7, §8) remain freely updatable through the normal flow.
   - config/intent/INT-*.json (the model's locked INT objects).

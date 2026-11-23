@@ -1,4 +1,4 @@
-"""Mechanical enforcement of the SEMENTE §6 intention lock (audit C4, D-317, proposed D-358).
+"""Mechanical enforcement of the SEMENTE §6 intention lock (audit C4, D-317, D-358, D-360, D-362).
 
 Verifies: STD-intention-lock-errors
 """
@@ -102,6 +102,19 @@ class GitLockEnforcement(unittest.TestCase):
         self._commit('docs: update non-locked sections')
         self.assertEqual(intention_lock.locked_changes(self.root, 'base-ref'), [])
         self.assertEqual(intention_lock.intention_lock_errors(self.root, 'base-ref', body='no trailer', title='docs: x'), [])
+
+    def test_unlocked_governance_files_do_not_trigger_daniel_intention_lock(self):
+        # D-358/D-360: TAIL-*, trust/stop guards, and GitHub workflows are governed by independent Torre approval,
+        # never locked by intention_lock.py (which locks only SEMENTE §3/§6 and config/intent/INT-*.json).
+        _write(self.root, 'config/standard/tailoring/TAIL-sample.json', {'id': 'TAIL-sample'})
+        _write(self.root, 'config/governance/autonomy-ladder.json', {'id': 'AUTONOMY-test'})
+        _write(self.root, '.github/workflows/sample.yml', 'name: sample\n')
+        self._commit('governance: non-intention files governed by independent approval')
+        self.assertEqual(intention_lock.locked_changes(self.root, 'base-ref'), [])
+        self.assertEqual(
+            intention_lock.intention_lock_errors(self.root, 'base-ref', body='no trailer', title='governance: x'),
+            [],
+        )
 
     def test_locked_semente_section_3_and_6_changes_refused_without_approval_and_accepted_with_it(self):
         updated = SAMPLE_SEMENTE.replace('Locked intent v1.', 'Locked intent v2.').replace(
@@ -210,10 +223,13 @@ class IntentObjectsAndModelCheck(unittest.TestCase):
 
 
 class RepositorySection3Alignment(unittest.TestCase):
-    def test_semente_section_3_proposes_verified_useful_deliveries_and_aligns_intent_files(self):
+    def test_semente_section_3_adopts_verified_useful_deliveries_and_aligns_intent_files(self):
         sections = intention_lock.extract_sections((ROOT / 'docs/SEMENTE.md').read_text(encoding='utf-8'))
         sec3 = sections['3']
+        self.assertTrue(sec3.startswith('## 3. Intenção (v2) — travada'))
+        self.assertNotIn('v2 proposta', sec3)
         self.assertIn('entregas úteis verificadas por segundo', sec3)
+        self.assertIn('D-360', sec3)
         self.assertNotIn('Isso é bom senso, não regra mecânica.', sec3)
         for label in ('1.000', '10.000', '100.000', '100 %'):
             self.assertIn(label, sec3)
@@ -221,25 +237,36 @@ class RepositorySection3Alignment(unittest.TestCase):
             body = json.loads((ROOT / f'config/intent/{ident}.json').read_text(encoding='utf-8'))
             self.assertIn('verified useful deliveries', body['statement'].lower(), ident)
             self.assertIn('100%', body['statement'], ident)
+            self.assertNotIn('proposed', body['statement'].lower(), ident)
 
 
 class RepositorySection6QuotaAlignment(unittest.TestCase):
-    def test_semente_section_6_reconciles_anthropic_quota_and_governance_lock(self):
+    def test_semente_section_6_adopts_option_b_and_narrowed_governance_boundary(self):
         sections = intention_lock.extract_sections((ROOT / 'docs/SEMENTE.md').read_text(encoding='utf-8'))
         sec6 = sections['6']
         self.assertIn('Intention-Change: approved by Daniel', sec6)
-        self.assertIn('supply.anthropic_monthly_usd', sec6)
-        self.assertIn('REQ-anthropic-budget', sec6)
+        self.assertIn('Opção B', sec6)
+        self.assertIn('D-362', sec6)
+        self.assertIn('D-360: o autor nunca aprova o próprio trabalho', sec6)
+        self.assertIn('Torre com aprovação independente', sec6)
         self.assertIn('TAIL-*', sec6)
         self.assertNotIn('O orçamento é a cota de **uma** conta Claude Max', sec6)
+        self.assertNotIn('anthropic_monthly_usd', sec6)
         for rel in ('config/intent/INT-limits.json', 'config/intent/NEED-cost.json', 'config/problem/NC-cost.json'):
             body = json.loads((ROOT / rel).read_text(encoding='utf-8'))
-            self.assertIn('supply.anthropic_monthly_usd', body['statement'], rel)
+            self.assertNotIn('anthropic_monthly_usd', body['statement'], rel)
+            self.assertNotIn('REQ-anthropic-budget', body['statement'], rel)
             self.assertNotIn('one Claude Max quota', body['statement'], rel)
-        sup = json.loads((ROOT / 'config/supply/suppliers/SUP-anthropic.json').read_text(encoding='utf-8'))
-        val = json.loads((ROOT / 'config/validation/VAL-anthropic-budget.json').read_text(encoding='utf-8'))
-        self.assertEqual(sup['budget'], 'REQ-anthropic-budget')
-        self.assertEqual(val['threshold_key'], 'supply.anthropic_monthly_usd')
+            self.assertIn('no tracked monthly dollar', body['statement'].lower(), rel)
+        limits = json.loads((ROOT / 'config/intent/INT-limits.json').read_text(encoding='utf-8'))['statement']
+        self.assertIn('Torre with independent approval', limits)
+        self.assertIn('D-360', limits)
+        ladder = json.loads((ROOT / 'config/governance/autonomy-ladder.json').read_text(encoding='utf-8'))
+        self.assertEqual([item['id'] for item in ladder['always_owner_locked']],
+                         ['LOCK-intention', 'LOCK-money', 'LOCK-people'])
+        ind_ids = {item['id'] for item in ladder['independent_approval_locked']}
+        self.assertTrue({'IND-stop-and-trust-guards', 'IND-security-exemptions', 'IND-github-controls'} <= ind_ids)
+        self.assertEqual(model.OWNER_ONLY_SCOPES, ('money', 'people'))
 
     def test_decisions_d358_and_d362_are_accepted_and_d362_supersedes_d342(self):
         table_text = (ROOT / 'docs/domain/DECISIONS.md').read_text(encoding='utf-8')
