@@ -670,6 +670,10 @@ def rule_findings(found, root, stops=None, stages=None):
             warnings.append(f'{item["id"]}: dormant_by {rule["dormant_by"]} on a rule in {rule["state"]}')
         if rule['state'] == 'warning' and not rule.get('deadline'):
             warnings.append(f'{item["id"]}: in warning with no deadline')
+        if rule['state'] in ('blocking', 'warning') and kind == 'judgment':
+            warnings.append(f'{item["id"]}: {rule["state"]} rule has no executable check (judgment)')
+        if rule['state'] in ('blocking', 'warning') and SEED_MARKER in (rule.get('note') or ''):
+            warnings.append(f'{item["id"]}: {rule["state"]} rule still carries an unreviewed seed note')
     return warnings
 
 
@@ -677,7 +681,8 @@ PRINCIPLES = 'docs/process/principles/D-069.md'
 PRINCIPLE = re.compile(r'^### ([0-9]+)\. (.+)$', re.MULTILINE)
 METHOD = 'docs/padrao/METODO.md'
 VERSION_BASIS = {'v8': 'D-115'}  # the decision that made each version of the Padrão (docs/padrao/README.md)
-SEED_NOTE = 'Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
+SEED_MARKER = 'Seeded by scripts/model seed-rules'
+SEED_NOTE = f'{SEED_MARKER} (PADRAO-DEV F1b); its statement, basis and types are to be reviewed.'
 
 
 def _slug(text):
@@ -2491,6 +2496,8 @@ def read_work(root):
     root = Path(root)
     folder = root / config.get('coordinator.programs_dir')
     template, plan_file, fence = (config.get(f'coordinator.{key}') for key in ('template_dir', 'plan_file', 'plan_fence'))
+    archive_schema_path = root / CONTRACTS_DIR / 'program-archive.v1.json'
+    archive_schema = _read_json(archive_schema_path) if archive_schema_path.is_file() else None
     found = []
     for program in sorted(path for path in folder.iterdir() if path.is_dir() and path.name != template) if folder.is_dir() else ():
         items, problems = [], []
@@ -2527,8 +2534,30 @@ def read_work(root):
                 items.append(_work(f'WORK-{program.name}-{unit}', 'queued', QUEUE_FILE,
                                    {'program': program.name, 'kind': 'queue-row',
                                     'delivers': bool(row.get('Escopo (arquivos)') or row.get('Valor'))}))
-        program_item = _work(f'WORK-program-{program.name}', 'queued', program.relative_to(root).as_posix(),
-                             {'program': program.name, 'kind': 'program', 'delivers': bool(items)})
+        archived = None
+        archive_path = program / 'archived.json'
+        if archive_path.is_file():
+            try:
+                archive_body = _read_json(archive_path)
+            except ValueError as error:
+                problems.append(f'{archive_path.name}: does not parse ({error})')
+                archive_body = None
+            if archive_body is not None:
+                broken = list(json_schema.validate(archive_schema, archive_body)) if archive_schema else []
+                if broken:
+                    problems += [f'{archive_path.name}: {problem}' for problem in broken]
+                else:
+                    archived = archive_body
+                    for child in items:
+                        child['body']['archived'] = True
+                        if child['state'] != 'delivered':
+                            child['state'] = 'archived'
+        program_body = {'program': program.name, 'kind': 'program', 'delivers': bool(items)}
+        if archived is not None:
+            program_body['archived'] = True
+            program_body['archived_by'] = archived['archived_by']
+        program_item = _work(f'WORK-program-{program.name}', 'archived' if archived is not None else 'queued',
+                             program.relative_to(root).as_posix(), program_body)
         if problems:
             program_item['problems'] = problems
         found += [program_item, *items]
@@ -2537,7 +2566,8 @@ def read_work(root):
 
 def derive_work(found):
     """A merge that names a phase item (its PR title or a commit subject, `F7d`) tracks it, and the item is delivered;
-    a name two programs share links nothing. A program is delivered when every item is, in progress when some are."""
+    a name two programs share links nothing. A program is delivered when every item is, in progress when some are; an
+    archived program stays archived."""
     phase_items = {}
     for id, item in found.items():
         if item['type'] == 'WORK' and (item.get('body') or {}).get('kind') == 'phase-item':
@@ -2555,6 +2585,9 @@ def derive_work(found):
             programs.setdefault(item['body']['program'], []).append(item['state'] == 'delivered')
     for item in found.values():
         if item['type'] == 'WORK' and item['body']['kind'] == 'program':
+            if item['body'].get('archived'):
+                item['state'] = 'archived'
+                continue
             done = programs.get(item['body']['program'], [])
             item['state'] = 'delivered' if done and all(done) else 'in-progress' if any(done) else 'queued'
 
@@ -2702,7 +2735,7 @@ def check(meta, found, root=None, today=None):
     return errors, warnings
 
 
-HISTORY = ('superseded', 'deprecated', 'rejected', 'obsolete', 'retired', 'replaced')
+HISTORY = ('superseded', 'deprecated', 'rejected', 'obsolete', 'retired', 'replaced', 'archived')
 
 
 def historical(item):
@@ -2876,7 +2909,12 @@ def standard_measure(found, today):
                    for kind, source in into.get(item['id'], []))
     return {
         'rules': len(rules),
+        'blocking': sum(1 for item in rules if item['state'] == 'blocking'),
+        'warning': sum(1 for item in rules if item['state'] == 'warning'),
+        'draft': sum(1 for item in rules if item['state'] == 'draft'),
         'executable': sum(1 for item in rules if item['rule']['check']['kind'] != 'judgment'),
+        'judgment': sum(1 for item in rules if item['rule']['check']['kind'] == 'judgment'),
+        'unreviewed': sum(1 for item in rules if SEED_MARKER in (item['rule'].get('note') or '')),
         'tested': sum(1 for item in rules if tested(item)),
         'justified': sum(1 for item in rules if item['rule'].get('basis')),
         'overdue': sum(1 for item in rules if item['state'] == 'warning' and item['rule'].get('deadline', today) < today),
@@ -2956,16 +2994,23 @@ def construction_measure(found):
 
 
 def work_measure(found):
-    """The work system's own counts: programs, their items by state, and the items a merge on HEAD tracks."""
+    """The work system's own counts: active vs archived programs and items, active items by state, and items a merge on
+    HEAD tracks."""
     work = [item for item in found.values() if item['type'] == 'WORK']
+    programs = [item for item in work if item['body']['kind'] == 'program']
     items = [item for item in work if item['body']['kind'] != 'program']
+    active_programs = [item for item in programs if item['state'] != 'archived']
+    archived_programs = [item for item in programs if item['state'] == 'archived']
+    active_items = [item for item in items if not item['body'].get('archived')]
+    archived_items = [item for item in items if item['body'].get('archived')]
     by_state = {}
-    for item in items:
+    for item in active_items:
         by_state[item['state']] = by_state.get(item['state'], 0) + 1
     tracked = {link['target'] for item in found.values() if item['type'] == 'CHG' for link in item['links']
                if link['type'] == 'tracks'}
-    return {'programs': len(work) - len(items), 'items': len(items), 'by_state': dict(sorted(by_state.items())),
-            'tracked': len(tracked)}
+    return {'programs': len(active_programs), 'archived_programs': len(archived_programs),
+            'items': len(active_items), 'archived_items': len(archived_items),
+            'by_state': dict(sorted(by_state.items())), 'tracked': len(tracked)}
 
 
 RETRO_SAMPLES = 'docs/programs/*/retro-sample-*.json'
@@ -3248,8 +3293,10 @@ def summary(found):
             lines.append(f'  {tail["id"]}: [{tag}] {tail["exempts"]} on {tail["scope"]} '
                          f'by {tail["authorized_by"]} until {tail["valid_until"]}')
     rules = found['standard']
-    lines.append(f'standard: {rules["rules"]} rule(s), {rules["executable"]} with an executable check, {rules["tested"]} '
-                 f'verified by a test, {rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
+    lines.append(f'standard: {rules["rules"]} rule(s) ({rules["blocking"]} blocking, {rules["warning"]} warning, '
+                 f'{rules["draft"]} draft; {rules["executable"]} executable, {rules["judgment"]} judgment, '
+                 f'{rules["unreviewed"]} unreviewed), {rules["tested"]} verified by a test, '
+                 f'{rules["justified"]} justified by a decision, {rules["overdue"]} in warning past '
                  f'their deadline; {rules["dormant"]} dormant (D-326)')
     lines.append(f'standard management: {managed["proposals"]} proposal(s), {managed["open"]} open ({managed["undated"]} '
                  f'with no deadline, {managed["overdue"]} past it), {managed["closed"]} closed; {managed["exemptions"]} '
@@ -3304,7 +3351,9 @@ def summary(found):
             f'{name} {lag} merge(s)' for name, lag in counted['snapshot_lag'].items()))
     lines.append(cheaper_path_line(found['measurement']['cheaper_path']))
     planned = found['work']
-    lines.append(f'work: {planned["programs"]} program(s), {planned["items"]} item(s): '
+    archived_p = f' ({planned["archived_programs"]} archived)' if planned.get('archived_programs') else ''
+    archived_i = f' ({planned["archived_items"]} archived)' if planned.get('archived_items') else ''
+    lines.append(f'work: {planned["programs"]} active program(s){archived_p}, {planned["items"]} item(s){archived_i}: '
                  f'{", ".join(f"{count} {state}" for state, count in planned["by_state"].items()) or "none"}; '
                  f'{planned["tracked"]} tracked by a merge on HEAD')
     lines += [f'  ERROR {problem}' for problem in found['measurement']['cheaper_path']['problems']]

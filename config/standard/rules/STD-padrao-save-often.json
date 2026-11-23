@@ -13,5 +13,5 @@
   "basis": [
     "D-115"
   ],
-  "note": "Seeded by scripts/model seed-rules (PADRAO-DEV F1b); its statement, basis and types are to be reviewed."
+  "note": "Prose judgment rule carried in the catalog as draft; not an executable check."
 }

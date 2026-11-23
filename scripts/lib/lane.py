@@ -13,10 +13,13 @@ written; the coordinator hands the printed text to the lane.
 reads the quota ledger (measurement) and so enters `scripts/lane` above this module (lane_collect.command, D-322).
 """
 import argparse
+import os
 from pathlib import Path
 import re
 import subprocess
 import sys
+
+import config
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 QUEUE = Path('docs/programs/vazao/fila.md')
@@ -24,9 +27,39 @@ CONTRACT = Path('docs/process/lane.md')
 DIGEST = Path('docs/process/lane-digest.md')  # generated from CONTRACT (F78)
 DECISIONS = Path('docs/domain/DECISIONS.md')
 RESUME = Path('docs/RETOMAR.md')
-BASE = 'mod/roadmap-integration'
-WORKTREE_ROOT = '/root/wt'
-HOME_CHECKOUT = Path.home() / 'the-tower'  # the checkout whose .toolchain every worktree links
+
+
+LIVE_BASE = 'main'  # the live base on GitHub (D-314); was the Origin era's mod/roadmap-integration
+
+
+def default_base():
+    """The live base branch name. Reading it from flow.base_ref is a separate change: flow.base_ref is a key the gate
+    reads, so declaring lane.py its reader here would make the base-pinned gate restore the whole flow owner and refuse
+    this change's new flow keys as generated drift."""
+    return LIVE_BASE
+
+
+def default_worktree_root():
+    """Parent folder for unit worktrees: TOWER_WORKTREE_ROOT, else flow.worktree_root, else ROOT.parent."""
+    env = os.environ.get('TOWER_WORKTREE_ROOT', '').strip()
+    if env:
+        return env
+    configured = config.get('flow.worktree_root').strip()
+    return configured if configured else str(ROOT.parent)
+
+
+def default_home_checkout():
+    """Checkout whose .toolchain every worktree links: TOWER_HOME_CHECKOUT, else flow.home_checkout, else ROOT."""
+    env = os.environ.get('TOWER_HOME_CHECKOUT', '').strip()
+    if env:
+        return Path(env)
+    configured = config.get('flow.home_checkout').strip()
+    return Path(configured) if configured else ROOT
+
+
+BASE = default_base()
+WORKTREE_ROOT = default_worktree_root()
+HOME_CHECKOUT = default_home_checkout()
 # Sections of lane.md; the first one is required (the brief carries the digest, F78).
 SECTIONS = ('The delivery contract', 'Chaining', 'Selection holes')
 UNIT = re.compile(r'^F\d+$')
@@ -252,9 +285,11 @@ def red_section(root, base, run=subprocess.run, reds=base_reds):
     return out
 
 
-def named_brief(name, root=ROOT, base=BASE, worktree_root=WORKTREE_ROOT, session='<session>'):
+def named_brief(name, root=ROOT, base=None, worktree_root=None, session='<session>'):
     """The brief of a unit with no F-id (gitattr, census): the worktree and the digest, no queue row (F84 PR; three
     lanes on 03/11 had no brief because their unit was not in the queue)."""
+    base = default_base() if base is None else base
+    worktree_root = default_worktree_root() if worktree_root is None else worktree_root
     sections((root / CONTRACT).read_text(encoding='utf-8'))
     if not (root / DIGEST).is_file():
         raise BriefError(f'{DIGEST}: missing; run scripts/generate lane-digest')
@@ -272,8 +307,10 @@ def named_brief(name, root=ROOT, base=BASE, worktree_root=WORKTREE_ROOT, session
     return '\n'.join(out).rstrip() + '\n'
 
 
-def brief(unit, root=ROOT, base=BASE, worktree_root=WORKTREE_ROOT, session='<session>', run=subprocess.run,
+def brief(unit, root=ROOT, base=None, worktree_root=None, session='<session>', run=subprocess.run,
           reds=base_reds):
+    base = default_base() if base is None else base
+    worktree_root = default_worktree_root() if worktree_root is None else worktree_root
     if not UNIT.match(unit.upper()):
         name = unit.lower()
         if not re.match(r'^[a-z0-9][a-z0-9._-]*$', name):
@@ -321,13 +358,15 @@ def worktree_name(name):
     return lowered
 
 
-def worktree(unit, home=HOME_CHECKOUT, base=BASE, worktree_root=WORKTREE_ROOT, run=subprocess.run):
+def worktree(unit, home=None, base=None, worktree_root=None, run=subprocess.run):
     """Create the unit's worktree from the base and link the home checkout's .toolchain into it, in one call.
     Without the link the delivery's gate fails its preflight with class `env` (missing toolchain), three lanes on 03/11.
     An existing worktree is refreshed instead (F81): the base is fetched and merged into it (never a rebase) and a
     missing link is restored. Returns the path and whether it was created."""
     name = worktree_name(unit)
-    home = Path(home)
+    home = default_home_checkout() if home is None else Path(home)
+    base = default_base() if base is None else base
+    worktree_root = default_worktree_root() if worktree_root is None else worktree_root
     path = Path(worktree_root) / name
     toolchain = home / '.toolchain'
     existing = path.exists() or path.is_symlink()
@@ -352,10 +391,11 @@ def worktree(unit, home=HOME_CHECKOUT, base=BASE, worktree_root=WORKTREE_ROOT, r
     return path, not existing
 
 
-def started(unit, path, base=BASE, session='<session>', root=None, run=subprocess.run, reds=base_reds):
+def started(unit, path, base=None, session='<session>', root=None, run=subprocess.run, reds=base_reds):
     """What `scripts/lane worktree` prints (F81): the worktree line, the brief of a queue unit read from the new
     worktree (so it is the base's freshest), and the one line every later command starts with. One call replaces
     the fetch, worktree, link, brief and environment calls a lane made by hand."""
+    base = default_base() if base is None else base
     name = worktree_name(unit)
     out = []
     try:  # a named unit (census) gets the digest-only brief
@@ -376,28 +416,29 @@ def main(argv=None):
     sub = parser.add_subparsers(dest='command', required=True)
     p = sub.add_parser('brief', help='print the lane brief of one queue unit, or of a named unit with no row')
     p.add_argument('unit', help='the queue unit, e.g. F68, or a name with no queue row, e.g. gitattr (digest only)')
-    p.add_argument('--base', default=BASE)
-    p.add_argument('--worktree-root', default=WORKTREE_ROOT)
+    p.add_argument('--base', default=None)
+    p.add_argument('--worktree-root', default=None)
     p.add_argument('--session', default='<session>', help='the session URL the commit trailers carry')
     p.add_argument('--root', type=Path, default=ROOT, help=argparse.SUPPRESS)
     w = sub.add_parser('worktree', help="create the unit's worktree from the base, with the toolchain linked, and print "
                        'its brief (an existing worktree gets the base merged in)')
     w.add_argument('unit', help='the queue unit, e.g. F68, or another short name (census, f61-2)')
-    w.add_argument('--base', default=BASE)
+    w.add_argument('--base', default=None)
     w.add_argument('--session', default='<session>', help='the session URL the brief names for the trailers')
     w.add_argument('--no-brief', action='store_true', help='print only the worktree line')
-    w.add_argument('--worktree-root', default=WORKTREE_ROOT)
-    w.add_argument('--home', type=Path, default=HOME_CHECKOUT, help='the checkout that holds .toolchain')
+    w.add_argument('--worktree-root', default=None)
+    w.add_argument('--home', type=Path, default=None, help='the checkout that holds .toolchain')
     sub.add_parser('collect', add_help=False, help="close a delivered lane from its report: deliver's diary note once and "
                    'its quota ledger line (F69; scripts/lane collect --help)')
     args = parser.parse_args(argv)
     try:
         if args.command == 'worktree':
-            path, created = worktree(args.unit, home=args.home, base=args.base, worktree_root=args.worktree_root)
+            base_branch = default_base() if args.base is None else args.base
+            path, created = worktree(args.unit, home=args.home, base=base_branch, worktree_root=args.worktree_root)
             print(f'{path} (branch units/{worktree_name(args.unit)}, .toolchain linked'
-                  f'{"" if created else f", origin/{args.base} merged in"})')
+                  f'{"" if created else f", origin/{base_branch} merged in"})')
             if not args.no_brief:
-                sys.stdout.write(started(args.unit, path, base=args.base, session=args.session))
+                sys.stdout.write(started(args.unit, path, base=base_branch, session=args.session))
         else:
             sys.stdout.write(brief(args.unit, root=args.root, base=args.base,
                                    worktree_root=args.worktree_root, session=args.session))

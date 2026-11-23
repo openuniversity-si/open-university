@@ -11,6 +11,7 @@
     "contracts/model/*.json",
     "config/model/**",
     "docs/programs/*/retro-sample-*.json",
+    "docs/programs/*/archived.json",
     "docs/programs/*/plan.md",
     "docs/programs/*/phases/*.md",
     "docs/programs/vazao/fila.md",

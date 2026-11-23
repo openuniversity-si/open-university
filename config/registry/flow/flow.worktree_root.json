@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "default": "",
+  "x-unit": "path",
+  "description": "Default parent directory where scripts/lane worktree places per-unit worktrees; when empty, lane.py derives it from TOWER_WORKTREE_ROOT or the repository checkout's parent directory.",
+  "x-readers": [
+    "scripts/lib/lane.py"
+  ],
+  "x-source": "D-314"
+}
