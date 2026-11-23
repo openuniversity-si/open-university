@@ -84,3 +84,5 @@ on its two secrets only, `lambda:InvokeFunction` on its worker only (tested by `
 - App: suspend or uninstall it in the org settings; delete the App if abandoned.
 - AWS: `aws cloudformation delete-stack --stack-name tower-gate-attester` (the two secrets are `Retain`: delete them
   with `aws secretsmanager delete-secret` if abandoned).
+
+<!-- probe: positive attestation rehearsal (D-359 Salto 2, step 3); this PR is closed unmerged -->
