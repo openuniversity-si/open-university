@@ -411,6 +411,18 @@ class ProblemSpace(unittest.TestCase):
                     for problem in item.get('problems', [])]
         self.assertEqual(problems, [])
 
+    def test_d354_is_recorded_with_owner_authority_and_keeps_needs_proposed(self):
+        found = model.objects(ROOT)
+        decision = found['D-354']
+        self.assertEqual((decision['state'], decision['authority']), ('accepted', 'owner'))
+        self.assertTrue(model.independently_approved(decision))
+        self.assertEqual(
+            problem_space.unvalidated_needs(found),
+            ['NEED-autonomy', 'NEED-changeability', 'NEED-cost', 'NEED-knowledge', 'NEED-quality', 'NEED-throughput'],
+        )
+        for ident in problem_space.unvalidated_needs(found):
+            self.assertFalse(model.covered(model.metamodel(ROOT), found[ident], model.incoming(found), found), ident)
+
 
 if __name__ == '__main__':
     unittest.main()
