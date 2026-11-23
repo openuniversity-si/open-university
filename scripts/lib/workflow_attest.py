@@ -157,7 +157,7 @@ def evaluate_promotion(check_runs, sha, full_suite_name=FULL_SUITE_CHECK):
         return {'state': 'red', 'ok': False, 'summary': f'promotion-health RED: {sha!r} is not a 40-hex commit SHA'}
     runs = [
         item for item in _normalize_check_runs(check_runs)
-        if isinstance(item, dict) and item.get('name') == full_suite_name and item.get('head_sha', sha) == sha
+        if isinstance(item, dict) and item.get('name') == full_suite_name and item.get('head_sha') == sha
     ]
     if not runs:
         return {'state': 'pending', 'ok': False,

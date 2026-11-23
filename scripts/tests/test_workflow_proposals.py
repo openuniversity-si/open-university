@@ -199,6 +199,8 @@ class PromotionHealthTests(unittest.TestCase):
         self.assertEqual((verdict['state'], verdict['ok']), ('green', True))
         other = workflow_attest.evaluate_promotion({'check_runs': [self.suite(1, sha=BASE_SHA)]}, HEAD_SHA)
         self.assertEqual(other['state'], 'pending')
+        unnamed = {key: value for key, value in self.suite(1).items() if key != 'head_sha'}
+        self.assertEqual(workflow_attest.evaluate_promotion([unnamed], HEAD_SHA)['state'], 'pending')
 
     def test_red_is_a_stop_and_a_rerun_that_passes_clears_a_flake(self):
         red = [self.suite(1, conclusion='failure')]
