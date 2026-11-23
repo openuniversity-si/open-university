@@ -354,6 +354,66 @@ class Verdicts(unittest.TestCase):
         self.assertEqual((asked, made['runs'], kept['at'], runs.read_verdicts(self.root)['check']),
                          ([1, 3], found, at(10), 'full-suite'))
 
+    def test_web_verdicts_read_only_merges_touching_web_and_fall_back_to_pr_head(self):
+        paths = []
+        id_a, id_b, id_c = 1, 1 + 1, len('abc')
+        t_start, t_end, t_later, t_write = at(1), at(len('abcd')), at(len('abcde')), at(len('abcdefghij'))
+        checks = {'m1': [check(id_a, 'web', t_start, t_end)],
+                  'm2': [],
+                  'h2': [check(id_b, 'web', t_end, t_later, 'failure')],
+                  'm3': [check(id_c, 'web', t_start, t_end, 'cancelled')],
+                  'h3': []}
+
+        def api(path):
+            paths.append(path)
+            return {'check_runs': checks[path.split('/commits/')[1].split('/')[0]]}
+        found = runs.web_verdicts_fetch(self.root, repo='o/r', api=api, run=lambda *a, **k: self.log)
+        self.assertEqual(found, [{'sha': 'm1', 'id': id_a, 'conclusion': 'success', 'completed': t_end},
+                                 {'sha': 'm2', 'id': id_b, 'conclusion': 'failure', 'completed': t_later, 'check_sha': 'h2'}])
+        self.assertTrue(all(f'check_name={runs.WEB_CHECK}' in path for path in paths))
+        written = runs.verdicts_write(self.root, [], runs.stamp(t_write), web=found)
+        self.assertEqual((written['web_check'], written['web_runs']), (runs.WEB_CHECK, found))
+        with unittest.mock.patch.dict('os.environ', {'TOWER_OFFLINE': '1'}):
+            self.assertIsNone(runs.web_verdicts_fetch(self.root, repo='o/r', api=api, run=lambda *a, **k: self.log))
+
+
+class Flakes(unittest.TestCase):
+    """D-355: VERIFY-ALONE structured flake telemetry snapshot in config/validation/runs/flakes.json."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='runs-flakes-'))
+        self.addCleanup(shutil.rmtree, self.root)
+
+    def test_record_flakes_reads_jsonl_deduplicates_and_preserves_quarantine_and_fixed(self):
+        import contextlib
+        import io
+        import verify_commit
+        self.assertIsNone(runs.read_flakes(self.root))
+        half = 1 / (1 + 1)
+        first = verify_commit.flake_entry('s1', 'b0', {'flakes': ['scripts/tests/x.test.sh'], 'flake_rate': half})
+        first['at'] = at(1)
+        clean = verify_commit.flake_entry('s2', 'b0', {'flakes': [], 'flake_rate': 0.0})
+        clean['at'] = at(1 + 1)
+        stream = '\n'.join(json.dumps(item) for item in (first, clean, first)) + '\n'
+        out = io.StringIO()
+        with unittest.mock.patch.object(sys, 'stdin', io.StringIO(stream)), contextlib.redirect_stdout(out):
+            code = runs.main(['record-flakes'], root=self.root)
+        self.assertEqual(code, 0)
+        self.assertIn('2 flake telemetry run(s) (1 with flake)', out.getvalue())
+        saved = runs.read_flakes(self.root)
+        self.assertEqual(len(saved['runs']), 1 + 1)
+        self.assertEqual([item['flaked'] for item in saved['runs']], [True, False])
+        self.assertEqual(saved['runs'][0]['alone'], ['scripts/tests/x.test.sh'])
+        self.assertEqual(saved['runs'][0]['flakes'], ['scripts/tests/x.test.sh'])
+        # Preserves existing quarantined and fixed records on subsequent appends.
+        runs.record_flakes(self.root, [], quarantined=['scripts/tests/x.test.sh'],
+                           fixed=[{'test': 'scripts/tests/y.test.sh', 'at': at(1 + 1)}], now=runs.stamp(at(1 + 1)))
+        later = runs.record_flakes(self.root, [{'sha': 's3', 'at': at(1 + 1 + 1), 'alone': []}],
+                                   now=runs.stamp(at(1 + 1 + 1)))
+        self.assertEqual(later['quarantined'], ['scripts/tests/x.test.sh'])
+        self.assertEqual(later['fixed'], [{'test': 'scripts/tests/y.test.sh', 'at': at(1 + 1)}])
+        self.assertEqual(len(later['runs']), 1 + 1 + 1)
+
 
 if __name__ == '__main__':
     unittest.main()

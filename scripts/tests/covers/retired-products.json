@@ -5,7 +5,11 @@
     "scripts/tests/test_retired_products*.py",
     "scripts/lib/retired_products.py",
     "scripts/lib/globs.py",
+    "scripts/lib/gate-areas.json",
     "config/registry/structure.json",
-    "config/registry/structure/**"
+    "config/registry/structure/**",
+    "config/registry/gate/gate.allowed_workflows.json",
+    ".github/workflows/web.yml",
+    "services/runner/github/web.yml"
   ]
 }

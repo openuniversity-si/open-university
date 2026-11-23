@@ -136,6 +136,14 @@
           }
         }
       }
+    },
+    "target_fingerprints": {
+      "type": "object",
+      "description": "Content fingerprints of linked targets verified when this threat model was last stamped (scripts/model stamp); a mismatch marks the link suspect.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{12}$"
+      }
     }
   }
 }

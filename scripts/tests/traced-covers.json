@@ -442,7 +442,6 @@
    "scripts/lib/python_source.py"
   ],
   "scripts/tests/deploy-slow-b.test.sh": [
-   "infra/ingress/Dockerfile",
    "infra/service/Dockerfile",
    "infra/service/tower_infra/http_port.py",
    "infra/service/tower_infra/live_image.py",
@@ -460,7 +459,6 @@
    "scripts/lib/python_source.py"
   ],
   "scripts/tests/deploy-slow-c.test.sh": [
-   "infra/ingress/Dockerfile",
    "infra/service/Dockerfile",
    "infra/service/tower_infra/http_port.py",
    "infra/service/tower_infra/runner.py",
@@ -1708,7 +1706,6 @@
    "scripts/lib/toolchain_manifest.py"
   ],
   "scripts/tests/infra-ingress.test.sh": [
-   "infra/ingress/Dockerfile",
    "infra/ingress/__init__.py",
    "infra/service/tower_infra/__init__.py",
    "infra/service/tower_infra/branches.py",

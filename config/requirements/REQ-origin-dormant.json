@@ -14,5 +14,9 @@
   "implemented_by": [
     "CHG-55",
     "CHG-56"
-  ]
+  ],
+  "target_fingerprints": {
+    "D-316": "73b16c02004e",
+    "NEED-changeability": "542b54ec7ef0"
+  }
 }

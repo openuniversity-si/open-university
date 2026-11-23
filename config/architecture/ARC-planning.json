@@ -16,5 +16,11 @@
   "basis": [
     "D-317"
   ],
-  "layer": 1
+  "layer": 1,
+  "target_fingerprints": {
+    "ARC-config": "537e4811f8d6",
+    "ARC-events": "da9896b4db87",
+    "ARC-knowledge": "091716462946",
+    "REQ-owner-stop-closed-list": "c259bc747a63"
+  }
 }

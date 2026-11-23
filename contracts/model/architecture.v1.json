@@ -79,6 +79,14 @@
       "type": "integer",
       "minimum": 0,
       "description": "The element's layer (PADRAO-DEV F8c, D-322): a dependency may go to the same or a lower layer; one that goes up is a defect to break."
+    },
+    "target_fingerprints": {
+      "type": "object",
+      "description": "Content fingerprints of linked targets verified when this architecture element was last stamped (scripts/model stamp); a mismatch marks the link suspect.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{12}$"
+      }
     }
   }
 }

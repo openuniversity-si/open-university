@@ -184,23 +184,25 @@ class Cli(unittest.TestCase):
 class GateMaps(unittest.TestCase):
     """D-322: the gate's "gate maps" stage runs area coverage, test orphans and the hermetic check, not the structure check."""
 
-    def patched(self, areas=(), orphans=(), hermetic=((), ())):
+    def patched(self, areas=(), orphans=(), hermetic=((), ()), traced=((), ())):
         return (patch.object(gate_maps.gate_areas, 'coverage_errors', return_value=list(areas)),
                 patch.object(gate_maps.test_orphans, 'check', return_value=list(orphans)),
-                patch.object(gate_maps.hermetic_check, 'check', return_value=hermetic))
+                patch.object(gate_maps.hermetic_check, 'check', return_value=hermetic),
+                patch.object(gate_maps.script_covers, 'traced_findings', return_value=traced))
 
     def test_check_joins_the_three_checks_and_passes_the_base_to_the_hermetic_one(self):
-        areas, orphans, hermetic = self.patched(['a: no area'], ['t: run by no wrapper'], (['h: wall_clock'], ['w']))
-        with areas, orphans, hermetic as judged:
+        areas, orphans, hermetic, traced = self.patched(['a: no area'], ['t: run by no wrapper'],
+                                                        (['h: wall_clock'], ['w']), (['tr: gone'], ['tw']))
+        with areas, orphans, hermetic as judged, traced:
             self.assertEqual(gate_maps.check('/repo', 'BASE'),
-                             (['a: no area', 't: run by no wrapper', 'h: wall_clock'], ['w']))
+                             (['a: no area', 't: run by no wrapper', 'h: wall_clock', 'tr: gone'], ['w', 'tw']))
         judged.assert_called_once_with('/repo', 'BASE')
 
     def test_the_cli_prints_fail_lines_and_exits_on_an_error(self):
         for found, code in ((['a: no area'], 1), ([], 0)):
-            areas, orphans, hermetic = self.patched(found)
+            areas, orphans, hermetic, traced = self.patched(found)
             out = io.StringIO()
-            with areas, orphans, hermetic, contextlib.redirect_stdout(out):
+            with areas, orphans, hermetic, traced, contextlib.redirect_stdout(out):
                 self.assertEqual(gate_maps.main(['check', '--root', '/repo', '--base', 'B']), code)
             self.assertEqual([line for line in out.getvalue().splitlines() if line.startswith('FAIL ')],
                              ['FAIL ' + line for line in found])

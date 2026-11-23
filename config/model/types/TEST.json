@@ -14,5 +14,18 @@
   "must_link": [
     "verifies"
   ],
-  "description": "A script test or test file, with its level and the objects it verifies."
+  "covered_by": [
+    {
+      "type": "VERD",
+      "link": "evidences"
+    }
+  ],
+  "weakness_when": [
+    {
+      "flaky": [
+        true
+      ]
+    }
+  ],
+  "description": "A script test or test file, with its level and the objects it verifies. An unresolved VERIFY-ALONE flake (`flaky: true`, neither fixed nor quarantined) is a significant operational weakness that keeps verification below F and open (D-351, D-355)."
 }

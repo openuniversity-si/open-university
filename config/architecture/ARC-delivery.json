@@ -24,5 +24,18 @@
     "D-317",
     "D-322"
   ],
-  "layer": 3
+  "layer": 3,
+  "target_fingerprints": {
+    "ARC-config": "537e4811f8d6",
+    "ARC-environment": "bcf004cf5c58",
+    "ARC-events": "da9896b4db87",
+    "ARC-gate": "fdb04d9f45fe",
+    "ARC-knowledge": "091716462946",
+    "ARC-planning": "07767116892c",
+    "REQ-escape-under-1": "db8ce947c5fe",
+    "REQ-slo-budgets-budgets-pr-changed-lines": "dcf7f2648418",
+    "REQ-slo-budgets-budgets-pr-commits-max": "664bc623ad3c",
+    "REQ-slo-budgets-budgets-pr-commits-min": "95df04db85c1",
+    "REQ-slo-budgets-slo-merged-prs-per-hour-min": "c7019fb7b75d"
+  }
 }
