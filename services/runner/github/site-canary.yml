@@ -60,3 +60,4 @@ jobs:
             gh issue close "$num" --repo "$GITHUB_REPOSITORY" \
               --comment "site-canary recovered against ${SITE_URL} at ${GITHUB_SHA} (run ${RUN_ID})."
           done
+# probe: negative attestation rehearsal (D-359 Salto 2, step 4); this PR is closed unmerged
