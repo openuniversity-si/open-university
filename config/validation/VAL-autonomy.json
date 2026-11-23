@@ -6,14 +6,5 @@
     "REQ-owner-stop-closed-list"
   ],
   "owner": "Daniel",
-  "measure": {
-    "kind": "incident-count",
-    "incident": "owner-stop"
-  },
-  "comparator": "lte",
-  "threshold": 0,
-  "window": {
-    "kind": "days",
-    "size": 7
-  }
+  "nc": "NC-autonomy"
 }

@@ -479,7 +479,8 @@ class TargetsFull(unittest.TestCase):
         write(self.root, 'config/model/conformance.json', json.loads((ROOT / 'config/model/conformance.json').read_text()))
         self.top = json.loads((ROOT / 'contracts/model/validation.v1.json').read_text())[
             'properties']['measure']['properties']['percentile']['maximum']
-        self.gate = json.loads((ROOT / 'config/validation/VAL-gate-60s.json').read_text())  # seconds, at the whole
+        val_gate = json.loads((ROOT / 'config/validation/VAL-gate-60s.json').read_text())
+        self.gate = json.loads((ROOT / 'config/problem' / f'{val_gate["nc"]}.json').read_text())  # seconds, at the whole
         self.half = 1 / len('ab')
 
     def val(self, id, **body):
@@ -1649,7 +1650,9 @@ class Architecture(unittest.TestCase):
 
     def test_changeability_needs_every_dependency_convergent_so_one_divergence_fails_it(self):
         """D-336 (1): VAL-changeability requires the whole reflexion convergent; one divergence among many fails it."""
-        body = json.loads((ROOT / 'config/validation/VAL-changeability.json').read_text())
+        val = json.loads((ROOT / 'config/validation/VAL-changeability.json').read_text())
+        self.assertEqual(val['nc'], 'NC-reflexion')
+        body = json.loads((ROOT / 'config/problem/NC-reflexion.json').read_text())
         self.assertEqual((body['measure'], body['comparator'], body['threshold']), ({'kind': 'model-share', 'name': 'reflexion'}, 'gte', 1.0))
         def element(id, *deps):
             return {'id': id, 'type': 'ARC', 'state': 'active', 'fingerprint': 'f', 'body': {'kind': 'component', 'name': id},

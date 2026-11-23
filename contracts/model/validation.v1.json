@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contracts/model/validation.v1.json",
   "title": "Validation v1",
-  "description": "config/validation/<id>.json (PADRAO-DEV F6a): a validation criterion, the evidence in use that a need or a requirement is met (ISO/IEC/IEEE 15288 validation): what it validates, the measure, the comparator, the threshold and the window. Its state is derived by scripts/model from the measure (met, not-met, measuring while the window is short, defined while no source is wired), never written.",
+  "description": "config/validation/<id>.json (PADRAO-DEV F6a, D-354): a validation criterion, the evidence in use that a need or a requirement is met (ISO/IEC/IEEE 15288 validation): what it validates and either its own measure/comparator/threshold/window or a reference (`nc`) to its canonical necessary condition in config/problem/. Its state is derived by scripts/model from the measure (met, not-met, measuring while the window is short, defined while no source is wired), never written.",
   "x-owner": "model",
   "x-schema-version": 1,
   "type": "object",
@@ -11,9 +11,7 @@
     "id",
     "statement",
     "validates",
-    "owner",
-    "measure",
-    "comparator"
+    "owner"
   ],
   "properties": {
     "id": {
@@ -36,6 +34,11 @@
     "owner": {
       "type": "string",
       "minLength": 1
+    },
+    "nc": {
+      "type": "string",
+      "pattern": "^NC-[a-z0-9][a-z0-9-]*$",
+      "description": "Canonical necessary condition (config/problem/NC-*.json) whose measure, comparator, threshold and window this validation references instead of duplicating them (D-354)."
     },
     "measure": {
       "type": "object",

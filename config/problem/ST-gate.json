@@ -2,13 +2,15 @@
   "id": "ST-gate",
   "level": 3,
   "strategy": "NC-gate-first-pass",
-  "tactic": "INJ-tree-governance",
+  "tactic": "Eliminate tower/gate first-pass failures and cut p100 wall time to at most 60 s via exact selection and content-addressed reuse.",
   "assumptions": {
     "necessary": {
-      "statement": "22.5 % of the gate's runs fail and it takes 119 s."
+      "statement": "22.5 % of the gate's runs fail and it takes 119 s.",
+      "premise": "P-46"
     },
     "parallel": {
-      "statement": "Make the gate right first, then fast: a red run costs a whole round."
+      "statement": "Make the gate right first, then fast: a red run costs a whole round.",
+      "premise": "P-56"
     },
     "sufficiency": {
       "statement": "First pass and time are the two conditions of the gate."

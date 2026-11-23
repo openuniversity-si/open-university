@@ -26,9 +26,17 @@ KINDS = (('NC', 'nc'), ('UDE', 'ude'), ('CAUSE', 'cause'), ('CONFLICT', 'conflic
          ('ST', 'st'))
 STATED = ('CAUSE', 'CONFLICT')  # no lifecycle of their own: a stated entity of the tree or the cloud
 # the levels of the strategy and tactics tree, from the intention down: who validates a node of each and who writes it
-# (the contract's level 1 is the first): the intention and the domains, the programs, the units of the lanes
-VALIDATORS = ('Daniel', 'Daniel', 'manager', 'coordinator')
+# (the contract's level 1 is the first): intention (Daniel only), domains (Daniel or Torre by delegation, D-354),
+# programs (manager), and units of the lanes (coordinator)
+VALIDATORS = (('Daniel',), ('Daniel', 'Torre'), ('manager',), ('coordinator',))
 WRITERS = ('manager', 'manager', 'domain-coordinator', 'lane')
+
+
+def _validated_at_level(validated, level):
+    by = validated.get('by')
+    if by not in of_level(VALIDATORS, level):
+        return False
+    return bool((validated.get('authority') or '').strip()) if by == 'Torre' else True
 
 
 def of_level(levels, level):
@@ -136,7 +144,7 @@ def derive(found):
         if item['type'] == 'NC':
             body['untracked'] = item['state'] == 'not-met' and item['id'] not in violated
         elif item['type'] == 'UDE':
-            body['stale'] = item['state'] == 'observed' and all(
+            body['stale'] = item['state'] in ('observed', 'returned') and all(
                 (found.get(target) or {}).get('state') == 'met' for target in body['violates'])
         elif item['type'] == 'CAUSE' and body['kind'] == 'core':
             reach, _ = reached(found, item['id'])
@@ -149,7 +157,10 @@ def derive(found):
                 not (branch.get('trimmed_by') or branch.get('accepted_by')) for branch in body['branches'])
         elif item['type'] == 'ST':
             validated = body.get('validated') or {}
-            if validated.get('by') != of_level(VALIDATORS, body['level']):
+            refuted = any((found.get(each.get('premise') or '') or {}).get('state') == 'refuted'
+                          for each in body['assumptions'].values() if each.get('premise'))
+            body['reopened_by_premise'] = refuted
+            if refuted or not _validated_at_level(validated, body['level']):
                 item['state'] = 'proposed'
             elif body['strategy'].startswith('INT-'):
                 item['state'] = goal_state(found, body['strategy'])
@@ -192,9 +203,8 @@ def problem_errors(found):
                    for target in item['body']['perpetuates']}
     injections = [item for item in found.values() if item['type'] == 'INJ' and 'body' in item]
     for item in found.values():
-        if item['type'] == 'CAUSE' and 'body' in item:
-            if reached(found, item['id'])[1]:
-                out.append(f'{item["id"]}: the current reality tree has a cycle through it')
+        if item['type'] == 'CAUSE' and 'body' in item and reached(found, item['id'])[1]:
+            out.append(f'{item["id"]}: the current reality tree has a cycle through it')
     for item in cores:
         if item['id'] not in perpetuated:
             out.append(f'{item["id"]}: a core cause no conflict perpetuates (the cloud says why it persists)')
@@ -214,17 +224,43 @@ def problem_errors(found):
             out.append(f'{item["id"]}: a chosen injection with no decision that holds an appraisal')
         for decision in decisions:
             out += [f'{decision}: {line}' for line in appraisal_findings(found, appraisals[decision], item['id'])]
-    for item in found.values():
+    by_parent = {}
+    for item in sorted(found.values(), key=lambda entry: entry['id']):
         if item['type'] == 'ST' and 'body' in item:
             out += [f'{item["id"]}: {line}' for line in node_findings(found, item['body'])]
+            parent_id = item['body'].get('child_of')
+            if parent_id:
+                key = (parent_id, item['body']['tactic'].strip())
+                earlier = by_parent.get(key)
+                if earlier is not None:
+                    out.append(f'{item["id"]}: its tactic duplicates sibling {earlier} under {parent_id}')
+                else:
+                    by_parent[key] = item['id']
+    for item in sorted(found.values(), key=lambda entry: entry['id']):
+        if item['type'] == 'VAL' and 'body' in item and 'nc' in item['body']:
+            target = item['body']['nc']
+            nc = found.get(target)
+            if not nc or nc.get('type') != 'NC' or 'body' not in nc:
+                out.append(f'{item["id"]}: references {target}, which is no condition of the Goal Tree')
     out += orphans(found)
     return out
 
 
+def appraisal_totals(body):
+    """{option: sum(weight * value)} across the appraisal's declared criteria."""
+    weights = {criterion['nc']: criterion['weight'] for criterion in body['criteria']}
+    totals = {option: 0.0 for option in body['options']}
+    for score in body['scores']:
+        if score['option'] in totals and score['nc'] in weights:
+            totals[score['option']] += weights[score['nc']] * score['value']
+    return totals
+
+
 def appraisal_findings(found, body, chosen):
-    """An appraisal's errors: criteria not from conditions or fixed after the scores, an option missing, a chosen
-    option that is not the decided injection."""
+    """An appraisal's errors: criteria not from conditions or fixed after the scores, an option missing, duplicate or
+    undeclared scores, or a chosen option that is not the decided injection or does not win on the weighted criteria."""
     out = []
+    criteria = {criterion['nc'] for criterion in body['criteria']}
     for criterion in body['criteria']:
         if (found.get(criterion['nc']) or {}).get('type') != 'NC':
             out.append(f'its criterion {criterion["nc"]} is no condition of the Goal Tree')
@@ -236,11 +272,29 @@ def appraisal_findings(found, body, chosen):
             out.append(f'its options leave out the {needed} injection')
     if body['chosen'] != chosen or chosen not in body['options']:
         out.append(f'its chosen option is {body["chosen"]}, not the injection it decides, {chosen}')
-    scored = {(score['option'], score['nc']) for score in body['scores']}
+    declared_options = set(body['options'])
+    scored, duplicates, stray = set(), [], []
+    for score in body['scores']:
+        pair = (score['option'], score['nc'])
+        if score['option'] not in declared_options or score['nc'] not in criteria:
+            stray.append(f'{score["option"]}/{score["nc"]}')
+        elif pair in scored:
+            duplicates.append(f'{score["option"]}/{score["nc"]}')
+        scored.add(pair)
+    if stray:
+        out.append(f'scores for undeclared options or criteria: {", ".join(stray)}')
+    if duplicates:
+        out.append(f'duplicate scores: {", ".join(duplicates)}')
     missing = [f'{option}/{criterion["nc"]}' for option in body['options'] for criterion in body['criteria']
                if (option, criterion['nc']) not in scored]
     if missing:
         out.append(f'scores missing: {", ".join(missing)}')
+    elif not duplicates and chosen in declared_options:
+        totals = appraisal_totals(body)
+        beaten = [option for option in body['options'] if option != chosen and totals[option] >= totals[chosen]]
+        if beaten:
+            ranked = ', '.join(f'{option} ({totals[option]:g})' for option in beaten)
+            out.append(f'its chosen option {chosen} ({totals[chosen]:g}) does not beat {ranked} on the weighted criteria')
     return out
 
 
@@ -257,9 +311,70 @@ def node_findings(found, body):
             out.append(f'its parent {parent["id"]} is not one level above')
         if not descends(found, body['strategy'], parent['body']['strategy']):
             out.append(f'its strategy {body["strategy"]} does not descend from its parent\'s, {parent["body"]["strategy"]}')
-    if not is_leaf(body['level']) and (found.get(body['tactic']) or {}).get('state') != 'chosen':
+        if body['tactic'].strip() == parent['body']['tactic'].strip():
+            out.append(f'its tactic repeats its parent {parent["id"]}\'s tactic')
+    if body['level'] == 1:
+        if (found.get(body['tactic']) or {}).get('state') != 'chosen':
+            out.append(f'a level-1 node whose tactic {body["tactic"]} is no chosen injection')
+    elif (not is_leaf(body['level']) and body['tactic'].startswith('INJ-')
+          and (found.get(body['tactic']) or {}).get('state') != 'chosen'):
         out.append(f'a level-{body["level"]} node whose tactic {body["tactic"]} is no chosen injection')
+    premises = [each['premise'] for each in body['assumptions'].values() if each.get('premise')]
+    if not premises:
+        out.append('its assumptions link no premise of the register (P-NN)')
+    for ident in premises:
+        if (found.get(ident) or {}).get('type') != 'P':
+            out.append(f'its assumption premise {ident} is not in the premise register')
+    programs_level = len(VALIDATORS) - 1
+    for target in body.get('decomposes_into', []):
+        work = found.get(target)
+        if not work or work.get('type') != 'WORK':
+            out.append(f'decomposes_into {target} is not a work item')
+            continue
+        if work.get('state') == DONE:
+            out.append(f'decomposes_into {target}, which is no longer active ({work["state"]})')
+        kind = (work.get('body') or {}).get('kind')
+        if body['level'] == programs_level and kind is not None and kind != 'program':
+            out.append(f'decomposes_into {target}, which is not a program ({kind})')
+        elif is_leaf(body['level']) and kind == 'program':
+            out.append(f'decomposes_into {target}, a program on a leaf node')
     return out
+
+
+def _measure_signature(body):
+    threshold = body.get('threshold')
+    return (json.dumps(body.get('measure'), sort_keys=True), body.get('comparator'),
+            float(threshold) if isinstance(threshold, (int, float)) else threshold,
+            json.dumps(body.get('window'), sort_keys=True))
+
+
+def duplicate_measures(found):
+    """[(nc_id, val_id)] where an NC and a VAL declare the exact same measure, comparator, threshold and window."""
+    vals = [(item['id'], _measure_signature(item['body'])) for item in sorted(found.values(), key=lambda entry: entry['id'])
+            if item['type'] == 'VAL' and 'body' in item and 'measure' in item['body']]
+    ncs = [(item['id'], _measure_signature(item['body'])) for item in sorted(found.values(), key=lambda entry: entry['id'])
+           if item['type'] == 'NC' and 'body' in item and 'measure' in item['body']]
+    return [(nc_id, val_id) for nc_id, nc_sig in ncs for val_id, val_sig in vals if nc_sig == val_sig]
+
+
+def unvalidated_needs(found):
+    """Sorted ids of NEED objects still in state `proposed` (awaiting owner validation)."""
+    return sorted(item['id'] for item in found.values() if item['type'] == 'NEED' and item.get('state') == 'proposed')
+
+
+def diagnostics(found):
+    """Audit view of the problem space: gaps, weighted appraisal totals, ST counts per level, NC/VAL duplicates,
+    and unvalidated NEEDs."""
+    levels = {level: 0 for level in range(1, len(VALIDATORS) + 1)}
+    for item in found.values():
+        if item['type'] == 'ST' and 'body' in item:
+            level = item['body']['level']
+            levels[level] = levels.get(level, 0) + 1
+    appraisals = {item['id']: appraisal_totals(item['appraisal'])
+                  for item in sorted(found.values(), key=lambda entry: entry['id'])
+                  if item['type'] == 'D' and item.get('appraisal')}
+    return {'gaps': gaps(found), 'appraisals': appraisals, 'st_levels': levels,
+            'duplicate_measures': duplicate_measures(found), 'unvalidated_needs': unvalidated_needs(found)}
 
 
 def orphans(found):

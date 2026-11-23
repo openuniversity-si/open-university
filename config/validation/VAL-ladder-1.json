@@ -5,13 +5,5 @@
     "NEED-throughput"
   ],
   "owner": "capacity",
-  "measure": {
-    "kind": "merges-per-day"
-  },
-  "comparator": "gte",
-  "threshold": 1000,
-  "window": {
-    "kind": "days",
-    "size": 7
-  }
+  "nc": "NC-throughput"
 }
